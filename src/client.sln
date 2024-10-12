@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35209.166
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "argohost", "argohost\argohost\argohost.csproj", "{88DE07E5-667D-4FE0-9206-AE3714386535}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "argohost.Android", "argohost\argohost.Android\argohost.Android.csproj", "{5DC131A2-78CC-49E2-9277-23CFD784CD2B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "argohost.Desktop", "argohost\argohost.Desktop\argohost.Desktop.csproj", "{09676BC4-8AB0-4489-941D-B85CEB28D803}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "argohost.iOS", "argohost\argohost.iOS\argohost.iOS.csproj", "{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "argohost.Browser", "argohost\argohost.Browser\argohost.Browser.csproj", "{2F715B26-2C25-413D-8071-DBDF5BB83FAB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{88DE07E5-667D-4FE0-9206-AE3714386535}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88DE07E5-667D-4FE0-9206-AE3714386535}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88DE07E5-667D-4FE0-9206-AE3714386535}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88DE07E5-667D-4FE0-9206-AE3714386535}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DC131A2-78CC-49E2-9277-23CFD784CD2B}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{09676BC4-8AB0-4489-941D-B85CEB28D803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09676BC4-8AB0-4489-941D-B85CEB28D803}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09676BC4-8AB0-4489-941D-B85CEB28D803}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09676BC4-8AB0-4489-941D-B85CEB28D803}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CBD173B-0F29-4FAA-92B5-3F75A3DE6ABD}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{2F715B26-2C25-413D-8071-DBDF5BB83FAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F715B26-2C25-413D-8071-DBDF5BB83FAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F715B26-2C25-413D-8071-DBDF5BB83FAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F715B26-2C25-413D-8071-DBDF5BB83FAB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8F2304B2-C2C7-459C-A3A0-C5619BBAED44}
+	EndGlobalSection
+EndGlobal
