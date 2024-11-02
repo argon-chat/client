@@ -16,7 +16,16 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": ["unplugin-icons/types/vue", "node"],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      ":glue/*": [
+        "./public/glue/wwwroot/_framework/*"
+      ],
+    }
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts","dotnet.d.ts"]
 }

@@ -1,12 +1,15 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using ReactiveUI;
+using System.Reactive;
+using WebViewControl;
 
-namespace Argo.Views
+namespace Argon.Views;
+
+public partial class MainWindow : Window
 {
-    public partial class MainWindow : Window
+    public MainWindow()
     {
-        public MainWindow()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

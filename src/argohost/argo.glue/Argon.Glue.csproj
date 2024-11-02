@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0-browser</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RunAOTCompilation>true</RunAOTCompilation>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<PublishTrimmed>true</PublishTrimmed>
+
+		<IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
+		<IlcDisableReflection>false</IlcDisableReflection>
+		<NativeDebugSymbols>false</NativeDebugSymbols>
+		<StripSymbols>true</StripSymbols>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<TrimmerRootDescriptor Include="ILLink.Descriptors.xml" />
+		<RuntimeHostConfigurationOption Include="ArgumentList.DisableGenerics" Value="true" Trim="true" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\..\server\src\Argon.Contracts\Argon.Contracts.csproj" />
+	</ItemGroup>
+</Project>

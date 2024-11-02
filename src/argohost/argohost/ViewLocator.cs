@@ -1,9 +1,9 @@
 using System;
-using Argo.ViewModels;
+using Argon.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 
-namespace Argo
+namespace Argon
 {
     using ViewModels;
 

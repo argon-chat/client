@@ -1,88 +1,95 @@
 <template>
-    <div class="video-control">
+    <div class="video-control" style="height: 90vh; margin: 50px;">
         <video ref="localVideo" autoplay playsinline class="local-video"></video>
         <div class="controls">
-            <label for="videoSource">Video Source</label>
+            <label for="videoSource">Select Video Source:</label>
             <select v-model="selectedVideoSource" @change="switchVideoSource" id="videoSource">
                 <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
                     {{ device.label || 'Camera ' + (videoDevices.indexOf(device) + 1) }}
                 </option>
             </select>
+
+            <label for="audioSource">Select Audio Source:</label>
+            <select v-model="selectedAudioSource" @change="switchAudioSource" id="audioSource">
+                <option v-for="device in audioDevices" :key="device.deviceId" :value="device.deviceId">
+                    {{ device.label || `Microphone ${device.deviceId}` }}
+                </option>
+            </select>
         </div>
-        <div v-for="(remoteStream, index) in remoteStreams" :key="index" class="remote-video-container">
+
+        <div v-for="(track, index) in remoteTracks" :key="index" class="remote-video-container">
             <video :ref="setRemoteVideoRef(index)" autoplay playsinline class="remote-video"></video>
         </div>
-        <div class="controls">
+
+        <div class="controls" v-if="isConnectedToLive">
             <button class="toggle-video-btn" @click="startVideo">Start Video</button>
             <button class="toggle-video-btn" @click="stopVideo">Stop Video</button>
+            <button class="toggle-mute-btn" @click="toggleMute">{{ isMuted ? 'Unmute' : 'Mute' }}</button>
+        </div>
+
+        <div class="controls" v-else>
+            <Input id="token" placeholder="token" type="text" v-model="tokenRef" />
+            <UiButton @click="beginConnect">
+                Sign In
+            </UiButton>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, nextTick } from 'vue';
-import * as mediasoupClient from 'mediasoup-client';
+import { ref, reactive, onMounted } from 'vue';
+import { Room, LocalVideoTrack, LocalAudioTrack, Track } from 'livekit-client';
+import UiButton from './ui/button/Button.vue';
+import Input from './ui/input/Input.vue';
 
 const localVideo = ref<HTMLVideoElement | null>(null);
 const localStream = ref<MediaStream | null>(null);
-const remoteStreams = reactive<MediaStream[]>([]);
-const videoDevices = ref<MediaDeviceInfo[]>([]);
+const remoteTracks = reactive<Track[]>([]);
+const room = ref<Room | null>(null);
+const isMuted = ref(false);
+const isConnectedToLive = ref(false);
+const tokenRef = ref("");
+
+const selectedAudioSource = ref<string>('');
 const selectedVideoSource = ref<string | null>(null);
 
-let device: mediasoupClient.Device;
-let sendTransport: mediasoupClient.types.Transport;
-let recvTransport: mediasoupClient.types.Transport;
+const audioDevices = ref<MediaDeviceInfo[]>([]);
+const videoDevices = ref<MediaDeviceInfo[]>([]);
 
-const signalingSocket = new WebSocket('wss://localhost:4443/?roomId=anus&peerId=t1etd8ou&consumerReplicas=undefined', "protoo");
-
-onMounted(async () => {
-    await getVideoDevices();
-
-    signalingSocket.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-        console.log(event.type);
-        switch (data.type) {
-            case 'routerRtpCapabilities':
-                device = new mediasoupClient.Device();
-                await device.load({ routerRtpCapabilities: data.routerRtpCapabilities });
-                createTransports();
-                break;
-
-            case 'createdTransport':
-                if (data.direction === 'send') {
-                    sendTransport = device.createSendTransport(data.transportOptions);
-                    setupSendTransport();
-                } else if (data.direction === 'recv') {
-                    recvTransport = device.createRecvTransport(data.transportOptions);
-                    setupRecvTransport();
-                }
-                break;
-
-            case 'connectedTransport':
-                break;
-
-            case 'produced':
-                break;
-
-            case 'newConsumer':
-                await consumeRemoteStream(data.consumerParameters);
-                break;
-        }
-    };
-    signalingSocket.send(JSON.stringify({ type: 'getRouterRtpCapabilities' }));
+onMounted(() => {
+    getDevices();
 });
 
-const getVideoDevices = async () => {
+async function beginConnect() {
+    room.value = new Room();
+    await room.value.connect('wss://argon-f14ic5ia.livekit.cloud', tokenRef.value);
+    isConnectedToLive.value = true;
+
+    room.value.on('trackSubscribed', (track, publication, participant) => {
+        console.log({ track, publication, participant });
+        if (track.kind === Track.Kind.Video) {
+            remoteTracks.push(track);
+        }
+    });
+
+    await startVideo();
+}
+
+const getDevices = async () => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     videoDevices.value = devices.filter(device => device.kind === 'videoinput');
+    audioDevices.value = devices.filter(device => device.kind === 'audioinput');
 
-    if (videoDevices.value.length > 0) {
+    if (videoDevices.value.length && !selectedVideoSource.value) {
         selectedVideoSource.value = videoDevices.value[0].deviceId;
+    }
+    if (audioDevices.value.length && !selectedAudioSource.value) {
+        selectedAudioSource.value = audioDevices.value[0].deviceId;
     }
 };
 
 const switchVideoSource = async () => {
-    if (!selectedVideoSource.value) return;
+    if (!selectedVideoSource.value || !room.value) return;
 
     const constraints = {
         video: { deviceId: { exact: selectedVideoSource.value } },
@@ -96,73 +103,31 @@ const switchVideoSource = async () => {
         localVideo.value.srcObject = localStream.value;
     }
 
-    if (sendTransport && localStream.value) {
-        const videoTrack = localStream.value.getVideoTracks()[0];
-        const audioTrack = localStream.value.getAudioTracks()[0];
-        await sendTransport.produce({ track: videoTrack });
-        await sendTransport.produce({ track: audioTrack });
-    }
+    const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
+    await room.value.localParticipant.publishTrack(videoTrack);
 };
 
-function createTransports() {
-    signalingSocket.send(JSON.stringify({ type: 'createWebRtcTransport', direction: 'send' }));
-    signalingSocket.send(JSON.stringify({ type: 'createWebRtcTransport', direction: 'recv' }));
-}
-function setupSendTransport() {
-    sendTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-        signalingSocket.send(JSON.stringify({
-            type: 'connectTransport',
-            transportId: sendTransport.id,
-            dtlsParameters,
-        }));
+const switchAudioSource = async () => {
+    if (!selectedAudioSource.value || !room.value) return;
 
-        signalingSocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'connectedTransport' && data.transportId === sendTransport.id) {
-                callback();
-            }
-        };
-    });
+    const constraints = {
+        audio: { deviceId: { exact: selectedAudioSource.value } }
+    };
 
-    sendTransport.on('produce', ({ kind, rtpParameters }, callback, errback) => {
-        signalingSocket.send(JSON.stringify({
-            type: 'produce',
-            transportId: sendTransport.id,
-            kind,
-            rtpParameters,
-        }));
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const audioTrack = new LocalAudioTrack(stream.getAudioTracks()[0]);
 
-        signalingSocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'produced') {
-                callback({ id: data.producerId });
-            }
-        };
-    });
-}
+    room.value.localParticipant.unpublishTrack(room.value.localParticipant.getTrackPublication(Track.Source.Microphone)?.track!);
 
-function setupRecvTransport() {
-    recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-        signalingSocket.send(JSON.stringify({
-            type: 'connectTransport',
-            transportId: recvTransport.id,
-            dtlsParameters,
-        }));
+    await room.value.localParticipant.publishTrack(audioTrack);
+};
 
-        signalingSocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'connectedTransport' && data.transportId === recvTransport.id) {
-                callback();
-            }
-        };
-    });
-}
 const startVideo = async () => {
-    if (!selectedVideoSource.value) return;
+    if (!selectedVideoSource.value || !room.value) return;
 
     const constraints = {
         video: { deviceId: { exact: selectedVideoSource.value } },
-        audio: true
+        audio: { deviceId: { exact: selectedAudioSource.value } }
     };
 
     localStream.value = await navigator.mediaDevices.getUserMedia(constraints);
@@ -171,40 +136,40 @@ const startVideo = async () => {
         localVideo.value.srcObject = localStream.value;
     }
 
-    if (sendTransport && localStream.value) {
-        const videoTrack = localStream.value.getVideoTracks()[0];
-        const audioTrack = localStream.value.getAudioTracks()[0];
+    const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
+    const audioTrack = new LocalAudioTrack(localStream.value.getAudioTracks()[0]);
 
-        await sendTransport.produce({ track: videoTrack });
-        await sendTransport.produce({ track: audioTrack });
-    }
+    await room.value.localParticipant.publishTrack(videoTrack);
+    await room.value.localParticipant.publishTrack(audioTrack);
 };
+
 const stopVideo = () => {
     localStream.value?.getTracks().forEach((track) => track.stop());
     if (localVideo.value) localVideo.value.srcObject = null;
 };
-async function consumeRemoteStream(consumerParameters: any) {
-    const consumer = await recvTransport.consume({
-        id: consumerParameters.id,
-        producerId: consumerParameters.producerId,
-        kind: consumerParameters.kind,
-        rtpParameters: consumerParameters.rtpParameters,
-    });
 
-    const remoteStream = new MediaStream([consumer.track]);
-    remoteStreams.push(remoteStream);
+const toggleMute = async () => {
+    if (!room.value) return;
 
-    signalingSocket.send(JSON.stringify({
-        type: 'resumeConsumer',
-        consumerId: consumer.id,
-    }));
-}
+    isMuted.value = !isMuted.value;
+
+    const audioTrack = room.value.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+    if (audioTrack) {
+        if (isMuted.value) {
+            audioTrack.mute();
+        } else {
+            audioTrack.unmute();
+        }
+    }
+};
+
 const setRemoteVideoRef = (index: number) => (el: HTMLVideoElement | null) => {
-    if (el && remoteStreams[index]) {
-        el.srcObject = remoteStreams[index];
+    if (el && remoteTracks[index]) {
+        el.srcObject = new MediaStream([remoteTracks[index].mediaStreamTrack]);
     }
 };
 </script>
+
 
 <style scoped>
 .video-control {
@@ -217,6 +182,7 @@ const setRemoteVideoRef = (index: number) => (el: HTMLVideoElement | null) => {
     padding: 20px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
+
 .local-video {
     width: 400px;
     height: 300px;
@@ -224,9 +190,11 @@ const setRemoteVideoRef = (index: number) => (el: HTMLVideoElement | null) => {
     object-fit: cover;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
+
 .remote-video-container {
     margin-top: 20px;
 }
+
 .remote-video {
     width: 100%;
     max-width: 800px;
@@ -234,17 +202,20 @@ const setRemoteVideoRef = (index: number) => (el: HTMLVideoElement | null) => {
     object-fit: cover;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
+
 .controls {
     margin-top: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
+
 label {
     font-size: 14px;
     color: white;
     margin-right: 10px;
 }
+
 select {
     padding: 5px;
     font-size: 14px;
@@ -253,7 +224,9 @@ select {
     border-radius: 5px;
     outline: none;
 }
-button.toggle-video-btn {
+
+button.toggle-video-btn,
+button.toggle-mute-btn {
     margin-top: 10px;
     padding: 10px 20px;
     background-color: #7289da;
@@ -263,7 +236,9 @@ button.toggle-video-btn {
     font-size: 14px;
     cursor: pointer;
 }
-button.toggle-video-btn:hover {
+
+button.toggle-video-btn:hover,
+button.toggle-mute-btn:hover {
     background-color: #5a6aa9;
 }
 </style>
