@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Argo.ViewModels
+namespace Argon.ViewModels
 {
     public abstract class ViewModelBase : ObservableObject
     {

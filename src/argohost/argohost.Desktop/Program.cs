@@ -1,8 +1,8 @@
-﻿namespace Argo.Desktop;
+﻿namespace Argon.Desktop;
 
 using System;
 using Avalonia;
-using Avalonia.WebView.Desktop;
+using Avalonia.ReactiveUI;
 
 internal sealed class Program
 {
@@ -10,14 +10,17 @@ internal sealed class Program
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
     [STAThread]
-    public static void Main(string[] args) => BuildAvaloniaApp()
-        .StartWithClassicDesktopLifetime(args);
+    public static void Main(string[] args)
+    {
+        BuildAvaloniaApp()
+            .StartWithClassicDesktopLifetime(args);
+    }
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .UseReactiveUI()
             .WithInterFont()
-            .LogToTrace()
-            .UseDesktopWebView();
+            .LogToTrace();
 }

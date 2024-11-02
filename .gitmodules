@@ -1,0 +1,3 @@
+[submodule "src/argohost/deps/WebView.Desktop"]
+	path = src/argohost/deps/WebView.Desktop
+	url = https://github.com/argon-chat/Argon.WebView.git

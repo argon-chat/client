@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Argo.ViewModels
+namespace Argon.ViewModels
 {
     public partial class MainViewModel : ViewModelBase
     {

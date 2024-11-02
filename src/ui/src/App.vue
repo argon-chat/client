@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import VideoControl from './components/VideoControl.vue';
+import { useColorMode } from '@vueuse/core'
+
+let mode = useColorMode();
+
+mode.value = 'auto';
 </script>
 
 <template>
-  <VideoControl/>
+   <RouterView /> 
 </template>
 
 <style scoped>
