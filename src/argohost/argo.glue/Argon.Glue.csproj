@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0-browser</TargetFramework>
+		<TargetFramework>net9.0-browser</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<RunAOTCompilation>true</RunAOTCompilation>
@@ -9,11 +9,13 @@
 		<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<PublishTrimmed>true</PublishTrimmed>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
 		<IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
 		<IlcDisableReflection>false</IlcDisableReflection>
 		<NativeDebugSymbols>false</NativeDebugSymbols>
 		<StripSymbols>true</StripSymbols>
+		<BlazorCacheBootResources>false</BlazorCacheBootResources>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -22,5 +24,10 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\..\..\..\server\src\Argon.Contracts\Argon.Contracts.csproj" />
+	  <ProjectReference Include="..\Argon.Glue.Core\Argon.Glue.Core.csproj" />
+	  <ProjectReference Include="..\argon.glue.generator\Argon.Glue.GeneratorLayers.csproj">
+		 <OutputItemType>Analyzer</OutputItemType>
+		 <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+	  </ProjectReference>
 	</ItemGroup>
 </Project>
