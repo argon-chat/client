@@ -1,18 +1,16 @@
-﻿namespace argo.glue;
+﻿namespace Argon.Glue;
 
-using ActualLab.Fusion;
 using ActualLab.Fusion.Trimming;
 using ActualLab.Interception.Trimming;
-using ActualLab.Reflection;
-using ActualLab.Rpc;
-using ActualLab.Rpc.Clients;
 using ActualLab.Trimming;
-using Argon.Contracts;
-using Microsoft.Extensions.DependencyInjection;
+using Contracts;
+using Core;
 
-public static class FusionClient
+public static partial class FusionCore
 {
-    public static ValueTask Create(string endpoint)
+    internal static IServiceProvider RootProvider { get; private set; }
+    [JSExport]
+    public static Task Create(string endpoint)
     {
         CodeKeeper.Set<ProxyCodeKeeper, FusionProxyCodeKeeper>();
         if (RuntimeCodegen.NativeMode != RuntimeCodegenMode.DynamicMethods)
@@ -21,12 +19,21 @@ public static class FusionClient
             .AddFusion(fusion =>
             {
                 fusion.Rpc.AddClient<IUserAuthorization>();
+                fusion.Rpc.AddClient<IUserInteraction>();
             })
             .AddRpc(rpc =>
             {
-                rpc.AddWebSocketClient();
+                rpc.AddWebSocketClient("localhost:5100");
             });
-        return ValueTask.CompletedTask;
-        
+
+        RootProvider = services.BuildServiceProvider();
+        Interop.OnSetup(RootProvider);
+        return Task.CompletedTask;
     }
 }
+
+[JavaScriptLayer<IUserAuthorization>()]
+public static partial class UserAuthorization;
+
+[JavaScriptLayer<IUserInteraction>()]
+public static partial class UserInteraction;

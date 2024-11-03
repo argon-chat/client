@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+    <RtTargetFile>$(ProjectDir)Scripts\app\Server1.ts</RtTargetFile>
+		<RtConfigurationMethod>argon.glue.gen.TypingsConfiguration.Configure</RtConfigurationMethod>
+		<RtDivideTypesAmongFiles>true</RtDivideTypesAmongFiles>
+		<RtTargetDirectory>$(ProjectDir)..\..\ui\src\lib\glue</RtTargetDirectory>
+		<RtBypassTypeScriptCompilation>false</RtBypassTypeScriptCompilation>				
+		<RtDisable>false</RtDisable>
+	</PropertyGroup>
+</Project>

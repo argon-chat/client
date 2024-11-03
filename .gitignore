@@ -400,3 +400,5 @@ FodyWeavers.xsd
 src/ui/public/glue/
 
 src/ui/glue/
+
+src/ui/src/lib/glue/

@@ -10,8 +10,9 @@ export const useGlueStore = defineStore("glue", () => {
     try {
       if (!isInitialized.value) {
         dotnetRuntime.value = await init();
-        dotnetRuntime.value.getAssemblyExports("argo.glue").then(x => {
-          (window as any).glue = x.argo.glue;
+        (window as any).gluecode = dotnetRuntime.value;
+        dotnetRuntime.value.getAssemblyExports("Argon.Glue").then(x => {
+          (window as any).glue = x;
           console.log(x);
         });
         isInitialized.value = true;
