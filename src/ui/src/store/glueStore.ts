@@ -2,9 +2,16 @@ import { init, GlueRuntime } from "@/lib/glue";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
+export interface IGlueLayout {
+  FusionCore: { BeginConnect(url: string): Promise<void> };
+  UserAuthorization: IUserAuthorization;
+  UserInteraction: IUserInteraction;
+}
+
 export const useGlueStore = defineStore("glue", () => {
   const dotnetRuntime = ref(null as GlueRuntime | null);
   const isInitialized = ref(false);
+  const transport = ref({} as IGlueLayout);
 
   async function initializeGlueRuntime() {
     try {
@@ -12,8 +19,9 @@ export const useGlueStore = defineStore("glue", () => {
         dotnetRuntime.value = await init();
         (window as any).gluecode = dotnetRuntime.value;
         dotnetRuntime.value.getAssemblyExports("Argon.Glue").then(x => {
-          (window as any).glue = x;
           console.log(x);
+          (window as any).glue = x.Argon.Glue;
+          transport.value = x.Argon.Glue;
         });
         isInitialized.value = true;
       }
@@ -22,5 +30,5 @@ export const useGlueStore = defineStore("glue", () => {
     }
   }
 
-  return { initializeGlueRuntime };
+  return { initializeGlueRuntime, transport };
 });

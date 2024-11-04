@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<GenOutput>$(MSBuildProjectDirectory)</GenOutput>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<CompilerVisibleProperty Include="GenOutput" />
+		<ProjectReference Include="..\..\..\..\server\src\Argon.Contracts\Argon.Contracts.csproj" />
+		<ProjectReference Include="..\Argon.Glue.Core\Argon.Glue.Core.csproj" />
+		<ProjectReference Include="..\argon.glue.generator\Argon.Glue.GeneratorLayers.csproj">
+			<OutputItemType>Analyzer</OutputItemType>
+			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+		</ProjectReference>
+	</ItemGroup>
+</Project>
