@@ -19,15 +19,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Include="..\argon.glue.bridge\*.generated.cs" Link="generated\%(Filename)%(Extension)" />
+		<ProjectReference Include="..\argon.glue.bridge\Argon.Glue.Bridge.csproj">
+			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+		</ProjectReference>
+	</ItemGroup>
+
+	<ItemGroup>
 		<TrimmerRootDescriptor Include="ILLink.Descriptors.xml" />
 		<RuntimeHostConfigurationOption Include="ArgumentList.DisableGenerics" Value="true" Trim="true" />
 	</ItemGroup>
 	<ItemGroup>
-	  <ProjectReference Include="..\..\..\..\server\src\Argon.Contracts\Argon.Contracts.csproj" />
-	  <ProjectReference Include="..\Argon.Glue.Core\Argon.Glue.Core.csproj" />
-	  <ProjectReference Include="..\argon.glue.generator\Argon.Glue.GeneratorLayers.csproj">
-		 <OutputItemType>Analyzer</OutputItemType>
-		 <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-	  </ProjectReference>
+		<ProjectReference Include="..\..\..\..\server\src\Argon.Contracts\Argon.Contracts.csproj" />
+		<ProjectReference Include="..\Argon.Glue.Core\Argon.Glue.Core.csproj" />
 	</ItemGroup>
 </Project>

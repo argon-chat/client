@@ -9,8 +9,9 @@ using Core;
 public static partial class FusionCore
 {
     internal static IServiceProvider RootProvider { get; private set; }
+
     [JSExport]
-    public static Task Create(string endpoint)
+    public static Task BeginConnect(string endpoint)
     {
         CodeKeeper.Set<ProxyCodeKeeper, FusionProxyCodeKeeper>();
         if (RuntimeCodegen.NativeMode != RuntimeCodegenMode.DynamicMethods)
@@ -23,7 +24,7 @@ public static partial class FusionCore
             })
             .AddRpc(rpc =>
             {
-                rpc.AddWebSocketClient("localhost:5100");
+                rpc.AddWebSocketClient(endpoint);
             });
 
         RootProvider = services.BuildServiceProvider();
@@ -32,8 +33,8 @@ public static partial class FusionCore
     }
 }
 
+
 [JavaScriptLayer<IUserAuthorization>()]
 public static partial class UserAuthorization;
-
 [JavaScriptLayer<IUserInteraction>()]
 public static partial class UserInteraction;
