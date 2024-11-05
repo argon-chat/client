@@ -3,20 +3,20 @@ namespace Argon.Views;
 using Avalonia.Controls;
 using System.ComponentModel;
 using WebViewControl;
-using System;
 using System.Reactive;
 using Avalonia.Input;
-using Avalonia.Threading;
+using Glue.Core;
 using ReactiveUI;
-using Xilium.CefGlue;
 
 public partial class MainView : UserControl
 {
     public MainView()
     {
         InitializeComponent();
-        DataContext = new MainWindowViewModel(this.FindControl<WebView>("webview"));
+        var browser = this.FindControl<WebView>("webview");
+        DataContext = new MainWindowViewModel(browser); 
     }
+
 
     private void OnTitleBarPointerPressed(object sender, PointerPressedEventArgs e)
     {
@@ -26,8 +26,6 @@ public partial class MainView : UserControl
 class MainWindowViewModel : ReactiveObject
 {
     private readonly WebView _webview;
-
-    public MainWindowViewModel()  { }
     private string address;
     private string currentAddress;
 
@@ -40,6 +38,7 @@ class MainWindowViewModel : ReactiveObject
         webview.DisableFileDialogs = true;
 
         webview.KeyUp += OnKeyUp;
+        webview.JavascriptContextCreated += OnWebViewJsInit;
 
         NavigateCommand = ReactiveCommand.Create(() => {
             CurrentAddress = Address;
@@ -57,6 +56,13 @@ class MainWindowViewModel : ReactiveObject
         ForwardCommand = ReactiveCommand.Create(webview.GoForward);
 
         PropertyChanged += OnPropertyChanged!;
+    }
+
+    // indicate about app run in host webview
+    private void OnWebViewJsInit(string _)
+    {
+        _webview.Browser.ExecuteJavaScript("window['isEmbedded'] = true;");
+        _webview.Browser.ExecuteJavaScript($"window['version'] = '{GlobalVersion.InformationalVersion}';");
     }
 
     private bool IsDevToolsOpened;

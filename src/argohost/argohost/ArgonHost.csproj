@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Argon.Glue.Core\Argon.Glue.Core.csproj" />
     <ProjectReference Include="..\deps\WebView.Desktop\WebViewControl.Avalonia\WebViewControl.Avalonia.csproj" />
   </ItemGroup>
 </Project>
