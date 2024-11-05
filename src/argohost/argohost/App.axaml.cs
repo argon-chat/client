@@ -1,10 +1,13 @@
 namespace Argon;
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using System.Drawing;
+using Avalonia.Input;
 using ViewModels;
 using Views;
 using WebViewControl;
@@ -26,11 +29,11 @@ public partial class App : Application
         //disable-gpu-compositing
         //enable-low-end-device-mode
         "disable-offer-store-unmasked-wallet-cards",
-        "memory-pressure-off",
+        "memory-pressure-on", // TODO settings
         "force-high-performance-gpu", // TODO
         "no-sandbox",
         "disable-backing-store-limit", // TODO
-        "disable-web-security", // Õ¿’”…  Œ–—€
+        "disable-web-security",
         "disable-sync",
         "disable-breakpad",
         "disable-print-preview",
@@ -53,7 +56,8 @@ public partial class App : Application
         "disable-speech-synthesis-api",
         "disable-gamepad-api",
         "disable-motion-sensors",
-        "disable-application-cache"
+        "disable-application-cache",
+        "enable-media-stream"
     ];
 
     public override void Initialize()
@@ -66,8 +70,6 @@ public partial class App : Application
         foreach (var @switch in Switches) 
             WebView.Settings.AddCommandLineSwitch(@switch, null);
         AvaloniaXamlLoader.Load(this);
-
-        this.AttachDevTools();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -89,5 +91,27 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void NativeMenuItem_Restore_OnClick(object? sender, EventArgs e)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: not null
+            } lifetime)
+            lifetime.MainWindow.Show();
+        else
+            Debug.WriteLine($"Failed restore app");
+    }
+
+    private void NativeMenuItem_Exit_OnClick(object? sender, EventArgs e)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: not null
+            } lifetime)
+            lifetime.Shutdown();
+        else
+            Debug.WriteLine($"Failed exit app");
     }
 }
