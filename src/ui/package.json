@@ -26,17 +26,20 @@
     "shadcn-vue": "^0.10.5",
     "tailwind-merge": "^2.5.3",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.170.0",
     "tone": "^15.0.4",
     "ui-thing": "^0.1.28",
     "vaul-vue": "^0.2.0",
     "vue": "^3.5.10",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "vue-sonner": "^1.2.5"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.8",
     "@iconify-json/radix-icons": "^1.2.1",
     "@iconify/vue": "^4.1.2",
     "@types/node": "^22.7.5",
+    "@types/three": "^0.169.0",
     "@vitejs/plugin-vue": "^5.1.4",
     "autoprefixer": "^10.4.20",
     "tailwindcss": "^3.4.13",

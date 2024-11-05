@@ -6,7 +6,14 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null);
   const isAuthenticated = ref(false);
 
-  const login = async (phone: string) => {
+  const login = async (email: string, pass: string) => { 
+    isAuthenticated.value = true;
+  };
+  const register = async (data: IRegisterRequest) => { 
+    isAuthenticated.value = true;
+  };
+
+ /* const login = async (phone: string) => {
 
     isAuthenticated.value = true;
     return;
@@ -32,7 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Login failed:', error);
       throw error;
     }
-  };
+  };*/
 
   const logout = () => {
     user.value = null;
@@ -56,5 +63,6 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     restoreSession,
+    register
   };
 });
