@@ -3,13 +3,26 @@
              xmlns:local="using:Argon"
              x:Class="Argon.App"
              RequestedThemeVariant="Dark">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
-
-    <Application.DataTemplates>
+             <TrayIcon.Icons>
+                 <TrayIcons>
+                     <TrayIcon Icon="/Assets/avalonia-logo.ico"
+                               ToolTipText="Argon App">
+                         <TrayIcon.Menu>
+                             <NativeMenu>
+                                 <NativeMenuItem Click="NativeMenuItem_Restore_OnClick" Header="Open App"/>
+                                 <NativeMenuItemSeparator />
+								 <NativeMenuItem Click="NativeMenuItem_Exit_OnClick" Header="Quit"/>
+                             </NativeMenu>
+                         </TrayIcon.Menu>
+                     </TrayIcon>
+                 </TrayIcons>
+             </TrayIcon.Icons>
+	<Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
 
     <Application.Styles>
         <FluentTheme />
+
     </Application.Styles>
 </Application>
