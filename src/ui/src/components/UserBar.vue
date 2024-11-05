@@ -22,29 +22,34 @@
           <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
           <Headphones v-else class="w-5 h-5" />
         </button>
-        
+
       </div>
     </div>
     <transition name="slide-up">
-      <div
-        v-show="server.isConnected"
-        class="connection-card absolute transform text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
-        style="bottom: 100%; margin-bottom: -5px;"
-      >
-        <div class="flex items-center space-x-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Signal class="w-4 h-4 text-green-500" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{{ server.ping }}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <span class="font-semibold">{{ server.connectedChannel.name }}</span>
+      <div>
+        <div v-show="server.isConnected"
+          class="connection-card absolute transform text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
+          style="bottom: 100%; margin-bottom: -5px;">
+          <div class="flex items-center space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Signal class="w-4 h-4 text-green-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{{ server.ping }}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <span class="font-semibold">{{ server.connectedChannel.name }}</span>
+          </div>
+          <span class="text-xs text-gray-400 mt-1">Connected</span>
         </div>
-        <span class="text-xs text-gray-400 mt-1">Connected</span>
+        <audio id="music" style="display: none;" controls crossorigin="anonymous"></audio>
+	<div id="visbox" class="audio-visualizer absolute left-1/2 transform -translate-x-1/2 pointer-events-none px-4" style="z-index: -1;
+    width: 100px;bottom: 55px;">
+		<canvas id="visCanvas"></canvas>
+	</div>
       </div>
     </transition>
   </div>
@@ -56,6 +61,7 @@ import { useSystemStore } from "@/store/systemStore";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'lucide-vue-next';
 import { useServerStore } from "@/store/serverStore";
+
 const sys = useSystemStore();
 const server = useServerStore();
 const user = ref({
@@ -64,14 +70,20 @@ const user = ref({
   isOnline: true,
 });
 onMounted(() => {
-  setInterval(() => {
-    server.isConnected = !server.isConnected;
-  }, 2000);
+  server.isConnected = true;
 })
-
 </script>
 
 <style scoped>
+.audio-visualizer {
+  z-index: 3;
+  display: block;
+  width: 200px !important;
+  height: 59px !important;
+  margin-left: -20px !important;
+
+}
+
 .user-bar {
   background-color: #2f3136;
   border-radius: 15px;
