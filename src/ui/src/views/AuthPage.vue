@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import UserAuthForm from '@/components/UserAuthForm.vue'
-import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
 import { onMounted, ref } from 'vue';
+
+const quotes = [
+    { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
+    { text: "Попробуй перед сном читать в зеркало заклинание \"завалиебало завалиебало завалиебало\"", author: "Татарин" },
+    { text: "Бля я стану самым сильным питон разработчиком. Но пока только читаю резеро.", author: "Баров" },
+    { text: "У тебя же нет мамы, прости", author: "Ефим" }
+];
+const randomQuote = quotes[Math.floor(Math.random()*quotes.length)];
 
 onMounted(() => {
     const el = document.querySelector("#background") as any;
@@ -43,7 +49,7 @@ onMounted(() => {
         </a>-->
         <div class="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
             <div class="absolute inset-0 bg-zinc-900" id="background" style="
-            background-image: url(https://i.pinimg.com/originals/69/a4/da/69a4daafa32cc769784b6afba19800f5.jpg);
+            background-image: url(https://i.pinimg.com/originals/e1/ab/c9/e1abc95c09b5f59ae760038b3be7598c.jpg);
             background-repeat: no-repeat;
             background-size: cover;
             background-position: center;
@@ -58,37 +64,16 @@ onMounted(() => {
             <div class="relative z-20 mt-auto">
                 <blockquote class="space-y-2">
                     <p class="text-lg">
-                        &ldquo;Если намочить руку — то она будет мокрая.&rdquo;
+                        &ldquo;{{ randomQuote.text }}.&rdquo;
                     </p>
                     <footer class="text-sm">
-                        Арам
+                        {{  randomQuote.author }}
                     </footer>
                 </blockquote>
             </div>
         </div>
         <div class="lg:p-8">
-            <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-                <div class="flex flex-col space-y-2 text-center">
-                    <h1 class="text-2xl font-semibold tracking-tight">
-                        Login into an account
-                    </h1>
-                    <p class="text-sm text-muted-foreground">
-                        Enter your email below to login your account
-                    </p>
-                </div>
-                <UserAuthForm />
-                <!-- <p class="px-8 text-center text-sm text-muted-foreground">
-                    By clicking continue, you agree to our
-                    <a class="underline underline-offset-4 hover:text-primary">
-                        Terms of Service
-                    </a>
-                    and
-                    <a href="/privacy" class="underline underline-offset-4 hover:text-primary">
-                        Privacy Policy
-                    </a>
-                    .
-                </p>-->
-            </div>
+            <UserAuthForm />
         </div>
 
     </div>

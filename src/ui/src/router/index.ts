@@ -4,6 +4,7 @@ import LoginPage from '../views/AuthPage.vue';
 import Dashboard from '../views/MainPage.vue';
 import MasterView from '../views/MasterView.vue';
 import CreateOrJoin from '../views/CreateOrJoin.vue';
+import { before } from 'node:test';
 const routes = [
   {
     path: '/login',
@@ -26,8 +27,13 @@ const routes = [
     path: '/master',
     name: 'MasterView',
     component: MasterView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true }
   },
+  {
+    path: '/',
+    name: 'Home',
+    meta: { requiresAuth: true, redirectTo: '/master' }
+  }
 ];
 
 const router = createRouter({
@@ -39,7 +45,9 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'Login' });
-  } else {
+  } else if (to.meta.redirectTo) {
+    next({ path: to.meta.redirectTo as string });
+  }else {
     next();
   }
 });
