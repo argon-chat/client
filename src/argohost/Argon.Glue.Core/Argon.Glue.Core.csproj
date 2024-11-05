@@ -10,4 +10,9 @@
 	<ItemGroup>
 		<PackageReference Include="ActualLab.Fusion" Version="9.5.52" />
 	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="GitVersion.MsBuild" Version="5.12">
+			<PrivateAssets>All</PrivateAssets>
+		</PackageReference>
+	</ItemGroup>
 </Project>
