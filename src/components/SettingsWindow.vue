@@ -1,0 +1,121 @@
+<template>
+    <Drawer :open="windows.settingsOpen" :dismissible="false">
+        <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40">
+            <DrawerHeader class="flex items-center justify-between">
+                <div>
+                    <DrawerTitle>Settings</DrawerTitle>
+                    <DrawerDescription>Manage your account and preferences</DrawerDescription>
+                </div>
+                <button @click="windows.settingsOpen = false" class="close-button">
+                    <CircleXIcon class="w-10 h-10" />
+                </button>
+            </DrawerHeader>
+
+            <div class="settings-layout justify-center flex min-h-full space-x-4">
+                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg">
+                    <Button v-for="category in categories" :key="category.id"
+                        :variant=" selectedCategory !== category.id ? 'ghost' : 'default'"
+                        @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md">
+                        {{ category.name }}
+                    </Button>
+                </nav>
+                <div class="settings-content w-1/2 p-6  text-white ">
+                    <component :is="selectedCategoryComponent" />
+                </div>
+            </div>
+        </DrawerContent>
+    </Drawer>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { Button } from '@/components/ui/button';
+import { useWindow } from '@/store/windowStore';
+import { CircleXIcon } from 'lucide-vue-next';
+import VoiceVideoSettings from '@/components/settings/VoiceAndVideo.vue';
+import ProfileSettings from '@/components/settings/ProfileSettings.vue';
+import ConnectedDevices from '@/components/settings/ConnectedDevices.vue'
+
+const windows = useWindow();
+
+const categories = ref([
+    { id: 'account', name: 'Account' },
+    { id: 'appearance', name: 'Appearance' },
+    { id: 'notifications', name: 'Notifications' },
+    { id: 'privacy', name: 'Privacy' },
+    { id: 'devices', name: 'Devices' },
+    { id: 'voice_video', name: 'Voice & Video' }, 
+]);
+
+const selectedCategory = ref('account');
+
+const categoryComponents = {
+    account: ProfileSettings,
+    appearance: {
+        template: `<div><h2 class="text-xl font-bold">Appearance Settings</h2><p>Customize the look and feel.</p></div>`
+    },
+    notifications: {
+        template: `<div><h2 class="text-xl font-bold">Notifications Settings</h2><p>Set up your notifications.</p></div>`
+    },
+    privacy: {
+        template: `<div><h2 class="text-xl font-bold">Privacy Settings</h2><p>Manage your privacy options.</p></div>`
+    },
+
+    devices: ConnectedDevices,
+    voice_video: VoiceVideoSettings
+};
+
+const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
+
+const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && windows.settingsOpen) {
+        windows.settingsOpen = false;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('keydown', handleEscape);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleEscape);
+});
+</script>
+
+<style scoped>
+.settings-layout {
+    height: 100%;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-item {
+    text-align: left;
+}
+
+.active-nav {
+    color: #ffffff;
+    background-color: #4b5563;
+}
+
+.settings-content {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.close-button:hover {
+  color: #f87171;
+}
+</style>

@@ -1,0 +1,6 @@
+{
+    "name": "argon.ui",
+    "root": "./dist",
+    "output": "./publish",
+    "compression": true
+}
