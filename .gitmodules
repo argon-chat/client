@@ -1,9 +1,0 @@
-[submodule "src/argohost/deps/WebView.Desktop"]
-	path = src/argohost/deps/WebView.Desktop
-	url = https://github.com/argon-chat/Argon.WebView.git
-[submodule "src/argohost/deps/dehive"]
-	path = src/argohost/deps/dehive
-	url = https://github.com/0xF6/DeHive.git
-[submodule "src/argohost/deps/cefglue"]
-	path = src/argohost/deps/cefglue
-	url = https://github.com/OutSystems/CefGlue.git
