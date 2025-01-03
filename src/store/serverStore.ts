@@ -14,10 +14,13 @@ import {
 import { useConfig } from "./remoteConfig";
 import delay from "@/lib/delay";
 import { toast } from "@/components/ui/toast";
+import { useBus } from "./busStore";
+import { Channel } from "diagnostics_channel";
 
 export const useServerStore = defineStore("server", () => {
   const api = useApi();
   const cfg = useConfig();
+  const bus = useBus();
   const activeServer = ref(null as IServer | null);
   const registeredUsers = new Map<string, IUser>();
   const servers = ref([] as IServer[]);
@@ -49,16 +52,44 @@ export const useServerStore = defineStore("server", () => {
     logger.success(`Loaded ${s.length} servers`, s);
 
     for (let ser of s) {
+      channels.value = [];
       for (let ch of ser.Channels) {
         channels.value.push(ch);
       }
+      registeredUsers.clear();
       for (let u of ser.Users) {
         registeredUsers.set(`${u.UserId.replaceAll("-", "")}`, u.User);
       }
+
+      bus.listenEvents(ser.Id);
+      bus.onServerEvent<ChannelCreated>("ChannelCreated", (x) => {
+        if (activeServer.value?.Id == x.serverId) {
+          activeServer.value.Channels.push(x.channel);
+        }
+      });
+      bus.onServerEvent<ChannelRemoved>("ChannelRemoved", (x) => {
+        if (activeServer.value?.Id == x.serverId) {
+          removeItemOnce(activeServer.value.Channels, z => z.Id == x.channelId);
+        }
+      });
+      /*bus.onServerEvent<ChannelModified>("ChannelModified", (x) => {
+        logger.info(`ChannelModified!!!`, x);
+        if (activeServer.value?.Id == x.serverId) {
+          removeItemOnce(activeServer.value.Channels, z => z.Id == x.channelId);
+        }
+      });*/
     }
 
     selectServer(s[0].Id);
     logger.log("Users: ", registeredUsers);
+  }
+
+  function removeItemOnce<T>(arr: T[], redicate: (value: T, index: number, obj: T[]) => unknown) {
+    const index = arr.findIndex(redicate);
+    if (index > -1) {
+      arr.splice(index, 1);
+    }
+    return arr;
   }
 
   async function joinToServer(inviteCode: string): Promise<boolean> {
@@ -156,6 +187,31 @@ export const useServerStore = defineStore("server", () => {
       logger.info("Audio is detached");
     }
   }
+  async function addChannelToServer(channelName: string, channelKind: "Text" | "Voice" | "Announcement") {
+    await api.serverInteraction.CreateChannel({
+      name: channelName,
+      desc: "",
+      kind: channelKind,
+      serverId: activeServer.value?.Id!
+    });
+  }
+
+  async function deleteChannel(channelId: string) {
+    await api.serverInteraction.DeleteChannel(activeServer.value!.Id, channelId);
+  }
+
+  function getDetailsOfChannel(channelId: string): IChannel | undefined {
+    return activeServer.value?.Channels.filter(x => x.Id == channelId).at(0);
+  }
+
+
+  async function getServerInvites(): Promise<InviteCodeEntity[]> {
+    return api.serverInteraction.GetInviteCodes(activeServer.value?.Id!);
+  }
+
+  async function addInvite(): Promise<InviteCode> {
+    return api.serverInteraction.CreateInviteCode(activeServer.value?.Id!, 77760000000000n);
+  }
 
   async function connectTo(channelId: string) {
     currentChannelId.value = channelId;
@@ -169,6 +225,9 @@ export const useServerStore = defineStore("server", () => {
       activeServer.value!.Id,
       channelId
     );
+
+    logger.warn(livekitToken);
+
     const connectOptions: RoomConnectOptions = {};
 
     const room = new Room();
@@ -236,6 +295,11 @@ export const useServerStore = defineStore("server", () => {
     disconnect,
     init,
     currentChannelUsers,
-    joinToServer
+    joinToServer,
+    addChannelToServer,
+    deleteChannel,
+    getDetailsOfChannel,
+    getServerInvites,
+    addInvite
   };
 });
