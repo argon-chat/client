@@ -2,7 +2,7 @@
   <div class="app-container flex h-screen gap-4 p-5">
     <Sidebar />
     <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
-      <ChatList />
+      <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
       <UserBar />
     </div>
 
@@ -17,8 +17,8 @@
       <ul class="text-gray-400 space-y-2">
         <li v-for="user in sortedUsers" :key="user.UserId" class="flex items-center space-x-3 hover:text-white">
           <div class="relative">
-            <img :src="user.User.AvatarFileId" alt="User Avatar" class="w-10 h-10 rounded-full">
-            <span :class="statusClass(user.UserId)"
+            <ArgonAvatar :fallback="user.User.DisplayName" :file-id="user.User.AvatarFileId!" :user-id="user.Id" />
+            <span :class="statusClass('online')"
               class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
           </div>
           <span>{{ user.User.DisplayName }}</span>
@@ -26,6 +26,7 @@
       </ul>
     </div>
     <SettingsWindow />
+    <ServerSettingsWindow />
   </div>
 </template>
 
@@ -35,8 +36,10 @@ import UserBar from '@/components/UserBar.vue';
 import ChatList from '@/components/ChatList.vue';
 import ChannelChat from '@/components/ChannelChat.vue';
 import SettingsWindow from '@/components/SettingsWindow.vue';
+import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
 import { computed } from 'vue';
 import { useServerStore } from '@/store/serverStore';
+import ArgonAvatar from '@/components/ArgonAvatar.vue';
 const serverStore = useServerStore();
 
 const sortedUsers = computed(() => {

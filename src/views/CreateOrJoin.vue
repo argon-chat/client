@@ -4,7 +4,7 @@
             class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md border border-dashed grid w-full gap-2">
             <h2 class="text-2xl font-bold text-center">Join or Create a Server</h2>
 
-            <Button disabled @click="createServer">
+            <Button @click="createServer">
                 Create New Server
             </Button>
             <div class="divider text-gray-400 text-center">or</div>
@@ -33,6 +33,7 @@ import { toast } from '@/components/ui/toast';
 
 const inviteCode = ref(''); 
 const serverStore = useServerStore();
+
 
 const joinServer = async () => {
     if (!inviteCode.value.trim()) {
