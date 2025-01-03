@@ -6,8 +6,11 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IUser.d.ts"/>
 ///<reference path="IServer.d.ts"/>
+///<reference path="AuthorizationError.d.ts"/>
 ///<reference path="IUserCredentialsInput.d.ts"/>
+///<reference path="RegistrationError.d.ts"/>
 ///<reference path="INewUserCredentialsInput.d.ts"/>
+///<reference path="AcceptInviteError.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
 
 interface IUserInteraction
@@ -15,7 +18,7 @@ interface IUserInteraction
 	GetMe() : Promise<IUser>;
 	CreateServer(request: any) : Promise<IServer>;
 	GetServers() : Promise<IServer[]>;
-	Authorize(input: IUserCredentialsInput) : Promise<Either<string, 'NONE' | 'BAD_CREDENTIALS' | 'REQUIRED_OTP' | 'BAD_OTP'>>;
-	Registration(input: INewUserCredentialsInput) : Promise<Either<string, 'USERNAME_ALREADY_TAKEN' | 'USERNAME_RESERVED' | 'EMAIL_ALREADY_REGISTERED' | 'REGION_BANNED' | 'EMAIL_BANNED' | 'SSO_EMAILS_NOT_ALLOWED' | 'INTERNAL_ERROR'>>;
-	JoinToServerAsync(inviteCode: InviteCode) : Promise<Either<IServer, 'NONE' | 'NOT_FOUND' | 'EXPIRED' | 'YOU_ARE_BANNED'>>;
+	Authorize(input: IUserCredentialsInput) : Promise<Either<string, AuthorizationError>>;
+	Registration(input: INewUserCredentialsInput) : Promise<Either<string, RegistrationError>>;
+	JoinToServerAsync(inviteCode: InviteCode) : Promise<Either<IServer, AcceptInviteError>>;
 }

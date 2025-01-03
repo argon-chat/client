@@ -9,4 +9,5 @@
 interface IEventBus
 {
 	SubscribeToServerEvents(ServerId: string) : Promise<AsyncIterable<IArgonEvent>>;
+	SubscribeToMeEvents() : Promise<AsyncIterable<IArgonEvent>>;
 }

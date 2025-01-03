@@ -7,12 +7,16 @@
 ///<reference path="ICreateChannelRequest.d.ts"/>
 ///<reference path="IRealtimeChannel.d.ts"/>
 ///<reference path="IRealtimeServerMember.d.ts"/>
+///<reference path="InviteCodeEntity.d.ts"/>
+///<reference path="InviteCode.d.ts"/>
 
 interface IServerInteraction
 {
 	CreateChannel(request: ICreateChannelRequest) : Promise<void>;
 	DeleteChannel(serverId: string, channelId: string) : Promise<void>;
-	JoinToVoiceChannel(serverId: string, channelId: string) : Promise<string>;
 	GetChannels(serverId: string) : Promise<IRealtimeChannel[]>;
 	GetMembers(serverId: string) : Promise<IRealtimeServerMember[]>;
+	JoinToVoiceChannel(serverId: string, channelId: string) : Promise<string>;
+	GetInviteCodes(serverId: string) : Promise<InviteCodeEntity[]>;
+	CreateInviteCode(serverId: string, expiration: any) : Promise<InviteCode>;
 }

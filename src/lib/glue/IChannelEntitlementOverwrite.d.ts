@@ -6,11 +6,12 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="Argon/ArchetypeModel/IArchetypeOverwrite.d.ts"/>
 ///<reference path="IArgonEntityWithOwnership.d.ts"/>
+///<reference path="IArchetypeScope.d.ts"/>
 
 interface IChannelEntitlementOverwrite extends Argon.ArchetypeModel.IArchetypeOverwrite, IArgonEntityWithOwnership
 {
 	ChannelId: string;
-	Scope: 'Archetype' | 'Member';
+	Scope: IArchetypeScope;
 	ArchetypeId?: string;
 	ServerMemberId?: string;
 	Allow: number;

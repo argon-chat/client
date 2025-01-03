@@ -4,11 +4,9 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMember.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
 
-interface IRealtimeServerMember
+interface ChannelRemoved extends IArgonEvent
 {
-	Member: IServerMember;
-	Status: UserStatus;
+	EventKey: 'ChannelRemoved';
+	channelId: string;
 }

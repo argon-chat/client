@@ -4,11 +4,5 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMember.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
 
-interface IRealtimeServerMember
-{
-	Member: IServerMember;
-	Status: UserStatus;
-}
+export type AcceptInviteError = 'NONE' | 'NOT_FOUND' | 'EXPIRED' | 'YOU_ARE_BANNED'

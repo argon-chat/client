@@ -4,11 +4,9 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMember.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
+///<reference path="IUserNotificationItem.d.ts"/>
 
-interface IRealtimeServerMember
+interface IUserNotificationSnapshot
 {
-	Member: IServerMember;
-	Status: UserStatus;
+	mentions: IUserNotificationItem[];
 }

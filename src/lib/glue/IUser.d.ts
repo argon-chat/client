@@ -6,6 +6,7 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IArgonEntity.d.ts"/>
 ///<reference path="IServerMember.d.ts"/>
+///<reference path="LockdownReason.d.ts"/>
 
 interface IUser extends IArgonEntity
 {
@@ -13,10 +14,8 @@ interface IUser extends IArgonEntity
 	Username: string;
 	DisplayName: string;
 	PhoneNumber?: string;
-	PasswordDigest?: string;
 	AvatarFileId?: string;
-	OtpHash?: string;
 	ServerMembers: IServerMember[];
-	LockdownReason: 'NONE' | 'SPAM_SCAM_ACCOUNT' | 'INCITING_MOMENT' | 'NON_BINARY_PERSON' | 'TOS_VIOLATION' | 'LGBT_AGITATION' | 'DRUG_VIOLATION' | 'TERRORISM_AGITATION' | 'CHILD_ABUSE';
+	LockdownReason: LockdownReason;
 	LockDownExpiration?: Date;
 }

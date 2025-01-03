@@ -4,11 +4,12 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="ChannelType.d.ts"/>
 
 interface ICreateChannelRequest
 {
 	serverId: string;
 	name: string;
-	kind: 'Text' | 'Voice' | 'Announcement';
+	kind: ChannelType;
 	desc: string;
 }

@@ -4,11 +4,13 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMember.d.ts"/>
 ///<reference path="UserStatus.d.ts"/>
+///<reference path="IUserNotificationSnapshot.d.ts"/>
 
-interface IRealtimeServerMember
+interface WelcomeCommander extends IArgonEvent
 {
-	Member: IServerMember;
-	Status: UserStatus;
+	EventKey: 'WelcomeCommander';
+	welcomeMessage: string;
+	status: UserStatus;
+	notifications: IUserNotificationSnapshot;
 }

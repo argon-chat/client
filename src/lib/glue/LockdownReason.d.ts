@@ -4,11 +4,5 @@
 
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMember.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
 
-interface IRealtimeServerMember
-{
-	Member: IServerMember;
-	Status: UserStatus;
-}
+export type LockdownReason = 'NONE' | 'SPAM_SCAM_ACCOUNT' | 'INCITING_MOMENT' | 'NON_BINARY_PERSON' | 'TOS_VIOLATION' | 'LGBT_AGITATION' | 'DRUG_VIOLATION' | 'TERRORISM_AGITATION' | 'CHILD_ABUSE'
