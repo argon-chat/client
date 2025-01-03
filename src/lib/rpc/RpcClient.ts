@@ -7,7 +7,7 @@ export class RpcClient {
   private client: ArgonTransportClient;
 
   constructor(baseUrl: string) {
-    const transport = new GrpcWebFetchTransport({ baseUrl });
+    const transport = new GrpcWebFetchTransport({ baseUrl, format: "text" });
     this.client = new ArgonTransportClient(transport);
   }
 
@@ -18,7 +18,9 @@ export class RpcClient {
         get: (_, methodName) => {
           return async (...args: any[]) => {
             const authStore = useAuthStore();
-            const payload = encode(args);
+            const payload = encode(args, {
+              useBigInt64: true
+            });
 
             const response = await this.client.unary(
               {
@@ -36,6 +38,9 @@ export class RpcClient {
             }
 
             logger.log(response);
+
+            if (response.response.payload.length === 0)
+              return null;
 
             return decode(response.response.payload);
           };
@@ -67,6 +72,8 @@ export class RpcClient {
             return {
               [Symbol.asyncIterator]: async function* () {
                 for await (const response of stream.responses) {
+                  if (response.payload.length === 0)
+                    continue;
                   yield decode(response.payload) as IArgonEvent;
                 }
               },
