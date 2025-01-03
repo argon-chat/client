@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { logger } from "@/lib/logger";
-import { useGlueStore } from "./glueStore";
 import { useFirebase } from "./firebase";
 import { useOnline } from "@vueuse/core";
 import delay from "@/lib/delay";
@@ -9,6 +8,7 @@ import { useTone } from "./toneStore";
 import { useAuthStore } from "./authStore";
 import { useServerStore } from "./serverStore";
 import { useFileStorage } from "./fileStorage";
+import { useMe } from "./meStore";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
@@ -20,10 +20,6 @@ export const useAppState = defineStore("app", () => {
         logger.info(`Waiting network online...`);
         await delay(1000);
     }
-    logger.info(`Begin initialization glue runtime...`);
-    await delay(1000);
-
-    await useGlueStore().initializeGlueRuntime();
 
     logger.info(`Begin initialization firebase runtime...`);
     await delay(1000);
@@ -49,7 +45,10 @@ export const useAppState = defineStore("app", () => {
     await delay(1000);
 
     if(auth.isAuthenticated)
+    {  
       await useServerStore().init();
+      await useMe().init();
+    }
   }
 
   async function initApp() {
