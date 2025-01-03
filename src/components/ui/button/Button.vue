@@ -9,7 +9,8 @@ interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant']
   size?: ButtonVariants['size']
   class?: HTMLAttributes['class']
-  disabled?: boolean
+  disabled?: boolean,
+  clearCss?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   <Primitive
     :as="as"
     :as-child="asChild"
-    :class="cn(
+    :class="props.clearCss ? props.class : cn(
       buttonVariants({ variant, size }),
       props.class,
       props.disabled ? 'opacity-50 cursor-not-allowed relative' : ''
