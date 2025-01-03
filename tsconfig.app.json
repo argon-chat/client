@@ -28,10 +28,7 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      ":glue/*": [
-        "./public/glue/wwwroot/_framework/*"
-      ],
+      ]
     }
   },
   "include": [
@@ -39,6 +36,7 @@
     "src/**/*.tsx",
     "src/**/*.vue",
     "dotnet.d.ts",
-    "storageBuckets.api.d.ts"
+    "storageBuckets.api.d.ts",
+    "global.d.ts"
   ]
 }

@@ -24,14 +24,12 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      ":glue/*": [
-        "./public/glue/wwwroot/_framework/*"
-      ],
+      ]
     }
   },
   "include": [
     "vite.config.ts",
-    "dotnet.d.ts"
+    "dotnet.d.ts",
+    "global.d.ts"
   ]
 }

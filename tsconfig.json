@@ -12,10 +12,7 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      ":glue/*": [
-        "./public/glue/wwwroot/_framework/*"
-      ],
+      ]
     }
   }
 }

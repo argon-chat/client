@@ -22,6 +22,9 @@ module.exports = {
       },
     },
     extend: {
+      animation: {
+        pulse: 'pulse 0.1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

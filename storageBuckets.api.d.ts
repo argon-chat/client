@@ -23,6 +23,10 @@ declare global {
     expires?: DOMHighResTimeStamp;
   }
 
+  interface ExtendedStorageManager extends StorageBucket {
+    getFileHandle(name: string, opt?: any): Promise<FileSystemHandle>; 
+  }
+
   interface StorageBucket extends StorageManager {
     readonly name: string;
 
@@ -32,6 +36,6 @@ declare global {
     readonly indexedDB: IDBFactory;
     readonly caches: CacheStorage;
 
-    getDirectory(): Promise<StorageManager>;
+    getDirectory(): Promise<FileSystemDirectoryHandle>;
   }
 }
