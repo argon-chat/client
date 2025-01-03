@@ -1,12 +1,12 @@
 <template>
-  <div class="relative min-w-[250px]" style="z-index: 1;">
+  <div class="relative min-w-[250px]" style="z-index: 1;" v-if="me.me">
     <div class="user-bar">
       <div class="user-info">
-        <img :src="user.avatar" alt="User Avatar" class="user-avatar" />
+        <ArgonAvatar class="user-avatar"  :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!" :user-id="me.me.Id"/>
         <div class="user-details">
-          <span class="user-name">{{ user.name }}</span>
-          <span :class="['user-status', user.isOnline ? 'online' : 'offline']">
-            {{ user.isOnline ? 'Online' : 'Offline' }}
+          <span class="user-name">{{ me.me?.DisplayName }}</span>
+          <span :class="['user-status', me.me?.currentStatus.toLowerCase()]">
+            {{ me.me?.currentStatus }}
           </span>
         </div>
       </div>
@@ -51,19 +51,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useSystemStore } from "@/store/systemStore";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'lucide-vue-next';
-import { useServerStore } from "@/store/serverStore";
 
+
+import { useMe } from "@/store/meStore";
+import { useSystemStore } from "@/store/systemStore";
+import { useServerStore } from "@/store/serverStore";
+import ArgonAvatar from "./ArgonAvatar.vue";
+
+const me = useMe();
 const sys = useSystemStore();
 const server = useServerStore();
-const user = ref({
-  name: 'Yuuki Wesp',
-  avatar: 'https://avatars.githubusercontent.com/u/13326808?v=4',
-  isOnline: true,
-});
 </script>
 
 <style scoped>
@@ -93,8 +92,8 @@ const user = ref({
 }
 
 .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   margin-right: 10px;
 }
@@ -118,8 +117,24 @@ const user = ref({
   color: #43b581;
 }
 
+.away {
+  color: #276e9e;
+}
+
+.ingame {
+  color: #279e3b;
+}
 .offline {
+  color: #635d5d;
+}
+.donotdisturb {
   color: #f04747;
+}
+.listen {
+  color: #279e3b;
+}
+.touchgrass {
+  color: #90279e;
 }
 
 .controls button {
