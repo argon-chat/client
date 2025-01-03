@@ -8,7 +8,8 @@ export const useConfig = defineStore("config", () => {
   const fb = useFirebase();
   
   const overrides = ref<{ [key: string]: string | boolean | number }>({
-    apiEndpoint: 'https://api.argon.gl'
+    apiEndpoint: 'https://localhost:5001',
+    webRtcEndpoint: 'wss://rts.argon.gl'
   });
 
   function setOverride(key: string, value: string | boolean | number) {
