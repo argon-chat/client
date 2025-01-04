@@ -13,7 +13,7 @@
             </div>
             <li v-if="!loading" v-for="invite in invites" :key="invite.code.inviteCode"
                 class="flex justify-between items-center rounded-lg px-4 py-2">
-                <Input readonly :model-value="`https://argon.gl/i/${invite.code}/`" />
+                <Input readonly :model-value="`https://argon.gl/i/${invite.code.inviteCode}/`" />
                 <Button @click="removeInvite(invite.code.inviteCode)" variant="ghost" class="text-red-500">
                     Remove
                 </Button>
