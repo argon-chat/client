@@ -2,8 +2,9 @@
     <div class="flex flex-col items-center justify-between h-full">
         <div class="sidebar">
             <ul>
-                <li v-for="server in serverStore.servers" :key="server.Id"
-                    :class="{ 'active-server': server.Id === serverStore.activeServer?.Id }" @click="serverStore.selectServer(server.Id)">
+                <li v-for="server in pool.allServers.value" :key="server.Id"
+                    :class="{ 'active-server': server.Id === pool.selectedServer }" >
+                    <!-- @click="serverStore.selectServer(server.Id)" -->
                     <div class="server-icon-wrapper">
                         <img :src="server.AvatarFileId" :alt="server.Id" class="server-icon" />
                     </div>
@@ -30,9 +31,9 @@
 <script setup lang="ts">
 import { Settings, PlusCircleIcon } from 'lucide-vue-next';
 import { useWindow } from '@/store/windowStore';
-import { useServerStore } from '@/store/serverStore';
+import { usePoolStore } from '@/store/poolStore';
 const windows = useWindow();
-const serverStore = useServerStore();
+const pool = usePoolStore();
 </script>
 <style scoped>
 
