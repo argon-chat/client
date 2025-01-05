@@ -4,7 +4,6 @@ import App from "./App.vue";
 import { createPinia } from "pinia";
 import router from "./router";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
-import * as Sentry from "@sentry/vue";
 import { MotionPlugin } from "@vueuse/motion";
 import { registerDirectives } from "./lib/pexDirective"; 
 
