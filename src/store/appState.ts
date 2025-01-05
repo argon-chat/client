@@ -6,9 +6,9 @@ import delay from "@/lib/delay";
 import { ref } from "vue";
 import { useTone } from "./toneStore";
 import { useAuthStore } from "./authStore";
-import { useServerStore } from "./serverStore";
 import { useFileStorage } from "./fileStorage";
 import { useMe } from "./meStore";
+import { usePoolStore } from "./poolStore";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
@@ -46,7 +46,7 @@ export const useAppState = defineStore("app", () => {
 
     if(auth.isAuthenticated)
     {  
-      await useServerStore().init();
+      await usePoolStore().loadServerDetails();
       await useMe().init();
     }
   }
