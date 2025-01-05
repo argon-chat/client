@@ -1,16 +1,18 @@
 import { logger } from "@/lib/logger";
-import { ConnectionQuality, Participant, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room, RoomConnectOptions } from "livekit-client";
+import { ConnectionQuality, createLocalAudioTrack, LocalAudioTrack, Participant, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room, RoomConnectOptions } from "livekit-client";
 import { defineStore } from "pinia";
-import { computed, reactive, ref } from "vue";
+import { computed, Reactive, reactive, ref } from "vue";
 import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
-import { delay } from "rxjs";
+import { delay, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
+import { useSystemStore } from "./systemStore";
 
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
   const api = useApi();
   const cfg = useConfig();
+  const sys = useSystemStore();
 
   const currentState = ref("NONE" as "NONE" | "BEGIN_CONNECT" | "CONNECTED");
 
@@ -20,18 +22,34 @@ export const useVoice = defineStore("voice", () => {
 
   const activeChannel = ref(null as null | IChannel);
 
-  const connectedRoom = reactive({ room: null, opt: null } as {
-    room: Room | null;
+  const connectedRoom = reactive({ room: null, opt: null, subs: [] } as {
+    room: Reactive<Room> | null;
     opt: null | RoomConnectOptions;
+    subs: Subscription[]
   });
 
+
+  const rtt = ref(0);
+
   const ping = computed(() =>
-    connectedRoom
-      ? connectedRoom.room?.engine?.client?.rtt
-        ? `${connectedRoom.room.engine.client.rtt}ms`
-        : "???ms"
-      : "???ms"
+    `${rtt.value}ms`
   );
+
+
+  const qualityConnection = computed(() => {
+    if (!isConnected) return "NONE";
+    const e = rtt.value;
+    if (!e) {
+        return "NONE";
+    }
+    if (e < 50) {
+        return "GREEN"
+    }
+    if (e < 100) {
+        return "ORANGE"
+    }
+    return "RED";
+  })
 
   async function connectToChannel(channelId: string) {
     pool.selectedChannel = channelId;
@@ -50,7 +68,7 @@ export const useVoice = defineStore("voice", () => {
     const room = new Room();
 
     connectedRoom.opt = connectOptions;
-    connectedRoom.room = room;
+    connectedRoom.room = reactive(room);
 
     room.on("connectionQualityChanged", onParticipantQualityChanged);
     room.on("trackSubscribed", onTrackSubscribed);
@@ -60,15 +78,36 @@ export const useVoice = defineStore("voice", () => {
       ...connectOptions,
     });
 
+    const localAudioTrack = await createLocalAudioTrack();
+    await room.localParticipant.publishTrack(localAudioTrack);
+
+    connectedRoom.subs.push(sys.muteEvent.subscribe((x) => {
+        if (x)
+            localAudioTrack.mute();
+        else 
+            localAudioTrack.unmute();
+    }));
+
+    const source = timer(500, 500);
+
+    connectedRoom.subs.push(source.subscribe(() => {
+        rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
+    }));
+
+    if (sys.microphoneMuted) {
+        localAudioTrack.mute();
+    }
+
     currentState.value = "CONNECTED";
     logger.success("Connected to channel");
   }
 
-  function disconnectFromChannel() {
+  async function disconnectFromChannel() {
     if (!connectedRoom.room) return;
     const room = connectedRoom.room;
     try {
       if (room) {
+        await api.serverInteraction.DisconnectFromVoiceChannel(activeChannel.value!.ServerId, activeChannel.value!.Id);
         room.off("trackSubscribed", onTrackSubscribed);
         room.off("trackUnsubscribed", onTrackUnsubscribed);
         room.off("connectionQualityChanged", onParticipantQualityChanged);
@@ -76,6 +115,9 @@ export const useVoice = defineStore("voice", () => {
         room.disconnect();
         logger.warn("Success disconnected from channel");
 
+        for(const s of connectedRoom.subs) {
+            s.unsubscribe();
+        }
         currentState.value = "NONE";
         connectedRoom.room = null;
         pool.selectedChannel = null;
@@ -103,7 +145,8 @@ export const useVoice = defineStore("voice", () => {
     );
 
     if (track.kind === "audio") {
-      track.attach();
+      const audioElement = track.attach();
+      document.body.appendChild(audioElement);
       logger.info("Audio is attached");
     }
   }
@@ -137,6 +180,7 @@ export const useVoice = defineStore("voice", () => {
     disconnectFromChannel,
     isBeginConnect,
     isConnected,
-    activeChannel
+    activeChannel,
+    qualityConnection
   };
 });
