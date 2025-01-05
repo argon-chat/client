@@ -1,12 +1,328 @@
 import { defineStore } from "pinia";
+import { computed, Reactive, reactive, ref } from "vue";
+import { useBus } from "./busStore";
+import { logger } from "@/lib/logger";
+import { useApi } from "./apiStore";
+import { UserStatus } from "@/lib/glue/UserStatus";
+import { firstValueFrom, from } from "rxjs";
+import { liveQuery } from "dexie";
+import { useObservable } from "@vueuse/rxjs";
+import { db, RealtimeUser } from "./db/dexie";
+import { computedAsync } from "@vueuse/core";
 
-type e = string;
-
+export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { User: IUser };
+export type IRealtimeChannelWithUser = {
+  Channel: IChannel;
+  Users: IRealtimeChannelUserWithData [];
+};
 
 export const usePoolStore = defineStore("data-pool", () => {
-    //const servers = new Map<>
+  const bus = useBus();
+  const api = useApi();
 
+  const selectedServer = ref(null as Guid | null);
+  const selectedChannel = ref(null as Guid | null);
+
+  const realtimeChannelUsers = reactive(
+    new Map<Guid, Reactive<IRealtimeChannelWithUser>>()
+  );
+
+  const allServers = computed(() => {
+    return useObservable(from(liveQuery(async () => await db.servers.toArray())));
+  });
+
+
+  const getChannel = async function (channelId: Guid) {
+    return await db.channels.where("Id").equals(channelId).first();
+  }
+
+  const getServer = async function (serverId: Guid) {
+    return await db.servers.where("Id").equals(serverId).first();
+  }
+
+  const getUser = async function (userId: Guid) {
+    return await db.users.where("Id").equals(userId).first();
+  }
+
+  const getBatchUser = async function (userIds: Guid[]) {
+    return await db.users.bulkGet(userIds);
+  }
+
+
+
+  const allServerAsync = computed(() => firstValueFrom<IServer[]>(from(liveQuery(async () => await db.servers.toArray()))));
+
+  const getSelectedServer = computedAsync(
+    async () => {
+      if (!selectedServer.value)
+        return null;
+      return await db.servers.where("Id").equals(selectedServer.value!).first()!;
+    }
+  );
+
+  const activeServerChannels = computed(() => {
+    return useObservable<IChannel[]>(
+      from(
+        liveQuery<IChannel[]>(() => {
+          if (!selectedServer.value) return [];
+          return db.channels
+            .where("ServerId")
+            .equals(selectedServer.value!)
+            .toArray();
+        })
+      )
+    );
+  });
+
+  const activeServerUsers = computed(() => {
+    return useObservable(
+      from(
+        liveQuery(async () => {
+          if (!selectedServer.value) return [];
+          const server = await db.servers
+            .filter((s) => s.Id === selectedServer.value)
+            .first();
+          if (!server) return [];
+          const users = await db.users.bulkGet(
+            server.Users.map((x) => x.UserId)
+          );
+
+          return users
+            .filter((user): user is RealtimeUser => !!user)
+            .sort((a, b) => {
+              const statusDiff =
+                (a.status === "Online" ? 0 : 1) -
+                (b.status === "Online" ? 0 : 1);
+              if (statusDiff !== 0) return statusDiff;
+
+              return a.DisplayName.localeCompare(b.DisplayName);
+            });
+        })
+      )
+    );
+  });
+
+  const trackServer = async function (server: IServer) {
+    const exist = await db.servers.get(server.Id);
+    if (exist) {
+      await db.servers.update(exist.Id, (x) => {
+        Object.assign(x, server);
+      });
+      return;
+    }
+    await db.servers.put(server, server.Id);
+  };
+
+  const trackUser = async function (user: IUser, extendedStatus?: UserStatus) {
+    const exist = await db.users.get(user.Id);
+    if (exist) {
+      await db.servers.update(exist.Id, (x) => {
+        Object.assign(x, user);
+      });
+      return;
+    }
+    await db.users.put(
+      {
+        ...user,
+        status: extendedStatus ?? "Offline",
+      },
+      user.Id
+    );
+  };
+
+  const trackChannel = async function (channel: IChannel, users?: IRealtimeChannelUserWithData[]) {
+    const exist = await db.channels.get(channel.Id);
+    if (exist) {
+      await db.channels.update(exist.Id, (x) => {
+        Object.assign(x, channel);
+      });
+      return;
+    }
+    await db.channels.put(channel, channel.Id);
+    if (!realtimeChannelUsers.has(channel.Id)) {
+      realtimeChannelUsers.set(
+        channel.Id,
+        reactive({
+          Channel: channel,
+          Users: users ?? [] as IRealtimeChannelUserWithData[],
+        })
+      );
+    }
+  };
+
+  const subscribeToEvents = function () {
+    bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
+      const c = await db.servers.get(x.serverId);
+
+      if (c) {
+        c.Channels.push(x.channel);
+        await db.servers.put(c);
+      } else {
+        logger.error("recollect server required, maybe bug");
+      }
+
+      await trackChannel(x.channel);
+      if (realtimeChannelUsers.has(x.channel.Id)) {
+        realtimeChannelUsers.set(
+          x.channel.Id,
+          reactive({
+            Channel: x.channel,
+            Users: [] as IRealtimeChannelUserWithData[],
+          })
+        );
+      }
+    });
+    bus.onServerEvent<ChannelRemoved>("ChannelRemoved", async (x) => {
+      if (realtimeChannelUsers.has(x.channelId)) {
+        realtimeChannelUsers.delete(x.channelId);
+      }
+
+      const channelId = x.channelId;
+      const channel = await db.channels.get(channelId);
+      if (!channel) {
+        console.error(`Channel with ID ${channelId} not found.`);
+        return;
+      }
+
+      await db.channels.delete(channelId);
+
+      const server = await db.servers.get(x.serverId);
+      if (server) {
+        server.Channels = server.Channels.filter(
+          (channel) => channel.Id !== channelId
+        );
+        await db.servers.put(server);
+      }
+    });
+
+    bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", async (x) => {
+      const c = db.channels.get(x.channelId);
+
+      if (!c) {
+        logger.error("recollect channel required");
+        return;
+      }
+      let user = await db.users.get(x.userId);
+      if (!user) {
+        trackUser(
+          await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+        );
+        user = await db.users.get(x.userId)!;
+        if (!user) throw new Error("await db.users.get(x.userId)! return null");
+      }
+
+      if (realtimeChannelUsers.has(x.channelId)) {
+        const e = realtimeChannelUsers.get(x.channelId);
+
+        e?.Users.push({
+          State: 0,
+          UserId: x.userId,
+          User: user!
+        });
+      } else
+        logger.error(
+          "realtime channel not contains received from JoinedToChannelUser channel, maybe bug"
+        );
+    });
+
+    bus.onServerEvent<JoinToServerUser>("JoinToServerUser", async (x) => {
+      const s = await db.servers.get(x.serverId);
+
+      if (!s) {
+        logger.error(
+          "bug, JoinToServerUser request cannot get server assigned, missed cache?"
+        );
+        return;
+      }
+
+      let user = await db.users.get(x.userId);
+      if (!user) {
+        trackUser(
+          await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+        );
+        user = await db.users.get(x.userId);
+      }
+
+      s.Users.push({
+        UserId: x.userId,
+        Id: x.userId,
+        ServerId: x.serverId,
+      } as IServerMember);
+    });
+
+    bus.onServerEvent<ChannelModified>("ChannelModified", (x) => {
+      // TODO
+      //trackChannel({ Channel: x., Users: [] });
+    });
+
+    bus.onServerEvent<UserChangedStatus>("UserChangedStatus", async (x) => {
+      let user = await db.users.get(x.userId);
+      if (!user) {
+        trackUser(
+          await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
+          x.status
+        );
+        return;
+      }
+      user.status = x.status;
+
+      db.users.put(user);
+    });
+  };
+
+  const loadServerDetails = async function () {
+    subscribeToEvents();
+
+    const servers = await api.userInteraction.GetServers();
+
+    logger.log(`Loaded '${servers.length}' servers`);
+    for (const s of servers) {
+      await trackServer(s);
+
+      const users = await api.serverInteraction.GetMembers(s.Id);
+      logger.log(`Loaded '${users.length}' users`, users);
+
+      for (const u of users) {
+        await trackUser(u.Member.User, u.Status);
+      }
+
+      const channels = await api.serverInteraction.GetChannels(s.Id);
+
+
+      for (const c of channels) {
+        const w = c.Users.map(x => {
+          return { State: x.State, UserId: x.UserId, User: users.filter(z => z.Member.Id == x.UserId).at(0)!.Member.User };
+        });
+        await trackChannel(c.Channel, w);
+      }
+      
+      bus.listenEvents(s.Id);
+    }
+  };
 
   return {
+    allServers,
+    allServerAsync,
+
+    trackUser,
+    trackServer,
+    trackChannel,
+
+    activeServerChannels,
+    activeServerUsers,
+    subscribeToEvents,
+
+    selectedServer,
+    selectedChannel,
+
+    loadServerDetails,
+    getSelectedServer,
+
+    realtimeChannelUsers,
+
+
+    getUser,
+    getChannel,
+    getServer
   };
 });
