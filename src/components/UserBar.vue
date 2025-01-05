@@ -11,7 +11,7 @@
         </div>
       </div>
       <div class="controls">
-        <button v-if="server.isConnected" @click="server.disconnect()" class="active">
+        <button v-if="voice.isConnected" @click="voice.disconnectFromChannel()" class="active">
           <PhoneOffIcon class="w-5 h-5" />
         </button>
         <button @click="sys.toggleMicrophoneMute" :class="{ active: sys.microphoneMuted }">
@@ -26,7 +26,7 @@
       </div>
     </div>
     <div>
-      <div v-show="server.isConnected || server.isBeginConnect" v-motion-slide-visible-bottom
+      <div v-show="voice.isConnected || voice.isBeginConnect" v-motion-slide-visible-bottom
         class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
         style="bottom: 100%; margin-bottom: -5px;">
         <div class="flex items-center space-x-2">
@@ -36,15 +36,15 @@
                 <Signal class="w-4 h-4 text-green-500" />
               </TooltipTrigger>
               <TooltipContent>
-                <p v-if="server.isConnected">{{ server.ping }}</p>
-                <p v-if="server.isBeginConnect">??? ms</p>
+                <p v-if="voice.isConnected">{{ voice.ping }}</p>
+                <p v-if="voice.isBeginConnect">??? ms</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span class="font-semibold">{{ server.connectedChannel?.Name }}</span>
+          <span class="font-semibold">{{ voice.activeChannel?.Name }}</span>
         </div>
-        <span class="text-xs text-lime-400 mt-1" v-if="server.isConnected">Connected</span>
-        <span class="text-xs text-orange-400 mt-1" v-if="server.isBeginConnect">Connecting...</span>
+        <span class="text-xs text-lime-400 mt-1" v-if="voice.isConnected">Connected</span>
+        <span class="text-xs text-orange-400 mt-1" v-if="voice.isBeginConnect">Connecting...</span>
       </div>
     </div>
   </div>
@@ -57,12 +57,12 @@ import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'luc
 
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
-import { useServerStore } from "@/store/serverStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
+import { useVoice } from "@/store/voiceStore";
 
 const me = useMe();
 const sys = useSystemStore();
-const server = useServerStore();
+const voice = useVoice();
 </script>
 
 <style scoped>
