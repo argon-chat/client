@@ -14,7 +14,6 @@ interface IUser extends IArgonEntity
 	Email: string;
 	Username: string;
 	DisplayName: string;
-	PhoneNumber?: string;
 	AvatarFileId?: string;
 	ServerMembers: IServerMember[];
 	LockdownReason: LockdownReason;

@@ -19,6 +19,7 @@ interface IServerInteraction
 	GetChannels(serverId: Guid) : Promise<IRealtimeChannel[]>;
 	GetMembers(serverId: Guid) : Promise<IRealtimeServerMember[]>;
 	JoinToVoiceChannel(serverId: Guid, channelId: Guid) : Promise<string>;
+	DisconnectFromVoiceChannel(serverId: Guid, channelId: Guid) : Promise<void>;
 	GetInviteCodes(serverId: Guid) : Promise<InviteCodeEntity[]>;
 	CreateInviteCode(serverId: Guid, expiration: any) : Promise<InviteCode>;
 	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUser>;
