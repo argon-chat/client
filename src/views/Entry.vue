@@ -23,6 +23,8 @@ import "@xterm/xterm/css/xterm.css";
 import { Terminal } from "@xterm/xterm";
 import { logger } from '@/lib/logger';
 import { useServerStore } from '@/store/serverStore';
+import { usePoolStore } from '@/store/poolStore';
+import { firstValueFrom } from 'rxjs';
 const terminalContainer = ref(null);
 let terminal = null as Terminal | null;
 const app = useAppState();
@@ -600,9 +602,12 @@ onMounted(() => {
   render();
   window.addEventListener('resize', onResize);
 
-  app.initApp().then(() => {
-    const serverStore = useServerStore();
-    if (serverStore.servers.length == 0) {
+  app.initApp().then(async () => {
+    const serverStore = usePoolStore();
+    
+    const servers = await serverStore.allServerAsync;
+
+    if (servers.length == 0) {
       router.push({ path: '/create-or-join' });
       return;
     }
