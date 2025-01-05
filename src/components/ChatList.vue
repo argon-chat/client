@@ -139,14 +139,17 @@
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          <ul v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id)" class="ml-7 space-y-1">
-            <li v-for="{ User } in pool.realtimeChannelUsers.get(channel.Id)!.Users" :key="User.Id"
-              class="flex items-center text-gray-400 hover:text-white">
-              <img :src="User.AvatarFileId" alt="User Avatar" class="w-6 h-6 rounded-full mr-2" />
-              <span>{{ User.DisplayName }}</span>
+          <ul v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id) &&  pool.realtimeChannelUsers.get(channel.Id)?.Users.size != 0"
+            class="ml-10 mt-2 space-y-2">
+            <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
+              class="flex items-center mt-1 text-gray-400 hover:text-white">
+              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
+                class="w-7 h-7 rounded-full mr-3" />
+              <span>{{ user.User.DisplayName }}</span>
             </li>
           </ul>
+
+
         </div>
       </div>
     </div>
@@ -192,6 +195,7 @@ import { logger } from '@/lib/logger';
 import { useWindow } from '@/store/windowStore';
 import { usePoolStore } from '@/store/poolStore';
 import { useVoice } from '@/store/voiceStore';
+import ArgonAvatar from './ArgonAvatar.vue';
 
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
 const channelName = ref("");
@@ -224,7 +228,7 @@ async function channelSelect(channelId: string) {
     await voice.connectToChannel(channelId);
   }
 
-  
+
 
 
   /*const channel = servers.getDetailsOfChannel(channelId);
