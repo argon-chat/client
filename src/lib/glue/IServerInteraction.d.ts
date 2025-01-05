@@ -2,6 +2,7 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 
+///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="ICreateChannelRequest.d.ts"/>
@@ -9,14 +10,16 @@
 ///<reference path="IRealtimeServerMember.d.ts"/>
 ///<reference path="InviteCodeEntity.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
+///<reference path="IUser.d.ts"/>
 
 interface IServerInteraction
 {
 	CreateChannel(request: ICreateChannelRequest) : Promise<void>;
-	DeleteChannel(serverId: string, channelId: string) : Promise<void>;
-	GetChannels(serverId: string) : Promise<IRealtimeChannel[]>;
-	GetMembers(serverId: string) : Promise<IRealtimeServerMember[]>;
-	JoinToVoiceChannel(serverId: string, channelId: string) : Promise<string>;
-	GetInviteCodes(serverId: string) : Promise<InviteCodeEntity[]>;
-	CreateInviteCode(serverId: string, expiration: any) : Promise<InviteCode>;
+	DeleteChannel(serverId: Guid, channelId: Guid) : Promise<void>;
+	GetChannels(serverId: Guid) : Promise<IRealtimeChannel[]>;
+	GetMembers(serverId: Guid) : Promise<IRealtimeServerMember[]>;
+	JoinToVoiceChannel(serverId: Guid, channelId: Guid) : Promise<string>;
+	GetInviteCodes(serverId: Guid) : Promise<InviteCodeEntity[]>;
+	CreateInviteCode(serverId: Guid, expiration: any) : Promise<InviteCode>;
+	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUser>;
 }

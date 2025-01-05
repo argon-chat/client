@@ -2,6 +2,7 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 
+///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="Argon/ArchetypeModel/IArchetypeOverwrite.d.ts"/>
@@ -10,10 +11,10 @@
 
 interface IChannelEntitlementOverwrite extends Argon.ArchetypeModel.IArchetypeOverwrite, IArgonEntityWithOwnership
 {
-	ChannelId: string;
+	ChannelId: Guid;
 	Scope: IArchetypeScope;
-	ArchetypeId?: string;
-	ServerMemberId?: string;
+	ArchetypeId?: Guid;
+	ServerMemberId?: Guid;
 	Allow: number;
 	Deny: number;
 }

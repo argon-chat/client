@@ -2,6 +2,7 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 
+///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IArgonEntityWithOwnership.d.ts"/>
@@ -10,8 +11,8 @@
 
 interface IServerMember extends IArgonEntityWithOwnership
 {
-	ServerId: string;
-	UserId: string;
+	ServerId: Guid;
+	UserId: Guid;
 	User: IUser;
 	JoinedAt: Date;
 	ServerMemberArchetypes: IServerMemberArchetype[];

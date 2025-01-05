@@ -2,6 +2,7 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 
+///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="Argon/ArchetypeModel/IArchetypeObject.d.ts"/>
@@ -12,7 +13,7 @@
 interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IArgonEntityWithOwnership
 {
 	ChannelType: ChannelType;
-	ServerId: string;
+	ServerId: Guid;
 	Name: string;
 	Description?: string;
 	EntitlementOverwrites: IChannelEntitlementOverwrite[];
