@@ -2,7 +2,8 @@
   <div class="relative min-w-[250px]" style="z-index: 1;" v-if="me.me">
     <div class="user-bar">
       <div class="user-info">
-        <ArgonAvatar class="user-avatar"  :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!" :user-id="me.me.Id"/>
+        <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
+          :user-id="me.me.Id" />
         <div class="user-details">
           <span class="user-name">{{ me.me?.DisplayName }}</span>
           <span :class="['user-status', me.me?.currentStatus.toLowerCase()]">
@@ -33,7 +34,12 @@
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
-                <Signal class="w-4 h-4 text-green-500" />
+                <div>
+                  <SignalHigh class="w-4 h-4 text-green-500" v-if="voice.qualityConnection == 'GREEN'" />
+                  <SignalMedium class="w-4 h-4 text-orange-500" v-else-if="voice.qualityConnection == 'ORANGE'" />
+                  <SignalLow class="w-4 h-4 text-red-500" v-else-if="voice.qualityConnection == 'RED'" />
+                  <SignalZero class="w-4 h-4 text-gray-500" v-else />
+                </div>
               </TooltipTrigger>
               <TooltipContent>
                 <p v-if="voice.isConnected">{{ voice.ping }}</p>
@@ -52,7 +58,7 @@
 
 <script setup lang="ts">
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'lucide-vue-next';
+import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, SignalHigh, SignalMedium, SignalZero, SignalLow } from 'lucide-vue-next';
 
 
 import { useMe } from "@/store/meStore";
@@ -113,6 +119,18 @@ const voice = useVoice();
   color: #bbb;
 }
 
+.bad {
+  color: #f04747;
+}
+
+.moderate {
+  color: #f0d747
+}
+
+.good {
+  color: #43b581;
+}
+
 .online {
   color: #43b581;
 }
@@ -124,15 +142,19 @@ const voice = useVoice();
 .ingame {
   color: #279e3b;
 }
+
 .offline {
   color: #635d5d;
 }
+
 .donotdisturb {
   color: #f04747;
 }
+
 .listen {
   color: #279e3b;
 }
+
 .touchgrass {
   color: #90279e;
 }
