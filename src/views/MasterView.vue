@@ -10,18 +10,18 @@
       <ChannelChat />
     </div>
 
-    <div v-if="serverStore.serverSelected" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #2f3136;
+    <div v-if="dataPool.selectedServer" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #2f3136;
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
       <h3 class="text-lg text-white mb-4">Users</h3>
       <ul class="text-gray-400 space-y-2">
-        <li v-for="user in sortedUsers" :key="user.UserId" class="flex items-center space-x-3 hover:text-white">
+        <li v-for="user in dataPool.activeServerUsers.value" :key="user.Id" class="flex items-center space-x-3 hover:text-white">
           <div class="relative">
-            <ArgonAvatar :fallback="user.User.DisplayName" :file-id="user.User.AvatarFileId!" :user-id="user.Id" />
-            <span :class="statusClass('online')"
+            <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.Id" />
+            <span :class="statusClass(user.status)"
               class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
           </div>
-          <span>{{ user.User.DisplayName }}</span>
+          <span>{{ user.DisplayName }}</span>
         </li>
       </ul>
     </div>
@@ -37,22 +37,26 @@ import ChatList from '@/components/ChatList.vue';
 import ChannelChat from '@/components/ChannelChat.vue';
 import SettingsWindow from '@/components/SettingsWindow.vue';
 import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
-import { computed } from 'vue';
-import { useServerStore } from '@/store/serverStore';
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
-const serverStore = useServerStore();
+import { usePoolStore } from '@/store/poolStore';
+import { UserStatus } from '@/lib/glue/UserStatus';
+import { onMounted } from 'vue';
 
-const sortedUsers = computed(() => {
-  return serverStore.activeServer?.Users;
-});
+const dataPool = usePoolStore();
 
-const statusClass = (status: string) => {
+const statusClass = (status: UserStatus) => {
   return {
-    'bg-green-500': status === 'online',
-    'bg-yellow-500': status === 'away',
-    'bg-gray-500': status === 'offline'
+    'bg-green-500': status === 'Online',
+    'bg-yellow-500': status === 'Away',
+    'bg-gray-500': status === 'Offline'
   };
 };
+
+onMounted(async () => {
+  const s = await dataPool.allServerAsync;
+  dataPool.selectedServer = s[0].Id;
+})
+
 </script>
 
 <style scoped>
