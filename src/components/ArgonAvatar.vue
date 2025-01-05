@@ -20,7 +20,7 @@ const blobSrc = ref("");
 const fileStorage = useFileStorage();
 const props = withDefaults(defineProps<{
   class?: HTMLAttributes['class'],
-  fileId: string,
+  fileId: string | null,
   fallback: string,
   serverId?: string,
   userId?: string
@@ -31,6 +31,13 @@ onMounted(async () => {
   await delay(5000);
 
   if (props.userId) {
+    if(!props.fileId) {
+      loading.value = false;
+      loaded.value = false;
+      blobSrc.value = fileStorage.FAILED_ADDRESS;
+      return;
+    }
+
     blobSrc.value = await fileStorage.fetchUserAvatar(props.fileId, props.userId);
     if (blobSrc.value === fileStorage.FAILED_ADDRESS) {
       loading.value = false;
