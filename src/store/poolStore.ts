@@ -13,7 +13,7 @@ import { computedAsync } from "@vueuse/core";
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { User: IUser };
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
-  Users: IRealtimeChannelUserWithData [];
+  Users: Reactive<Map<Guid, IRealtimeChannelUserWithData>>;
 };
 
 export const usePoolStore = defineStore("data-pool", () => {
@@ -103,21 +103,15 @@ export const usePoolStore = defineStore("data-pool", () => {
   });
 
   const trackServer = async function (server: IServer) {
-    const exist = await db.servers.get(server.Id);
-    if (exist) {
-      await db.servers.update(exist.Id, (x) => {
-        Object.assign(x, server);
-      });
-      return;
-    }
     await db.servers.put(server, server.Id);
   };
 
   const trackUser = async function (user: IUser, extendedStatus?: UserStatus) {
     const exist = await db.users.get(user.Id);
     if (exist) {
-      await db.servers.update(exist.Id, (x) => {
-        Object.assign(x, user);
+      await db.users.update(exist.Id, {
+        ...user,
+        status: "Offline"
       });
       return;
     }
@@ -130,8 +124,16 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   };
 
-  const trackChannel = async function (channel: IChannel, users?: IRealtimeChannelUserWithData[]) {
+  const trackChannel = async function (channel: IChannel, users?: Map<Guid, IRealtimeChannelUserWithData>) {
+    realtimeChannelUsers.set(
+      channel.Id,
+      reactive({
+        Channel: channel,
+        Users: users ?? new Map<Guid, IRealtimeChannelUserWithData>()
+      })
+    );
     const exist = await db.channels.get(channel.Id);
+
     if (exist) {
       await db.channels.update(exist.Id, (x) => {
         Object.assign(x, channel);
@@ -139,15 +141,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       return;
     }
     await db.channels.put(channel, channel.Id);
-    if (!realtimeChannelUsers.has(channel.Id)) {
-      realtimeChannelUsers.set(
-        channel.Id,
-        reactive({
-          Channel: channel,
-          Users: users ?? [] as IRealtimeChannelUserWithData[],
-        })
-      );
-    }
+   
   };
 
   const subscribeToEvents = function () {
@@ -162,15 +156,6 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
 
       await trackChannel(x.channel);
-      if (realtimeChannelUsers.has(x.channel.Id)) {
-        realtimeChannelUsers.set(
-          x.channel.Id,
-          reactive({
-            Channel: x.channel,
-            Users: [] as IRealtimeChannelUserWithData[],
-          })
-        );
-      }
     });
     bus.onServerEvent<ChannelRemoved>("ChannelRemoved", async (x) => {
       if (realtimeChannelUsers.has(x.channelId)) {
@@ -195,6 +180,25 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
     });
 
+    bus.onServerEvent<LeavedFromChannelUser>("LeavedFromChannelUser", async (x) => {
+      const c = db.channels.get(x.channelId);
+
+      if (!c) {
+        logger.error("recollect channel required");
+        return;
+      }
+
+      if (realtimeChannelUsers.has(x.channelId)) {
+        const e = realtimeChannelUsers.get(x.channelId);
+
+        if (!e) throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
+
+        if (e.Users.has(x.userId)) {
+          e.Users.delete(x.userId);
+        }
+      }
+    })
+
     bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", async (x) => {
       const c = db.channels.get(x.channelId);
 
@@ -214,11 +218,15 @@ export const usePoolStore = defineStore("data-pool", () => {
       if (realtimeChannelUsers.has(x.channelId)) {
         const e = realtimeChannelUsers.get(x.channelId);
 
-        e?.Users.push({
+        if (!e) throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
+
+
+        e.Users.set(x.userId, {
           State: 0,
           UserId: x.userId,
           User: user!
         });
+
       } else
         logger.error(
           "realtime channel not contains received from JoinedToChannelUser channel, maybe bug"
@@ -288,12 +296,13 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       const channels = await api.serverInteraction.GetChannels(s.Id);
 
-
+      logger.log(`Loaded '${channels.length}' channels`, channels);
       for (const c of channels) {
-        const w = c.Users.map(x => {
-          return { State: x.State, UserId: x.UserId, User: users.filter(z => z.Member.Id == x.UserId).at(0)!.Member.User };
-        });
-        await trackChannel(c.Channel, w);
+        const we = new Map<Guid, IRealtimeChannelUserWithData>();
+        for (const uw of c.Users) {
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: users.filter(z => z.Member.Id == uw.UserId).at(0)!.Member.User });
+        }
+        await trackChannel(c.Channel, we);
       }
       
       bus.listenEvents(s.Id);
