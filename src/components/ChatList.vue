@@ -1,8 +1,8 @@
 <template>
   <div class="chat-list min-w-[250px]">
     <div class="flex flex-col">
-      <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-        <h2 class="text-lg font-bold">{{ servers.activeServer?.Name }}</h2>
+      <div class="p-4 border-b border-gray-700 flex justify-between items-center" v-if="pool.selectedServer">
+        <h2 class="text-lg font-bold">{{ pool.getSelectedServer?.Name }}</h2>
         <button class="text-gray-400 hover:text-white" @click="windows.serverSettingsOpen = true">
           <CloverIcon class="w-5 h-5" />
         </button>
@@ -67,7 +67,7 @@
       </div>
 
       <div class="flex-1 overflow-y-auto py-4 ">
-        <div v-if="servers.activeServer" v-for="channel in servers.activeServer.Channels" :key="channel.Id"
+        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.Id"
           class="px-4 py-2 hover:bg-gray-700 cursor-pointer flex flex-col ">
           <div class="flex items-center justify-between group" v-on:click="channelSelect(channel.Id)">
             <div class="flex items-center space-x-2">
@@ -140,11 +140,11 @@
             </DropdownMenu>
           </div>
 
-          <ul v-if="channel.ChannelType === 'Voice' && servers.currentChannelUsers.length != 0" class="ml-7 space-y-1">
-            <li v-for="user in servers.currentChannelUsers" :key="user.Id"
+          <ul v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id)" class="ml-7 space-y-1">
+            <li v-for="{ User } in pool.realtimeChannelUsers.get(channel.Id)!.Users" :key="User.Id"
               class="flex items-center text-gray-400 hover:text-white">
-              <img :src="user.AvatarFileId" alt="User Avatar" class="w-6 h-6 rounded-full mr-2" />
-              <span>{{ user.DisplayName }}</span>
+              <img :src="User.AvatarFileId" alt="User Avatar" class="w-6 h-6 rounded-full mr-2" />
+              <span>{{ User.DisplayName }}</span>
             </li>
           </ul>
         </div>
@@ -190,6 +190,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ref } from 'vue';
 import { logger } from '@/lib/logger';
 import { useWindow } from '@/store/windowStore';
+import { usePoolStore } from '@/store/poolStore';
+import { useVoice } from '@/store/voiceStore';
 
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
 const channelName = ref("");
@@ -197,6 +199,9 @@ const addChannelOpened = ref(false);
 const addChannel_Loading = ref(false);
 const servers = useServerStore();
 const windows = useWindow();
+const pool = usePoolStore();
+const voice = useVoice();
+
 
 const addChannel = () => {
   addChannel_Loading.value = true;
@@ -209,15 +214,26 @@ const addChannel = () => {
   }, 1000);
 };
 
-function channelSelect(channelId: string) {
+async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
-  const channel = servers.getDetailsOfChannel(channelId);
+
+  const channel = await pool.getChannel(channelId);
+
+  if (!channel) return;
+  if (channel.ChannelType == "Voice") {
+    await voice.connectToChannel(channelId);
+  }
+
+  
+
+
+  /*const channel = servers.getDetailsOfChannel(channelId);
 
   if (!channel) return;
   if (channel.ChannelType == "Voice") {
     connectToChannel(channel.Id);
     return;
-  }
+  }*/
 }
 
 function channelDelete(channelId: string) {
@@ -226,7 +242,7 @@ function channelDelete(channelId: string) {
 
 
 const connectToChannel = (channelId: string) => {
-  servers.connectTo(channelId);
+  //servers.connectTo(channelId);
 };
 </script>
 
