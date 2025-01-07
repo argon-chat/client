@@ -29,9 +29,9 @@ import {
   PinInputSeparator,
 } from '@/components/ui/pin-input'
 import { logger } from '@/lib/logger'
+import { usePoolStore } from '@/store/poolStore'
 
 const router = useRouter();
-const server = useServerStore();
 
 const isLoading = ref(false);
 const tabValue = ref<"login" | "register" | "otp-code">('login');
@@ -73,12 +73,21 @@ async function onSubmit(event: Event | null) {
       await authStore.login(email.value, password.value, !!otpCode.value ? otpCode.value : undefined, undefined);
       if (authStore.isRequiredOtp && tabValue.value == "login") {
         tabValue.value = "otp-code";
+        return;
       }
     }
-    if (server.servers.length === 0) {
-      router.push({ path: '/create-or-join' });
-    } else {
-      router.push({ path: '/master' });
+    if (authStore.isAuthenticated) {
+      /*const serverStore = usePoolStore();
+      await serverStore.loadServerDetails();
+
+      const servers = await serverStore.allServerAsync;
+
+      if (servers.length == 0) {
+        router.push({ path: '/create-or-join' });
+        return;
+      }
+      router.push({ path: "/master" });*/
+      location.reload();
     }
   } catch (error) {
     console.error('Error when login/register:', error);
