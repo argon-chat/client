@@ -1,5 +1,15 @@
 import { logger } from "@/lib/logger";
-import { ConnectionQuality, createLocalAudioTrack, LocalAudioTrack, Participant, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room, RoomConnectOptions } from "livekit-client";
+import {
+  ConnectionQuality,
+  createLocalAudioTrack,
+  LocalAudioTrack,
+  Participant,
+  RemoteParticipant,
+  RemoteTrack,
+  RemoteTrackPublication,
+  Room,
+  RoomConnectOptions,
+} from "livekit-client";
 import { defineStore } from "pinia";
 import { computed, Reactive, reactive, ref } from "vue";
 import { usePoolStore } from "./poolStore";
@@ -25,31 +35,27 @@ export const useVoice = defineStore("voice", () => {
   const connectedRoom = reactive({ room: null, opt: null, subs: [] } as {
     room: Reactive<Room> | null;
     opt: null | RoomConnectOptions;
-    subs: Subscription[]
+    subs: Subscription[];
   });
-
 
   const rtt = ref(0);
 
-  const ping = computed(() =>
-    `${rtt.value}ms`
-  );
-
+  const ping = computed(() => `${rtt.value}ms`);
 
   const qualityConnection = computed(() => {
     if (!isConnected) return "NONE";
     const e = rtt.value;
     if (!e) {
-        return "NONE";
+      return "NONE";
     }
     if (e < 50) {
-        return "GREEN"
+      return "GREEN";
     }
     if (e < 100) {
-        return "ORANGE"
+      return "ORANGE";
     }
     return "RED";
-  })
+  });
 
   async function connectToChannel(channelId: string) {
     pool.selectedChannel = channelId;
@@ -59,9 +65,19 @@ export const useVoice = defineStore("voice", () => {
     await delay(2000);
 
     const livekitToken = await api.serverInteraction.JoinToVoiceChannel(
-        pool.selectedServer!,
+      pool.selectedServer!,
       channelId
     );
+
+    logger.log(`Livekit authorization`, livekitToken);
+
+    if (!livekitToken.IsSuccess) {
+        logger.error(`Failed retrive authorization token for login to room`, livekitToken.Error);
+        currentState.value = "NONE";
+        activeChannel.value = null;
+        pool.selectedChannel = null;
+        return;
+    }
 
     const connectOptions: RoomConnectOptions = {};
 
@@ -74,28 +90,30 @@ export const useVoice = defineStore("voice", () => {
     room.on("trackSubscribed", onTrackSubscribed);
     room.on("trackUnsubscribed", onTrackUnsubscribed);
 
-    await room.connect(cfg.webRtcEndpoint, livekitToken, {
+    await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
       ...connectOptions,
     });
 
     const localAudioTrack = await createLocalAudioTrack();
     await room.localParticipant.publishTrack(localAudioTrack);
 
-    connectedRoom.subs.push(sys.muteEvent.subscribe((x) => {
-        if (x)
-            localAudioTrack.mute();
-        else 
-            localAudioTrack.unmute();
-    }));
+    connectedRoom.subs.push(
+      sys.muteEvent.subscribe((x) => {
+        if (x) localAudioTrack.mute();
+        else localAudioTrack.unmute();
+      })
+    );
 
     const source = timer(500, 500);
 
-    connectedRoom.subs.push(source.subscribe(() => {
+    connectedRoom.subs.push(
+      source.subscribe(() => {
         rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
-    }));
+      })
+    );
 
     if (sys.microphoneMuted) {
-        localAudioTrack.mute();
+      localAudioTrack.mute();
     }
 
     currentState.value = "CONNECTED";
@@ -107,7 +125,10 @@ export const useVoice = defineStore("voice", () => {
     const room = connectedRoom.room;
     try {
       if (room) {
-        await api.serverInteraction.DisconnectFromVoiceChannel(activeChannel.value!.ServerId, activeChannel.value!.Id);
+        await api.serverInteraction.DisconnectFromVoiceChannel(
+          activeChannel.value!.ServerId,
+          activeChannel.value!.Id
+        );
         room.off("trackSubscribed", onTrackSubscribed);
         room.off("trackUnsubscribed", onTrackUnsubscribed);
         room.off("connectionQualityChanged", onParticipantQualityChanged);
@@ -115,8 +136,8 @@ export const useVoice = defineStore("voice", () => {
         room.disconnect();
         logger.warn("Success disconnected from channel");
 
-        for(const s of connectedRoom.subs) {
-            s.unsubscribe();
+        for (const s of connectedRoom.subs) {
+          s.unsubscribe();
         }
         currentState.value = "NONE";
         connectedRoom.room = null;
@@ -130,8 +151,6 @@ export const useVoice = defineStore("voice", () => {
     }
   }
 
-
-  
   function onTrackSubscribed(
     track: RemoteTrack,
     publication: RemoteTrackPublication,
@@ -181,6 +200,6 @@ export const useVoice = defineStore("voice", () => {
     isBeginConnect,
     isConnected,
     activeChannel,
-    qualityConnection
+    qualityConnection,
   };
 });
