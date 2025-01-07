@@ -12,8 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { onMounted, ref, type HTMLAttributes } from 'vue'
 import { useFileStorage } from "@/store/fileStorage";
 import { logger } from '@/lib/logger';
-import delay from '@/lib/delay';
-
 const loaded = ref(false);
 const loading = ref(true);
 const blobSrc = ref("");
@@ -28,8 +26,6 @@ const props = withDefaults(defineProps<{
 
 
 onMounted(async () => {
-  await delay(5000);
-
   if (props.userId) {
     if(!props.fileId) {
       loading.value = false;
