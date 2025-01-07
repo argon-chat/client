@@ -4,6 +4,7 @@
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { ArgonTransport } from "./transport";
+import type { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
 import type { StreamPayload } from "./transport";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
@@ -23,6 +24,10 @@ export interface IArgonTransportClient {
      * @generated from protobuf rpc: BroadcastSubscribe(RpcRequest) returns (stream StreamPayload);
      */
     broadcastSubscribe(input: RpcRequest, options?: RpcOptions): ServerStreamingCall<RpcRequest, StreamPayload>;
+    /**
+     * @generated from protobuf rpc: BiDirectSubscribe(stream RpcRequest) returns (stream StreamPayload);
+     */
+    biDirectSubscribe(options?: RpcOptions): DuplexStreamingCall<RpcRequest, StreamPayload>;
 }
 /**
  * @generated from protobuf service ArgonTransport
@@ -46,5 +51,12 @@ export class ArgonTransportClient implements IArgonTransportClient, ServiceInfo 
     broadcastSubscribe(input: RpcRequest, options?: RpcOptions): ServerStreamingCall<RpcRequest, StreamPayload> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
         return stackIntercept<RpcRequest, StreamPayload>("serverStreaming", this._transport, method, opt, input);
+    }
+    /**
+     * @generated from protobuf rpc: BiDirectSubscribe(stream RpcRequest) returns (stream StreamPayload);
+     */
+    biDirectSubscribe(options?: RpcOptions): DuplexStreamingCall<RpcRequest, StreamPayload> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<RpcRequest, StreamPayload>("duplex", this._transport, method, opt);
     }
 }

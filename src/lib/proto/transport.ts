@@ -263,5 +263,6 @@ export const StreamPayload = new StreamPayload$Type();
  */
 export const ArgonTransport = new ServiceType("ArgonTransport", [
     { name: "Unary", options: {}, I: RpcRequest, O: RpcResponse },
-    { name: "BroadcastSubscribe", serverStreaming: true, options: {}, I: RpcRequest, O: StreamPayload }
+    { name: "BroadcastSubscribe", serverStreaming: true, options: {}, I: RpcRequest, O: StreamPayload },
+    { name: "BiDirectSubscribe", serverStreaming: true, clientStreaming: true, options: {}, I: RpcRequest, O: StreamPayload }
 ]);
