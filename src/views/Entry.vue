@@ -575,7 +575,7 @@ const onResize = () => {
 
 function onInitTerminal() {
   terminal = new Terminal({
-    cols: 180,
+    cols: 90,
     rows: 30,
     theme: {
       background: "black",
