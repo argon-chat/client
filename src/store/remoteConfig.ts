@@ -8,6 +8,7 @@ export const useConfig = defineStore("config", () => {
   const fb = useFirebase();
   
   const overrides = ref<{ [key: string]: string | boolean | number }>({
+    //apiEndpoint: 'https://localhost:5001'
   });
 
   function setOverride(key: string, value: string | boolean | number) {
