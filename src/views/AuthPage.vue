@@ -46,7 +46,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div v-motion-slide-visible-once-top :duration="2200"
+    <div v-motion-slide-visible-once-top :duration="200"
         class="container relative hidden h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <!-- <a href="/examples/authentication" :class="cn(
             buttonVariants({ variant: 'ghost' }),
