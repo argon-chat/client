@@ -17,7 +17,7 @@ export class WebTransportRpc implements RpcTransport {
 
   async connect(): Promise<void> {
     if (!this.session) {
-      this.session = new WebTransport(this.baseUrl);
+      this.session = new WebTransport(this.baseUrl, {  });
       await this.session.ready;
     }
   }
@@ -52,9 +52,8 @@ export class WebTransportRpc implements RpcTransport {
       trailers
     );
   }
-
-  private async handleStreamingRequest<I, O>(
-    method: RpcMethod,
+  private async handleStreamingRequest<I extends object, O extends object>(
+    method: MethodInfo<I, O>,
     input: I,
     options: RpcOptions,
     outputStream: RpcOutputStreamController<O>
@@ -64,24 +63,22 @@ export class WebTransportRpc implements RpcTransport {
     const reader = stream.readable.getReader();
 
     try {
-      // Отправляем данные запроса
       const requestPayload = method.I.toBinary(input);
       await writer.write(requestPayload);
       writer.close();
 
-      // Читаем ответы из потока
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         if (value) {
           const response = method.O.fromBinary(new Uint8Array(value));
-          outputStream.notify(response);
+          outputStream.notifyMessage(response);
         }
       }
 
-      outputStream.complete();
-    } catch (error) {
-      outputStream.error(error);
+      outputStream.notifyComplete();
+    } catch (error: any) {
+      outputStream.notifyError(error);
     } finally {
       reader.releaseLock();
       writer.releaseLock();

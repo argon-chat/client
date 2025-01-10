@@ -72,11 +72,14 @@ export const useVoice = defineStore("voice", () => {
     logger.log(`Livekit authorization`, livekitToken);
 
     if (!livekitToken.IsSuccess) {
-        logger.error(`Failed retrive authorization token for login to room`, livekitToken.Error);
-        currentState.value = "NONE";
-        activeChannel.value = null;
-        pool.selectedChannel = null;
-        return;
+      logger.error(
+        `Failed retrive authorization token for login to room`,
+        livekitToken.Error
+      );
+      currentState.value = "NONE";
+      activeChannel.value = null;
+      pool.selectedChannel = null;
+      return;
     }
 
     const connectOptions: RoomConnectOptions = {};
@@ -90,9 +93,20 @@ export const useVoice = defineStore("voice", () => {
     room.on("trackSubscribed", onTrackSubscribed);
     room.on("trackUnsubscribed", onTrackUnsubscribed);
 
-    await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
-      ...connectOptions,
-    });
+    try {
+      await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
+        ...connectOptions,
+      });
+
+      (window as any)["room"] = room;
+    } catch (e) {
+        logger.error(e);
+        logger.error("Failed connect to web rtc server");
+        currentState.value = "NONE";
+      activeChannel.value = null;
+      pool.selectedChannel = null;
+      return;
+    }
 
     const localAudioTrack = await createLocalAudioTrack();
     await room.localParticipant.publishTrack(localAudioTrack);

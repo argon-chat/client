@@ -66,8 +66,6 @@ export class RpcClient {
               },
               { meta: { authorize: authStore.token ?? "" } }
             );
-            (window as any)["subscribe_bi"] = this.subscribe_bi;
-            this.subscribe_bi(serviceName, String(methodName), args);
 
             return {
               [Symbol.asyncIterator]: async function* () {

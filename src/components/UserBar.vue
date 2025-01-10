@@ -35,10 +35,10 @@
             <Tooltip>
               <TooltipTrigger as-child>
                 <div>
-                  <SignalHigh class="w-4 h-4 text-green-500" v-if="voice.qualityConnection == 'GREEN'" />
-                  <SignalMedium class="w-4 h-4 text-orange-500" v-else-if="voice.qualityConnection == 'ORANGE'" />
-                  <SignalLow class="w-4 h-4 text-red-500" v-else-if="voice.qualityConnection == 'RED'" />
-                  <SignalZero class="w-4 h-4 text-gray-500" v-else />
+                  <Signal class="w-4 h-4 text-green-500" v-if="voice.qualityConnection == 'GREEN'" />
+                  <Signal class="w-4 h-4 text-orange-500" v-else-if="voice.qualityConnection == 'ORANGE'" />
+                  <Signal class="w-4 h-4 text-red-500" v-else-if="voice.qualityConnection == 'RED'" />
+                  <Signal class="w-4 h-4 text-gray-500" v-else />
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, SignalHigh, SignalMedium, SignalZero, SignalLow } from 'lucide-vue-next';
+import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'lucide-vue-next';
 
 
 import { useMe } from "@/store/meStore";
