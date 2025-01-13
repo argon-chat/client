@@ -1,5 +1,8 @@
 <template>
-  <div class="app-container flex h-screen gap-4 p-5">
+  <div class="app-container flex h-screen gap-4 p-5" :style="usePaddingTop ? 'padding-top: 40px;' : ''">
+    <div class="top-bar fixed top-0 left-0 right-0 mx-auto w-full h-8 rounded-b-lg shadow-md flex items-center justify-center" style="background-color: #2f3136; max-width: 100%;">
+      <h1 class="text-lg font-semibold text-white ">Argon</h1>
+    </div>
     <Sidebar />
     <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
       <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
@@ -40,10 +43,11 @@ import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { usePoolStore } from '@/store/poolStore';
 import { UserStatus } from '@/lib/glue/UserStatus';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 const dataPool = usePoolStore();
 
+const usePaddingTop = ref(false);
 const statusClass = (status: UserStatus) => {
   return {
     'bg-green-500': status === 'Online',
@@ -55,6 +59,11 @@ const statusClass = (status: UserStatus) => {
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
   dataPool.selectedServer = s[0].Id;
+
+  if (('isStandalone' in window)) {
+    //    padding-top: 40px;
+    usePaddingTop.value = true;
+  }
 })
 
 </script>

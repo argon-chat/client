@@ -1,9 +1,12 @@
 <template>
-  <Avatar :class="props.class">
-    <Skeleton style="height: 100%; width: 100%; background-color: #494949;" v-if="loading" :class="props.class" />
-    <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
-    <AvatarFallback v-if="!loading && !loaded">{{ props.fallback }}</AvatarFallback>
-  </Avatar>
+  <keep-alive :max="10" :key="props.fileId!">
+    <Avatar :class="props.class" :key="props.fileId!">
+      <Skeleton style="height: 100%; width: 100%; background-color: #494949;" v-if="loading" :class="props.class" />
+      <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
+      <AvatarFallback v-if="!loading && !loaded">{{ props.fallback }}</AvatarFallback>
+    </Avatar>
+  </keep-alive>
+
 </template>
 
 <script setup lang="ts">
@@ -27,7 +30,7 @@ const props = withDefaults(defineProps<{
 
 onMounted(async () => {
   if (props.userId) {
-    if(!props.fileId) {
+    if (!props.fileId) {
       loading.value = false;
       loaded.value = false;
       blobSrc.value = fileStorage.FAILED_ADDRESS;

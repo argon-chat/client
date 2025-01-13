@@ -7,6 +7,8 @@
     <title>Argon App</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.argon.gl" />
+    <link rel="preconnect" href="https://rts.argon.gl" />
     <link
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet">
@@ -14,5 +16,10 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      if (window.isStandalone) {
+        document.body.style = "background-color: transparent !important;"
+      }
+    </script>
   </body>
 </html>

@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { defineStore } from "pinia";
 import { Ref, ref } from "vue";
 import { DBSchema, openDB } from "idb";
+import delay from "@/lib/delay";
 
 interface MyDB extends DBSchema {
   objects: {
@@ -74,10 +75,14 @@ export const useFileStorage = defineStore("files", () => {
     return fetchByFileId({ fileId, bucket: imagesBucket.value!, fileUrlBuilder: (x) => `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`, allowFallback: false })
   }
 
+  (window as any)["fetchUserAvatar"] = fetchUserAvatar;
+
 
   function unwrap(s: string) {
     return s.replaceAll("-", "");
   }
+
+  const locks = new Map<string, string>();
 
   async function fetchByFileId({
     fileId,
@@ -90,6 +95,11 @@ export const useFileStorage = defineStore("files", () => {
     fileUrlBuilder: (fileId: string) => string;
     allowFallback: boolean
   }): Promise<string> {
+
+    if (locks.has(fileId)) {
+      while(locks.has(fileId))
+        await delay(100);
+    }
     if (!bucket) {
       logger.error(new Error("Bucket is not initialized"));
       if (allowFallback) 
@@ -97,11 +107,13 @@ export const useFileStorage = defineStore("files", () => {
 
       return FAILED_ADDRESS;
     }
-  
+    locks.set(fileId, fileId);
+
     const db = await openDB<MyDB>(bucket.name, 1);
   
     try {
       const record = await db.getFromIndex("objects", "originalFileId", fileId);
+
       if (record) {
         const directory = await bucket.getDirectory();
         const fileHandle = await directory.getFileHandle(record.bucketFilePath);
@@ -110,19 +122,20 @@ export const useFileStorage = defineStore("files", () => {
       }
   
       const fileUrl = fileUrlBuilder(fileId);
-  
       const response = await fetch(fileUrl);
+      await delay(1000);
       if (!response.ok) {
         logger.error(new Error(`Failed to fetch file from ${fileUrl}`));
         if (allowFallback) 
           return fileUrlBuilder(fileId);
         return FAILED_ADDRESS;
       }
-  
+      
       const blob = await response.blob();
       const filePath = fileId;
-  
+      
       const directory = await bucket.getDirectory();
+
       const fileHandle = await directory.getFileHandle(filePath, { create: true });
       const writable = await fileHandle.createWritable();
   
@@ -134,7 +147,7 @@ export const useFileStorage = defineStore("files", () => {
         bucketFilePath: filePath,
         insertTime: Math.floor(Date.now() / 1000)
       });
-  
+
       return URL.createObjectURL(blob);
     } 
     catch(e) {
@@ -145,6 +158,7 @@ export const useFileStorage = defineStore("files", () => {
     }
     finally {
       db.close();
+      locks.delete(fileId);
     }
   }
   
