@@ -12,23 +12,23 @@ The project includes several NPM scripts to simplify development, build, and man
 
 - `dev`:  
   Launches the development server using Vite, enabling hot-reload and fast feedback during development.  
-  Command: `npm run dev`
+  Command: `bun run dev`
 
 - `build`:  
   Compiles and bundles the application for production, followed by publishing the compiled files using the `hive publish` command.  
-  Command: `npm run build`
+  Command: `bun run build`
 
 - `preview`:  
   Serves the production build locally for testing purposes.  
-  Command: `npm run preview`
+  Command: `bun run preview`
 
 - `glue-proto:windows`:  
   Generates TypeScript definitions from the `transport.proto` file for a Windows environment.  
-  Command: `npm run glue-proto:windows`
+  Command: `bun run glue-proto:windows`
 
 - `glue-proto:linux`:  
   Generates TypeScript definitions from the `transport.proto` file for a Linux environment.  
-  Command: `npm run glue-proto:linux`
+  Command: `bun run glue-proto:linux`
 
 ## Host Repository
 
