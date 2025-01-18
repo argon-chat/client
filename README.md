@@ -46,7 +46,12 @@ The application supports the following host arguments for runtime configuration:
 - `--host-use-localhost`²: Uses `https://localhost` with port 5005 for development.
 - `--bypass-security`²: Allows the use of unsigned fragments.
 
-                 
 
 *1 - console, and process priority with boost only for windows          
-*2 - usable for development (used only for developing and/or fixing something.)
+*2 - usable for development (used only for developing and/or fixing something.)    
+
+
+
+# License    
+    
+GNU General Public License v2.0
