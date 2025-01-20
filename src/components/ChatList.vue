@@ -190,12 +190,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { ref } from 'vue';
+import { ref, onBeforeUnmount } from 'vue';
 import { logger } from '@/lib/logger';
 import { useWindow } from '@/store/windowStore';
 import { usePoolStore } from '@/store/poolStore';
 import { useVoice } from '@/store/voiceStore';
 import ArgonAvatar from './ArgonAvatar.vue';
+import { useSessionTimer } from '@/store/sessionTimer'
 
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
 const channelName = ref("");
@@ -205,6 +206,7 @@ const servers = useServerStore();
 const windows = useWindow();
 const pool = usePoolStore();
 const voice = useVoice();
+const sessionTimerStore = useSessionTimer()
 
 
 const addChannel = () => {
@@ -220,17 +222,12 @@ const addChannel = () => {
 
 async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
-
   const channel = await pool.getChannel(channelId);
 
   if (!channel) return;
   if (channel.ChannelType == "Voice") {
     await voice.connectToChannel(channelId);
   }
-
-
-
-
   /*const channel = servers.getDetailsOfChannel(channelId);
 
   if (!channel) return;
@@ -242,12 +239,17 @@ async function channelSelect(channelId: string) {
 
 function channelDelete(channelId: string) {
   servers.deleteChannel(channelId);
+  sessionTimerStore.stopTimer()
 }
 
 
 const connectToChannel = (channelId: string) => {
   //servers.connectTo(channelId);
 };
+
+onBeforeUnmount(() => {
+  sessionTimerStore.stopTimer()
+})
 </script>
 
 <style scoped>
