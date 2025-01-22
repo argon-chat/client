@@ -21,6 +21,10 @@ export const useSessionTimer = defineStore("sessionTimer", () => {
 
   function updateSessionTimer(): void {
     const now = new Date();
+    if (!(sessionStartDate.value instanceof Date) || isNaN(sessionStartDate.value.getTime())) {
+      stopTimer()
+      return
+    }
     const milliseconds = now.getTime() - sessionStartDate.value.getTime();
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -34,6 +38,7 @@ export const useSessionTimer = defineStore("sessionTimer", () => {
   }
 
   function startTimer(): void {
+    stopTimer()
     updateSessionTimer()
     interval.value = setInterval(updateSessionTimer, 1000)
   }

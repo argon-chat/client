@@ -190,7 +190,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { ref, onBeforeUnmount } from 'vue';
+import { ref } from 'vue';
 import { logger } from '@/lib/logger';
 import { useWindow } from '@/store/windowStore';
 import { usePoolStore } from '@/store/poolStore';
@@ -237,19 +237,19 @@ async function channelSelect(channelId: string) {
   }*/
 }
 
-function channelDelete(channelId: string) {
-  servers.deleteChannel(channelId);
-  sessionTimerStore.stopTimer()
+async function channelDelete(channelId: string) {
+  try {
+    await servers.deleteChannel(channelId);
+    sessionTimerStore.stopTimer()
+  } catch (error) {
+    logger.error('Failed to delete channel:', error)
+  }
 }
 
 
 const connectToChannel = (channelId: string) => {
   //servers.connectTo(channelId);
 };
-
-onBeforeUnmount(() => {
-  sessionTimerStore.stopTimer()
-})
 </script>
 
 <style scoped>

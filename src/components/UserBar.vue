@@ -49,7 +49,7 @@
           </TooltipProvider>
           <span class="font-semibold">{{ voice.activeChannel?.Name }}</span>
         </div>
-        <span class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTime }}</span>
+        <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTime }}</span>
         <span class="text-xs text-lime-400 mt-1" v-if="voice.isConnected">Connected</span>
         <span class="text-xs text-orange-400 mt-1" v-if="voice.isBeginConnect">Connecting...</span>
       </div>
