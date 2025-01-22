@@ -21,7 +21,7 @@ export const useSessionTimer = defineStore("sessionTimer", () => {
 
   function updateSessionTimer(): void {
     const now = new Date();
-    if (!(sessionStartDate.value instanceof Date) || isNaN(sessionStartDate.value.getTime())) {
+    if (!(sessionStartDate.value instanceof Date) || Number.isNaN(sessionStartDate.value.getTime())) {
       stopTimer()
       return
     }
