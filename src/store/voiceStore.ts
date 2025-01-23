@@ -24,7 +24,7 @@ export const useVoice = defineStore("voice", () => {
   const api = useApi();
   const cfg = useConfig();
   const sys = useSystemStore();
-  const sessionTimerStore = useSessionTimer()
+  const sessionTimerStore = useSessionTimer();
 
   const currentState = ref("NONE" as "NONE" | "BEGIN_CONNECT" | "CONNECTED");
 
@@ -134,11 +134,7 @@ export const useVoice = defineStore("voice", () => {
     }
 
     currentState.value = "CONNECTED";
-    try {
-      sessionTimerStore.startTimer()
-    } catch (error) {
-      logger.error('Failed to start session timer:', error)
-    }
+    sessionTimerStore.startTimer()
     logger.success("Connected to channel");
   }
 
@@ -165,11 +161,7 @@ export const useVoice = defineStore("voice", () => {
         connectedRoom.room = null;
         pool.selectedChannel = null;
         activeChannel.value = null;
-        try {
-          sessionTimerStore.stopTimer()
-        } catch (error) {
-          logger.error('Failed to stop session timer:', error)
-        }
+        sessionTimerStore.stopTimer()
       } else {
         logger.error("No active channel connection");
       }

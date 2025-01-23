@@ -196,7 +196,6 @@ import { useWindow } from '@/store/windowStore';
 import { usePoolStore } from '@/store/poolStore';
 import { useVoice } from '@/store/voiceStore';
 import ArgonAvatar from './ArgonAvatar.vue';
-import { useSessionTimer } from '@/store/sessionTimer'
 
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
 const channelName = ref("");
@@ -206,7 +205,6 @@ const servers = useServerStore();
 const windows = useWindow();
 const pool = usePoolStore();
 const voice = useVoice();
-const sessionTimerStore = useSessionTimer()
 
 
 const addChannel = () => {
@@ -238,12 +236,7 @@ async function channelSelect(channelId: string) {
 }
 
 async function channelDelete(channelId: string) {
-  try {
-    await servers.deleteChannel(channelId);
-    sessionTimerStore.stopTimer()
-  } catch (error) {
-    logger.error('Failed to delete channel:', error)
-  }
+  await servers.deleteChannel(channelId);
 }
 
 
