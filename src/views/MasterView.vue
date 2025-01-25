@@ -1,7 +1,7 @@
 <template>
   <div class="app-container flex h-screen gap-4 p-5" :style="usePaddingTop ? 'padding-top: 40px;' : ''">
-    <div class="top-bar fixed top-0 left-0 right-0 mx-auto w-full h-8 rounded-b-lg shadow-md flex items-center justify-center" style="background-color: #2f3136; max-width: 100%;">
-      <h1 class="text-lg font-semibold text-white ">Argon</h1>
+    <div class="top-bar fixed top-0 left-0 right-0 mx-auto w-full h-8 rounded-b-lg shadow-md flex items-center justify-center" style="background-color: #2f3136; max-width: 500px;">
+      <h1 class="text-lg font-semibold text-white ">Argon <span style="color: orange;">Beta {{ version }}</span></h1>
     </div>
     <Sidebar />
     <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
@@ -46,6 +46,8 @@ import { UserStatus } from '@/lib/glue/UserStatus';
 import { onMounted, ref } from 'vue';
 
 const dataPool = usePoolStore();
+const version = ref("");
+
 
 const usePaddingTop = ref(false);
 const statusClass = (status: UserStatus) => {
@@ -57,13 +59,14 @@ const statusClass = (status: UserStatus) => {
 };
 
 onMounted(async () => {
+  if ('argon_host_version' in window) {
+    version.value = window["argon_host_version"] as string;
+  } else {
+    version.value = "[dev]";
+  }
   const s = await dataPool.allServerAsync;
   dataPool.selectedServer = s[0].Id;
-
-  if (('isStandalone' in window)) {
-    //    padding-top: 40px;
-    usePaddingTop.value = true;
-  }
+  usePaddingTop.value = true;
 })
 
 </script>
