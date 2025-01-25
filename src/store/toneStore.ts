@@ -6,59 +6,19 @@ import * as Tone from "tone";
 (window as any).Tone = Tone;
 
 export const useTone = defineStore("tone", () => {
+  const audioCtx: AudioContext = new AudioContext({
+    sampleRate: 48000,
+    latencyHint: "playback",
+  });
+
   function init() {
-    const customAudioContext = new AudioContext({
-      sampleRate: 48000,
-      latencyHint: "playback",
-    });
-    Tone.setContext(customAudioContext);
-    logger.info(`inited audio context '${customAudioContext.sampleRate}'Hz`);
+    Tone.setContext(audioCtx);
+    logger.info(`inited audio context '${audioCtx.sampleRate}'Hz`);
   }
 
-  function playCallSound() {
-    const baseSynth = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.3, decay: 0.6, sustain: 0.1, release: 1.5 },
-    }).toDestination();
-
-    const accentSynth = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.2, decay: 0.5, sustain: 0.1, release: 1 },
-    }).toDestination();
-
-    const reverb = new Tone.Reverb(4).toDestination();
-    baseSynth.connect(reverb);
-    accentSynth.connect(reverb);
-
-    const arpeggio = new Tone.Sequence(
-      (time, note) => {
-        accentSynth.triggerAttackRelease(note, "16n", time);
-      },
-      ["C5", "E5", "G5", "B5"],
-      "4n"
-    );
-
-    const basePattern = new Tone.Part(
-      (time) => {
-        baseSynth.triggerAttackRelease("C4", "2n", time);
-      },
-      [[0, "C4"]]
-    );
-
-    arpeggio.start(0);
-    basePattern.start(0);
-
-    Tone.Transport.scheduleRepeat(() => {
-      arpeggio.stop("+3.5");
-      arpeggio.start("+4");
-      basePattern.stop("+3.5");
-      basePattern.start("+4");
-    }, "4:0");
-
-    Tone.Transport.start();
-  }
-
-  function playSoftEnterSound() {
+  async function playSoftEnterSound() {
+    if (audioCtx.state == "suspended")
+      await Tone.start();
     const reverb = new Tone.Reverb(2).toDestination();
     const synth = new Tone.Synth({
       oscillator: { type: "sine" },
@@ -71,7 +31,34 @@ export const useTone = defineStore("tone", () => {
     }, 120);
   }
 
-  function playSoftLeaveSound() {
+
+  async function playReconnectSound() {
+    if (audioCtx.state == "suspended")
+      await Tone.start();
+    const reverb = new Tone.Reverb({
+      decay: 2.5,
+      wet: 0.4,
+    }).toDestination();
+  
+    const synth = new Tone.Synth({
+      oscillator: { type: "sine" }, 
+      envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 0.8 }, // Плавный переход
+    }).connect(reverb);
+  
+    synth.triggerAttackRelease("D4", "16n");
+  
+    setTimeout(() => {
+      synth.triggerAttackRelease("C4" , "16n");
+    }, 150);
+  
+    setTimeout(() => {
+      synth.triggerAttackRelease("A4", "16n");
+    }, 300);
+  }
+
+  async function playSoftLeaveSound() {
+    if (audioCtx.state == "suspended")
+      await Tone.start();
     const reverb = new Tone.Reverb(2).toDestination();
     const synth = new Tone.Synth({
       oscillator: { type: "sine" },
@@ -84,7 +71,9 @@ export const useTone = defineStore("tone", () => {
     }, 120);
   }
 
-  function playMuteAllSound() {
+  async function playMuteAllSound() {
+    if (audioCtx.state == "suspended")
+      await Tone.start();
     const reverb = new Tone.Reverb({
       decay: 1.5,
       wet: 0.2,
@@ -108,7 +97,9 @@ export const useTone = defineStore("tone", () => {
     }, 30);
   }
 
-  function playUnmuteAllSound() {
+  async function playUnmuteAllSound() {
+    if (audioCtx.state == "suspended")
+      await Tone.start();
     const reverb = new Tone.Reverb({
       decay: 1.5,
       wet: 0.2,
@@ -132,5 +123,8 @@ export const useTone = defineStore("tone", () => {
     }, 30);
   }
 
-  return { init, playSoftLeaveSound, playSoftEnterSound, playCallSound, playMuteAllSound, playUnmuteAllSound };
+
+  return { init, playSoftLeaveSound, playSoftEnterSound, playReconnectSound, playMuteAllSound, playUnmuteAllSound };
 });
+
+(window as any)["toneStore"] = useTone;
