@@ -111,7 +111,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     if (exist) {
       await db.users.update(exist.Id, {
         ...user,
-        status: "Offline"
+        status: extendedStatus ?? "Offline"
       });
       return;
     }
@@ -300,7 +300,20 @@ export const usePoolStore = defineStore("data-pool", () => {
       for (const c of channels) {
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: users.filter(z => z.Member.Id == uw.UserId).at(0)!.Member.User });
+          let selectedUser = users.filter(z => z.Member.Id == uw.UserId).at(0);
+          if (!selectedUser) {
+            trackUser(
+              await api.serverInteraction.PrefetchUser(s.Id, uw.UserId)
+            );
+          }
+
+          selectedUser = users.filter(z => z.Member.Id == uw.UserId).at(0);
+
+          if (!selectedUser) {
+            logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
+            continue;
+          }
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User });
         }
         await trackChannel(c.Channel, we);
       }
