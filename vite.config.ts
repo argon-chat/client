@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import path, { join } from 'path';
+import path from 'path';
 import tailwind from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
 import Icons from 'unplugin-icons/vite'
