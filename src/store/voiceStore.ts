@@ -18,6 +18,7 @@ import { delay, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
+import { useSessionTimer } from './sessionTimer'
 
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
@@ -25,6 +26,7 @@ export const useVoice = defineStore("voice", () => {
   const cfg = useConfig();
   const sys = useSystemStore();
   const tone = useTone();
+  const sessionTimerStore = useSessionTimer();
 
   const activeVideoRef = ref("");
 
@@ -62,6 +64,7 @@ export const useVoice = defineStore("voice", () => {
   });
 
   async function connectToChannel(channelId: string) {
+    sessionTimerStore.stopTimer()
     pool.selectedChannel = channelId;
     activeChannel.value = (await pool.getChannel(channelId))!;
     currentState.value = "BEGIN_CONNECT";
@@ -139,6 +142,7 @@ export const useVoice = defineStore("voice", () => {
     tone.playSoftEnterSound();
 
     currentState.value = "CONNECTED";
+    sessionTimerStore.startTimer()
     logger.success("Connected to channel");
   }
 
@@ -166,9 +170,6 @@ export const useVoice = defineStore("voice", () => {
         connectedRoom.room = null;
         pool.selectedChannel = null;
         activeChannel.value = null;
-
-        tone.playSoftLeaveSound();
-
       } else {
         logger.error("No active channel connection");
       }

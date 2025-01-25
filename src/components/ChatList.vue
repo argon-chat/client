@@ -220,17 +220,12 @@ const addChannel = () => {
 
 async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
-
   const channel = await pool.getChannel(channelId);
 
   if (!channel) return;
   if (channel.ChannelType == "Voice") {
     await voice.connectToChannel(channelId);
   }
-
-
-
-
   /*const channel = servers.getDetailsOfChannel(channelId);
 
   if (!channel) return;
@@ -240,8 +235,8 @@ async function channelSelect(channelId: string) {
   }*/
 }
 
-function channelDelete(channelId: string) {
-  servers.deleteChannel(channelId);
+async function channelDelete(channelId: string) {
+  await servers.deleteChannel(channelId);
 }
 
 
