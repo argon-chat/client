@@ -82,15 +82,18 @@ export class RpcClient {
             const fingerprint = attResponse.headers.get("X-Wt-Fingerprint");
             const aat = attResponse.headers.get("X-Wt-AAT");
 
+
+            logger.warn(`Upgrade: ${upgrade} with ${fingerprint} fingerprint, using ${aat} AAT`);
+
             if (upgrade === "localhost") {
               upgrade = this.baseUrl.replace("https://", "");
             }
 
             const transportUrl =  methodName === "SubscribeToMeEvents" ? new URL(
-              `${this.baseUrl}/transport.wt?aat=${aat}`,
+              `transport.wt?aat=${aat}`,
               `https://${upgrade}`
             ) : new URL(
-              `${this.baseUrl}/transport.wt?aat=${aat}&srv=${args[0]}`,
+              `transport.wt?aat=${aat}&srv=${args[0]}`,
               `https://${upgrade}`
             );
 
