@@ -143,8 +143,8 @@
             class="ml-10 mt-2 space-y-2">
             <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
               class="flex items-center mt-1 text-gray-400 hover:text-white">
-              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
-                class="w-7 h-7 rounded-full mr-3" />
+              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId" :style="(user.isSpeaking ? 'border: solid #45d110 2px; border-radius: 500px;' : '')"
+                class="w-7 h-7 rounded-full mr-3"  />
               <span>{{ user.User.DisplayName }}</span>
             </li>
           </ul>

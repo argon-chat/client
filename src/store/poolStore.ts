@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, Reactive, reactive, ref } from "vue";
+import { computed, Reactive, reactive, Ref, ref } from "vue";
 import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
@@ -10,7 +10,7 @@ import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 
-export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { User: IUser };
+export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { User: IUser, isSpeaking: Ref<boolean> };
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
   Users: Reactive<Map<Guid, IRealtimeChannelUserWithData>>;
@@ -46,6 +46,19 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const getBatchUser = async function (userIds: Guid[]) {
     return await db.users.bulkGet(userIds);
+  }
+
+
+  const indicateSpeaking = async function (channelId: Guid, userId: Guid, isSpeaking: boolean) {
+    if (realtimeChannelUsers.has(channelId)) {
+      if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
+        realtimeChannelUsers.get(channelId)!.Users.get(userId)!.isSpeaking = isSpeaking;
+      } else {
+        logger.warn("Detected speaking user, but in realtime channel user not found, maybe bug", channelId, userId);
+      }
+    } else {
+      logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
+    }
   }
 
 
@@ -111,7 +124,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     if (exist) {
       await db.users.update(exist.Id, {
         ...user,
-        status: extendedStatus ?? "Offline"
+        status: extendedStatus ?? "Offline",
       });
       return;
     }
@@ -224,7 +237,8 @@ export const usePoolStore = defineStore("data-pool", () => {
         e.Users.set(x.userId, {
           State: 0,
           UserId: x.userId,
-          User: user!
+          User: user!,
+          isSpeaking: false
         });
 
       } else
@@ -313,7 +327,7 @@ export const usePoolStore = defineStore("data-pool", () => {
             logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
             continue;
           }
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User });
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false) });
         }
         await trackChannel(c.Channel, we);
       }
@@ -341,6 +355,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     getSelectedServer,
 
     realtimeChannelUsers,
+    indicateSpeaking,
 
 
     getUser,

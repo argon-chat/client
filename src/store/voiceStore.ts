@@ -118,7 +118,12 @@ export const useVoice = defineStore("voice", () => {
       return;
     }
 
-    const localAudioTrack = await createLocalAudioTrack();
+    const localAudioTrack = await createLocalAudioTrack({
+      noiseSuppression: true,
+      echoCancellation: true,
+      voiceIsolation: true,
+      autoGainControl: true
+    });
     await room.localParticipant.publishTrack(localAudioTrack);
 
     connectedRoom.subs.push(
@@ -194,6 +199,10 @@ export const useVoice = defineStore("voice", () => {
       const audioElement = track.attach();
       document.body.appendChild(audioElement);
       logger.info("Audio is attached");
+
+      participant.on("isSpeakingChanged", (val) => {
+        pool.indicateSpeaking(pool.selectedChannel!, participant.identity, val);
+      });
     }
 
 
@@ -210,12 +219,9 @@ export const useVoice = defineStore("voice", () => {
     var internvalId: NodeJS.Timeout;
     internvalId = setInterval(async () => {
       await tone.playReconnectSound();
-      if (connectedRoom.room?.state == ConnectionState.Connected) {
-        clearInterval(internvalId);
-      }
-      if (connectedRoom.room?.state == ConnectionState.Disconnected) {
-        clearInterval(internvalId);
-      }
+      if (connectedRoom.room?.state == ConnectionState.Connected ||
+        connectedRoom.room?.state == ConnectionState.Disconnected
+      ) clearInterval(internvalId);
     }, 1250);
   }
 
