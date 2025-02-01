@@ -48,10 +48,15 @@ const joinServer = async () => {
 
     if (!result)
         return;
-    router.push({ path: "/master" });
+    router.push({ path: "/master.pg" });
 };
 
 const createServer = () => {
+    toast({
+        title: "Insufficient Permissions",
+        variant: "destructive",
+        description: "You are not allowed this action!"
+    });
 };
 </script>
 

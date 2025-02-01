@@ -57,7 +57,9 @@ export class RpcClient {
       {},
       {
         get: (_, methodName) => {
-          return async (...args: any[]): Promise<AsyncIterable<IArgonEvent>> => {
+          return async (
+            ...args: any[]
+          ): Promise<AsyncIterable<IArgonEvent>> => {
             const authStore = useAuthStore();
             const wtUrl = new URL(`${this.baseUrl}/$wt`, this.baseUrl);
 
@@ -75,112 +77,48 @@ export class RpcClient {
               throw new Error();
             }
 
-
             logger.log(attResponse);
 
             let upgrade = attResponse.headers.get("X-Wt-Upgrade");
             const fingerprint = attResponse.headers.get("X-Wt-Fingerprint");
             const aat = attResponse.headers.get("X-Wt-AAT");
 
-
-            logger.warn(`Upgrade: ${upgrade} with ${fingerprint} fingerprint, using ${aat} AAT`);
+            logger.warn(
+              `Upgrade: ${upgrade} with ${fingerprint} fingerprint, using ${aat} AAT`
+            );
 
             if (upgrade === "localhost") {
               upgrade = this.baseUrl.replace("https://", "");
             }
 
-            const transportUrl =  methodName === "SubscribeToMeEvents" ? new URL(
-              `transport.wt?aat=${aat}`,
-              `https://${upgrade}`
-            ) : new URL(
-              `transport.wt?aat=${aat}&srv=${args[0]}`,
-              `https://${upgrade}`
-            );
+            const transportUrl =
+              methodName === "SubscribeToMeEvents"
+                ? new URL(`transport.wt?aat=${aat}`, `https://${upgrade}`)
+                : new URL(
+                    `transport.wt?aat=${aat}&srv=${args[0]}`,
+                    `https://${upgrade}`
+                  );
 
             const certs: WebTransportHash[] = [];
 
             if (fingerprint) {
               certs.push({
-                value: Uint8Array.from(
-                  atob(fingerprint),
-                  (c) => c.charCodeAt(0)
+                value: Uint8Array.from(atob(fingerprint), (c) =>
+                  c.charCodeAt(0)
                 ),
                 algorithm: "sha-256",
-              })
+              });
             }
 
+            function createWt() {
+              return new WebTransport(transportUrl.toString(), {
+                congestionControl: "throughput",
+                allowPooling: true,
+                serverCertificateHashes: certs,
+              });
+            }
 
-            const transport = new WebTransport(transportUrl.toString(), {
-              congestionControl: "throughput",
-              allowPooling: true,
-              serverCertificateHashes: certs
-            });
-
-            await transport.ready;
-            logger.log("WebTransport connection established.");
-
-            return {
-              [Symbol.asyncIterator]: async function* () {
-                const start = performance.now();
-                const stream = await transport.createBidirectionalStream();
-                const reader = stream.readable.getReader();
-                
-                try {
-                  while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    if (value && value.length > 0) {
-                      yield decode(value) as IArgonEvent;
-                    }
-                  }
-                } catch (error) {
-                  logger.error("WebTransport stream error:", error);
-                } finally {
-                  const end = performance.now();
-                  logger.log(
-                    `WebTransport stream closed, elapsed: ${(end - start) / 1000} seconds`
-                  );
-                  reader.releaseLock();
-                  transport.close();
-                }
-              },
-            };
-          };
-        },
-      }
-    ) as T;
-  }
-
-  eventBus3<T>(serviceName: string): T {
-    return new Proxy(
-      {},
-      {
-        get: (_, methodName) => {
-          return async (
-            ...args: any[]
-          ): Promise<AsyncIterable<IArgonEvent>> => {
-            const authStore = useAuthStore();
-            const payload = encode(args);
-            const url = new URL(
-              `${this.baseUrl}/${serviceName}/${String(methodName)}.wt`,
-              this.baseUrl
-            );
-            //url.searchParams.append("payload", encodeURIComponent(JSON.stringify(payload)));
-
-            const transport = new WebTransport(url.toString(), {
-              congestionControl: "throughput",
-              allowPooling: true,
-              requireUnreliable: true,
-              serverCertificateHashes: [
-                {
-                  value: Uint8Array.from(
-                    atob("G4pg7D++e8KWqOclS7/2dZpPlTnIvBhjUbzEHJY7h+g="),
-                    (c) => c.charCodeAt(0)
-                  ),
-                  algorithm: "sha-256",
-                },
-              ],
-            });
+            let transport = createWt();
 
             await transport.ready;
             logger.log("WebTransport connection established.");
@@ -188,73 +126,36 @@ export class RpcClient {
             return {
               [Symbol.asyncIterator]: async function* () {
                 const start = performance.now();
-                const reader = transport.datagrams.readable.getReader();
-
-                try {
-                  while (true) {
+                let stream = await transport.createBidirectionalStream();
+                let reader = stream.readable.getReader();
+                while (true) {
+                  try {
                     const { value, done } = await reader.read();
                     if (done) break;
-
                     if (value && value.length > 0) {
-                      yield decode(value) as IArgonEvent;
+                      try {
+                        yield decode(value) as IArgonEvent;
+                      } catch (e) {
+                        logger.warn(
+                          "Failed processing message, but stream is continue"
+                        );
+                      }
                     }
-                  }
-                } catch (error) {
-                  logger.error("WebTransport stream error:", error);
-                } finally {
+                    continue;
+                  } catch (error) {
+                    logger.error("WebTransport stream error:", error);
+                  } 
+
                   const end = performance.now();
                   logger.log(
                     `WebTransport stream closed, elapsed: ${(end - start) / 1000} seconds`
                   );
                   reader.releaseLock();
                   transport.close();
-                }
-              },
-            };
-          };
-        },
-      }
-    ) as T;
-  }
-
-  event2Bus<T>(serviceName: string): T {
-    return new Proxy(
-      {},
-      {
-        get: (_, methodName) => {
-          return async (
-            ...args: any[]
-          ): Promise<AsyncIterable<IArgonEvent>> => {
-            const authStore = useAuthStore();
-            const payload = encode(args);
-
-            const stream = this.client.broadcastSubscribe(
-              {
-                interface: serviceName,
-                method: String(methodName),
-                payload: payload,
-              },
-              { meta: { authorize: authStore.token ?? "" } }
-            );
-
-            return {
-              [Symbol.asyncIterator]: async function* () {
-                const start = performance.now();
-                try {
-                  for await (const response of stream.responses) {
-                    if (response.payload.length === 0) continue;
-                    yield decode(response.payload) as IArgonEvent;
-                  }
-                } catch (error) {
-                  logger.error(
-                    "Stream connection lost or an error occurred:",
-                    error
-                  );
-                } finally {
-                  const end = performance.now();
-                  logger.log(
-                    `Stream has been closed or completed, startTime: ${start}, endTime: ${end}, elapsed: ${(end - start) / 1000} seconds`
-                  );
+                  transport = createWt();
+                  await transport.ready;
+                  stream = await transport.createBidirectionalStream();
+                  reader = stream.readable.getReader();
                 }
               },
             };

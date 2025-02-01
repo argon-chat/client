@@ -606,10 +606,10 @@ onMounted(() => {
     const servers = await serverStore.allServerAsync;
 
     if (servers.length == 0) {
-      router.push({ path: '/create-or-join' });
+      router.push({ path: '/create-or-join.pg' });
       return;
     }
-    router.push({ path: "/master" });
+    router.push({ path: "/master.pg" });
   });
 });
 

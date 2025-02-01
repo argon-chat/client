@@ -14,7 +14,7 @@ export const useApi = defineStore("api", () => {
   );
 
   const eventBus = computed(() =>
-    rpcClient.value.eventBus<IEventBus>("IEventBus")
+    rpcClient.value.eventBus<IEventBus>()
   );
 
   return {

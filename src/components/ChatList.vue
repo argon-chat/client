@@ -56,7 +56,7 @@
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" @click="addChannel" :disabled="addChannel_Loading">
+              <Button type="submit" :disabled="true"> <!-- @click="addChannel" -->
                 Create Channel
               </Button>
             </DialogFooter>
@@ -143,7 +143,7 @@
             class="ml-10 mt-2 space-y-2">
             <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
               class="flex items-center mt-1 text-gray-400 hover:text-white">
-              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId" :style="(user.isSpeaking ? 'border: solid #45d110 2px; border-radius: 500px;' : '')"
+              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId" :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 4px; border-radius: 500px;' : '')"
                 class="w-7 h-7 rounded-full mr-3"  />
               <span>{{ user.User.DisplayName }}</span>
             </li>

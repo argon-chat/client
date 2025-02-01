@@ -41,10 +41,10 @@ const windows = useWindow();
 
 const categories = ref([
     { id: 'account', name: 'Account' },
-    { id: 'appearance', name: 'Appearance' },
-    { id: 'notifications', name: 'Notifications' },
-    { id: 'privacy', name: 'Privacy' },
-    { id: 'devices', name: 'Devices' },
+    //{ id: 'appearance', name: 'Appearance' },
+    //{ id: 'notifications', name: 'Notifications' },
+    //{ id: 'privacy', name: 'Privacy' },
+    //{ id: 'devices', name: 'Devices' },
     { id: 'voice_video', name: 'Voice & Video' }, 
 ]);
 
@@ -52,7 +52,7 @@ const selectedCategory = ref('account');
 
 const categoryComponents = {
     account: ProfileSettings,
-    appearance: {
+    /*appearance: {
         template: `<div><h2 class="text-xl font-bold">Appearance Settings</h2><p>Customize the look and feel.</p></div>`
     },
     notifications: {
@@ -61,7 +61,7 @@ const categoryComponents = {
     privacy: {
         template: `<div><h2 class="text-xl font-bold">Privacy Settings</h2><p>Manage your privacy options.</p></div>`
     },
-
+*/
     devices: ConnectedDevices,
     voice_video: VoiceVideoSettings
 };

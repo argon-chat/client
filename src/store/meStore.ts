@@ -10,6 +10,9 @@ export const useMe = defineStore("me", () => {
   const api = useApi();
   const bus = useBus();
   const me = ref(null as (ExtendedUser | null));
+
+  const WelcomeCommanderHasReceived = ref(false);
+
   async function getMe() {
     return await api.userInteraction.GetMe();
   }
@@ -22,6 +25,7 @@ export const useMe = defineStore("me", () => {
     bus.onUserEvent<WelcomeCommander>("WelcomeCommander", (e) => {
         logger.box(`Welcome commander, ${e.welcomeMessage}`);
         me.value!.currentStatus = e.status;
+        WelcomeCommanderHasReceived.value = true;
     });
 
     bus.doListenMyEvents();
@@ -29,6 +33,7 @@ export const useMe = defineStore("me", () => {
 
   return {
     me,
-    init
+    init,
+    WelcomeCommanderHasReceived
   };
 });

@@ -1,15 +1,16 @@
 <template>
-    <div>
+    <div v-if="loaded">
         <h2 class="text-xl font-bold mb-4">Voice & Video Settings</h2>
 
         <div>
             <label class="block font-semibold mb-1">Select Microphone</label>
-            <Select v-model="selectedMicrophone" @change="updateSelectedMicrophone">
+            <Select v-model="selectedMicrophone">
                 <SelectTrigger>
-                    <SelectValue placeholder="Select a fruit" />
+                    <SelectValue placeholder="No microphones found" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectGroup v-for="device in audioDevices" :key="device.deviceId" :value="device.deviceId">
+                    <SelectGroup v-for="device in audioDevices.filter(q => !!q.deviceId)" :key="device.deviceId"
+                        :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
                             {{ device.label || 'Unnamed Microphone' }}
                         </SelectItem>
@@ -17,15 +18,83 @@
                 </SelectContent>
             </Select>
         </div>
+        <br />
+        <div class="space-y-4">
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        Echo Cancellation
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        A feature which attempts to prevent echo effects on a two-way audio connection by attempting
+                        to reduce or eliminate crosstalk between the user's output device and their input device
+                    </div>
+                </div>
+                <Switch @update:checked="(x) => preferenceStore.echoCancellation = x" />
+            </div>
 
+            <FormField name="autoGainControl">
+                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div class="space-y-0.5">
+                        <FormLabel class="text-base">
+                            AGC
+                        </FormLabel>
+                        <FormDescription lass="text-sm text-muted-foreground">
+                            Is an audio algorithm module that I think has the longest link and most affects sound
+                            quality and subjective hearing.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch @update:checked="(x) => preferenceStore.autoGainControl = x" />
+                    </FormControl>
+                </FormItem>
+            </FormField>
+
+
+            <FormField name="voiceIsolation">
+                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div class="space-y-0.5">
+                        <FormLabel class="text-base">
+                            Voice Isolation
+                        </FormLabel>
+                        <FormDescription>
+                            Isolate Isolation of Isolation Voice for Isolation
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch @update:checked="(x) => preferenceStore.voiceIsolation = x" />
+                    </FormControl>
+                </FormItem>
+            </FormField>
+
+            <FormField name="noiseSuppression" :disabled="preferenceStore.voiceIsolation">
+                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4"
+                    :disabled="preferenceStore.voiceIsolation">
+                    <div class="space-y-0.5">
+                        <FormLabel class="text-base">
+                            Noise Suppression
+                        </FormLabel>
+                        <FormDescription>
+                            Noise Suppression (Noise Suppression)
+                        </FormDescription>
+                    </div>
+                    <FormControl :disabled="preferenceStore.voiceIsolation">
+                        <Switch  @update:checked="(x) => preferenceStore.noiseSuppression = x" :disabled="preferenceStore.voiceIsolation" />
+                    </FormControl>
+                </FormItem>
+            </FormField>
+        </div>
+        <br />
+        <br />
         <div>
             <label class="block font-semibold mb-1">Select Camera</label>
-            <Select v-model="selectedCamera" @change="updateVideoStream">
+            <Select v-model="selectedCamera" @change="updateVideoStream" :disabled="videoDevices.length == 0">
                 <SelectTrigger>
-                    <SelectValue placeholder="Select a fruit" />
+                    <SelectValue placeholder="No cameras found" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectGroup v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
+                    <SelectGroup v-for="device in videoDevices.filter(q => !!q.deviceId)" :key="device.deviceId"
+                        :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
                             {{ device.label || 'Unnamed Camera' }}
                         </SelectItem>
@@ -33,10 +102,11 @@
                 </SelectContent>
             </Select>
         </div>
-        <br/>
+        <br />
         <div class="cameraWrapper">
             <div v-if="!videoActive" class="previewImage">
-                <Button @click="startVideoPreview">Test Video</Button>
+                <Button @click="startVideoPreview" :disabled="videoDevices.length == 0" style="width: 250px;">Test
+                    Video</Button>
             </div>
             <div v-else class="camera">
                 <video ref="videoElement" autoplay playsinline class="media-engine-video"></video>
@@ -46,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -55,8 +125,17 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
+} from '@/components/ui/select';
+import { usePreference } from '@/store/preferenceStore';
+import { logger } from '@/lib/logger';
+import { FormField } from '../ui/form';
+import FormItem from '../ui/form/FormItem.vue';
+import FormControl from '../ui/form/FormControl.vue';
+import Switch from '../ui/switch/Switch.vue';
+import FormLabel from '../ui/form/FormLabel.vue';
+import FormDescription from '../ui/form/FormDescription.vue';
 
+const preferenceStore = usePreference();
 const selectedMicrophone = ref('');
 const selectedCamera = ref('');
 const audioDevices = ref([] as MediaDeviceInfo[]);
@@ -64,13 +143,43 @@ const videoDevices = ref([] as MediaDeviceInfo[]);
 const videoStream = ref<MediaStream | null>(null);
 const videoElement = ref<HTMLVideoElement | null>(null);
 const videoActive = ref(false);
+const loaded = ref(false);
+
+
+
+
 
 const getDevices = async () => {
+
+    watch(selectedMicrophone, () => {
+        preferenceStore.defaultAudioDevice = selectedMicrophone.value;
+        logger.log("updateSelectedMicrophone", selectedMicrophone.value);
+    })
+
     const devices = await navigator.mediaDevices.enumerateDevices();
-    audioDevices.value = devices.filter(device => device.kind === 'audioinput');
-    videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    if (audioDevices.value.length) selectedMicrophone.value = audioDevices.value[0].deviceId;
-    if (videoDevices.value.length) selectedCamera.value = videoDevices.value[0].deviceId;
+    audioDevices.value = devices.filter(q => !!q.deviceId).filter(device => device.kind === 'audioinput');
+    videoDevices.value = devices.filter(q => !!q.deviceId).filter(device => device.kind === 'videoinput');
+
+
+    logger.log(preferenceStore);
+
+    if (preferenceStore.defaultAudioDevice) {
+        if (devices.filter(q => q.deviceId === preferenceStore.defaultAudioDevice)) {
+            selectedMicrophone.value = preferenceStore.defaultAudioDevice;
+        } else {
+            preferenceStore.defaultAudioDevice = "";
+        }
+    } else if (audioDevices.value.length) selectedMicrophone.value = audioDevices.value[0].deviceId ?? "unknown driver";
+
+    if (preferenceStore.defaultVideoDevice) {
+        if (devices.filter(q => q.deviceId === preferenceStore.defaultVideoDevice)) {
+            selectedCamera.value = preferenceStore.defaultVideoDevice;
+        } else {
+            preferenceStore.defaultVideoDevice = "";
+        }
+    }
+    else if (videoDevices.value.length) selectedCamera.value = videoDevices.value[0].deviceId ?? "unknown driver";
+    loaded.value = true;
 };
 
 const startVideoPreview = async () => {
@@ -80,6 +189,7 @@ const startVideoPreview = async () => {
 
 
 const updateVideoStream = async () => {
+    preferenceStore.defaultVideoDevice = selectedCamera.value;
     if (videoStream.value) {
         videoStream.value.getTracks().forEach(track => track.stop());
     }
@@ -94,10 +204,6 @@ const updateVideoStream = async () => {
         console.error('Error accessing video stream:', error);
     }
 };
-const updateSelectedMicrophone = async () => {
-
-}
-
 
 onBeforeUnmount(() => {
     if (videoStream.value) {

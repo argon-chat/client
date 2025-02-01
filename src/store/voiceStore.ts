@@ -3,12 +3,15 @@ import {
   ConnectionQuality,
   ConnectionState,
   createLocalAudioTrack,
+  LocalAudioTrack,
   Participant,
   RemoteParticipant,
   RemoteTrack,
   RemoteTrackPublication,
   Room,
   RoomConnectOptions,
+  Track,
+  TrackPublication,
 } from "livekit-client";
 import { defineStore } from "pinia";
 import { computed, Reactive, reactive, ref } from "vue";
@@ -18,7 +21,8 @@ import { delay, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
-import { useSessionTimer } from './sessionTimer'
+import { useSessionTimer } from "./sessionTimer";
+import { usePreference } from "./preferenceStore";
 
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
@@ -27,8 +31,7 @@ export const useVoice = defineStore("voice", () => {
   const sys = useSystemStore();
   const tone = useTone();
   const sessionTimerStore = useSessionTimer();
-
-  const activeVideoRef = ref("");
+  const preferenceStore = usePreference();
 
   const currentState = ref("NONE" as "NONE" | "BEGIN_CONNECT" | "CONNECTED");
 
@@ -64,7 +67,7 @@ export const useVoice = defineStore("voice", () => {
   });
 
   async function connectToChannel(channelId: string) {
-    sessionTimerStore.stopTimer()
+    sessionTimerStore.stopTimer();
     pool.selectedChannel = channelId;
     activeChannel.value = (await pool.getChannel(channelId))!;
     currentState.value = "BEGIN_CONNECT";
@@ -90,7 +93,7 @@ export const useVoice = defineStore("voice", () => {
     }
 
     const connectOptions: RoomConnectOptions = {
-      maxRetries: 500
+      maxRetries: 500,
     };
 
     const room = new Room();
@@ -101,7 +104,7 @@ export const useVoice = defineStore("voice", () => {
     room.on("connectionQualityChanged", onParticipantQualityChanged);
     room.on("trackSubscribed", onTrackSubscribed);
     room.on("trackUnsubscribed", onTrackUnsubscribed);
-    room.on("signalReconnecting", onReconnectiong);
+    room.on("reconnecting", onReconnectiong);
 
     try {
       await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
@@ -110,19 +113,29 @@ export const useVoice = defineStore("voice", () => {
 
       (window as any)["room"] = room;
     } catch (e) {
-        logger.error(e);
-        logger.error("Failed connect to web rtc server");
-        currentState.value = "NONE";
+      logger.error(e);
+      logger.error("Failed connect to web rtc server");
+      currentState.value = "NONE";
       activeChannel.value = null;
       pool.selectedChannel = null;
       return;
     }
 
+    logger.log("Start voice with settings", {
+      noiseSuppression: preferenceStore.noiseSuppression,
+      echoCancellation: preferenceStore.echoCancellation,
+      voiceIsolation: preferenceStore.voiceIsolation,
+      autoGainControl: preferenceStore.autoGainControl,
+      deviceId: preferenceStore.defaultAudioDevice ?? undefined,
+    });
+
     const localAudioTrack = await createLocalAudioTrack({
-      noiseSuppression: true,
-      echoCancellation: true,
-      voiceIsolation: true,
-      autoGainControl: true
+      noiseSuppression: preferenceStore.noiseSuppression,
+      echoCancellation: preferenceStore.echoCancellation,
+      voiceIsolation: preferenceStore.voiceIsolation,
+      autoGainControl: preferenceStore.autoGainControl,
+
+      deviceId: preferenceStore.defaultAudioDevice ?? undefined,
     });
     await room.localParticipant.publishTrack(localAudioTrack);
 
@@ -147,7 +160,7 @@ export const useVoice = defineStore("voice", () => {
     tone.playSoftEnterSound();
 
     currentState.value = "CONNECTED";
-    sessionTimerStore.startTimer()
+    sessionTimerStore.startTimer();
     logger.success("Connected to channel");
   }
 
@@ -165,7 +178,7 @@ export const useVoice = defineStore("voice", () => {
         room.off("connectionQualityChanged", onParticipantQualityChanged);
         room.off("signalReconnecting", onReconnectiong);
 
-        room.disconnect();
+        //room.disconnect();
         logger.warn("Success disconnected from channel");
 
         for (const s of connectedRoom.subs) {
@@ -205,7 +218,6 @@ export const useVoice = defineStore("voice", () => {
       });
     }
 
-
     tone.playSoftEnterSound();
   }
 
@@ -214,14 +226,20 @@ export const useVoice = defineStore("voice", () => {
     participant: Participant
   ) {}
 
-  function onReconnectiong()
-  {
+  const currentlyReconnect = ref(false);
+  function onReconnectiong() {
+    if (currentlyReconnect.value) return;
+    currentlyReconnect.value = true;
+
     var internvalId: NodeJS.Timeout;
     internvalId = setInterval(async () => {
       await tone.playReconnectSound();
-      if (connectedRoom.room?.state == ConnectionState.Connected ||
+      if (
+        connectedRoom.room?.state == ConnectionState.Connected ||
         connectedRoom.room?.state == ConnectionState.Disconnected
-      ) clearInterval(internvalId);
+      )
+        clearInterval(internvalId);
+      currentlyReconnect.value = false;
     }, 1250);
   }
 
@@ -253,5 +271,6 @@ export const useVoice = defineStore("voice", () => {
     isConnected,
     activeChannel,
     qualityConnection,
+    currentlyReconnect,
   };
 });

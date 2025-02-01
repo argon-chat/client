@@ -50,8 +50,9 @@
           <span class="font-semibold">{{ voice.activeChannel?.Name }}</span>
         </div>
         <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer }}</span>
-        <span class="text-xs text-lime-400 mt-1" v-if="voice.isConnected">Connected</span>
-        <span class="text-xs text-orange-400 mt-1" v-if="voice.isBeginConnect">Connecting...</span>
+        <span class="text-xs text-lime-400 mt-1" v-if="voice.isConnected && !voice.currentlyReconnect">Connected</span>
+        <span class="text-xs text-orange-400 mt-1" v-if="voice.isBeginConnect && !voice.currentlyReconnect">Connecting...</span>
+        <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">Reconnect...</span>
       </div>
     </div>
   </div>

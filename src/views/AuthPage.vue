@@ -14,7 +14,7 @@ const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 const authStore = useAuthStore();
 onMounted(() => {
     if (authStore.isAuthenticated) {
-        router.push({ path: "/master" });
+        router.push({ path: "/master.pg" });
         return;
     }
 

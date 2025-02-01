@@ -12,18 +12,18 @@ const routes = [
     component: Entry,
   },
   {
-    path: '/login',
+    path: '/login.pg',
     name: 'Login',
     component: LoginPage,
   },
   {
-    path: '/create-or-join',
+    path: '/create-or-join.pg',
     name: 'Create Or Join',
     component: CreateOrJoin,
     meta: { requiresAuth: true },
   },
   {
-    path: '/master',
+    path: '/master.pg',
     name: 'MasterView',
     component: MasterView,
     meta: { requiresAuth: true }

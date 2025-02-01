@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/authStore'
 import { useRouter } from 'vue-router';
-import { useServerStore } from '@/store/serverStore'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ReloadIcon } from '@radix-icons/vue'
 import {
@@ -29,7 +28,6 @@ import {
   PinInputSeparator,
 } from '@/components/ui/pin-input'
 import { logger } from '@/lib/logger'
-import { usePoolStore } from '@/store/poolStore'
 
 const router = useRouter();
 
@@ -83,11 +81,12 @@ async function onSubmit(event: Event | null) {
       const servers = await serverStore.allServerAsync;
 
       if (servers.length == 0) {
-        router.push({ path: '/create-or-join' });
+        router.push({ path: '/create-or-join.pg' });
         return;
       }
-      router.push({ path: "/master" });*/
-      location.reload();
+      router.push({ path: "/master.pg" });*/
+      window.location.href = window.location.href;
+      //(window as any).restartApp();
     }
   } catch (error) {
     console.error('Error when login/register:', error);
