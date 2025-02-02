@@ -10,4 +10,6 @@ interface JoinToServerUser extends IArgonEvent
 {
 	EventKey: 'JoinToServerUser';
 	userId: Guid;
+	Sequence: number;
+	EventId: number;
 }

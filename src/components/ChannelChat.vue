@@ -14,8 +14,8 @@
             </div>
         </div>
         <div v-if="!noMessageChannel" class="message-input p-4 rounded-b-lg flex items-center space-x-3">
-            <Textarea placeholder="Type your message here." disabled />
-            <Button @onclick="sendMessage" size="lg" variant="outline" disabled>
+            <Textarea v-model="newMessage" placeholder="Type your message here." />
+            <Button @click="sendMessage" size="lg" variant="outline">
                 <Send class="w-5 h-5 text-gray-400" />
             </Button>
         </div>
@@ -31,16 +31,21 @@ import {
     RadioIcon
 } from 'lucide-vue-next';
 
-const messages = ref([
-    { user: 'Свацк сука', text: 'я и мамку твою без гандона ебу, и че?' },
-    { user: 'Свацк сука', text: 'спидом еще на заразился' },
-    { user: 'Yuuki Wesp', text: 'я клиент почти доделал' },
-]);
+type pinus = {
+    user: string;
+    text: string;
+}
+const messages = ref(new Array<pinus>());
 
 const newMessage = ref('');
-const noMessageChannel = ref(true);
+const noMessageChannel = ref(false);
 
 const sendMessage = () => {
+    if (!newMessage.value) {
+        return;
+    }
+    console.log(newMessage.value);
+    
     if (newMessage.value.trim() !== '') {
         messages.value.push({ user: 'You', text: newMessage.value });
         newMessage.value = '';

@@ -11,4 +11,6 @@ interface JoinedToChannelUser extends IArgonEvent
 	EventKey: 'JoinedToChannelUser';
 	userId: Guid;
 	channelId: Guid;
+	Sequence: number;
+	EventId: number;
 }

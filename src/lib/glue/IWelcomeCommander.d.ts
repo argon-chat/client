@@ -14,4 +14,6 @@ interface WelcomeCommander extends IArgonEvent
 	welcomeMessage: string;
 	status: UserStatus;
 	notifications: IUserNotificationSnapshot;
+	Sequence: number;
+	EventId: number;
 }

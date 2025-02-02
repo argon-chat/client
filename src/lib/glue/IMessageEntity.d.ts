@@ -5,12 +5,14 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IChannel.d.ts"/>
+///<reference path="IArgonEntityWithOwnership.d.ts"/>
+///<reference path="EntityType.d.ts"/>
 
-interface ChannelCreated extends IArgonEvent
+interface IMessageEntity extends IArgonEntityWithOwnership
 {
-	EventKey: 'ChannelCreated';
-	channel: IChannel;
-	Sequence: number;
-	EventId: number;
+	MessageId: Guid;
+	Type: EntityType;
+	Offset: number;
+	Length: number;
+	UrlMask?: string;
 }

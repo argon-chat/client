@@ -10,5 +10,7 @@ interface ChannelModified extends IArgonEvent
 {
 	EventKey: 'ChannelModified';
 	channelId: Guid;
-	bag: any;
+	bag: string[];
+	Sequence: number;
+	EventId: number;
 }

@@ -5,12 +5,16 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IChannel.d.ts"/>
+///<reference path="IArgonEntityWithOwnership.d.ts"/>
 
-interface ChannelCreated extends IArgonEvent
+interface IMessageImage extends IArgonEntityWithOwnership
 {
-	EventKey: 'ChannelCreated';
-	channel: IChannel;
-	Sequence: number;
-	EventId: number;
+	MessageId: Guid;
+	FileName: string;
+	MimeType: string;
+	IsVideo: boolean;
+	FileId: string;
+	Width: number;
+	Height: number;
+	FileSize: number;
 }
