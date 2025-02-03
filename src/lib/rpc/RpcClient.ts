@@ -123,6 +123,11 @@ export class RpcClient {
             await transport.ready;
             logger.log("WebTransport connection established.");
 
+            const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+              transport.close({ reason: "end", closeCode: 200 });
+              //event.preventDefault();
+            };
+            window.addEventListener("beforeunload", beforeUnloadHandler);
             return {
               [Symbol.asyncIterator]: async function* () {
                 const start = performance.now();
