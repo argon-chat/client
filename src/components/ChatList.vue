@@ -56,7 +56,7 @@
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" :disabled="true"> <!-- @click="addChannel" -->
+              <Button type="submit" @click="addChannel">
                 Create Channel
               </Button>
             </DialogFooter>
