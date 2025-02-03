@@ -3,7 +3,10 @@ import {
   ConnectionQuality,
   ConnectionState,
   createLocalAudioTrack,
+  createLocalScreenTracks,
+  createLocalTracks,
   LocalAudioTrack,
+  LocalVideoTrack,
   Participant,
   RemoteParticipant,
   RemoteTrack,
@@ -12,12 +15,13 @@ import {
   RoomConnectOptions,
   Track,
   TrackPublication,
+  VideoTrack,
 } from "livekit-client";
 import { defineStore } from "pinia";
 import { computed, Reactive, reactive, ref } from "vue";
 import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
-import { delay, Subscription, timer } from "rxjs";
+import { delay, Subject, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
@@ -47,6 +51,9 @@ export const useVoice = defineStore("voice", () => {
     subs: Subscription[];
   });
 
+  const onVideoCreated: Subject<Track> = new Subject<Track>();
+  const onVideoDestroyed: Subject<Track> = new Subject<Track>();
+
   const rtt = ref(0);
 
   const ping = computed(() => `${rtt.value}ms`);
@@ -72,8 +79,6 @@ export const useVoice = defineStore("voice", () => {
     activeChannel.value = (await pool.getChannel(channelId))!;
     currentState.value = "BEGIN_CONNECT";
 
-    await delay(200);
-
     const livekitToken = await api.serverInteraction.JoinToVoiceChannel(
       pool.selectedServer!,
       channelId
@@ -96,7 +101,22 @@ export const useVoice = defineStore("voice", () => {
       maxRetries: 500,
     };
 
-    const room = new Room();
+    const room = new Room({
+      publishDefaults: {
+        videoCodec: "h264", // h264 good perf, vp8 +-
+        red: true,
+        forceStereo: true,
+        simulcast: true,
+        videoEncoding: {
+          priority: "high",
+          maxBitrate: 2_500_000,
+          maxFramerate: 165
+        }
+      },
+      audioCaptureDefaults: {
+        
+      }
+    });
 
     connectedRoom.opt = connectOptions;
     connectedRoom.room = reactive(room);
@@ -146,7 +166,7 @@ export const useVoice = defineStore("voice", () => {
       })
     );
 
-    const source = timer(500, 500);
+    const source = timer(50, 500);
 
     connectedRoom.subs.push(
       source.subscribe(() => {
@@ -208,7 +228,10 @@ export const useVoice = defineStore("voice", () => {
       participant.identity
     );
 
-    if (track.kind === "audio") {
+    if (track.kind === "video") {
+      logger.log(track, publication);
+      onVideoCreated.next(track);
+    } else if (track.kind === "audio") {
       const audioElement = track.attach();
       document.body.appendChild(audioElement);
       logger.info("Audio is attached");
@@ -216,15 +239,55 @@ export const useVoice = defineStore("voice", () => {
       participant.on("isSpeakingChanged", (val) => {
         pool.indicateSpeaking(pool.selectedChannel!, participant.identity, val);
       });
-    }
 
-    tone.playSoftEnterSound();
+      tone.playSoftEnterSound();
+    }
   }
 
   function onParticipantQualityChanged(
     quality: ConnectionQuality,
     participant: Participant
   ) {}
+
+  let screenTrack: any;
+  const isSharing = ref(false);
+  const startScreenShare = async () => {
+    try {
+      const room = connectedRoom.room!;
+
+      const enabled = room.localParticipant.isScreenShareEnabled;
+
+      isSharing.value = true;
+
+      const track = await room.localParticipant.setScreenShareEnabled(
+        !enabled,
+        {
+          audio: true,
+          resolution: { height: 1440, width: 2560, frameRate: 165 },
+          systemAudio: "include",
+        }
+      );
+
+      logger.warn("Started video scren share", track);
+      onVideoCreated.next(track?.track as any);
+
+      track!.once("ended", () => {
+        stopScreenShare();
+        onVideoDestroyed.next(track?.track as any);
+      });
+    } catch (error) {
+      console.error("Ошибка при захвате экрана:", error);
+    }
+  };
+
+  const stopScreenShare = () => {
+    if (screenTrack) {
+      connectedRoom.room!.localParticipant.unpublishTrack(screenTrack);
+      screenTrack.stop();
+      screenTrack = null;
+      isSharing.value = false;
+    }
+  };
 
   const currentlyReconnect = ref(false);
   function onReconnectiong() {
@@ -255,12 +318,13 @@ export const useVoice = defineStore("voice", () => {
       participant.identity
     );
 
-    if (track.kind === "audio") {
+    if (track.kind === "video") {
+      onVideoDestroyed.next(track);
+    } else if (track.kind === "audio") {
       track.detach();
       logger.info("Audio is detached");
+      tone.playSoftLeaveSound();
     }
-
-    tone.playSoftLeaveSound();
   }
 
   return {
@@ -272,5 +336,9 @@ export const useVoice = defineStore("voice", () => {
     activeChannel,
     qualityConnection,
     currentlyReconnect,
+    onVideoCreated,
+    onVideoDestroyed,
+    startScreenShare,
+    isSharing,
   };
 });
