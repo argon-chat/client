@@ -23,6 +23,10 @@
           <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
           <Headphones v-else class="w-5 h-5" />
         </button>
+        <button @click="voice.startScreenShare">
+          <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
+          <ScreenShare v-else class="w-5 h-5" />
+        </button>
 
       </div>
     </div>
@@ -60,7 +64,7 @@
 
 <script setup lang="ts">
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon } from 'lucide-vue-next';
+import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, ScreenShareOff, ScreenShare } from 'lucide-vue-next';
 
 
 import { useMe } from "@/store/meStore";
