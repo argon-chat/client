@@ -314,7 +314,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       for (const c of channels) {
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
-          let selectedUser = users.filter(z => z.Member.Id == uw.UserId).at(0);
+          let selectedUser = users.filter(z => z.Member.UserId == uw.UserId).at(0);
           if (!selectedUser) {
             trackUser(
               await api.serverInteraction.PrefetchUser(s.Id, uw.UserId)
