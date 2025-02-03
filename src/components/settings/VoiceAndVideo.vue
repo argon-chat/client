@@ -20,6 +20,8 @@
         </div>
         <br />
         <div class="space-y-4">
+
+
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
@@ -30,59 +32,50 @@
                         to reduce or eliminate crosstalk between the user's output device and their input device
                     </div>
                 </div>
-                <Switch @update:checked="(x) => preferenceStore.echoCancellation = x" />
+                <Switch :checked="preferenceStore.echoCancellation"
+                    @update:checked="(x) => preferenceStore.echoCancellation = x" />
             </div>
 
-            <FormField name="autoGainControl">
-                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div class="space-y-0.5">
-                        <FormLabel class="text-base">
-                            AGC
-                        </FormLabel>
-                        <FormDescription lass="text-sm text-muted-foreground">
-                            Is an audio algorithm module that I think has the longest link and most affects sound
-                            quality and subjective hearing.
-                        </FormDescription>
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        AGC
                     </div>
-                    <FormControl>
-                        <Switch @update:checked="(x) => preferenceStore.autoGainControl = x" />
-                    </FormControl>
-                </FormItem>
-            </FormField>
-
-
-            <FormField name="voiceIsolation">
-                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div class="space-y-0.5">
-                        <FormLabel class="text-base">
-                            Voice Isolation
-                        </FormLabel>
-                        <FormDescription>
-                            Isolate Isolation of Isolation Voice for Isolation
-                        </FormDescription>
+                    <div class="text-sm text-muted-foreground">
+                        Is an audio algorithm module that I think has the longest link and most affects sound
+                        quality and subjective hearing.
                     </div>
-                    <FormControl>
-                        <Switch @update:checked="(x) => preferenceStore.voiceIsolation = x" />
-                    </FormControl>
-                </FormItem>
-            </FormField>
+                </div>
+                <Switch :checked="preferenceStore.autoGainControl"
+                    @update:checked="(x) => preferenceStore.autoGainControl = x" />
+            </div>
 
-            <FormField name="noiseSuppression" :disabled="preferenceStore.voiceIsolation">
-                <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4"
-                    :disabled="preferenceStore.voiceIsolation">
-                    <div class="space-y-0.5">
-                        <FormLabel class="text-base">
-                            Noise Suppression
-                        </FormLabel>
-                        <FormDescription>
-                            Noise Suppression (Noise Suppression)
-                        </FormDescription>
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        Voice Isolation
                     </div>
-                    <FormControl :disabled="preferenceStore.voiceIsolation">
-                        <Switch  @update:checked="(x) => preferenceStore.noiseSuppression = x" :disabled="preferenceStore.voiceIsolation" />
-                    </FormControl>
-                </FormItem>
-            </FormField>
+                    <div class="text-sm text-muted-foreground">
+                        Isolate Isolation of Isolation Voice for Isolation
+                    </div>
+                </div>
+                <Switch :checked="preferenceStore.voiceIsolation"
+                    @update:checked="(x) => preferenceStore.voiceIsolation = x" />
+            </div>
+
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4"
+                :disabled="preferenceStore.voiceIsolation">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        Noise Suppression
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        Noise Suppression (Noise Suppression)
+                    </div>
+                </div>
+                <Switch @update:checked="(x) => preferenceStore.noiseSuppression = x"
+                    :disabled="preferenceStore.voiceIsolation" :checked="preferenceStore.noiseSuppression" />
+            </div>
         </div>
         <br />
         <br />
