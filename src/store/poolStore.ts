@@ -122,6 +122,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const trackUser = async function (user: IUser, extendedStatus?: UserStatus) {
     const exist = await db.users.get(user.Id);
     if (exist) {
+      // @ts-nocheck
       await db.users.update(exist.Id, {
         ...user,
         status: extendedStatus ?? "Offline",
@@ -311,7 +312,10 @@ export const usePoolStore = defineStore("data-pool", () => {
       const channels = await api.serverInteraction.GetChannels(s.Id);
 
       logger.log(`Loaded '${channels.length}' channels`, channels);
+      const trackedIds: Array<Guid> = [];
+
       for (const c of channels) {
+        trackedIds.push(c.Channel.Id);
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
           let selectedUser = users.filter(z => z.Member.UserId == uw.UserId).at(0);
@@ -331,7 +335,12 @@ export const usePoolStore = defineStore("data-pool", () => {
         }
         await trackChannel(c.Channel, we);
       }
-      
+
+      const prunedChannels = await db.channels.where('Id').noneOf([...trackedIds]).and(q => q.ServerId === s.Id).delete();
+
+      if (prunedChannels != 0)
+        logger.warn(`Pruned ${prunedChannels} channels`);
+
       bus.listenEvents(s.Id);
     }
   };
