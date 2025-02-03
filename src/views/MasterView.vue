@@ -1,10 +1,5 @@
 <template>
-  <div class="app-container flex h-screen gap-4 p-5" :style="usePaddingTop ? 'padding-top: 40px;' : ''">
-    <div
-      class="top-bar fixed top-0 left-0 right-0 mx-auto w-full h-8 rounded-b-lg shadow-md flex items-center justify-center"
-      style="background-color: #2f3136; max-width: 500px;">
-      <h1 class="text-lg font-semibold text-white ">Argon <span style="color: orange;">Beta {{ version }}</span></h1>
-    </div>
+  <div class="app-container flex h-screen gap-4 p-5" style="padding-top: 5px;">
     <Sidebar />
     <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
       <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
@@ -33,6 +28,7 @@
     </div>
     <SettingsWindow />
     <ServerSettingsWindow />
+    <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'"/>
 
     <div class="overlay" v-if="!me.WelcomeCommanderHasReceived">
       Waiting for connection, please wait...
@@ -50,15 +46,13 @@ import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { usePoolStore } from '@/store/poolStore';
 import { UserStatus } from '@/lib/glue/UserStatus';
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import { useMe } from '@/store/meStore';
+import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 
 const dataPool = usePoolStore();
-const version = ref("");
 const me = useMe();
 
-
-const usePaddingTop = ref(false);
 const statusClass = (status: UserStatus) => {
   return {
     'bg-green-500': status === 'Online',
@@ -68,14 +62,8 @@ const statusClass = (status: UserStatus) => {
 };
 
 onMounted(async () => {
-  if ('argon_host_version' in window) {
-    version.value = window["argon_host_version"] as string;
-  } else {
-    version.value = "[dev]";
-  }
   const s = await dataPool.allServerAsync;
   dataPool.selectedServer = s[0].Id;
-  usePaddingTop.value = true;
 })
 
 </script>
