@@ -1,15 +1,40 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useTone } from "@/store/toneStore";
 import { Subject } from "rxjs";
 
 export const useSystemStore = defineStore("system", () => {
+  // voice
+  let lastMicMuted = false;
   const microphoneMuted = ref(false);
   const headphoneMuted = ref(false);
   const tone = useTone();
-  let lastMicMuted = false;
-
   const muteEvent = new Subject<boolean>();
+
+  // network
+
+  const activeRetries = ref<Set<string>>(new Set());
+  const preferUseWs = ref(false);
+  function startRequestRetry(serviceName: string, methodName: string) {
+    activeRetries.value.add(`${serviceName}.${methodName}`);
+  }
+
+  function hasRequestRetry(serviceName: string, methodName: string) {
+    return activeRetries.value.has(`${serviceName}.${methodName}`);
+  }
+
+  function stopRequestRetry(serviceName: string, methodName: string) {
+    activeRetries.value.delete(`${serviceName}.${methodName}`);
+  }
+
+  const isRequestRetrying = computed(() => activeRetries.value.size > 0);
+
+
+
+
+  // -----------------------
+
+  preferUseWs.value = true; // TODO
 
   async function toggleMicrophoneMute() {
     microphoneMuted.value = !microphoneMuted.value;
@@ -39,6 +64,15 @@ export const useSystemStore = defineStore("system", () => {
     toggleHeadphoneMute,
     toggleMicrophoneMute,
 
-    muteEvent
+    muteEvent,
+
+    preferUseWs,
+    activeRetries,
+
+
+    isRequestRetrying,
+    startRequestRetry,
+    stopRequestRetry,
+    hasRequestRetry
   };
 });
