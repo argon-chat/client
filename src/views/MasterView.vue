@@ -1,8 +1,8 @@
 <template>
   <div class="app-container flex h-screen gap-4 p-5" style="padding-top: 5px;">
-    <Sidebar />
     <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
       <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
+      <ControlBar/>
       <UserBar />
     </div>
 
@@ -37,7 +37,6 @@
 </template>
 
 <script setup lang="ts">
-import Sidebar from '@/components/Sidebar.vue';
 import UserBar from '@/components/UserBar.vue';
 import ChatList from '@/components/ChatList.vue';
 import ChannelChat from '@/components/ChannelChat.vue';
@@ -49,6 +48,7 @@ import { UserStatus } from '@/lib/glue/UserStatus';
 import { onMounted } from 'vue';
 import { useMe } from '@/store/meStore';
 import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
+import ControlBar from '@/components/ControlBar.vue';
 
 const dataPool = usePoolStore();
 const me = useMe();
