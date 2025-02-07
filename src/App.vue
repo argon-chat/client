@@ -2,6 +2,8 @@
 import { Toaster } from '@/components/ui/toast/'
 import { useColorMode } from '@vueuse/core';
 import DevPanel from './components/DevPanel.vue';
+import { useSystemStore } from './store/systemStore';
+const sys = useSystemStore();
 let mode = useColorMode();
 mode.value = 'auto';
 </script>
@@ -10,21 +12,22 @@ mode.value = 'auto';
   <RouterView />
   <Toaster />
   <DevPanel />
+  <div v-if="sys.isRequestRetrying" class="warn-text">
+
+    <div v-for="i in sys.activeRetries" :key="i">
+      [{{ i }}] Reconnecting...
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+.warn-text {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  color: red;
+  font-size: 20px;
+  font-weight: bold;
+  white-space: nowrap;
 }
 </style>
