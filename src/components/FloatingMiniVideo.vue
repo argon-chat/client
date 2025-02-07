@@ -8,19 +8,12 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useVoice } from '@/store/voiceStore';
-import { RemoteVideoTrack, Track } from 'livekit-client';
+import { RemoteVideoTrack } from 'livekit-client';
 import { Subscription } from 'rxjs';
 import { logger } from '@/lib/logger';
-import { watch } from 'fs';
 
 const voice = useVoice();
 
-
-interface Props {
-  src: string;
-}
-
-const props = defineProps<Props>();
 
 const posX = ref(20); 
 const posY = ref(20);
@@ -85,7 +78,7 @@ const startDrag = (event: MouseEvent) => {
 </script>
 
 <template>
-  <div v-if="props.src" v-on:dblclick="toggleFullscreen" v-show="videoIsActive"
+  <div v-on:dblclick="toggleFullscreen" v-show="videoIsActive"
     class="fixed z-50 cursor-move transition-all" :class="{ 'fullscreen': isFullscreen }"
     :style="isFullscreen 
       ? {} 
@@ -103,7 +96,7 @@ const startDrag = (event: MouseEvent) => {
     </video>
     </ContextMenuTrigger>
     <ContextMenuContent class="w-64">
-      <ContextMenuItem inset>
+      <ContextMenuItem inset disabled>
         Close
         <ContextMenuShortcut>⌘[</ContextMenuShortcut>
       </ContextMenuItem>
