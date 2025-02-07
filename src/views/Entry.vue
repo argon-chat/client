@@ -1,16 +1,20 @@
 <template>
   <div style="width: 100%; height: 100%; background-color: black; position: absolute;">
-    <canvas v-motion-fade-visible :duration="4200" ref="canvas" width="150" height="150"
-      style="bottom: 0; position: absolute; width: 150px; height: 150px; right: 0;"></canvas>
+
+    <canvas ref="canvas"></canvas>
+
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <h1 v-motion-fade-visible :duration="4200" class="text-8xl font-bold mb-4">
+        <h1 v-motion-fade-visible :duration="4200" class="text-8xl font-bold mb-4" style="font-size: 15rem;">
           Argon
         </h1>
       </div>
     </div>
-    <div ref="terminalContainer"
-      style=" position: absolute; top: 0; background-color: black; overflow: hidden;">
+    <div class="fixed top-4 right-4 w-96 bg-gray-900 text-white p-4 rounded-lg shadow-lg overflow-y-auto max-h-64"
+      v-if="logs.length > 0">
+      <div v-for="(log, index) in logs" :key="index" :class="log.type === 'error' ? 'text-red-400' : 'text-green-400'">
+        [{{ log.time }}] {{ log.message }}
+      </div>
     </div>
   </div>
 </template>
@@ -19,13 +23,13 @@
 import router from '@/router';
 import { useAppState } from '@/store/appState';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import "@xterm/xterm/css/xterm.css";
-import { Terminal } from "@xterm/xterm";
 import { logger } from '@/lib/logger';
 import { usePoolStore } from '@/store/poolStore';
+import { useSystemStore } from '@/store/systemStore';
+const sys = useSystemStore();
 const terminalContainer = ref(null);
-let terminal = null as Terminal | null;
 const app = useAppState();
+const logs = ref([] as any[]);
 const canvas = ref<HTMLCanvasElement | null>(null);
 let gl: WebGLRenderingContext | null = null;
 let program: WebGLProgram | null = null;
@@ -33,6 +37,10 @@ let animationFrameId: number;
 let startTime: number;
 let u_timeLocation: WebGLUniformLocation | null = null;
 let u_resolutionLocation: WebGLUniformLocation | null = null;
+
+function logMessage(message: string, type: "info" | "error") {
+  logs.value.push({ message, type, time: new Date().toLocaleTimeString() } as any);
+}
 
 const initWebGL = () => {
   if (!canvas.value) return;
@@ -46,7 +54,6 @@ const initWebGL = () => {
     return;
   }
 
-  // Компилируем шейдеры
   const vertexShaderSource = `
       attribute vec4 a_position;
       attribute vec2 a_texCoord;
@@ -563,34 +570,18 @@ const render = () => {
 };
 
 const onResize = () => {
-  if (!canvas.value) return;
-  const canvasElement = canvas.value;
-  const parent = canvasElement.parentElement;
-  if (!parent) return;
-  canvasElement.width = parent.clientWidth;
-  canvasElement.height = parent.clientHeight;
+  canvas.value!.width = 400;
+  canvas.value!.height = 400;
 };
 
 function onInitTerminal() {
-  terminal = new Terminal({
-    cols: 90,
-    rows: 30,
-    theme: {
-      background: "black",
-      foreground: "white",
-    },
-    scrollback: 0,
-    disableStdin: true,
-    allowTransparency: true,
-    fontFamily: 'VT323, monospace'
-  });
-  terminal.open(terminalContainer.value!);
-  logger.addReporter({log: (obj, ctx) => {
-    //terminal!.writeln(`${obj.message} ${obj.level}`);
-    if (obj.type == "error" || obj.type == "fail" || obj.type == "fatal") {
-      terminal!.writeln(`\x1b[31m${obj.args.join(' ')}\x1b[0m`);
+  logger.addReporter({
+    log: (obj, ctx) => {
+      if (obj.type == "error" || obj.type == "fail" || obj.type == "fatal") {
+        logMessage(obj.args.join(' '), "error");
+      }
     }
-  }});
+  });
 }
 
 onMounted(() => {
@@ -602,7 +593,7 @@ onMounted(() => {
 
   app.initApp().then(async () => {
     const serverStore = usePoolStore();
-    
+
     const servers = await serverStore.allServerAsync;
 
     if (servers.length == 0) {
@@ -621,11 +612,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 canvas {
-  display: block;
-}
-
-.terminal {
-  font-size: 14px;
-  line-height: 1.4;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 400px;
+  height: 400px;
+  transform: translate(-50%, -50%);
 }
 </style>
