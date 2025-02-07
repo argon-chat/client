@@ -20,7 +20,6 @@
             <ul style="margin-top: auto !important;">
                 <li class="controls">
                     <button>
-                        <Settings @click="windows.settingsOpen = true" class="w-5 h-5" />
                     </button>
                 </li>
             </ul>
