@@ -67,88 +67,86 @@
       </div>
 
       <div class="flex-1 overflow-y-auto py-4 ">
-        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.Id"
-          class="px-4 py-2 hover:bg-gray-700 cursor-pointer flex flex-col ">
-          <div class="flex items-center justify-between group" v-on:click="channelSelect(channel.Id)">
-            <div class="flex items-center space-x-2">
-              <HashIcon v-if="channel.ChannelType === 'Text'" class="w-5 h-5 text-gray-400" />
-              <Volume2Icon v-else-if="channel.ChannelType === 'Voice'" class="w-5 h-5 text-gray-400" />
-              <span>{{ channel?.Name }}</span>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <button class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white">
-                  <MoreVerticalIcon class="w-5 h-5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent class="w-56">
-                <DropdownMenuLabel>Channel {{ channel.Name }}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <span style="color: cornflowerblue;">Mark As Read</span>
-                    <DropdownMenuShortcut>
-                      <CopyCheckIcon :size="18" />
-                    </DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <span>Copy Link</span>
-                    <DropdownMenuShortcut>
-                      <MessageSquareLock :size="18" />
-                    </DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup v-if="false">
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <span>Mute Channel</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem>
-                          <span>Email</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <span>Message</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <span>More...</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                  <DropdownMenuItem>
-                    <span>New Team</span>
-                    <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuItem @click="channelDelete(channel.Id)">
-                  <span style="color: red;">Delete Channel</span>
-                  <DropdownMenuShortcut>
-                    <Trash2Icon :size="18" />
-                  </DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <span>Edit Channel</span>
-                  <DropdownMenuShortcut>
-                    <Edit2Icon :size="18" />
-                  </DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <ul v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id) &&  pool.realtimeChannelUsers.get(channel.Id)?.Users.size != 0"
-            class="ml-10 mt-2 space-y-2">
-            <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
-              class="flex items-center mt-1 text-gray-400 hover:text-white">
-              <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId" :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 4px; border-radius: 500px;' : '')"
-                class="w-7 h-7 rounded-full mr-3"  />
-              <span>{{ user.User.DisplayName }}</span>
-            </li>
-          </ul>
 
+
+
+        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.Id"
+          class="px-4 py-2 hover:bg-gray-700 cursor-pointer flex flex-col " v-on:click="channelSelect(channel.Id)">
+
+          <ContextMenu>
+            <ContextMenuTrigger>
+
+
+              <div class="flex items-center justify-between group">
+                <div class="flex items-center space-x-2">
+                  <HashIcon v-if="channel.ChannelType === 'Text'" class="w-5 h-5 text-gray-400" />
+                  <Volume2Icon v-else-if="channel.ChannelType === 'Voice'" class="w-5 h-5 text-gray-400" />
+                  <AntennaIcon v-else-if="channel.ChannelType === 'Announcement'" class="w-5 h-5 text-gray-400" />
+                  <span>{{ channel?.Name }}</span>
+                </div>
+              </div>
+              <ul
+                v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id) && pool.realtimeChannelUsers.get(channel.Id)?.Users.size != 0"
+                class="ml-3 mt-2 space-y-2">
+                <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
+                  class="flex items-center mt-1 text-gray-400 hover:text-white">
+                  <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
+                    :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 4px; border-radius: 500px;' : '')"
+                    class="w-7 h-7 rounded-full mr-3" />
+                  <span>{{ user.User.DisplayName }}</span>
+                </li>
+              </ul>
+
+            </ContextMenuTrigger>
+            <ContextMenuContent class="w-64">
+              <ContextMenuItem inset>
+                Back
+                <ContextMenuShortcut>⌘[</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem inset disabled>
+                Forward
+                <ContextMenuShortcut>⌘]</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem inset>
+                Reload
+                <ContextMenuShortcut>⌘R</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuSub>
+                <ContextMenuSubTrigger inset>
+                  More Tools
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent class="w-48">
+                  <ContextMenuItem>
+                    Save Page As...
+                    <ContextMenuShortcut>⇧⌘S</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem>Create Shortcut...</ContextMenuItem>
+                  <ContextMenuItem>Name Window...</ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem>Developer Tools</ContextMenuItem>
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+              <ContextMenuCheckboxItem checked>
+                Show Bookmarks Bar
+                <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
+              </ContextMenuCheckboxItem>
+              <ContextMenuCheckboxItem>Show Full URLs</ContextMenuCheckboxItem>
+              <ContextMenuSeparator />
+              <ContextMenuRadioGroup model-value="pedro">
+                <ContextMenuLabel inset>
+                  People
+                </ContextMenuLabel>
+                <ContextMenuSeparator />
+                <ContextMenuRadioItem value="pedro">
+                  Pedro Duarte
+                </ContextMenuRadioItem>
+                <ContextMenuRadioItem value="colm">
+                  Colm Tuite
+                </ContextMenuRadioItem>
+              </ContextMenuRadioGroup>
+            </ContextMenuContent>
+          </ContextMenu>
 
         </div>
       </div>
@@ -160,8 +158,23 @@
 import { useServerStore } from '@/store/serverStore';
 import {
   HashIcon, Volume2Icon, PlusIcon, MoreVerticalIcon, Edit2Icon, Trash2Icon,
-  CopyCheckIcon, MessageSquareLock, CloverIcon
+  CopyCheckIcon, MessageSquareLock, CloverIcon, AntennaIcon
 } from 'lucide-vue-next';
+import {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -172,20 +185,6 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
