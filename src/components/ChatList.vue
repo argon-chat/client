@@ -246,7 +246,7 @@ const connectToChannel = (channelId: string) => {
 
 <style scoped>
 .chat-list {
-  background-color: #2f3136;
+  background-color: #161616;
   padding: 10px;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

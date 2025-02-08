@@ -33,7 +33,7 @@ const me = useMe();
 }
 
 .user-bar {
-  background-color: #2f3136;
+  background-color: #161616;
   border-radius: 15px;
   padding: 10px;
   display: flex;

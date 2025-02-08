@@ -210,7 +210,7 @@ onMounted(getDevices);
 <style scoped>
 .cameraWrapper {
     position: relative;
-    background-color: var(--background-secondary, #2f3136);
+    background-color: var(--background-secondary, #161616);
     border: 1px solid var(--background-tertiary, #40444b);
     border-radius: 8px;
     width: 100%;

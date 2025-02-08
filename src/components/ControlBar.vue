@@ -155,7 +155,7 @@ const windows = useWindow();
 }
 
 .connection-card {
-    background-color: #414242;
+    background-color: #272626;
     text-align: center;
     margin-bottom: -5px;
     left: 10%;

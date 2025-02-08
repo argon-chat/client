@@ -62,7 +62,7 @@ const pool = usePoolStore();
 
 .sidebar {
     width: 60px;
-    background-color: #2f3136;
+    background-color: #161616;
     height: 100%;
     border-radius: 15px;
     padding: 10px 0;
