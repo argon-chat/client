@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-w-[280px]" style="z-index: 1;" v-if="me.me">
+  <div class="relative" style="z-index: 1;" v-if="me.me">
     <div class="user-bar">
       <div class="user-info">
         <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
@@ -11,6 +11,13 @@
           </span>
         </div>
       </div>
+      <div class="control-bar">
+        <div class="controls">
+          <button @click="windows.settingsOpen = true" style="padding-right: 5px;">
+            <Settings class="w-6 h-6" />
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -18,7 +25,10 @@
 <script setup lang="ts">
 import { useMe } from "@/store/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
+import { useWindow } from "@/store/windowStore";
+import { Settings } from 'lucide-vue-next';
 
+const windows = useWindow();
 const me = useMe();
 </script>
 
