@@ -6,6 +6,7 @@ import {
   createLocalScreenTracks,
   createLocalTracks,
   LocalAudioTrack,
+  LocalTrackPublication,
   LocalVideoTrack,
   Participant,
   RemoteParticipant,
@@ -230,6 +231,7 @@ export const useVoice = defineStore("voice", () => {
 
     if (track.kind === "video") {
       logger.log(track, publication);
+      isOtherUserSharing.value = true;
       onVideoCreated.next(track);
     } else if (track.kind === "audio") {
       const audioElement = track.attach();
@@ -249,8 +251,9 @@ export const useVoice = defineStore("voice", () => {
     participant: Participant
   ) {}
 
-  let screenTrack: any;
+  let screenTrack:  LocalTrackPublication | undefined;
   const isSharing = ref(false);
+  const isOtherUserSharing = ref(false);
   const startScreenShare = async () => {
     try {
       const room = connectedRoom.room!;
@@ -259,7 +262,7 @@ export const useVoice = defineStore("voice", () => {
 
       isSharing.value = true;
 
-      const track = await room.localParticipant.setScreenShareEnabled(
+      screenTrack = await room.localParticipant.setScreenShareEnabled(
         !enabled,
         {
           audio: true,
@@ -268,23 +271,23 @@ export const useVoice = defineStore("voice", () => {
         }
       );
 
-      logger.warn("Started video scren share", track);
-      onVideoCreated.next(track?.track as any);
+      logger.warn("Started video scren share", screenTrack);
+      onVideoCreated.next(screenTrack?.track as any);
 
-      track!.once("ended", () => {
+      screenTrack!.once("ended", () => {
         stopScreenShare();
-        onVideoDestroyed.next(track?.track as any);
+        onVideoDestroyed.next(screenTrack?.track as any);
       });
     } catch (error) {
       console.error("Ошибка при захвате экрана:", error);
     }
   };
 
-  const stopScreenShare = () => {
+  const stopScreenShare = async () => {
     if (screenTrack) {
-      connectedRoom.room!.localParticipant.unpublishTrack(screenTrack);
-      screenTrack.stop();
-      screenTrack = null;
+      onVideoDestroyed.next(screenTrack.track!);
+      screenTrack = await connectedRoom.room!.localParticipant.setScreenShareEnabled(false);
+      screenTrack = undefined;
       isSharing.value = false;
     }
   };
@@ -319,6 +322,7 @@ export const useVoice = defineStore("voice", () => {
     );
 
     if (track.kind === "video") {
+      isOtherUserSharing.value = false;
       onVideoDestroyed.next(track);
     } else if (track.kind === "audio") {
       track.detach();
@@ -339,6 +343,8 @@ export const useVoice = defineStore("voice", () => {
     onVideoCreated,
     onVideoDestroyed,
     startScreenShare,
+    stopScreenShare,
     isSharing,
+    isOtherUserSharing
   };
 });
