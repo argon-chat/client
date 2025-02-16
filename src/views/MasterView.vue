@@ -1,39 +1,44 @@
 <template>
-  <div class="app-container flex h-screen gap-4 p-5" style="padding-top: 5px;">
-    <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55">
-      <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
-      <ControlBar/>
-      <UserBar />
-    </div>
+  <GlowBorder
+    class="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg border md:shadow-xl" style="width: 100vw; height: 100vh;"
+    :color="['#A07CFE', '#FE8FB5', '#FFBE7B']">
+    <div class="app-container flex h-screen gap-4 p-5" style="padding-top: 5px;     width: 100%; height: 100%;">
+      <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55 min-w-[230px]">
+        <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
+        <ControlBar />
+        <UserBar />
+      </div>
 
-    <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
-      <ChannelChat />
-    </div>
+      <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
+        <ChannelChat />
+      </div>
 
-    <div v-if="dataPool.selectedServer" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #2f3136;
+      <div v-if="dataPool.selectedServer" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #161616;
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-      <h3 class="text-lg text-white mb-4">Users</h3>
-      <ul class="text-gray-400 space-y-2">
-        <li v-for="user in dataPool.activeServerUsers.value" :key="user.Id"
-          class="flex items-center space-x-3 hover:text-white">
-          <div class="relative">
-            <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.Id" />
-            <span :class="statusClass(user.status)"
-              class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
-          </div>
-          <span>{{ user.DisplayName }}</span>
-        </li>
-      </ul>
-    </div>
-    <SettingsWindow />
-    <ServerSettingsWindow />
-    <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'"/>
+        <h3 class="text-lg text-white mb-4">Users</h3>
+        <ul class="text-gray-400 space-y-2">
+          <li v-for="user in dataPool.activeServerUsers.value" :key="user.Id"
+            class="flex items-center space-x-3 hover:text-white">
+            <div class="relative">
+              <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.Id" />
+              <span :class="statusClass(user.status)"
+                class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
+            </div>
+            <span>{{ user.DisplayName }}</span>
+          </li>
+        </ul>
+      </div>
+      <SettingsWindow />
+      <ServerSettingsWindow />
+      <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
 
-    <div class="overlay" v-if="!me.WelcomeCommanderHasReceived">
-      Waiting for connection, please wait...
+      <div class="overlay" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
+        Waiting for connection, please wait...
+      </div>
     </div>
-  </div>
+  </GlowBorder>
+
 </template>
 
 <script setup lang="ts">
@@ -49,6 +54,7 @@ import { onMounted } from 'vue';
 import { useMe } from '@/store/meStore';
 import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
+import GlowBorder from '@/components/GlowBorder.vue';
 
 const dataPool = usePoolStore();
 const me = useMe();
@@ -79,7 +85,7 @@ body {
 }
 
 .chat-container {
-  background-color: #2f3136;
+  background-color: #161616;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
