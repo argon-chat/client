@@ -5,12 +5,12 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IArgonEntityWithOwnership.d.ts"/>
 ///<reference path="EntityType.d.ts"/>
 
-interface IMessageEntity extends IArgonEntityWithOwnership
+interface IMessageEntity
 {
-	MessageId: Guid;
+	MessageId: number;
+	ChannelId: Guid;
 	Type: EntityType;
 	Offset: number;
 	Length: number;

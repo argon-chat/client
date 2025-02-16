@@ -16,6 +16,7 @@ interface IServer extends Argon.ArchetypeModel.IArchetypeSubject, IArgonEntityWi
 	Name: string;
 	Description?: string;
 	AvatarFileId?: string;
+	TopBannedFileId?: string;
 	Channels: IChannel[];
 	Users: IServerMember[];
 	Archetypes: IArchetype[];
