@@ -1,8 +1,8 @@
 <template>
-    <div class="relative min-w-[280px]" style="z-index: 1; padding-bottom: 10px;" v-if="me.me">
+    <div class="relative" style="z-index: 1; padding-bottom: 10px;" v-if="me.me">
         <div class="control-bar">
             <div class="controls">
-                <button v-if="voice.isConnected" @click="voice.disconnectFromChannel()" class="active">
+                <button :disabled="!voice.isConnected" @click="voice.disconnectFromChannel()" class="active">
                     <PhoneOffIcon class="w-5 h-5" />
                 </button>
                 <button @click="sys.toggleMicrophoneMute" :class="{ active: sys.microphoneMuted }">
@@ -13,18 +13,18 @@
                     <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
                     <Headphones v-else class="w-5 h-5" />
                 </button>
-                <button @click="voice.startScreenShare">
+                <button @click="toggleShare" :class="{ active: voice.isSharing }" :disabled="!voice.isConnected || voice.isOtherUserSharing">
                     <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
                     <ScreenShare v-else class="w-5 h-5" />
                 </button>
-                <button @click="windows.settingsOpen = true">
-                    <Settings2Icon class="w-5 h-5" />
+                <button :disabled="true">
+                    <TicketPercent class="w-5 h-5" />
                 </button>
             </div>
         </div>
         <div>
             <div v-show="voice.isConnected || voice.isBeginConnect" v-motion-slide-visible-bottom
-                class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
+                class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1] "
                 style="bottom: 100%; margin-bottom: -5px;">
                 <div class="flex items-center space-x-2">
                     <TooltipProvider>
@@ -60,25 +60,35 @@
 
 <script setup lang="ts">
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, ScreenShareOff, ScreenShare, Settings2Icon } from 'lucide-vue-next';
+import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, ScreenShareOff, ScreenShare, TicketPercent } from 'lucide-vue-next';
 
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
 import { useVoice } from "@/store/voiceStore";
 import { useSessionTimer } from '@/store/sessionTimer'
-import { useWindow } from "@/store/windowStore";
-
 const me = useMe();
 const sys = useSystemStore();
 const voice = useVoice();
-const sessionTimerStore = useSessionTimer()
-const windows = useWindow();
+const sessionTimerStore = useSessionTimer();
+
+
+async function toggleShare() {
+    if (!voice.isConnected)
+        return;
+    if (voice.isOtherUserSharing)
+        return;
+
+    if (voice.isSharing)
+        voice.stopScreenShare();
+    else
+        await voice.startScreenShare();
+}
+
 </script>
 
 <style scoped>
-
 .control-bar {
-    background-color: #2f3136;
+    background-color: #161616;
     border-radius: 15px;
     padding: 10px;
     display: flex;
@@ -152,6 +162,11 @@ const windows = useWindow();
 
 .controls button.active {
     color: #f04747;
+}
+
+.controls button:disabled {
+    color: #4d4c4c;
+    cursor: not-allowed;
 }
 
 .connection-card {
