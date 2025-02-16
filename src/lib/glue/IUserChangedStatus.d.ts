@@ -12,5 +12,7 @@ interface UserChangedStatus extends IArgonEvent
 	EventKey: 'UserChangedStatus';
 	userId: Guid;
 	status: UserStatus;
-	bag: any;
+	bag: string[];
+	Sequence: number;
+	EventId: number;
 }

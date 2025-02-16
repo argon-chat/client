@@ -5,12 +5,12 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IChannel.d.ts"/>
+///<reference path="IArgonMessage.d.ts"/>
 
-interface ChannelCreated extends IArgonEvent
+interface MessageSent extends IArgonEvent
 {
-	EventKey: 'ChannelCreated';
-	channel: IChannel;
+	EventKey: 'MessageSent';
+	message: IArgonMessage;
 	Sequence: number;
 	EventId: number;
 }

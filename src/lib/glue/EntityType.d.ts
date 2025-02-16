@@ -5,12 +5,5 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IChannel.d.ts"/>
 
-interface ChannelCreated extends IArgonEvent
-{
-	EventKey: 'ChannelCreated';
-	channel: IChannel;
-	Sequence: number;
-	EventId: number;
-}
+export type EntityType = 'Hashtag' | 'Mention' | 'Email' | 'Url' | 'Monospace' | 'Quote' | 'Spoiler' | 'Strikethrough' | 'Bold' | 'Italic' | 'Underline'
