@@ -8,12 +8,27 @@ import { MotionPlugin } from "@vueuse/motion";
 import { registerDirectives } from "./lib/pexDirective";
 import * as Sentry from "@sentry/vue";
 
+import { createI18n } from 'vue-i18n';
+import en from '@/locales/en.json';
+import ru from '@/locales/ru.json';
+import { MessageSchema } from '@/locales';
+
+export const i18n = createI18n<[MessageSchema], 'en' | 'ru'>({
+  legacy: false,
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages: { en, ru } as any
+});
+
+
 let pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
 var app = createApp(App);
+app.use(i18n);
+
 Sentry.init({
   app,
-  dsn: "https://27e1482fc59fff31b5a7263805f7ecac@sentry.svck.dev/7",
+  dsn: "app://sentry/7",
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({
