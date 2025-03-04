@@ -1,15 +1,15 @@
+import { persistedValue } from "@/lib/persistedValue";
 import { defineStore } from "pinia";
-import { ref } from "vue";
 
 export const usePreference = defineStore("preference", () => {
-    const defaultAudioDevice = ref("");
-    const defaultVideoDevice = ref("");
+    const defaultAudioDevice = persistedValue("defaultAudioDevice", "");
+    const defaultVideoDevice = persistedValue("defaultVideoDevice", "");
 
 
-    const echoCancellation = ref(false);
-    const autoGainControl = ref(false);
-    const noiseSuppression = ref(false);
-    const voiceIsolation = ref(false);
+    const echoCancellation = persistedValue("echoCancellation", false);
+    const autoGainControl = persistedValue("autoGainControl", false);
+    const noiseSuppression = persistedValue("noiseSuppression", false);
+    const voiceIsolation = persistedValue("voiceIsolation", false);
 
 
     return {
@@ -21,8 +21,5 @@ export const usePreference = defineStore("preference", () => {
         noiseSuppression,
         voiceIsolation
     };
-  },
-  {
-    persist: true,
   }
 );
