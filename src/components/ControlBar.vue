@@ -13,10 +13,63 @@
                     <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
                     <Headphones v-else class="w-5 h-5" />
                 </button>
-                <button @click="toggleShare" :class="{ active: voice.isSharing }" :disabled="!voice.isConnected || voice.isOtherUserSharing">
-                    <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
-                    <ScreenShare v-else class="w-5 h-5" />
-                </button>
+                <Dialog>
+                    <DialogTrigger as-child>
+                        <button @click="openShareSettings = true" :class="{ active: voice.isSharing }">
+                            <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
+                            <ScreenShare v-else class="w-5 h-5" />
+                        </button>
+                    </DialogTrigger>
+                    <DialogContent class="sm:max-w-md">
+                        <Tabs default-value="monitors">
+                            <TabsList class="w-full flex">
+                                <TabsTrigger value="monitors" class="flex-1">Мониторы</TabsTrigger>
+                                <TabsTrigger value="windows" class="flex-1">Окна</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="monitors" class="mt-4">
+                                <div class="h-40 flex items-center justify-center bg-gray-200 rounded-lg">
+                                    <span class="text-gray-500">Превью мониторов</span>
+                                </div>
+                                <div class="mt-4">
+                                    <Label class="text-sm">Качество</Label>
+                                    <Select v-model="quality">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Выберите качество" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Низкое</SelectItem>
+                                            <SelectItem value="medium">Среднее</SelectItem>
+                                            <SelectItem value="high">Высокое</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    
+                                </div>
+                                <div class="mt-4 flex items-center gap-2">
+                                        <Switch v-model="includeAudio" />
+                                        <Label>Включить системный звук</Label>
+                                    </div>
+                            </TabsContent>
+
+                            <TabsContent value="windows" class="mt-4">
+                                <div class="h-40 flex items-center justify-center bg-gray-200 rounded-lg">
+                                    <span class="text-gray-500">Превью окон</span>
+                                </div>
+                                <div class="mt-4 flex items-center gap-2">
+                                    <Switch v-model="includeAudio" />
+                                    <Label>Включить системный звук</Label>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                        <DialogFooter class="sm:justify-start">
+                            <DialogClose as-child>
+                                <Button type="button" variant="secondary">
+                                    Close
+                                </Button>
+                            </DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
                 <button :disabled="true">
                     <TicketPercent class="w-5 h-5" />
                 </button>
@@ -55,6 +108,8 @@
                 <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">Reconnect...</span>
             </div>
         </div>
+
+
     </div>
 </template>
 
@@ -66,11 +121,46 @@ import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
 import { useVoice } from "@/store/voiceStore";
 import { useSessionTimer } from '@/store/sessionTimer'
+import { useWindow } from "@/store/windowStore";
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+} from '@/components/ui/dialog'
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs'
+import { ref } from "vue";
+
 const me = useMe();
 const sys = useSystemStore();
 const voice = useVoice();
 const sessionTimerStore = useSessionTimer();
+const window = useWindow();
 
+const openShareSettings = ref(false);
+const includeAudio = ref(false);
+const quality = ref("");
 
 async function toggleShare() {
     if (!voice.isConnected)
