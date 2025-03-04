@@ -10,7 +10,9 @@ import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 
-export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { User: IUser, isSpeaking: Ref<boolean> };
+export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { 
+  User: IUser, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>
+};
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
   Users: Reactive<Map<Guid, IRealtimeChannelUserWithData>>;
@@ -60,6 +62,20 @@ export const usePoolStore = defineStore("data-pool", () => {
       logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
     }
   }
+
+
+  const setProperty = async function (channelId: Guid, userId: Guid, action: (user: IRealtimeChannelUserWithData) => void) {
+    if (realtimeChannelUsers.has(channelId)) {
+      if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
+        action(realtimeChannelUsers.get(channelId)!.Users.get(userId) as any);
+      } else {
+        logger.warn("Detected speaking user, but in realtime channel user not found, maybe bug", channelId, userId);
+      }
+    } else {
+      logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
+    }
+  }
+
 
 
 
@@ -239,7 +255,8 @@ export const usePoolStore = defineStore("data-pool", () => {
           State: 0,
           UserId: x.userId,
           User: user!,
-          isSpeaking: false
+          isSpeaking: false,
+          isMuted: false
         });
 
       } else
@@ -331,7 +348,7 @@ export const usePoolStore = defineStore("data-pool", () => {
             logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
             continue;
           }
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false) });
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false), isMuted: ref(false)});
         }
         await trackChannel(c.Channel, we);
       }
@@ -365,6 +382,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     realtimeChannelUsers,
     indicateSpeaking,
+    setProperty,
 
 
     getUser,
