@@ -5,15 +5,9 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IArgonEntityWithOwnershipNoKey.d.ts"/>
-///<reference path="IMessageEntity.d.ts"/>
+///<reference path="Argon/IArgonEntityNoKey.d.ts"/>
 
-interface IArgonMessage extends IArgonEntityWithOwnershipNoKey
+interface IArgonEntityWithOwnershipNoKey extends Argon.IArgonEntityNoKey
 {
-	MessageId: number;
-	ServerId: Guid;
-	ChannelId: Guid;
-	Reply?: number;
-	Text: string;
-	Entities: IMessageEntity[];
+	CreatorId: Guid;
 }

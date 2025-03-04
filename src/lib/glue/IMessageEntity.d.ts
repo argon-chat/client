@@ -9,8 +9,6 @@
 
 interface IMessageEntity
 {
-	MessageId: number;
-	ChannelId: Guid;
 	Type: EntityType;
 	Offset: number;
 	Length: number;
