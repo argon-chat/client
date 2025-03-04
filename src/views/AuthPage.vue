@@ -4,6 +4,10 @@ import UserAuthForm from '@/components/UserAuthForm.vue'
 import router from '@/router';
 import { useAuthStore } from '@/store/authStore';
 import { onMounted } from 'vue';
+import { useLocale } from '@/store/localeStore';
+
+const { t } = useLocale();
+
 
 const quotes = [
     { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },

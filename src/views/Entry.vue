@@ -5,7 +5,7 @@
 
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <h1 v-motion-fade-visible :duration="4200" class="text-8xl font-bold mb-4" style="font-size: 15rem;">
+        <h1 v-motion-fade-visible :duration="4200" class="text-8xl font-bold mb-4 select-none" style="font-size: 15rem;">
           Argon
         </h1>
       </div>

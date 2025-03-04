@@ -2,18 +2,18 @@
     <div class="modal-overlay">
         <div
             class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md border border-dashed grid w-full gap-2">
-            <h2 class="text-2xl font-bold text-center">Join or Create a Server</h2>
+            <h2 class="text-2xl font-bold text-center">{{ t('join_or_create_server') }}</h2>
 
             <Button @click="createServer">
-                Create New Server
+                {{ t('create_new_server') }}
             </Button>
-            <div class="divider text-gray-400 text-center">or</div>
+            <div class="divider text-gray-400 text-center"> {{ t('or') }} </div>
             <div class="grid w-full gap-2">
-                <Label for="invite-code">Invite Code</Label>
+                <Label for="invite-code">{{ t('invite_code') }}</Label>
                 <Input id="invite-code" v-model="inviteCode"  placeholder="e.g., XDq2-17jS-KJj2" />
                 <br/>
                 <Button @click="joinServer">
-                    Join Server
+                    {{ t('join_to_server') }}
                 </Button>
             </div>
 
@@ -30,6 +30,9 @@ import { useServerStore } from '@/store/serverStore';
 import { logger } from '@/lib/logger';
 import router from '@/router';
 import { toast } from '@/components/ui/toast';
+import { useLocale } from '@/store/localeStore';
+
+const { t } = useLocale();
 
 const inviteCode = ref(''); 
 const serverStore = useServerStore();

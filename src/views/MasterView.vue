@@ -1,8 +1,9 @@
 <template>
   <GlowBorder
-    class="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg border md:shadow-xl" style="width: 100vw; height: 100vh;"
-    :color="['#A07CFE', '#FE8FB5', '#FFBE7B']">
-    <div class="app-container flex h-screen gap-4 p-5" style="padding-top: 5px;     width: 100%; height: 100%;">
+    class="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg border md:shadow-xl"
+    style="width: 100vw; height: 100vh;" :color="['#A07CFE', '#FE8FB5', '#FFBE7B']">
+    <div class="app-container flex h-screen gap-4 p-7" style="width: 100%; height: 100%;">
+
       <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55 min-w-[230px]">
         <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
         <ControlBar />
@@ -10,7 +11,7 @@
       </div>
 
       <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
-        <ChannelChat />
+        <ChannelChat v-if="false" />
       </div>
 
       <div v-if="dataPool.selectedServer" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #161616;
@@ -29,14 +30,25 @@
           </li>
         </ul>
       </div>
+
       <SettingsWindow />
       <ServerSettingsWindow />
       <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
 
-      <div class="overlay" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
-        Waiting for connection, please wait...
+      <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
+        <div class="sys-keyholder">
+          <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
+          <XIcon height="16" width="16" class="close-icon" @click="pressSystemKey(0)" />
+        </div>
+      </div>
+
+      <div class="topbar-collider" @mousedown="beginMove" @mouseup="endMove" />
+
+      <div class="overlay select-none" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
+        {{ t('wait_connect') }}
       </div>
     </div>
+
   </GlowBorder>
 
 </template>
@@ -55,10 +67,27 @@ import { useMe } from '@/store/meStore';
 import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
 import GlowBorder from '@/components/GlowBorder.vue';
+import { useLocale } from '@/store/localeStore';
+import {
+  MinusIcon,
+  XIcon
+} from 'lucide-vue-next';
 
 const dataPool = usePoolStore();
 const me = useMe();
+const { t } = useLocale();
 
+const beginMove = () => {
+  native.beginMoveWindow();
+}
+
+const pressSystemKey = (key: number) => {
+  native.pressSystemKey(key);
+}
+
+const endMove = () => {
+  native.endMoveWindow();
+}
 const statusClass = (status: UserStatus) => {
   return {
     'bg-green-500': status === 'Online',
@@ -90,6 +119,12 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.top-container {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -103,5 +138,34 @@ body {
   justify-content: center;
   font-size: 1.5rem;
   z-index: 1000;
+}
+
+.close-icon {
+  color: #686868;
+}
+
+.close-icon:hover {
+  color: #bebebe;
+  cursor: pointer;
+}
+
+.close-icon:active {
+  color: #0f9ed6;
+  cursor: pointer;
+}
+
+.topbar-collider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% - 60px);
+  height: 25px;
+}
+
+.sys-keyholder {
+  justify-content: center;
+  display: flex;
+  gap: 10px;
+  flex: auto;
 }
 </style>
