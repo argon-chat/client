@@ -14,14 +14,16 @@
             <div class="settings-layout justify-center flex min-h-full space-x-4">
                 <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg">
                     <Button v-for="category in categories" :key="category.id"
-                        :variant=" selectedCategory !== category.id ? 'ghost' : 'default'"
+                        :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
                         @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md">
                         {{ category.name }}
                     </Button>
                 </nav>
-                <div class="settings-content w-1/2 p-6  text-white ">
+                <div
+                    class="settings-content w-1/2 p-6 text-white overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     <component :is="selectedCategoryComponent" />
                 </div>
+
             </div>
         </DrawerContent>
     </Drawer>
@@ -45,7 +47,7 @@ const categories = ref([
     //{ id: 'notifications', name: 'Notifications' },
     //{ id: 'privacy', name: 'Privacy' },
     //{ id: 'devices', name: 'Devices' },
-    { id: 'voice_video', name: 'Voice & Video' }, 
+    { id: 'voice_video', name: 'Voice & Video' },
 ]);
 
 const selectedCategory = ref('account');
@@ -107,15 +109,41 @@ onUnmounted(() => {
 }
 
 .close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: color 0.2s ease;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
 .close-button:hover {
-  color: #f87171;
+    color: #f87171;
+}
+
+</style>
+
+<style scoped>
+/* Общий стиль для скроллбара */
+.settings-content::-webkit-scrollbar {
+    width: 8px; /* Ширина скроллбара */
+}
+
+/* Трек (фон скроллбара) */
+.settings-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1); /* Темный фон */
+    border-radius: 10px;
+}
+
+/* Ползунок (сам скроллбар) */
+.settings-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1); /* Цвет ползунка */
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+
+/* Ползунок при наведении */
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: #6b7280; /* Светлее при наведении */
 }
 </style>
