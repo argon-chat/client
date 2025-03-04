@@ -64,9 +64,11 @@
               <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
                 class="flex items-center mt-1 text-gray-400 hover:text-white">
                 <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
-                  :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 4px; border-radius: 500px;' : '')"
-                  class="w-7 h-7 rounded-full mr-3" />
+                  :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
+                  class="w-7 h-7 rounded-full mr-3 transition" />
                 <span>{{ user.User.DisplayName }}</span>
+                <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;"/>
+                <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;"/>
               </li>
             </ul>
 
@@ -133,7 +135,7 @@
 <script setup lang="ts">
 import { useServerStore } from '@/store/serverStore';
 import {
-  HashIcon, Volume2Icon, MoreVerticalIcon, AntennaIcon
+  HashIcon, Volume2Icon, MoreVerticalIcon, AntennaIcon, MicOffIcon, ScreenShare
 } from 'lucide-vue-next';
 import {
   ContextMenu,
@@ -184,7 +186,7 @@ const voice = useVoice();
 const me = useMe();
 
 
-const isAdmin = computed(() => me.me?.Username === "yuuki");
+const isAdmin = computed(() => true);
 
 
 const addChannel = () => {
