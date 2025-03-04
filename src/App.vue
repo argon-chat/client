@@ -12,7 +12,7 @@ mode.value = 'auto';
   <RouterView />
   <Toaster />
   <DevPanel />
-  <div v-if="sys.isRequestRetrying" class="warn-text">
+  <div v-if="sys.isRequestRetrying" class="warn-text select-none">
 
     <div v-for="i in sys.activeRetries" :key="i">
       [{{ i }}] Reconnecting...
