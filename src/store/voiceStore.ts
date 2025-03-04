@@ -102,22 +102,7 @@ export const useVoice = defineStore("voice", () => {
       maxRetries: 500,
     };
 
-    const room = new Room({
-      publishDefaults: {
-        videoCodec: "h264", // h264 good perf, vp8 +-
-        red: true,
-        forceStereo: true,
-        simulcast: true,
-        videoEncoding: {
-          priority: "high",
-          maxBitrate: 2_500_000,
-          maxFramerate: 165
-        }
-      },
-      audioCaptureDefaults: {
-        
-      }
-    });
+    const room = new Room();
 
     connectedRoom.opt = connectOptions;
     connectedRoom.room = reactive(room);
@@ -183,6 +168,26 @@ export const useVoice = defineStore("voice", () => {
     currentState.value = "CONNECTED";
     sessionTimerStore.startTimer();
     logger.success("Connected to channel");
+
+    room.localParticipant.on("isSpeakingChanged", (val) => {
+      pool.indicateSpeaking(
+        pool.selectedChannel!,
+        room.localParticipant.identity,
+        val
+      );
+    });
+
+    room.localParticipant.on('trackMuted', (_) => {
+      pool.setProperty(pool.selectedChannel!, room.localParticipant.identity, (x) => {
+        (x.isMuted as any) = true;
+      });
+    });
+    
+    room.localParticipant.on('trackUnmuted', (_) => {
+      pool.setProperty(pool.selectedChannel!, room.localParticipant.identity, (x) => {
+        (x.isMuted as any) = false;
+      });
+    });
   }
 
   async function disconnectFromChannel() {
@@ -209,6 +214,7 @@ export const useVoice = defineStore("voice", () => {
         connectedRoom.room = null;
         pool.selectedChannel = null;
         activeChannel.value = null;
+        tone.playSoftLeaveSound();
       } else {
         logger.error("No active channel connection");
       }
@@ -242,6 +248,17 @@ export const useVoice = defineStore("voice", () => {
         pool.indicateSpeaking(pool.selectedChannel!, participant.identity, val);
       });
 
+      participant.on('trackMuted', (track) => {
+        pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
+          (x.isMuted as any)= true;
+        });
+      });
+      participant.on('trackUnmuted', (track) => {
+        pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
+          (x.isMuted as any) = false;
+        });
+      });
+
       tone.playSoftEnterSound();
     }
   }
@@ -251,23 +268,29 @@ export const useVoice = defineStore("voice", () => {
     participant: Participant
   ) {}
 
-  let screenTrack:  LocalTrackPublication | undefined;
+  let screenTrack: LocalTrackPublication | undefined;
   const isSharing = ref(false);
   const isOtherUserSharing = ref(false);
-  const startScreenShare = async () => {
+  const startScreenShare = async (options: {
+    systemAudio: "include" | "exclude";
+    preset: "720p" | "1080p" | "1440p" | "2160p" | "4320p" | "10240p";
+    fps: 15 | 30 | 60 | 120 | 165;
+  }) => {
     try {
       const room = connectedRoom.room!;
 
       const enabled = room.localParticipant.isScreenShareEnabled;
 
       isSharing.value = true;
-
       screenTrack = await room.localParticipant.setScreenShareEnabled(
         !enabled,
         {
           audio: true,
-          resolution: { height: 1440, width: 2560, frameRate: 165 },
-          systemAudio: "include",
+          resolution: { height: 720, width: 1080, frameRate: options.fps },
+          systemAudio: options.systemAudio,
+          video: { displaySurface: "monitor" } as any,
+          contentHint: "motion",
+          
         }
       );
 
@@ -286,7 +309,8 @@ export const useVoice = defineStore("voice", () => {
   const stopScreenShare = async () => {
     if (screenTrack) {
       onVideoDestroyed.next(screenTrack.track!);
-      screenTrack = await connectedRoom.room!.localParticipant.setScreenShareEnabled(false);
+      screenTrack =
+        await connectedRoom.room!.localParticipant.setScreenShareEnabled(false);
       screenTrack = undefined;
       isSharing.value = false;
     }
@@ -345,6 +369,6 @@ export const useVoice = defineStore("voice", () => {
     startScreenShare,
     stopScreenShare,
     isSharing,
-    isOtherUserSharing
+    isOtherUserSharing,
   };
 });
