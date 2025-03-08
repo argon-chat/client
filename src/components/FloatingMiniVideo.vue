@@ -51,7 +51,8 @@ onUnmounted(() => {
 })
 
 const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value;
+  videoRef.value!.requestFullscreen();
+  //isFullscreen.value = !isFullscreen.value;
 };
 
 const startDrag = (event: MouseEvent) => {
@@ -79,7 +80,7 @@ const startDrag = (event: MouseEvent) => {
 
 <template>
   <div v-on:dblclick="toggleFullscreen" v-show="videoIsActive"
-    class="fixed z-50 cursor-move transition-all" :class="{ 'fullscreen': isFullscreen }"
+    class="fixed z-50 cursor-move" :class="{ 'fullscreen': isFullscreen, 'transition-all': !isDragging }"
     :style="isFullscreen 
       ? {} 
       : { top: posY + 'px', left: posX + 'px', width: '350px', height: '185px' }"
@@ -116,10 +117,13 @@ const startDrag = (event: MouseEvent) => {
   max-height: 100vh;
 }
 .fullscreen {
-  top: 2vh !important;
-  left: 2vw !important;
-  width: 85vw !important;
-  height: 85vh !important;
-  cursor: default;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 100vh;
+  transform: translate(-50%, -50%) scale(1);
+  object-fit: contain; /* Меняет поведение масштабирования */
+  background-color: black;
 }
 </style>
