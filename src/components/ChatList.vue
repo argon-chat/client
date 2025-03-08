@@ -25,7 +25,7 @@
     </div>
     <div class="chat-list rounded-b-lg scroll-smooth">
       <div class="flex flex-col">
-        <div class="flex-1 overflow-y-auto py-4 ">
+        <div class="flex-1 overflow-y-auto py-4 overflow-x-hidden" style="text-overflow: ellipsis;">
           <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.Id">
             <div class="px-4 py-2 hover:bg-gray-700/50 cursor-pointer flex flex-col"
               v-on:click="channelSelect(channel.Id)">
@@ -273,4 +273,6 @@ const connectToChannel = (channelId: string) => {
 .hover\:bg-gray-700:hover {
   border-radius: 5px;
 }
+
+
 </style>

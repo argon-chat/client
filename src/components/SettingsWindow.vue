@@ -37,17 +37,22 @@ import { useWindow } from '@/store/windowStore';
 import { CircleXIcon } from 'lucide-vue-next';
 import VoiceVideoSettings from '@/components/settings/VoiceAndVideo.vue';
 import ProfileSettings from '@/components/settings/ProfileSettings.vue';
-import ConnectedDevices from '@/components/settings/ConnectedDevices.vue'
+import ConnectedDevices from '@/components/settings/ConnectedDevices.vue';
+import ApplicationSettings from './settings/ApplicationSettings.vue';
+import HotKeySettings from './settings/HotKeySettings.vue';
 
 const windows = useWindow();
 
 const categories = ref([
     { id: 'account', name: 'Account' },
     //{ id: 'appearance', name: 'Appearance' },
+    { id: 'application', name: 'Application' },
     //{ id: 'notifications', name: 'Notifications' },
     //{ id: 'privacy', name: 'Privacy' },
     //{ id: 'devices', name: 'Devices' },
     { id: 'voice_video', name: 'Voice & Video' },
+    { id: 'hotkeys', name: 'Hot & keys' },
+
 ]);
 
 const selectedCategory = ref('account');
@@ -65,7 +70,9 @@ const categoryComponents = {
     },
 */
     devices: ConnectedDevices,
-    voice_video: VoiceVideoSettings
+    voice_video: VoiceVideoSettings,
+    application: ApplicationSettings,
+    hotkeys: HotKeySettings
 };
 
 const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
@@ -121,29 +128,5 @@ onUnmounted(() => {
     color: #f87171;
 }
 
-</style>
 
-<style scoped>
-/* Общий стиль для скроллбара */
-.settings-content::-webkit-scrollbar {
-    width: 8px; /* Ширина скроллбара */
-}
-
-/* Трек (фон скроллбара) */
-.settings-content::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1); /* Темный фон */
-    border-radius: 10px;
-}
-
-/* Ползунок (сам скроллбар) */
-.settings-content::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1); /* Цвет ползунка */
-    border-radius: 10px;
-    transition: background 0.2s;
-}
-
-/* Ползунок при наведении */
-.settings-content::-webkit-scrollbar-thumb:hover {
-    background: #6b7280; /* Светлее при наведении */
-}
 </style>

@@ -13,60 +13,84 @@
                     <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
                     <Headphones v-else class="w-5 h-5" />
                 </button>
-                <Dialog>
-                    <DialogTrigger as-child>
-                        <button @click="openShareSettings = true" :class="{ active: voice.isSharing }">
-                            <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
-                            <ScreenShare v-else class="w-5 h-5" />
-                        </button>
-                    </DialogTrigger>
+
+                <button @click="beginScreencast" :class="{ active: voice.isSharing }">
+                    <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
+                    <ScreenShare v-else class="w-5 h-5" />
+                </button>
+
+                <Dialog style="min-width: 620px;" v-model:open="openShareSettings">
+
                     <DialogContent class="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{{ t("screencast") }}</DialogTitle>
+                            <DialogDescription>
+                                {{ t("screencast_title") }}
+                            </DialogDescription>
+                        </DialogHeader>
                         <Tabs default-value="monitors">
                             <TabsList class="w-full flex">
-                                <TabsTrigger value="monitors" class="flex-1">Мониторы</TabsTrigger>
-                                <TabsTrigger value="windows" class="flex-1">Окна</TabsTrigger>
+                                <TabsTrigger value="monitors" class="flex-1">{{ t("monitors") }}</TabsTrigger>
+                                <TabsTrigger value="windows" class="flex-1">{{ t("windows") }}</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="monitors" class="mt-4">
-                                <div class="h-40 flex items-center justify-center bg-gray-200 rounded-lg">
-                                    <span class="text-gray-500">Превью мониторов</span>
+                                <div class="grid grid-cols-2 gap-4" style="min-width: 220px;">
+                                    <div v-for="size in displays" :key="size.DisplayIndex"
+                                        class="flex flex-col items-center" @click="size.selected = !size.selected">
+                                        <video autoplay :srcObject="size.preview" class="rounded-lg preview"
+                                            :class="{ previewSelected: size.selected }"
+                                            style="min-width: 220px;"></video>
+                                        <span class="text-sm mt-2">{{ t('monitor_index', { idx: size.DisplayIndex })
+                                        }}</span>
+                                    </div>
                                 </div>
                                 <div class="mt-4">
-                                    <Label class="text-sm">Качество</Label>
-                                    <Select v-model="quality">
+                                    <Label class="text-sm">{{ t("quality") }}</Label>
+                                    <Select v-model="quality" :default-value="allSizes.at(0)?.title">
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Выберите качество" />
+                                            <SelectValue :placeholder="t('select_quality')" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="low">Низкое</SelectItem>
-                                            <SelectItem value="medium">Среднее</SelectItem>
-                                            <SelectItem value="high">Высокое</SelectItem>
+                                            <SelectItem v-for="i in allSizes" :key="i.title" :value="i.title">
+                                                {{ i.title }}
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    
+                                </div>
+                                <div class="mt-4">
+                                    <Label class="text-sm">{{ t("fps") }}</Label>
+                                    <Select v-model="fps">
+                                        <SelectTrigger>
+                                            <SelectValue :placeholder="t('select_fps')" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem v-for="i in allFps" :key="i.title" :value="i.value">
+                                                {{ i.title }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div class="mt-4 flex items-center gap-2">
-                                        <Switch v-model="includeAudio" />
-                                        <Label>Включить системный звук</Label>
-                                    </div>
+                                    <Switch v-model="includeAudio" />
+                                    <Label>{{ t("enable_system_sound") }}</Label>
+                                </div>
                             </TabsContent>
 
                             <TabsContent value="windows" class="mt-4">
                                 <div class="h-40 flex items-center justify-center bg-gray-200 rounded-lg">
-                                    <span class="text-gray-500">Превью окон</span>
+                                    <span class="text-gray-500"> {{ t("window_preview") }}</span>
                                 </div>
                                 <div class="mt-4 flex items-center gap-2">
                                     <Switch v-model="includeAudio" />
-                                    <Label>Включить системный звук</Label>
+                                    <Label>{{ t("enable_sound_from_window") }}</Label>
                                 </div>
                             </TabsContent>
                         </Tabs>
                         <DialogFooter class="sm:justify-start">
-                            <DialogClose as-child>
-                                <Button type="button" variant="secondary">
-                                    Close
-                                </Button>
-                            </DialogClose>
+                            <Button type="button" variant="default" @click="toggleShare()" style="width: 100%;">
+                                {{ t("start") }}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -97,7 +121,7 @@
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <span class="font-semibold">{{ voice.activeChannel?.Name }}</span>
+                    <span class="font-semibold marquee">{{ voice.activeChannel?.Name }}</span>
                 </div>
                 <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer
                     }}</span>
@@ -121,26 +145,23 @@ import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
 import { useVoice } from "@/store/voiceStore";
 import { useSessionTimer } from '@/store/sessionTimer'
-import { useWindow } from "@/store/windowStore";
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
     DialogClose,
+    DialogTitle,
+    DialogDescription,
+    DialogHeader
 } from '@/components/ui/dialog'
 import {
     Select,
     SelectContent,
-    SelectGroup,
     SelectItem,
-    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
@@ -150,19 +171,140 @@ import {
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs'
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
+import { useLocale } from '@/store/localeStore';
+
+const { t } = useLocale();
 
 const me = useMe();
 const sys = useSystemStore();
 const voice = useVoice();
 const sessionTimerStore = useSessionTimer();
-const window = useWindow();
+
+
+
+const allSizes = [
+    //{ title: "SVGA (600p)", h: 600, w: 800 },
+    //{ title: "XGA (768p)", h: 768, w: 1024 },
+    { title: "WXGA (720p)", h: 720, w: 1280, preset: "720p" },
+    // { title: "WXGA+ (900p)", h: 900, w: 1440 },
+    //{ title: "HD+ (900p)", h: 900, w: 1600 },
+    { title: "Full HD (1080p)", h: 1080, w: 1920, preset: "1080p" },
+    // { title: "WUXGA (1200p)", h: 1200, w: 1920 },
+    { title: "QHD (1440p)", h: 1440, w: 2560, preset: "1440p" },
+    // { title: "WQXGA (1600p)", h: 1600, w: 2560 },
+    { title: "4K UHD (2160p)", h: 2160, w: 3840, preset: "2160p" },
+    // { title: "5K (2880p)", h: 2880, w: 5120 },
+    // { title: "8K UHD (4320p)", h: 4320, w: 7680 },
+    // { title: "UWHD (1080p)", h: 1080, w: 2560 },
+    //{ title: "UWQHD (1440p)", h: 1440, w: 3440 },
+    // { title: "UWQHD+ (1600p)", h: 1600, w: 3840 },
+    //{ title: "5K2K (2160p)", h: 2160, w: 5120 },
+    // { title: "DFHD (1080p x2)", h: 1080, w: 3840 },
+    // { title: "DQHD (1440p x2)", h: 1440, w: 5120 }
+]
+
+const allFps = [
+    { title: "15fps", value: "15" },
+    { title: "30fps", value: "30" },
+    { title: "45fps", value: "45" },
+    { title: "60fps", value: "60" },
+    { title: "90fps", value: "90" },
+    { title: "120fps", value: "120" },
+    { title: "165fps", value: "165" },
+]
 
 const openShareSettings = ref(false);
 const includeAudio = ref(false);
-const quality = ref("");
+const quality = ref(allSizes.at(0)?.title);
+const fps = ref("30");
+
+interface IScreenWithPreview extends IScreen {
+    preview: any;
+    selected: boolean;
+}
+
+const displays = ref([] as IScreenWithPreview[]);
+
+const beginScreencast = function () {
+    openShareSettings.value = true;
+}
+
+
+async function getPreviewForScreen(display: IScreen) {
+    const p = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            mandatory: {
+                chromeMediaSourceId: `screen:${display.DisplayIndex}:0`,
+                chromeMediaSource: 'screen',
+                maxWidth: 220,  // Максимальная ширина превью
+                maxHeight: 110,  // Максимальная высота превью
+            }
+        } as any
+    });
+
+    return p;
+}
+
+async function getPreviewForWindow(window: IWindowInfo) {
+    const p = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            mandatory: {
+                chromeMediaSourceId: window.deviceId,
+                chromeMediaSource: 'desktop',
+                maxWidth: 220,  // Максимальная ширина превью
+                maxHeight: 110,  // Максимальная высота превью
+            }
+        } as any
+    });
+
+    return p;
+}
+
+
+onMounted(async () => {
+    let sc = [] as IScreen[];
+
+    if (argon.isArgonHost) {
+        sc = native.getDisplays();
+    }
+    else {
+        sc = [{
+            DisplayIndex: "0",
+            Freq: 165,
+            Height: 1440,
+            IsPrimary: true,
+            Left: 0,
+            Top: 0,
+            Width: 2560
+        },
+        {
+            DisplayIndex: "1",
+            Freq: 165,
+            Height: 1440,
+            IsPrimary: true,
+            Left: 0,
+            Top: 0,
+            Width: 2560
+        }]
+    };
+
+    const sce = [] as IScreenWithPreview[];
+
+
+    for (let i of sc) {
+        sce.push({ ...i, preview: await getPreviewForScreen(i), selected: sce.length == 0 });
+    }
+
+    displays.value = sce;
+})
+
+
 
 async function toggleShare() {
+    openShareSettings.value = false;
     if (!voice.isConnected)
         return;
     if (voice.isOtherUserSharing)
@@ -170,8 +312,16 @@ async function toggleShare() {
 
     if (voice.isSharing)
         voice.stopScreenShare();
-    else
-        await voice.startScreenShare();
+    else {
+        const dev = displays.value.filter(x => x.selected).at(0);
+        await voice.startScreenShare({
+            fps: +(fps.value ?? "30"),
+            systemAudio: includeAudio.value ? "include" : "exclude",
+            preset: quality.value as any,
+            deviceId: `screen:${dev?.DisplayIndex}:0`,
+            deviceKind: "screen"
+        });
+    }
 }
 
 </script>
@@ -266,5 +416,31 @@ async function toggleShare() {
     left: 10%;
     bottom: 100%;
     width: calc(100% - 50px);
+}
+
+.previewSelected {
+    border: 2px solid #00ffad !important;
+}
+
+.preview {
+    cursor: pointer;
+    border: 2px solid #00ffae00;
+}
+
+
+.marquee {
+    white-space: nowrap;
+    display: inline-block;
+}
+
+@keyframes marquee {
+    0% {
+        left: 0;
+    }
+
+    100% {
+        left: 100%;
+        transform: translateX(-100%);
+    }
 }
 </style>
