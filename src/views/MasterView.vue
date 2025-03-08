@@ -4,7 +4,7 @@
     style="width: 100vw; height: 100vh;" :color="['#A07CFE', '#FE8FB5', '#FFBE7B']">
     <div class="app-container flex h-screen gap-4 p-7" style="width: 100%; height: 100%;">
 
-      <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55 min-w-[230px]">
+      <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55 min-w-[230px] max-w-[230px]">
         <ChatList v-pex="'AddReactions'" v-pex-behaviour="'hide'" />
         <ControlBar />
         <UserBar />
@@ -13,8 +13,9 @@
       <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
         <ChannelChat v-if="false" />
       </div>
-
-      <div v-if="dataPool.selectedServer" class="user-list-container rounded-xl p-4 shadow-md w-56" style="background-color: #161616;
+      <div v-if="dataPool.selectedServer"
+        class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+        style="background-color: #161616;
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
         <h3 class="text-lg text-white mb-4">Users</h3>
@@ -38,7 +39,7 @@
       <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
         <div class="sys-keyholder">
           <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
-          <XIcon height="16" width="16" class="close-icon" @click="pressSystemKey(0)" />
+          <XIcon height="16" width="16" class="close-icon" @click="closeWindow" />
         </div>
       </div>
 
@@ -72,10 +73,12 @@ import {
   MinusIcon,
   XIcon
 } from 'lucide-vue-next';
+import { usePreference } from '@/store/preferenceStore';
 
 const dataPool = usePoolStore();
 const me = useMe();
 const { t } = useLocale();
+const preferences = usePreference();
 
 const beginMove = () => {
   native.beginMoveWindow();
@@ -95,6 +98,14 @@ const statusClass = (status: UserStatus) => {
     'bg-gray-500': status === 'Offline'
   };
 };
+
+const closeWindow = () => {
+  if (preferences.minimizeToTrayOnClose) {
+    pressSystemKey(2);
+  } else {
+    pressSystemKey(0);
+  }
+}
 
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
@@ -167,5 +178,25 @@ body {
   display: flex;
   gap: 10px;
   flex: auto;
+}
+
+
+.settings-content::-webkit-scrollbar {
+  width: 8px !important; /* Ширина скроллбара */
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1); /* Темный фон */
+  border-radius: 10px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1); /* Цвет ползунка */
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* Светлее при наведении */
 }
 </style>
