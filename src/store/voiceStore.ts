@@ -177,16 +177,24 @@ export const useVoice = defineStore("voice", () => {
       );
     });
 
-    room.localParticipant.on('trackMuted', (_) => {
-      pool.setProperty(pool.selectedChannel!, room.localParticipant.identity, (x) => {
-        (x.isMuted as any) = true;
-      });
+    room.localParticipant.on("trackMuted", (_) => {
+      pool.setProperty(
+        pool.selectedChannel!,
+        room.localParticipant.identity,
+        (x) => {
+          (x.isMuted as any) = true;
+        }
+      );
     });
-    
-    room.localParticipant.on('trackUnmuted', (_) => {
-      pool.setProperty(pool.selectedChannel!, room.localParticipant.identity, (x) => {
-        (x.isMuted as any) = false;
-      });
+
+    room.localParticipant.on("trackUnmuted", (_) => {
+      pool.setProperty(
+        pool.selectedChannel!,
+        room.localParticipant.identity,
+        (x) => {
+          (x.isMuted as any) = false;
+        }
+      );
     });
   }
 
@@ -248,12 +256,12 @@ export const useVoice = defineStore("voice", () => {
         pool.indicateSpeaking(pool.selectedChannel!, participant.identity, val);
       });
 
-      participant.on('trackMuted', (track) => {
+      participant.on("trackMuted", (track) => {
         pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
-          (x.isMuted as any)= true;
+          (x.isMuted as any) = true;
         });
       });
-      participant.on('trackUnmuted', (track) => {
+      participant.on("trackUnmuted", (track) => {
         pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
           (x.isMuted as any) = false;
         });
@@ -268,30 +276,62 @@ export const useVoice = defineStore("voice", () => {
     participant: Participant
   ) {}
 
+  const allSizes = [
+    //{ title: "SVGA (600p)", h: 600, w: 800 },
+    //{ title: "XGA (768p)", h: 768, w: 1024 },
+    { title: "WXGA (720p)", h: 720, w: 1280, preset: "720p" },
+    // { title: "WXGA+ (900p)", h: 900, w: 1440 },
+    //{ title: "HD+ (900p)", h: 900, w: 1600 },
+    { title: "Full HD (1080p)", h: 1080, w: 1920, preset: "1080p" },
+    // { title: "WUXGA (1200p)", h: 1200, w: 1920 },
+    { title: "QHD (1440p)", h: 1440, w: 2560, preset: "1440p" },
+    // { title: "WQXGA (1600p)", h: 1600, w: 2560 },
+    { title: "4K UHD (2160p)", h: 2160, w: 3840, preset: "2160p" },
+    // { title: "5K (2880p)", h: 2880, w: 5120 },
+    // { title: "8K UHD (4320p)", h: 4320, w: 7680 },
+    // { title: "UWHD (1080p)", h: 1080, w: 2560 },
+    //{ title: "UWQHD (1440p)", h: 1440, w: 3440 },
+    // { title: "UWQHD+ (1600p)", h: 1600, w: 3840 },
+    //{ title: "5K2K (2160p)", h: 2160, w: 5120 },
+    // { title: "DFHD (1080p x2)", h: 1080, w: 3840 },
+    // { title: "DQHD (1440p x2)", h: 1440, w: 5120 }
+  ];
+
   let screenTrack: LocalTrackPublication | undefined;
   const isSharing = ref(false);
   const isOtherUserSharing = ref(false);
   const startScreenShare = async (options: {
     systemAudio: "include" | "exclude";
     preset: "720p" | "1080p" | "1440p" | "2160p" | "4320p" | "10240p";
-    fps: 15 | 30 | 60 | 120 | 165;
+    fps: number;
+    deviceId: string;
+    deviceKind: "screen" | "desktop";
   }) => {
     try {
       const room = connectedRoom.room!;
 
       const enabled = room.localParticipant.isScreenShareEnabled;
 
+      const selectedPreset = allSizes.filter(x => x.preset === options.preset).at(0);
+
       isSharing.value = true;
       screenTrack = await room.localParticipant.setScreenShareEnabled(
         !enabled,
         {
           audio: true,
-          resolution: { height: 720, width: 1080, frameRate: options.fps },
+          resolution: {
+            height: selectedPreset?.h,
+            width: selectedPreset?.w,
+            frameRate: options.fps,
+          },
           systemAudio: options.systemAudio,
-          video: { displaySurface: "monitor" } as any,
+          video: true,
           contentHint: "motion",
-          
-        }
+          mandatory: {
+            chromeMediaSourceId: options.deviceId,
+            chromeMediaSource: options.deviceKind,
+          } as any,
+        } as any
       );
 
       logger.warn("Started video scren share", screenTrack);
