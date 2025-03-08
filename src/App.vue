@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { Toaster } from '@/components/ui/toast/'
-import { useColorMode } from '@vueuse/core';
+import { useColorMode, useMagicKeys } from '@vueuse/core';
 import DevPanel from './components/DevPanel.vue';
 import { useSystemStore } from './store/systemStore';
+import { watch } from 'vue';
 const sys = useSystemStore();
 let mode = useColorMode();
 mode.value = 'auto';
+
+const keys = useMagicKeys();
+
+const shiftCtrlA = keys["Shift+Ctrl+P"];
+
+watch(shiftCtrlA, (v) => {
+  if (v) native.toggleDevTools();
+});
 </script>
 
 <template>
