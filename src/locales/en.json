@@ -1,15 +1,32 @@
 {
+    "close": "Close",
+    "ok": "Confirm",
+    "or": "or",
+    "start": "Start",
+
+
     "wait_connect": "Waiting for connection, please wait...",
     "create_new_server": "Create New Server",
     "join_to_server": "Join Server",
     "invite_code": "Invite Code",
     "join_or_create_server": "Join or Create a Server",
-    "or": "or",
     "servers": "Servers",
     "users": "Users",
     "mute": "Mute",
     "unmute": "Unmute",
     "echo_cancellation": "Echo Cancellation",
     "noise_sup": "Noise Suppressor",
-    "send_message": "Send message"
+    "send_message": "Send message",
+    "window_preview": "Window preview",
+    "enable_sound_from_window": "Include sound from window",
+    "enable_system_sound": "Include system sound",
+    "screencast_title": "Show your screen or windows",
+    "screencast": "Screen Cast",
+    "monitors": "Monitors",
+    "windows": "Windows",
+    "monitor_index": "Monitor {idx}",
+    "quality": "Quality",
+    "select_quality": "Select Quality",
+    "fps": "FPS",
+    "select_fps": "Select FPS"
 }
