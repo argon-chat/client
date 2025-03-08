@@ -12,6 +12,9 @@ export const usePreference = defineStore("preference", () => {
     const voiceIsolation = persistedValue("voiceIsolation", false);
 
 
+    const minimizeToTrayOnClose = persistedValue("minimizeToTrayOnClose", true);
+
+
     return {
         defaultAudioDevice,
         defaultVideoDevice,
@@ -19,7 +22,9 @@ export const usePreference = defineStore("preference", () => {
         echoCancellation,
         autoGainControl,
         noiseSuppression,
-        voiceIsolation
+        voiceIsolation,
+
+        minimizeToTrayOnClose
     };
   }
 );
