@@ -1,6 +1,9 @@
 import { ref, reactive, watch, watchEffect, type Ref } from 'vue';
 
-export function persistedValue<T extends object | string | number | boolean>(key: string, defaultValue: T): T extends object ? T : Ref<T> {
+export function persistedValue<T extends object | string | number | boolean>(
+  key: string, 
+  defaultValue: T
+): T extends object ? T : T extends boolean ? Ref<boolean> : Ref<T> {
   const storedValue = localStorage.getItem(key);
 
   let value: any;
