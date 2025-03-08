@@ -13,17 +13,7 @@ const err = () => {
 };
 
 if (!('native' in window)) {
-    (window as any)["native"]  = {
-        allocConsole: err as any,
-        beginMoveWindow: err as any,
-        createKeybind: err as any,
-        createPinnedObject: err as any,
-        endMoveWindow: err as any,
-        freePinnedObject: err as any,
-        getDisplays: err as any,
-        getHWNDs: err as any,
-        listenActivity: err as any,
-        pressSystemKey: err as any,
-        V8ThreadingInit: err as any
-    } as INative;
+    (window as any)["native"] = new Proxy({}, {
+        get: (_, __) => err
+    }) as INative;
 }
