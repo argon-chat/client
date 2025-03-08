@@ -80,3 +80,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px ;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  width: 0px !important;
+}
+
+
+.scrollbar-thin ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1); 
+  border-radius: 10px;
+  z-index: -5;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1); 
+  border-radius: 10px;
+  transition: background 0.2s;
+  z-index: -5;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; 
+  z-index: -5;
+}
