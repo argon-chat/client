@@ -91,9 +91,12 @@ declare global {
     createKeybind(
       cfg: { keyCode: number; keyMod: ValidHotkeyModification },
       pinnedFn: IPinnedObject
-    );
+    ): Promise<number>;
 
     pressSystemKey(key: SystemKey): void;
+
+
+    toggleDevTools(): boolean;
   }
 
   interface IPinnedObject {}
