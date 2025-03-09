@@ -40,6 +40,7 @@ import ProfileSettings from '@/components/settings/ProfileSettings.vue';
 import ConnectedDevices from '@/components/settings/ConnectedDevices.vue';
 import ApplicationSettings from './settings/ApplicationSettings.vue';
 import HotKeySettings from './settings/HotKeySettings.vue';
+import LanguageSettings from './settings/LanguageSettings.vue';
 
 const windows = useWindow();
 
@@ -52,6 +53,7 @@ const categories = ref([
     //{ id: 'devices', name: 'Devices' },
     { id: 'voice_video', name: 'Voice & Video' },
     { id: 'hotkeys', name: 'Hot & keys' },
+    { id: 'languages', name: 'Language' },
 
 ]);
 
@@ -72,7 +74,8 @@ const categoryComponents = {
     devices: ConnectedDevices,
     voice_video: VoiceVideoSettings,
     application: ApplicationSettings,
-    hotkeys: HotKeySettings
+    hotkeys: HotKeySettings,
+    languages: LanguageSettings
 };
 
 const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);

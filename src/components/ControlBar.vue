@@ -88,7 +88,7 @@
                             </TabsContent>
                         </Tabs>
                         <DialogFooter class="sm:justify-start">
-                            <Button type="button" variant="default" @click="toggleShare()" style="width: 100%;">
+                            <Button type="button" variant="default" @click="toggleShare()" style="width: 100%;" :disabled="!voice.isConnected || voice.currentlyReconnect">
                                 {{ t("start") }}
                             </Button>
                         </DialogFooter>
