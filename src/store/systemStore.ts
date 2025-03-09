@@ -1,14 +1,18 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useTone } from "@/store/toneStore";
-import { Subject } from "rxjs";
+import { Subject, Subscription } from "rxjs";
+import { useHotkeys } from "./hotKeyStore";
 
 export const useSystemStore = defineStore("system", () => {
   // voice
+  const mainSub = new Subscription();
   let lastMicMuted = false;
   const microphoneMuted = ref(false);
   const headphoneMuted = ref(false);
   const tone = useTone();
+  const hotkeys = useHotkeys();
+
   const muteEvent = new Subject<boolean>();
 
   // network
@@ -29,7 +33,17 @@ export const useSystemStore = defineStore("system", () => {
 
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);
 
-
+  mainSub.add(hotkeys.onAction("key.microphone.toggle", () => {
+    toggleMicrophoneMute();
+  }));
+  mainSub.add(hotkeys.onAction("key.microphone.on", () => {
+    if (microphoneMuted.value)
+      toggleMicrophoneMute();
+  }));
+  mainSub.add(hotkeys.onAction("key.microphone.off", () => {
+    if (!microphoneMuted.value)
+      toggleMicrophoneMute();
+  }));
 
 
   // -----------------------
