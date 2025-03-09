@@ -3,26 +3,20 @@ import {
   ConnectionQuality,
   ConnectionState,
   createLocalAudioTrack,
-  createLocalScreenTracks,
-  createLocalTracks,
-  LocalAudioTrack,
   LocalTrackPublication,
-  LocalVideoTrack,
   Participant,
   RemoteParticipant,
   RemoteTrack,
   RemoteTrackPublication,
   Room,
   RoomConnectOptions,
-  Track,
-  TrackPublication,
-  VideoTrack,
+  Track
 } from "livekit-client";
 import { defineStore } from "pinia";
 import { computed, Reactive, reactive, ref } from "vue";
 import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
-import { delay, Subject, Subscription, timer } from "rxjs";
+import { Subject, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
@@ -35,6 +29,7 @@ export const useVoice = defineStore("voice", () => {
   const cfg = useConfig();
   const sys = useSystemStore();
   const tone = useTone();
+
   const sessionTimerStore = useSessionTimer();
   const preferenceStore = usePreference();
 
