@@ -8,12 +8,11 @@ if (!('argon' in window)) {
         }
     } as IArgon;
 }
-const err = () => {
-    console.error("Platform api is not supported in browser");
-};
 
 if (!('native' in window)) {
     (window as any)["native"] = new Proxy({}, {
-        get: (_, __) => err
+        get: (_, __) => {
+            throw `[${String(__)}] Platform api is not supported in browser`;
+        }
     }) as INative;
 }

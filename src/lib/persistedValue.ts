@@ -1,38 +1,45 @@
-import { ref, reactive, watch, watchEffect, type Ref } from 'vue';
+import { ref, reactive, watch, watchEffect, type Ref, type UnwrapRef, Reactive } from 'vue';
+import superjson from 'superjson';
+import { logger } from './logger';
 
 export function persistedValue<T extends object | string | number | boolean>(
-  key: string, 
+  key: string,
   defaultValue: T
-): T extends object ? T : T extends boolean ? Ref<boolean> : Ref<T> {
+): T extends object ? Reactive<T> : Ref<T> {
+
+  logger.log("Persist value", key, defaultValue);
+
   const storedValue = localStorage.getItem(key);
 
   let value: any;
 
   if (storedValue !== null) {
     try {
-      const parsed: T = JSON.parse(storedValue);
+      const parsed = superjson.parse(storedValue);
       if (typeof parsed === "object" && parsed !== null) {
-        value = reactive(parsed);
+        value = reactive(parsed) as UnwrapRef<T>;
       } else {
-        value = ref(parsed);
+        value = ref(parsed) as Ref<T>;
       }
-    } catch (e) {
+    } catch (e) { 
       console.error(`Ошибка парсинга JSON из localStorage для ключа "${key}"`, e);
-      value = typeof defaultValue === "object" ? reactive(defaultValue) : ref(defaultValue);
+      value = typeof defaultValue === "object"
+        ? (reactive(defaultValue) as UnwrapRef<T>)
+        : (ref(defaultValue) as Ref<T>);
     }
   } else {
-    value = typeof defaultValue === "object" ? reactive(defaultValue) : ref(defaultValue);
+    value = typeof defaultValue === "object"
+      ? (reactive(defaultValue) as UnwrapRef<T>)
+      : (ref(defaultValue) as Ref<T>);
   }
 
   if (typeof defaultValue === "object") {
     watchEffect(() => {
-      console.log("watchEffect", key)
-      localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(key, superjson.stringify(value));
     });
   } else {
     watch(value, (newValue) => {
-      console.log("watch", key)
-      localStorage.setItem(key, JSON.stringify(newValue));
+      localStorage.setItem(key, superjson.stringify(newValue));
     });
   }
 
