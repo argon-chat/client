@@ -28,5 +28,38 @@
     "quality": "Quality",
     "select_quality": "Select Quality",
     "fps": "FPS",
-    "select_fps": "Select FPS"
+    "select_fps": "Select FPS",
+    "action": "Action",
+    "hotkey": "Hotkey",
+    "press_any_key": "Press any key combination...",
+    "app_language": "App Language",
+
+
+    "close_behaviour": "Close Behaviour",
+    "minimize_to_tray": "Minimize to tray or close application",
+    "application_settings": "Application Settings",
+    "connected_devices": "Connected Devices",
+    "logout_all_devices": "Logout All",
+    "list_hotkeys": "A list of your hotkeys.",
+    "name": "Name",
+    "is_global_q": "Is Global?",
+    "global_toltip": "Global hotkeys work even with a minimized window in the tray and in other programs.",
+    "add_invite": "Add Invite",
+    "remove": "Remove",
+    "no_any_invite_codes_created": "No any created invite codes",
+    "profile_settings": "Profile Settings",
+    "username": "Username",
+    "display_name": "Display Name",
+    "email": "EMail",
+    "phone_number": "Phone Number",
+    "otp_title": "Two-Factor Authentication (OTP)",
+    "delete_account": "Delete Account",
+
+
+    "key.microphone.toggle": "Toggle mute in microphone",
+    "key.microphone.on": "Disable mute in microphone",
+    "key.microphone.off": "Mute microphone",
+    "key.sound.toggle": "丈太郎ムダムダ",
+    "key.sound.on": "丈太郎ムダムダ",
+    "key.sound.off": "丈太郎ムダムダ"
 }

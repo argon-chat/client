@@ -1,7 +1,15 @@
-import { useI18n } from 'vue-i18n';
-import en from './en.json';
-import ru from './ru.json';
+import en from './en.json'
+import ru from './ru.json'
+import jp from './jp.json'
+import ruPt from './ru_pt.json'
 
-type MessageSchema = typeof en;
+export const locales = {
+  en,
+  ru,
+  ru_pt: ruPt,
+  jp
+} as const
 
-export type { MessageSchema };
+export type Locale = keyof typeof locales
+
+export type LocaleSchema = typeof en
