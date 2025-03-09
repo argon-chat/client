@@ -1,17 +1,26 @@
 <script setup lang="ts">
+import { useLocale } from "@/store/localeStore";
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+const { t } = useLocale();
 
-// Интерфейс для экшенов
 interface Action {
     id: number;
     name: string;
     hotkey: string;
+    isGlobal: boolean;
 }
 
 const actions = ref<Action[]>([
-    { id: 1, name: "Перек", hotkey: "Ctrl + S" },
-    { id: 2, name: "Открыть", hotkey: "Ctrl + O" },
-    { id: 3, name: "Закрыть", hotkey: "Ctrl + W" },
+    { id: 1, name: "Toggle Microphone", hotkey: "Alt + F4", isGlobal: false }
 ]);
 
 const editingId = ref<number | null>(null);
@@ -101,11 +110,11 @@ onUnmounted(() => {
 
 <template>
     <div class="p-4">
-        <table class="w-full border border-gray-300">
+        <table class="w-full border">
             <thead>
-                <tr class="bg-gray-100">
-                    <th class="border px-4 py-2 text-left">Действие</th>
-                    <th class="border px-4 py-2 text-left">Горячая клавиша</th>
+                <tr>
+                    <th class="border px-4 py-2 text-left">{{ t("action") }}</th>
+                    <th class="border px-4 py-2 text-left">{{ t("hotkey") }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -114,7 +123,7 @@ onUnmounted(() => {
                     <td class="px-4 py-2">
                         <input v-if="editingId === action.id" type="text"
                             class="border px-2 py-1 w-full focus:outline-none"
-                            placeholder="Нажмите комбинацию клавиш..." readonly :value="hotkeyString"
+                            :placeholder="t('press_any_key')" readonly :value="hotkeyString"
                             @blur="stopListening" />
                         <span v-else class="cursor-pointer text-blue-600 hover:underline"
                             @click="startListening(action.id)">
