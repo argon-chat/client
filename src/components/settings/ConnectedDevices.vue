@@ -1,6 +1,6 @@
 <template>
     <div class="connected-devices p-6 text-white rounded-lg space-y-6">
-        <h2 class="text-2xl font-bold">Connected Devices</h2>
+        <h2 class="text-2xl font-bold">{{ t("connected_devices") }}</h2>
 
         <div v-for="device in devices" :key="device.id" class="device-item flex items-center justify-between p-4 rounded-md border border-dashed">
             <div>
@@ -14,7 +14,7 @@
             
         </div>
         <Button @click="logoutAllDevices" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
-            Logout All
+            {{ t("logout_all_devices") }}
         </Button>
     </div>
 </template>
@@ -23,7 +23,8 @@
 import { ref } from 'vue';
 import { Button } from '@/components/ui/button/'
 import { CirclePower } from 'lucide-vue-next';
-
+import { useLocale } from '@/store/localeStore';
+const { t } = useLocale();
 const devices = ref([
     { id: 1, name: 'iPhone 12', location: 'New York, USA', lastActive: 'Active 5 minutes ago' },
     { id: 2, name: 'MacBook Pro', location: 'San Francisco, USA', lastActive: 'Active 2 hours ago' },

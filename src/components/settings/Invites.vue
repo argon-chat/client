@@ -3,7 +3,7 @@
         <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold">Invite Codes</h2>
             <Button @click="addInvite" :disabled="loading" variant="default" class="px-4 py-2">
-                Add Invite
+                {{ t("add_invite") }}
             </Button>
         </div>
 
@@ -15,14 +15,14 @@
                 class="flex justify-between items-center rounded-lg px-4 py-2">
                 <Input readonly :model-value="`https://argon.gl/i/${invite.code.inviteCode}/`" />
                 <Button @click="removeInvite(invite.code.inviteCode)" variant="ghost" class="text-red-500">
-                    Remove
+                    {{ t("remove") }}
                 </Button>
             </li>
             <li v-if="!loading && invites.length == 0">
                 <br />
                 <br />
                 <p class="text-sm text-muted-foreground text-center">
-                    No any created invite codes
+                    {{ t("no_any_invite_codes_created") }}
                 </p>
             </li>
         </ul>
@@ -35,6 +35,8 @@ import { Button } from '@/components/ui/button';
 import { useServerStore } from '@/store/serverStore';
 import { AtomSpinner } from 'epic-spinners'
 import { Input } from '@/components/ui/input';
+import { useLocale } from '@/store/localeStore';
+const { t } = useLocale();
 const servers = useServerStore();
 const loading = ref(true);
 

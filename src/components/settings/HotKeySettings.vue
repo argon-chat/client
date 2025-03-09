@@ -2,30 +2,32 @@
 import { useLocale } from "@/store/localeStore";
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
+import { Input } from "@/components/ui/input";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { keyCodeToCodes } from "@/lib/keyCodes";
+import { HotKeyAction, useHotkeys } from "@/store/hotKeyStore";
+
 const { t } = useLocale();
+const hotKeyStore = useHotkeys();
 
-interface Action {
-    id: number;
-    name: string;
-    hotkey: string;
-    isGlobal: boolean;
-}
 
-const actions = ref<Action[]>([
-    { id: 1, name: "Toggle Microphone", hotkey: "Alt + F4", isGlobal: false }
-]);
-
-const editingId = ref<number | null>(null);
+const editingId = ref<string | null>(null);
 const pressedKeys = ref<Set<string>>(new Set());
-const lastKeyCode = ref<{ code: string, keyCode: number } | null>(null); 
+const lastKeyCode = ref<{ code: string, keyCode: number } | null>(null);
 
 const modifiers = new Set(["ControlLeft", "ControlRight", "AltLeft", "AltRight", "ShiftLeft", "ShiftRight", "MetaLeft", "MetaRight"]);
 
@@ -48,28 +50,33 @@ const hotkeyString = computed(() => {
     return keys.join(" + ");
 });
 
-const startListening = (id: number) => {
+const startListening = (id: string) => {
     editingId.value = id;
     pressedKeys.value.clear();
     lastKeyCode.value = null;
 };
 
-const stopListening = () => {
+const stopListening = async () => {
     if (editingId.value !== null && lastKeyCode.value !== null) {
-        const action = actions.value.find((a) => a.id === editingId.value);
-        if (action) {
-            action.hotkey = `${hotkeyString.value} + ${lastKeyCode.value.code}`;
+        const action = hotKeyStore.allHotKeys.get(editingId.value);
+
+        if (action && (lastKeyCode.value.keyCode == 27 || lastKeyCode.value.keyCode == 8)) {
+            action.keyCode = 0;
+            action.mod = null;
+            await hotKeyStore.doVerifyHotkeys();
         }
+        else if (action) {
 
-        const hotkeyObject = {
-            keyCode: lastKeyCode.value.keyCode,
-            hasCtrl: pressedKeys.value.has("Ctrl"),
-            hasAlt: pressedKeys.value.has("Alt"),
-            hasWin: pressedKeys.value.has("Win"),
-            hasShift: pressedKeys.value.has("Shift"),
-        };
+            action.keyCode = lastKeyCode.value.keyCode;
 
-        console.log(hotkeyObject);
+            action.mod ??= {  } as any;
+            action.mod!.hasAlt = pressedKeys.value.has("Alt");
+            action.mod!.hasCtrl = pressedKeys.value.has("Ctrl");
+            action.mod!.hasWin = pressedKeys.value.has("Win");
+            action.mod!.hasShift = pressedKeys.value.has("Shift");
+
+            await hotKeyStore.doVerifyHotkeys();
+        }
     }
 
     editingId.value = null;
@@ -85,15 +92,35 @@ const handleKeyDown = (event: KeyboardEvent) => {
     const key = normalizeKey(event.code);
 
     if (modifiers.has(event.code)) {
-        pressedKeys.value.add(key); 
+        pressedKeys.value.add(key);
     } else {
-        lastKeyCode.value = { keyCode: event.keyCode, code: event.code }; 
+        lastKeyCode.value = { keyCode: event.keyCode, code: event.code };
     }
 };
 
+const formatHotKey = function (ht: HotKeyAction) {
+    if (!ht.mod)
+        return keyCodeToCodes(ht.keyCode).at(0);
+    const { hasAlt, hasCtrl, hasShift, hasWin } = ht.mod;
+
+    if (!hasAlt && !hasCtrl && !hasShift && !hasWin)
+        return keyCodeToCodes(ht.keyCode).at(0);
+    let str = keyCodeToCodes(ht.keyCode).at(0);
+
+    if (hasAlt)
+        str += "+Alt";
+    if (hasCtrl)
+        str += "+Ctrl";
+    if (hasShift)
+        str += "+Shift";
+    if (hasWin)
+        str += "+Win";
+    return str;
+}
+
 const handleKeyUp = (event: KeyboardEvent) => {
     if (editingId.value === null) return;
-    event.preventDefault(); 
+    event.preventDefault();
     setTimeout(() => stopListening(), 10);
 };
 
@@ -109,29 +136,67 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="p-4">
-        <table class="w-full border">
-            <thead>
-                <tr>
-                    <th class="border px-4 py-2 text-left">{{ t("action") }}</th>
-                    <th class="border px-4 py-2 text-left">{{ t("hotkey") }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="action in actions" :key="action.id" class="border">
-                    <td class="px-4 py-2">{{ action.name }}</td>
-                    <td class="px-4 py-2">
-                        <input v-if="editingId === action.id" type="text"
-                            class="border px-2 py-1 w-full focus:outline-none"
-                            :placeholder="t('press_any_key')" readonly :value="hotkeyString"
-                            @blur="stopListening" />
-                        <span v-else class="cursor-pointer text-blue-600 hover:underline"
-                            @click="startListening(action.id)">
-                            {{ action.hotkey }}
-                        </span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <Table>
+        <TableCaption>{{ t("list_hotkeys") }}</TableCaption>
+        <TableHeader>
+            <TableRow>
+                <TableHead class="w-[300px] text-center">
+                    {{ t("name") }}
+                </TableHead>
+                <TableHead>{{ t("hotkey") }}</TableHead>
+                <TableHead class="text-right">
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <div>
+                                    {{ t("is_global_q") }}
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>
+                                    {{ t("global_toltip") }}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            <TableRow v-for="action in hotKeyStore.allHotKeys.values()" :key="action.actionKey">
+                <TableCell class="font-medium text-center">
+                    <p>{{ t(action.actionKey) }}</p>
+                    <p v-if="action.errText" class="text-xs text-red-600">{{ action.errText }}</p>
+                </TableCell>
+                <TableCell>
+                    <span v-if="action.disabled" class="cursor-pointer text-gray-600 hover:underline disabled">
+                        {{ formatHotKey(action) }}
+                    </span>
+                    <Input v-else-if="editingId === action.actionKey" type="text"
+                        class="border px-2 py-1 w-full focus:outline-none" :placeholder="t('press_any_key')" readonly
+                        :value="hotkeyString" @blur="stopListening" />
+                    <span v-else class="cursor-pointer text-blue-600 hover:underline"
+                        @click="startListening(action.actionKey)">
+                        {{ formatHotKey(action) }}
+                    </span>
+
+                </TableCell>
+                <TableCell class="text-right">
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Switch v-model:checked="action.isGlobal" v-model="action.isGlobal" disabled />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{{ t("global_toltip") }}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                </TableCell>
+            </TableRow>
+        </TableBody>
+    </Table>
 </template>

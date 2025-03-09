@@ -25,7 +25,7 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Echo Cancellation
+                        {{ t("echo_cancellation") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
                         A feature which attempts to prevent echo effects on a two-way audio connection by attempting
@@ -67,7 +67,7 @@
                 :disabled="preferenceStore.voiceIsolation">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Noise Suppression
+                        {{ t("noise_sup") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
                         Noise Suppression (Noise Suppression)
@@ -121,12 +121,9 @@ import {
 } from '@/components/ui/select';
 import { usePreference } from '@/store/preferenceStore';
 import { logger } from '@/lib/logger';
-import { FormField } from '../ui/form';
-import FormItem from '../ui/form/FormItem.vue';
-import FormControl from '../ui/form/FormControl.vue';
 import Switch from '../ui/switch/Switch.vue';
-import FormLabel from '../ui/form/FormLabel.vue';
-import FormDescription from '../ui/form/FormDescription.vue';
+import { useLocale } from '@/store/localeStore';
+const { t } = useLocale();
 
 const preferenceStore = usePreference();
 const selectedMicrophone = ref('');
