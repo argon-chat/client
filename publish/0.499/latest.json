@@ -1,0 +1,26 @@
+﻿{
+    "version": "0.499",
+    "cert": {
+        "fingerprint": "DE184159B1B370D4E97C0E7C72486CEB1B5B8099",
+        "file": "argon.v1.root.crt"
+    },
+    "pkgs": [
+      {
+        "name": "argon.ui.hb",
+        "relativePath": "@/modules/argon.ui.hb",
+        "hash": "cc4968ae45bd298c44a6ceed99c58b9bb999a6b894a05d7530ea130e5b490eb9"
+      },
+      {
+        "name": "argon.zip",
+        "relativePath": "@/",
+        "tool": "unpack",
+        "hash": "e081742ecba69507cb09b4ecad383396e16a0d69269c81117eb9e68bc73476f5"
+      }
+    ],
+    "execTarget": {
+        "windows": {
+            "bin": "@/ArgonApp.Windows.exe",
+            "args": []
+        }
+    }
+}

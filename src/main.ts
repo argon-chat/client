@@ -7,17 +7,18 @@ import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { MotionPlugin } from "@vueuse/motion";
 import { registerDirectives } from "./lib/pexDirective";
 import * as Sentry from "@sentry/vue";
-import "@/lib/browser";
-import { createI18n } from 'vue-i18n';
-import en from '@/locales/en.json';
-import ru from '@/locales/ru.json';
-import { MessageSchema } from '@/locales';
+//import "@/lib/browser";
+import { createI18n } from "vue-i18n";
+import { locales, Locale, LocaleSchema } from "@/locales";
 
-export const i18n = createI18n<[MessageSchema], 'en' | 'ru'>({
-  legacy: false,
-  locale: 'en',
-  fallbackLocale: 'en',
-  messages: { en, ru } as any
+if (argon.isArgonHost) {
+  native.V8ThreadingInit();
+}
+
+export const i18n = createI18n<[LocaleSchema], Locale>({
+  locale: "en",
+  fallbackLocale: "en",
+  messages: locales,
 });
 
 let pinia = createPinia();
@@ -28,7 +29,7 @@ app.use(i18n);
 Sentry.init({
   app,
   dsn: argon?.dsn() ?? "",
-  integrations: [ 
+  integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({
       maskAllText: false,
@@ -44,5 +45,3 @@ app.use(pinia);
 app.use(MotionPlugin);
 registerDirectives(app);
 app.mount("#app");
-
-

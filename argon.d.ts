@@ -93,6 +93,8 @@ declare global {
       pinnedFn: IPinnedObject
     ): Promise<number>;
 
+    clearAllKeybinds(): void;
+
     pressSystemKey(key: SystemKey): void;
 
 
