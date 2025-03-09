@@ -10,10 +10,10 @@ mode.value = 'auto';
 
 const keys = useMagicKeys();
 
-const shiftCtrlA = keys["Shift+Ctrl+P"];
+const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 
 watch(shiftCtrlA, (v) => {
-  if (v) native.toggleDevTools();
+  native.toggleDevTools();
 });
 </script>
 

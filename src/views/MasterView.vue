@@ -11,14 +11,14 @@
       </div>
 
       <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
-        <ChannelChat v-if="false" />
+        <ChannelChat :channel-id="''" v-if="false" />
       </div>
       <div v-if="dataPool.selectedServer"
         class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
         style="background-color: #161616;
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-        <h3 class="text-lg text-white mb-4">Users</h3>
+        <h3 class="text-lg text-white mb-4">{{ t("users") }}</h3>
         <ul class="text-gray-400 space-y-2">
           <li v-for="user in dataPool.activeServerUsers.value" :key="user.Id"
             class="flex items-center space-x-3 hover:text-white">
