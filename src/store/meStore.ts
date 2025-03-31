@@ -19,15 +19,14 @@ export const useMe = defineStore("me", () => {
 
 
   async function init() {
-    me.value = { currentStatus: "Offline", ...(await getMe()) };
+    me.value = { currentStatus: "Online", ...(await getMe()) };
 
     logger.info("Received user info ", me.value);
     bus.onUserEvent<WelcomeCommander>("WelcomeCommander", (e) => {
         logger.box(`Welcome commander, ${e.welcomeMessage}`);
         me.value!.currentStatus = e.status;
-        WelcomeCommanderHasReceived.value = true;
     });
-
+    WelcomeCommanderHasReceived.value = true;
     bus.doListenMyEvents();
   }
 

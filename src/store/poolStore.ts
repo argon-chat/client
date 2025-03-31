@@ -9,9 +9,10 @@ import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
+import { useMe } from "./meStore";
 
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { 
-  User: IUser, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>
+  User: IUser, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>, volume: Ref<number[]>
 };
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
@@ -21,6 +22,7 @@ export type IRealtimeChannelWithUser = {
 export const usePoolStore = defineStore("data-pool", () => {
   const bus = useBus();
   const api = useApi();
+  const me = useMe();
 
   const selectedServer = ref(null as Guid | null);
   const selectedChannel = ref(null as Guid | null);
@@ -75,8 +77,6 @@ export const usePoolStore = defineStore("data-pool", () => {
       logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
     }
   }
-
-
 
 
   const allServerAsync = computed(() => firstValueFrom<IServer[]>(from(liveQuery(async () => await db.servers.toArray()))));
@@ -256,7 +256,9 @@ export const usePoolStore = defineStore("data-pool", () => {
           UserId: x.userId,
           User: user!,
           isSpeaking: false,
-          isMuted: false
+          isMuted: false,
+          isScreenShare: false,
+          volume: [100]
         });
 
       } else
@@ -348,7 +350,7 @@ export const usePoolStore = defineStore("data-pool", () => {
             logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
             continue;
           }
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false), isMuted: ref(false)});
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false), isMuted: ref(false), isScreenShare: ref(false), volume: ref([100])});
         }
         await trackChannel(c.Channel, we);
       }

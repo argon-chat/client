@@ -3,12 +3,15 @@ import { useApi } from "./apiStore";
 import { toast } from "@/components/ui/toast";
 import { ref } from "vue";
 import { usePoolStore } from "./poolStore";
+import { useMe } from "./meStore";
+import { logger } from "@/lib/logger";
 
 export const useServerStore = defineStore("server", () => {
   const api = useApi();
   const isBeginConnect = ref(false);
   const isConnected = ref(false);
   const pool = usePoolStore();
+  const me = useMe();
 
   async function joinToServer(inviteCode: string): Promise<boolean> {
     const r = await api.userInteraction.JoinToServerAsync({
@@ -69,6 +72,14 @@ export const useServerStore = defineStore("server", () => {
   async function addInvite(): Promise<InviteCode> {
     return api.serverInteraction.CreateInviteCode(pool.selectedServer!, 77760000000000n);
   }
+
+  async function IsIAmAdmin(): Promise<boolean> {
+    const server = await pool.getServer(pool.selectedServer!);
+
+    logger.info(`Checking admin right, creator: ${(server as any).CreatorId}, meId: ${me.me?.Id}`);
+
+    return (server as any).CreatorId == me.me?.Id;
+  }
   
   return {
     isBeginConnect,
@@ -77,6 +88,7 @@ export const useServerStore = defineStore("server", () => {
     addChannelToServer,
     deleteChannel,
     getServerInvites,
-    addInvite
+    addInvite,
+    IsIAmAdmin
   };
 });

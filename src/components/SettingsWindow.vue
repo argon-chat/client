@@ -3,8 +3,8 @@
         <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40">
             <DrawerHeader class="flex items-center justify-between">
                 <div>
-                    <DrawerTitle>Settings</DrawerTitle>
-                    <DrawerDescription>Manage your account and preferences</DrawerDescription>
+                    <DrawerTitle>{{ t("settings") }}</DrawerTitle>
+                    <DrawerDescription>{{ t("manage_settings") }}</DrawerDescription>
                 </div>
                 <button @click="windows.settingsOpen = false" class="close-button">
                     <CircleXIcon class="w-10 h-10" />
@@ -16,7 +16,7 @@
                     <Button v-for="category in categories" :key="category.id"
                         :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
                         @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md">
-                        {{ category.name }}
+                        {{ t(category.id) }}
                     </Button>
                 </nav>
                 <div
@@ -41,19 +41,20 @@ import ConnectedDevices from '@/components/settings/ConnectedDevices.vue';
 import ApplicationSettings from './settings/ApplicationSettings.vue';
 import HotKeySettings from './settings/HotKeySettings.vue';
 import LanguageSettings from './settings/LanguageSettings.vue';
-
+import { useLocale } from '@/store/localeStore';
+const { t } = useLocale();
 const windows = useWindow();
 
 const categories = ref([
-    { id: 'account', name: 'Account' },
+    { id: 'account' },
     //{ id: 'appearance', name: 'Appearance' },
-    { id: 'application', name: 'Application' },
+    { id: 'application' },
     //{ id: 'notifications', name: 'Notifications' },
     //{ id: 'privacy', name: 'Privacy' },
     //{ id: 'devices', name: 'Devices' },
-    { id: 'voice_video', name: 'Voice & Video' },
-    { id: 'hotkeys', name: 'Hot & keys' },
-    { id: 'languages', name: 'Language' },
+    { id: 'voice_video' },
+    { id: 'hotkeys' },
+    { id: 'languages' },
 
 ]);
 

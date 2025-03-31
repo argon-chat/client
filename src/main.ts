@@ -7,7 +7,7 @@ import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { MotionPlugin } from "@vueuse/motion";
 import { registerDirectives } from "./lib/pexDirective";
 import * as Sentry from "@sentry/vue";
-//import "@/lib/browser";
+import "@/lib/browser";
 import { createI18n } from "vue-i18n";
 import { locales, Locale, LocaleSchema } from "@/locales";
 
@@ -33,7 +33,7 @@ Sentry.init({
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({
       maskAllText: false,
-      blockAllMedia: false,
+      blockAllMedia: false
     }),
   ],
   tracesSampleRate: 1.0,

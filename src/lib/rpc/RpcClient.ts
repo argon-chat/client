@@ -6,24 +6,26 @@ import { logger } from "../logger";
 import { useSystemStore } from "@/store/systemStore";
 import { fromEvent, tap } from "rxjs";
 import delay from "../delay";
+import { useMe } from "@/store/meStore";
 
 export function buildAtUrl(
-  upgrade: string, aat: string, 
-  sequence?: number, eventId?: number, 
-  srv?: string) 
-{
+  upgrade: string,
+  aat: string,
+  sequence?: number,
+  eventId?: number,
+  srv?: string
+) {
   const sys = useSystemStore();
   const args = [];
 
-  if (srv) 
-    args.push(`&srv=${srv}`);
-  if (sequence) 
-    args.push(`&sequence=${sequence}`);
-  if (eventId) 
-    args.push(`&eventId=${eventId}`);
+  if (srv) args.push(`&srv=${srv}`);
+  if (sequence) args.push(`&sequence=${sequence}`);
+  if (eventId) args.push(`&eventId=${eventId}`);
 
-  return new URL(`${sys.preferUseWs ? `/$at.ws` : `/$at.wt`}?aat=${aat}${args.join()}`,
-   `https://${upgrade}`);
+  return new URL(
+    `${sys.preferUseWs ? `/$at.ws` : `/$at.wt`}?aat=${aat}${args.join()}`,
+    `https://${upgrade}`
+  );
 }
 
 export class WsStream {
@@ -38,7 +40,7 @@ export class WsStream {
         this.socket.onmessage = (event) => controller.enqueue(event.data);
         this.socket.onclose = () => controller.close();
         this.socket.onerror = (e) => controller.error(e);
-      }
+      },
     });
 
     this.reader = stream.getReader();
@@ -48,7 +50,7 @@ export class WsStream {
     this.socket.send(data);
   }
 
-  async read(): Promise<ReadableStreamReadResult<Uint8Array>>{
+  async read(): Promise<ReadableStreamReadResult<Uint8Array>> {
     return await this.reader.read();
   }
 
@@ -56,7 +58,6 @@ export class WsStream {
     this.socket.close();
   }
 }
-
 
 export class RpcClient {
   private client: ArgonTransportClient;
@@ -74,65 +75,70 @@ export class RpcClient {
 
   create<T>(serviceName: string): T {
     return new Proxy(
-        {},
-        {
-            get: (_, methodName) => {
-                return async (...args: any[]) => {
-                    const authStore = useAuthStore();
-                    const sys = useSystemStore();
-                    const payload = encode(args, {
-                        useBigInt64: true,
-                    });
+      {},
+      {
+        get: (_, methodName) => {
+          return async (...args: any[]) => {
+            const authStore = useAuthStore();
+            const sys = useSystemStore();
+            const payload = encode(args, {
+              useBigInt64: true,
+            });
 
+            while (
+              sys.hasRequestRetry("argon-transport", methodName.toString())
+            ) {
+              logger.warn("Awaiting unlock request retry trigger...");
+              await delay(1000);
+            }
 
-                    while(sys.hasRequestRetry("argon-transport", methodName.toString())) {
-                      logger.warn("Awaiting unlock request retry trigger...");
-                      await delay(1000);
-                    }
+            const maxRetries = 100;
+            const baseDelay = 500;
 
-                    const maxRetries = 100; 
-                    const baseDelay = 500;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+              if (attempt > 1) {
+                sys.startRequestRetry("argon-transport", methodName.toString());
+              }
 
-                    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                        if (attempt > 1) {
-                          sys.startRequestRetry("argon-transport", methodName.toString());
-                        }
+              try {
+                const response = await this.client.unary(
+                  {
+                    interface: serviceName,
+                    method: String(methodName),
+                    payload: payload,
+                  },
+                  { meta: { authorize: authStore.token ?? "" } }
+                );
 
-                        try {
-                            const response = await this.client.unary(
-                                {
-                                    interface: serviceName,
-                                    method: String(methodName),
-                                    payload: payload,
-                                },
-                                { meta: { authorize: authStore.token ?? "" } }
-                            );
+                if (response.status.code !== "OK") {
+                  throw new Error(
+                    `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
+                  );
+                }
 
-                            if (response.status.code !== "OK") {
-                                throw new Error(
-                                    `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
-                                );
-                            }
+                if (response.response.payload.length === 0) return null;
 
-                            if (response.response.payload.length === 0) return null;
+                sys.stopRequestRetry("argon-transport", methodName.toString());
+                const resposnse_data = decode(response.response.payload);
 
-                            sys.stopRequestRetry("argon-transport", methodName.toString());
-                            return decode(response.response.payload);
-                        } catch (error) {
-                            if (attempt === maxRetries) throw error;
-                            await new Promise((res) => setTimeout(res, baseDelay * Math.pow(2, attempt)));
-                        }
-                    }
-                };
-            },
-        }
+                logger.log(resposnse_data);
+                return resposnse_data;
+              } catch (error) {
+                throw error;
+                /*await new Promise((res) =>
+                  setTimeout(res, baseDelay * Math.pow(2, attempt))
+                );*/
+              }
+            }
+          };
+        },
+      }
     ) as T;
-}
-  
+  }
+
   eventBus<T>(): T {
     const sys = useSystemStore();
-    if (sys.preferUseWs)
-      return this.eventBusWs<T>();
+    if (sys.preferUseWs) return this.eventBusWs<T>();
     return this.eventBusWt<T>();
   }
 
@@ -141,67 +147,80 @@ export class RpcClient {
       {},
       {
         get: (_, methodName) => {
-          return async (...args: any[]): Promise<AsyncIterable<IArgonEvent>> => {
+          return async (
+            ...args: any[]
+          ): Promise<AsyncIterable<IArgonEvent>> => {
             const authStore = useAuthStore();
+            const me = useMe();
             const wtUrl = new URL(`${this.baseUrl}/$at.http`, this.baseUrl);
             const baseAddr = this.baseUrl;
             const sys = useSystemStore();
+            let latestConnectTime = Date.now();
+            let intervalId: number | null = null;
 
             let sequence: number | undefined = undefined;
             let eventId: number | undefined = undefined;
-  
+
             async function fetchTransportDetails() {
               const attResponse = await fetch(wtUrl, {
                 method: "GET",
                 headers: { Authorization: authStore.token! },
               });
-  
+
               if (!attResponse.ok) {
-                logger.error(`Error: ${attResponse.status} - ${attResponse.statusText}`);
+                logger.error(
+                  `Error: ${attResponse.status} - ${attResponse.statusText}`
+                );
                 throw new Error("Failed to fetch transport details");
               }
-  
+
               let upgrade = attResponse.headers.get("X-Wt-Upgrade")!;
               const aat = attResponse.headers.get("X-Wt-AAT")!;
 
               if (upgrade === "localhost") {
                 upgrade = baseAddr.replace("https://", "");
               }
-  
+
               const transportUrl = buildAtUrl(
-                upgrade, aat, sequence, eventId,
-                methodName === "SubscribeToMeEvents" ? null : args[0]);
-  
+                upgrade,
+                aat,
+                sequence,
+                eventId,
+                methodName === "SubscribeToMeEvents" ? null : args[0]
+              );
+
               return { transportUrl };
             }
 
             return {
               [Symbol.asyncIterator]: async function* () {
                 let reconnectDelay = 1000;
-                
+
                 while (true) {
                   let transport: WebSocketStream = null!;
-                  const sub = fromEvent(window, 'beforeunload').pipe(
-                    tap(() => transport?.close())
-                  ).subscribe();
+                  latestConnectTime = Date.now();
+                  const sub = fromEvent(window, "beforeunload")
+                    .pipe(tap(() => transport?.close()))
+                    .subscribe();
+
                   try {
                     const { transportUrl } = await fetchTransportDetails();
 
-                    transport = new WebSocketStream(transportUrl.toString(), {
-
-                    });
+                    transport = new WebSocketStream(
+                      transportUrl.toString(),
+                      {}
+                    );
 
                     const stream = await transport.opened;
                     const reader = stream.readable.getReader();
 
                     sys.stopRequestRetry("argon-transport-streams", "ws");
                     reconnectDelay = 1000;
-  
+
                     while (true) {
                       const { value, done } = await reader.read();
 
-                      if(typeof value === "string")
-                        throw new Error();
+                      if (typeof value === "string") throw new Error();
 
                       if (done) {
                         logger.warn("WebSocket stream ended.");
@@ -211,11 +230,13 @@ export class RpcClient {
                         try {
                           const buffer = new Uint8Array(value);
 
-                          if (!buffer.length)
-                            continue;
+                          if (!buffer.length) continue;
                           yield decode(new Uint8Array(value)) as IArgonEvent;
                         } catch (e) {
-                          logger.warn("Failed to process message, but continuing stream", e);
+                          logger.warn(
+                            "Failed to process message, but continuing stream",
+                            e
+                          );
                         }
                       }
                     }
@@ -225,8 +246,12 @@ export class RpcClient {
                     sub.unsubscribe();
                   }
                   sys.startRequestRetry("argon-transport-streams", "ws");
-                  logger.warn(`Reconnecting in ${reconnectDelay / 1000} seconds...`);
-                  await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
+                  logger.warn(
+                    `Reconnecting in ${reconnectDelay / 1000} seconds...`
+                  );
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, reconnectDelay)
+                  );
                   reconnectDelay = Math.min(reconnectDelay * 2, 10000);
                 }
               },
@@ -241,7 +266,9 @@ export class RpcClient {
       {},
       {
         get: (_, methodName) => {
-          return async (...args: any[]): Promise<AsyncIterable<IArgonEvent>> => {
+          return async (
+            ...args: any[]
+          ): Promise<AsyncIterable<IArgonEvent>> => {
             const authStore = useAuthStore();
             const wtUrl = new URL(`${this.baseUrl}/$at.http`, this.baseUrl);
             const baseAddr = this.baseUrl;
@@ -249,73 +276,84 @@ export class RpcClient {
 
             let sequence: number | undefined = undefined;
             let eventId: number | undefined = undefined;
-  
+
             async function fetchTransportDetails() {
               const attResponse = await fetch(wtUrl, {
                 method: "GET",
                 headers: { Authorization: authStore.token! },
               });
-  
+
               if (!attResponse.ok) {
-                logger.error(`Error: ${attResponse.status} - ${attResponse.statusText}`);
+                logger.error(
+                  `Error: ${attResponse.status} - ${attResponse.statusText}`
+                );
                 throw new Error("Failed to fetch transport details");
               }
-  
+
               let upgrade = attResponse.headers.get("X-Wt-Upgrade")!;
               const fingerprint = attResponse.headers.get("X-Wt-Fingerprint");
               const aat = attResponse.headers.get("X-Wt-AAT")!;
-  
+
               if (upgrade === "localhost") {
                 upgrade = baseAddr.replace("https://", "");
               }
-  
+
               const transportUrl = buildAtUrl(
-                upgrade, aat, sequence, eventId,
-                methodName === "SubscribeToMeEvents" ? null : args[0]);
-  
+                upgrade,
+                aat,
+                sequence,
+                eventId,
+                methodName === "SubscribeToMeEvents" ? null : args[0]
+              );
+
               const certs: WebTransportHash[] = [];
               if (fingerprint) {
                 certs.push({
-                  value: Uint8Array.from(atob(fingerprint), (c) => c.charCodeAt(0)),
+                  value: Uint8Array.from(atob(fingerprint), (c) =>
+                    c.charCodeAt(0)
+                  ),
                   algorithm: "sha-256",
                 });
               }
-  
+
               return { transportUrl, certs };
             }
-  
-            async function createTransport(transportUrl: URL, certs: WebTransportHash[]) {
+
+            async function createTransport(
+              transportUrl: URL,
+              certs: WebTransportHash[]
+            ) {
               const transport = new WebTransport(transportUrl.toString(), {
                 congestionControl: "throughput",
                 allowPooling: true,
                 serverCertificateHashes: certs,
               });
-  
+
               await transport.ready;
               logger.log("WebTransport connection established.");
               return transport;
             }
-  
-  
+
             return {
               [Symbol.asyncIterator]: async function* () {
                 let reconnectDelay = 1000;
-                
+
                 while (true) {
                   let transport: WebTransport = null!;
-                  const sub = fromEvent(window, 'beforeunload').pipe(
-                    tap(() => transport?.close())
-                  ).subscribe();
+                  const sub = fromEvent(window, "beforeunload")
+                    .pipe(tap(() => transport?.close()))
+                    .subscribe();
                   try {
-
-                    const { transportUrl, certs } = await fetchTransportDetails();
+                    const { transportUrl, certs } =
+                      await fetchTransportDetails();
                     let transport = await createTransport(transportUrl, certs);
                     let stream = await transport.createBidirectionalStream();
-                    let reader = stream.readable.getReader() as ReadableStreamDefaultReader<Uint8Array>;
-  
+                    let reader =
+                      stream.readable.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+
                     reconnectDelay = 1000;
                     sys.stopRequestRetry("argon-transport-streams", "wt");
-  
+
                     while (true) {
                       const { value, done } = await reader.read();
                       logger.warn(value, done);
@@ -328,7 +366,10 @@ export class RpcClient {
                         try {
                           yield decode(value) as IArgonEvent;
                         } catch (e) {
-                          logger.warn("Failed to process message, but continuing stream", e);
+                          logger.warn(
+                            "Failed to process message, but continuing stream",
+                            e
+                          );
                         }
                       }
                     }
@@ -338,8 +379,12 @@ export class RpcClient {
                     sub.unsubscribe();
                   }
                   sys.startRequestRetry("argon-transport-streams", "wt");
-                  logger.warn(`Reconnecting in ${reconnectDelay / 1000} seconds...`);
-                  await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
+                  logger.warn(
+                    `Reconnecting in ${reconnectDelay / 1000} seconds...`
+                  );
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, reconnectDelay)
+                  );
                   reconnectDelay = Math.min(reconnectDelay * 2, 10000);
                 }
               },

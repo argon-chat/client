@@ -10,10 +10,19 @@ import {
   RemoteTrackPublication,
   Room,
   RoomConnectOptions,
-  Track
+  Track,
+  TrackPublication,
 } from "livekit-client";
 import { defineStore } from "pinia";
-import { computed, Reactive, reactive, ref } from "vue";
+import {
+  computed,
+  Reactive,
+  reactive,
+  Ref,
+  ref,
+  watch,
+  WatchHandle,
+} from "vue";
 import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
 import { Subject, Subscription, timer } from "rxjs";
@@ -22,6 +31,19 @@ import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
 import { useSessionTimer } from "./sessionTimer";
 import { usePreference } from "./preferenceStore";
+
+
+export type DirectRef<T> = Ref<T, T>;
+
+export type IChannelMemberData = {
+  video?: HTMLVideoElement;
+  stream?: HTMLVideoElement;
+  context: AudioContext;
+  gain: GainNode;
+  watcher: WatchHandle;
+  volume: Reactive<number[]>;
+  userId: Guid;
+}
 
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
@@ -41,10 +63,16 @@ export const useVoice = defineStore("voice", () => {
 
   const activeChannel = ref(null as null | IChannel);
 
-  const connectedRoom = reactive({ room: null, opt: null, subs: [] } as {
+  const connectedRoom = reactive({
+    room: null,
+    opt: null,
+    subs: [],
+    roomData: new Map(),
+  } as {
     room: Reactive<Room> | null;
     opt: null | RoomConnectOptions;
     subs: Subscription[];
+    roomData: Map<Guid, IChannelMemberData>;
   });
 
   const onVideoCreated: Subject<Track> = new Subject<Track>();
@@ -106,7 +134,6 @@ export const useVoice = defineStore("voice", () => {
     room.on("trackSubscribed", onTrackSubscribed);
     room.on("trackUnsubscribed", onTrackUnsubscribed);
     room.on("reconnecting", onReconnectiong);
-
     try {
       await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
         ...connectOptions,
@@ -193,6 +220,17 @@ export const useVoice = defineStore("voice", () => {
     });
   }
 
+  function setUserVolume(participantId: string, volume: number) {
+    const data = connectedRoom.roomData.get(participantId);
+    if (!data) {
+      logger.error("No particant found in room data");
+      return;
+    }
+    data.gain.gain.value = Math.max(0.0, volume / 100);
+    data.volume[0] = volume;
+  }
+
+
   async function disconnectFromChannel() {
     if (!connectedRoom.room) return;
     const room = connectedRoom.room;
@@ -215,6 +253,7 @@ export const useVoice = defineStore("voice", () => {
         }
         currentState.value = "NONE";
         connectedRoom.room = null;
+        connectedRoom.roomData.clear();
         pool.selectedChannel = null;
         activeChannel.value = null;
         tone.playSoftLeaveSound();
@@ -243,8 +282,10 @@ export const useVoice = defineStore("voice", () => {
       isOtherUserSharing.value = true;
       onVideoCreated.next(track);
     } else if (track.kind === "audio") {
-      const audioElement = track.attach();
-      document.body.appendChild(audioElement);
+      const audioCtx = new AudioContext();
+      const gain = audioCtx.createGain();
+
+      gain.gain.value = 1;
       logger.info("Audio is attached");
 
       participant.on("isSpeakingChanged", (val) => {
@@ -262,14 +303,53 @@ export const useVoice = defineStore("voice", () => {
         });
       });
 
+      const source = audioCtx.createMediaStreamSource(
+        new MediaStream([track.mediaStreamTrack])
+      );
+      source.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      const volume = reactive([100]);
+
+      pool.setProperty(
+        pool.selectedChannel!,
+        participant.identity,
+        (x) => {
+          (x.volume as any) = volume;
+        }
+      );
+
+      const item: IChannelMemberData = {
+        context: audioCtx,
+        gain: gain,
+        userId: participant.identity,
+        volume: volume,
+        watcher: watch(() => [...volume], (e) => {
+          logger.error("IChannelMemberData:watcher", e);
+          setUserVolume(participant.identity, e[0]);
+        }, { deep: true })
+      };
+
+      connectedRoom.roomData.set(participant.identity, item);
+
+      audioCtx.resume();
+      const audioEl = new Audio();
+      audioEl.srcObject = source.mediaStream;
+
       tone.playSoftEnterSound();
     }
   }
 
+  function getVolumeRef(userId: Guid) {
+    return connectedRoom.roomData.get(userId)!.volume;
+  } 
+
   function onParticipantQualityChanged(
     quality: ConnectionQuality,
     participant: Participant
-  ) {}
+  ) {
+    logger.warn("onParticipantQualityChanged", quality, participant);
+  }
 
   const allSizes = [
     //{ title: "SVGA (600p)", h: 600, w: 800 },
@@ -307,7 +387,9 @@ export const useVoice = defineStore("voice", () => {
 
       const enabled = room.localParticipant.isScreenShareEnabled;
 
-      const selectedPreset = allSizes.filter(x => x.preset === options.preset).at(0);
+      const selectedPreset = allSizes
+        .filter((x) => x.preset === options.preset)
+        .at(0);
 
       isSharing.value = true;
       screenTrack = await room.localParticipant.setScreenShareEnabled(
@@ -405,5 +487,7 @@ export const useVoice = defineStore("voice", () => {
     stopScreenShare,
     isSharing,
     isOtherUserSharing,
+    setUserVolume,
+    getVolumeRef
   };
 });

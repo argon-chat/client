@@ -3,7 +3,6 @@
     "ok": "確認",
     "or": "または",
     "start": "開始",
-
     "wait_connect": "接続を待っています、お待ちください...",
     "create_new_server": "新しいサーバーを作成",
     "join_to_server": "サーバーに参加",
@@ -32,7 +31,6 @@
     "hotkey": "ホットキー",
     "press_any_key": "任意のキーを押してください...",
     "app_language": "アプリの言語",
-
     "close_behaviour": "閉じる動作",
     "minimize_to_tray": "トレイに最小化するかアプリを終了する",
     "application_settings": "アプリケーション設定",
@@ -51,5 +49,19 @@
     "email": "Eメール",
     "phone_number": "電話番号",
     "otp_title": "二要素認証 (OTP)",
-    "delete_account": "アカウントを削除"
+    "delete_account": "アカウントを削除",
+    "invite_codes": "招待コード",
+    "select_camera": "カメラを選択",
+    "no_camera_found": "カメラが見つかりません",
+    "unnamed_camera": "名前なしのカメラ",
+    "test_camera": "ビデオテスト",
+    "you_not_access_to_channel_or_not_found_channels": "どのテキストチャンネルにもアクセスできないか、このサーバーにはチャンネルがありません。",
+    "no_text_channel_found": "テキストチャンネルが見つかりません",
+    "settings": "設定",
+    "manage_settings": "アカウントと設定を管理",
+    "account": "アカウント",
+    "application": "アプリケーション",
+    "voice_video": "音声とビデオ",
+    "hotkeys": "ホットキー",
+    "languages": "言語"
 }

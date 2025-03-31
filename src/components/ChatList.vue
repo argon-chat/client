@@ -10,7 +10,7 @@
         </h2>
         <DropdownMenu :modal="serverDropdownIsActive">
           <DropdownMenuTrigger as-child class="backdrop-blur-md">
-            <button v-show="isAdmin">
+            <button v-show="IsMeOwnerOfCurrentServer">
               <MoreVerticalIcon />
             </button>
 
@@ -41,18 +41,18 @@
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent class="w-64">
-                  <ContextMenuItem inset :disabled="!isAdmin" @click="channelDelete(channel.Id)">
+                  <ContextMenuItem inset :disabled="!IsMeOwnerOfCurrentServer" @click="channelDelete(channel.Id)">
                     Delete
                     <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                   </ContextMenuItem>
-                  <ContextMenuItem inset :disabled="!isAdmin">
+                  <ContextMenuItem inset :disabled="!IsMeOwnerOfCurrentServer">
                     Leave
                     <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                   </ContextMenuItem>
 
                   <ContextMenuSeparator />
-                  <ContextMenuCheckboxItem :disabled="!isAdmin">
-                   Mute
+                  <ContextMenuCheckboxItem :disabled="!IsMeOwnerOfCurrentServer">
+                    Mute
                     <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
                   </ContextMenuCheckboxItem>
                 </ContextMenuContent>
@@ -61,15 +61,38 @@
             <ul
               v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id) && pool.realtimeChannelUsers.get(channel.Id)?.Users.size != 0"
               class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
-              <li v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId"
-                class="flex items-center mt-1 text-gray-400 hover:text-white">
-                <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
-                  :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
-                  class="w-7 h-7 rounded-full mr-3 transition" />
-                <span>{{ user.User.DisplayName }}</span>
-                <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;"/>
-                <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;"/>
-              </li>
+              <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId">
+                <ContextMenuTrigger :disabled="!voice.activeChannel">
+                  <li class="flex items-center mt-1 text-gray-400 hover:text-white">
+                    <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!"
+                      :userId="user.UserId"
+                      :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
+                      class="w-7 h-7 rounded-full mr-3 transition" />
+                    <span>{{ user.User.DisplayName }}</span>
+                    <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;" />
+                    <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;" />
+                  </li>
+                </ContextMenuTrigger>
+                <ContextMenuContent class="w-64">
+                  <ContextMenuLabel v-show="user.UserId != me.me?.Id">
+                    <Slider :max="200" :step="1" v-model="user.volume" v-on:update:model-value="(val) => { voice.setUserVolume(user.UserId, val![0]); }"/>
+                  </ContextMenuLabel>
+                  <!-- <ContextMenuItem inset @click="voice.muteForMeUser(user.UserId)">
+                    Mute
+                    <ContextMenuShortcut>⌘[</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem inset :disabled="true">
+                    Kick
+                    <ContextMenuShortcut>⌘]</ContextMenuShortcut>
+                  </ContextMenuItem> -->
+
+                  <ContextMenuSeparator v-show="user.UserId != me.me?.Id"/>
+                  <ContextMenuCheckboxItem :disabled="!IsMeOwnerOfCurrentServer">
+                    Ya ebal mamu
+                    <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
+                  </ContextMenuCheckboxItem>
+                </ContextMenuContent>
+              </ContextMenu>
             </ul>
 
 
@@ -145,7 +168,9 @@ import {
   ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
+  ContextMenuLabel
 } from '@/components/ui/context-menu';
+import { Slider } from '@/components/ui/slider'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,13 +191,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { computed, ref } from 'vue';
+import { computed, onMounted, Ref, ref } from 'vue';
 import { logger } from '@/lib/logger';
 import { useWindow } from '@/store/windowStore';
 import { usePoolStore } from '@/store/poolStore';
 import { useVoice } from '@/store/voiceStore';
 import ArgonAvatar from './ArgonAvatar.vue';
 import { useMe } from '@/store/meStore';
+import delay from '@/lib/delay';
 
 const serverDropdownIsActive = ref(false);
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
@@ -184,10 +210,14 @@ const windows = useWindow();
 const pool = usePoolStore();
 const voice = useVoice();
 const me = useMe();
+//
 
+const IsMeOwnerOfCurrentServer = ref(false);
 
-const isAdmin = computed(() => true);
-
+onMounted(async () => {
+  await delay(1000);
+  IsMeOwnerOfCurrentServer.value = await servers.IsIAmAdmin();
+})
 
 const addChannel = () => {
   addChannel_Loading.value = true;
@@ -200,9 +230,18 @@ const addChannel = () => {
   }, 1000);
 };
 
+function getArr(ref: Ref<number>)  {
+  return [ref];
+}
+
 async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
   const channel = await pool.getChannel(channelId);
+  
+
+  if (voice.activeChannel) {
+    return;
+  }
 
   if (!channel) return;
   if (channel.ChannelType == "Voice") {
@@ -273,6 +312,4 @@ const connectToChannel = (channelId: string) => {
 .hover\:bg-gray-700:hover {
   border-radius: 5px;
 }
-
-
 </style>

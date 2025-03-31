@@ -15,9 +15,12 @@
         <div v-if="noMessageChannel" class="flex flex-1 flex-col items-center justify-center text-center space-y-2">
             <div class="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
                 <RadioIcon class="h-10 w-10 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">No Text Channel</h3>
-                <p class="mb-4 mt-2 text-sm text-muted-foreground">You don't have access to any text channel or there
-                    are none in this server.</p>
+                <h3 class="mt-4 text-lg font-semibold">
+                    {{ t("no_text_channel_found") }}
+                </h3>
+                <p class="mb-4 mt-2 text-sm text-muted-foreground">
+                    {{ t("you_not_access_to_channel_or_not_found_channels") }}
+                </p>
             </div>
         </div>
 
@@ -46,6 +49,9 @@ import { Paragraph } from './Paragraph'
 import { logger } from '@/lib/logger';
 import { useApi } from '@/store/apiStore'
 import { tiptapToArgonMessage } from '@/lib/messageRender'
+import { useLocale } from '@/store/localeStore';
+const { t } = useLocale();
+
 
 const newMessage = ref('');
 const props = defineProps<{ channelId: string }>();

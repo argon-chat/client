@@ -1,7 +1,7 @@
 <template>
     <div class="flex flex-col space-y-4">
         <div class="flex justify-between items-center">
-            <h2 class="text-lg font-semibold">Invite Codes</h2>
+            <h2 class="text-lg font-semibold">{{ t("invite_codes") }}</h2>
             <Button @click="addInvite" :disabled="loading" variant="default" class="px-4 py-2">
                 {{ t("add_invite") }}
             </Button>

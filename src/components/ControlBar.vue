@@ -14,12 +14,13 @@
                     <Headphones v-else class="w-5 h-5" />
                 </button>
 
-                <button @click="beginScreencast" :class="{ active: voice.isSharing }">
+                <button @click="toggleScreenCast" :class="{ active: voice.isSharing }"
+                    :disabled="!voice.isConnected || voice.currentlyReconnect">
                     <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
                     <ScreenShare v-else class="w-5 h-5" />
                 </button>
 
-                <Dialog style="min-width: 620px;" v-model:open="openShareSettings">
+                <Dialog style="min-width: 620px !important" v-model:open="openShareSettings">
 
                     <DialogContent class="sm:max-w-md">
                         <DialogHeader>
@@ -31,16 +32,15 @@
                         <Tabs default-value="monitors">
                             <TabsList class="w-full flex">
                                 <TabsTrigger value="monitors" class="flex-1">{{ t("monitors") }}</TabsTrigger>
-                                <TabsTrigger value="windows" class="flex-1">{{ t("windows") }}</TabsTrigger>
+                                <TabsTrigger value="windows" disabled class="flex-1">{{ t("windows") }}</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="monitors" class="mt-4">
-                                <div class="grid grid-cols-2 gap-4" style="min-width: 220px;">
+                                <div class="grid grid-cols-2 gap-4">
                                     <div v-for="size in displays" :key="size.DisplayIndex"
-                                        class="flex flex-col items-center" @click="size.selected = !size.selected">
+                                        class="flex flex-col items-center" @click="setSelected(size)">
                                         <video autoplay :srcObject="size.preview" class="rounded-lg preview"
-                                            :class="{ previewSelected: size.selected }"
-                                            style="min-width: 220px;"></video>
+                                            :class="{ previewSelected: size.selected }"></video>
                                         <span class="text-sm mt-2">{{ t('monitor_index', { idx: size.DisplayIndex })
                                         }}</span>
                                     </div>
@@ -88,7 +88,7 @@
                             </TabsContent>
                         </Tabs>
                         <DialogFooter class="sm:justify-start">
-                            <Button type="button" variant="default" @click="toggleShare()" style="width: 100%;" :disabled="!voice.isConnected || voice.currentlyReconnect">
+                            <Button type="button" variant="default" @click="goShare()" style="width: 100%;">
                                 {{ t("start") }}
                             </Button>
                         </DialogFooter>
@@ -153,7 +153,6 @@ import {
     Dialog,
     DialogContent,
     DialogFooter,
-    DialogClose,
     DialogTitle,
     DialogDescription,
     DialogHeader
@@ -226,8 +225,29 @@ interface IScreenWithPreview extends IScreen {
 
 const displays = ref([] as IScreenWithPreview[]);
 
-const beginScreencast = function () {
-    openShareSettings.value = true;
+
+const setSelected = (size: IScreenWithPreview) => {
+    for (let i of displays.value) {
+        if (i.DisplayIndex == size.DisplayIndex)
+            i.selected = true;
+        else
+            i.selected = false;
+    }
+};
+
+const toggleScreenCast = function () {
+
+    openShareSettings.value = false;
+    if (!voice.isConnected)
+        return;
+    if (voice.isOtherUserSharing)
+        return;
+
+    if (voice.isSharing)
+        voice.stopScreenShare();
+    else {
+        openShareSettings.value = true;
+    }
 }
 
 
@@ -262,6 +282,29 @@ async function getPreviewForWindow(window: IWindowInfo) {
 
     return p;
 }
+
+
+async function goShare() {
+    openShareSettings.value = false;
+    if (!voice.isConnected)
+        return;
+    if (voice.isOtherUserSharing)
+        return;
+
+    if (voice.isSharing)
+        voice.stopScreenShare();
+    else {
+        const dev = displays.value.filter(x => x.selected).at(0);
+        await voice.startScreenShare({
+            fps: +(fps.value ?? "30"),
+            systemAudio: includeAudio.value ? "include" : "exclude",
+            preset: quality.value as any,
+            deviceId: `screen:${dev?.DisplayIndex}:0`,
+            deviceKind: "screen"
+        });
+    }
+}
+
 
 
 onMounted(async () => {
@@ -302,27 +345,6 @@ onMounted(async () => {
 })
 
 
-
-async function toggleShare() {
-    openShareSettings.value = false;
-    if (!voice.isConnected)
-        return;
-    if (voice.isOtherUserSharing)
-        return;
-
-    if (voice.isSharing)
-        voice.stopScreenShare();
-    else {
-        const dev = displays.value.filter(x => x.selected).at(0);
-        await voice.startScreenShare({
-            fps: +(fps.value ?? "30"),
-            systemAudio: includeAudio.value ? "include" : "exclude",
-            preset: quality.value as any,
-            deviceId: `screen:${dev?.DisplayIndex}:0`,
-            deviceKind: "screen"
-        });
-    }
-}
 
 </script>
 

@@ -61,5 +61,20 @@
     "key.microphone.off": "Mute microphone",
     "key.sound.toggle": "丈太郎ムダムダ",
     "key.sound.on": "丈太郎ムダムダ",
-    "key.sound.off": "丈太郎ムダムダ"
+    "key.sound.off": "丈太郎ムダムダ",
+
+    "invite_codes": "Invite Codes",
+    "select_camera": "Select Camera",
+    "no_camera_found": "No cameras found",
+    "unnamed_camera": "Unnamed Camera",
+    "test_camera": "Test Video",
+    "you_not_access_to_channel_or_not_found_channels": "You don't have access to any text channel or there are none in this server.",
+    "no_text_channel_found": "No Text Channel",
+    "settings": "Settings",
+    "manage_settings": "Manage your account and preferences",
+    "account": "Account",
+    "application": "Application",
+    "voice_video": "Voice & Video",
+    "hotkeys": "Hot & keys",
+    "languages": "Languages"
 }

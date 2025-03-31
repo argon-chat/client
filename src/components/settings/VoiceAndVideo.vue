@@ -80,16 +80,16 @@
         <br />
         <br />
         <div>
-            <label class="block font-semibold mb-1">Select Camera</label>
+            <label class="block font-semibold mb-1">{{ t("select_camera") }}</label>
             <Select v-model="selectedCamera" @change="updateVideoStream" :disabled="videoDevices.length == 0">
                 <SelectTrigger>
-                    <SelectValue placeholder="No cameras found" />
+                    <SelectValue :placeholder="t('no_camera_found')" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectGroup v-for="device in videoDevices.filter(q => !!q.deviceId)" :key="device.deviceId"
                         :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
-                            {{ device.label || 'Unnamed Camera' }}
+                            {{ device.label || t('unnamed_camera') }}
                         </SelectItem>
                     </SelectGroup>
                 </SelectContent>
@@ -98,8 +98,9 @@
         <br />
         <div class="cameraWrapper">
             <div v-if="!videoActive" class="previewImage">
-                <Button @click="startVideoPreview" :disabled="videoDevices.length == 0" style="width: 250px;">Test
-                    Video</Button>
+                <Button @click="startVideoPreview" :disabled="videoDevices.length == 0" style="width: 250px;">
+                    {{ t("test_camera") }}
+                </Button>
             </div>
             <div v-else class="camera">
                 <video ref="videoElement" autoplay playsinline class="media-engine-video"></video>

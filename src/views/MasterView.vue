@@ -36,15 +36,6 @@
       <ServerSettingsWindow />
       <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
 
-      <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
-        <div class="sys-keyholder">
-          <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
-          <XIcon height="16" width="16" class="close-icon" @click="closeWindow" />
-        </div>
-      </div>
-
-      <div class="topbar-collider" @mousedown="beginMove" @mouseup="endMove" />
-
       <div class="overlay select-none" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
         {{ t('wait_connect') }}
       </div>
@@ -69,28 +60,12 @@ import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
 import GlowBorder from '@/components/GlowBorder.vue';
 import { useLocale } from '@/store/localeStore';
-import {
-  MinusIcon,
-  XIcon
-} from 'lucide-vue-next';
-import { usePreference } from '@/store/preferenceStore';
 
 const dataPool = usePoolStore();
 const me = useMe();
 const { t } = useLocale();
-const preferences = usePreference();
 
-const beginMove = () => {
-  native.beginMoveWindow();
-}
 
-const pressSystemKey = (key: number) => {
-  native.pressSystemKey(key);
-}
-
-const endMove = () => {
-  native.endMoveWindow();
-}
 const statusClass = (status: UserStatus) => {
   return {
     'bg-green-500': status === 'Online',
@@ -98,14 +73,6 @@ const statusClass = (status: UserStatus) => {
     'bg-gray-500': status === 'Offline'
   };
 };
-
-const closeWindow = () => {
-  if (preferences.minimizeToTrayOnClose) {
-    pressSystemKey(2);
-  } else {
-    pressSystemKey(0);
-  }
-}
 
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
@@ -130,12 +97,6 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.top-container {
-  position: absolute;
-  right: 0;
-  top: 0;
-}
-
 .overlay {
   position: fixed;
   top: 0;
@@ -149,35 +110,6 @@ body {
   justify-content: center;
   font-size: 1.5rem;
   z-index: 1000;
-}
-
-.close-icon {
-  color: #686868;
-}
-
-.close-icon:hover {
-  color: #bebebe;
-  cursor: pointer;
-}
-
-.close-icon:active {
-  color: #0f9ed6;
-  cursor: pointer;
-}
-
-.topbar-collider {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% - 60px);
-  height: 25px;
-}
-
-.sys-keyholder {
-  justify-content: center;
-  display: flex;
-  gap: 10px;
-  flex: auto;
 }
 
 
