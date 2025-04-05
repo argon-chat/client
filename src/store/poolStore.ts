@@ -4,12 +4,13 @@ import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
 import { UserStatus } from "@/lib/glue/UserStatus";
-import { firstValueFrom, from } from "rxjs";
+import { firstValueFrom, from, Subject } from "rxjs";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 import { useMe } from "./meStore";
+import { watch } from "vue";
 
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { 
   User: IUser, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>, volume: Ref<number[]>
@@ -26,6 +27,15 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const selectedServer = ref(null as Guid | null);
   const selectedChannel = ref(null as Guid | null);
+
+
+  const onChannelChanged = new Subject<Guid | null>();
+
+
+  watch(selectedChannel, (newChannelId, oldChannelId) => {
+    if (newChannelId != oldChannelId)
+      onChannelChanged.next(newChannelId);
+  })
 
   const realtimeChannelUsers = reactive(
     new Map<Guid, Reactive<IRealtimeChannelWithUser>>()
@@ -174,6 +184,8 @@ export const usePoolStore = defineStore("data-pool", () => {
    
   };
 
+  const onNewMessageReceived: Subject<IArgonMessage> = new Subject<IArgonMessage>();
+
   const subscribeToEvents = function () {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
       const c = await db.servers.get(x.serverId);
@@ -310,6 +322,10 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       db.users.put(user);
     });
+
+    bus.onServerEvent<MessageSent>("MessageSent", (x) => {
+      onNewMessageReceived.next(x.message);
+    })
   };
 
   const loadServerDetails = async function () {
@@ -378,6 +394,8 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     selectedServer,
     selectedChannel,
+    onChannelChanged,
+    onNewMessageReceived,
 
     loadServerDetails,
     getSelectedServer,
