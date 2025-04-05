@@ -32,7 +32,6 @@ import { useTone } from "./toneStore";
 import { useSessionTimer } from "./sessionTimer";
 import { usePreference } from "./preferenceStore";
 
-
 export type DirectRef<T> = Ref<T, T>;
 
 export type IChannelMemberData = {
@@ -43,7 +42,7 @@ export type IChannelMemberData = {
   watcher: WatchHandle;
   volume: Reactive<number[]>;
   userId: Guid;
-}
+};
 
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
@@ -98,6 +97,8 @@ export const useVoice = defineStore("voice", () => {
   });
 
   async function connectToChannel(channelId: string) {
+    if (activeChannel.value?.Id == channelId) return;
+
     sessionTimerStore.stopTimer();
     pool.selectedChannel = channelId;
     activeChannel.value = (await pool.getChannel(channelId))!;
@@ -230,7 +231,6 @@ export const useVoice = defineStore("voice", () => {
     data.volume[0] = volume;
   }
 
-
   async function disconnectFromChannel() {
     if (!connectedRoom.room) return;
     const room = connectedRoom.room;
@@ -311,23 +311,23 @@ export const useVoice = defineStore("voice", () => {
 
       const volume = reactive([100]);
 
-      pool.setProperty(
-        pool.selectedChannel!,
-        participant.identity,
-        (x) => {
-          (x.volume as any) = volume;
-        }
-      );
+      pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
+        (x.volume as any) = volume;
+      });
 
       const item: IChannelMemberData = {
         context: audioCtx,
         gain: gain,
         userId: participant.identity,
         volume: volume,
-        watcher: watch(() => [...volume], (e) => {
-          logger.error("IChannelMemberData:watcher", e);
-          setUserVolume(participant.identity, e[0]);
-        }, { deep: true })
+        watcher: watch(
+          () => [...volume],
+          (e) => {
+            logger.error("IChannelMemberData:watcher", e);
+            setUserVolume(participant.identity, e[0]);
+          },
+          { deep: true }
+        ),
       };
 
       connectedRoom.roomData.set(participant.identity, item);
@@ -342,7 +342,7 @@ export const useVoice = defineStore("voice", () => {
 
   function getVolumeRef(userId: Guid) {
     return connectedRoom.roomData.get(userId)!.volume;
-  } 
+  }
 
   function onParticipantQualityChanged(
     quality: ConnectionQuality,
@@ -488,6 +488,6 @@ export const useVoice = defineStore("voice", () => {
     isSharing,
     isOtherUserSharing,
     setUserVolume,
-    getVolumeRef
+    getVolumeRef,
   };
 });
