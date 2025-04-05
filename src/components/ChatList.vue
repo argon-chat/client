@@ -238,6 +238,9 @@ async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
   const channel = await pool.getChannel(channelId);
   
+  if (channel && channel.ChannelType != "Voice") {
+    pool.selectedChannel = channel.Id;
+  }
 
   if (voice.activeChannel) {
     return;
