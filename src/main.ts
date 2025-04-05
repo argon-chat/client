@@ -10,6 +10,10 @@ import * as Sentry from "@sentry/vue";
 import "@/lib/browser";
 import { createI18n } from "vue-i18n";
 import { locales, Locale, LocaleSchema } from "@/locales";
+import 'vue3-emoji-picker/css';
+import 'vfonts/Lato.css';
+import 'vfonts/FiraCode.css';
+
 
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
