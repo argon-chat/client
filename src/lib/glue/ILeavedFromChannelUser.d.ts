@@ -11,6 +11,4 @@ interface LeavedFromChannelUser extends IArgonEvent
 	EventKey: 'LeavedFromChannelUser';
 	userId: Guid;
 	channelId: Guid;
-	Sequence: number;
-	EventId: number;
 }

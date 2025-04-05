@@ -11,6 +11,4 @@ interface ChannelCreated extends IArgonEvent
 {
 	EventKey: 'ChannelCreated';
 	channel: IChannel;
-	Sequence: number;
-	EventId: number;
 }

@@ -6,8 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-interface JoinToServerUser extends IArgonEvent
-{
-	EventKey: 'JoinToServerUser';
-	userId: Guid;
-}
+export type MeetJoinError = 'OK' | 'NO_LINK_EXIST'

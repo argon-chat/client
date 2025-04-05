@@ -11,6 +11,4 @@ interface MessageSent extends IArgonEvent
 {
 	EventKey: 'MessageSent';
 	message: IArgonMessage;
-	Sequence: number;
-	EventId: number;
 }

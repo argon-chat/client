@@ -10,6 +10,4 @@ interface ChannelRemoved extends IArgonEvent
 {
 	EventKey: 'ChannelRemoved';
 	channelId: Guid;
-	Sequence: number;
-	EventId: number;
 }

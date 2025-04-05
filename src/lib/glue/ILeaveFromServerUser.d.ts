@@ -10,6 +10,4 @@ interface LeaveFromServerUser extends IArgonEvent
 {
 	EventKey: 'LeaveFromServerUser';
 	userId: Guid;
-	Sequence: number;
-	EventId: number;
 }

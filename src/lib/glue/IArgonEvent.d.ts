@@ -9,6 +9,4 @@
 interface IArgonEvent
 {
 	EventKey: string;
-	Sequence?: number;
-	EventId?: number;
 }
