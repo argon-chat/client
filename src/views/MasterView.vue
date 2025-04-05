@@ -10,8 +10,8 @@
         <UserBar />
       </div>
 
-      <div class="chat-container flex-1 flex-col rounded-xl p-5 shadow-md justify-between">
-        <ChannelChat :channel-id="''" v-if="false" />
+      <div class="chat-container flex-1 flex-col rounded-xl shadow-md justify-between">
+        <ChannelChat :channel-id="''"/>
       </div>
       <div v-if="dataPool.selectedServer"
         class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
