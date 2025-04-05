@@ -18,7 +18,8 @@ export const useBus = defineStore("bus", () => {
   async function doListenServer(id: string) {
     const handle = await api.eventBus.SubscribeToServerEvents(id);
     for await(const e of handle) {
-      logger.log(`Received event, ${e.EventKey}`, e);
+      if (e.EventKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.EventKey}`, e);
       argonEventBus.next({ serverId: id, ...e });
       if (signal.aborted)
         break;
@@ -28,7 +29,8 @@ export const useBus = defineStore("bus", () => {
   async function doListenMyEvents() {
     const handle = await api.eventBus.SubscribeToMeEvents();
     for await(const e of handle) {
-      logger.log(`Received event, ${e.EventKey}`, e);
+      if (e.EventKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.EventKey}`, e);
       userEventBus.next(e);
       if (signal.aborted)
         break;
