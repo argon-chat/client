@@ -116,6 +116,12 @@ export class RpcClient {
                   );
                 }
 
+                if (response.response.statusCode !== 0) {
+                  throw new Error(
+                    `${response.response.statusCode} - ${response.response.errorMessage || "Unknown error occurred."}, ${response.response.exceptionType}`
+                  );
+                }
+
                 if (response.response.payload.length === 0) return null;
 
                 sys.stopRequestRetry("argon-transport", methodName.toString());
