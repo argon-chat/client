@@ -3,7 +3,7 @@
     <Avatar :class="props.class" :key="props.fileId!">
       <Skeleton style="height: 100%; width: 100%; background-color: #494949;" v-if="loading" :class="props.class" />
       <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
-      <AvatarFallback v-if="!loading && !loaded">{{ props.fallback }}</AvatarFallback>
+      <AvatarFallback v-if="!loading && !loaded">{{ props.fallback.at(0)?.toUpperCase() }}</AvatarFallback>
     </Avatar>
   </keep-alive>
 
