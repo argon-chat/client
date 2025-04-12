@@ -15,27 +15,30 @@ export function useChat(channelId: string) {
   const api = useApi();
   const pool = usePoolStore();
 
-  async function loadInitial() {
+  async function loadInitial(totalRequested?: number) {
+    totalRequested ??= PAGE_SIZE;
     const local = await db.messages
       .where("[ChannelId+MessageId]")
       .between([channelId, Dexie.minKey], [channelId, Dexie.maxKey])
+      .limit(totalRequested)
       .sortBy("MessageId");
 
     messages.value = local;
     if (local.length) {
       lastLoadedMessageId.value = local[0].MessageId;
     }
-    await loadOlderMessages();
+    await loadOlderMessages(totalRequested);
   }
 
-  async function loadOlderMessages() {
+  async function loadOlderMessages(totalRequested?: number) {
     if (isLoading.value || !hasMore.value) return;
+    totalRequested ??= PAGE_SIZE;
     isLoading.value = true;
 
     const before = lastLoadedMessageId.value;
 
     try {
-      const data = await api.serverInteraction.GetMessages(channelId, PAGE_SIZE, before ?? 0);
+      const data = await api.serverInteraction.GetMessages(channelId, totalRequested, before ?? 0);
 
       logger.log("Received messages", data);
 

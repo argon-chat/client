@@ -1,117 +1,88 @@
 <template>
-    <div ref="scroller" class="chat-scroll messages" @scroll="onScroll">
-        <div :style="{ height: `${topSpacerHeight}px` }" />
-        <div v-for="(message, index) in visibleMessages" :key="message.MessageId" class="chat-message">
+    <div ref="scroller" class="chat-scroll messages">
+        <div v-for="(message) in messages" :key="message.MessageId" class="chat-message">
             <MessageItem :message="message" />
         </div>
-        <div :style="{ height: `${bottomSpacerHeight}px` }" />
+        <Separator v-if="hasEnded" orientation="horizontal"> </Separator>
+        <div v-if="hasEnded" style="text-align: center;"> END </div>
+
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { useChat } from '@/store/useChat'
+import { ref, onMounted, useTemplateRef, onUnmounted } from 'vue'
+import { useInfiniteScroll } from '@vueuse/core'
 import MessageItem from '@/components/MessageItem.vue'
-
-const itemHeight = 80;
-const buffer = 5;
-
+import { useApi } from '@/store/apiStore'
+import { logger } from '@/lib/logger';
+import { Separator } from '@/components/ui/separator'
+import { usePoolStore } from '@/store/poolStore';
+import { Subscription } from 'rxjs';
+const api = useApi();
+const pool = usePoolStore();
 const props = defineProps<{
-    channelId: Guid;
+    channelId: Guid
 }>()
-const isAtBottom = ref(true)
-const scroller = ref<HTMLElement | null>(null)
-const scrollTop = ref(0)
 
-const {
-    messages,
-    loadOlderMessages,
-    loadInitial,
-    isLoading,
-    hasMore,
-} = useChat(props.channelId)
+const scroller = useTemplateRef<HTMLElement>("scroller");
 
-const visibleStart = ref(0)
-const visibleEnd = ref(0)
+const messages = ref([] as IArgonMessage[]);
 
-const totalCount = computed(() => messages.value.length)
+const hasEnded = ref(false);
 
-const visibleMessages = computed(() =>
-    messages.value.slice(visibleStart.value, visibleEnd.value)
-)
+const subs = ref(null as null | Subscription);
 
-const topSpacerHeight = computed(() => visibleStart.value * itemHeight)
-const bottomSpacerHeight = computed(() => (totalCount.value - visibleEnd.value) * itemHeight)
-
-function updateVisibleRange() {
-    const el = scroller.value
-    if (!el) return
-
-    scrollTop.value = el.scrollTop
-    const start = Math.floor(scrollTop.value / itemHeight) - buffer
-    const end = Math.ceil((scrollTop.value + el.clientHeight) / itemHeight) + buffer
-
-    visibleStart.value = Math.max(0, start)
-    visibleEnd.value = Math.min(totalCount.value, end)
-}
-
-async function onScroll() {
-    updateVisibleRange()
-
-    const el = scroller.value
-    if (!el || isLoading.value || !hasMore.value) return;
-
-    isAtBottom.value = scroller.value
-        ? scroller.value.scrollTop + scroller.value.clientHeight >= scroller.value.scrollHeight - 50
-        : false;
-
-    if (el.scrollTop < 100) {
-        const prevScrollHeight = el.scrollHeight
-
-        await loadOlderMessages()
-        await nextTick()
-        const newScrollHeight = el.scrollHeight
-        el.scrollTop += newScrollHeight - prevScrollHeight
-
-        updateVisibleRange()
+useInfiniteScroll(scroller, async () => {
+    var result = await api.serverInteraction.GetMessages(props.channelId, 10, currentSizeMsgs.value);
+    if (result.length == 0) {
+        hasEnded.value = true;
     }
-
-
-}
-
-watch(() => messages.value.length, async () => {
-  await nextTick()
-
-  if (isAtBottom.value) {
-    const el = scroller.value
-    if (el) {
-      el.scrollTop = el.scrollHeight
+    currentSizeMsgs.value += result.length;
+    messages.value.push(...result);
+}, {
+    distance: 5,
+    direction: "top",
+    behavior: "smooth",
+    idle: 1000,
+    interval: 1000,
+    onError(error) {
+        logger.error("onError", error);
+    },
+    canLoadMore: (e) => {
+        return !hasEnded.value;
     }
-    updateVisibleRange()
-  }
 })
+
+const currentSizeMsgs = ref(0);
 
 onMounted(async () => {
-    await loadInitial()
-    await nextTick()
+    messages.value = await api.serverInteraction.GetMessages(props.channelId, 10, 0);
+    currentSizeMsgs.value += messages.value.length;
+    subs.value = pool.onNewMessageReceived.subscribe((e) => {
+        if (props.channelId == e.ChannelId) {
+            messages.value.unshift(e);
+        }
+    });
+});
 
-    const el = scroller.value
-    if (el) {
-        el.scrollTop = el.scrollHeight
-        updateVisibleRange()
-    }
+onUnmounted(() => {
+    subs.value?.unsubscribe();
 })
+
 </script>
 
 <style scoped>
 .chat-scroll {
     height: 100%;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    /* Новые сообщения сверху */
 }
 
 .chat-message {
     padding: 8px;
-    height: 80px;
+    word-wrap: break-word;
 }
 
 .messages::-webkit-scrollbar {

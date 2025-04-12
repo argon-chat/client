@@ -10,10 +10,13 @@
             <div class="meta">
                 <span class="username">{{ user?.DisplayName || 'Неизвестный' }}</span>
             </div>
-            <div class="bubble" :style="{
+            <div class="bubble" v-if="!isSingleEmojiMessage" :style="{
                 backgroundPositionY: backgroundOffset + 'px',
-                backgroundColor: bubbleColor
+                backgroundColor: bubbleColor 
             }" ref="bubble">
+                {{ message.Text }}
+            </div>
+            <div v-if="isSingleEmojiMessage" style="font-size: xxx-large;">
                 {{ message.Text }}
             </div>
         </div>
@@ -25,6 +28,7 @@ import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { usePoolStore } from '@/store/poolStore'
 import ArgonAvatar from '@/components/ArgonAvatar.vue'
 import { useMe } from '@/store/meStore';
+import emojiRegex from 'emoji-regex';
 
 const props = defineProps<{
     message: IArgonMessage
@@ -35,6 +39,8 @@ const backgroundOffset = ref(0)
 const pool = usePoolStore()
 const user = ref<any>(null)
 const me = useMe();
+
+const isSingleEmojiMessage = isSingleEmojiOnly(props.message);
 
 const isIncoming = true;
 const isMe = props.message.CreatorId == me.me?.Id;
@@ -69,7 +75,15 @@ function getColorByUserId(userId: string): string {
 const bubbleColor = computed(() => {
     if (!props.message.CreatorId) return '#e0e0e0'
     return isIncoming ? getColorByUserId(props.message.CreatorId) : ''
-})
+});
+
+function isSingleEmojiOnly(message: IArgonMessage): boolean {
+  const text = message.Text.trim();
+  const regex = emojiRegex();
+  const matches = [...text.matchAll(regex)];
+
+  return matches.length === 1 && matches[0][0] === text;
+}
 
 </script>
 
@@ -78,7 +92,6 @@ const bubbleColor = computed(() => {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin: 12px 16px;
 }
 
 .incoming {
