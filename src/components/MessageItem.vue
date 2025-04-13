@@ -69,7 +69,7 @@ onBeforeUnmount(() => {
 
 function getColorByUserId(userId: string): string {
     if (isMe) return "#446df1";
-    return "#666161";
+    return "#303030";
 }
 
 const bubbleColor = computed(() => {
@@ -139,7 +139,6 @@ function isSingleEmojiOnly(message: IArgonMessage): boolean {
 }
 
 .incoming .bubble {
-    color: black;
     background-color: #666161;
     border-top-left-radius: 4px;
 }
