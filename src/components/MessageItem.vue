@@ -135,7 +135,7 @@ function isSingleEmojiOnly(message: IArgonMessage): boolean {
     line-height: 1.4;
     word-break: break-word;
     white-space: pre-wrap;
-    background-color: #00;
+    background-color: #0088cc;
 }
 
 .incoming .bubble {
