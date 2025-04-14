@@ -5,13 +5,15 @@ import DevPanel from './components/DevPanel.vue';
 import { useSystemStore } from './store/systemStore';
 import {
   MinusIcon,
-  XIcon
+  XIcon,
+  FullscreenIcon
 } from 'lucide-vue-next';
-import { watch } from 'vue';
+import { ref, watch } from 'vue';
 import { usePreference } from './store/preferenceStore';
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
+const isRestored = ref(false);
 
 let mode = useColorMode();
 
@@ -31,6 +33,16 @@ const beginMove = () => {
 
 const pressSystemKey = (key: number) => {
   native.pressSystemKey(key);
+}
+
+const pressMaximize = () => {
+  if (isRestored.value) {
+    pressSystemKey(4);
+  } else {
+    pressSystemKey(3);
+  }
+
+  isRestored.value = !isRestored.value;
 }
 
 const endMove = () => {
@@ -60,6 +72,7 @@ const closeWindow = () => {
   <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
     <div class="sys-keyholder">
       <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
+      <FullscreenIcon height="16" width="16" class="close-icon" @click="pressMaximize"/>
       <XIcon height="16" width="16" class="close-icon" @click="closeWindow" />
     </div>
   </div>
@@ -102,7 +115,7 @@ const closeWindow = () => {
   position: absolute;
   top: 0;
   left: 0;
-  width: calc(100% - 60px);
+  width: calc(100% - 90px);
   height: 25px;
 }
 

@@ -139,7 +139,7 @@ function isSingleEmojiOnly(message: IArgonMessage): boolean {
 }
 
 .incoming .bubble {
-    color: black;
+    color: #fff;
     background-color: #666161;
     border-top-left-radius: 4px;
 }
