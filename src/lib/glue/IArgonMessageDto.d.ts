@@ -14,6 +14,7 @@ interface IArgonMessageDto
 	ChannelId: Guid;
 	ServerId: Guid;
 	Text: string;
-	entities: IMessageEntity[];
-	timeSent: number;
+	Entities: IMessageEntity[];
+	TimeSent: number;
+	Sender: Guid;
 }

@@ -31,7 +31,7 @@ import { useMe } from '@/store/meStore';
 import emojiRegex from 'emoji-regex';
 
 const props = defineProps<{
-    message: IArgonMessage
+    message: IArgonMessageDto
 }>()
 
 const bubble = ref<HTMLElement | null>(null)
@@ -43,13 +43,13 @@ const me = useMe();
 const isSingleEmojiMessage = isSingleEmojiOnly(props.message);
 
 const isIncoming = true;
-const isMe = props.message.CreatorId == me.me?.Id;
+const isMe = props.message.Sender == me.me?.Id;
 
 const loadUser = async () => {
-    user.value = await pool.getUser(props.message.CreatorId)
+    user.value = await pool.getUser(props.message.Sender)
 }
 
-watch(() => props.message.CreatorId, loadUser, { immediate: true })
+watch(() => props.message.Sender, loadUser, { immediate: true })
 
 const updateBackground = () => {
     if (!bubble.value) return
@@ -73,11 +73,11 @@ function getColorByUserId(userId: string): string {
 }
 
 const bubbleColor = computed(() => {
-    if (!props.message.CreatorId) return '#e0e0e0'
-    return isIncoming ? getColorByUserId(props.message.CreatorId) : ''
+    if (!props.message.Sender) return '#e0e0e0'
+    return isIncoming ? getColorByUserId(props.message.Sender) : ''
 });
 
-function isSingleEmojiOnly(message: IArgonMessage): boolean {
+function isSingleEmojiOnly(message: IArgonMessageDto): boolean {
   const text = message.Text.trim();
   const regex = emojiRegex();
   const matches = [...text.matchAll(regex)];

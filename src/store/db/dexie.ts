@@ -11,7 +11,7 @@ export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
   servers!: Table<IServer, Guid>;
   channels!: Table<IChannel, Guid>;
-  messages!: Table<IArgonMessage, number>;
+  messages!: Table<IArgonMessageDto, number>;
 
   constructor() {
     super('argon-db-v2');
