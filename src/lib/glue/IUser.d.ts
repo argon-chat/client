@@ -6,7 +6,6 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IArgonEntity.d.ts"/>
-///<reference path="IServerMember.d.ts"/>
 ///<reference path="LockdownReason.d.ts"/>
 
 interface IUser extends IArgonEntity
@@ -15,7 +14,7 @@ interface IUser extends IArgonEntity
 	Username: string;
 	DisplayName: string;
 	AvatarFileId?: string;
-	ServerMembers: IServerMember[];
+	ServerMembers: any[];
 	LockdownReason: LockdownReason;
 	LockDownExpiration?: Date;
 }

@@ -13,7 +13,6 @@ import { locales, Locale, LocaleSchema } from "@/locales";
 import 'vue3-emoji-picker/css';
 import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
-import VirtualScroller from "vue-virtual-scroller";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 
 if (argon.isArgonHost) {
@@ -48,6 +47,5 @@ Sentry.init({
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
-app.use(VirtualScroller)
 registerDirectives(app);
 app.mount("#app");

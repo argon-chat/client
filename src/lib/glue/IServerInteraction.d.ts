@@ -7,25 +7,25 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="ICreateChannelRequest.d.ts"/>
 ///<reference path="IRealtimeChannel.d.ts"/>
-///<reference path="IArgonMessage.d.ts"/>
+///<reference path="IArgonMessageDto.d.ts"/>
 ///<reference path="IMessageEntity.d.ts"/>
 ///<reference path="IRealtimeServerMember.d.ts"/>
 ///<reference path="JoinToChannelError.d.ts"/>
 ///<reference path="InviteCodeEntity.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
-///<reference path="IUser.d.ts"/>
+///<reference path="IUserDto.d.ts"/>
 
 interface IServerInteraction
 {
 	CreateChannel(request: ICreateChannelRequest) : Promise<void>;
 	DeleteChannel(serverId: Guid, channelId: Guid) : Promise<void>;
 	GetChannels(serverId: Guid) : Promise<IRealtimeChannel[]>;
-	GetMessages(channelId: Guid, count: number, offset: number) : Promise<IArgonMessage[]>;
+	GetMessages(channelId: Guid, count: number, offset: number) : Promise<IArgonMessageDto[]>;
 	SendMessage(channelId: Guid, text: string, entities: IMessageEntity[]) : Promise<void>;
 	GetMembers(serverId: Guid) : Promise<IRealtimeServerMember[]>;
 	JoinToVoiceChannel(serverId: Guid, channelId: Guid) : Promise<Either<string, JoinToChannelError>>;
 	DisconnectFromVoiceChannel(serverId: Guid, channelId: Guid) : Promise<void>;
 	GetInviteCodes(serverId: Guid) : Promise<InviteCodeEntity[]>;
 	CreateInviteCode(serverId: Guid, expiration: any) : Promise<InviteCode>;
-	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUser>;
+	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUserDto>;
 }

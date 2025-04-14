@@ -5,11 +5,15 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMemberDto.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
+///<reference path="IMessageEntity.d.ts"/>
 
-interface IRealtimeServerMember
+interface IArgonMessageDto
 {
-	Member: IServerMemberDto;
-	Status: UserStatus;
+	MessageId: number;
+	ReplyId?: number;
+	ChannelId: Guid;
+	ServerId: Guid;
+	Text: string;
+	entities: IMessageEntity[];
+	timeSent: number;
 }

@@ -13,7 +13,7 @@ import { useMe } from "./meStore";
 import { watch } from "vue";
 
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { 
-  User: IUser, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>, volume: Ref<number[]>
+  User: IUserDto, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>, volume: Ref<number[]>
 };
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
@@ -145,8 +145,8 @@ export const usePoolStore = defineStore("data-pool", () => {
     await db.servers.put(server, server.Id);
   };
 
-  const trackUser = async function (user: IUser, extendedStatus?: UserStatus) {
-    const exist = await db.users.get(user.Id);
+  const trackUser = async function (user: IUserDto, extendedStatus?: UserStatus) {
+    const exist = await db.users.get(user.UserId);
     if (exist) {
       // @ts-ignore
       await db.users.update(exist.Id, {
@@ -160,7 +160,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         ...user,
         status: extendedStatus ?? "Offline",
       },
-      user.Id
+      user.UserId
     );
   };
 
@@ -184,7 +184,7 @@ export const usePoolStore = defineStore("data-pool", () => {
    
   };
 
-  const onNewMessageReceived: Subject<IArgonMessage> = new Subject<IArgonMessage>();
+  const onNewMessageReceived: Subject<IArgonMessageDto> = new Subject<IArgonMessageDto>();
 
   const subscribeToEvents = function () {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
@@ -341,7 +341,8 @@ export const usePoolStore = defineStore("data-pool", () => {
       logger.log(`Loaded '${users.length}' users`, users);
 
       for (const u of users) {
-        await trackUser(u.Member.User, u.Status);
+        if (u.Member.User)
+          await trackUser(u.Member.User, u.Status);
       }
 
       const channels = await api.serverInteraction.GetChannels(s.Id);
@@ -360,13 +361,18 @@ export const usePoolStore = defineStore("data-pool", () => {
             );
           }
 
-          selectedUser = users.filter(z => z.Member.Id == uw.UserId).at(0);
+          let member = selectedUser!.Member.User;
+
+
+          if (!member) {
+            member = await api.serverInteraction.PrefetchUser(c.Channel.ServerId, selectedUser?.Member.UserId!);
+          }
 
           if (!selectedUser) {
             logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
             continue;
           }
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: selectedUser.Member.User, isSpeaking: ref(false), isMuted: ref(false), isScreenShare: ref(false), volume: ref([100])});
+          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: member, isSpeaking: ref(false), isMuted: ref(false), isScreenShare: ref(false), volume: ref([100])});
         }
         await trackChannel(c.Channel, we);
       }

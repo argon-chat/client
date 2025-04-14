@@ -5,11 +5,13 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMemberDto.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
+///<reference path="IUserDto.d.ts"/>
 
-interface IRealtimeServerMember
+interface IServerMemberDto
 {
-	Member: IServerMemberDto;
-	Status: UserStatus;
+	UserId: Guid;
+	ServerId: Guid;
+	JoinedAt: number;
+	MemberId: Guid;
+	User?: IUserDto;
 }

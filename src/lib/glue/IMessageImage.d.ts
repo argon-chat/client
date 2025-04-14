@@ -9,7 +9,7 @@
 
 interface IMessageImage extends IArgonEntityWithOwnership
 {
-	MessageId: Guid;
+	MessageId: number;
 	FileName: string;
 	MimeType: string;
 	IsVideo: boolean;

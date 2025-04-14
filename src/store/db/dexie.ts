@@ -1,7 +1,7 @@
 import { UserStatus } from '@/lib/glue/UserStatus';
 import Dexie, { Table } from 'dexie';
 
-export type RealtimeUser = IUser & { status: UserStatus };
+export type RealtimeUser = IUserDto & { status: UserStatus };
 
 
 export class PoolDatabase extends Dexie {
@@ -11,7 +11,7 @@ export class PoolDatabase extends Dexie {
   messages!: Table<IArgonMessage, number>;
 
   constructor() {
-    super('argon-db');
+    super('argon-db-v2');
     this.version(1).stores({
       users: 'Id',
       servers: 'Id',

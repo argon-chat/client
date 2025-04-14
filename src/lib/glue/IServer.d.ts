@@ -8,7 +8,6 @@
 ///<reference path="Argon/ArchetypeModel/IArchetypeSubject.d.ts"/>
 ///<reference path="IArgonEntityWithOwnership.d.ts"/>
 ///<reference path="IChannel.d.ts"/>
-///<reference path="IServerMember.d.ts"/>
 ///<reference path="IArchetype.d.ts"/>
 
 interface IServer extends Argon.ArchetypeModel.IArchetypeSubject, IArgonEntityWithOwnership
@@ -18,7 +17,7 @@ interface IServer extends Argon.ArchetypeModel.IArchetypeSubject, IArgonEntityWi
 	AvatarFileId?: string;
 	TopBannedFileId?: string;
 	Channels: IChannel[];
-	Users: IServerMember[];
+	Users: any[];
 	Archetypes: IArchetype[];
 	SubjectArchetypes: any[];
 }

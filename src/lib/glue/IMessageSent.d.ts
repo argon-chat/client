@@ -5,10 +5,10 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IArgonMessage.d.ts"/>
+///<reference path="IArgonMessageDto.d.ts"/>
 
 interface MessageSent extends IArgonEvent
 {
 	EventKey: 'MessageSent';
-	message: IArgonMessage;
+	message: IArgonMessageDto;
 }

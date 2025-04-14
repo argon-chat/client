@@ -5,6 +5,7 @@ import tailwind from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
 import Icons from 'unplugin-icons/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import AutoVersionPlugin from './vite-plugin-auto-version'
 export default defineConfig({
   server: {
     port: 5005,
@@ -22,6 +23,7 @@ export default defineConfig({
     vue(),
     Icons({ compiler: 'vue3', autoInstall: true }) as any,
     vueDevTools(),
+    AutoVersionPlugin()
   ],
   resolve: {
     alias: {

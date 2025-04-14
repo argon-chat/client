@@ -1,7 +1,10 @@
 {
   "name": "ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.349.543.8",
+  "lastBuildTime": "2025-04-14T23:26:08.571Z",
+  "fullVersion": "1.349.543.8-master",
+  "branch": "master",
   "type": "module",
   "scripts": {
     "dev": "vite",
