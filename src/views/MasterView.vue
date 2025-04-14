@@ -16,10 +16,10 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
         <h3 class="text-lg text-white mb-4">{{ t("users") }}</h3>
         <ul class="text-gray-400 space-y-2">
-          <li v-for="user in dataPool.activeServerUsers.value" :key="user.Id"
+          <li v-for="user in dataPool.activeServerUsers.value" :key="user.UserId"
             class="flex items-center space-x-3 hover:text-white">
             <div class="relative">
-              <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.Id" />
+              <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.UserId" />
               <span :class="statusClass(user.status)"
                 class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
             </div>

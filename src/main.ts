@@ -14,10 +14,16 @@ import 'vue3-emoji-picker/css';
 import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
+import pkg from "../package.json";
 
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
 }
+
+(window as any).ui_version = pkg.version;
+(window as any).ui_buildtime = pkg.lastBuildTime;
+(window as any).ui_fullversion = pkg.fullVersion;
+(window as any).ui_branch = pkg.branch;
 
 export const i18n = createI18n<[LocaleSchema], Locale>({
   locale: "en",
