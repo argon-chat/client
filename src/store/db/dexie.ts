@@ -4,6 +4,9 @@ import Dexie, { Table } from 'dexie';
 export type RealtimeUser = IUserDto & { status: UserStatus };
 
 
+const tryDropOldDb = (s: string) => { try { indexedDB.deleteDatabase(s) } catch {} };
+
+
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
   servers!: Table<IServer, Guid>;
@@ -13,16 +16,18 @@ export class PoolDatabase extends Dexie {
   constructor() {
     super('argon-db-v2');
     this.version(1).stores({
-      users: 'Id',
+      users: 'UserId',
       servers: 'Id',
       channels: 'Id, ServerId',
     });
     this.version(2).stores({
-      users: 'Id',
+      users: 'UserId',
       servers: 'Id',
       channels: 'Id, ServerId',
       messages: 'MessageId, [ChannelId+MessageId], [ServerId+ChannelId+MessageId]',
     });
+
+    tryDropOldDb("argon-db");
   }
 }
 

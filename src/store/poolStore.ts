@@ -148,8 +148,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const trackUser = async function (user: IUserDto, extendedStatus?: UserStatus) {
     const exist = await db.users.get(user.UserId);
     if (exist) {
-      // @ts-ignore
-      await db.users.update(exist.Id, {
+      await db.users.update(exist.UserId, {
         ...user,
         status: extendedStatus ?? "Offline",
       });
