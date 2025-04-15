@@ -7,12 +7,11 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="Argon/ArchetypeModel/IArchetypeObject.d.ts"/>
 ///<reference path="IArgonEntityWithOwnership.d.ts"/>
-///<reference path="ChannelType.d.ts"/>
 ///<reference path="IChannelEntitlementOverwrite.d.ts"/>
 
 interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IArgonEntityWithOwnership
 {
-	ChannelType: ChannelType;
+	ChannelType: 'Announcement' | 'Voice' | 'Text';
 	ServerId: Guid;
 	Name: string;
 	Description?: string;

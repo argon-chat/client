@@ -27,12 +27,13 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const selectedServer = ref(null as Guid | null);
   const selectedChannel = ref(null as Guid | null);
+  const selectedTextChannel = ref(null as Guid | null);
 
 
   const onChannelChanged = new Subject<Guid | null>();
 
 
-  watch(selectedChannel, (newChannelId, oldChannelId) => {
+  watch(selectedTextChannel, (newChannelId, oldChannelId) => {
     if (newChannelId != oldChannelId)
       onChannelChanged.next(newChannelId);
   })
@@ -55,7 +56,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   }
 
   const getUser = async function (userId: Guid) {
-    return await db.users.where("Id").equals(userId).first();
+    return await db.users.where("UserId").equals(userId).first();
   }
 
   const getBatchUser = async function (userIds: Guid[]) {
@@ -350,6 +351,10 @@ export const usePoolStore = defineStore("data-pool", () => {
       const trackedIds: Array<Guid> = [];
 
       for (const c of channels) {
+
+        if (c.Channel.ChannelType === "Text" && !selectedTextChannel.value) {
+          selectedTextChannel.value = c.Channel.Id;
+        }
         trackedIds.push(c.Channel.Id);
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
@@ -399,6 +404,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     selectedServer,
     selectedChannel,
+    selectedTextChannel,
     onChannelChanged,
     onNewMessageReceived,
 

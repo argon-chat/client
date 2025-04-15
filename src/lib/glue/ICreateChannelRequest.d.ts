@@ -5,12 +5,11 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="ChannelType.d.ts"/>
 
 interface ICreateChannelRequest
 {
 	serverId: Guid;
 	name: string;
-	kind: ChannelType;
+	kind: 'Announcement' | 'Voice' | 'Text';
 	desc: string;
 }
