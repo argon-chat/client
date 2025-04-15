@@ -26,7 +26,7 @@ const props = defineProps<{
 
 const scroller = useTemplateRef<HTMLElement>("scroller");
 
-const messages = ref([] as IArgonMessage[]);
+const messages = ref([] as IArgonMessageDto[]);
 
 const hasEnded = ref(false);
 

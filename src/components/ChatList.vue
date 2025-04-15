@@ -239,7 +239,7 @@ async function channelSelect(channelId: string) {
   const channel = await pool.getChannel(channelId);
   
   if (channel && channel.ChannelType != "Voice") {
-    pool.selectedChannel = channel.Id;
+    pool.selectedTextChannel = channel.Id;
   }
 
   if (voice.activeChannel) {

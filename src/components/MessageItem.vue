@@ -4,15 +4,26 @@
         outgoing: !isIncoming
     }" v-if="user">
         <ArgonAvatar :file-id="user.AvatarFileId ?? null" :fallback="user.DisplayName" :serverId="message.ServerId"
-            :userId="user.Id" class="avatar" />
+            :userId="user.UserId" class="avatar" />
 
         <div class="message-content">
             <div class="meta">
                 <span class="username">{{ user?.DisplayName || 'Неизвестный' }}</span>
+                
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger>
+                            <span class="time">{{ formattedTime }}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{{ formattedFullTime }}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             <div class="bubble" v-if="!isSingleEmojiMessage" :style="{
                 backgroundPositionY: backgroundOffset + 'px',
-                backgroundColor: bubbleColor 
+                backgroundColor: bubbleColor
             }" ref="bubble">
                 {{ message.Text }}
             </div>
@@ -29,6 +40,14 @@ import { usePoolStore } from '@/store/poolStore'
 import ArgonAvatar from '@/components/ArgonAvatar.vue'
 import { useMe } from '@/store/meStore';
 import emojiRegex from 'emoji-regex';
+import { RealtimeUser } from '@/store/db/dexie';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger
+} from '@/components/ui/tooltip'
+import { useDateFormat } from '@vueuse/core';
 
 const props = defineProps<{
     message: IArgonMessageDto
@@ -37,7 +56,7 @@ const props = defineProps<{
 const bubble = ref<HTMLElement | null>(null)
 const backgroundOffset = ref(0)
 const pool = usePoolStore()
-const user = ref<any>(null)
+const user = ref(undefined as RealtimeUser | undefined)
 const me = useMe();
 
 const isSingleEmojiMessage = isSingleEmojiOnly(props.message);
@@ -66,6 +85,14 @@ onBeforeUnmount(() => {
     window.removeEventListener('scroll', updateBackground)
 });
 
+const formattedTime = computed(() => {
+    const date = new Date(props.message.TimeSent * 1000);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+});
+
+const formattedFullTime = useDateFormat(new Date(props.message.TimeSent * 1000), 'YYYY-MM-DD HH:mm:ss')
 
 function getColorByUserId(userId: string): string {
     if (isMe) return "#446df1";
@@ -78,11 +105,11 @@ const bubbleColor = computed(() => {
 });
 
 function isSingleEmojiOnly(message: IArgonMessageDto): boolean {
-  const text = message.Text.trim();
-  const regex = emojiRegex();
-  const matches = [...text.matchAll(regex)];
+    const text = message.Text.trim();
+    const regex = emojiRegex();
+    const matches = [...text.matchAll(regex)];
 
-  return matches.length === 1 && matches[0][0] === text;
+    return matches.length === 1 && matches[0][0] === text;
 }
 
 </script>
@@ -116,6 +143,17 @@ function isSingleEmojiOnly(message: IArgonMessageDto): boolean {
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.meta .time {
+    font-size: 12px;
+    color: #888;
 }
 
 .meta .username {

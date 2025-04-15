@@ -58,9 +58,10 @@ const getChannel = function (channelId: Guid) {
 onMounted(async () => {
     subs.value = pool.onChannelChanged.subscribe(onChannelChanged)
 
-    if (pool.selectedChannel) {
-        logger.log("Selected channel", pool.selectedChannel);
-        channelData.value = (await getChannel(pool.selectedChannel!))!;
+    if (pool.selectedTextChannel) {
+        logger.log("Selected channel", pool.selectedTextChannel);
+        hiddenChannelId.value = pool.selectedTextChannel;
+        channelData.value = (await getChannel(pool.selectedTextChannel!))!;
     }
 });
 
