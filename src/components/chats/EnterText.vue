@@ -44,8 +44,14 @@ const emit = defineEmits<{
     (e: 'send', html: string, rawText: string): void;
 }>();
 const handleSend = async () => {
-    if (!message.value.trim()) return;
-    if (!pool.selectedChannel) return;
+    if (!message.value.trim()) {
+        logger.warn("after trim message is empty");
+        return;
+    }
+    if (!pool.selectedTextChannel) {
+        logger.warn("selected text channel is not defined");
+        return;
+    }
 
     const md = await renderMarkdown(message.value);
 
@@ -62,7 +68,7 @@ const handleSend = async () => {
     }
 
     
-    await api.serverInteraction.SendMessage(pool.selectedChannel, entities.text, entitiesList);
+    await api.serverInteraction.SendMessage(pool.selectedTextChannel, entities.text, entitiesList);
     /*logger.log(entities);
     logger.log(renderTextWithEntities({
         text: entities.text,
