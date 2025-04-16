@@ -31,7 +31,7 @@
                         Destroy all data, reset storages (and authorization too)
                     </div>
                 </div>
-                <button @click="pruneDatabases" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
+                <button @click="pruneDatabases(true)" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
                     Prune Databases
                 </button>
             </div>
@@ -50,6 +50,64 @@
                 </button>
             </div>
             <br />
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        Channel
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        Select update channel
+                    </div>
+                </div>
+                <Select v-model="selected_channel">
+                    <SelectTrigger class="w-[180px]" :disabled="disable_channel_select">
+                        <SelectValue placeholder="Live" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="beta">
+                                Beta Channel
+                            </SelectItem>
+                            <SelectItem value="canary" :disabled="true">
+                                Canary Channel
+                            </SelectItem>
+                            <SelectItem value="live">
+                                Live
+                            </SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </div>
+            <br />
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        API Endpoint
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        (WARNING: after change endpoint all data has been cleared)
+                    </div>
+                </div>
+                <Select v-model="selected_api_endpoint">
+                    <SelectTrigger class="w-[180px]">
+                        <SelectValue placeholder="Live" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="live">
+                                Live
+                            </SelectItem>
+                            <SelectItem value="dev">
+                                Development
+                            </SelectItem>
+                            <SelectItem value="local">
+                                Local
+                            </SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </div>
+            <br />
             <div class="flex flex-col text-gray-500 items-center justify-between rounded-lg border p-4">
                 <label class="block font-semibold mb-1">Version: {{ version }}</label>
                 <label class="block font-semibold mb-1">Build Time: {{ buildtime }}</label>
@@ -64,8 +122,16 @@ import { useMe } from '@/store/meStore';
 import { usePreference } from '@/store/preferenceStore';
 import Switch from '../ui/switch/Switch.vue';
 import { useLocale } from '@/store/localeStore';
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { logger } from '@/lib/logger';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 const { t } = useLocale();
 
 const me = useMe();
@@ -73,12 +139,49 @@ const preferenceStore = usePreference();
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
 const host_version = ref((window as any).argon_host_version_full as string);
+const selected_channel = ref("live" as "live" | "canary" | "beta");
+const disable_channel_select = ref(false);
+
+const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
+
 
 const toggleDevTools = () => {
     native.toggleDevTools();
 }
 
-const pruneDatabases = async () => {
+watch(selected_channel, (e) => {
+    native.setChannel(e);
+});
+
+watch(selected_api_endpoint, async (e) => {
+    if (!e) return;
+    if (localStorage.getItem("api_endpoint") == e)
+        return;
+    localStorage.setItem("api_endpoint", e);
+
+
+    localStorage.removeItem("token");
+    await pruneDatabases(false);
+})
+
+onMounted(() => {
+    if (!argon.isArgonHost) {
+        disable_channel_select.value = true;
+    } else {
+        selected_channel.value = native.getCurrentChannel();
+    }
+
+
+    const currentApiEndpoint = localStorage.getItem("api_endpoint");
+
+    if (currentApiEndpoint) {
+        selected_api_endpoint.value = currentApiEndpoint as "live" | "dev" | "local";
+    } else {
+        localStorage.setItem("api_endpoint", "live");
+    }
+})
+
+const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
     const allIndexDbs = await indexedDB.databases();
 
     for (let db of allIndexDbs) {
@@ -100,7 +203,8 @@ const pruneDatabases = async () => {
         }
     }
 
-    localStorage.clear();
+    if (pruneLocalStorage)
+        localStorage.clear();
 
     location.reload();
 }
@@ -110,5 +214,9 @@ const pruneDatabases = async () => {
 .profile-settings {
     max-width: 600px;
     margin: 0 auto;
+}
+
+.focus\:ring-ring:focus {
+    --tw-ring-color: hsl(0deg 0% 0% / 0%);
 }
 </style>

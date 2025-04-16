@@ -38,9 +38,19 @@ export const useConfig = defineStore("config", () => {
   }
 
   const isGenderEnabled = computed(() => boolVal("enabled_sex_field"));
-  const apiEndpoint = computed(() => stringVal("apiEndpoint"));
+  const apiEndpoint = computed(() => {
+    const endpointSelector = localStorage.getItem("api_endpoint");
+    if (endpointSelector && endpointSelector == "live")
+      return stringVal("apiEndpoint");
+    if (endpointSelector && endpointSelector == "dev")
+      return stringVal("apiDevEndpoint") ?? "https://dev.argon.gl";
+    if (endpointSelector && endpointSelector == "local")
+      return stringVal("apiLocalEndpoint") ?? "https://localhost:5001";
+    return stringVal("apiEndpoint");
+  });
   const cdnEndpoint = computed(() => stringVal("cdnEndpoint"));
   const webRtcEndpoint = computed(() => stringVal("webRtcEndpoint"));
+  const isDev = computed(() => localStorage.getItem("api_endpoint") === "dev");
 
   const scheme = z.object({
     cdnEndpoint: z.string().describe("CDN Endpoint").default(() => cdnEndpoint.value),
@@ -58,5 +68,6 @@ export const useConfig = defineStore("config", () => {
     setOverride,
     removeOverride,
     clearOverrides,
+    isDev
   };
 });

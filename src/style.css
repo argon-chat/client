@@ -79,3 +79,7 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.focus-visible\:ring-ring:focus-visible {
+  --tw-ring-color: hsl(0deg 0% 0% / 0%);
+}
