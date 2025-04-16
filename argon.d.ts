@@ -99,6 +99,10 @@ declare global {
 
 
     toggleDevTools(): boolean;
+
+
+    getCurrentChannel(): "beta" | "canary" | "live";
+    setChannel(val: "beta" | "canary" | "live"): boolean;
   }
 
   interface IPinnedObject {}

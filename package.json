@@ -1,10 +1,10 @@
 {
   "name": "ui",
   "private": true,
-  "version": "1.349.571.12",
-  "lastBuildTime": "2025-04-15T10:46:45.289Z",
-  "fullVersion": "1.349.571.12-master",
-  "branch": "master",
+  "version": "1.349.581.14",
+  "lastBuildTime": "2025-04-16T22:37:42.069Z",
+  "fullVersion": "1.349.581.14-HEAD",
+  "branch": "HEAD",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -52,7 +52,7 @@
     "pinia": "^2.3.0",
     "pinia-plugin-persistedstate": "^4.2.0",
     "radix-icons": "^1.0.0",
-    "radix-vue": "^1.9.12",
+    "radix-vue": "1.9.17",
     "reflect-metadata": "^0.2.2",
     "rttist": "^1.0.0-beta.7",
     "rxjs": "^7.8.1",

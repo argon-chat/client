@@ -5,9 +5,10 @@ import router from '@/router';
 import { useAuthStore } from '@/store/authStore';
 import { onMounted } from 'vue';
 import { useLocale } from '@/store/localeStore';
+import { useConfig } from '@/store/remoteConfig';
 
 const { t } = useLocale();
-
+const cfg = useConfig();
 
 const quotes = [
     { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
@@ -45,7 +46,7 @@ onMounted(() => {
                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="mr-2 h-6 w-6">
                     <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
                 </svg>
-                Argon Chat
+                Argon Chat {{ cfg.isDev ? '[DEVELOPMENT]' : '' }}
             </div>
             <div class="relative z-20 mt-auto">
                 <blockquote class="space-y-2">
