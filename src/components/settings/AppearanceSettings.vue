@@ -1,5 +1,5 @@
 <template>
-    <div class="profile-settings p-6  text-white rounded-lg space-y-6" v-if="me.me">
+    <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
         <h2 class="text-2xl font-bold">Profile Settings</h2>
         <div class="avatar-username flex items-center space-x-4">
             <div class="avatar">

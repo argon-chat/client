@@ -1,5 +1,5 @@
 <template>
-    <div class="connected-devices p-6 text-white rounded-lg space-y-6">
+    <div class="connected-devices text-white rounded-lg space-y-6">
         <h2 class="text-2xl font-bold">{{ t("app_language") }}</h2>
 
         <RadioGroup v-model="loc">

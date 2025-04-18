@@ -1,5 +1,5 @@
 <template>
-    <div class="connected-devices p-6 text-white rounded-lg space-y-6">
+    <div class="connected-devices text-white rounded-lg space-y-6">
         <h2 class="text-2xl font-bold">{{ t("connected_devices") }}</h2>
 
         <div v-for="device in devices" :key="device.id" class="device-item flex items-center justify-between p-4 rounded-md border border-dashed">
