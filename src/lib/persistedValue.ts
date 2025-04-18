@@ -2,9 +2,50 @@ import { ref, reactive, watch, watchEffect, type Ref, type UnwrapRef, Reactive }
 import superjson from 'superjson';
 import { logger } from './logger';
 
+export type PersistedRef<T> = {
+  readonly value: UnwrapRef<T>;
+  set: (value: T) => void;
+  set_key: <K extends keyof T>(key: K, value: T[K]) => void;
+  destroy: () => void;
+};
+
+export function persisted<T>(id: string, initial_value: T): PersistedRef<T> {
+  const get_store = () => JSON.parse(localStorage.getItem(id)!) as T;
+
+  const store = ref<T>(get_store() ?? initial_value);
+  const locked = ref(false);
+
+  function set(value: T) {
+      if (locked.value) return;
+      store.value = value as UnwrapRef<T>;
+      localStorage.setItem(id, JSON.stringify(value));
+  }
+
+  function set_key<K extends keyof T>(key: K, value: T[K]) {
+      const s = get_store();
+      s[key] = value;
+      set(s);
+  }
+
+  return {
+      get value() {
+          return store.value;
+      },
+      set,
+      set_key,
+      destroy() {
+          locked.value = true;
+          localStorage.removeItem(id);
+      },
+  };
+}
+
 export function persistedValue<T extends object | string | number | boolean>(
   key: string,
-  defaultValue: T
+  defaultValue: T extends number ? number :
+                T extends string ? string :
+                T extends boolean ? boolean :
+                T
 ): T extends object ? Reactive<T> : Ref<T> {
 
   logger.log("Persist value", key, defaultValue);

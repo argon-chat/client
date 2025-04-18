@@ -103,6 +103,7 @@ declare global {
 
     getCurrentChannel(): "beta" | "canary" | "live";
     setChannel(val: "beta" | "canary" | "live"): boolean;
+    isRequiredToUpdate(): boolean;
   }
 
   interface IPinnedObject {}
