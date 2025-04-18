@@ -252,6 +252,8 @@ const toggleScreenCast = function () {
 
 
 async function getPreviewForScreen(display: IScreen) {
+    if (!argon.isArgonHost) return new MediaStream();
+
     const p = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
@@ -268,6 +270,7 @@ async function getPreviewForScreen(display: IScreen) {
 }
 
 async function getPreviewForWindow(window: IWindowInfo) {
+    if (!argon.isArgonHost) return new MediaStream();
     const p = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
@@ -322,20 +325,10 @@ onMounted(async () => {
             Left: 0,
             Top: 0,
             Width: 2560
-        },
-        {
-            DisplayIndex: "1",
-            Freq: 165,
-            Height: 1440,
-            IsPrimary: true,
-            Left: 0,
-            Top: 0,
-            Width: 2560
         }]
     };
 
     const sce = [] as IScreenWithPreview[];
-
 
     for (let i of sc) {
         sce.push({ ...i, preview: await getPreviewForScreen(i), selected: sce.length == 0 });
