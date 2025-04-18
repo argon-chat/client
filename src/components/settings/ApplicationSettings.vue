@@ -1,5 +1,5 @@
 <template>
-    <div class="profile-settings p-6  text-white rounded-lg space-y-6" v-if="me.me">
+    <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
         <h2 class="text-2xl font-bold">{{ t("application_settings") }}</h2>
         <div>
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -11,13 +11,14 @@
                         {{ t("minimize_to_tray") }}
                     </div>
                 </div>
-                <Switch :checked="preferenceStore.minimizeToTrayOnClose"
+                <Switch :disabled="!isArgonHost" :checked="preferenceStore.minimizeToTrayOnClose"
                     @update:checked="(x) => preferenceStore.minimizeToTrayOnClose = x" />
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <label class="block font-semibold mb-1">Dev Tools</label>
-                <button @click="toggleDevTools" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
+                <button @click="toggleDevTools"
+                    class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
                     Open Dev Tools
                 </button>
             </div>
@@ -31,7 +32,8 @@
                         Destroy all data, reset storages (and authorization too)
                     </div>
                 </div>
-                <button @click="pruneDatabases(true)" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
+                <button @click="pruneDatabases(true)"
+                    class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
                     Prune Databases
                 </button>
             </div>
@@ -45,8 +47,19 @@
                         Open diagnostic control panel
                     </div>
                 </div>
-                <button class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
+                <button class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
                     Open Diagnostic Board
+                </button>
+            </div>
+            <br />
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        Copy My UserId
+                    </div>
+                </div>
+                <button @click="copyMyUserId" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
+                    Copy
                 </button>
             </div>
             <br />
@@ -131,8 +144,10 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/toast/'
 const { t } = useLocale();
+const toast = useToast();
 
 const me = useMe();
 const preferenceStore = usePreference();
@@ -143,10 +158,17 @@ const selected_channel = ref("live" as "live" | "canary" | "beta");
 const disable_channel_select = ref(false);
 
 const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
-
+const isArgonHost = ref(argon.isArgonHost);
 
 const toggleDevTools = () => {
     native.toggleDevTools();
+}
+
+const copyMyUserId = () => {
+    toast.toast({
+        title: "Your UserId has been copied!"
+    });
+    navigator.clipboard.writeText(me.me?.Id ?? "error");
 }
 
 watch(selected_channel, (e) => {
