@@ -63,5 +63,20 @@
     "application": "Приборы на борту",
     "voice_video": "Говори и показывай",
     "hotkeys": "Горячие клинки",
-    "languages": "Языки мореплавателей"
+    "languages": "Языки мореплавателей",
+    "sounds": "Звуки",
+    "playSoftEnterSound": "Звук входа на палубу",
+    "playSoftEnterSound_details": "Врубить звук, когда абордажник ступает на палубу?",
+    "playSoftLeaveSound": "Звук покидания палубы",
+    "playSoftLeaveSound_details": "Грянуть прощальный звон, как кто-то слинял с корабля?",
+    "playMuteAllSound": "Звук затыкания ртов",
+    "playMuteAllSound_details": "Проигрывать ли звук, когда заткнули всех болтунов аль развязали им язык?",
+    "playReconnectSound": "Звук возвращения к братве",
+    "playReconnectSound_details": "Бросить якорь звуком при повторном присоединении?",
+    "playUnmuteAllSound": "Звук развязывания языка",
+    "playUnmuteAllSound_details": "Проиграть звук, как только крик снова разрешён?",
+    "playNotificationSound": "Звук морского гонца",
+    "playNotificationSound_details": "Пустить тревожный звон, как весточка пришла?",
+    "playRingSound": "Звон абордажного колокола",
+    "playRingSound_details": "Бить в колокол, когда кто-то зовёт на палубу?"
 }

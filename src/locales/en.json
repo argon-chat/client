@@ -3,8 +3,6 @@
     "ok": "Confirm",
     "or": "or",
     "start": "Start",
-
-
     "wait_connect": "Waiting for connection, please wait...",
     "create_new_server": "Create New Server",
     "join_to_server": "Join Server",
@@ -33,8 +31,6 @@
     "hotkey": "Hotkey",
     "press_any_key": "Press any key combination...",
     "app_language": "App Language",
-
-
     "close_behaviour": "Close Behaviour",
     "minimize_to_tray": "Minimize to tray or close application",
     "application_settings": "Application Settings",
@@ -54,15 +50,12 @@
     "phone_number": "Phone Number",
     "otp_title": "Two-Factor Authentication (OTP)",
     "delete_account": "Delete Account",
-
-
     "key.microphone.toggle": "Toggle mute in microphone",
     "key.microphone.on": "Disable mute in microphone",
     "key.microphone.off": "Mute microphone",
     "key.sound.toggle": "丈太郎ムダムダ",
     "key.sound.on": "丈太郎ムダムダ",
     "key.sound.off": "丈太郎ムダムダ",
-
     "invite_codes": "Invite Codes",
     "select_camera": "Select Camera",
     "no_camera_found": "No cameras found",
@@ -76,5 +69,20 @@
     "application": "Application",
     "voice_video": "Voice & Video",
     "hotkeys": "Hot & keys",
-    "languages": "Languages"
+    "languages": "Languages",
+    "sounds": "Sounds",
+    "playSoftEnterSound": "Channel Join Sound",
+    "playSoftEnterSound_details": "Should the channel join sound be played?",
+    "playSoftLeaveSound": "Channel Leave Sound",
+    "playSoftLeaveSound_details": "Should the channel leave sound be played?",
+    "playMuteAllSound": "Mute/Unmute Sound",
+    "playMuteAllSound_details": "Should the mute/unmute sound be played?",
+    "playReconnectSound": "Reconnect Sound",
+    "playReconnectSound_details": "Should the reconnect sound be played?",
+    "playUnmuteAllSound": "Unmute Sound",
+    "playUnmuteAllSound_details": "Should the unmute sound be played?",
+    "playNotificationSound": "Notification Sound",
+    "playNotificationSound_details": "Should the notification sound be played?",
+    "playRingSound": "Ring Sound",
+    "playRingSound_details": "Should the ring sound be played?"
 }

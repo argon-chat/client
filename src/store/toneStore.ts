@@ -1,130 +1,79 @@
-import { defineStore } from "pinia";
-import { logger } from "@/lib/logger";
-
-import * as Tone from "tone";
-
-(window as any).Tone = Tone;
+import { defineStore, storeToRefs } from "pinia";
+import { usePreference } from "./preferenceStore";
+import { Ref, ref } from "vue";
+import { useSound } from "@vueuse/sound";
+import normalizedAtlas from "@/assets/sounds/normalized_atlas.wav";
 
 export const useTone = defineStore("tone", () => {
-  const audioCtx: AudioContext = new AudioContext({
-    sampleRate: 48000,
-    latencyHint: "playback",
+  const prefs = usePreference();
+  const _soundLevel = ref(0.5);
+
+  const {
+    isEnable_playSoftEnterSound,
+    isEnable_playReconnectSound,
+    isEnable_playSoftLeaveSound,
+    isEnable_playMuteAllSound,
+    isEnable_playUnmuteAllSound,
+    isEnable_playNotificationSound,
+    isEnable_playRingSound,
+  } = storeToRefs(prefs);
+
+  const { play } = useSound(normalizedAtlas, {
+    volume: _soundLevel,
+    sprite: {
+      playMuteAllSound: [0, 1006],
+      playUnmuteAllSound: [1022, 1876 - 1022],
+      playSoftEnterSound: [1876, 2923 - 1876],
+      playSoftLeaveSound: [2923, 4083 - 2923],
+      playNotificationSound: [4083, 5335 - 4083],
+      playRingSound: [5335, 8665 - 5335],
+      playReconnectSound: [9879, 12046 - 9879],
+    },
   });
 
-  function init() {
-    Tone.setContext(audioCtx);
-    logger.info(`inited audio context '${audioCtx.sampleRate}'Hz`);
+  prefs.onSoundLevelChanged.subscribe((e) => {
+    _soundLevel.value = e;
+  });
+
+  function init() {}
+
+  function playSoftEnterSound() {
+    play_id("playSoftEnterSound", isEnable_playSoftEnterSound);
+  }
+  function playReconnectSound() {
+    play_id("playReconnectSound", isEnable_playReconnectSound);
+  }
+  function playSoftLeaveSound() {
+    play_id("playSoftLeaveSound", isEnable_playSoftLeaveSound);
+  }
+  function playMuteAllSound() {
+    play_id("playMuteAllSound", isEnable_playMuteAllSound);
+  }
+  function playUnmuteAllSound() {
+    play_id("playUnmuteAllSound", isEnable_playUnmuteAllSound);
+  }
+  function playNotificationSound() {
+    play_id("playNotificationSound", isEnable_playNotificationSound);
+  }
+  function playRingSound() {
+    play_id("playRingSound", isEnable_playRingSound);
   }
 
-  async function playSoftEnterSound() {
-    if (audioCtx.state == "suspended")
-      await Tone.start();
-    const reverb = new Tone.Reverb(2).toDestination();
-    const synth = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.03, decay: 0.3, sustain: 0.2, release: 0.7 },
-    }).connect(reverb);
-
-    synth.triggerAttackRelease("D5", "16n");
-    setTimeout(() => {
-      synth.triggerAttackRelease("G5", "16n");
-    }, 120);
+  function play_id(id: string, isEnabled: Ref<boolean>) {
+    if (!isEnabled.value) return;
+    play({ id: id as any });
   }
 
-
-  async function playReconnectSound() {
-    if (audioCtx.state == "suspended")
-      await Tone.start();
-    const reverb = new Tone.Reverb({
-      decay: 2.5,
-      wet: 0.4,
-    }).toDestination();
-  
-    const synth = new Tone.Synth({
-      oscillator: { type: "sine" }, 
-      envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 0.8 }, // Плавный переход
-    }).connect(reverb);
-  
-    synth.triggerAttackRelease("D4", "16n");
-  
-    setTimeout(() => {
-      synth.triggerAttackRelease("C4" , "16n");
-    }, 150);
-  
-    setTimeout(() => {
-      synth.triggerAttackRelease("A4", "16n");
-    }, 300);
-  }
-
-  async function playSoftLeaveSound() {
-    if (audioCtx.state == "suspended")
-      await Tone.start();
-    const reverb = new Tone.Reverb(2).toDestination();
-    const synth = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.03, decay: 0.3, sustain: 0.1, release: 0.7 },
-    }).connect(reverb);
-
-    synth.triggerAttackRelease("D5", "16n");
-    setTimeout(() => {
-      synth.triggerAttackRelease("A4", "16n");
-    }, 120);
-  }
-
-  async function playMuteAllSound() {
-    if (audioCtx.state == "suspended")
-      await Tone.start();
-    const reverb = new Tone.Reverb({
-      decay: 1.5,
-      wet: 0.2,
-    }).toDestination();
-
-    const synth = new Tone.MonoSynth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.02, decay: 0.3, sustain: 0.2, release: 0.6 },
-      portamento: 0.1,
-    }).connect(reverb);
-
-    const notes = ["C5", "A4", "F4", "D4", "G3"];
-    let index = 0;
-
-    const interval = setInterval(() => {
-      synth.triggerAttackRelease(notes[index], "8n");
-      index++;
-      if (index >= notes.length) {
-        clearInterval(interval);
-      }
-    }, 30);
-  }
-
-  async function playUnmuteAllSound() {
-    if (audioCtx.state == "suspended")
-      await Tone.start();
-    const reverb = new Tone.Reverb({
-      decay: 1.5,
-      wet: 0.2,
-    }).toDestination();
-
-    const synth = new Tone.MonoSynth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.02, decay: 0.3, sustain: 0.2, release: 0.6 },
-      portamento: 0.1,
-    }).connect(reverb);
-
-    const notes = ["G3", "D4", "F4", "A4", "C5"];
-    let index = 0;
-
-    const interval = setInterval(() => {
-      synth.triggerAttackRelease(notes[index], "8n");
-      index++;
-      if (index >= notes.length) {
-        clearInterval(interval);
-      }
-    }, 30);
-  }
-
-
-  return { init, playSoftLeaveSound, playSoftEnterSound, playReconnectSound, playMuteAllSound, playUnmuteAllSound };
+  return {
+    init,
+    playSoftLeaveSound,
+    playSoftEnterSound,
+    playReconnectSound,
+    playMuteAllSound,
+    playUnmuteAllSound,
+    playNotificationSound,
+    playRingSound,
+  };
 });
 
 (window as any)["toneStore"] = useTone;

@@ -63,5 +63,20 @@
     "application": "アプリケーション",
     "voice_video": "音声とビデオ",
     "hotkeys": "ホットキー",
-    "languages": "言語"
+    "languages": "言語",
+    "sounds": "音",
+    "playSoftEnterSound": "チャンネル参加音",
+    "playSoftEnterSound_details": "チャンネルに参加したときの音を再生しますか？",
+    "playSoftLeaveSound": "チャンネル退出音",
+    "playSoftLeaveSound_details": "チャンネルから退出したときの音を再生しますか？",
+    "playMuteAllSound": "ミュート/ミュート解除音",
+    "playMuteAllSound_details": "ミュートやミュート解除時の音を再生しますか？",
+    "playReconnectSound": "再接続音",
+    "playReconnectSound_details": "再接続時の音を再生しますか？",
+    "playUnmuteAllSound": "ミュート解除音",
+    "playUnmuteAllSound_details": "ミュート解除時の音を再生しますか？",
+    "playNotificationSound": "通知音",
+    "playNotificationSound_details": "通知音を再生しますか？",
+    "playRingSound": "着信音",
+    "playRingSound_details": "着信音を再生しますか？"
 }

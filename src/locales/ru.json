@@ -63,5 +63,6 @@
     "application": "Приложение",
     "voice_video": "Голос и видео",
     "hotkeys": "Горячие клавиши",
-    "languages": "Языки"
+    "languages": "Языки",
+    "sounds": "Звуки"
 }

@@ -41,6 +41,7 @@ import ConnectedDevices from '@/components/settings/ConnectedDevices.vue';
 import ApplicationSettings from './settings/ApplicationSettings.vue';
 import HotKeySettings from './settings/HotKeySettings.vue';
 import LanguageSettings from './settings/LanguageSettings.vue';
+import SoundSettings from './settings/SoundSettings.vue';
 import { useLocale } from '@/store/localeStore';
 const { t } = useLocale();
 const windows = useWindow();
@@ -55,6 +56,7 @@ const categories = ref([
     { id: 'voice_video' },
     { id: 'hotkeys' },
     { id: 'languages' },
+    { id: 'sounds' },
 
 ]);
 
@@ -76,7 +78,8 @@ const categoryComponents = {
     voice_video: VoiceVideoSettings,
     application: ApplicationSettings,
     hotkeys: HotKeySettings,
-    languages: LanguageSettings
+    languages: LanguageSettings,
+    sounds: SoundSettings
 };
 
 const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
