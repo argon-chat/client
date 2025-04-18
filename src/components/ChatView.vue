@@ -34,11 +34,13 @@ const subs = ref(null as null | Subscription);
 
 useInfiniteScroll(scroller, async () => {
     var result = await api.serverInteraction.GetMessages(props.channelId, 10, currentSizeMsgs.value);
-    if (result.length == 0) {
+    if (result.length === 0) {
         hasEnded.value = true;
     }
-    currentSizeMsgs.value += result.length;
-    messages.value.push(...result);
+    const existingIds = new Set(messages.value.map(msg => msg.MessageId));
+    const uniqueNewMessages = result.filter(msg => !existingIds.has(msg.MessageId));
+    currentSizeMsgs.value += uniqueNewMessages.length;
+    messages.value.push(...uniqueNewMessages);
 }, {
     distance: 5,
     direction: "top",
