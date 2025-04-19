@@ -135,7 +135,7 @@ async function onSubmit(event: Event | null) {
             <CardContent class="space-y-2">
               <div class="space-y-1">
                 <Label for="email">Email</Label>
-                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email"
+                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
                   :disabled="isLoading" />
               </div>
               <div class="space-y-1">
@@ -189,7 +189,7 @@ async function onSubmit(event: Event | null) {
             <CardContent class="space-y-2">
               <div class="space-y-1">
                 <Label for="email" class="flex">Email <div class="text-red-500 pl-1">*</div></Label>
-                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email"
+                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
                   :disabled="isLoading" />
               </div>
               <div class="space-y-1">
@@ -199,7 +199,8 @@ async function onSubmit(event: Event | null) {
               </div>
               <div class="space-y-1">
                 <Label for="username" class="flex">Username <div class="text-red-500 pl-1">*</div></Label>
-                <Input id="username" v-model="username" placeholder="username" type="username" :disabled="isLoading" />
+                <Input id="username" v-model="username" placeholder="username" type="username" :disabled="isLoading" pattern="^[a-zA-Z][a-zA-Z0-9_]{2,19}$"
+                title="The user's name must start with a letter and contain from 3 to 20 characters: letters, numbers, and underscores." />
               </div>
               <div class="space-y-1">
                 <Label for="password" class="flex">Password <div class="text-red-500 pl-1">*</div></Label>
@@ -225,7 +226,7 @@ async function onSubmit(event: Event | null) {
             </CardContent>
             <CardFooter>
               <div class="items-top flex gap-x-2">
-                <Checkbox id="tos1" v-model:checked="agreeTos" />
+                <Checkbox id="tos1" v-model:checked="agreeTos" aria-required="true" />
                 <div class="grid gap-1.5 leading-none">
                   <label for="tos1"
                     class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex">
