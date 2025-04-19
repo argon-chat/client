@@ -10,13 +10,20 @@
             <div class="divider text-gray-400 text-center"> {{ t('or') }} </div>
             <div class="grid w-full gap-2">
                 <Label for="invite-code">{{ t('invite_code') }}</Label>
-                <Input id="invite-code" v-model="inviteCode"  placeholder="e.g., XDq2-17jS-KJj2" />
-                <br/>
+                <Input id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" />
+                <br />
                 <Button @click="joinServer">
                     {{ t('join_to_server') }}
                 </Button>
             </div>
 
+
+
+        </div>
+        <div class="mt-6 pt-4 logout-button">
+            <Button variant="destructive" class="w-full" @click="logout">
+                Logout
+            </Button>
         </div>
     </div>
 </template>
@@ -34,8 +41,42 @@ import { useLocale } from '@/store/localeStore';
 
 const { t } = useLocale();
 
-const inviteCode = ref(''); 
+const inviteCode = ref('');
 const serverStore = useServerStore();
+
+
+const logout = async () => {
+    await pruneDatabases(true);
+}
+
+
+const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
+    const allIndexDbs = await indexedDB.databases();
+
+    for (let db of allIndexDbs) {
+        try {
+            indexedDB.deleteDatabase(db.name!);
+        } catch (e) {
+            logger.error(e);
+        }
+    }
+
+    const allStorages = await navigator.storageBuckets.keys();
+
+
+    for (let storage of allStorages) {
+        try {
+            navigator.storageBuckets.delete(storage);
+        } catch (e) {
+            logger.error(e);
+        }
+    }
+
+    if (pruneLocalStorage)
+        localStorage.clear();
+
+    location.reload();
+}
 
 
 const joinServer = async () => {
@@ -105,6 +146,14 @@ const createServer = () => {
     align-items: center;
     justify-content: center;
     position: relative;
+}
+
+.logout-button {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100px;
+    margin: 10px;
 }
 
 .divider::before,
