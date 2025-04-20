@@ -64,5 +64,19 @@
     "voice_video": "Голос и видео",
     "hotkeys": "Горячие клавиши",
     "languages": "Языки",
-    "sounds": "Звуки"
+    "sounds": "Звуки",
+    "playSoftEnterSound": "Звук входа в канал",
+    "playSoftEnterSound_details": "Воспроизводить ли звук входа в канал?",
+    "playSoftLeaveSound": "Звук выхода из канала",
+    "playSoftLeaveSound_details": "Воспроизводить ли звук выхода из канала?",
+    "playMuteAllSound": "Звук отключения звука/микрофона",
+    "playMuteAllSound_details": "Воспроизводить звук отключения звука/микрофона?",
+    "playReconnectSound": "Звук переподключения",
+    "playReconnectSound_details": "Воспроизводить ли звук переподключения?",
+    "playUnmuteAllSound": "Звук включения звука/микрофона",
+    "playUnmuteAllSound_details": "Воспроизводить ли звук включения звука/микрофона",
+    "playNotificationSound": "Звук уведомления",
+    "playNotificationSound_details": "Воспроизводить ли звук уведомления?",
+    "playRingSound": "Звук звонка",
+    "playRingSound_details": "Воспроизводить ли звук звонка?"
 }
