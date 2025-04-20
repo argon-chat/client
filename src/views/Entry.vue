@@ -1,11 +1,11 @@
 <template>
-  <div style="width: 100%; height: 100%; background-color: black; position: absolute;">
+  <div style="width: 100%; height: 100%; background-color: black; position: absolute; aspect-ratio: 1 / 1;">
 
     <canvas ref="canvas"></canvas>
 
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <h1 v-motion-fade-visible :duration="4200" class="text-8xl font-bold mb-4 select-none" style="font-size: 15rem;">
+        <h1 v-motion-fade-visible :duration="2200" class="text-8xl font-bold mb-4 select-none" style="font-size: 15rem;">
           Argon
         </h1>
       </div>
@@ -69,7 +69,7 @@ const initWebGL = () => {
       decimals,
     );
 
-    return parseFloat(str);
+    return str;
   }
 
 
@@ -86,6 +86,8 @@ const initWebGL = () => {
   const Y3 = getRandomFloat(0, 1, 4);
   const CA = getRandomFloat(1, 5, 4);
   const R3 = getRandomFloat(0.1, 1, 4);
+  const erd = getRandomFloat(1.0, 1.2, 2);
+  const few = getRandomFloat(2.0, 8.0, 2);
 
   const fragmentShaderSource = `
 precision highp float;
@@ -93,7 +95,7 @@ varying vec2 v_texCoord;
 uniform float u_time;
 uniform vec2 u_resolution;
 
-const float rotation_speed= 0.25;
+const float rotation_speed= 0.15;
 
 const float poly_U        = ${polyU};   // [0, inf]
 const float poly_V        = ${polyV};  // [0, inf]
@@ -131,18 +133,18 @@ const float MAX_RAY_LENGTH3     = 15.0;
 const int MAX_RAY_MARCHES3    = 90;
 const float NORM_OFF3           = ${no3};
 
-const vec3 rayOrigin    = vec3(0.0, 1., -5.);
+const vec3 rayOrigin    = vec3(.0, 1., -5.);
 const vec3 sunDir       = normalize(-rayOrigin);
 
-const vec3 sunCol       = HSV2RGB(vec3(0.0 , 0.0, 0.0))*1.;
-const vec3 bottomBoxCol = HSV2RGB(vec3(0.0, 0.00, 0.1))*1.;
+const vec3 sunCol       = HSV2RGB(vec3(1.0, 0.0, 0.0))*1.;
+const vec3 bottomBoxCol = HSV2RGB(vec3(1.0, 0.00, 0.1))*1.;
 const vec3 topBoxCol    = HSV2RGB(vec3(0.0, 0.0, 0.0))*1.;
 const vec3 glowCol0     = HSV2RGB(vec3(0.05 , 0.7, 1E-3))*1.;
-const vec3 glowCol1     = HSV2RGB(vec3(0.95, 0.7, 1E-3))*1.;
+const vec3 glowCol1     = HSV2RGB(vec3(0.15, 0.27, 1E-3))*1.;
 const vec3 beerCol      = -HSV2RGB(vec3(0.15+0.5, 0.7, 2.)); 
 const float rrefr_index = 1./refr_index;
-
-const float poly_cospin   = cos(PI/float(poly_type));
+   
+const float poly_cospin   = cos((PI*${erd})/float(poly_type));
 const float poly_scospin  = sqrt(0.75-poly_cospin*poly_cospin);
 const vec3  poly_nc       = vec3(-0.5, -poly_cospin, poly_scospin);
 const vec3  poly_pab      = vec3(0., 0., 1.);
@@ -166,7 +168,7 @@ mat3 rot_mat(vec3 d, vec3 z) {
 }
 vec3 aces_approx(vec3 v) {
   v = max(v, 0.0);
-  v *= 0.6;
+  v *= 1.6;
   float a = 2.51;
   float b = 0.03;
   float c = 2.43;
@@ -311,7 +313,7 @@ vec3 render2(vec3 ro, vec3 rd, float db) {
             break; 
         g_gd = vec2(1E3);
         // изменяет линзирование
-        float t2 = rayMarch2(ro, rd, min(db + 0.05, 0.3));
+        float t2 = rayMarch2(ro, rd, min(db + 1.05, 0.3)); 
         vec2 gd2 = g_gd;
         tagg += t2;
 
@@ -322,7 +324,7 @@ vec3 render2(vec3 ro, vec3 rd, float db) {
         float fre2 = 1. + dot(n2, rd);
 
         vec3 beer = ragg * exp(0.2 * beerCol * tagg);
-        agg += glowCol1 * beer * ((1. + tagg * tagg * 4E-2) * 6. / max(gd2.x, 5E-4 + tagg * tagg * 2E-4 / ragg));
+        agg += glowCol1 * beer * ((1. + tagg * tagg * 4E-2) * ${few} / max(gd2.x, 5E-4 + tagg * tagg * 2E-4 / ragg));
         vec3 ocol = 0.2 * beer * render0(p2, rr2);
         if(gd2.y <= TOLERANCE2) {
             ragg *= 1. - 0.9 * fre2;
@@ -342,7 +344,7 @@ vec3 render2(vec3 ro, vec3 rd, float db) {
 float df3(vec3 p) {
   vec3 ds = shape(p);
   g_gd = min(g_gd, ds.yz);
-  const float sw = 0.02;
+  const float sw = 10.02;
   float d1 = min(ds.y, ds.z)-sw;
   float d0 = ds.x;
   d0 = min(d0, ds.y);
@@ -570,8 +572,9 @@ const render = () => {
 };
 
 const onResize = () => {
-  canvas.value!.width = 400;
-  canvas.value!.height = 400;
+  const width = canvas.value!.parentElement?.offsetWidth ?? 0;
+  canvas.value!.width = width;
+  canvas.value!.height = width;
 };
 
 function onInitTerminal() {
@@ -615,8 +618,9 @@ canvas {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 400px;
-  height: 400px;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%);
 }
 </style>

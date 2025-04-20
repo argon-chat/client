@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { onMounted, ref, type HTMLAttributes } from 'vue'
+import { onMounted, ref, watch, type HTMLAttributes } from 'vue'
 import { useFileStorage } from "@/store/fileStorage";
 import { logger } from '@/lib/logger';
 const loaded = ref(false);
@@ -27,6 +27,13 @@ const props = withDefaults(defineProps<{
   userId?: string
 }>(), {});
 
+watch(() => props.fileId, async () => {
+  if (!props.userId) return;
+  if (!props.fileId) return;
+
+  blobSrc.value = await fileStorage.fetchUserAvatar(props.fileId, props.userId);
+  loaded.value = true;
+});
 
 onMounted(async () => {
   if (props.userId) {

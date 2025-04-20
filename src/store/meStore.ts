@@ -3,6 +3,7 @@ import { useApi } from "./apiStore";
 import { ref } from "vue";
 import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
+import { setUser } from "@sentry/vue";
 
 export type ExtendedUser = { currentStatus: 'Offline' | 'Online' | 'Away' | 'InGame' | 'Listen' | 'TouchGrass' | 'DoNotDisturb' } & IUser;
 
@@ -28,6 +29,8 @@ export const useMe = defineStore("me", () => {
     });
     WelcomeCommanderHasReceived.value = true;
     bus.doListenMyEvents();
+
+    setUser({ id: me.value.Id, username: me.value.Username });
   }
 
   return {

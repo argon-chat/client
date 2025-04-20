@@ -1,4 +1,5 @@
 import { persistedValue } from "@/lib/persistedValue";
+import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { watch } from "vue";
@@ -7,7 +8,7 @@ export const usePreference = defineStore("preference", () => {
     const defaultAudioDevice = persistedValue<string>("defaultAudioDevice", "");
     const defaultVideoDevice = persistedValue<string>("defaultVideoDevice", "");
 
-
+    
     const echoCancellation = persistedValue<boolean>("echoCancellation", false);
     const autoGainControl = persistedValue<boolean>("autoGainControl", false);
     const noiseSuppression = persistedValue<boolean>("noiseSuppression", false);

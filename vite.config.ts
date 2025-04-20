@@ -33,4 +33,11 @@ export default defineConfig({
   define: {
     __VUE_PROD_DEVTOOLS__: true,
   },
+  optimizeDeps: {
+    exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
+    include: ['nsfwjs', '@tensorflow/tfjs'],
+  },
+  worker: {
+    format: 'es',
+  },
 })

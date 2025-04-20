@@ -45,8 +45,8 @@ useInfiniteScroll(scroller, async () => {
     distance: 5,
     direction: "top",
     behavior: "smooth",
-    idle: 1000,
-    interval: 1000,
+    idle: 400,
+    interval: 400,
     onError(error) {
         logger.error("onError", error);
     },
@@ -79,7 +79,6 @@ onUnmounted(() => {
     overflow-y: auto;
     display: flex;
     flex-direction: column-reverse;
-    /* Новые сообщения сверху */
 }
 
 .chat-message {

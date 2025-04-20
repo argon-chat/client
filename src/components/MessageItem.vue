@@ -35,12 +35,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed, Ref } from 'vue'
 import { usePoolStore } from '@/store/poolStore'
 import ArgonAvatar from '@/components/ArgonAvatar.vue'
 import { useMe } from '@/store/meStore';
 import emojiRegex from 'emoji-regex';
-import { RealtimeUser } from '@/store/db/dexie';
 import {
     Tooltip,
     TooltipContent,
@@ -48,6 +47,7 @@ import {
     TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useDateFormat } from '@vueuse/core';
+import { logger } from '@/lib/logger';
 
 const props = defineProps<{
     message: IArgonMessageDto
@@ -56,16 +56,16 @@ const props = defineProps<{
 const bubble = ref<HTMLElement | null>(null)
 const backgroundOffset = ref(0)
 const pool = usePoolStore()
-const user = ref(undefined as RealtimeUser | undefined)
+const user = pool.getUserReactive(props.message.Sender);
 const me = useMe();
 
-const isSingleEmojiMessage = isSingleEmojiOnly(props.message);
+const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 
 const isIncoming = true;
 const isMe = props.message.Sender == me.me?.Id;
 
 const loadUser = async () => {
-    user.value = await pool.getUser(props.message.Sender)
+    //logger.log(user.value, "reactive user");
 }
 
 watch(() => props.message.Sender, loadUser, { immediate: true })
@@ -104,12 +104,12 @@ const bubbleColor = computed(() => {
     return isIncoming ? getColorByUserId(props.message.Sender) : ''
 });
 
-function isSingleEmojiOnly(message: IArgonMessageDto): boolean {
+function isUpEmojisOnly(message: IArgonMessageDto): boolean {
     const text = message.Text.trim();
     const regex = emojiRegex();
     const matches = [...text.matchAll(regex)];
-
-    return matches.length === 1 && matches[0][0] === text;
+    const emojisOnly = matches.map(m => m[0]).join('');
+    return matches.length >= 1 && matches.length <= 2 && emojisOnly === text;
 }
 
 </script>

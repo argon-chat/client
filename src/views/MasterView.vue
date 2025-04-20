@@ -53,6 +53,7 @@ import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
 import GlowBorder from '@/components/GlowBorder.vue';
 import { useLocale } from '@/store/localeStore';
+import Island from '@/components/Island.vue';
 
 const dataPool = usePoolStore();
 const me = useMe();

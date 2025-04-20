@@ -3,7 +3,6 @@ import "./assets/index.css";
 import App from "./App.vue";
 import { createPinia } from "pinia";
 import router from "./router";
-import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { MotionPlugin } from "@vueuse/motion";
 import { registerDirectives } from "./lib/pexDirective";
 import * as Sentry from "@sentry/vue";
@@ -15,6 +14,7 @@ import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import pkg from "../package.json";
+import 'vue-advanced-cropper/dist/style.css';
 
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
@@ -28,28 +28,32 @@ if (argon.isArgonHost) {
 export const i18n = createI18n<[LocaleSchema], Locale>({
   locale: "en",
   fallbackLocale: "en",
-  messages: locales,
+  messages: locales as any,
 });
 
 let pinia = createPinia();
-pinia.use(piniaPluginPersistedstate);
 var app = createApp(App);
 app.use(i18n);
 
 Sentry.init({
   app,
   dsn: argon?.dsn() ?? "",
+  release: pkg.version,
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({
       maskAllText: false,
       blockAllMedia: false
     }),
+    Sentry.replayCanvasIntegration()
   ],
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
 });
+Sentry.setTag("branch", pkg.branch);
+Sentry.setTag("version.full", pkg.fullVersion);
+Sentry.setTag("version.build.time", pkg.lastBuildTime);
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);

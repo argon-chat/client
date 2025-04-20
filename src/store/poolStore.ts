@@ -5,15 +5,19 @@ import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
 import { UserStatus } from "@/lib/glue/UserStatus";
 import { firstValueFrom, from, Subject } from "rxjs";
-import { liveQuery } from "dexie";
+import { liveQuery,  } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 import { useMe } from "./meStore";
 import { watch } from "vue";
 
-export type IRealtimeChannelUserWithData = IRealtimeChannelUser & { 
-  User: IUserDto, isSpeaking: Ref<boolean>, isMuted: Ref<boolean>, isScreenShare: Ref<boolean>, volume: Ref<number[]>
+export type IRealtimeChannelUserWithData = IRealtimeChannelUser & {
+  User: IUserDto;
+  isSpeaking: Ref<boolean>;
+  isMuted: Ref<boolean>;
+  isScreenShare: Ref<boolean>;
+  volume: Ref<number[]>;
 };
 export type IRealtimeChannelWithUser = {
   Channel: IChannel;
@@ -29,76 +33,104 @@ export const usePoolStore = defineStore("data-pool", () => {
   const selectedChannel = ref(null as Guid | null);
   const selectedTextChannel = ref(null as Guid | null);
 
-
   const onChannelChanged = new Subject<Guid | null>();
 
-
   watch(selectedTextChannel, (newChannelId, oldChannelId) => {
-    if (newChannelId != oldChannelId)
-      onChannelChanged.next(newChannelId);
-  })
+    if (newChannelId != oldChannelId) onChannelChanged.next(newChannelId);
+  });
 
   const realtimeChannelUsers = reactive(
     new Map<Guid, Reactive<IRealtimeChannelWithUser>>()
   );
 
   const allServers = computed(() => {
-    return useObservable(from(liveQuery(async () => await db.servers.toArray())));
+    return useObservable(
+      from(liveQuery(async () => await db.servers.toArray()))
+    );
   });
-
 
   const getChannel = async function (channelId: Guid) {
     return await db.channels.where("Id").equals(channelId).first();
-  }
+  };
 
   const getServer = async function (serverId: Guid) {
     return await db.servers.where("Id").equals(serverId).first();
-  }
+  };
 
   const getUser = async function (userId: Guid) {
     return await db.users.where("UserId").equals(userId).first();
-  }
+  };
+
+  const getUserReactive = (userId: Guid) => {
+    const observable = liveQuery(async () =>
+      await db.users.where("UserId").equals(userId).first()
+    );
+    return useObservable(from(observable));
+  };
 
   const getBatchUser = async function (userIds: Guid[]) {
     return await db.users.bulkGet(userIds);
-  }
+  };
 
-
-  const indicateSpeaking = async function (channelId: Guid, userId: Guid, isSpeaking: boolean) {
+  const indicateSpeaking = async function (
+    channelId: Guid,
+    userId: Guid,
+    isSpeaking: boolean
+  ) {
     if (realtimeChannelUsers.has(channelId)) {
       if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
-        realtimeChannelUsers.get(channelId)!.Users.get(userId)!.isSpeaking = isSpeaking;
+        realtimeChannelUsers.get(channelId)!.Users.get(userId)!.isSpeaking =
+          isSpeaking;
       } else {
-        logger.warn("Detected speaking user, but in realtime channel user not found, maybe bug", channelId, userId);
+        logger.warn(
+          "Detected speaking user, but in realtime channel user not found, maybe bug",
+          channelId,
+          userId
+        );
       }
     } else {
-      logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
+      logger.warn(
+        "Detected speaking user, but in realtime channel not found, maybe bug",
+        channelId,
+        userId
+      );
     }
-  }
+  };
 
-
-  const setProperty = async function (channelId: Guid, userId: Guid, action: (user: IRealtimeChannelUserWithData) => void) {
+  const setProperty = async function (
+    channelId: Guid,
+    userId: Guid,
+    action: (user: IRealtimeChannelUserWithData) => void
+  ) {
     if (realtimeChannelUsers.has(channelId)) {
       if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
         action(realtimeChannelUsers.get(channelId)!.Users.get(userId) as any);
       } else {
-        logger.warn("Detected speaking user, but in realtime channel user not found, maybe bug", channelId, userId);
+        logger.warn(
+          "Detected speaking user, but in realtime channel user not found, maybe bug",
+          channelId,
+          userId
+        );
       }
     } else {
-      logger.warn("Detected speaking user, but in realtime channel not found, maybe bug", channelId, userId);
+      logger.warn(
+        "Detected speaking user, but in realtime channel not found, maybe bug",
+        channelId,
+        userId
+      );
     }
-  }
+  };
 
-
-  const allServerAsync = computed(() => firstValueFrom<IServer[]>(from(liveQuery(async () => await db.servers.toArray()))));
-
-  const getSelectedServer = computedAsync(
-    async () => {
-      if (!selectedServer.value)
-        return null;
-      return await db.servers.where("Id").equals(selectedServer.value!).first()!;
-    }
+  const allServerAsync = computed(() =>
+    firstValueFrom<IServer[]>(
+      from(liveQuery(async () => await db.servers.toArray()))
+    )
   );
+
+  const getSelectedServer = computedAsync(async () => {
+    if (!selectedServer.value) return null;
+    return await db.servers.where("Id").equals(selectedServer.value!).first()!;
+  });
 
   const activeServerChannels = computed(() => {
     return useObservable<IChannel[]>(
@@ -146,7 +178,10 @@ export const usePoolStore = defineStore("data-pool", () => {
     await db.servers.put(server, server.Id);
   };
 
-  const trackUser = async function (user: IUserDto, extendedStatus?: UserStatus) {
+  const trackUser = async function (
+    user: IUserDto,
+    extendedStatus?: UserStatus
+  ) {
     const exist = await db.users.get(user.UserId);
     if (exist) {
       await db.users.update(exist.UserId, {
@@ -164,12 +199,15 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   };
 
-  const trackChannel = async function (channel: IChannel, users?: Map<Guid, IRealtimeChannelUserWithData>) {
+  const trackChannel = async function (
+    channel: IChannel,
+    users?: Map<Guid, IRealtimeChannelUserWithData>
+  ) {
     realtimeChannelUsers.set(
       channel.Id,
       reactive({
         Channel: channel,
-        Users: users ?? new Map<Guid, IRealtimeChannelUserWithData>()
+        Users: users ?? new Map<Guid, IRealtimeChannelUserWithData>(),
       })
     );
     const exist = await db.channels.get(channel.Id);
@@ -181,10 +219,10 @@ export const usePoolStore = defineStore("data-pool", () => {
       return;
     }
     await db.channels.put(channel, channel.Id);
-   
   };
 
-  const onNewMessageReceived: Subject<IArgonMessageDto> = new Subject<IArgonMessageDto>();
+  const onNewMessageReceived: Subject<IArgonMessageDto> =
+    new Subject<IArgonMessageDto>();
 
   const subscribeToEvents = function () {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
@@ -222,24 +260,30 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
     });
 
-    bus.onServerEvent<LeavedFromChannelUser>("LeavedFromChannelUser", async (x) => {
-      const c = db.channels.get(x.channelId);
+    bus.onServerEvent<LeavedFromChannelUser>(
+      "LeavedFromChannelUser",
+      async (x) => {
+        const c = db.channels.get(x.channelId);
 
-      if (!c) {
-        logger.error("recollect channel required");
-        return;
-      }
+        if (!c) {
+          logger.error("recollect channel required");
+          return;
+        }
 
-      if (realtimeChannelUsers.has(x.channelId)) {
-        const e = realtimeChannelUsers.get(x.channelId);
+        if (realtimeChannelUsers.has(x.channelId)) {
+          const e = realtimeChannelUsers.get(x.channelId);
 
-        if (!e) throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
+          if (!e)
+            throw new Error(
+              " realtimeChannelUsers.get(x.channelId) return null"
+            );
 
-        if (e.Users.has(x.userId)) {
-          e.Users.delete(x.userId);
+          if (e.Users.has(x.userId)) {
+            e.Users.delete(x.userId);
+          }
         }
       }
-    })
+    );
 
     bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", async (x) => {
       const c = db.channels.get(x.channelId);
@@ -260,8 +304,8 @@ export const usePoolStore = defineStore("data-pool", () => {
       if (realtimeChannelUsers.has(x.channelId)) {
         const e = realtimeChannelUsers.get(x.channelId);
 
-        if (!e) throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
-
+        if (!e)
+          throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
 
         e.Users.set(x.userId, {
           State: 0,
@@ -270,9 +314,8 @@ export const usePoolStore = defineStore("data-pool", () => {
           isSpeaking: false,
           isMuted: false,
           isScreenShare: false,
-          volume: [100]
+          volume: [100],
         });
-
       } else
         logger.error(
           "realtime channel not contains received from JoinedToChannelUser channel, maybe bug"
@@ -309,6 +352,15 @@ export const usePoolStore = defineStore("data-pool", () => {
       //trackChannel({ Channel: x., Users: [] });
     });
 
+    bus.onServerEvent<UserUpdated>("UserUpdated", (x) => {
+      trackUser(x.dto);
+      if (x.dto.UserId == me.me?.Id) {
+        me.me.AvatarFileId = x.dto.AvatarFileId;
+        me.me.DisplayName = x.dto.DisplayName;
+        me.me.Username = x.dto.Username;
+      }
+    });
+
     bus.onServerEvent<UserChangedStatus>("UserChangedStatus", async (x) => {
       let user = await db.users.get(x.userId);
       if (!user) {
@@ -325,7 +377,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     bus.onServerEvent<MessageSent>("MessageSent", (x) => {
       onNewMessageReceived.next(x.message);
-    })
+    });
   };
 
   const loadServerDetails = async function () {
@@ -341,8 +393,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       logger.log(`Loaded '${users.length}' users`, users);
 
       for (const u of users) {
-        if (u.Member.User)
-          await trackUser(u.Member.User, u.Status);
+        if (u.Member.User) await trackUser(u.Member.User, u.Status);
       }
 
       const channels = await api.serverInteraction.GetChannels(s.Id);
@@ -351,14 +402,15 @@ export const usePoolStore = defineStore("data-pool", () => {
       const trackedIds: Array<Guid> = [];
 
       for (const c of channels) {
-
         if (c.Channel.ChannelType === "Text" && !selectedTextChannel.value) {
           selectedTextChannel.value = c.Channel.Id;
         }
         trackedIds.push(c.Channel.Id);
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
-          let selectedUser = users.filter(z => z.Member.UserId == uw.UserId).at(0);
+          let selectedUser = users
+            .filter((z) => z.Member.UserId == uw.UserId)
+            .at(0);
           if (!selectedUser) {
             trackUser(
               await api.serverInteraction.PrefetchUser(s.Id, uw.UserId)
@@ -367,24 +419,41 @@ export const usePoolStore = defineStore("data-pool", () => {
 
           let member = selectedUser!.Member.User;
 
-
           if (!member) {
-            member = await api.serverInteraction.PrefetchUser(c.Channel.ServerId, selectedUser?.Member.UserId!);
+            member = await api.serverInteraction.PrefetchUser(
+              c.Channel.ServerId,
+              selectedUser?.Member.UserId!
+            );
           }
 
           if (!selectedUser) {
-            logger.fatal("Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId", uw, users);
+            logger.fatal(
+              "Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId",
+              uw,
+              users
+            );
             continue;
           }
-          we.set(uw.UserId, { State: uw.State, UserId: uw.UserId, User: member, isSpeaking: ref(false), isMuted: ref(false), isScreenShare: ref(false), volume: ref([100])});
+          we.set(uw.UserId, {
+            State: uw.State,
+            UserId: uw.UserId,
+            User: member,
+            isSpeaking: ref(false),
+            isMuted: ref(false),
+            isScreenShare: ref(false),
+            volume: ref([100]),
+          });
         }
         await trackChannel(c.Channel, we);
       }
 
-      const prunedChannels = await db.channels.where('Id').noneOf([...trackedIds]).and(q => q.ServerId === s.Id).delete();
+      const prunedChannels = await db.channels
+        .where("Id")
+        .noneOf([...trackedIds])
+        .and((q) => q.ServerId === s.Id)
+        .delete();
 
-      if (prunedChannels != 0)
-        logger.warn(`Pruned ${prunedChannels} channels`);
+      if (prunedChannels != 0) logger.warn(`Pruned ${prunedChannels} channels`);
 
       bus.listenEvents(s.Id);
     }
@@ -415,9 +484,9 @@ export const usePoolStore = defineStore("data-pool", () => {
     indicateSpeaking,
     setProperty,
 
-
     getUser,
     getChannel,
-    getServer
+    getServer,
+    getUserReactive,
   };
 });

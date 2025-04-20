@@ -10,6 +10,7 @@ import {
 } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import { usePreference } from './store/preferenceStore';
+import Island from './components/Island.vue';
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
@@ -62,12 +63,7 @@ const closeWindow = () => {
   <RouterView />
   <Toaster />
   <DevPanel />
-  <div v-if="sys.isRequestRetrying" class="warn-text select-none">
-
-    <div v-for="i in sys.activeRetries" :key="i">
-      [{{ i }}] Reconnecting...
-    </div>
-  </div>
+  <Island class="select-none"  v-if="sys.isRequestRetrying" :title="`Reconnecting`"/>
 
   <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
     <div class="sys-keyholder">

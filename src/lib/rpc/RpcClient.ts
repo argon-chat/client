@@ -7,6 +7,10 @@ import { useSystemStore } from "@/store/systemStore";
 import { fromEvent, tap } from "rxjs";
 import delay from "../delay";
 import { useMe } from "@/store/meStore";
+import { useToast } from '@/components/ui/toast/'
+import { v7 } from "uuid";
+import { RemovableRef, useLocalStorage } from "@vueuse/core";
+
 
 export function buildAtUrl(
   upgrade: string,
@@ -63,6 +67,7 @@ export class RpcClient {
   private client: ArgonTransportClient;
   private baseUrl: string;
 
+
   constructor(baseUrl: string) {
     const transport = new GrpcWebFetchTransport({
       baseUrl,
@@ -71,6 +76,17 @@ export class RpcClient {
     });
     this.client = new ArgonTransportClient(transport);
     this.baseUrl = baseUrl;
+    
+  }
+
+  getExtendedHeaders(): HeadersInit {
+    if (argon.isArgonHost)
+      return {};
+    const sessionId = useLocalStorage("sessionId", v7(), { writeDefaults: true, initOnMounted: true });
+    return {
+      "X-Ctt": sessionId.value,
+      "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT
+    }
   }
 
   create<T>(serviceName: string): T {
@@ -101,15 +117,31 @@ export class RpcClient {
               }
 
               try {
+                const headers = this.getExtendedHeaders();
                 const response = await this.client.unary(
                   {
                     interface: serviceName,
                     method: String(methodName),
                     payload: payload,
                   },
-                  { meta: { authorize: authStore.token ?? "" } }
+                  { meta: { authorize: authStore.token!, ...(headers as any) } }
                 );
 
+                if (response.response.statusCode == 2) {
+                  logger.warn("NOT AUTHORIZED, logout...");
+                  const toast = useToast();
+
+                  toast.toast({
+                    duration: 7000,
+                    title: "Authorization invalidated...",
+                    description: "You authorization has invalidated, required new login...",
+                    variant: "destructive"
+                  });
+                  await delay(7000);
+                  authStore.logout();
+                  window.location.reload()
+                  throw "not authorized";
+                }
                 if (response.status.code !== "OK") {
                   throw new Error(
                     `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
@@ -149,6 +181,7 @@ export class RpcClient {
   }
 
   eventBusWs<T>(): T {
+    const headers = this.getExtendedHeaders();
     return new Proxy(
       {},
       {
@@ -157,12 +190,9 @@ export class RpcClient {
             ...args: any[]
           ): Promise<AsyncIterable<IArgonEvent>> => {
             const authStore = useAuthStore();
-            const me = useMe();
             const wtUrl = new URL(`${this.baseUrl}/$at.http`, this.baseUrl);
             const baseAddr = this.baseUrl;
             const sys = useSystemStore();
-            let latestConnectTime = Date.now();
-            let intervalId: number | null = null;
 
             let sequence: number | undefined = undefined;
             let eventId: number | undefined = undefined;
@@ -170,7 +200,7 @@ export class RpcClient {
             async function fetchTransportDetails() {
               const attResponse = await fetch(wtUrl, {
                 method: "GET",
-                headers: { Authorization: authStore.token! },
+                headers: { Authorization: authStore.token!, ...headers },
               });
 
               if (!attResponse.ok) {
@@ -185,6 +215,10 @@ export class RpcClient {
 
               if (upgrade === "localhost") {
                 upgrade = baseAddr.replace("https://", "");
+              }
+
+              if (!argon.isArgonHost) {
+                upgrade = "https://localhost:3001";
               }
 
               const transportUrl = buildAtUrl(
@@ -204,7 +238,6 @@ export class RpcClient {
 
                 while (true) {
                   let transport: WebSocketStream = null!;
-                  latestConnectTime = Date.now();
                   const sub = fromEvent(window, "beforeunload")
                     .pipe(tap(() => transport?.close()))
                     .subscribe();
@@ -216,7 +249,6 @@ export class RpcClient {
                       transportUrl.toString(),
                       {}
                     );
-
                     const stream = await transport.opened;
                     const reader = stream.readable.getReader();
 
