@@ -11,6 +11,7 @@ export const useAuthStore = defineStore("auth", () => {
   const token = computed(() => _token.value);
   const isAuthenticated = ref(false);
   const isRequiredOtp = ref(false);
+  const isRequiredFormResetPass = ref(false);
 
   const delay = (time: number) => {
     return new Promise((res) => {
@@ -129,6 +130,68 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  const beginResetPass = async (email: string) => {
+    const api = useApi();
+
+    await api.userInteraction.BeginResetPassword(email);
+
+    isRequiredFormResetPass.value = true;
+  }
+
+  const resetPass = async (email: string, newPass: string, resetCode: string) => {
+    const api = useApi();
+
+    const r = await await api.userInteraction.ResetPassword({
+      Email: email,
+      newPassword: newPass,
+      otpCode: resetCode
+    });
+
+    if (r.IsSuccess) logger.success("Success reset password");
+    else {
+      logger.fail("Failed reset password", r.Error);
+      await delay(2500);
+    }
+
+    if (!r.IsSuccess) {
+      switch (r.Error) {
+        case "BAD_CREDENTIALS":
+          toast({
+            title: "Incorrect credentials",
+            description: "You have entered incorrect login credentials",
+            variant: "destructive",
+            duration: 2500,
+          });
+          break;
+        case "BAD_OTP":
+          toast({
+            title: "Incorrect otp code",
+            description: "You have entered incorrect OTP code",
+            variant: "destructive",
+            duration: 2500,
+          });
+          break;
+        case "REQUIRED_OTP":
+          isRequiredOtp.value = true;
+          return;
+        case "NONE":
+          toast({
+            title: "Unknown error",
+            description: "Maybe internet connection is corrupted",
+            variant: "destructive",
+            duration: 2500,
+          });
+          return;
+      }
+    } else {
+      isRequiredOtp.value = false;
+      isRequiredFormResetPass.value = false;
+      isAuthenticated.value = true;
+      localStorage.setItem("token", r.Value);
+    }
+  }
+
+
   return {
     user,
     token,
@@ -138,5 +201,8 @@ export const useAuthStore = defineStore("auth", () => {
     restoreSession,
     register,
     isRequiredOtp,
+    isRequiredFormResetPass,
+    beginResetPass,
+    resetPass
   };
 });
