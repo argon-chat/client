@@ -6,20 +6,27 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IUser.d.ts"/>
-///<reference path="IServer.d.ts"/>
+///<reference path="IServerDto.d.ts"/>
 ///<reference path="AuthorizationError.d.ts"/>
 ///<reference path="IUserCredentialsInput.d.ts"/>
 ///<reference path="RegistrationError.d.ts"/>
 ///<reference path="INewUserCredentialsInput.d.ts"/>
+///<reference path="IUserResetPassInput.d.ts"/>
+///<reference path="IServer.d.ts"/>
 ///<reference path="AcceptInviteError.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
+///<reference path="IUserActivityPresence.d.ts"/>
 
 interface IUserInteraction
 {
 	GetMe() : Promise<IUser>;
-	CreateServer(request: any) : Promise<IServer>;
-	GetServers() : Promise<IServer[]>;
+	CreateServer(request: any) : Promise<IServerDto>;
+	GetServers() : Promise<IServerDto[]>;
 	Authorize(input: IUserCredentialsInput) : Promise<Either<string, AuthorizationError>>;
 	Registration(input: INewUserCredentialsInput) : Promise<Either<string, RegistrationError>>;
+	BeginResetPassword(email: string) : Promise<boolean>;
+	ResetPassword(input: IUserResetPassInput) : Promise<Either<string, AuthorizationError>>;
 	JoinToServerAsync(inviteCode: InviteCode) : Promise<Either<IServer, AcceptInviteError>>;
+	BroadcastPresenceAsync(presence: IUserActivityPresence) : Promise<void>;
+	RemoveBroadcastPresenceAsync() : Promise<void>;
 }

@@ -23,6 +23,7 @@ interface IServerInteraction
 	GetMessages(channelId: Guid, count: number, offset: number) : Promise<IArgonMessageDto[]>;
 	SendMessage(channelId: Guid, text: string, entities: IMessageEntity[]) : Promise<void>;
 	GetMembers(serverId: Guid) : Promise<IRealtimeServerMember[]>;
+	GetMember(serverId: Guid, userId: Guid) : Promise<IRealtimeServerMember>;
 	JoinToVoiceChannel(serverId: Guid, channelId: Guid) : Promise<Either<string, JoinToChannelError>>;
 	DisconnectFromVoiceChannel(serverId: Guid, channelId: Guid) : Promise<void>;
 	GetInviteCodes(serverId: Guid) : Promise<InviteCodeEntity[]>;

@@ -5,13 +5,9 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IServerMemberDto.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
-///<reference path="IUserActivityPresence.d.ts"/>
 
-interface IRealtimeServerMember
+interface OnUserPresenceActivityRemoved extends IArgonEvent
 {
-	Member: IServerMemberDto;
-	Status: UserStatus;
-	Presence?: IUserActivityPresence;
+	EventKey: 'OnUserPresenceActivityRemoved';
+	userId: Guid;
 }

@@ -5,13 +5,18 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="IChannel.d.ts"/>
 ///<reference path="IServerMemberDto.d.ts"/>
-///<reference path="UserStatus.d.ts"/>
-///<reference path="IUserActivityPresence.d.ts"/>
+///<reference path="IArchetype.d.ts"/>
 
-interface IRealtimeServerMember
+interface IServerDto
 {
-	Member: IServerMemberDto;
-	Status: UserStatus;
-	Presence?: IUserActivityPresence;
+	Id: Guid;
+	Name: string;
+	Description: string;
+	AvatarFieldId: string;
+	TopBannerFileId: string;
+	Channels: IChannel[];
+	Users: IServerMemberDto[];
+	Archetypes: IArchetype[];
 }

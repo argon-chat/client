@@ -1,16 +1,31 @@
 <template>
   <div class="relative" style="z-index: 1;" v-if="me.me">
     <div class="user-bar">
-      <div class="user-info">
+      <div class="user-info" style="width: 150px;">
         <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
           :user-id="me.me.Id" />
-        <div class="user-details">
+        <div class="user-details items-start">
           <span class="user-name">{{ me.me?.DisplayName }}</span>
-          <span :class="['user-status', me.me?.currentStatus.toLowerCase()]">
-            {{ me.me?.currentStatus }}
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
+                {{ me.me?.currentStatus }}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent class="w-56">
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup v-model="status">
+                <DropdownMenuRadioItem :value="i" v-for="i in availableStatuses" :key="i">
+                  {{ i }} <span :class="me.statusClass(i)"
+                    class="absolute left-2 w-4 h-4 rounded-full border-2 border-gray-800"></span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
       <div class="control-bar">
         <div class="controls">
           <button @click="windows.settingsOpen = true" style="padding-right: 5px;">
@@ -27,9 +42,32 @@ import { useMe } from "@/store/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useWindow } from "@/store/windowStore";
 import { Settings } from 'lucide-vue-next';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+import { ref, watch } from "vue";
 
 const windows = useWindow();
 const me = useMe();
+
+const status = ref(me.me!.currentStatus);
+
+watch(status, (newStatus) => {
+  me.changeStatusTo(newStatus);
+})
+
+const availableStatuses = [
+  "Online",
+  "DoNotDisturb",
+]
+
 </script>
 
 <style scoped>
@@ -77,7 +115,6 @@ const me = useMe();
 
 .user-status {
   font-size: 12px;
-  color: #bbb;
 }
 
 .bad {
@@ -151,5 +188,15 @@ const me = useMe();
   left: 10%;
   bottom: 100%;
   width: calc(100% - 50px);
+}
+
+@keyframes spinOutline {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hover-spin-outline:hover {
+  animation: spinOutline 1s linear infinite;
 }
 </style>
