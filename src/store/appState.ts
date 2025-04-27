@@ -11,6 +11,8 @@ import { useMe } from "./meStore";
 import { usePoolStore } from "./poolStore";
 import { useFfmpeg } from "./ffmpegStore";
 import { usePredictor } from "./predictorStore";
+import { useIdleStore } from "./idleStore";
+import { useActivity } from "./activityStore";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
@@ -62,6 +64,8 @@ export const useAppState = defineStore("app", () => {
     {  
       await usePoolStore().loadServerDetails();
       await useMe().init();
+      await useIdleStore().init();
+      await useActivity().init();
     }
   }
 

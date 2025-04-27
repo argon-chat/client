@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
 import { UserStatus } from "@/lib/glue/UserStatus";
 import { firstValueFrom, from, Subject } from "rxjs";
-import { liveQuery,  } from "dexie";
+import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
@@ -62,8 +62,8 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   const getUserReactive = (userId: Guid) => {
-    const observable = liveQuery(async () =>
-      await db.users.where("UserId").equals(userId).first()
+    const observable = liveQuery(
+      async () => await db.users.where("UserId").equals(userId).first()
     );
     return useObservable(from(observable));
   };
@@ -122,7 +122,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   const allServerAsync = computed(() =>
-    firstValueFrom<IServer[]>(
+    firstValueFrom<IServerDto[]>(
       from(liveQuery(async () => await db.servers.toArray()))
     )
   );
@@ -162,11 +162,14 @@ export const usePoolStore = defineStore("data-pool", () => {
           return users
             .filter((user): user is RealtimeUser => !!user)
             .sort((a, b) => {
-              const statusDiff =
-                (a.status === "Online" ? 0 : 1) -
-                (b.status === "Online" ? 0 : 1);
-              if (statusDiff !== 0) return statusDiff;
+              const statusOrder = (status: string) => {
+                if (status === "Online") return 0;
+                if (status === "Offline") return 2;
+                return 1;
+              };
 
+              const statusDiff = statusOrder(a.status) - statusOrder(b.status);
+              if (statusDiff !== 0) return statusDiff;
               return a.DisplayName.localeCompare(b.DisplayName);
             });
         })
@@ -174,7 +177,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   });
 
-  const trackServer = async function (server: IServer) {
+  const trackServer = async function (server: IServerDto) {
     await db.servers.put(server, server.Id);
   };
 
@@ -332,19 +335,17 @@ export const usePoolStore = defineStore("data-pool", () => {
         return;
       }
 
-      let user = await db.users.get(x.userId);
-      if (!user) {
-        trackUser(
-          await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+      const existsUser =
+        (await db.users.where("UserId").equals(x.userId).count()) > 0;
+      if (!existsUser) {
+        const user = await api.serverInteraction.GetMember(
+          x.serverId,
+          x.userId
         );
-        user = await db.users.get(x.userId);
+        s.Users.push(user.Member);
+        await db.servers.put(s);
+        logger.info("Fetchet member for server", x);
       }
-
-      s.Users.push({
-        UserId: x.userId,
-        Id: x.userId,
-        ServerId: x.serverId,
-      } as IServerMember);
     });
 
     bus.onServerEvent<ChannelModified>("ChannelModified", (x) => {
@@ -360,6 +361,40 @@ export const usePoolStore = defineStore("data-pool", () => {
         me.me.Username = x.dto.Username;
       }
     });
+
+    bus.onServerEvent<OnUserPresenceActivityChanged>(
+      "OnUserPresenceActivityChanged",
+      async (x) => {
+        let user = await db.users.get(x.userId);
+        if (!user) {
+          trackUser(
+            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+          );
+          user = await db.users.get(x.userId)!;
+          if (!user)
+            throw new Error("await db.users.get(x.userId)! return null");
+        }
+        user.activity = x.presence;
+        await db.users.put(user);
+      }
+    );
+
+    bus.onServerEvent<OnUserPresenceActivityRemoved>(
+      "OnUserPresenceActivityRemoved",
+      async (x) => {
+        let user = await db.users.get(x.userId);
+        if (!user) {
+          trackUser(
+            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+          );
+          user = await db.users.get(x.userId)!;
+          if (!user)
+            throw new Error("await db.users.get(x.userId)! return null");
+        }
+        user.activity = undefined;
+        await db.users.put(user);
+      }
+    );
 
     bus.onServerEvent<UserChangedStatus>("UserChangedStatus", async (x) => {
       let user = await db.users.get(x.userId);

@@ -17,9 +17,12 @@ export const useApi = defineStore("api", () => {
     rpcClient.value.eventBus<IEventBus>()
   );
 
+  const getRawClient = () => rpcClient;
+
   return {
     userInteraction,
     serverInteraction,
-    eventBus
+    eventBus,
+    getRawClient
   };
 });
