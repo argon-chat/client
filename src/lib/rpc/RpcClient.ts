@@ -10,6 +10,7 @@ import { useMe } from "@/store/meStore";
 import { useToast } from '@/components/ui/toast/'
 import { v7 } from "uuid";
 import { RemovableRef, useLocalStorage } from "@vueuse/core";
+import { Ref, ref } from "vue";
 
 
 export function buildAtUrl(
@@ -26,10 +27,12 @@ export function buildAtUrl(
   if (sequence) args.push(`&sequence=${sequence}`);
   if (eventId) args.push(`&eventId=${eventId}`);
 
-  return new URL(
+  const url = new URL(
     `${sys.preferUseWs ? `/$at.ws` : `/$at.wt`}?aat=${aat}${args.join()}`,
     `https://${upgrade}`
   );
+  logger.warn('builded wt url', url, `upgrade: ${upgrade}`);
+  return url;
 }
 
 export class WsStream {
@@ -66,7 +69,7 @@ export class WsStream {
 export class RpcClient {
   private client: ArgonTransportClient;
   private baseUrl: string;
-
+  private activeTransport: Ref<WritableStreamDefaultWriter<string | Uint8Array<ArrayBufferLike>> | null> = ref(null);
 
   constructor(baseUrl: string) {
     const transport = new GrpcWebFetchTransport({
@@ -87,6 +90,14 @@ export class RpcClient {
       "X-Ctt": sessionId.value,
       "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT
     }
+  }
+
+  async sendPackageToActieTransport<T>(pkg: T): Promise<void> {
+    if (this.activeTransport.value) {
+      await this.activeTransport.value.write(encode(pkg, {
+         useBigInt64: true
+      }));
+    } else logger.warn("no active stream defined");
   }
 
   create<T>(serviceName: string): T {
@@ -124,10 +135,10 @@ export class RpcClient {
                     method: String(methodName),
                     payload: payload,
                   },
-                  { meta: { authorize: authStore.token!, ...(headers as any) } }
+                  { meta: { authorize: authStore.token ?? "", ...(headers as any) } }
                 );
 
-                if (response.response.statusCode == 2) {
+                if (response.response.statusCode == 2 && !!authStore.token) {
                   logger.warn("NOT AUTHORIZED, logout...");
                   const toast = useToast();
 
@@ -182,6 +193,7 @@ export class RpcClient {
 
   eventBusWs<T>(): T {
     const headers = this.getExtendedHeaders();
+    const that = this;
     return new Proxy(
       {},
       {
@@ -217,10 +229,7 @@ export class RpcClient {
                 upgrade = baseAddr.replace("https://", "");
               }
 
-              if (!argon.isArgonHost) {
-                upgrade = "https://localhost:3001";
-              }
-
+              
               const transportUrl = buildAtUrl(
                 upgrade,
                 aat,
@@ -251,6 +260,8 @@ export class RpcClient {
                     );
                     const stream = await transport.opened;
                     const reader = stream.readable.getReader();
+                    const eta = stream.writable.getWriter();
+                    that.activeTransport.value = eta;
 
                     sys.stopRequestRetry("argon-transport-streams", "ws");
                     reconnectDelay = 1000;
@@ -282,6 +293,7 @@ export class RpcClient {
                     logger.error("WebSocket error:", error);
                   } finally {
                     sub.unsubscribe();
+                    that.activeTransport.value = null;
                   }
                   sys.startRequestRetry("argon-transport-streams", "ws");
                   logger.warn(

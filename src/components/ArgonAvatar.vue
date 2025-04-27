@@ -1,6 +1,6 @@
 <template>
   <keep-alive :max="10" :key="props.fileId!">
-    <Avatar :class="props.class" :key="props.fileId!">
+    <Avatar :class="props.class" :key="props.fileId!" style="width: 40px; height: 40px;">
       <Skeleton style="height: 100%; width: 100%; background-color: #494949;" v-if="loading" :class="props.class" />
       <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
       <AvatarFallback v-if="!loading && !loaded">{{ props.fallback.at(0)?.toUpperCase() }}</AvatarFallback>
