@@ -78,5 +78,8 @@
     "playNotificationSound": "通知音",
     "playNotificationSound_details": "通知音を再生しますか？",
     "playRingSound": "着信音",
-    "playRingSound_details": "着信音を再生しますか？"
+    "playRingSound_details": "着信音を再生しますか？",
+    "activity_play_in": "でプレイ中",
+    "activity_work_in": "で働いている",
+    "activity_stream": "配信中"
 }

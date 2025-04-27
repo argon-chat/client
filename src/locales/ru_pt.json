@@ -78,5 +78,8 @@
     "playNotificationSound": "Звук морского гонца",
     "playNotificationSound_details": "Пустить тревожный звон, как весточка пришла?",
     "playRingSound": "Звон абордажного колокола",
-    "playRingSound_details": "Бить в колокол, когда кто-то зовёт на палубу?"
+    "playRingSound_details": "Бить в колокол, когда кто-то зовёт на палубу?",
+    "activity_play_in": "Барабозит в",
+    "activity_work_in": "Батрачит в",
+    "activity_stream": "Гримит в порту о"
 }

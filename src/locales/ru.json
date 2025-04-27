@@ -78,5 +78,8 @@
     "playNotificationSound": "Звук уведомления",
     "playNotificationSound_details": "Воспроизводить ли звук уведомления?",
     "playRingSound": "Звук звонка",
-    "playRingSound_details": "Воспроизводить ли звук звонка?"
+    "playRingSound_details": "Воспроизводить ли звук звонка?",
+    "activity_play_in": "Играет в",
+    "activity_work_in": "Рабоатет в",
+    "activity_stream": "Стримит"
 }

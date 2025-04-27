@@ -84,5 +84,8 @@
     "playNotificationSound": "Notification Sound",
     "playNotificationSound_details": "Should the notification sound be played?",
     "playRingSound": "Ring Sound",
-    "playRingSound_details": "Should the ring sound be played?"
+    "playRingSound_details": "Should the ring sound be played?",
+    "activity_play_in": "Playing in",
+    "activity_work_in": "Works in",
+    "activity_stream": "Streaming"
 }
