@@ -1,3 +1,4 @@
+import { UserStatus } from "@/lib/glue/UserStatus";
 import { persistedValue } from "@/lib/persistedValue";
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -20,7 +21,6 @@ export const usePreference = defineStore("preference", () => {
 
 
     const soundLevel = persistedValue<number>("soundLevel", 0.5);
-
 
     const onSoundLevelChanged = new Subject<number>();
 
