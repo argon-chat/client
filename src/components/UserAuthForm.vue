@@ -32,8 +32,9 @@ import { logger } from '@/lib/logger'
 const router = useRouter();
 
 const isLoading = ref(false);
-const tabValue = ref<"login" | "register" | "otp-code">('login');
+const tabValue = ref<"login" | "register" | "otp-code" | "otp-reset" | "pass-reset">('login');
 const isRegister = computed(() => tabValue.value === 'register');
+const isResetPass = computed(() => tabValue.value === 'otp-reset' || tabValue.value === 'pass-reset');
 
 const authStore = useAuthStore();
 
@@ -49,6 +50,9 @@ const handleCompleteOtpCode = (e: string[]) => {
   otpCode.value = e.join("");
   onSubmit(null);
 };
+const handleCompleteResetCode = (e: string[]) => {
+  otpCode.value = e.join("");
+};
 
 async function onSubmit(event: Event | null) {
   event?.preventDefault();
@@ -57,6 +61,21 @@ async function onSubmit(event: Event | null) {
   try {
 
     logger.info("Do submit, ", { isRegister: isRegister.value, event });
+
+    if (isResetPass.value) {
+      if (tabValue.value === 'otp-reset') {
+        await authStore.resetPass(email.value, password.value, otpCode.value);
+      }
+      else {
+        await authStore.beginResetPass(email.value);
+        tabValue.value = "otp-reset";
+      }
+      if (authStore.isAuthenticated) {
+        window.location.href = window.location.href;
+      }
+      return;
+    }
+
     if (isRegister.value) {
       await authStore.register({
         AgreeOptionalEmails: allowSendMeOptionalEmails.value,
@@ -94,6 +113,10 @@ async function onSubmit(event: Event | null) {
     isLoading.value = false;
   }
 }
+
+const goToResetPass = () => {
+  tabValue.value = "pass-reset";
+}
 </script>
 <template>
   <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
@@ -116,32 +139,39 @@ async function onSubmit(event: Event | null) {
 
     <Tabs default-value="login" v-model:model-value="tabValue">
       <TabsList class="grid w-full grid-cols-2">
-        <TabsTrigger value="login" :disabled="authStore.isRequiredOtp">
+        <TabsTrigger value="login" :disabled="authStore.isRequiredOtp" v-if="!isResetPass">
           Sign In
         </TabsTrigger>
-        <TabsTrigger value="register" v-if="!authStore.isRequiredOtp">
+        <TabsTrigger value="register" v-if="!authStore.isRequiredOtp && !isResetPass">
           Register
         </TabsTrigger>
-        <TabsTrigger value="otp-code" v-if="authStore.isRequiredOtp">
+        <TabsTrigger value="otp-code" v-if="authStore.isRequiredOtp && !isResetPass">
           Otp Code
+        </TabsTrigger>
+        <TabsTrigger value="pass-reset" v-if="isResetPass" disabled>
+          Reset Password
+        </TabsTrigger>
+        <TabsTrigger value="otp-reset" v-if="authStore.isRequiredFormResetPass || isResetPass" disabled>
+          Enter Reset Code
         </TabsTrigger>
       </TabsList>
       <TabsContent value="login">
         <form @submit="(e) => onSubmit(e)" class="transition-all duration-500 ease-in-out transform"
           v-if="!authStore.isRequiredOtp">
           <Card>
-            <CardHeader>
-            </CardHeader>
+            <br />
             <CardContent class="space-y-2">
               <div class="space-y-1">
                 <Label for="email">Email</Label>
-                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
+                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email"
+                  pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
                   :disabled="isLoading" />
               </div>
               <div class="space-y-1">
                 <Label for="password">Password</Label>
                 <Input id="password" v-model="password" placeholder="••••••••" type="password"
                   auto-complete="current-password" :disabled="isLoading" />
+                <a @click="goToResetPass" class="cursor-pointer text-gray-500 text-xs">Forgot password?</a>
               </div>
             </CardContent>
             <CardFooter>
@@ -149,7 +179,9 @@ async function onSubmit(event: Event | null) {
                 <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
                 Sign In
               </Button>
+
             </CardFooter>
+
           </Card>
         </form>
       </TabsContent>
@@ -189,7 +221,8 @@ async function onSubmit(event: Event | null) {
             <CardContent class="space-y-2">
               <div class="space-y-1">
                 <Label for="email" class="flex">Email <div class="text-red-500 pl-1">*</div></Label>
-                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
+                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email"
+                  pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
                   :disabled="isLoading" />
               </div>
               <div class="space-y-1">
@@ -199,8 +232,9 @@ async function onSubmit(event: Event | null) {
               </div>
               <div class="space-y-1">
                 <Label for="username" class="flex">Username <div class="text-red-500 pl-1">*</div></Label>
-                <Input id="username" v-model="username" placeholder="username" type="username" :disabled="isLoading" pattern="^[a-zA-Z][a-zA-Z0-9_]{2,19}$"
-                title="The user's name must start with a letter and contain from 3 to 20 characters: letters, numbers, and underscores." />
+                <Input id="username" v-model="username" placeholder="username" type="username" :disabled="isLoading"
+                  pattern="^[a-zA-Z][a-zA-Z0-9_]{2,19}$"
+                  title="The user's name must start with a letter and contain from 3 to 20 characters: letters, numbers, and underscores." />
               </div>
               <div class="space-y-1">
                 <Label for="password" class="flex">Password <div class="text-red-500 pl-1">*</div></Label>
@@ -240,6 +274,68 @@ async function onSubmit(event: Event | null) {
               <Button :disabled="isLoading">
                 <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
                 Register
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </TabsContent>
+
+
+      <!-- reset pass flow -->
+      <TabsContent value="otp-reset">
+        <form @submit="(e) => onSubmit(e)" class="transition-all duration-500 ease-in-out transform">
+          <Card>
+            <CardHeader>
+              <CardTitle>Enter reset code</CardTitle>
+              <CardDescription>It has been sent to your email.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-2">
+              <PinInput id="pin-input" class="justify-center" v-model="otpModel" placeholder="○"
+                @complete="handleCompleteResetCode">
+                <PinInputGroup class="gap-1">
+                  <template v-for="(id, index) in 6" :key="id">
+                    <PinInputInput class="rounded-md border bg-zinc-900" :index="index" />
+                    <template v-if="index !== 5">
+                      <PinInputSeparator />
+                    </template>
+                  </template>
+                </PinInputGroup>
+              </PinInput>
+              <br/>
+              <div class="space-y-1">
+                <Label for="password" class="flex">Password <div class="text-red-500 pl-1">*</div></Label>
+                <Input id="password" v-model="password" placeholder="••••••••" type="password"
+                  auto-complete="new-password" :disabled="isLoading" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button :disabled="isLoading" class="w-full">
+                <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+                Reset Password
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </TabsContent>
+      <TabsContent value="pass-reset">
+        <form @submit="(e) => onSubmit(e)" class="transition-all duration-500 ease-in-out transform">
+          <Card>
+            <CardHeader>
+              <CardTitle>Enter email</CardTitle>
+              <CardDescription>We will send you a password reset code.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-2">
+              <div class="space-y-1">
+                <Label for="email" class="flex">Email <div class="text-red-500 pl-1">*</div></Label>
+                <Input id="email" v-model="email" placeholder="example@email.com" type="email" auto-complete="email"
+                  pattern="^[^\s@]+@[^\s@]+\.[^\s@]{1,}$" title="Please enter valid email address"
+                  :disabled="isLoading" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button :disabled="isLoading" class="w-full" type="submit">
+                <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+                Reset Password
               </Button>
             </CardFooter>
           </Card>
