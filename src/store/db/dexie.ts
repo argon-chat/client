@@ -1,7 +1,7 @@
 import { UserStatus } from '@/lib/glue/UserStatus';
 import Dexie, { Table } from 'dexie';
 
-export type RealtimeUser = IUserDto & { status: UserStatus };
+export type RealtimeUser = IUserDto & { status: UserStatus, activity?: IUserActivityPresence };
 
 
 const tryDropOldDb = (s: string) => { try { indexedDB.deleteDatabase(s) } catch {} };
@@ -9,7 +9,7 @@ const tryDropOldDb = (s: string) => { try { indexedDB.deleteDatabase(s) } catch 
 
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
-  servers!: Table<IServer, Guid>;
+  servers!: Table<IServerDto, Guid>;
   channels!: Table<IChannel, Guid>;
   messages!: Table<IArgonMessageDto, number>;
 
