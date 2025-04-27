@@ -71,6 +71,13 @@ declare global {
     get isArgonHost(): boolean;
 
     dsn(): string;
+
+    onGameActivityDetected(
+      pinnedFn: IPinnedObject
+    ): boolean;
+    onGameActivityTerminated(
+      pinnedFn: IPinnedObject
+    ): boolean;
   }
 
   interface INative {
@@ -104,6 +111,7 @@ declare global {
     getCurrentChannel(): "beta" | "canary" | "live";
     setChannel(val: "beta" | "canary" | "live"): boolean;
     isRequiredToUpdate(): boolean;
+    getIdleTimeSeconds(): number;
   }
 
   interface IPinnedObject {}
