@@ -183,13 +183,13 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const trackUser = async function (
     user: IUserDto,
-    extendedStatus?: UserStatus
+    extendedStatus?: UserStatus,
   ) {
     const exist = await db.users.get(user.UserId);
     if (exist) {
       await db.users.update(exist.UserId, {
         ...user,
-        status: extendedStatus ?? "Offline",
+        status: !!extendedStatus ? extendedStatus : exist.status,
       });
       return;
     }
