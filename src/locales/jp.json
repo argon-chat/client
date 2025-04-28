@@ -81,5 +81,6 @@
     "playRingSound_details": "着信音を再生しますか？",
     "activity_play_in": "でプレイ中",
     "activity_work_in": "で働いている",
-    "activity_stream": "配信中"
+    "activity_stream": "配信中",
+    "activity_listen": "を聴きます"
 }
