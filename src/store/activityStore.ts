@@ -1,39 +1,144 @@
-import { logger } from "@sentry/vue";
 import { defineStore } from "pinia";
 import { useApi } from "./apiStore";
 import { ref } from "vue";
+import { logger } from "@/lib/logger";
+import { useDebounceFn } from "@vueuse/core";
+import { Subject } from "rxjs";
+import { debounceTime, switchMap, distinctUntilChanged } from "rxjs/operators";
+
+export interface IMusicEvent {
+  title: string;
+  author: string;
+  isPlaying: boolean;
+}
 
 export const useActivity = defineStore("activity", () => {
   const api = useApi();
   const activeActivity = ref(null as null | number);
+  const musicSubject = new Subject<IMusicEvent>();
+  const gameSessions: Map<number, IProcessEntity> = new Map();
+  const musicSessions: Map<string, IMusicEvent> = new Map();
+  const onActivityChanged = new Subject();
+
+  const debouncedMusicSubject = musicSubject.pipe(
+    debounceTime(1000),
+    distinctUntilChanged((prev, curr) => {
+      return (
+        prev.title === curr.title &&
+        prev.author === curr.author &&
+        prev.isPlaying === curr.isPlaying
+      );
+    }),
+    switchMap((lastEvent) => {
+      return [lastEvent];
+    })
+  );
+
+  const debouncedActivitySubject = onActivityChanged.pipe(
+    debounceTime(1000),
+    switchMap((lastEvent) => {
+      return [lastEvent];
+    })
+  );
 
   async function init() {
     if (!argon.isArgonHost) return;
-    const populatePinnedFn = native.createPinnedObject(onActivityDetected);
+    const populatePinnedFn = native.createPinnedObject(
+        onActivityDetected//useDebounceFn(, 1000)
+    );
     if (!argon.onGameActivityDetected(populatePinnedFn))
       logger.error("failed to bind activity manager 1");
-    const terminatedPinnedFn = native.createPinnedObject(onActivityTerminated);
+    const terminatedPinnedFn = native.createPinnedObject(
+        onActivityTerminated//useDebounceFn(, 1000)
+    );
     if (!argon.onGameActivityTerminated(terminatedPinnedFn))
-        logger.error("failed to bind activity manager 2");
+      logger.error("failed to bind activity manager 2");
+    const onPopulateMusic = native.createPinnedObject(onMusicDetected);
+    if (!argon.onMusicSessionSourcePopulated(onPopulateMusic))
+      logger.error("failed to bind activity manager 3");
+    const onMusicEnd = native.createPinnedObject(onMusicStop);
+    if (!argon.onMusicSessionPlayStateChanged(onMusicEnd))
+      logger.error("failed to bind activity manager 4");
+
+    debouncedActivitySubject.subscribe(publishLatestActivity);
   }
 
-  function onActivityDetected(str: string) {
-    const process: { name: string; pid: number; hash: string } =
-      JSON.parse(str);
+  function onMusicDetected(proc: IAudioEntity) {
+    logger.info("On Music Detected", proc);
+    const session = {
+      title: proc.TitleName,
+      author: proc.Author,
+      isPlaying: true,
+    };
+    musicSessions.set(proc.sessionId, session);
+    musicSubject.next(session);
+    onActivityChanged.next(0);
+  }
 
-    api.userInteraction.BroadcastPresenceAsync({
-        Kind: "GAME",
-        StartTimestampSeconds: 0,
-        TitleName: process.name
-    });
-    activeActivity.value = process.pid;
+  function onMusicStop(sessionId: string, state: boolean) {
+    const currentSession = musicSessions.get(sessionId);
+    if (currentSession) {
+      currentSession.isPlaying = state;
+      musicSubject.next(currentSession);
+    } else {
+      logger.error("Session not found", { sessionId });
+    }
+    onActivityChanged.next(0);
+  }
+
+  function onActivityDetected(proc: IProcessEntity) {
+    logger.info("onActivityDetected", proc);
+    gameSessions.set(proc.pid, proc);
+    activeActivity.value = proc.pid;
+    onActivityChanged.next(0);
   }
 
   function onActivityTerminated(pid: number) {
-    if (activeActivity.value == pid) {
-        api.userInteraction.RemoveBroadcastPresenceAsync();
-        activeActivity.value = null;
+    logger.info("onActivityTerminated", pid);
+    if (activeActivity.value === pid) {
+      api.userInteraction.RemoveBroadcastPresenceAsync();
+      activeActivity.value = null;
     }
+    gameSessions.delete(pid);
+    onActivityChanged.next(0);
+  }
+
+  function publishLatestActivity() {
+    
+    const latestMusic = getLastMusicSession();
+    const latestGame = getLastGameSession();
+
+    logger.warn("publishLatestActivity!!!", latestGame, latestMusic);
+
+    if (latestMusic && latestMusic.isPlaying) {
+      api.userInteraction.BroadcastPresenceAsync({
+        Kind: "LISTEN",
+        StartTimestampSeconds: 0,
+        TitleName: `${latestMusic.title} - ${latestMusic.author}`,
+      });
+    }
+    else if (latestGame) {
+      api.userInteraction.BroadcastPresenceAsync({
+        Kind: latestGame.kind == 0 ? "GAME" : "SOFTWARE",
+        StartTimestampSeconds: 0,
+        TitleName: latestGame.name,
+      });
+    }
+    else api.userInteraction.RemoveBroadcastPresenceAsync();
+  }
+
+  function getLastMusicSession(): IMusicEvent | null {
+    const sessionsArray = Array.from(musicSessions.values());
+    return sessionsArray.length > 0
+      ? sessionsArray[sessionsArray.length - 1]
+      : null;
+  }
+
+  function getLastGameSession(): IProcessEntity | null {
+    const sessionsArray = Array.from(gameSessions.values());
+    return sessionsArray.length > 0
+      ? sessionsArray[sessionsArray.length - 1]
+      : null;
   }
 
   return {

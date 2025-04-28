@@ -68,6 +68,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     case "GAME": return "activity_play_in";
     case "SOFTWARE": return "activity_work_in";
     case "STREAMING": return "activity_stream";
+    case "LISTEN": return "activity_listen";
     default: return "error";
   }
 }
