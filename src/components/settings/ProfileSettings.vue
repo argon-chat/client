@@ -85,7 +85,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button';
-import { ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import { usePredictor } from '@/store/predictorStore';
 import { logger } from '@/lib/logger';
 import { useConfig } from '@/store/remoteConfig';
@@ -199,6 +199,10 @@ const deleteAccount = () => {
         description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу"
     });
 };
+
+onUnmounted(() => {
+    isFileSelected.value = false;
+});
 </script>
 
 <style scoped>
