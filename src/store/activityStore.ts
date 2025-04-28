@@ -2,9 +2,8 @@ import { defineStore } from "pinia";
 import { useApi } from "./apiStore";
 import { ref } from "vue";
 import { logger } from "@/lib/logger";
-import { useDebounceFn } from "@vueuse/core";
 import { Subject } from "rxjs";
-import { debounceTime, switchMap, distinctUntilChanged } from "rxjs/operators";
+import { debounceTime, switchMap } from "rxjs/operators";
 
 export interface IMusicEvent {
   title: string;
@@ -15,24 +14,9 @@ export interface IMusicEvent {
 export const useActivity = defineStore("activity", () => {
   const api = useApi();
   const activeActivity = ref(null as null | number);
-  const musicSubject = new Subject<IMusicEvent>();
   const gameSessions: Map<number, IProcessEntity> = new Map();
   const musicSessions: Map<string, IMusicEvent> = new Map();
   const onActivityChanged = new Subject();
-
-  const debouncedMusicSubject = musicSubject.pipe(
-    debounceTime(1000),
-    distinctUntilChanged((prev, curr) => {
-      return (
-        prev.title === curr.title &&
-        prev.author === curr.author &&
-        prev.isPlaying === curr.isPlaying
-      );
-    }),
-    switchMap((lastEvent) => {
-      return [lastEvent];
-    })
-  );
 
   const debouncedActivitySubject = onActivityChanged.pipe(
     debounceTime(1000),
@@ -71,7 +55,6 @@ export const useActivity = defineStore("activity", () => {
       isPlaying: true,
     };
     musicSessions.set(proc.sessionId, session);
-    musicSubject.next(session);
     onActivityChanged.next(0);
   }
 
@@ -79,7 +62,6 @@ export const useActivity = defineStore("activity", () => {
     const currentSession = musicSessions.get(sessionId);
     if (currentSession) {
       currentSession.isPlaying = state;
-      musicSubject.next(currentSession);
     } else {
       logger.error("Session not found", { sessionId });
     }

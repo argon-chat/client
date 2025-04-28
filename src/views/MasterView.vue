@@ -23,17 +23,22 @@
             <span :class="me.statusClass(user.status)"
               class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
           </div>
-          <div class="flex flex-col items-start">
+          <div class="flex flex-col items-start overflow-hidden">
             <span>{{ user.DisplayName }}</span>
-            <span class="text-[10px]"  v-if="user.activity">
+            <span class="text-[10px]"
+              v-if="user.activity">
               {{ t(getTextForActivityKind(user.activity.Kind)) }}
-              <span class="font-bold">{{ user.activity.TitleName }}</span></span>
+              <marquee direction="left" hspace="3" behavior="alternate" class="font-bold" scrolldelay="300" truespeed="10">
+                {{ user.activity.TitleName }}
+              </marquee>
+
+            </span>
+
           </div>
 
         </li>
       </ul>
     </div>
-
     <SettingsWindow />
     <ServerSettingsWindow />
     <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
@@ -94,6 +99,20 @@ body {
   background-color: #161616;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0%);
+  }
+
+  to {
+    transform: translateX(10%);
+  }
+}
+
+.marquee {
+  animation: marquee 5s linear infinite;
 }
 
 .overlay {

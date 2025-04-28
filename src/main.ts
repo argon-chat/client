@@ -34,7 +34,6 @@ export const i18n = createI18n<[LocaleSchema], Locale>({
 let pinia = createPinia();
 var app = createApp(App);
 app.use(i18n);
-
 Sentry.init({
   app,
   dsn: argon?.dsn() ?? "",
