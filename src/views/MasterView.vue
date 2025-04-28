@@ -9,40 +9,11 @@
     <div class="chat-container flex-1 flex-col rounded-xl shadow-md justify-between">
       <ChannelChat :channel-id="''" />
     </div>
-    <div v-if="dataPool.selectedServer"
-      class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
-      style="background-color: #161616;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-      <h3 class="text-lg text-white mb-4">{{ t("users") }}</h3>
-      <ul class="text-gray-400 space-y-2">
-        <li v-for="user in dataPool.activeServerUsers.value" :key="user.UserId"
-          class="flex items-center space-x-3 hover:text-white">
-          <div class="relative" style="width: 40px; height: 45px;">
-            <ArgonAvatar :fallback="user.DisplayName" :file-id="user.AvatarFileId!" :user-id="user.UserId" />
-            <span :class="me.statusClass(user.status)"
-              class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
-          </div>
-          <div class="flex flex-col items-start overflow-hidden">
-            <span>{{ user.DisplayName }}</span>
-            <span class="text-[10px] flex"
-              v-if="user.activity">
-              {{ t(getTextForActivityKind(user.activity.Kind)) }}
-              <marquee direction="left" hspace="3" behavior="alternate" class="font-bold" scrolldelay="300" truespeed="10">
-                {{ user.activity.TitleName }}
-              </marquee>
-
-            </span>
-
-          </div>
-
-        </li>
-      </ul>
-    </div>
+    
     <SettingsWindow />
     <ServerSettingsWindow />
     <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
-
+    <LeftSideUserList v-if="dataPool.selectedServer"/>
     <div class="overlay select-none" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
       {{ t('wait_connect') }}
     </div>
@@ -55,28 +26,18 @@ import ChatList from '@/components/ChatList.vue';
 import ChannelChat from '@/components/ChannelChat.vue';
 import SettingsWindow from '@/components/SettingsWindow.vue';
 import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
-import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { usePoolStore } from '@/store/poolStore';
 import { onMounted } from 'vue';
 import { useMe } from '@/store/meStore';
 import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
 import { useLocale } from '@/store/localeStore';
-import { ActivityPresenceKind } from '@/lib/glue/ActivityPresenceKind';
+import LeftSideUserList from '@/components/LeftSideUserList.vue';
 
 const dataPool = usePoolStore();
 const me = useMe();
 const { t } = useLocale();
 
-const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
-  switch (activityKind) {
-    case "GAME": return "activity_play_in";
-    case "SOFTWARE": return "activity_work_in";
-    case "STREAMING": return "activity_stream";
-    case "LISTEN": return "activity_listen";
-    default: return "error";
-  }
-}
 
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
