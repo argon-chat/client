@@ -261,7 +261,8 @@ export class RpcClient {
                     const stream = await transport.opened;
                     const reader = stream.readable.getReader();
                     const eta = stream.writable.getWriter();
-                    that.activeTransport.value = eta;
+                    if (methodName === "SubscribeToMeEvents")
+                      that.activeTransport.value = eta;
 
                     sys.stopRequestRetry("argon-transport-streams", "ws");
                     reconnectDelay = 1000;
@@ -293,7 +294,8 @@ export class RpcClient {
                     logger.error("WebSocket error:", error);
                   } finally {
                     sub.unsubscribe();
-                    that.activeTransport.value = null;
+                    if (methodName === "SubscribeToMeEvents")
+                      that.activeTransport.value = null;
                   }
                   sys.startRequestRetry("argon-transport-streams", "ws");
                   logger.warn(

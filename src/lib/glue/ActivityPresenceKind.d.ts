@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ActivityPresenceKind = 'GAME' | 'SOFTWARE' | 'STREAMING'
+export type ActivityPresenceKind = 'GAME' | 'SOFTWARE' | 'STREAMING' | 'LISTEN'
