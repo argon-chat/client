@@ -1,6 +1,9 @@
 <template>
   <keep-alive :max="10" :key="props.fileId!">
-    <Avatar :class="props.class" :key="props.fileId!" style="width: 40px; height: 40px;">
+    <Avatar :class="props.class" :key="props.fileId!" :style="{
+      width: size,
+      height: size
+    }">
       <Skeleton style="height: 100%; width: 100%; background-color: #494949;" v-if="loading" :class="props.class" />
       <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
       <AvatarFallback v-if="!loading && !loaded">{{ props.fallback.at(0)?.toUpperCase() }}</AvatarFallback>
@@ -12,7 +15,7 @@
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { onMounted, ref, watch, type HTMLAttributes } from 'vue'
+import { computed, onMounted, ref, watch, type HTMLAttributes } from 'vue'
 import { useFileStorage } from "@/store/fileStorage";
 import { logger } from '@/lib/logger';
 const loaded = ref(false);
@@ -24,8 +27,14 @@ const props = withDefaults(defineProps<{
   fileId: string | null,
   fallback: string,
   serverId?: string,
-  userId?: string
-}>(), {});
+  userId?: string,
+  overridedSize?: number
+}>(), {
+  overridedSize: undefined
+});
+
+const size = computed(() => !!props.overridedSize ? `${props.overridedSize}px` : null);
+
 
 watch(() => props.fileId, async () => {
   if (!props.userId) return;
