@@ -86,8 +86,11 @@ declare global {
 
     onGameActivityDetected(pinnedFn: IPinnedFunction<void, [IProcessEntity]>): boolean;
     onGameActivityTerminated(pinnedFn: IPinnedFunction<void, [number]>): boolean;
-    onMusicSessionSourcePopulated(pinnedFn: IPinnedFunction<void, [IAudioEntity]>): boolean;
-    onMusicSessionPlayStateChanged(pinnedFn: IPinnedFunction<void, [string, boolean]>): boolean;
+    onMusicSessionPlayStateChanged(pinnedFn: IPinnedFunction<void, [string, boolean, string]>): boolean;
+
+
+    listenSessionMusic(): boolean;
+    listenActivity(): boolean;
   }
 
   interface INative {
