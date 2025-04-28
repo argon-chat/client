@@ -25,7 +25,7 @@
           </div>
           <div class="flex flex-col items-start overflow-hidden">
             <span>{{ user.DisplayName }}</span>
-            <span class="text-[10px]"
+            <span class="text-[10px] flex"
               v-if="user.activity">
               {{ t(getTextForActivityKind(user.activity.Kind)) }}
               <marquee direction="left" hspace="3" behavior="alternate" class="font-bold" scrolldelay="300" truespeed="10">
