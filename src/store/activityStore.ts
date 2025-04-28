@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { useApi } from "./apiStore";
 import { ref } from "vue";
 import { logger } from "@/lib/logger";
-import { Subject } from "rxjs";
+import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 
 export interface IMusicEvent {
@@ -28,43 +28,34 @@ export const useActivity = defineStore("activity", () => {
   async function init() {
     if (!argon.isArgonHost) return;
     const populatePinnedFn = native.createPinnedObject(
-        onActivityDetected//useDebounceFn(, 1000)
+      onActivityDetected //useDebounceFn(, 1000)
     );
     if (!argon.onGameActivityDetected(populatePinnedFn))
       logger.error("failed to bind activity manager 1");
     const terminatedPinnedFn = native.createPinnedObject(
-        onActivityTerminated//useDebounceFn(, 1000)
+      onActivityTerminated //useDebounceFn(, 1000)
     );
     if (!argon.onGameActivityTerminated(terminatedPinnedFn))
       logger.error("failed to bind activity manager 2");
-    const onPopulateMusic = native.createPinnedObject(onMusicDetected);
-    if (!argon.onMusicSessionSourcePopulated(onPopulateMusic))
-      logger.error("failed to bind activity manager 3");
     const onMusicEnd = native.createPinnedObject(onMusicStop);
     if (!argon.onMusicSessionPlayStateChanged(onMusicEnd))
       logger.error("failed to bind activity manager 4");
 
     debouncedActivitySubject.subscribe(publishLatestActivity);
+    interval(5 * 60 * 1000)
+      .pipe(
+        switchMap(() => {
+          return Promise.resolve(publishLatestActivity());
+        })
+      )
+      .subscribe();
+    argon.listenActivity();
+    argon.listenSessionMusic();
   }
 
-  function onMusicDetected(proc: IAudioEntity) {
-    logger.info("On Music Detected", proc);
-    const session = {
-      title: proc.TitleName,
-      author: proc.Author,
-      isPlaying: true,
-    };
-    musicSessions.set(proc.sessionId, session);
-    onActivityChanged.next(0);
-  }
-
-  function onMusicStop(sessionId: string, state: boolean) {
-    const currentSession = musicSessions.get(sessionId);
-    if (currentSession) {
-      currentSession.isPlaying = state;
-    } else {
-      logger.error("Session not found", { sessionId });
-    }
+  function onMusicStop(sessionId: string, state: boolean, data: string) {
+    const audioEntity = JSON.parse(data) as IAudioEntity;
+    musicSessions.set(sessionId, { author: audioEntity.Author, isPlaying: state, title: audioEntity.TitleName });
     onActivityChanged.next(0);
   }
 
@@ -86,11 +77,10 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function publishLatestActivity() {
-    
     const latestMusic = getLastMusicSession();
     const latestGame = getLastGameSession();
 
-    logger.warn("publishLatestActivity!!!", latestGame, latestMusic);
+    logger.info("publishLatestActivity, ", latestGame, latestMusic);
 
     if (latestMusic && latestMusic.isPlaying) {
       api.userInteraction.BroadcastPresenceAsync({
@@ -98,15 +88,13 @@ export const useActivity = defineStore("activity", () => {
         StartTimestampSeconds: 0,
         TitleName: `${latestMusic.title} - ${latestMusic.author}`,
       });
-    }
-    else if (latestGame) {
+    } else if (latestGame) {
       api.userInteraction.BroadcastPresenceAsync({
         Kind: latestGame.kind == 0 ? "GAME" : "SOFTWARE",
         StartTimestampSeconds: 0,
         TitleName: latestGame.name,
       });
-    }
-    else api.userInteraction.RemoveBroadcastPresenceAsync();
+    } else api.userInteraction.RemoveBroadcastPresenceAsync();
   }
 
   function getLastMusicSession(): IMusicEvent | null {

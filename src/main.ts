@@ -30,7 +30,6 @@ export const i18n = createI18n<[LocaleSchema], Locale>({
   fallbackLocale: "en",
   messages: locales as any,
 });
-
 let pinia = createPinia();
 var app = createApp(App);
 app.use(i18n);
