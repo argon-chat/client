@@ -62,22 +62,32 @@ declare global {
         | HotkeyModification.HAS_SHIFT
         | HotkeyModification.HAS_WIN
       );
-      interface IWindowInfo {
-        deviceId: string;
-        title: string;
-      }
+  interface IWindowInfo {
+    deviceId: string;
+    title: string;
+  }
+  interface IProcessEntity {
+    appIcon?: stirng;
+    name: string;
+    pid: number;
+    hash: string;
+    kind: 0 | 1
+  }
+  interface IAudioEntity {
+    sessionId: string;
+    TitleName: string;
+    Author: string;
+  }
 
   interface IArgon {
     get isArgonHost(): boolean;
 
     dsn(): string;
 
-    onGameActivityDetected(
-      pinnedFn: IPinnedObject
-    ): boolean;
-    onGameActivityTerminated(
-      pinnedFn: IPinnedObject
-    ): boolean;
+    onGameActivityDetected(pinnedFn: IPinnedFunction<void, [IProcessEntity]>): boolean;
+    onGameActivityTerminated(pinnedFn: IPinnedFunction<void, [number]>): boolean;
+    onMusicSessionSourcePopulated(pinnedFn: IPinnedFunction<void, [IAudioEntity]>): boolean;
+    onMusicSessionPlayStateChanged(pinnedFn: IPinnedFunction<void, [string, boolean]>): boolean;
   }
 
   interface INative {
@@ -88,6 +98,9 @@ declare global {
     getHWNDs(): IWindowInfo[];
 
     V8ThreadingInit(): boolean;
+     createPinnedObject<TArgs extends any[], TReturn>(
+      o: (...args: TArgs) => TReturn
+    ): IPinnedFunction<TReturn, TArgs>;
     createPinnedObject(o: object): IPinnedObject;
     freePinnedObject(obj: IPinnedObject): void;
 
@@ -104,15 +117,17 @@ declare global {
 
     pressSystemKey(key: SystemKey): void;
 
-
     toggleDevTools(): boolean;
-
 
     getCurrentChannel(): "beta" | "canary" | "live";
     setChannel(val: "beta" | "canary" | "live"): boolean;
     isRequiredToUpdate(): boolean;
     getIdleTimeSeconds(): number;
   }
+
+  type IPinnedFunction<TReturn, TArgs extends any[]> = IPinnedObject & (
+    (...args: TArgs) => TReturn
+  );
 
   interface IPinnedObject {}
 
