@@ -53,7 +53,7 @@
 
 
         <Dialog v-model:open="isFileSelected">
-            <DialogContent class="max-h-[850px] max-w-[750px]">
+            <DialogContent class="max-h-[850px] max-w-[750px]" :disableOutsidePointerEvents="true">
                 <DialogHeader>
                     <DialogTitle>Crop image</DialogTitle>
                 </DialogHeader>

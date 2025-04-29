@@ -1,9 +1,9 @@
 <template>
     <div v-if="loaded">
-        <h2 class="text-xl font-bold mb-4">Voice & Video Settings</h2>
+        <h2 class="text-xl font-bold mb-4">{{ t("voice_video_settings") }}</h2>
 
         <div>
-            <label class="block font-semibold mb-1">Select Microphone</label>
+            <label class="block font-semibold mb-1">{{ t("select_microphone") }}</label>
             <Select v-model="selectedMicrophone">
                 <SelectTrigger>
                     <SelectValue placeholder="No microphones found" />
@@ -28,8 +28,7 @@
                         {{ t("echo_cancellation") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        A feature which attempts to prevent echo effects on a two-way audio connection by attempting
-                        to reduce or eliminate crosstalk between the user's output device and their input device
+                        {{ t("echo_cancellation_desc") }}
                     </div>
                 </div>
                 <Switch :checked="preferenceStore.echoCancellation"
@@ -42,8 +41,7 @@
                         AGC
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Is an audio algorithm module that I think has the longest link and most affects sound
-                        quality and subjective hearing.
+                        {{ t("agc_desc") }}
                     </div>
                 </div>
                 <Switch :checked="preferenceStore.autoGainControl"
@@ -53,10 +51,10 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Voice Isolation
+                        {{ t("voice_isolation") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Isolate Isolation of Isolation Voice for Isolation
+                        {{ t("voice_isolation_desc") }}
                     </div>
                 </div>
                 <Switch :checked="preferenceStore.voiceIsolation"
@@ -70,7 +68,7 @@
                         {{ t("noise_sup") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Noise Suppression (Noise Suppression)
+                        {{ t("noise_sup_desc") }}
                     </div>
                 </div>
                 <Switch @update:checked="(x) => preferenceStore.noiseSuppression = x"
