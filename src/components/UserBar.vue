@@ -9,7 +9,7 @@
           <DropdownMenu>
             <DropdownMenuTrigger>
               <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
-                {{ me.me?.currentStatus }}
+                {{ t(`status_${me.me?.currentStatus}`)  }}
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent class="w-56">
@@ -17,7 +17,7 @@
               <DropdownMenuSeparator />
               <DropdownMenuRadioGroup v-model="status">
                 <DropdownMenuRadioItem :value="i" v-for="i in availableStatuses" :key="i">
-                  {{ i }} <span :class="me.statusClass(i)"
+                  {{ t(`status_${i}`) }} <span :class="me.statusClass(i)"
                     class="absolute left-2 w-4 h-4 rounded-full border-2 border-gray-800"></span>
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
@@ -53,7 +53,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { ref, watch } from "vue";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const windows = useWindow();
 const me = useMe();
 
