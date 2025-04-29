@@ -415,6 +415,10 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
       user.status = x.status;
 
+      if(x.status == "Offline" && user.activity) {
+        user.activity = undefined;
+      }
+
       db.users.put(user);
     });
 

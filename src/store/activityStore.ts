@@ -42,7 +42,7 @@ export const useActivity = defineStore("activity", () => {
       logger.error("failed to bind activity manager 4");
 
     debouncedActivitySubject.subscribe(publishLatestActivity);
-    interval(5 * 60 * 1000)
+    interval(2 * 60 * 1000)
       .pipe(
         switchMap(() => {
           return Promise.resolve(publishLatestActivity());
