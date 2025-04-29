@@ -53,9 +53,9 @@
     "key.microphone.toggle": "Toggle mute in microphone",
     "key.microphone.on": "Disable mute in microphone",
     "key.microphone.off": "Mute microphone",
-    "key.sound.toggle": "丈太郎ムダムダ",
-    "key.sound.on": "丈太郎ムダムダ",
-    "key.sound.off": "丈太郎ムダムダ",
+    "key.sound.toggle": "Toggle mute sound",
+    "key.sound.on": "Mute sound",
+    "key.sound.off": "Unmute sound",
     "invite_codes": "Invite Codes",
     "select_camera": "Select Camera",
     "no_camera_found": "No cameras found",
@@ -88,5 +88,7 @@
     "activity_play_in": "Playing in",
     "activity_work_in": "Works in",
     "activity_stream": "Streaming",
-    "activity_listen": "Listen"
+    "activity_listen": "Listen",
+    "status_TouchGrass": "Touch Grass",
+    "status_DoNotDisturb": "Do not disturb"
 }

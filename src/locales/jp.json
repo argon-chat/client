@@ -82,5 +82,20 @@
     "activity_play_in": "でプレイ中",
     "activity_work_in": "で働いている",
     "activity_stream": "配信中",
-    "activity_listen": "を聴きます"
+    "activity_listen": "を聴きます",
+    "key.microphone.toggle": "マイクのミュート切替",
+    "key.microphone.on": "マイクのミュートを解除",
+    "key.microphone.off": "マイクをミュート",
+    "key.sound.toggle": "サウンドのミュート切替",
+    "key.sound.on": "サウンドをミュート",
+    "key.sound.off": "サウンドのミュートを解除",
+    "status_TouchGrass": "外でリフレッシュ中",
+    "status_DoNotDisturb": "取り込み中",
+    "echo_cancellation_desc": "双方向の音声通信でエコーを防ぐために、出力デバイスと入力デバイス間のクロストークを減らす機能です。",
+    "agc_desc": "自動ゲイン調整（AGC）は、音声信号の音量を一定に保つためのアルゴリズムです。",
+    "voice_isolation": "ボイスアイソレーション",
+    "voice_isolation_desc": "ボイスのアイソレーションをアイソレーションのためにアイソレートします",
+    "noise_sup_desc": "ノイズ抑制（ノイズ抑制）",
+    "select_microphone": "マイクを選択",
+    "voice_video_settings": "音声とビデオの設定"
 }
