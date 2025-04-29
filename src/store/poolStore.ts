@@ -71,6 +71,11 @@ export const usePoolStore = defineStore("data-pool", () => {
   const getBatchUser = async function (userIds: Guid[]) {
     return await db.users.bulkGet(userIds);
   };
+  const getBatchUsersExcept = async function (excludedUserIds: Guid[]) {
+    return await db.users
+      .filter((user) => !excludedUserIds.includes(user.UserId))
+      .toArray();
+  };
 
   const indicateSpeaking = async function (
     channelId: Guid,
@@ -184,12 +189,14 @@ export const usePoolStore = defineStore("data-pool", () => {
   const trackUser = async function (
     user: IUserDto,
     extendedStatus?: UserStatus,
+    extendedActivity?: IUserActivityPresence
   ) {
     const exist = await db.users.get(user.UserId);
     if (exist) {
       await db.users.update(exist.UserId, {
         ...user,
         status: !!extendedStatus ? extendedStatus : exist.status,
+        activity: extendedActivity ?? exist.activity ?? undefined,
       });
       return;
     }
@@ -197,6 +204,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       {
         ...user,
         status: extendedStatus ?? "Offline",
+        activity: extendedActivity ?? undefined,
       },
       user.UserId
     );
@@ -428,8 +436,17 @@ export const usePoolStore = defineStore("data-pool", () => {
       logger.log(`Loaded '${users.length}' users`, users);
 
       for (const u of users) {
-        if (u.Member.User) await trackUser(u.Member.User, u.Status);
+        if (u.Member.User) await trackUser(u.Member.User, u.Status, u.Presence);
       }
+
+      const excludeSet = new Set(users.filter(x => x.Member).map(x => x.Member.UserId));
+
+      await db.users
+        .filter((user) => !excludeSet.has(user.UserId))
+        .modify((user) => {
+          user.status = "Offline";
+          user.activity = undefined;
+        });
 
       const channels = await api.serverInteraction.GetChannels(s.Id);
 
