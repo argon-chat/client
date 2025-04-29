@@ -36,6 +36,7 @@ export const useMe = defineStore("me", () => {
   }
 
   async function changeStatusTo(status: UserStatus) {
+    if (me.value!.currentStatus === status) return;
     preferredStatus.value = status;
     if (me.value) me.value!.currentStatus = status;
   }
