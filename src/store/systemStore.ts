@@ -14,21 +14,33 @@ export const useSystemStore = defineStore("system", () => {
   const hotkeys = useHotkeys();
 
   const muteEvent = new Subject<boolean>();
+  const preferUseWs = ref(false);
 
   // network
 
-  const activeRetries = ref<Set<string>>(new Set());
-  const preferUseWs = ref(false);
+  const activeRetries = ref<Map<string, number>>(new Map());
   function startRequestRetry(serviceName: string, methodName: string) {
-    activeRetries.value.add(`${serviceName}.${methodName}`);
+    const key = `${serviceName}.${methodName}`;
+    if (!activeRetries.value.has(key)) {
+      activeRetries.value.set(key, Date.now());
+    }
   }
-
+  
   function hasRequestRetry(serviceName: string, methodName: string) {
     return activeRetries.value.has(`${serviceName}.${methodName}`);
   }
-
-  function stopRequestRetry(serviceName: string, methodName: string) {
-    activeRetries.value.delete(`${serviceName}.${methodName}`);
+  
+  function stopRequestRetry(serviceName: string, methodName: string): number | null {
+    const key = `${serviceName}.${methodName}`;
+    const startTime = activeRetries.value.get(key);
+    activeRetries.value.delete(key);
+  
+    if (startTime != null) {
+      const durationMs = Date.now() - startTime;
+      return Math.round(durationMs / 1000);
+    }
+  
+    return null;
   }
 
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);

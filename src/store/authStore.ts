@@ -141,7 +141,7 @@ export const useAuthStore = defineStore("auth", () => {
   const resetPass = async (email: string, newPass: string, resetCode: string) => {
     const api = useApi();
 
-    const r = await await api.userInteraction.ResetPassword({
+    const r = await api.userInteraction.ResetPassword({
       Email: email,
       newPassword: newPass,
       otpCode: resetCode
