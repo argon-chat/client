@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast/'
 import { v7 } from "uuid";
 import { RemovableRef, useLocalStorage } from "@vueuse/core";
 import { Ref, ref } from "vue";
+import { usePoolStore } from "@/store/poolStore";
 
 
 export function buildAtUrl(
@@ -264,8 +265,12 @@ export class RpcClient {
                     if (methodName === "SubscribeToMeEvents")
                       that.activeTransport.value = eta;
 
-                    sys.stopRequestRetry("argon-transport-streams", "ws");
+                    const reconnectTime = sys.stopRequestRetry("argon-transport-streams", "ws");
                     reconnectDelay = 1000;
+
+                    if (reconnectTime && reconnectTime > 30) {
+                      usePoolStore().refershDatas();
+                    }
 
                     while (true) {
                       const { value, done } = await reader.read();
