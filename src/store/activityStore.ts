@@ -79,6 +79,7 @@ export const useActivity = defineStore("activity", () => {
   function publishLatestActivity() {
     const latestMusic = getLastMusicSession();
     const latestGame = getLastGameSession();
+    const lastSoftware = getLastSoftwareSession();
 
     logger.info("publishLatestActivity, ", latestGame, latestMusic);
 
@@ -90,9 +91,15 @@ export const useActivity = defineStore("activity", () => {
       });
     } else if (latestGame) {
       api.userInteraction.BroadcastPresenceAsync({
-        Kind: latestGame.kind == 0 ? "GAME" : "SOFTWARE",
+        Kind:  "GAME" ,
         StartTimestampSeconds: 0,
         TitleName: latestGame.name,
+      });
+    } else if (lastSoftware) {
+      api.userInteraction.BroadcastPresenceAsync({
+        Kind: "SOFTWARE" ,
+        StartTimestampSeconds: 0,
+        TitleName: lastSoftware.name,
       });
     } else api.userInteraction.RemoveBroadcastPresenceAsync();
   }
@@ -105,7 +112,14 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function getLastGameSession(): IProcessEntity | null {
-    const sessionsArray = Array.from(gameSessions.values());
+    const sessionsArray = Array.from(gameSessions.values().filter(x => x.kind == 0));
+    return sessionsArray.length > 0
+      ? sessionsArray[sessionsArray.length - 1]
+      : null;
+  }
+
+  function getLastSoftwareSession(): IProcessEntity | null {
+    const sessionsArray = Array.from(gameSessions.values().filter(x => x.kind == 1));
     return sessionsArray.length > 0
       ? sessionsArray[sessionsArray.length - 1]
       : null;
