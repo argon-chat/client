@@ -427,8 +427,14 @@ export const usePoolStore = defineStore("data-pool", () => {
     });
   };
 
-  const loadServerDetails = async function () {
-    subscribeToEvents();
+  const refershDatas = async function () {
+    await loadServerDetails(false);
+  }
+
+
+  const loadServerDetails = async function (listenEvents: boolean = true) {
+    if (listenEvents)
+      subscribeToEvents();
 
     const servers = await api.userInteraction.GetServers();
 
@@ -511,7 +517,8 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       if (prunedChannels != 0) logger.warn(`Pruned ${prunedChannels} channels`);
 
-      bus.listenEvents(s.Id);
+      if (listenEvents)
+        bus.listenEvents(s.Id);
     }
   };
 
@@ -535,6 +542,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     loadServerDetails,
     getSelectedServer,
+    refershDatas,
 
     realtimeChannelUsers,
     indicateSpeaking,
