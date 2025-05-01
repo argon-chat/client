@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { v7 } from "uuid";
-import PredictorWorker from "@/workers/predictor.webworker.ts?worker&inline";
+//import PredictorWorker from "@/workers/predictor.webworker.ts?worker&inline";
 export const usePredictor = defineStore("predictor", () => {
-  let worker: Worker | null;
+  let worker: Worker | null = null;
   const isReady = ref(false);
   let pendingRequests = new Map<
     string,
@@ -11,9 +11,12 @@ export const usePredictor = defineStore("predictor", () => {
   >();
 
   async function init() {
-    worker = new PredictorWorker();
+    try {
+      indexedDB.deleteDatabase("tensorflowjs")
+    } catch {}
+    //worker = new PredictorWorker();
 
-    worker.onmessage = (e) => {
+    /*worker.onmessage = (e) => {
       const { type, predictions, id } = e.data;
       if (type === "ready") {
         isReady.value = true;
@@ -26,7 +29,7 @@ export const usePredictor = defineStore("predictor", () => {
       }
     };
 
-    worker.postMessage({ type: "init" });
+    worker.postMessage({ type: "init" });*/
   }
 
   async function blobToTensor(img: HTMLImageElement): Promise<ImageData> {

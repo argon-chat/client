@@ -7,7 +7,8 @@ export const useFfmpeg = defineStore("ffmpeg", () => {
   const ffmpeg = new FFmpeg();
 
   async function init() {
-    const baseURL = "/ffmpeg";
+    return;
+    /*const baseURL = "/ffmpeg";
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
       wasmURL: await toBlobURL(
@@ -19,7 +20,7 @@ export const useFfmpeg = defineStore("ffmpeg", () => {
     ffmpeg.on("log", ({ type, message }) => {
       if (type == "stderr") logger.error(type, message);
       else logger.log(type, message);
-    });
+    });*/
   }
 
   async function convertToJPEG(
