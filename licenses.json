@@ -1,0 +1,3 @@
+{
+    "ffpeg": "This application uses FFmpeg (https://ffmpeg.org), licensed under the LGPLv3.\nThe included ffmpeg.exe binary is unmodified and used via external CLI execution.\nFFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project."
+}
