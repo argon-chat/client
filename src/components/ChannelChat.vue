@@ -10,7 +10,7 @@
         </div>
         <div v-if="channelData && hiddenChannelId" ref="messageContainer"
             class="messages flex-1 overflow-y-auto space-y-4 rounded-t-lg pb-4 p-5">
-            <ChatView :channel-id="hiddenChannelId"/>
+            <ChatView :channel-id="hiddenChannelId" @select-reply="onReplySelect"/>
         </div>
 
         <div v-if="!channelData" class="flex flex-1 flex-col items-center justify-center text-center space-y-2 p-5">
@@ -26,7 +26,7 @@
         </div>
 
         <div v-if="channelData" class="message-input rounded-b-lg flex items-center space-x-3 p-5">
-            <EnterText style="width: 100%;" />
+            <EnterText style="width: 100%;" :reply-to="replyTo" @clear-reply="replyTo = null" />
         </div>
     </div>
 </template>
@@ -53,6 +53,12 @@ const messageContainer = ref<HTMLElement | null>(null);
 
 const getChannel = function (channelId: Guid) {
     return pool.getChannel(channelId);
+}
+
+const replyTo = ref<IArgonMessageDto | null>(null);
+
+function onReplySelect(message: IArgonMessageDto) {
+    replyTo.value = message;
 }
 
 onMounted(async () => {

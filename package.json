@@ -1,9 +1,9 @@
 {
   "name": "ui",
   "private": true,
-  "version": "1.639.765.65",
-  "lastBuildTime": "2025-04-29T13:55:13.663Z",
-  "fullVersion": "1.639.765.65-master",
+  "version": "1.639.822.66",
+  "lastBuildTime": "2025-05-01T17:36:45.483Z",
+  "fullVersion": "1.639.822.66-master",
   "branch": "master",
   "type": "module",
   "scripts": {

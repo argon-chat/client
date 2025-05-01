@@ -196,7 +196,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       await db.users.update(exist.UserId, {
         ...user,
         status: !!extendedStatus ? extendedStatus : exist.status,
-        activity: extendedActivity ?? exist.activity ?? undefined,
+        activity: extendedActivity ?? ((!!extendedStatus ? extendedStatus : exist.status == "Offline") ? undefined : exist.activity),
       });
       return;
     }

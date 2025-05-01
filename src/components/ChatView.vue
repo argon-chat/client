@@ -1,7 +1,7 @@
 <template>
     <div ref="scroller" class="chat-scroll messages">
         <div v-for="(message) in messages" :key="message.MessageId" class="chat-message">
-            <MessageItem :message="message" />
+            <MessageItem :message="message" :get-msg-by-id="getMessageById" @dblclick="() => emit('select-reply', message)" />
         </div>
         <Separator v-if="hasEnded" orientation="horizontal"> </Separator>
         <div v-if="hasEnded" style="text-align: center;"> END </div>
@@ -31,6 +31,13 @@ const messages = ref([] as IArgonMessageDto[]);
 const hasEnded = ref(false);
 
 const subs = ref(null as null | Subscription);
+
+const getMessageById = (messageId: number): IArgonMessageDto => {
+    return messages.value.filter(x => x.MessageId == messageId).at(0)!;
+}
+const emit = defineEmits<{
+    (e: 'select-reply', message: IArgonMessageDto): void
+}>();
 
 useInfiniteScroll(scroller, async () => {
     var result = await api.serverInteraction.GetMessages(props.channelId, 10, currentSizeMsgs.value);

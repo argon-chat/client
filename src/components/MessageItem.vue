@@ -9,7 +9,7 @@
         <div class="message-content">
             <div class="meta">
                 <span class="username">{{ user?.DisplayName || 'Неизвестный' }}</span>
-                
+
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger>
@@ -21,13 +21,34 @@
                     </Tooltip>
                 </TooltipProvider>
             </div>
-            <div class="bubble" v-if="!isSingleEmojiMessage" :style="{
+
+            <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
                 backgroundPositionY: backgroundOffset + 'px',
                 backgroundColor: bubbleColor
             }" ref="bubble">
+                <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                    'rainbow-reply-preview inline-table',
+                    'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground transition-colors [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.08*1rem)_solid_transparent] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+
+                    'bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]',
+                )
+                    ">
+                    <div class="reply-username">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                    <div class="reply-text">{{ replyMessage.Text }}</div>
+                </div>
                 {{ message.Text }}
             </div>
-            <div v-if="isSingleEmojiMessage" style="font-size: xxx-large;">
+            <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
+                <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                    'rainbow-reply-preview inline-table',
+                    'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground transition-colors [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.08*1rem)_solid_transparent] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+
+                    'bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]',
+                )
+                    ">
+                    <div class="reply-username">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                    <div class="reply-text">{{ replyMessage.Text }}</div>
+                </div>
                 {{ message.Text }}
             </div>
         </div>
@@ -40,6 +61,7 @@ import { usePoolStore } from '@/store/poolStore'
 import ArgonAvatar from '@/components/ArgonAvatar.vue'
 import { useMe } from '@/store/meStore';
 import emojiRegex from 'emoji-regex';
+import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -47,10 +69,10 @@ import {
     TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useDateFormat } from '@vueuse/core';
-import { logger } from '@/lib/logger';
 
 const props = defineProps<{
-    message: IArgonMessageDto
+    message: IArgonMessageDto,
+    getMsgById: (replyId: number) => IArgonMessageDto
 }>()
 
 const bubble = ref<HTMLElement | null>(null)
@@ -67,6 +89,16 @@ const isMe = props.message.Sender == me.me?.Id;
 const loadUser = async () => {
     //logger.log(user.value, "reactive user");
 }
+
+const replyMessage = computed(() => {
+    if (!props.message.ReplyId) return null;
+    return props.getMsgById(props.message.ReplyId);
+});
+
+const replyUser = computed(() => {
+    if (!replyMessage.value) return null;
+    return pool.getUserReactive(replyMessage.value.Sender);
+});
 
 watch(() => props.message.Sender, loadUser, { immediate: true })
 
@@ -120,6 +152,7 @@ function isUpEmojisOnly(message: IArgonMessageDto): boolean {
     align-items: flex-start;
     gap: 8px;
 }
+
 
 .incoming {
     flex-direction: row;
@@ -184,5 +217,27 @@ function isUpEmojisOnly(message: IArgonMessageDto): boolean {
 
 .outgoing .bubble {
     border-top-right-radius: 4px;
+}
+
+.rainbow-reply-preview {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    --color-1: hsl(0 100% 63%);
+    --color-2: hsl(270 100% 63%);
+    --color-3: hsl(210 100% 63%);
+    --color-4: hsl(195 100% 63%);
+    --color-5: hsl(90 100% 63%);
+}
+
+.reply-username {
+    font-weight: 800;
+    margin-bottom: 2px;
+    color: #d39b18;
 }
 </style>
