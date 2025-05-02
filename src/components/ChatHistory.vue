@@ -30,7 +30,6 @@ const scrollContainer: Ref<HTMLElement | null> = ref(null)
 const loading = ref(false)
 const page = ref(1)
 const scrollHeightBeforeLoad = ref(0)
-const prevScrollTop = ref(0)
 const itemHeight = 80
 const scrollToBottomOnNextTick = ref(false);
 
@@ -48,18 +47,23 @@ const loadMoreMessages = async () => {
     scrollHeightBeforeLoad.value = scrollContainer.value.scrollHeight
 
     try {
-        emit('load-more', page.value)
-        page.value++
+      emit('load-more', page.value)
+      page.value++
+      await nextTick()
+      restoreScrollPosition()
     } finally {
-        loading.value = false
-        restoreScrollPosition()
+      loading.value = false
     }
 }
 
 const restoreScrollPosition = () => {
-    if (!scrollContainer.value) return
-    const newScrollHeight = scrollContainer.value.scrollHeight
-    scrollContainer.value.scrollTop = newScrollHeight - scrollHeightBeforeLoad.value
+    const container = scrollContainer.value
+    if (!container) return
+
+    const newScrollHeight = container.scrollHeight
+    const diff = newScrollHeight - scrollHeightBeforeLoad.value
+
+    container.scrollTop = container.scrollTop + diff
 }
 
 const handleScroll = (event: Event) => {
@@ -107,6 +111,7 @@ watch(() => props.items.length, async () => {
     height: 100vh;
     overflow-y: auto;
     position: relative;
+    scroll-behavior: smooth;
 }
 
 .scroll-padder {
