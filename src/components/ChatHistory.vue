@@ -30,7 +30,6 @@ const scrollContainer: Ref<HTMLElement | null> = ref(null)
 const loading = ref(false)
 const page = ref(1)
 const scrollHeightBeforeLoad = ref(0)
-const prevScrollTop = ref(0)
 const itemHeight = 80
 const scrollToBottomOnNextTick = ref(false);
 
@@ -64,18 +63,7 @@ const restoreScrollPosition = () => {
     const newScrollHeight = container.scrollHeight
     const diff = newScrollHeight - scrollHeightBeforeLoad.value
 
-    const duration = 200
-    const start = container.scrollTop
-    const end = start + diff
-    const startTime = performance.now()
-
-    const animate = (time: number) => {
-      const progress = Math.min((time - startTime) / duration, 1)
-      container.scrollTop = start + (end - start) * progress
-      if (progress < 1) requestAnimationFrame(animate)
-    }
-
-    requestAnimationFrame(animate)
+    container.scrollTop = container.scrollTop + diff
 }
 
 const handleScroll = (event: Event) => {

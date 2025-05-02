@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, useTemplateRef, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, useTemplateRef, onUnmounted, nextTick, watch } from 'vue'
 import { useInfiniteScroll } from '@vueuse/core'
 import { CircleArrowDown } from 'lucide-vue-next';
 import MessageItem from '@/components/MessageItem.vue'
@@ -95,19 +95,31 @@ useInfiniteScroll(scroller, async () => {
   canLoadMore: () => !hasEnded.value
 });
 
-onMounted(async () => {
-  messages.value = await api.serverInteraction.GetMessages(props.channelId, 10, 0);
+const loadMessages = async (channelId: Guid) => {
+  messages.value = [];
+  hasEnded.value = false;
+  currentSizeMsgs.value = 0;
+  newMessagesCount.value = 0;
+
+  messages.value = await api.serverInteraction.GetMessages(channelId, 10, 0);
   currentSizeMsgs.value = messages.value.length;
 
-  if (scroller.value) {
-    scroller.value.addEventListener('scroll', checkScrollPosition);
-    scrollToBottom();
-    checkScrollPosition();
-    isScrolledUp.value = false;
-  }
+  nextTick(() => {
+    if (scroller.value) {
+      scrollToBottom();
+      checkScrollPosition();
+      isScrolledUp.value = false;
+    }
+  });
+};
+
+watch(() => props.channelId, async (newChannelId) => {
+  subs.value?.unsubscribe();
+
+  await loadMessages(newChannelId);
 
   subs.value = pool.onNewMessageReceived.subscribe((e) => {
-    if (props.channelId === e.ChannelId) {
+    if (newChannelId === e.ChannelId) {
       messages.value.unshift(e);
       nextTick(checkScrollPosition);
 
@@ -122,6 +134,12 @@ onMounted(async () => {
       }
     }
   });
+}, { immediate: true });
+
+onMounted(() => {
+  if (scroller.value) {
+    scroller.value.addEventListener('scroll', checkScrollPosition);
+  }
 
   nextTick(() => {
     if (scroller.value) {
