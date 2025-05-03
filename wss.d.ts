@@ -27,4 +27,11 @@ declare global {
     readonly close: (closeInfo?: WebSocketCloseInfo) => void;
     constructor(url: string, options?: WebSocketStreamOptions);
   }
+
+  interface Window {
+    ui_version: string;
+    ui_buildtime: string;
+    ui_fullversion: string;
+    ui_branch: string;
+  }
 }

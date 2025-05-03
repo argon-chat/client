@@ -4,7 +4,6 @@ import App from "./App.vue";
 import { createPinia } from "pinia";
 import router from "./router";
 import { MotionPlugin } from "@vueuse/motion";
-import { registerDirectives } from "./lib/pexDirective";
 import * as Sentry from "@sentry/vue";
 import "@/lib/browser";
 import { createI18n } from "vue-i18n";
@@ -19,11 +18,10 @@ import 'vue-advanced-cropper/dist/style.css';
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
 }
-
-(window as any).ui_version = pkg.version;
-(window as any).ui_buildtime = pkg.lastBuildTime;
-(window as any).ui_fullversion = pkg.fullVersion;
-(window as any).ui_branch = pkg.branch;
+window.ui_version = pkg.version;
+window.ui_buildtime = pkg.lastBuildTime;
+window.ui_fullversion = pkg.fullVersion;
+window.ui_branch = pkg.branch;
 
 export const i18n = createI18n<[LocaleSchema], Locale>({
   locale: "en",
@@ -35,7 +33,6 @@ var app = createApp(App);
 app.use(i18n);
 Sentry.init({
   app,
-  dsn: argon?.dsn() ?? "",
   release: pkg.version,
   integrations: [
     Sentry.browserTracingIntegration({ router }),
@@ -47,7 +44,7 @@ Sentry.init({
   ],
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,
-  replaysOnErrorSampleRate: 1.0,
+  replaysOnErrorSampleRate: 1.0
 });
 Sentry.setTag("branch", pkg.branch);
 Sentry.setTag("version.full", pkg.fullVersion);
@@ -55,5 +52,7 @@ Sentry.setTag("version.build.time", pkg.lastBuildTime);
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
-registerDirectives(app);
-app.mount("#app");
+if (argon.isArgonHost)
+  native.handleVueIntergration(pkg, localStorage, app, router);
+else
+  app.mount("#app");

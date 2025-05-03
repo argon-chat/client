@@ -71,7 +71,7 @@ declare global {
     name: string;
     pid: number;
     hash: string;
-    kind: 0 | 1
+    kind: 0 | 1;
   }
   interface IAudioEntity {
     sessionId: string;
@@ -84,13 +84,20 @@ declare global {
 
     dsn(): string;
 
-    onGameActivityDetected(pinnedFn: IPinnedFunction<void, [IProcessEntity]>): boolean;
-    onGameActivityTerminated(pinnedFn: IPinnedFunction<void, [number]>): boolean;
-    onMusicSessionPlayStateChanged(pinnedFn: IPinnedFunction<void, [string, boolean, string]>): boolean;
-
+    onGameActivityDetected(
+      pinnedFn: IPinnedFunction<void, [IProcessEntity]>
+    ): boolean;
+    onGameActivityTerminated(
+      pinnedFn: IPinnedFunction<void, [number]>
+    ): boolean;
+    onMusicSessionPlayStateChanged(
+      pinnedFn: IPinnedFunction<void, [string, boolean, string]>
+    ): boolean;
 
     listenSessionMusic(): boolean;
     listenActivity(): boolean;
+
+    storage: IArgonStorage;
   }
 
   interface INative {
@@ -100,8 +107,15 @@ declare global {
 
     getHWNDs(): IWindowInfo[];
 
+    handleVueIntergration(
+      appData: any,
+      o: Storage,
+      vue: Vue | Vue[] | undefined,
+      router: VueRounter | undefined
+    );
+
     V8ThreadingInit(): boolean;
-     createPinnedObject<TArgs extends any[], TReturn>(
+    createPinnedObject<TArgs extends any[], TReturn>(
       o: (...args: TArgs) => TReturn
     ): IPinnedFunction<TReturn, TArgs>;
     createPinnedObject(o: object): IPinnedObject;
@@ -128,9 +142,16 @@ declare global {
     getIdleTimeSeconds(): number;
   }
 
-  type IPinnedFunction<TReturn, TArgs extends any[]> = IPinnedObject & (
-    (...args: TArgs) => TReturn
-  );
+
+  interface IArgonStorage {
+    getItem(key: string): string | null;
+    key(index: number): string | null;
+    removeItem(key: string): void;
+    setItem(key: string, value: string): void;
+  }
+
+  type IPinnedFunction<TReturn, TArgs extends any[]> = IPinnedObject &
+    ((...args: TArgs) => TReturn);
 
   interface IPinnedObject {}
 
