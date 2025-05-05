@@ -14,6 +14,7 @@ import 'vfonts/FiraCode.css';
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import pkg from "../package.json";
 import 'vue-advanced-cropper/dist/style.css';
+import { createSentryPiniaPlugin } from "@sentry/vue";
 
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
@@ -44,15 +45,14 @@ Sentry.init({
   ],
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,
-  replaysOnErrorSampleRate: 1.0
+  replaysOnErrorSampleRate: 1.0,
+  dsn: argon?.dsn() ?? ''
 });
 Sentry.setTag("branch", pkg.branch);
 Sentry.setTag("version.full", pkg.fullVersion);
 Sentry.setTag("version.build.time", pkg.lastBuildTime);
+pinia.use(createSentryPiniaPlugin());
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
-if (argon.isArgonHost)
-  native.handleVueIntergration(pkg, localStorage, app, router);
-else
-  app.mount("#app");
+app.mount("#app");
