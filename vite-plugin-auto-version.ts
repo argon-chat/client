@@ -26,6 +26,7 @@ export default function AutoVersionPlugin(): Plugin {
   return {
     name: "vite-plugin-auto-version",
     buildStart() {
+      if (process.env.GITHUB_ACTIONS === "true") return;
       const pkgPath = path.resolve(process.cwd(), "package.json");
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
       const currentVersion = parseVersion(pkg.version);
