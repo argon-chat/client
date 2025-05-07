@@ -119,10 +119,6 @@ const onAvatarChange = async (event: Event) => {
             URL.revokeObjectURL(img.value);
         }
         isFileSelected.value = true;
-
-
-        const resultPredict = await predictor.classifyImageBlob(file);
-        logger.log(resultPredict);
         img.value = URL.createObjectURL(file);
     }
 };
