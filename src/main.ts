@@ -15,7 +15,6 @@ import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import pkg from "../package.json";
 import 'vue-advanced-cropper/dist/style.css';
 import { createSentryPiniaPlugin } from "@sentry/vue";
-
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
 }

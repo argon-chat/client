@@ -100,5 +100,8 @@
     "voice_isolation_desc": "Isolate Isolation of Isolation Voice for Isolation",
     "noise_sup_desc": "Noise Suppression (Noise Suppression)",
     "select_microphone": "Select Microphone",
-    "voice_video_settings": "Voice & Video Settings"
+    "voice_video_settings": "Voice & Video Settings",
+    "link_soc_": "Link",
+    "socials": "Social Integrations",
+    "account_socials": "Social Accounts"
 }

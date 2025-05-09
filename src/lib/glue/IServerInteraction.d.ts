@@ -14,6 +14,7 @@
 ///<reference path="InviteCodeEntity.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
 ///<reference path="IUserDto.d.ts"/>
+///<reference path="IUserProfileDto.d.ts"/>
 
 interface IServerInteraction
 {
@@ -29,4 +30,5 @@ interface IServerInteraction
 	GetInviteCodes(serverId: Guid) : Promise<InviteCodeEntity[]>;
 	CreateInviteCode(serverId: Guid, expiration: any) : Promise<InviteCode>;
 	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUserDto>;
+	PrefetchProfile(serverId: Guid, userId: Guid) : Promise<IUserProfileDto>;
 }

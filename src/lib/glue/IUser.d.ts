@@ -17,4 +17,5 @@ interface IUser extends IArgonEntity
 	ServerMembers: any[];
 	LockdownReason: LockdownReason;
 	LockDownExpiration?: Date;
+	Profile: any;
 }

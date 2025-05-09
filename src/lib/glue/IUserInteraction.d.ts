@@ -16,6 +16,7 @@
 ///<reference path="AcceptInviteError.d.ts"/>
 ///<reference path="InviteCode.d.ts"/>
 ///<reference path="IUserActivityPresence.d.ts"/>
+///<reference path="IUserSocialIntegrationDto.d.ts"/>
 
 interface IUserInteraction
 {
@@ -29,4 +30,8 @@ interface IUserInteraction
 	JoinToServerAsync(inviteCode: InviteCode) : Promise<Either<IServer, AcceptInviteError>>;
 	BroadcastPresenceAsync(presence: IUserActivityPresence) : Promise<void>;
 	RemoveBroadcastPresenceAsync() : Promise<void>;
+	CompleteSocialBoundAsync(token: string, socialUser: string, kind: string, userSlash: string) : Promise<boolean>;
+	CreateSocialBoundAsync(kind: string) : Promise<string>;
+	GetMeSocials() : Promise<IUserSocialIntegrationDto[]>;
+	DeleteSocialBound(kind: string, socialId: Guid) : Promise<boolean>;
 }

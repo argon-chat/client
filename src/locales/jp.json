@@ -100,5 +100,8 @@
     "voice_isolation_desc": "ボイスのアイソレーションをアイソレーションのためにアイソレートします",
     "noise_sup_desc": "ノイズ抑制（ノイズ抑制）",
     "select_microphone": "マイクを選択",
-    "voice_video_settings": "音声とビデオの設定"
+    "voice_video_settings": "音声とビデオの設定",
+    "link_soc_": "連携する",
+    "socials": "ソーシャル連携",
+    "account_socials": "ソーシャルアカウント"
 }

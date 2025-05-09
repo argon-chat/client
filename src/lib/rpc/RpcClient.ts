@@ -7,12 +7,11 @@ import { useSystemStore } from "@/store/systemStore";
 import { fromEvent, tap } from "rxjs";
 import delay from "../delay";
 import { useMe } from "@/store/meStore";
-import { useToast } from '@/components/ui/toast/'
+import { useToast } from "@/components/ui/toast/";
 import { v7 } from "uuid";
 import { RemovableRef, useLocalStorage } from "@vueuse/core";
 import { Ref, ref } from "vue";
 import { usePoolStore } from "@/store/poolStore";
-
 
 export function buildAtUrl(
   upgrade: string,
@@ -32,7 +31,7 @@ export function buildAtUrl(
     `${sys.preferUseWs ? `/$at.ws` : `/$at.wt`}?aat=${aat}${args.join()}`,
     `https://${upgrade}`
   );
-  logger.warn('builded wt url', url, `upgrade: ${upgrade}`);
+  logger.warn("builded wt url", url, `upgrade: ${upgrade}`);
   return url;
 }
 
@@ -70,7 +69,9 @@ export class WsStream {
 export class RpcClient {
   private client: ArgonTransportClient;
   private baseUrl: string;
-  private activeTransport: Ref<WritableStreamDefaultWriter<string | Uint8Array<ArrayBufferLike>> | null> = ref(null);
+  private activeTransport: Ref<WritableStreamDefaultWriter<
+    string | Uint8Array<ArrayBufferLike>
+  > | null> = ref(null);
 
   constructor(baseUrl: string) {
     const transport = new GrpcWebFetchTransport({
@@ -80,24 +81,28 @@ export class RpcClient {
     });
     this.client = new ArgonTransportClient(transport);
     this.baseUrl = baseUrl;
-    
   }
 
   getExtendedHeaders(): HeadersInit {
-    if (argon.isArgonHost)
-      return {};
-    const sessionId = useLocalStorage("sessionId", v7(), { writeDefaults: true, initOnMounted: true });
+    if (argon.isArgonHost) return {};
+    const sessionId = useLocalStorage("sessionId", v7(), {
+      writeDefaults: true,
+      initOnMounted: true,
+    });
     return {
       "X-Ctt": sessionId.value,
-      "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT
-    }
+      "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT,
+    };
   }
 
   async sendPackageToActieTransport<T>(pkg: T): Promise<void> {
+    if (!argon.isArgonHost) return;
     if (this.activeTransport.value) {
-      await this.activeTransport.value.write(encode(pkg, {
-         useBigInt64: true
-      }));
+      await this.activeTransport.value.write(
+        encode(pkg, {
+          useBigInt64: true,
+        })
+      );
     } else logger.warn("no active stream defined");
   }
 
@@ -136,7 +141,12 @@ export class RpcClient {
                     method: String(methodName),
                     payload: payload,
                   },
-                  { meta: { authorize: authStore.token ?? "", ...(headers as any) } }
+                  {
+                    meta: {
+                      authorize: authStore.token ?? "",
+                      ...(headers as any),
+                    },
+                  }
                 );
 
                 if (response.response.statusCode == 2 && !!authStore.token) {
@@ -146,12 +156,13 @@ export class RpcClient {
                   toast.toast({
                     duration: 7000,
                     title: "Authorization invalidated...",
-                    description: "You authorization has invalidated, required new login...",
-                    variant: "destructive"
+                    description:
+                      "You authorization has invalidated, required new login...",
+                    variant: "destructive",
                   });
                   await delay(7000);
                   authStore.logout();
-                  window.location.reload()
+                  window.location.reload();
                   throw "not authorized";
                 }
                 if (response.status.code !== "OK") {
@@ -202,6 +213,11 @@ export class RpcClient {
           return async (
             ...args: any[]
           ): Promise<AsyncIterable<IArgonEvent>> => {
+            if (!argon.isArgonHost)
+              return {
+                [Symbol.asyncIterator]: async function* () {},
+              };
+
             const authStore = useAuthStore();
             const wtUrl = new URL(`${this.baseUrl}/$at.http`, this.baseUrl);
             const baseAddr = this.baseUrl;
@@ -230,7 +246,6 @@ export class RpcClient {
                 upgrade = baseAddr.replace("https://", "");
               }
 
-              
               const transportUrl = buildAtUrl(
                 upgrade,
                 aat,
@@ -265,7 +280,10 @@ export class RpcClient {
                     if (methodName === "SubscribeToMeEvents")
                       that.activeTransport.value = eta;
 
-                    const reconnectTime = sys.stopRequestRetry("argon-transport-streams", "ws");
+                    const reconnectTime = sys.stopRequestRetry(
+                      "argon-transport-streams",
+                      "ws"
+                    );
                     reconnectDelay = 1000;
 
                     if (reconnectTime && reconnectTime > 30) {

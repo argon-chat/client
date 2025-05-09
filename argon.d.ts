@@ -140,6 +140,8 @@ declare global {
     setChannel(val: "beta" | "canary" | "live"): boolean;
     isRequiredToUpdate(): boolean;
     getIdleTimeSeconds(): number;
+
+    openUrl(url: string): Promise<boolean>;
   }
 
 

@@ -42,6 +42,7 @@ import ApplicationSettings from './settings/ApplicationSettings.vue';
 import HotKeySettings from './settings/HotKeySettings.vue';
 import LanguageSettings from './settings/LanguageSettings.vue';
 import SoundSettings from './settings/SoundSettings.vue';
+import SocialSettings from './settings/SocialSettings.vue';
 import { useLocale } from '@/store/localeStore';
 const { t } = useLocale();
 const windows = useWindow();
@@ -57,29 +58,20 @@ const categories = ref([
     { id: 'hotkeys' },
     { id: 'languages' },
     { id: 'sounds' },
-
+    { id: "socials" }
 ]);
 
 const selectedCategory = ref('account');
 
 const categoryComponents = {
     account: ProfileSettings,
-    /*appearance: {
-        template: `<div><h2 class="text-xl font-bold">Appearance Settings</h2><p>Customize the look and feel.</p></div>`
-    },
-    notifications: {
-        template: `<div><h2 class="text-xl font-bold">Notifications Settings</h2><p>Set up your notifications.</p></div>`
-    },
-    privacy: {
-        template: `<div><h2 class="text-xl font-bold">Privacy Settings</h2><p>Manage your privacy options.</p></div>`
-    },
-*/
     devices: ConnectedDevices,
     voice_video: VoiceVideoSettings,
     application: ApplicationSettings,
     hotkeys: HotKeySettings,
     languages: LanguageSettings,
-    sounds: SoundSettings
+    sounds: SoundSettings,
+    socials: SocialSettings
 };
 
 const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
