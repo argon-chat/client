@@ -4,7 +4,8 @@
         <div class="avatar-username flex items-center space-x-4">
             <div class="avatar relative group w-20 h-20">
                 <label>
-                    <input type="file" accept="image/jpeg, image/jpg, image/png" class="hidden" @change="onAvatarChange" />
+                    <input type="file" accept="image/jpeg, image/jpg, image/png" class="hidden"
+                        @change="onAvatarChange" />
                     <ArgonAvatar :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!" :user-id="me.me.Id"
                         alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500" />
                     <div
@@ -17,12 +18,14 @@
             </div>
             <div>
                 <label class="block font-semibold mb-1">{{ t("username") }}</label>
-                <Input readonly disabled v-model="me.me.Username" type="text" class="input-field" placeholder="Enter username" />
+                <Input readonly disabled v-model="me.me.Username" type="text" class="input-field"
+                    placeholder="Enter username" />
             </div>
         </div>
         <div>
             <label class="block font-semibold mb-1">{{ t("display_name") }}</label>
-            <Input readonly disabled v-model="me.me.DisplayName" type="text" class="input-field" placeholder="Enter display name" />
+            <Input readonly disabled v-model="me.me.DisplayName" type="text" class="input-field"
+                placeholder="Enter display name" />
         </div>
         <div>
             <label class="block font-semibold mb-1">{{ t("email") }}</label>
@@ -43,15 +46,12 @@
                 {{ user.otpEnabled ? 'Disable OTP' : 'Enable OTP' }}
             </button>
         </div> -->
-
         <div class="delete-account">
             <label class="block font-semibold mb-1">{{ t("delete_account") }}</label>
             <button @click="deleteAccount" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
                 {{ t("delete_account") }}
             </button>
         </div>
-
-
         <Dialog v-model:open="isFileSelected">
             <DialogContent class="max-h-[850px] max-w-[750px]" :disableOutsidePointerEvents="true">
                 <DialogHeader>
@@ -86,20 +86,19 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button';
 import { onUnmounted, ref } from 'vue';
-import { usePredictor } from '@/store/predictorStore';
-import { logger } from '@/lib/logger';
 import { useConfig } from '@/store/remoteConfig';
 import { useAuthStore } from '@/store/authStore';
 import { v7 } from 'uuid';
+import { useApi } from '@/store/apiStore';
 const { t } = useLocale();
 const me = useMe();
 const toast = useToast();
 const isFileSelected = ref(false);
 const img = ref(null as string | null);
-const predictor = usePredictor();
 const canvasRef = ref(null as null | HTMLCanvasElement);
 const isLoadingAvatar = ref(false);
 
+const api = useApi();
 const toggleOTP = () => {
     //user.value.otpEnabled = !user.value.otpEnabled;
     //alert(`OTP has been ${user.value.otpEnabled ? 'enabled' : 'disabled'}.`);
@@ -122,6 +121,7 @@ const onAvatarChange = async (event: Event) => {
         img.value = URL.createObjectURL(file);
     }
 };
+
 
 const saveChanges = async () => {
     try {
@@ -199,6 +199,8 @@ const deleteAccount = () => {
 onUnmounted(() => {
     isFileSelected.value = false;
 });
+
+
 </script>
 
 <style scoped>
