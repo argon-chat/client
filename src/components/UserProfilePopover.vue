@@ -23,12 +23,12 @@
                 </div>
             </div>
         </div>
-        <span class="text-[10px] flex fixed right-2 p-2 overflow-hidden max-w-[160px] min-w-[12rem]" v-if="user.activity"
+        <span class="text-[10px] flex fixed right-2 p-2 overflow-hidden max-w-[160px] min-w-[12rem] text-center items-center" v-if="user.activity"
             ref="activityWrapper">
             <span
-                class="pointer-events-none absolute inset-y-0 left-0 w-4 z-10 bg-gradient-to-r from-[rgba(0,0,0,0.7)] to-transparent"></span>
+                class="pointer-events-none absolute inset-y-0 left-0 w-4 z-10 bg-gradient-to-r from-[rgba(0,0,0,0.7)] to-transparent" v-if="shouldScroll"></span>
             <span
-                class="pointer-events-none absolute inset-y-0 right-0 w-4 z-10 bg-gradient-to-l from-[rgba(0,0,0,0.7)] to-transparent"></span>
+                class="pointer-events-none absolute inset-y-0 right-0 w-4 z-10 bg-gradient-to-l from-[rgba(0,0,0,0.7)] to-transparent" v-if="shouldScroll"></span>
             <span :class="['whitespace-nowrap inline-block', shouldScroll ? 'animate-marquee' : '']" ref="activityText"
                 style="display: inline-flex;">
                 <span>

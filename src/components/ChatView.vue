@@ -120,7 +120,7 @@ watch(() => props.channelId, async (newChannelId) => {
     if (newChannelId === e.ChannelId) {
       messages.value.unshift(e);
       // TODO reply
-      if (e.Entities.filter(filterMention).filter(x => x.UserId == me.me?.Id)) {
+      if (e.Entities.filter(filterMention).find(x => x.UserId == me.me?.Id)) {
         tone.playNotificationSound();
       }
 
