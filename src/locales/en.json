@@ -103,5 +103,10 @@
     "voice_video_settings": "Voice & Video Settings",
     "link_soc_": "Link",
     "socials": "Social Integrations",
-    "account_socials": "Social Accounts"
+    "account_socials": "Social Accounts",
+    "typing": {
+        "one": "{name} is typing",
+        "few": "{names} are typing",
+        "many": "Several people are typing"
+    }
 }

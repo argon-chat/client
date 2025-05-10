@@ -51,6 +51,11 @@ export const useBus = defineStore("bus", () => {
     }
   }
 
+  async function sendEventAsync<T extends IArgonEvent>(t: T) 
+  {
+    await api.getRawClient().value.sendPackageToActieTransport(t);
+  }
+
   async function sendHeartbeat()
   {
     await api.getRawClient().value.sendPackageToActieTransport({ EventKey: "HeartBeatEvent", status: preferredStatus.value } as HeartBeatEvent)
@@ -76,5 +81,5 @@ export const useBus = defineStore("bus", () => {
     controller.abort(reason);
   }
  
-  return { argonEventBus, listenEvents, closeAllSubscribes, onServerEvent, onUserEvent, doListenMyEvents };
+  return { argonEventBus, listenEvents, closeAllSubscribes, onServerEvent, onUserEvent, doListenMyEvents, sendEventAsync };
 });

@@ -103,5 +103,10 @@
     "voice_video_settings": "音声とビデオの設定",
     "link_soc_": "連携する",
     "socials": "ソーシャル連携",
-    "account_socials": "ソーシャルアカウント"
+    "account_socials": "ソーシャルアカウント",
+    "typing": {
+        "one": "{name}が入力中です",
+        "few": "{names}が入力しています",
+        "many": "複数のユーザーが入力しています"
+    }
 }

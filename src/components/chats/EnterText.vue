@@ -6,7 +6,7 @@ import EmojiPicker, { EmojiExt } from 'vue3-emoji-picker';
 import { logger } from '@/lib/logger';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { parseHtmlAsFormattedText, renderTextWithEntities } from "@argon-chat/infer"
+import { parseHtmlAsFormattedText } from "@argon-chat/infer"
 import {
     SendHorizonalIcon,
     SmileIcon,
@@ -14,7 +14,6 @@ import {
 } from 'lucide-vue-next';
 import { useApi } from '@/store/apiStore';
 import { usePoolStore } from '@/store/poolStore';
-import { cn } from '@/lib/utils';
 
 const message = ref('');
 const textareaRef = ref<HTMLTextAreaElement>();
@@ -33,20 +32,39 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'clear-reply'): void,
     (e: 'send', html: string, rawText: string): void;
+    (e: 'typing'): void;
+    (e: 'stop_typing'): void;
 }>();
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && props.replyTo) {
-    emit('clear-reply');
-  }
+    if (e.key === 'Escape' && props.replyTo) {
+        emit('clear-reply');
+    }
 };
 
+let typingTimeout: NodeJS.Timeout | undefined
+let lastTypingSent = 0
+
+function onInput(e: Event) {
+    const now = Date.now()
+
+    if (now - lastTypingSent > 3000) {
+        emit('typing');
+        lastTypingSent = now
+    }
+
+    clearTimeout(typingTimeout)
+    typingTimeout = setTimeout(() => {
+        emit('stop_typing');
+    }, 3000)
+}
+
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keydown', handleKeyDown);
 });
 
 const onEmojiClick = (emoji: EmojiExt) => {
@@ -97,7 +115,7 @@ const handleSend = async () => {
         shouldRenderAsHtml: true
     }));*/
     message.value = '';
-
+    emit('stop_typing');
     if (props.replyTo) {
         emit('clear-reply');
     }
@@ -119,7 +137,7 @@ const handleSend = async () => {
             <textarea ref="textareaRef" @input="adjustHeight" v-model="message" placeholder="Enter text..."
                 @keydown.enter.exact.prevent="message.trim() && handleSend()"
                 class="flex-1 min-h-[40px] max-h-[200px] px-3 py-2 text-sm bg-transparent outline-none resize-none"
-                rows="1" />
+                rows="1" v-on:input="onInput" />
             <Popover>
                 <PopoverTrigger style="align-items: flex-start;">
                     <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
