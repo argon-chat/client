@@ -12,5 +12,5 @@ interface IMessageEntity
 	Type: EntityType;
 	Offset: number;
 	Length: number;
-	UrlMask?: string;
+	Version: number;
 }

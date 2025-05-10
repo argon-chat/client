@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ValidateAccessHashError = 'OK' | 'EXPIRED' | 'ATTEMPT_FALSIFICATION'
+declare type ValidateAccessHashError = 'OK' | 'EXPIRED' | 'ATTEMPT_FALSIFICATION'

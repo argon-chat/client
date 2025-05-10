@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ArgonEnvironmentKind = 'SingleInstance' | 'SingleRegion' | 'MultiRegion'
+declare type ArgonEnvironmentKind = 'SingleInstance' | 'SingleRegion' | 'MultiRegion'

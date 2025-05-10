@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type UserStatus = 'Offline' | 'Online' | 'Away' | 'InGame' | 'Listen' | 'TouchGrass' | 'DoNotDisturb'
+declare type UserStatus = 'Offline' | 'Online' | 'Away' | 'InGame' | 'Listen' | 'TouchGrass' | 'DoNotDisturb'

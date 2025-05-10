@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ArgonRoleKind = 'Hybrid' | 'Gateway' | 'EntryPoint' | 'Worker'
+declare type ArgonRoleKind = 'Hybrid' | 'Gateway' | 'EntryPoint' | 'Worker'

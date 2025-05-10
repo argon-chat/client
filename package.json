@@ -1,9 +1,9 @@
 {
   "name": "ui",
   "private": true,
-  "version": "1.705.841.76",
-  "lastBuildTime": "2025-05-10T05:20:02.993Z",
-  "fullVersion": "1.705.841.76-master",
+  "version": "1.705.842.79",
+  "lastBuildTime": "2025-05-10T13:34:41.415Z",
+  "fullVersion": "1.705.842.79-master",
   "branch": "master",
   "type": "module",
   "scripts": {
@@ -52,6 +52,7 @@
     "grpc-web": "^1.5.0",
     "idb": "^8.0.1",
     "livekit-client": "^2.7.5",
+    "lottie-web": "^5.12.2",
     "lowlight": "^3.3.0",
     "lucide-vue-next": "^0.469.0",
     "markdown-it": "^14.1.0",
@@ -110,7 +111,9 @@
     "vue-tsc": "^2.1.6"
   },
   "trustedDependencies": [
+    "@parcel/watcher",
     "@sentry/cli",
+    "core-js",
     "deasync",
     "esbuild",
     "protobufjs",

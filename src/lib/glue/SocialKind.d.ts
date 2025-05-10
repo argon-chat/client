@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type SocialKind = 'None' | 'Telegram'
+declare type SocialKind = 'None' | 'Telegram'

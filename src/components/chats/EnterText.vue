@@ -1,24 +1,90 @@
+<template>
+    <div class="relative w-full">
+        <div v-if="replyTo" class="reply-banner">
+            <div class="reply-info">
+                <strong>Replying to:</strong> {{ replyTo.Text }}
+            </div>
+            <X class="text-red-600" @click="$emit('clear-reply')" />
+        </div>
+
+        <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
+            <!-- Editable message area -->
+            <div ref="editorRef" contenteditable="true"
+                class="flex-1 px-3 py-2 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
+                @input="onEditorInput" @keydown="onEditorKeydown" placeholder="Enter text..."
+                :data-placeholder="'Enter text..'"></div>
+
+            <!-- Emoji picker -->
+            <Popover>
+                <PopoverTrigger style="align-items: flex-start;">
+                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
+                        <SmileIcon />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent class="w-auto p-0">
+                    <EmojiPicker :native="true" :disable-skin-tones="true" theme="dark"
+                        @select="(e: EmojiExt) => onEmojiClick(e)" />
+                </PopoverContent>
+            </Popover>
+
+            <!-- Send button -->
+            <div style="align-items: flex-start;">
+                <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
+                    <SendHorizonalIcon />
+                </Button>
+            </div>
+        </div>
+
+        <!-- Mentions dropdown -->
+        <ul v-if="mention.show && mention.candidates.length"
+            class="absolute bottom-full mb-1 w-500 max-h-40 overflow-y-auto text-sm border rounded bg-zinc-900 text-white shadow z-50 scrollbar-thin">
+            <li v-for="(user, i) in mention.candidates" :key="user.id" :class="[
+                'flex items-center gap-3 px-3 py-2 cursor-pointer',
+                i === mention.index ? 'bg-blue-600' : 'hover:bg-zinc-700',
+            ]" @mousedown.prevent="selectMention(user)">
+                <SmartArgonAvatar :user-id="user.id" :overrided-size="32" />
+                <span>{{ user.displayName }}</span>
+                <span class="text-gray-400"> @{{ user.username }}</span>
+            </li>
+        </ul>
+    </div>
+</template>
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import EmojiPicker, { EmojiExt } from 'vue3-emoji-picker';
 import { logger } from '@/lib/logger';
 import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { parseHtmlAsFormattedText } from "@argon-chat/infer"
+import SmartArgonAvatar from '../SmartArgonAvatar.vue';
 import {
     SendHorizonalIcon,
     SmileIcon,
     X,
 } from 'lucide-vue-next';
 import { useApi } from '@/store/apiStore';
-import { usePoolStore } from '@/store/poolStore';
+import { MentionUser, usePoolStore } from '@/store/poolStore';
+import { useDebounce } from '@vueuse/core'
 
-const message = ref('');
-const textareaRef = ref<HTMLTextAreaElement>();
+const editorRef = ref<HTMLElement | null>(null)
 const api = useApi();
 const pool = usePoolStore();
+const mention = reactive({
+    show: false,
+    query: '',
+    candidates: [] as MentionUser[],
+    index: 0,
+    startNode: null as Node | null,
+    startOffset: 0,
+})
+const rawQuery = ref('');
+const debouncedQuery = useDebounce(rawQuery, 150)
+
+
+watch(debouncedQuery, async (query) => {
+    if (!query || !mention.show) return
+    mention.candidates = await pool.searchMentions(query)
+});
 
 marked.setOptions({
     breaks: true,
@@ -42,10 +108,11 @@ const handleKeyDown = (e: KeyboardEvent) => {
     }
 };
 
-let typingTimeout: NodeJS.Timeout | undefined
-let lastTypingSent = 0
+let typingTimeout: NodeJS.Timeout | undefined;
+let lastTypingSent = 0;
 
-function onInput(e: Event) {
+function onEditorInput() {
+
     const now = Date.now()
 
     if (now - lastTypingSent > 3000) {
@@ -56,7 +123,119 @@ function onInput(e: Event) {
     clearTimeout(typingTimeout)
     typingTimeout = setTimeout(() => {
         emit('stop_typing');
-    }, 3000)
+    }, 3000);
+
+
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) {
+        mention.show = false
+        return
+    }
+
+    const range = sel.getRangeAt(0)
+    const node = range.startContainer
+    const offset = range.startOffset
+
+    const text = node.textContent?.slice(0, offset) || ''
+    const atIndex = text.lastIndexOf('@')
+
+    if (atIndex >= 0) {
+        const query = text.slice(atIndex + 1)
+        if (/^[\w\d_]{0,20}$/.test(query)) {
+            mention.show = true
+            mention.query = query
+            mention.startNode = node
+            mention.startOffset = atIndex
+            mention.index = 0
+
+            rawQuery.value = mention.query;
+            return
+        }
+    }
+
+    mention.show = false
+}
+
+async function onEditorKeydown(e: KeyboardEvent) {
+    if (!mention.show) {
+        if (e.shiftKey || e.altKey || e.ctrlKey) return;
+        if (e.altKey) return;
+        if (e.key !== "Enter") return;
+        await handleSend();
+        return;
+    }
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        mention.index = (mention.index + 1) % mention.candidates.length
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        mention.index = (mention.index - 1 + mention.candidates.length) % mention.candidates.length
+    } else if (e.key === 'Enter') {
+        e.preventDefault()
+        selectMention(mention.candidates[mention.index])
+    }
+}
+function selectMention(user: MentionUser) {
+    const range = document.createRange()
+    const sel = window.getSelection()
+    if (!mention.startNode || !sel) return
+
+    range.setStart(mention.startNode, mention.startOffset)
+    range.setEnd(sel.focusNode!, sel.focusOffset)
+    range.deleteContents()
+    const span = document.createElement('span')
+    span.contentEditable = 'false'
+    span.className = 'bg-blue-700 text-white px-1 rounded mr-1'
+    span.textContent = `@${user.displayName}`
+    span.dataset.userId = user.id
+
+    const space = document.createTextNode('\u00A0')
+    range.insertNode(space)
+    range.insertNode(span)
+    range.setStartAfter(space)
+    range.setEndAfter(space)
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    mention.show = false
+}
+
+function extractMentionsFromEditor(): { id: string; label: string; start: number; end: number }[] {
+    const mentions: { id: string; label: string; start: number; end: number }[] = []
+    if (!editorRef.value) return mentions
+
+    const walker = document.createTreeWalker(editorRef.value, NodeFilter.SHOW_TEXT, null)
+    let index = 0
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode
+        const parent = node.parentElement
+
+        if (parent?.dataset.userId) {
+            const label = node.textContent ?? ''
+            const length = label.length
+            const id = parent.dataset.userId
+            mentions.push({
+                id,
+                label: label.replace(/^@/, ''),
+                start: index,
+                end: index + length,
+            })
+            index += length
+        } else {
+            index += node.textContent?.length ?? 0
+        }
+    }
+
+    return mentions
+}
+
+function getEditorPlainText(): string {
+    const clone = editorRef.value?.cloneNode(true) as HTMLElement
+    if (!clone) return ''
+    clone.querySelectorAll('[data-user-id]').forEach((el) => el.replaceWith(document.createTextNode(el.textContent || '')))
+    return clone.innerText.replace(/\u00A0/g, ' ').trim();
 }
 
 onMounted(() => {
@@ -69,98 +248,47 @@ onUnmounted(() => {
 
 const onEmojiClick = (emoji: EmojiExt) => {
     logger.log(emoji);
-    message.value += emoji.i;
-};
-const adjustHeight = () => {
-    if (textareaRef.value) {
-        textareaRef.value.style.height = 'auto';
-        textareaRef.value.style.height = `${textareaRef.value.scrollHeight}px`;
-    }
-};
-const renderMarkdown = async (text: string) => {
-    const rawMarkdown = await marked(text);
-    logger.log("rawMarkdown", rawMarkdown);
-    return DOMPurify.sanitize(rawMarkdown).replace(/<\/?p>/g, '').replaceAll('<br>', '\n');
 };
 
 const handleSend = async () => {
-    if (!message.value.trim()) {
-        logger.warn("after trim message is empty");
-        return;
-    }
     if (!pool.selectedTextChannel) {
         logger.warn("selected text channel is not defined");
         return;
     }
 
-    const md = await renderMarkdown(message.value);
+    const mentions = extractMentionsFromEditor();
+    const plainText = getEditorPlainText();
+    const entities = [] as IMessageEntity[];
 
-    const entities = parseHtmlAsFormattedText(md, false, true);
+    console.log('Sending message:', plainText)
+    console.log('Mentions:', mentions);
 
-    const entitiesList = [] as IMessageEntity[];
 
-    for (let i of entities.entities ?? []) {
-        entitiesList.push({
-            Length: i.length,
-            Offset: i.offset,
-            Type: i.type
-        });
+    if (mentions.length > 0) {
+        for (const element of mentions) {
+            entities.push({
+                Length: element.end - element.start,
+                Offset: element.start,
+                Type: "Mention",
+                UserId: element.id,
+                Version: 1
+            } as IMessageEntityMention);
+        }
     }
 
-    await api.serverInteraction.SendMessage(pool.selectedTextChannel, entities.text, entitiesList, (props.replyTo?.MessageId ?? null) as number);
-    /*logger.log(entities);
-    logger.log(renderTextWithEntities({
-        text: entities.text,
-        entities: entities.entities,
-        shouldRenderAsHtml: true
-    }));*/
-    message.value = '';
+    await api.serverInteraction.SendMessage(pool.selectedTextChannel, plainText, entities, (props.replyTo?.MessageId ?? null) as number);
+
     emit('stop_typing');
     if (props.replyTo) {
         emit('clear-reply');
+    }
+    if (editorRef.value) {
+        editorRef.value.innerHTML = ''
     }
 };
 
 
 </script>
-
-<template>
-    <div style="display: block;">
-        <div v-if="replyTo" class="reply-banner">
-            <div class="reply-info">
-                <strong>Replying to:</strong> {{ replyTo.Text }}
-            </div>
-            <X class="text-red-600" @click="$emit('clear-reply')"></X>
-        </div>
-        <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
-
-            <textarea ref="textareaRef" @input="adjustHeight" v-model="message" placeholder="Enter text..."
-                @keydown.enter.exact.prevent="message.trim() && handleSend()"
-                class="flex-1 min-h-[40px] max-h-[200px] px-3 py-2 text-sm bg-transparent outline-none resize-none"
-                rows="1" v-on:input="onInput" />
-            <Popover>
-                <PopoverTrigger style="align-items: flex-start;">
-                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                        <SmileIcon />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent class="w-auto p-0">
-                    <EmojiPicker :native="true" :disable-skin-tones="true" theme="dark"
-                        @select="(e: EmojiExt) => onEmojiClick(e)" />
-                </PopoverContent>
-            </Popover>
-            <div style="align-items: flex-start;">
-                <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
-                    <SendHorizonalIcon />
-                </Button>
-            </div>
-
-
-        </div>
-    </div>
-
-</template>
-
 <style lang="css" scoped>
 .reply-preview {
     padding: 6px 10px;

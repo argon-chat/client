@@ -3,7 +3,6 @@ import { computed, Reactive, reactive, Ref, ref } from "vue";
 import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
-import { UserStatus } from "@/lib/glue/UserStatus";
 import { firstValueFrom, from, Subject } from "rxjs";
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
@@ -11,6 +10,14 @@ import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 import { useMe } from "./meStore";
 import { watch } from "vue";
+
+export interface MentionUser {
+    id: string
+    displayName: string
+    username: string;
+}
+
+
 
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & {
   User: IUserDto;
@@ -67,6 +74,26 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
     return useObservable(from(observable));
   };
+
+  async function searchMentions(query: string): Promise<MentionUser[]> {
+    const normalized = query.toLowerCase();
+    return await db.users
+      .filter((user: RealtimeUser) => {
+        return (
+          user.Username.toLowerCase().includes(normalized) ||
+          user.DisplayName.toLowerCase().includes(normalized)
+        );
+      })
+      .limit(10)
+      .toArray()
+      .then((users) =>
+        users.map((u) => ({
+          id: u.UserId,
+          displayName: u.DisplayName,
+          username: u.Username
+        }))
+      );
+  }
 
   const getBatchUser = async function (userIds: Guid[]) {
     return await db.users.bulkGet(userIds);
@@ -196,7 +223,11 @@ export const usePoolStore = defineStore("data-pool", () => {
       await db.users.update(exist.UserId, {
         ...user,
         status: !!extendedStatus ? extendedStatus : exist.status,
-        activity: extendedActivity ?? ((!!extendedStatus ? extendedStatus : exist.status == "Offline") ? undefined : exist.activity),
+        activity:
+          extendedActivity ??
+          ((!!extendedStatus ? extendedStatus : exist.status == "Offline")
+            ? undefined
+            : exist.activity),
       });
       return;
     }
@@ -415,7 +446,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
       user.status = x.status;
 
-      if(x.status == "Offline" && user.activity) {
+      if (x.status == "Offline" && user.activity) {
         user.activity = undefined;
       }
 
@@ -429,12 +460,10 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const refershDatas = async function () {
     await loadServerDetails(false);
-  }
-
+  };
 
   const loadServerDetails = async function (listenEvents: boolean = true) {
-    if (listenEvents)
-      subscribeToEvents();
+    if (listenEvents) subscribeToEvents();
 
     const servers = await api.userInteraction.GetServers();
 
@@ -449,7 +478,9 @@ export const usePoolStore = defineStore("data-pool", () => {
         if (u.Member.User) await trackUser(u.Member.User, u.Status, u.Presence);
       }
 
-      const excludeSet = new Set(users.filter(x => x.Member).map(x => x.Member.UserId));
+      const excludeSet = new Set(
+        users.filter((x) => x.Member).map((x) => x.Member.UserId)
+      );
 
       await db.users
         .filter((user) => !excludeSet.has(user.UserId))
@@ -517,8 +548,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       if (prunedChannels != 0) logger.warn(`Pruned ${prunedChannels} channels`);
 
-      if (listenEvents)
-        bus.listenEvents(s.Id);
+      if (listenEvents) bus.listenEvents(s.Id);
     }
   };
 
@@ -552,5 +582,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     getChannel,
     getServer,
     getUserReactive,
+
+    searchMentions
   };
 });

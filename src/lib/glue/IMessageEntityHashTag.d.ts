@@ -5,5 +5,9 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="IMessageEntity.d.ts"/>
 
-declare type AcceptInviteError = 'NONE' | 'NOT_FOUND' | 'EXPIRED' | 'YOU_ARE_BANNED'
+interface IMessageEntityHashTag extends IMessageEntity
+{
+	Hashtag: string;
+}

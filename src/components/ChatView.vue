@@ -1,22 +1,18 @@
 <template>
-  <div ref="scroller" class="chat-scroll messages" :style="{'--chat-width': chatWidth + 'px'}">
-      <button
-          v-if="isScrolledUp"
-          @click="scrollToBottom"
-          class="scroll-to-bottom-btn"
-      >
-          <CircleArrowDown class="arrow-icon" />
-          <div v-if="newMessagesCount > 0" class="new-messages-count">
-              {{ newMessagesCount > 99 ? '99+' : newMessagesCount }}
-          </div>
-      </button>
-
-      <div v-for="(message) in messages" :key="message.MessageId" class="chat-message">
-          <MessageItem :message="message" :get-msg-by-id="getMessageById" @dblclick="() => emit('select-reply', message)" />
+  <div ref="scroller" class="chat-scroll messages" :style="{ '--chat-width': chatWidth + 'px' }">
+    <button v-if="isScrolledUp" @click="scrollToBottom" class="scroll-to-bottom-btn">
+      <CircleArrowDown class="arrow-icon" />
+      <div v-if="newMessagesCount > 0" class="new-messages-count">
+        {{ newMessagesCount > 99 ? '99+' : newMessagesCount }}
       </div>
-        <Separator v-if="hasEnded" orientation="horizontal"> </Separator>
-        <div v-if="hasEnded" style="text-align: center;"> END </div>
+    </button>
+
+    <div v-for="(message) in messages" :key="message.MessageId" class="chat-message">
+      <MessageItem :message="message" :get-msg-by-id="getMessageById" @dblclick="() => emit('select-reply', message)" />
     </div>
+    <Separator v-if="hasEnded" orientation="horizontal"> </Separator>
+    <div v-if="hasEnded" style="text-align: center;"> END </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -29,11 +25,12 @@ import { Separator } from '@/components/ui/separator'
 import { usePoolStore } from '@/store/poolStore';
 import { Subscription } from 'rxjs';
 import { useMe } from "@/store/meStore.ts";
+import { useTone } from '@/store/toneStore';
 
 const api = useApi();
 const pool = usePoolStore();
 const props = defineProps<{
-    channelId: Guid
+  channelId: Guid
 }>()
 
 const scroller = useTemplateRef<HTMLElement>("scroller");
@@ -45,35 +42,36 @@ const isScrolledUp = ref(false);
 const newMessagesCount = ref(0);
 const chatWidth = ref(0);
 const me = useMe();
+const tone = useTone();
 
 const getMessageById = (messageId: number): IArgonMessageDto => {
-    return messages.value.find(x => x.MessageId == messageId)!;
+  return messages.value.find(x => x.MessageId == messageId)!;
 }
 
 const emit = defineEmits<{
-    (e: 'select-reply', message: IArgonMessageDto): void
+  (e: 'select-reply', message: IArgonMessageDto): void
 }>();
 
 const scrollToBottom = () => {
-    if (!scroller.value) return;
+  if (!scroller.value) return;
 
-    const { scrollHeight, clientHeight } = scroller.value;
-    scroller.value.scrollTop = scrollHeight - clientHeight;
+  const { scrollHeight, clientHeight } = scroller.value;
+  scroller.value.scrollTop = scrollHeight - clientHeight;
 
-    nextTick(() => {
-      checkScrollPosition();
-    });
+  nextTick(() => {
+    checkScrollPosition();
+  });
 };
 
 const checkScrollPosition = () => {
-    if (!scroller.value) return;
+  if (!scroller.value) return;
 
-    if (scroller.value.scrollTop < -10) {
-        isScrolledUp.value = true;
-    } else {
-        newMessagesCount.value = 0;
-        isScrolledUp.value = false;
-    }
+  if (scroller.value.scrollTop < -10) {
+    isScrolledUp.value = true;
+  } else {
+    newMessagesCount.value = 0;
+    isScrolledUp.value = false;
+  }
 };
 
 useInfiniteScroll(scroller, async () => {
@@ -121,6 +119,11 @@ watch(() => props.channelId, async (newChannelId) => {
   subs.value = pool.onNewMessageReceived.subscribe((e) => {
     if (newChannelId === e.ChannelId) {
       messages.value.unshift(e);
+      // TODO reply
+      if (e.Entities.filter(filterMention).filter(x => x.UserId == me.me?.Id)) {
+        tone.playNotificationSound();
+      }
+
       nextTick(checkScrollPosition);
 
       if (e.Sender === me.me?.Id) {
@@ -135,6 +138,11 @@ watch(() => props.channelId, async (newChannelId) => {
     }
   });
 }, { immediate: true });
+
+const filterMention = (e: IMessageEntity): e is IMessageEntityMention => {
+  return e.Type == 'Mention';
+}
+
 
 onMounted(() => {
   if (scroller.value) {

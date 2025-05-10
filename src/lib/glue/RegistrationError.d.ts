@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type RegistrationError = 'USERNAME_ALREADY_TAKEN' | 'USERNAME_RESERVED' | 'EMAIL_ALREADY_REGISTERED' | 'REGION_BANNED' | 'EMAIL_BANNED' | 'SSO_EMAILS_NOT_ALLOWED' | 'INTERNAL_ERROR'
+declare type RegistrationError = 'USERNAME_ALREADY_TAKEN' | 'USERNAME_RESERVED' | 'EMAIL_ALREADY_REGISTERED' | 'REGION_BANNED' | 'EMAIL_BANNED' | 'SSO_EMAILS_NOT_ALLOWED' | 'INTERNAL_ERROR'

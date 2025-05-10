@@ -20,10 +20,9 @@
                                     ? t("typing.one", { name: typingUsers[0].DisplayName })
                                     : typingUsers.length <= 3 ? t("typing.few", {
                                         names: typingUsers.map(u =>
-                                u.DisplayName).join(", ")
-                                })
-                                : t("typing.many")
-                                }}
+                                            u.DisplayName).join(", ")
+                                    }) : t("typing.many")
+                            }}
                         </span>
                         <span class="inline-flex gap-[1px] ml-1">
                             <span class="dot inline-block w-[4px] h-[4px] bg-white rounded-full animate-dot1"></span>

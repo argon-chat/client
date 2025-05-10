@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type AuthorizationError = 'NONE' | 'BAD_CREDENTIALS' | 'REQUIRED_OTP' | 'BAD_OTP'
+declare type AuthorizationError = 'NONE' | 'BAD_CREDENTIALS' | 'REQUIRED_OTP' | 'BAD_OTP'

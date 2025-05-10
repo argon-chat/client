@@ -24,7 +24,6 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ActivityPresenceKind } from '@/lib/glue/ActivityPresenceKind';
 import { RealtimeUser } from '@/store/db/dexie';
 import { useLocale } from '@/store/localeStore';
 import { useMe } from '@/store/meStore';

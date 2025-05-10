@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ServerCreationError = 'BAD_MODEL'
+declare type ServerCreationError = 'BAD_MODEL'

@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type LockdownReason = 'NONE' | 'SPAM_SCAM_ACCOUNT' | 'INCITING_MOMENT' | 'NON_BINARY_PERSON' | 'TOS_VIOLATION' | 'LGBT_AGITATION' | 'DRUG_VIOLATION' | 'TERRORISM_AGITATION' | 'CHILD_ABUSE'
+declare type LockdownReason = 'NONE' | 'SPAM_SCAM_ACCOUNT' | 'INCITING_MOMENT' | 'NON_BINARY_PERSON' | 'TOS_VIOLATION' | 'LGBT_AGITATION' | 'DRUG_VIOLATION' | 'TERRORISM_AGITATION' | 'CHILD_ABUSE'

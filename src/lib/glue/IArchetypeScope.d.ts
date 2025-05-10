@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type IArchetypeScope = 'Archetype' | 'Member'
+declare type IArchetypeScope = 'Archetype' | 'Member'

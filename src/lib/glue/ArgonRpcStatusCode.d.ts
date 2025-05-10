@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ArgonRpcStatusCode = 'Ok' | 'InternalException' | 'NotAuthorized' | 'InsufficientPermission'
+declare type ArgonRpcStatusCode = 'Ok' | 'InternalException' | 'NotAuthorized' | 'InsufficientPermission'

@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type ChannelType = 'Text' | 'Voice' | 'Announcement'
+declare type ChannelType = 'Text' | 'Voice' | 'Announcement'

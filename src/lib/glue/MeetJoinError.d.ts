@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type MeetJoinError = 'OK' | 'NO_LINK_EXIST'
+declare type MeetJoinError = 'OK' | 'NO_LINK_EXIST'

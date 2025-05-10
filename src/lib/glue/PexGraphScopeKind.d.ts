@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type PexGraphScopeKind = 'Server' | 'Channel'
+declare type PexGraphScopeKind = 'Server' | 'Channel'

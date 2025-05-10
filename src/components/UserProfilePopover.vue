@@ -105,7 +105,7 @@
 
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import ArgonAvatar from './ArgonAvatar.vue';
 import { CrownIcon, ShieldCheckIcon, GitPullRequestCreateArrow } from 'lucide-vue-next';
 import {
@@ -119,7 +119,6 @@ import { usePoolStore } from '@/store/poolStore';
 import { RealtimeUser } from '@/store/db/dexie';
 import { useMe } from '@/store/meStore';
 import { useLocale } from '@/store/localeStore';
-import { ActivityPresenceKind } from '@/lib/glue/ActivityPresenceKind';
 import ArgonBanner from './ArgonBanner.vue';
 
 const isLoading = ref(true);

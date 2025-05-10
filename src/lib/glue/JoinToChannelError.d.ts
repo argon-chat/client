@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-export type JoinToChannelError = 'NONE' | 'CHANNEL_IS_NOT_VOICE'
+declare type JoinToChannelError = 'NONE' | 'CHANNEL_IS_NOT_VOICE'
