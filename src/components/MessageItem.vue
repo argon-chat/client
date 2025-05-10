@@ -8,7 +8,7 @@
 
         <div class="message-content">
             <div class="meta">
-                <span class="username">{{ user?.DisplayName || 'Неизвестный' }}</span>
+                <span class="username" :data-user-id="user.UserId" :style="{ 'color': getColorByUserId(user.UserId) }">{{ user?.DisplayName || 'Неизвестный' }}</span>
 
                 <TooltipProvider>
                     <Tooltip>
@@ -32,7 +32,7 @@
                     'bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]',
                 )
                     ">
-                    <div class="reply-username">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                    <div class="reply-username"  :style="{ 'color': getColorByUserId(user.UserId) }">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
                     <div class="reply-text">{{ replyMessage.Text }}</div>
                 </div>
                 {{ message.Text }}
@@ -45,7 +45,7 @@
                     'bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))]',
                 )
                     ">
-                    <div class="reply-username">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                    <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{ replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
                     <div class="reply-text">{{ replyMessage.Text }}</div>
                 </div>
                 {{ message.Text }}
@@ -68,6 +68,7 @@ import {
     TooltipTrigger
 } from '@/components/ui/tooltip'
 import { useDateFormat } from '@vueuse/core';
+import { useUserColors } from '@/store/userColors';
 
 const props = defineProps<{
     message: IArgonMessageDto,
@@ -79,6 +80,7 @@ const backgroundOffset = ref(0)
 const pool = usePoolStore()
 const user = pool.getUserReactive(props.message.Sender);
 const me = useMe();
+const userColors = useUserColors();
 
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 
@@ -126,7 +128,7 @@ const formattedTime = computed(() => {
 const formattedFullTime = useDateFormat(new Date(props.message.TimeSent * 1000), 'YYYY-MM-DD HH:mm:ss')
 
 function getColorByUserId(userId: string): string {
-    return "#303030";
+    return userColors.getColorByUserId(userId);
 }
 
 function isUpEmojisOnly(message: IArgonMessageDto): boolean {
@@ -208,6 +210,5 @@ function isUpEmojisOnly(message: IArgonMessageDto): boolean {
 .reply-username {
     font-weight: 800;
     margin-bottom: 2px;
-    color: #b58f2d;
 }
 </style>
