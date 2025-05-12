@@ -87,7 +87,7 @@ export const useAuthStore = defineStore("auth", () => {
       localStorage.setItem("token", r.Value);
       return;
     } else {
-      switch (r.Error) {
+      switch (r.Error.Code) {
         case "EMAIL_ALREADY_REGISTERED":
           toast({
             title: `Email already registered`,
@@ -100,6 +100,14 @@ export const useAuthStore = defineStore("auth", () => {
           toast({
             title: `Username already claimed`,
             description: "It's time to be creative!",
+            variant: "destructive",
+            duration: 2500,
+          });
+          return;
+        case "VALIDATION_FAILED":
+          toast({
+            title: `Validation for ${r.Error.Field} failed`,
+            description: r.Error.Message,
             variant: "destructive",
             duration: 2500,
           });
