@@ -153,7 +153,8 @@ function onEditorInput() {
         }
     }
 
-    mention.show = false
+    mention.show = false;
+    parseInlineFormatting();
 }
 
 async function onEditorKeydown(e: KeyboardEvent) {
@@ -231,10 +232,157 @@ function extractMentionsFromEditor(): { id: string; label: string; start: number
     return mentions
 }
 
+function applyItalicToSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) return;
+
+    const italic = document.createElement('i');
+    italic.className = 'italic text-white/70';
+    italic.appendChild(range.extractContents());
+    range.insertNode(italic);
+
+    range.setStartAfter(italic);
+    range.setEndAfter(italic);
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
+function isInsideEntity(node: Node): boolean {
+    const el = node.parentElement;
+    if (!el) return false;
+    return (
+        el.matches('[data-user-id]') || // mention
+        el.matches('[data-url]') ||     // ссылка
+        el.matches('[data-fractions]') || // дробь
+        el.tagName === 'I' ||
+        el.tagName === 'B' ||
+        el.tagName === 'U'
+    );
+}
+function parseInlineFormatting() {
+    if (!editorRef.value) return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const container = editorRef.value;
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+
+    const patterns: {
+        regex: RegExp,
+        tag: string,
+        className?: string,
+        handleMatch?: (match: RegExpMatchArray) => HTMLElement
+    }[] = [
+            {
+                regex: /~~(.*?)~~/,
+                tag: 'i',
+                className: 'italic',
+            },
+            {
+                regex: /\*\*(.*?)\*\*/,
+                tag: 'b',
+                className: 'font-bold',
+            },
+            {
+                regex: /__(.*?)(?::([a-zA-Z0-9\-]{3,20}))?__/,
+                tag: 'u',
+                handleMatch: (match) => {
+                    const [full, text, color] = match;
+                    const u = document.createElement('u');
+                    u.textContent = text;
+                    u.classList.add('underline');
+
+                    if (color) {
+                        if (/^[a-fA-F0-9]{3,6}$/.test(color)) {
+                            u.classList.add(`decoration-[#${color}]`);
+                        } else if (/^[a-z]+-\d{3}$/.test(color)) {
+                            u.classList.add(`decoration-${color}`);
+                        }
+                    }
+
+                    return u;
+                },
+            },
+            {
+                regex: /\b(\d)\\(\d)\b/,
+                tag: 'span',
+                handleMatch: (match) => {
+                    const [, numerator, denominator] = match;
+                    const span = document.createElement('span');
+                    span.className = 'stacked-fractions';
+                    span.textContent = `${numerator}/${denominator}`;
+                    span.dataset.fractions = "1";
+                    return span;
+                },
+            },
+            {
+                regex: /\bhttps?:\/\/[^\s<>"'`{}()[\]]+[^\s<>"'`.,!?;:{}()[\]]/,
+                tag: 'span',
+                handleMatch: (match) => {
+                    const url = match[0];
+                    const span = document.createElement('span');
+                    span.dataset.url = url;
+                    span.textContent = new URL(url).hostname;
+                    span.className = 'text-blue-600';
+                    return span;
+                }
+            }
+        ];
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        const text = node.textContent!;
+        if (isInsideEntity(node)) continue;
+        for (const { regex, tag, className, handleMatch } of patterns) {
+            const match = regex.exec(text);
+            if (match) {
+                const matchIndex = match.index;
+                const matchLength = match[0].length;
+
+                const range = document.createRange();
+                range.setStart(node, matchIndex);
+                range.setEnd(node, matchIndex + matchLength);
+
+                let el: HTMLElement;
+                if (handleMatch) {
+                    el = handleMatch(match);
+                } else {
+                    el = document.createElement(tag);
+                    el.textContent = match[1];
+                    if (className) el.className = className;
+                }
+
+                range.deleteContents();
+
+                const space = document.createTextNode('\u200B');
+                const wrapper = document.createDocumentFragment();
+                wrapper.appendChild(el);
+                wrapper.appendChild(space);
+                range.insertNode(wrapper);
+
+                sel.removeAllRanges();
+                const newRange = document.createRange();
+                newRange.setStart(space, 1);
+                newRange.collapse(true);
+                sel.addRange(newRange);
+
+                return;
+            }
+        }
+    }
+}
+
 function getEditorPlainText(): string {
     const clone = editorRef.value?.cloneNode(true) as HTMLElement
     if (!clone) return ''
-    clone.querySelectorAll('[data-user-id]').forEach((el) => el.replaceWith(document.createTextNode(el.textContent || '')))
+    clone.querySelectorAll('[data-user-id]').forEach((el) => el.replaceWith(document.createTextNode(el.textContent || '')));
+    clone.querySelectorAll('i').forEach(el => {
+        el.replaceWith(document.createTextNode(el.textContent || ''));
+    });
     return clone.innerText.replace(/\u00A0/g, ' ').trim();
 }
 
@@ -250,31 +398,91 @@ const onEmojiClick = (emoji: EmojiExt) => {
     logger.log(emoji);
 };
 
+function extractEntitiesFromEditor(): IMessageEntity[] {
+    const entities: IMessageEntity[] = [];
+    if (!editorRef.value) return entities;
+
+    const walker = document.createTreeWalker(editorRef.value, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    let currentOffset = 0;
+
+    function addEntity(offset: number, length: number, type: EntityType, extra?: Partial<IMessageEntity>) {
+        entities.push({
+            Type: type,
+            Offset: offset,
+            Length: length,
+            Version: 1,
+            ...extra,
+        } as IMessageEntity);
+    }
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            const text = el.textContent || '';
+            const length = text.length;
+
+            if (el.dataset.userId) {
+                // Mention
+                addEntity(currentOffset, length, "Mention", {
+                    UserId: el.dataset.userId,
+                    Version: 1,
+                } as IMessageEntityMention);
+            } else if (el.tagName === 'I') {
+                addEntity(currentOffset, length, "Italic");
+            } else if (el.tagName === 'SPAN' && el.dataset.fractions === "1") {
+                addEntity(currentOffset, length, "Fraction");
+            } else if (el.tagName === 'SPAN' && el.dataset.url) {
+                addEntity(currentOffset, length, "Url", { Domain: new URL(el.dataset.url).hostname, Path:  new URL(el.dataset.url).pathname } as IMessageEntityUrl);
+            } else if (el.tagName === 'B') {
+                addEntity(currentOffset, length, "Bold");
+            } else if (el.tagName === 'U') {
+                const styleColor = el.style.textDecorationColor;
+                const classColor = [...el.classList].find(c => c.startsWith('text-'));
+                let colourHex: string | undefined;
+
+                if (styleColor) {
+                    colourHex = styleColor.replace(/^#/, '');
+                } else if (classColor) {
+                    const tailwindMatch = classColor.match(/^text-(.+)$/);
+                    if (tailwindMatch) {
+                        const colorKey = tailwindMatch[1];
+                        const mapped = ((window as any).tailwindColorMap as any)[colorKey] as any;
+                        if (mapped && /^#?[a-fA-F0-9]{3,6}$/.test(mapped)) {
+                            colourHex = mapped.replace(/^#/, '');
+                        }
+                    }
+                }
+
+                const colourNum = colourHex ? parseInt(colourHex, 16) : 0xffffff;
+
+                addEntity(currentOffset, length, "Underline", {
+                    Colour: colourNum,
+                } as IMessageEntityUnderline);
+            }
+
+            currentOffset += length;
+        } else if (node.nodeType === Node.TEXT_NODE) {
+            currentOffset += node.textContent?.length || 0;
+        }
+    }
+
+    return entities;
+}
+
 const handleSend = async () => {
     if (!pool.selectedTextChannel) {
         logger.warn("selected text channel is not defined");
         return;
     }
 
-    const mentions = extractMentionsFromEditor();
     const plainText = getEditorPlainText();
-    const entities = [] as IMessageEntity[];
+    const entities = extractEntitiesFromEditor();
 
     console.log('Sending message:', plainText)
-    console.log('Mentions:', mentions);
+    console.log('totalEntities:', entities);
 
-
-    if (mentions.length > 0) {
-        for (const element of mentions) {
-            entities.push({
-                Length: element.end - element.start,
-                Offset: element.start,
-                Type: "Mention",
-                UserId: element.id,
-                Version: 1
-            } as IMessageEntityMention);
-        }
-    }
 
     await api.serverInteraction.SendMessage(pool.selectedTextChannel, plainText, entities, (props.replyTo?.MessageId ?? null) as number);
 
