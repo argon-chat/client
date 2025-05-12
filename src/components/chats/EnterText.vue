@@ -9,10 +9,63 @@
 
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Editable message area -->
-            <div ref="editorRef" contenteditable="true"
-                class="flex-1 px-3 py-2 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
-                @input="onEditorInput" @keydown="onEditorKeydown" placeholder="Enter text..."
-                :data-placeholder="'Enter text..'"></div>
+
+            <ContextMenu>
+                <ContextMenuTrigger as="div" :as-child="true" class="p-2">
+                    <div class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
+                        ref="editorRef" contenteditable="true" @input="onEditorInput" @keydown="onEditorKeydown"
+                        placeholder="Enter text..." :data-placeholder="'Enter text..'"></div>
+                </ContextMenuTrigger>
+                <ContextMenuContent class="w-64">
+                    <ContextMenuItem @click="undo">
+                        Undo
+                        <ContextMenuShortcut>
+                            <HotKey :keys="['Ctl', 'Z']" />
+                        </ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem @click="redo">
+                        Redo
+                        <ContextMenuShortcut>
+                            <HotKey :keys="['Ctl', 'Y']" />
+                        </ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem @click="cut">
+                        Cut
+                        <ContextMenuShortcut>
+                            <HotKey :keys="['Ctl', 'X']" />
+                        </ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem @click="copy">
+                        Copy
+                        <ContextMenuShortcut>
+                            <HotKey :keys="['Ctl', 'C']" />
+                        </ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem @click="paste">
+                        Paste
+                        <ContextMenuShortcut>
+                            <HotKey :keys="['Ctl', 'V']" />
+                        </ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuSub>
+                        <ContextMenuSubTrigger inset disabled>
+                            Formatting..
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent class="w-48">
+                            <ContextMenuItem>
+                                Save Page As...
+                                <ContextMenuShortcut>⇧⌘S</ContextMenuShortcut>
+                            </ContextMenuItem>
+                            <ContextMenuItem>Create Shortcut...</ContextMenuItem>
+                            <ContextMenuItem>Name Window...</ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem>Developer Tools</ContextMenuItem>
+                        </ContextMenuSubContent>
+                    </ContextMenuSub>
+                </ContextMenuContent>
+            </ContextMenu>
 
             <!-- Emoji picker -->
             <Popover>
@@ -65,6 +118,22 @@ import {
 import { useApi } from '@/store/apiStore';
 import { MentionUser, usePoolStore } from '@/store/poolStore';
 import { useDebounce } from '@vueuse/core'
+import {
+    ContextMenu,
+    ContextMenuCheckboxItem,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuLabel,
+    ContextMenuRadioGroup,
+    ContextMenuRadioItem,
+    ContextMenuSeparator,
+    ContextMenuShortcut,
+    ContextMenuSub,
+    ContextMenuSubContent,
+    ContextMenuSubTrigger,
+    ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import HotKey from '../HotKey.vue';
 
 const editorRef = ref<HTMLElement | null>(null)
 const api = useApi();
@@ -80,6 +149,51 @@ const mention = reactive({
 const rawQuery = ref('');
 const debouncedQuery = useDebounce(rawQuery, 150)
 
+
+const redo = () => {
+    document.execCommand('redo');
+}
+const undo = () => {
+    document.execCommand('undo');
+}
+
+async function cut() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+
+    const text = selection.toString();
+    await navigator.clipboard.writeText(text);
+    selection.deleteFromDocument();
+}
+
+async function copy() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+
+    const text = selection.toString();
+    await navigator.clipboard.writeText(text);
+}
+
+async function paste() {
+    const text = await navigator.clipboard.readText();
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
+function deleteSelection() {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+        selection.deleteFromDocument();
+    }
+}
 
 watch(debouncedQuery, async (query) => {
     if (!query || !mention.show) return
@@ -318,18 +432,6 @@ function parseInlineFormatting() {
                     span.dataset.fractions = "1";
                     return span;
                 },
-            },
-            {
-                regex: /\bhttps?:\/\/[^\s<>"'`{}()[\]]+[^\s<>"'`.,!?;:{}()[\]]/,
-                tag: 'span',
-                handleMatch: (match) => {
-                    const url = match[0];
-                    const span = document.createElement('span');
-                    span.dataset.url = url;
-                    span.textContent = new URL(url).hostname;
-                    span.className = 'text-blue-600';
-                    return span;
-                }
             }
         ];
 
@@ -402,75 +504,83 @@ function extractEntitiesFromEditor(): IMessageEntity[] {
     const entities: IMessageEntity[] = [];
     if (!editorRef.value) return entities;
 
-    const walker = document.createTreeWalker(editorRef.value, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
     let currentOffset = 0;
 
-    function addEntity(offset: number, length: number, type: EntityType, extra?: Partial<IMessageEntity>) {
-        entities.push({
-            Type: type,
-            Offset: offset,
-            Length: length,
-            Version: 1,
-            ...extra,
-        } as IMessageEntity);
-    }
-
-    while (walker.nextNode()) {
-        const node = walker.currentNode;
-
-        if (node.nodeType === Node.ELEMENT_NODE) {
+    const processNode = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent || '';
+            currentOffset += text.length;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node as HTMLElement;
-            const text = el.textContent || '';
-            const length = text.length;
+
+            const offsetStart = currentOffset;
 
             if (el.dataset.userId) {
-                // Mention
-                addEntity(currentOffset, length, "Mention", {
+                el.childNodes.forEach(processNode);
+                entities.push({
+                    Type: "Mention",
+                    Offset: offsetStart,
+                    Length: currentOffset - offsetStart,
                     UserId: el.dataset.userId,
-                    Version: 1,
+                    Version: 1
                 } as IMessageEntityMention);
             } else if (el.tagName === 'I') {
-                addEntity(currentOffset, length, "Italic");
-            } else if (el.tagName === 'SPAN' && el.dataset.fractions === "1") {
-                addEntity(currentOffset, length, "Fraction");
-            } else if (el.tagName === 'SPAN' && el.dataset.url) {
-                addEntity(currentOffset, length, "Url", { Domain: new URL(el.dataset.url).hostname, Path:  new URL(el.dataset.url).pathname } as IMessageEntityUrl);
+                el.childNodes.forEach(processNode);
+                entities.push({
+                    Type: "Italic",
+                    Offset: offsetStart,
+                    Length: currentOffset - offsetStart,
+                    Version: 1
+                });
             } else if (el.tagName === 'B') {
-                addEntity(currentOffset, length, "Bold");
+                el.childNodes.forEach(processNode);
+                entities.push({
+                    Type: "Bold",
+                    Offset: offsetStart,
+                    Length: currentOffset - offsetStart,
+                    Version: 1
+                });
             } else if (el.tagName === 'U') {
-                const styleColor = el.style.textDecorationColor;
-                const classColor = [...el.classList].find(c => c.startsWith('text-'));
+                el.childNodes.forEach(processNode);
+                const classColor = [...el.classList].find(c => c.startsWith('decoration-'));
                 let colourHex: string | undefined;
 
-                if (styleColor) {
-                    colourHex = styleColor.replace(/^#/, '');
-                } else if (classColor) {
-                    const tailwindMatch = classColor.match(/^text-(.+)$/);
-                    if (tailwindMatch) {
-                        const colorKey = tailwindMatch[1];
-                        const mapped = ((window as any).tailwindColorMap as any)[colorKey] as any;
-                        if (mapped && /^#?[a-fA-F0-9]{3,6}$/.test(mapped)) {
-                            colourHex = mapped.replace(/^#/, '');
-                        }
+                if (classColor) {
+                    const colorKey = classColor.replace('decoration-', '').replace(/^\[#/, '').replace(/]$/, '');
+                    const mapped = ((window as any).tailwindColorMap || {})[colorKey];
+                    if (mapped && /^#?[a-fA-F0-9]{3,6}$/.test(mapped)) {
+                        colourHex = mapped.replace(/^#/, '');
+                    } else if (/^[a-fA-F0-9]{3,6}$/.test(colorKey)) {
+                        colourHex = colorKey;
                     }
                 }
 
                 const colourNum = colourHex ? parseInt(colourHex, 16) : 0xffffff;
 
-                addEntity(currentOffset, length, "Underline", {
+                entities.push({
+                    Type: "Underline",
+                    Offset: offsetStart,
+                    Length: currentOffset - offsetStart,
                     Colour: colourNum,
+                    Version: 1
                 } as IMessageEntityUnderline);
+            } else if (el.tagName === 'SPAN' && el.dataset.fractions === "1") {
+                el.childNodes.forEach(processNode);
+                entities.push({
+                    Type: "Fraction",
+                    Offset: offsetStart,
+                    Length: currentOffset - offsetStart,
+                    Version: 1
+                });
+            } else {
+                el.childNodes.forEach(processNode);
             }
-
-            currentOffset += length;
-        } else if (node.nodeType === Node.TEXT_NODE) {
-            currentOffset += node.textContent?.length || 0;
         }
-    }
+    };
 
+    editorRef.value.childNodes.forEach(processNode);
     return entities;
 }
-
 const handleSend = async () => {
     if (!pool.selectedTextChannel) {
         logger.warn("selected text channel is not defined");
