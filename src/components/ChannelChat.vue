@@ -1,7 +1,7 @@
 <template>
     <div class="channel-chat flex flex-col h-full rounded-lg">
         <div v-if="channelData"
-            class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative z-15">
+            class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative" style="z-index: 3">
             <div class="p-4 flex flex-col border-b space-y-1">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold relative z-10 text-white flex items-center">

@@ -23,6 +23,8 @@ mode.value = 'dark';
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 
+const nativeControlsActive = ref(true);
+
 watch(shiftCtrlA, (_) => {
   native.toggleDevTools();
 });
@@ -65,7 +67,7 @@ const closeWindow = () => {
   <DevPanel />
   <Island class="select-none"  v-if="sys.isRequestRetrying" :title="`Reconnecting`"/>
 
-  <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between">
+  <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between" v-if="!nativeControlsActive">
     <div class="sys-keyholder">
       <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
       <FullscreenIcon height="16" width="16" class="close-icon" @click="pressMaximize"/>
@@ -73,7 +75,7 @@ const closeWindow = () => {
     </div>
   </div>
 
-  <div class="topbar-collider" @mousedown="beginMove" @mouseup="endMove" />
+  <div class="topbar-collider" @mousedown="beginMove" @mouseup="endMove" v-if="!nativeControlsActive" />
 </template>
 
 <style scoped>
