@@ -13,6 +13,7 @@ import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import pkg from "../package.json";
+import tailwindColorMap from "../tailwind-colors.json";
 import 'vue-advanced-cropper/dist/style.css';
 import { createSentryPiniaPlugin } from "@sentry/vue";
 if (argon.isArgonHost) {
@@ -22,6 +23,7 @@ window.ui_version = pkg.version;
 window.ui_buildtime = pkg.lastBuildTime;
 window.ui_fullversion = pkg.fullVersion;
 window.ui_branch = pkg.branch;
+(window as any)["tailwindColorMap"] = tailwindColorMap;
 
 export const i18n = createI18n<[LocaleSchema], Locale>({
   locale: "en",
