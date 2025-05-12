@@ -31,37 +31,43 @@
                     </Tooltip>
                 </TooltipProvider>
             </div>
+            <template v-if="!isRequiredUpperVersionMessage">
+                <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
+                    backgroundPositionY: backgroundOffset + 'px',
+                }" ref="bubble">
+                    <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                        'reply-preview inline-table',
+                        'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
+                        ">
+                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
+                            replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                        <div class="reply-text">{{ replyMessage.Text }}</div>
+                    </div>
+                    <div>
+                        <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true"  />
+                    </div>
+                </div>
+                <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
+                    <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                        'reply-preview inline-table',
+                        'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
+                        ">
+                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
+                            replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
+                        <div class="reply-text">{{ replyMessage.Text }}</div>
+                    </div>
+                    <div>
+                        <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
+                    </div>
+                </div>
+            </template>
+            <template v-else>
+                <div class="rounded-r-lg border-red-500 border-l-4 bg-gray-800/40 italic text-sm p-4">
+                    This message is not supported by your Argon Chat version <br/> 
+                    Please update to the latest version via settings or restart client for auto update.
+                </div>
 
-            <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
-                backgroundPositionY: backgroundOffset + 'px',
-            }" ref="bubble">
-                <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                    'reply-preview inline-table',
-                    'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                    ">
-                    <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
-                        replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
-                    <div class="reply-text">{{ replyMessage.Text }}</div>
-                </div>
-                <div>
-                    <ChatSegment style="flex-flow: none;" v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity"
-                        :text="x.text" />
-                </div>
-            </div>
-            <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
-                <div v-if="replyMessage" style="display: inline-table;":class="cn(
-                    'reply-preview inline-table',
-                    'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                    ">
-                    <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
-                        replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
-                    <div class="reply-text">{{ replyMessage.Text }}</div>
-                </div>
-                <div>
-                    <ChatSegment style="flex-flow: none;" v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity"
-                        :text="x.text" />
-                </div>
-            </div>
+            </template>
         </div>
     </div>
 </template>
@@ -94,8 +100,9 @@ const isOpened = ref(false);
 const props = defineProps<{
     message: IArgonMessageDto,
     getMsgById: (replyId: number) => IArgonMessageDto
-}>()
+}>();
 
+const isRequiredUpperVersionMessage = ref(false);
 const bubble = ref<HTMLElement | null>(null)
 const backgroundOffset = ref(0)
 const pool = usePoolStore()
@@ -117,7 +124,7 @@ function fragmentMessageText(
     entities: IMessageEntity[]
 ): IFrag[] {
     const fragments: IFrag[] = []
-    let cursor = 0
+    let cursor = 0;
 
     const sorted = [...entities].sort((a, b) => a.Offset - b.Offset)
 
@@ -146,49 +153,6 @@ function fragmentMessageText(
     }
 
     return fragments
-}
-
-// TODO
-async function renderMessageTextWithEntities(
-    text: string,
-    entities: IMessageEntity[]
-) {
-    const parts: string[] = []
-    let current = 0
-
-    const sorted = [...entities].sort((a, b) => a.Offset - b.Offset)
-
-    for (const entity of sorted) {
-        if (entity.Type !== 'Mention') continue
-
-        const mention = entity as IMessageEntityMention
-
-        if (mention.Offset > current) {
-            parts.push(escapeHtml(text.slice(current, mention.Offset)))
-        }
-
-        const mentionText = text.slice(mention.Offset, mention.Offset + mention.Length)
-        const user = await pool.getUser(mention.UserId);
-        const display = user?.Username || mentionText.replace(/^@/, '')
-
-        parts.push(`<span class="text-blue-400 font-semibold">@${escapeHtml(display)}</span>`)
-
-        current = mention.Offset + mention.Length
-    }
-
-    if (current < text.length) {
-        parts.push(escapeHtml(text.slice(current)))
-    }
-
-    return parts.join('')
-}
-
-function escapeHtml(str: string): string {
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
 }
 const replyMessage = computed(() => {
     if (!props.message.ReplyId) return null;
