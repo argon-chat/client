@@ -12,6 +12,7 @@ interface IUser extends IArgonEntity
 {
 	Email: string;
 	Username: string;
+	NormalizedUsername: string;
 	DisplayName: string;
 	AvatarFileId?: string;
 	ServerMembers: any[];

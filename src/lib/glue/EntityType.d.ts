@@ -6,4 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-declare type EntityType = 'Hashtag' | 'Mention' | 'Email' | 'Url' | 'Monospace' | 'Quote' | 'Spoiler' | 'Strikethrough' | 'Bold' | 'Italic' | 'Underline'
+declare type EntityType = 'Hashtag' | 'Mention' | 'Email' | 'Url' | 'Monospace' | 'Quote' | 'Spoiler' | 'Strikethrough' | 'Bold' | 'Italic' | 'Underline' | 'Fraction' | 'Ordinal' | 'Capitalized'

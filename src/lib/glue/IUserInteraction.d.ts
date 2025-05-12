@@ -9,7 +9,7 @@
 ///<reference path="IServerDto.d.ts"/>
 ///<reference path="AuthorizationError.d.ts"/>
 ///<reference path="IUserCredentialsInput.d.ts"/>
-///<reference path="RegistrationError.d.ts"/>
+///<reference path="IRegistrationErrorData.d.ts"/>
 ///<reference path="INewUserCredentialsInput.d.ts"/>
 ///<reference path="IUserResetPassInput.d.ts"/>
 ///<reference path="IServer.d.ts"/>
@@ -24,7 +24,7 @@ interface IUserInteraction
 	CreateServer(request: any) : Promise<IServerDto>;
 	GetServers() : Promise<IServerDto[]>;
 	Authorize(input: IUserCredentialsInput) : Promise<Either<string, AuthorizationError>>;
-	Registration(input: INewUserCredentialsInput) : Promise<Either<string, RegistrationError>>;
+	Registration(input: INewUserCredentialsInput) : Promise<Either<string, IRegistrationErrorData>>;
 	BeginResetPassword(email: string) : Promise<boolean>;
 	ResetPassword(input: IUserResetPassInput) : Promise<Either<string, AuthorizationError>>;
 	JoinToServerAsync(inviteCode: InviteCode) : Promise<Either<IServer, AcceptInviteError>>;

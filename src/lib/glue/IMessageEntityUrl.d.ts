@@ -5,5 +5,10 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="IMessageEntity.d.ts"/>
 
-declare type RegistrationError = 'USERNAME_ALREADY_TAKEN' | 'USERNAME_RESERVED' | 'EMAIL_ALREADY_REGISTERED' | 'REGION_BANNED' | 'EMAIL_BANNED' | 'SSO_EMAILS_NOT_ALLOWED' | 'INTERNAL_ERROR' | 'VALIDATION_FAILED'
+interface IMessageEntityUrl extends IMessageEntity
+{
+	Domain: string;
+	Path: string;
+}
