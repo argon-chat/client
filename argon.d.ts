@@ -100,6 +100,17 @@ declare global {
     storage: IArgonStorage;
   }
 
+  interface IContextMenuItem {
+    CommandId?: number;
+    Label?: string;
+    IsSeparator?: boolean;
+    IsEnabled?: boolean;
+    KeyCode?: string;
+    Icon?: string;
+    Children?: IContextMenuItem[],
+    Action?: () => void
+  }
+
   interface INative {
     getDisplays(): IScreen[];
 
@@ -126,7 +137,7 @@ declare global {
 
     listenActivity(mode: 0 | 1, callback: IPinnedObject): void;
     createKeybind(
-      cfg: { keyCode: number; keyMod: ValidHotkeyModification },
+      cfg: { keyCode: number; keyMod: ValidHotkeyModification; allowTrackUpDown: boolean; },
       pinnedFn: IPinnedObject
     ): Promise<number>;
 
@@ -142,8 +153,17 @@ declare global {
     getIdleTimeSeconds(): number;
 
     openUrl(url: string): Promise<boolean>;
+
+    openContextMenu(x: number, y: number, arr: IContextMenuItem[]): boolean;
+
+    clipboardRead(): string;
+    clipboardWrite(s: string);
   }
 
+
+  interface INativeEventBus {
+    subscribeToEvent<T>(key: string, fn: (t: T) => void):  () => void;
+  }
 
   interface IArgonStorage {
     getItem(key: string): string | null;
@@ -159,4 +179,5 @@ declare global {
 
   var argon: IArgon;
   var native: INative;
+  var bus: INativeEventBus;
 }

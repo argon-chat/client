@@ -1,9 +1,9 @@
 {
   "name": "ui",
   "private": true,
-  "version": "1.715.867.91",
-  "lastBuildTime": "2025-05-12T16:21:33.342Z",
-  "fullVersion": "1.715.867.91-master",
+  "version": "1.715.877.100",
+  "lastBuildTime": "2025-05-25T12:59:14.171Z",
+  "fullVersion": "1.715.877.100-master",
   "branch": "master",
   "type": "module",
   "scripts": {
@@ -108,6 +108,7 @@
     "vite-plugin-rttist": "^5.0.0-alpha.0",
     "vite-plugin-vue-devtools": "^7.6.8",
     "vite-plugin-wasm": "^3.4.1",
+    "vite-svg-loader": "^5.1.0",
     "vue-tsc": "^2.1.6"
   },
   "trustedDependencies": [

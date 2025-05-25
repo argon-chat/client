@@ -15,6 +15,7 @@ export type HotketActionGroup = {
   actionKey: string;
   group: string;
   disabled: boolean;
+  isRadioMode: boolean;
 };
 
 export type HotKeyAction = {
@@ -25,15 +26,16 @@ export type HotKeyAction = {
   errText?: string;
   group: string;
   disabled: boolean;
+  isRadioMode: boolean;
 };
 
 export const availableActions = [
-  { actionKey: "key.microphone.toggle" as const, group: "audio", disabled: false },
-  { actionKey: "key.microphone.on" as const, group: "audio", disabled: false },
-  { actionKey: "key.microphone.off" as const, group: "audio", disabled: false },
-  { actionKey: "key.sound.toggle" as const, group: "audio", disabled: true },
-  { actionKey: "key.sound.on" as const, group: "audio", disabled: true },
-  { actionKey: "key.sound.off" as const, group: "audio", disabled: true },
+  { actionKey: "key.microphone.toggle" as const, group: "audio", disabled: false, isRadioMode: false },
+  { actionKey: "key.microphone.on" as const, group: "audio", disabled: false, isRadioMode: false },
+  { actionKey: "key.microphone.off" as const, group: "audio", disabled: false, isRadioMode: false },
+  { actionKey: "key.sound.toggle" as const, group: "audio", disabled: true, isRadioMode: false },
+  { actionKey: "key.sound.on" as const, group: "audio", disabled: true, isRadioMode: false },
+  { actionKey: "key.sound.off" as const, group: "audio", disabled: true, isRadioMode: false },
 ] satisfies HotketActionGroup[];
 
 export type ActionKey = (typeof availableActions)[number]["actionKey"];
@@ -57,7 +59,8 @@ export const useHotkeys = defineStore("hotkeys", () => {
         keyCode: 0,
         mod: null,
         group: i.group,
-        disabled: i.disabled
+        disabled: i.disabled,
+        isRadioMode: i.isRadioMode
       });
     } else {
       const hte = allHotKeys.get(i.actionKey);
@@ -66,8 +69,8 @@ export const useHotkeys = defineStore("hotkeys", () => {
     }
   }
 
-  function onHotKeyCalled(key: number) {
-    logger.log(`onHotKeyCalled: ${key}`, dictHandlers, dictActions, isPaused);
+  function onHotKeyCalled(key: number, isDown: boolean) {
+    logger.log(`onHotKeyCalled: ${key} ${isDown}`, dictHandlers, dictActions, isPaused);
     //if (isPaused) return;
     logger.log(`onHotKeyCalled (no paused): ${key}`);
     if (dictHandlers.has(key)) {
@@ -119,7 +122,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
       );
 
       try {
-        const result = await createHotKey(i.keyCode, i.actionKey, i.mod);
+        const result = await createHotKey(i.keyCode, i.actionKey, i.isRadioMode, i.mod);
 
         if (!result) {
           allHotKeys.get(i.actionKey)!.errText = "unknown error";
@@ -134,12 +137,14 @@ export const useHotkeys = defineStore("hotkeys", () => {
   async function createHotKey(
     keycode: number,
     action: string,
+    isRadioMode: boolean,
     mod: HotKeyMod | null
   ) {
     const i = await native.createKeybind(
       {
         keyCode: keycode,
         keyMod: mod ? encodeHotkeyModification(mod) : 0,
+        allowTrackUpDown: isRadioMode
       },
       pinnedHotKeyCallback
     );

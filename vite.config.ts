@@ -7,6 +7,7 @@ import Icons from 'unplugin-icons/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import AutoVersionPlugin from './vite-plugin-auto-version'
 import { tailwindColorExporter } from './tailwindColorExporter';
+import SvgImporter from "vite-svg-loader";
 export default defineConfig({
   server: {
     port: 5005,
@@ -25,6 +26,7 @@ export default defineConfig({
     Icons({ compiler: 'vue3', autoInstall: true }) as any,
     vueDevTools(),
     AutoVersionPlugin(),
+    SvgImporter()
     //tailwindColorExporter()
   ],
   resolve: {
