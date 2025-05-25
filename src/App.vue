@@ -21,6 +21,10 @@ let mode = useColorMode();
 mode.value = 'dark';
 
 
+if (argon.isArgonHost) {
+  document.body.style.setProperty('background', 'transparent', 'important');
+}
+
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 
 const nativeControlsActive = ref(true);
