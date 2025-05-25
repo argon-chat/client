@@ -10,62 +10,10 @@
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Editable message area -->
 
-            <ContextMenu>
-                <ContextMenuTrigger as="div" :as-child="true" class="p-2">
-                    <div class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
-                        ref="editorRef" contenteditable="true" @input="onEditorInput" @keydown="onEditorKeydown"
-                        placeholder="Enter text..." :data-placeholder="'Enter text..'"></div>
-                </ContextMenuTrigger>
-                <ContextMenuContent class="w-64">
-                    <ContextMenuItem @click="undo">
-                        Undo
-                        <ContextMenuShortcut>
-                            <HotKey :keys="['Ctl', 'Z']" />
-                        </ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuItem @click="redo">
-                        Redo
-                        <ContextMenuShortcut>
-                            <HotKey :keys="['Ctl', 'Y']" />
-                        </ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem @click="cut">
-                        Cut
-                        <ContextMenuShortcut>
-                            <HotKey :keys="['Ctl', 'X']" />
-                        </ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuItem @click="copy">
-                        Copy
-                        <ContextMenuShortcut>
-                            <HotKey :keys="['Ctl', 'C']" />
-                        </ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuItem @click="paste">
-                        Paste
-                        <ContextMenuShortcut>
-                            <HotKey :keys="['Ctl', 'V']" />
-                        </ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuSub>
-                        <ContextMenuSubTrigger inset disabled>
-                            Formatting..
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent class="w-48">
-                            <ContextMenuItem>
-                                Save Page As...
-                                <ContextMenuShortcut>⇧⌘S</ContextMenuShortcut>
-                            </ContextMenuItem>
-                            <ContextMenuItem>Create Shortcut...</ContextMenuItem>
-                            <ContextMenuItem>Name Window...</ContextMenuItem>
-                            <ContextMenuSeparator />
-                            <ContextMenuItem>Developer Tools</ContextMenuItem>
-                        </ContextMenuSubContent>
-                    </ContextMenuSub>
-                </ContextMenuContent>
-            </ContextMenu>
+            <div @contextmenu.prevent="onContextMenu"
+                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
+                ref="editorRef" contenteditable="true" @input="onEditorInput" @keydown="onEditorKeydown"
+                placeholder="Enter text..." :data-placeholder="'Enter text..'"></div>
 
             <!-- Emoji picker -->
             <Popover>
@@ -118,22 +66,7 @@ import {
 import { useApi } from '@/store/apiStore';
 import { MentionUser, usePoolStore } from '@/store/poolStore';
 import { useDebounce } from '@vueuse/core'
-import {
-    ContextMenu,
-    ContextMenuCheckboxItem,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuLabel,
-    ContextMenuRadioGroup,
-    ContextMenuRadioItem,
-    ContextMenuSeparator,
-    ContextMenuShortcut,
-    ContextMenuSub,
-    ContextMenuSubContent,
-    ContextMenuSubTrigger,
-    ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import HotKey from '../HotKey.vue';
+import { Subscription } from 'rxjs';
 
 const editorRef = ref<HTMLElement | null>(null)
 const api = useApi();
@@ -145,10 +78,19 @@ const mention = reactive({
     index: 0,
     startNode: null as Node | null,
     startOffset: 0,
-})
+});
+
+
 const rawQuery = ref('');
 const debouncedQuery = useDebounce(rawQuery, 150)
 
+const onContextMenu = (e: MouseEvent) => {
+    logger.error("try open context menu", e);
+
+    if (!native.openContextMenu(e.clientX, e.clientY, items)) {
+        logger.error("failed to open context menu", e);
+    }
+}
 
 const redo = () => {
     document.execCommand('redo');
@@ -162,7 +104,10 @@ async function cut() {
     if (!selection || selection.isCollapsed) return;
 
     const text = selection.toString();
-    await navigator.clipboard.writeText(text);
+    if (argon.isArgonHost)
+        native.clipboardWrite(text);
+    else
+        await navigator.clipboard.writeText(text);
     selection.deleteFromDocument();
 }
 
@@ -171,11 +116,14 @@ async function copy() {
     if (!selection || selection.isCollapsed) return;
 
     const text = selection.toString();
-    await navigator.clipboard.writeText(text);
+    if (argon.isArgonHost)
+        native.clipboardWrite(text);
+    else
+        await navigator.clipboard.writeText(text);
 }
 
 async function paste() {
-    const text = await navigator.clipboard.readText();
+    const text = argon.isArgonHost ? native.clipboardRead() : await navigator.clipboard.readText();
 
     const selection = window.getSelection();
     if (!selection || !selection.rangeCount) return;
@@ -194,6 +142,16 @@ function deleteSelection() {
         selection.deleteFromDocument();
     }
 }
+
+const items: IContextMenuItem[] = [
+    { CommandId: 1, Label: 'Undo', KeyCode: 'Ctrl+Z', Action: undo },
+    { CommandId: 2, Label: 'Redo', KeyCode: 'Ctrl+Y', Action: redo },
+    { IsSeparator: true },
+    { CommandId: 4, Label: 'Copy', KeyCode: 'Ctrl+C', Action: copy },
+    { CommandId: 5, Label: 'Paste', KeyCode: 'Ctrl+V', Action: paste },
+    { CommandId: 6, Label: 'Cut', KeyCode: 'Ctrl+X', Action: cut },
+    { CommandId: 7, Label: 'Delete', KeyCode: 'Backspace', Action: deleteSelection },
+];
 
 watch(debouncedQuery, async (query) => {
     if (!query || !mention.show) return
@@ -478,6 +436,11 @@ function parseInlineFormatting() {
     }
 }
 
+const onCallContext = (cmd: { commandId: number }) => {
+    const item = items.find(x => x.CommandId == cmd.commandId);
+    if (item && item.Action) item.Action();
+};
+
 function getEditorPlainText(): string {
     const clone = editorRef.value?.cloneNode(true) as HTMLElement
     if (!clone) return ''
@@ -488,12 +451,16 @@ function getEditorPlainText(): string {
     return clone.innerText.replace(/\u00A0/g, ' ').trim();
 }
 
+const subs = new Subscription();
+
 onMounted(() => {
     window.addEventListener('keydown', handleKeyDown);
+    subs.add(bus.subscribeToEvent<{ commandId: number }>('native.host.context.menu.call', onCallContext));
 });
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeyDown);
+    subs.unsubscribe();
 });
 
 const onEmojiClick = (emoji: EmojiExt) => {
