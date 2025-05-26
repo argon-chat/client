@@ -165,6 +165,9 @@ export const useVoice = defineStore("voice", () => {
       autoGainControl: preferenceStore.autoGainControl,
 
       deviceId: preferenceStore.defaultAudioDevice ?? undefined,
+      channelCount: { 
+        exact: preferenceStore.forceToMono ? 1 : 2
+      },
     });
     await room.localParticipant.publishTrack(localAudioTrack);
 

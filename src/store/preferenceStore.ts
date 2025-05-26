@@ -1,6 +1,4 @@
-import { UserStatus } from "@/lib/glue/UserStatus";
 import { persistedValue } from "@/lib/persistedValue";
-import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { watch } from "vue";
@@ -8,6 +6,7 @@ import { watch } from "vue";
 export const usePreference = defineStore("preference", () => {
     const defaultAudioDevice = persistedValue<string>("defaultAudioDevice", "");
     const defaultVideoDevice = persistedValue<string>("defaultVideoDevice", "");
+    const forceToMono = persistedValue<boolean>("forceToMono", false);
 
     
     const echoCancellation = persistedValue<boolean>("echoCancellation", false);
@@ -42,6 +41,7 @@ export const usePreference = defineStore("preference", () => {
     return {
         defaultAudioDevice,
         defaultVideoDevice,
+        forceToMono,
 
         echoCancellation,
         autoGainControl,

@@ -2,7 +2,7 @@
     <div v-if="loaded">
         <h2 class="text-xl font-bold mb-4">{{ t("voice_video_settings") }}</h2>
 
-        <div>
+        <div class="rounded-lg border p-4">
             <label class="block font-semibold mb-1">{{ t("select_microphone") }}</label>
             <Select v-model="selectedMicrophone">
                 <SelectTrigger>
@@ -17,11 +17,22 @@
                     </SelectGroup>
                 </SelectContent>
             </Select>
+            <br/>
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        {{ t("force_to_mono_voice") }}
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        {{ t("force_to_mono_voice_desc") }}
+                    </div>
+                </div>
+                <Switch :checked="preferenceStore.forceToMono"
+                    @update:checked="(x) => preferenceStore.forceToMono = x" />
+            </div>
         </div>
         <br />
         <div class="space-y-4">
-
-
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
