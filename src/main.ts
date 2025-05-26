@@ -16,6 +16,8 @@ import pkg from "../package.json";
 import tailwindColorMap from "../tailwind-colors.json";
 import 'vue-advanced-cropper/dist/style.css';
 import { createSentryPiniaPlugin } from "@sentry/vue";
+import { setLogLevel } from 'livekit-client';
+setLogLevel("debug");
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
 }
