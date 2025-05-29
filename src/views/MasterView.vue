@@ -1,6 +1,6 @@
 <template>
   <div class="app-container flex h-screen gap-4 p-7" style="width: 100svw; height: 100svh;">
-    <div class="channel-container flex flex-col justify-between rounded-xl shadow-md w-55 min-w-[230px] max-w-[230px]">
+    <div class="channel-container flex flex-col justify-between rounded-xl w-55 min-w-[230px] max-w-[230px]">
       <ChatList />
       <ControlBar />
       <UserBar />
