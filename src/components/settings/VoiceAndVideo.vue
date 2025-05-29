@@ -36,7 +36,7 @@
                         </div>
                         <div class="text-xs text-muted-foreground">Right</div>
                     </div>
-                    <Button @click="startMonitoring" variant="outline" size="icon">
+                    <Button @click="isMonitoring = !isMonitoring" variant="outline" size="icon">
                         <BeanIcon v-if="!isMonitoring" />
                         <BeanOffIcon v-if="isMonitoring" />
                     </Button>
