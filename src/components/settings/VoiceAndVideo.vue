@@ -136,8 +136,10 @@ import { usePreference } from '@/store/preferenceStore';
 import Switch from '../ui/switch/Switch.vue';
 import { useLocale } from '@/store/localeStore';
 import { BeanIcon, BeanOffIcon } from 'lucide-vue-next'
-import { audio, DisposableBag, worklets } from '@/lib/audio/AudioManager';
+import { audio } from '@/lib/audio/AudioManager';
 import { logger } from '@/lib/logger';
+import { worklets } from '@/lib/audio/WorkletBase';
+import { DisposableBag } from '@/lib/disposables';
 const { t } = useLocale();
 
 const preferenceStore = usePreference();

@@ -25,8 +25,10 @@ function getCurrentBranch(): string {
 export default function AutoVersionPlugin(): Plugin {
   return {
     name: "vite-plugin-auto-version",
-    buildStart() {
+    watchChange(id, change) {
       if (process.env.GITHUB_ACTIONS === "true") return;
+      if (id.endsWith("package.json"))
+        return;
       const pkgPath = path.resolve(process.cwd(), "package.json");
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
       const currentVersion = parseVersion(pkg.version);

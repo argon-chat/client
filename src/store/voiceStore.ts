@@ -33,7 +33,8 @@ import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
 import { useSessionTimer } from "./sessionTimer";
 import { usePreference } from "./preferenceStore";
-import { audio, DisposableBag, worklets } from "@/lib/audio/AudioManager";
+import { audio } from "@/lib/audio/AudioManager";
+import { DisposableBag } from "@/lib/disposables";
 
 export type DirectRef<T> = Ref<T, T>;
 
