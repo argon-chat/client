@@ -11,7 +11,7 @@
             <!-- Editable message area -->
 
             <div @contextmenu.prevent="onContextMenu"
-                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none"
+                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"
                 ref="editorRef" contenteditable="true" @input="onEditorInput" @keydown="onEditorKeydown"
                 placeholder="Enter text..." :data-placeholder="'Enter text..'"></div>
 
@@ -56,7 +56,6 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import EmojiPicker, { EmojiExt } from 'vue3-emoji-picker';
 import { logger } from '@/lib/logger';
-import { marked } from 'marked';
 import SmartArgonAvatar from '../SmartArgonAvatar.vue';
 import {
     SendHorizonalIcon,
@@ -158,11 +157,6 @@ watch(debouncedQuery, async (query) => {
     mention.candidates = await pool.searchMentions(query)
 });
 
-marked.setOptions({
-    breaks: true,
-    gfm: true
-});
-
 const props = defineProps<{
     replyTo: IArgonMessageDto | null
 }>();
@@ -227,6 +221,87 @@ function onEditorInput() {
 
     mention.show = false;
     parseInlineFormatting();
+    cleanFormattingArtifacts();
+    resetFormatIfEmpty();
+    breakFormattingIfCursorInsideEmptyTag();
+    resetEditorIfEmpty();
+}
+
+function resetEditorIfEmpty() {
+    const el = editorRef.value;
+    if (!el) return;
+
+    const onlyBr = el.childNodes.length === 1 && el.firstChild?.nodeName === 'BR';
+    const onlyEmpty = Array.from(el.childNodes).every(n =>
+        (n.nodeType === Node.ELEMENT_NODE && (n as HTMLElement).textContent?.trim() === '') ||
+        (n.nodeType === Node.TEXT_NODE && n.textContent?.trim() === '')
+    );
+
+    if (onlyBr || onlyEmpty) {
+        el.innerHTML = ''; 
+
+        const textNode = document.createTextNode(' '); 
+        el.appendChild(textNode);
+
+        const range = document.createRange();
+        range.setStart(textNode, 1);
+        range.collapse(true);
+
+        const sel = window.getSelection();
+        if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+}
+
+function breakFormattingIfCursorInsideEmptyTag() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+
+    const range = sel.getRangeAt(0);
+    const container = range.startContainer as HTMLElement;
+
+    // ищем ближайший форматирующий тег
+    let el = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
+
+    while (el && el !== editorRef.value) {
+        if (['B', 'I', 'U'].includes(el.tagName)) {
+            // если тег пустой или содержит только <br> / \u200B
+            const textContent = el.textContent?.replace(/\u200B/g, '').trim();
+            const onlyBr = el.childNodes.length === 1 && el.firstChild?.nodeName === 'BR';
+
+            if (!textContent && (onlyBr || el.childNodes.length === 0)) {
+                // заменим формат-тег на пустой текстовый узел
+                const text = document.createTextNode('');
+                const parent = el.parentNode;
+                if (!parent) return;
+
+                parent.replaceChild(text, el);
+
+                // переместим курсор в конец нового текстового узла
+                const newRange = document.createRange();
+                newRange.setStart(text, 0);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+            }
+            return;
+        }
+
+        el = el.parentElement;
+    }
+}
+
+function resetFormatIfEmpty() {
+    const el = editorRef.value;
+    if (!el) return;
+    if (
+        el.childNodes.length === 1 &&
+        el.firstChild?.nodeName === 'BR'
+    ) {
+        document.execCommand('removeFormat');
+    }
 }
 
 async function onEditorKeydown(e: KeyboardEvent) {
@@ -274,36 +349,6 @@ function selectMention(user: MentionUser) {
     mention.show = false
 }
 
-function extractMentionsFromEditor(): { id: string; label: string; start: number; end: number }[] {
-    const mentions: { id: string; label: string; start: number; end: number }[] = []
-    if (!editorRef.value) return mentions
-
-    const walker = document.createTreeWalker(editorRef.value, NodeFilter.SHOW_TEXT, null)
-    let index = 0
-
-    while (walker.nextNode()) {
-        const node = walker.currentNode
-        const parent = node.parentElement
-
-        if (parent?.dataset.userId) {
-            const label = node.textContent ?? ''
-            const length = label.length
-            const id = parent.dataset.userId
-            mentions.push({
-                id,
-                label: label.replace(/^@/, ''),
-                start: index,
-                end: index + length,
-            })
-            index += length
-        } else {
-            index += node.textContent?.length ?? 0
-        }
-    }
-
-    return mentions
-}
-
 function applyItalicToSelection() {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -321,6 +366,44 @@ function applyItalicToSelection() {
     sel.removeAllRanges();
     sel.addRange(range);
 }
+function isInsideFormattingTag(node: Node): boolean {
+    while (node && node !== editorRef.value) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const tag = (node as HTMLElement).tagName.toLowerCase();
+            if (['b', 'i', 'u', 'span'].includes(tag)) {
+                return true;
+            }
+        }
+        node = node.parentNode!;
+    }
+    return false;
+}
+
+function cleanFormattingArtifacts() {
+    if (!editorRef.value) return;
+
+    const tags = editorRef.value.querySelectorAll('b, i, u, span');
+
+    tags.forEach(tag => {
+        const isEmpty = tag.textContent === '' || tag.textContent === '\u200B';
+        if (!isEmpty) return;
+
+        const parent = tag.parentNode;
+        if (!parent) return;
+        const space = document.createTextNode('\u200B');
+        parent.replaceChild(space, tag);
+
+        const range = document.createRange();
+        range.setStartAfter(space);
+        range.collapse(true);
+        const sel = window.getSelection();
+        if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    });
+}
+
 
 function isInsideEntity(node: Node): boolean {
     const el = node.parentElement;
@@ -396,7 +479,7 @@ function parseInlineFormatting() {
     while (walker.nextNode()) {
         const node = walker.currentNode as Text;
         const text = node.textContent!;
-        if (isInsideEntity(node)) continue;
+        if (isInsideEntity(node) || isInsideFormattingTag(node)) continue;
         for (const { regex, tag, className, handleMatch } of patterns) {
             const match = regex.exec(text);
             if (match) {
@@ -557,9 +640,12 @@ const handleSend = async () => {
     const plainText = getEditorPlainText();
     const entities = extractEntitiesFromEditor();
 
+
+    if (entities.length == 0 && plainText.length == 0)
+        return;
+
     console.log('Sending message:', plainText)
     console.log('totalEntities:', entities);
-
 
     await api.serverInteraction.SendMessage(pool.selectedTextChannel, plainText, entities, (props.replyTo?.MessageId ?? null) as number);
 
