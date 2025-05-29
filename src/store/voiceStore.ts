@@ -1,8 +1,10 @@
 import { logger } from "@/lib/logger";
 import {
+  AudioProcessorOptions,
   ConnectionQuality,
   ConnectionState,
   createLocalAudioTrack,
+  LocalAudioTrack,
   LocalTrackPublication,
   Participant,
   RemoteParticipant,
@@ -11,7 +13,7 @@ import {
   Room,
   RoomConnectOptions,
   Track,
-  TrackPublication,
+  TrackProcessor,
 } from "livekit-client";
 import { defineStore } from "pinia";
 import {
@@ -31,6 +33,7 @@ import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
 import { useSessionTimer } from "./sessionTimer";
 import { usePreference } from "./preferenceStore";
+import { audio, DisposableBag, worklets } from "@/lib/audio/AudioManager";
 
 export type DirectRef<T> = Ref<T, T>;
 
@@ -43,7 +46,6 @@ export type IChannelMemberData = {
   volume: Reactive<number[]>;
   userId: Guid;
 };
-
 export const useVoice = defineStore("voice", () => {
   const pool = usePoolStore();
   const api = useApi();
@@ -62,17 +64,46 @@ export const useVoice = defineStore("voice", () => {
 
   const activeChannel = ref(null as null | IChannel);
 
+  async function switchMicrophone(room: Room, newDeviceId: string) {
+    const localParticipant = room.localParticipant;
+    const publication = Array.from(
+      localParticipant.trackPublications.values()
+    )[0];
+
+    const newTrack = await createLocalAudioTrack({ deviceId: newDeviceId });
+    newTrack.setAudioContext(audio.getCurrentAudioContext());
+
+    if (publication?.track instanceof LocalAudioTrack) {
+      try {
+        await publication.track.replaceTrack(newTrack.mediaStreamTrack);
+        logger.info("Microphone successfully replaced");
+      } catch (err) {
+        console.error("Failed to replace microphone", err);
+      }
+    } else {
+      await localParticipant.publishTrack(newTrack);
+    }
+  }
+
   const connectedRoom = reactive({
     room: null,
     opt: null,
     subs: [],
     roomData: new Map(),
+    disposableBag: new DisposableBag(),
   } as {
     room: Reactive<Room> | null;
     opt: null | RoomConnectOptions;
     subs: Subscription[];
     roomData: Map<Guid, IChannelMemberData>;
-  });
+    disposableBag: DisposableBag;
+  }) as Reactive<{
+    room: Reactive<Room> | null;
+    opt: null | RoomConnectOptions;
+    subs: Subscription[];
+    roomData: Map<Guid, IChannelMemberData>;
+    disposableBag: DisposableBag;
+  }>;
 
   const onVideoCreated: Subject<Track> = new Subject<Track>();
   const onVideoDestroyed: Subject<Track> = new Subject<Track>();
@@ -155,21 +186,23 @@ export const useVoice = defineStore("voice", () => {
       echoCancellation: preferenceStore.echoCancellation,
       voiceIsolation: preferenceStore.voiceIsolation,
       autoGainControl: preferenceStore.autoGainControl,
-      deviceId: preferenceStore.defaultAudioDevice ?? undefined,
+      deviceId: audio.getInputDevice().value ?? undefined,
     });
 
     const localAudioTrack = await createLocalAudioTrack({
-      noiseSuppression: preferenceStore.noiseSuppression,
-      echoCancellation: preferenceStore.echoCancellation,
-      voiceIsolation: preferenceStore.voiceIsolation,
-      autoGainControl: preferenceStore.autoGainControl,
-
-      deviceId: preferenceStore.defaultAudioDevice ?? undefined,
-      channelCount: { 
-        exact: preferenceStore.forceToMono ? 1 : 2
-      },
+      noiseSuppression: false,
+      deviceId: audio.getInputDevice().value ?? undefined,
+      autoGainControl: false,
+      channelCount: 2,
+      echoCancellation: false,
+      voiceIsolation: false
     });
+
+    localAudioTrack.setAudioContext(audio.getCurrentAudioContext());
+
     await room.localParticipant.publishTrack(localAudioTrack);
+
+    localAudioTrack.setProcessor(audio.createRtcProcessor());
 
     connectedRoom.subs.push(
       sys.muteEvent.subscribe((x) => {
@@ -183,6 +216,13 @@ export const useVoice = defineStore("voice", () => {
     connectedRoom.subs.push(
       source.subscribe(() => {
         rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
+      })
+    );
+
+    connectedRoom.subs.push(
+      audio.onInputDeviceChanged(async (devId) => {
+        logger.error("onInputDeviceChanged", devId, audio.getInputDevice());
+        await switchMicrophone(room, devId);
       })
     );
 
@@ -285,7 +325,7 @@ export const useVoice = defineStore("voice", () => {
       isOtherUserSharing.value = true;
       onVideoCreated.next(track);
     } else if (track.kind === "audio") {
-      const audioCtx = new AudioContext();
+      const audioCtx = audio.getCurrentAudioContext();
       const gain = audioCtx.createGain();
 
       gain.gain.value = 1;
@@ -310,7 +350,7 @@ export const useVoice = defineStore("voice", () => {
         new MediaStream([track.mediaStreamTrack])
       );
       source.connect(gain);
-      gain.connect(audioCtx.destination);
+      //gain.connect(audioCtx.destination);
 
       const volume = reactive([100]);
 
@@ -336,8 +376,8 @@ export const useVoice = defineStore("voice", () => {
       connectedRoom.roomData.set(participant.identity, item);
 
       audioCtx.resume();
-      const audioEl = new Audio();
-      audioEl.srcObject = source.mediaStream;
+
+      audio.createAudioElement(source.mediaStream);
 
       tone.playSoftEnterSound();
     }
