@@ -2,7 +2,7 @@
 import type { VariantProps } from 'class-variance-authority'
 import type { ToggleGroupItemProps } from 'radix-vue'
 import type { HTMLAttributes } from 'vue'
-import { toggleVariants } from '@/lib/registry/default/ui/toggle'
+import { toggleVariants } from '../toggle'
 import { cn } from '@/lib/utils'
 import { ToggleGroupItem, useForwardProps } from 'radix-vue'
 import { computed, inject } from 'vue'
