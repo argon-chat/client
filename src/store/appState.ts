@@ -13,6 +13,7 @@ import { useFfmpeg } from "./ffmpegStore";
 import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
+import { worklets } from "@/lib/audio/AudioManager";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
@@ -53,6 +54,10 @@ export const useAppState = defineStore("app", () => {
     const predictor = usePredictor();
 
     await predictor.init();
+
+    logger.info(`Load audio manager...`);
+
+    await worklets.init();
     
     logger.info(`Create buckets...`);
     await useFileStorage().initStorages();

@@ -4,8 +4,6 @@ import { Subject } from "rxjs";
 import { watch } from "vue";
 
 export const usePreference = defineStore("preference", () => {
-    const defaultAudioDevice = persistedValue<string>("defaultAudioDevice", "");
-    const defaultVideoDevice = persistedValue<string>("defaultVideoDevice", "");
     const forceToMono = persistedValue<boolean>("forceToMono", false);
 
     
@@ -22,10 +20,16 @@ export const usePreference = defineStore("preference", () => {
     const soundLevel = persistedValue<number>("soundLevel", 0.5);
 
     const onSoundLevelChanged = new Subject<number>();
+    const onforceToMonoChanged = new Subject<boolean>();
 
 
     watch(soundLevel, (e) => {
       onSoundLevelChanged.next(e);
+    });
+
+
+    watch(forceToMono, (e) => {
+      onforceToMonoChanged.next(e);
     });
 
 
@@ -39,8 +43,6 @@ export const usePreference = defineStore("preference", () => {
 
 
     return {
-        defaultAudioDevice,
-        defaultVideoDevice,
         forceToMono,
 
         echoCancellation,
@@ -51,6 +53,7 @@ export const usePreference = defineStore("preference", () => {
         minimizeToTrayOnClose,
         soundLevel,
         onSoundLevelChanged,
+        onforceToMonoChanged,
 
 
 

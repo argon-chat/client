@@ -1,8 +1,9 @@
 import { defineStore, storeToRefs } from "pinia";
 import { usePreference } from "./preferenceStore";
 import { Ref, ref } from "vue";
-import { useSound } from "@vueuse/sound";
+import { useSound } from "./../lib/sound";
 import normalizedAtlas from "@/assets/sounds/normalized_atlas.wav";
+import { audio } from "@/lib/audio/AudioManager";
 
 export const useTone = defineStore("tone", () => {
   const prefs = usePreference();
@@ -19,7 +20,7 @@ export const useTone = defineStore("tone", () => {
   } = storeToRefs(prefs);
 
   const { play } = useSound(normalizedAtlas, {
-    volume: _soundLevel,
+    volume: _soundLevel.value,
     sprite: {
       playMuteAllSound: [0, 1006],
       playUnmuteAllSound: [1022, 1876 - 1022],
@@ -29,13 +30,15 @@ export const useTone = defineStore("tone", () => {
       playRingSound: [5335, 8665 - 5335],
       playReconnectSound: [9879, 12046 - 9879],
     },
+    audioContext: audio.getCurrentAudioContext()
   });
 
   prefs.onSoundLevelChanged.subscribe((e) => {
     _soundLevel.value = e;
   });
 
-  function init() {}
+  function init() {
+  }
 
   function playSoftEnterSound() {
     play_id("playSoftEnterSound", isEnable_playSoftEnterSound);
@@ -61,7 +64,7 @@ export const useTone = defineStore("tone", () => {
 
   function play_id(id: string, isEnabled: Ref<boolean>) {
     if (!isEnabled.value) return;
-    play({ id: id as any });
+    play({ id });
   }
 
   return {
