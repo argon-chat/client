@@ -108,5 +108,10 @@
         "one": "{name} is typing",
         "few": "{names} are typing",
         "many": "Several people are typing"
-    }
+    },
+    "force_to_mono_voice": "Force to mono channels",
+    "force_to_mono_voice_desc": "If your sound card outputs the microphone output to one of the channels, then you can force duplication in stereo mode to avoid the effect of sound in one ear.",
+    "unnamed_speaker": "Unnamed Speakers",
+    "no_speakers_found": "No Speakers Found",
+    "select_output": "Select Speakers"
 }
