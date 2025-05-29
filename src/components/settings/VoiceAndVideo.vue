@@ -12,7 +12,7 @@
                     <SelectGroup v-for="device in audioDevices.filter(q => !!q.deviceId)" :key="device.deviceId"
                         :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
-                            {{ device.label || 'Unnamed Microphone' }}
+                            {{  device.deviceId == 'default' ? ((device.label.trimStart().replace(/^-/, "") || 'Unnamed Microphone') + '🔸') : (device.label || 'Unnamed Microphone') }}
                         </SelectItem>
                     </SelectGroup>
                 </SelectContent>
@@ -83,7 +83,7 @@
                     <SelectGroup v-for="device in audioOutputs.filter(q => !!q.deviceId)" :key="device.deviceId"
                         :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
-                            {{ device.label || t('unnamed_speaker') }}
+                            {{ device.deviceId == 'default' ? ((device.label.trimStart().replace(/^-/, "") || t('unnamed_speaker')) + '🔸') : (device.label || t('unnamed_speaker')) }}
                         </SelectItem>
                     </SelectGroup>
                 </SelectContent>
@@ -108,7 +108,7 @@
             </Select>
         </div>
         <br />
-        <div class="cameraWrapper"  v-if="false">
+        <div class="cameraWrapper" v-if="false">
             <div v-if="!videoActive" class="previewImage">
                 <Button @click="startVideoPreview" :disabled="videoDevices.length == 0" style="width: 250px;">
                     {{ t("test_camera") }}
@@ -143,8 +143,8 @@ import { DisposableBag } from '@/lib/disposables';
 const { t } = useLocale();
 
 const preferenceStore = usePreference();
-const selectedMicrophone = audio.getInputDevice();
-const selectedAudioOutput = audio.getOutputDevice();
+const selectedMicrophone = ref(""); // audio.getInputDevice()
+const selectedAudioOutput = ref(""); // audio.getOutputDevice()
 const selectedCamera = ref('');
 const audioDevices = ref([] as MediaDeviceInfo[]);
 const videoDevices = ref([] as MediaDeviceInfo[]);
@@ -191,7 +191,12 @@ onMounted(async () => {
     audioDevices.value = await audio.enumerateDevicesByKind("audioinput");
     videoDevices.value = await audio.enumerateDevicesByKind("videoinput");
     audioOutputs.value = await audio.enumerateDevicesByKind("audiooutput");
+
+    selectedMicrophone.value = audio.getInputDevice().value ?? "default";
+    selectedAudioOutput.value = audio.getOutputDevice().value ?? "default";
+
     loaded.value = true;
+
     await startMonitoring();
 });
 

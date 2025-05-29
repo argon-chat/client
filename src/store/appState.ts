@@ -13,7 +13,7 @@ import { useFfmpeg } from "./ffmpegStore";
 import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
-import { worklets } from "@/lib/audio/AudioManager";
+import { worklets } from "@/lib/audio/WorkletBase";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();

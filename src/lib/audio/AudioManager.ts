@@ -50,8 +50,8 @@ export class AudioManagement implements IAudioManagement {
   private workletPaths = new Map<WorkletId, WorkledPath>();
   private mediaElements = new Set<HTMLMediaElement>();
 
-  private inputDeviceId: Ref<DeviceId> = ref("");
-  private outputDeviceId: Ref<DeviceId> = ref("");
+  private inputDeviceId: Ref<DeviceId> = ref("default");
+  private outputDeviceId: Ref<DeviceId> = ref("default");
 
   private inputDevice$ = new Subject<DeviceId>();
   private outputDevice$ = new Subject<DeviceId>();
@@ -83,7 +83,7 @@ export class AudioManagement implements IAudioManagement {
     kind: "audioinput" | "videoinput" | "audiooutput"
   ): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.filter((d) => d.kind === kind && d.deviceId);
+    return devices.filter((d) => d.kind === kind && d.deviceId && d.deviceId != "communications");
   }
 
   private setInputDevice(deviceId: DeviceId) {
