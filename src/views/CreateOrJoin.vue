@@ -1,7 +1,8 @@
 <template>
     <div class="modal-overlay">
+        <PixelCard class="absolute inset-0 bg-zinc-900 " id="background" style="position: absolute;" />
         <div
-            class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md border border-dashed grid w-full gap-2">
+            class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md border border-dashed grid w-full gap-2 z-[50] bg-black">
             <h2 class="text-2xl font-bold text-center">{{ t('join_or_create_server') }}</h2>
 
             <Button @click="createServer">
@@ -38,6 +39,7 @@ import { logger } from '@/lib/logger';
 import router from '@/router';
 import { toast } from '@/components/ui/toast';
 import { useLocale } from '@/store/localeStore';
+import PixelCard from '@/components/PixelCard.vue';
 
 const { t } = useLocale();
 
