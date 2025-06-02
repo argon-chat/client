@@ -5,7 +5,7 @@
             class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md border border-dashed grid w-full gap-2 z-[50] bg-black">
             <h2 class="text-2xl font-bold text-center">{{ t('join_or_create_server') }}</h2>
 
-            <Button @click="createServer">
+            <Button @click="createServer" :disabled="isLoading">
                 {{ t('create_new_server') }}
             </Button>
             <div class="divider text-gray-400 text-center"> {{ t('or') }} </div>
@@ -13,7 +13,7 @@
                 <Label for="invite-code">{{ t('invite_code') }}</Label>
                 <Input id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" />
                 <br />
-                <Button @click="joinServer">
+                <Button @click="joinServer" :disabled="isLoading">
                     {{ t('join_to_server') }}
                 </Button>
             </div>
@@ -22,7 +22,7 @@
 
         </div>
         <div class="mt-6 pt-4 logout-button">
-            <Button variant="destructive" class="w-full" @click="logout">
+            <Button variant="destructive" class="w-full" @click="logout" :disabled="isLoading">
                 Logout
             </Button>
         </div>
@@ -40,11 +40,14 @@ import router from '@/router';
 import { toast } from '@/components/ui/toast';
 import { useLocale } from '@/store/localeStore';
 import PixelCard from '@/components/PixelCard.vue';
+import { DeferFlag } from '@/lib/DeferFlag';
+import delay from '@/lib/delay';
 
 const { t } = useLocale();
 
 const inviteCode = ref('');
 const serverStore = useServerStore();
+const isLoading = ref(false);
 
 
 const logout = async () => {
@@ -82,6 +85,7 @@ const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
 
 
 const joinServer = async () => {
+    using _ = new DeferFlag(isLoading);
     if (!inviteCode.value.trim()) {
         toast({
             title: "Please enter a valid invite code."
@@ -97,7 +101,9 @@ const joinServer = async () => {
     router.push({ path: "/master.pg" });
 };
 
-const createServer = () => {
+const createServer = async () => {
+    using _ = new DeferFlag(isLoading);
+    await delay(2000);
     toast({
         title: "Insufficient Permissions",
         variant: "destructive",

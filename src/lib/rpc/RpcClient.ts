@@ -113,83 +113,61 @@ export class RpcClient {
         get: (_, methodName) => {
           return async (...args: any[]) => {
             const authStore = useAuthStore();
-            const sys = useSystemStore();
             const payload = encode(args, {
               useBigInt64: true,
             });
-
-            while (
-              sys.hasRequestRetry("argon-transport", methodName.toString())
-            ) {
-              logger.warn("Awaiting unlock request retry trigger...");
-              await delay(1000);
-            }
-
-            const maxRetries = 100;
-            const baseDelay = 500;
-
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-              if (attempt > 1) {
-                sys.startRequestRetry("argon-transport", methodName.toString());
-              }
-
-              try {
-                const headers = this.getExtendedHeaders();
-                const response = await this.client.unary(
-                  {
-                    interface: serviceName,
-                    method: String(methodName),
-                    payload: payload,
+            try {
+              const headers = this.getExtendedHeaders();
+              const response = await this.client.unary(
+                {
+                  interface: serviceName,
+                  method: String(methodName),
+                  payload: payload,
+                },
+                {
+                  meta: {
+                    authorize: authStore.token ?? "",
+                    ...(headers as any),
                   },
-                  {
-                    meta: {
-                      authorize: authStore.token ?? "",
-                      ...(headers as any),
-                    },
-                  }
-                );
-
-                if (response.response.statusCode == 2 && !!authStore.token) {
-                  logger.warn("NOT AUTHORIZED, logout...");
-                  const toast = useToast();
-
-                  toast.toast({
-                    duration: 7000,
-                    title: "Authorization invalidated...",
-                    description:
-                      "You authorization has invalidated, required new login...",
-                    variant: "destructive",
-                  });
-                  await delay(7000);
-                  authStore.logout();
-                  window.location.reload();
-                  throw "not authorized";
                 }
-                if (response.status.code !== "OK") {
-                  throw new Error(
-                    `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
-                  );
-                }
+              );
 
-                if (response.response.statusCode !== 0) {
-                  throw new Error(
-                    `${response.response.statusCode} - ${response.response.errorMessage || "Unknown error occurred."}, ${response.response.exceptionType}`
-                  );
-                }
+              if (response.response.statusCode == 2 && !!authStore.token) {
+                logger.warn("NOT AUTHORIZED, logout...");
+                const toast = useToast();
 
-                if (response.response.payload.length === 0) return null;
-
-                sys.stopRequestRetry("argon-transport", methodName.toString());
-                const resposnse_data = decode(response.response.payload);
-
-                logger.log(resposnse_data);
-                return resposnse_data;
-              } catch (error) {
-                throw error;
-                /*await new Promise((res) =>
-                  setTimeout(res, baseDelay * Math.pow(2, attempt))
-                );*/
+                toast.toast({
+                  duration: 7000,
+                  title: "Authorization invalidated...",
+                  description:
+                    "You authorization has invalidated, required new login...",
+                  variant: "destructive",
+                });
+                await delay(7000);
+                authStore.logout();
+                window.location.reload();
+                throw "not authorized";
               }
+              if (response.status.code !== "OK") {
+                throw new Error(
+                  `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
+                );
+              }
+
+              if (response.response.statusCode !== 0) {
+                throw new Error(
+                  `${response.response.statusCode} - ${response.response.errorMessage || "Unknown error occurred."}, ${response.response.exceptionType}`
+                );
+              }
+
+              if (response.response.payload.length === 0) return null;
+
+              const resposnse_data = decode(response.response.payload);
+
+              logger.log(resposnse_data);
+              return resposnse_data;
+            } catch (error) {
+              throw error;
             }
           };
         },
