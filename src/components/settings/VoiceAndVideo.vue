@@ -162,6 +162,12 @@ const startVideoPreview = async () => {
 watch(selectedAudioOutput, async (x) => {
     logger.info("selectedAudioOutput ", x);
     //await (audio.getCurrentAudioContext() as any).setSinkId(x);
+});
+watch(selectedMicrophone, async (x) => {
+    logger.info("selectedMicrophone ", x);
+    audio.getInputDevice().value = x;
+    stopMonitoring();
+    startMonitoring();
 })
 
 const updateVideoStream = async () => {
