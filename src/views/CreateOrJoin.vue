@@ -85,30 +85,40 @@ const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
 
 
 const joinServer = async () => {
-    using _ = new DeferFlag(isLoading);
-    if (!inviteCode.value.trim()) {
-        toast({
-            title: "Please enter a valid invite code."
-        });
-        return;
-    }
-    logger.log(`Joined server with invite code: ${inviteCode.value}`)
-    const result = await serverStore.joinToServer(inviteCode.value.trim());
-    inviteCode.value = '';
+    const e = new DeferFlag(isLoading);
+    try {
+        if (!inviteCode.value.trim()) {
+            toast({
+                title: "Please enter a valid invite code."
+            });
+            return;
+        }
+        logger.log(`Joined server with invite code: ${inviteCode.value}`)
+        const result = await serverStore.joinToServer(inviteCode.value.trim());
+        inviteCode.value = '';
 
-    if (!result)
-        return;
-    router.push({ path: "/master.pg" });
+        if (!result)
+            return;
+        router.push({ path: "/master.pg" });
+    }
+    finally {
+        e[Symbol.dispose]();
+    }
 };
 
 const createServer = async () => {
-    using _ = new DeferFlag(isLoading);
-    await delay(2000);
-    toast({
-        title: "Insufficient Permissions",
-        variant: "destructive",
-        description: "You are not allowed this action!"
-    });
+    const e = new DeferFlag(isLoading);
+    try {
+        await delay(2000);
+        toast({
+            title: "Insufficient Permissions",
+            variant: "destructive",
+            description: "You are not allowed this action!"
+        });
+    }
+    finally {
+        e[Symbol.dispose]();
+    }
 };
 </script>
 
