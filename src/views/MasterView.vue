@@ -1,6 +1,7 @@
 <template>
   <div class="app-container flex h-screen gap-4 p-7" style="width: 100svw; height: 100svh;">
-    <div class="channel-container flex flex-col justify-between rounded-xl w-55 min-w-[230px] max-w-[230px]">
+    <div class="channel-container flex flex-col justify-between rounded-xl  space-y-3 w-55 min-w-[230px] max-w-[230px]">
+      <SidebarHeader/>
       <ChatList />
       <ControlBar />
       <UserBar />
@@ -33,6 +34,7 @@ import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
 import ControlBar from '@/components/ControlBar.vue';
 import { useLocale } from '@/store/localeStore';
 import LeftSideUserList from '@/components/LeftSideUserList.vue';
+import SidebarHeader from "@/components/SidebarHeader.vue";
 
 const dataPool = usePoolStore();
 const me = useMe();
@@ -57,7 +59,7 @@ body {
 }
 
 .chat-container {
-  background-color: #161616;
+  background-color: #161616f5;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
