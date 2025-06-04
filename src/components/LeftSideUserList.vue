@@ -1,6 +1,6 @@
 <template>
     <div class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
-        style="background-color: #161616;
+        style="background-color: #161616f5;
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
         <h3 class="text-lg text-white mb-4">{{ t("users") }}</h3>
