@@ -1,5 +1,5 @@
 <template>
-    <div class="relative" style="z-index: 1; padding-bottom: 10px;" v-if="me.me">
+    <div class="relative" style="z-index: 1;" v-if="me.me">
         <div class="control-bar">
             <div class="controls">
                 <button :disabled="!voice.isConnected" @click="voice.disconnectFromChannel()" class="active">
@@ -95,7 +95,11 @@
                     </DialogContent>
                 </Dialog>
                 <button :disabled="true">
-                    <TicketPercent class="w-5 h-5" />
+                    <CameraIcon class="w-5 h-5" />
+                </button>
+                <button @click="toggleDoNotDistrurb">
+                    <OctagonMinusIcon v-if="status == 'DoNotDisturb'" class="w-5 h-5 text-red-600" />
+                    <OctagonMinusIcon v-else class="w-5 h-5" />
                 </button>
             </div>
         </div>
@@ -139,7 +143,7 @@
 
 <script setup lang="ts">
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, ScreenShareOff, ScreenShare, TicketPercent } from 'lucide-vue-next';
+import { Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon, ScreenShareOff, ScreenShare, TicketPercent, CameraIcon, OctagonMinusIcon } from 'lucide-vue-next';
 
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
@@ -170,7 +174,7 @@ import {
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs'
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useLocale } from '@/store/localeStore';
 
 const { t } = useLocale();
@@ -180,6 +184,19 @@ const sys = useSystemStore();
 const voice = useVoice();
 const sessionTimerStore = useSessionTimer();
 
+
+const status = ref(me.me!.currentStatus);
+
+watch(status, (newStatus) => {
+  me.changeStatusTo(newStatus);
+});
+
+const toggleDoNotDistrurb = () => {
+    if (status.value == "DoNotDisturb")
+        status.value = "Online";
+    else 
+        status.value = "DoNotDisturb";
+};
 
 
 const allSizes = [
@@ -407,7 +424,7 @@ onMounted(async () => {
 .controls {
     justify-content: center;
     display: flex;
-    gap: 10px;
+    gap: 6px;
     flex: auto;
 }
 
