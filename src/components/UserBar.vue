@@ -1,37 +1,21 @@
 <template>
-  <div class="relative" style="z-index: 1;" v-if="me.me">
-    <div class="user-bar">
-      <div class="user-info" style="width: 150px;">
-        <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
-          :user-id="me.me.Id" />
-        <div class="user-details items-start">
-          <span class="user-name">{{ me.me?.DisplayName }}</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
-                {{ t(`status_${me.me?.currentStatus}`)  }}
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent class="w-56">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup v-model="status">
-                <DropdownMenuRadioItem :value="i" v-for="i in availableStatuses" :key="i">
-                  {{ t(`status_${i}`) }} <span :class="me.statusClass(i)"
-                    class="absolute left-2 w-4 h-4 rounded-full border-2 border-gray-800"></span>
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+  <div class="user-bar" v-if="me.me">
+    <div class="user-info" style="width: 150px;">
+      <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
+        :user-id="me.me.Id" />
+      <div class="user-details items-start">
+        <span class="user-name">{{ me.me?.DisplayName }}</span>
+        <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
+          {{ t(`status_${me.me?.currentStatus}`) }}
+        </span>
       </div>
+    </div>
 
-      <div class="control-bar">
-        <div class="controls">
-          <button @click="windows.settingsOpen = true" style="padding-right: 5px;">
-            <Settings class="w-6 h-6" />
-          </button>
-        </div>
+    <div class="control-bar">
+      <div class="controls">
+        <button @click="windows.settingsOpen = true" style="padding-right: 5px;">
+          <Settings class="w-6 h-6" />
+        </button>
       </div>
     </div>
   </div>
@@ -42,33 +26,11 @@ import { useMe } from "@/store/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useWindow } from "@/store/windowStore";
 import { Settings } from 'lucide-vue-next';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
-import { ref, watch } from "vue";
 import { useLocale } from "@/store/localeStore";
 
 const { t } = useLocale();
 const windows = useWindow();
 const me = useMe();
-
-const status = ref(me.me!.currentStatus);
-
-watch(status, (newStatus) => {
-  me.changeStatusTo(newStatus);
-})
-
-const availableStatuses = [
-  "Online",
-  "DoNotDisturb",
-]
 
 </script>
 
