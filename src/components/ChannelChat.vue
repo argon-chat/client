@@ -1,7 +1,7 @@
 <template>
     <div class="channel-chat flex flex-col h-full rounded-lg">
-        <div v-if="channelData"
-            class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative" style="z-index: 3">
+        <div v-if="channelData" class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative"
+            style="z-index: 3">
             <div class="p-4 flex flex-col border-b space-y-1">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold relative z-10 text-white flex items-center">
@@ -78,6 +78,9 @@ const subs = ref(null as Subscription | null);
 const hiddenChannelId = ref(null as null | Guid);
 const messageContainer = ref<HTMLElement | null>(null);
 const typingUsers = ref<RealtimeUser[]>([])
+const lastTypingTime = new Map<string, number>();
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const TYPING_TIMEOUT_MS = 15000;
 
 const getChannel = function (channelId: Guid) {
     return pool.getChannel(channelId);
@@ -102,18 +105,48 @@ const onStopTypingEvent = () => {
     bus.sendEventAsync({ channelId: channelData.value.Id, serverId: channelData.value.ServerId, EventKey: "IAmStopTypingEvent" } as IAmStopTypingEvent);
 }
 
+function scheduleTypingTimeout(userId: string) {
+    const oldTimer = typingTimers.get(userId);
+    if (oldTimer) clearTimeout(oldTimer);
+
+    const timer = setTimeout(() => {
+        const last = lastTypingTime.get(userId);
+        if (last && Date.now() - last >= TYPING_TIMEOUT_MS) {
+            typingUsers.value = typingUsers.value.filter(u => u.UserId !== userId);
+            typingTimers.delete(userId);
+            lastTypingTime.delete(userId);
+        }
+    }, TYPING_TIMEOUT_MS + 100);
+
+    typingTimers.set(userId, timer);
+}
+
 onMounted(async () => {
     subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
     subs.value.add(bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
         if (q.channelId !== hiddenChannelId.value) return;
-        const user = await pool.getUser(q.userId);
-        if (user && !typingUsers.value.some(u => u.UserId === user.UserId)) {
-            typingUsers.value.push(user)
+
+        lastTypingTime.set(q.userId, Date.now());
+
+        if (!typingUsers.value.some(u => u.UserId === q.userId)) {
+            const user = await pool.getUser(q.userId);
+            if (user) typingUsers.value.push(user);
         }
+
+        scheduleTypingTimeout(q.userId);
     }));
+
     subs.value.add(bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
         if (q.channelId !== hiddenChannelId.value) return;
+
         typingUsers.value = typingUsers.value.filter(u => u.UserId !== q.userId);
+        lastTypingTime.delete(q.userId);
+
+        const timer = typingTimers.get(q.userId);
+        if (timer) {
+            clearTimeout(timer);
+            typingTimers.delete(q.userId);
+        }
     }));
 
     if (pool.selectedTextChannel) {
