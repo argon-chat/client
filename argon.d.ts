@@ -158,6 +158,9 @@ declare global {
 
     clipboardRead(): string;
     clipboardWrite(s: string);
+
+
+    renderDiagnostic(i: number) : boolean;
   }
 
 
