@@ -1,5 +1,3 @@
-import { audio } from "../audio/AudioManager";
-import { logger } from "../logger";
 import type {
   ComposableOptions,
   HowlStatic,
@@ -81,7 +79,6 @@ export function useSound(
     () => {
       if (sound.value) {
         sound.value.volume(unref(volume) as number);
-        sound.value.rate(unref(playbackRate) as number);
       }
     }
   );

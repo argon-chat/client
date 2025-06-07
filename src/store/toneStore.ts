@@ -4,10 +4,11 @@ import { Ref, ref } from "vue";
 import { useSound } from "./../lib/sound";
 import normalizedAtlas from "@/assets/sounds/normalized_atlas.wav";
 import { audio } from "@/lib/audio/AudioManager";
+import { logger } from "@/lib/logger";
 
 export const useTone = defineStore("tone", () => {
   const prefs = usePreference();
-  const _soundLevel = ref(0.5);
+  const _soundLevel = ref(Math.pow(prefs.soundLevel, 2));
 
   const {
     isEnable_playSoftEnterSound,
@@ -20,7 +21,7 @@ export const useTone = defineStore("tone", () => {
   } = storeToRefs(prefs);
 
   const { play } = useSound(normalizedAtlas, {
-    volume: _soundLevel.value,
+    volume: _soundLevel as any,
     sprite: {
       playMuteAllSound: [0, 1006],
       playUnmuteAllSound: [1022, 1876 - 1022],
@@ -34,7 +35,9 @@ export const useTone = defineStore("tone", () => {
   });
 
   prefs.onSoundLevelChanged.subscribe((e) => {
-    _soundLevel.value = e;
+    const perceptual = Math.pow(e, 2);
+    logger.info("changed sound level to", e, perceptual);
+    _soundLevel.value = perceptual;
   });
 
   function init() {
@@ -64,7 +67,7 @@ export const useTone = defineStore("tone", () => {
 
   function play_id(id: string, isEnabled: Ref<boolean>) {
     if (!isEnabled.value) return;
-    play({ id });
+    play({ id, forceSoundEnabled: true });
   }
 
   return {

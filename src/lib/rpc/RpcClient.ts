@@ -91,7 +91,7 @@ export class RpcClient {
     });
     return {
       "X-Ctt": sessionId.value,
-      "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT,
+      "X-Ctf": import.meta.env.VITE_ARGON_FINGERPRINT ?? "",
     };
   }
 

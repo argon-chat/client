@@ -12,10 +12,10 @@
             </DrawerHeader>
 
             <div class="settings-layout justify-center flex min-h-full space-x-4">
-                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg">
+                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
                     <Button v-for="category in categories" :key="category.id"
                         :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md">
+                        @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md inline-flex w-full">
                         {{ t(category.id) }}
                     </Button>
                 </nav>
