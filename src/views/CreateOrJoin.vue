@@ -42,12 +42,16 @@ import { useLocale } from '@/store/localeStore';
 import PixelCard from '@/components/PixelCard.vue';
 import { DeferFlag } from '@/lib/DeferFlag';
 import delay from '@/lib/delay';
+import { useConfig } from '@/store/remoteConfig';
+import { useApi } from '@/store/apiStore';
 
 const { t } = useLocale();
 
 const inviteCode = ref('');
 const serverStore = useServerStore();
 const isLoading = ref(false);
+const cfg = useConfig();
+const api = useApi();
 
 
 const logout = async () => {
@@ -109,6 +113,34 @@ const joinServer = async () => {
 const createServer = async () => {
     const e = new DeferFlag(isLoading);
     try {
+        if (cfg.isDev) {
+            try {
+                const srCreation = await serverStore.createServer("test server");
+
+                if (!srCreation) {
+                    toast({
+                        title: "Failed to create server",
+                        variant: "destructive",
+                        description: "Internal error!"
+                    });
+                    return;
+                }
+
+                router.push({ path: "/master.pg" });
+            }
+            catch(e) {
+                logger.error(e);
+                toast({
+                        title: "Failed to create server",
+                        variant: "destructive",
+                        description: "Internal error!"
+                });
+            }
+
+            return;
+        }
+
+
         await delay(2000);
         toast({
             title: "Insufficient Permissions",

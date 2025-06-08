@@ -50,7 +50,7 @@ export const useConfig = defineStore("config", () => {
   });
   const cdnEndpoint = computed(() => stringVal("cdnEndpoint"));
   const webRtcEndpoint = computed(() => stringVal("webRtcEndpoint"));
-  const isDev = computed(() => localStorage.getItem("api_endpoint") === "dev");
+  const isDev = computed(() => localStorage.getItem("api_endpoint") === "dev" || localStorage.getItem("api_endpoint") === "local");
 
   const scheme = z.object({
     cdnEndpoint: z.string().describe("CDN Endpoint").default(() => cdnEndpoint.value),

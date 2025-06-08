@@ -13,6 +13,21 @@ export const useServerStore = defineStore("server", () => {
   const pool = usePoolStore();
   const me = useMe();
 
+  async function createServer(name: string): Promise<boolean> {
+    try {
+      await api.userInteraction.CreateServer({
+        AvatarFileId: "",
+        Description: "",
+        Name: name
+      });
+      await pool.loadServerDetails();
+      return true;
+    } catch (e) {
+      logger.error("failed to create server", e);
+      return false;
+    }
+  }
+
   async function joinToServer(inviteCode: string): Promise<boolean> {
     const r = await api.userInteraction.JoinToServerAsync({
       inviteCode,
@@ -26,7 +41,8 @@ export const useServerStore = defineStore("server", () => {
         case "EXPIRED":
           toast({
             title: "Invite code expired",
-            description: "Ask the person who gave you the code to give it again",
+            description:
+              "Ask the person who gave you the code to give it again",
             variant: "destructive",
             duration: 2500,
           });
@@ -35,7 +51,8 @@ export const useServerStore = defineStore("server", () => {
         case "YOU_ARE_BANNED":
           toast({
             title: "Invite code incorrect",
-            description: "Invite code not found or you are not allowed to join this server",
+            description:
+              "Invite code not found or you are not allowed to join this server",
             variant: "destructive",
             duration: 2500,
           });
@@ -51,12 +68,15 @@ export const useServerStore = defineStore("server", () => {
     }
   }
 
-  async function addChannelToServer(channelName: string, channelKind: "Text" | "Voice" | "Announcement") {
+  async function addChannelToServer(
+    channelName: string,
+    channelKind: "Text" | "Voice" | "Announcement"
+  ) {
     await api.serverInteraction.CreateChannel({
       name: channelName,
       desc: "",
       kind: channelKind,
-      serverId: pool.selectedServer!
+      serverId: pool.selectedServer!,
     });
   }
 
@@ -64,23 +84,27 @@ export const useServerStore = defineStore("server", () => {
     await api.serverInteraction.DeleteChannel(pool.selectedServer!, channelId);
   }
 
-
   async function getServerInvites(): Promise<InviteCodeEntity[]> {
     return api.serverInteraction.GetInviteCodes(pool.selectedServer!);
   }
 
   async function addInvite(): Promise<InviteCode> {
-    return api.serverInteraction.CreateInviteCode(pool.selectedServer!, 77760000000000n);
+    return api.serverInteraction.CreateInviteCode(
+      pool.selectedServer!,
+      77760000000000n
+    );
   }
 
   async function IsIAmAdmin(): Promise<boolean> {
     const server = await pool.getServer(pool.selectedServer!);
 
-    logger.info(`Checking admin right, creator: ${(server as any).CreatorId}, meId: ${me.me?.Id}`);
+    logger.info(
+      `Checking admin right, creator: ${(server as any).CreatorId}, meId: ${me.me?.Id}`
+    );
 
     return (server as any).CreatorId == me.me?.Id;
   }
-  
+
   return {
     isBeginConnect,
     isConnected,
@@ -89,6 +113,7 @@ export const useServerStore = defineStore("server", () => {
     deleteChannel,
     getServerInvites,
     addInvite,
-    IsIAmAdmin
+    IsIAmAdmin,
+    createServer
   };
 });

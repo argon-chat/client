@@ -7,6 +7,7 @@
 ///<reference path="../Maybe.ts"/>
 ///<reference path="IUser.d.ts"/>
 ///<reference path="IServerDto.d.ts"/>
+///<reference path="ICreateServerRequest.d.ts"/>
 ///<reference path="AuthorizationError.d.ts"/>
 ///<reference path="IUserCredentialsInput.d.ts"/>
 ///<reference path="IRegistrationErrorData.d.ts"/>
@@ -21,7 +22,7 @@
 interface IUserInteraction
 {
 	GetMe() : Promise<IUser>;
-	CreateServer(request: any) : Promise<IServerDto>;
+	CreateServer(request: ICreateServerRequest) : Promise<IServerDto>;
 	GetServers() : Promise<IServerDto[]>;
 	Authorize(input: IUserCredentialsInput) : Promise<Either<string, AuthorizationError>>;
 	Registration(input: INewUserCredentialsInput) : Promise<Either<string, IRegistrationErrorData>>;
