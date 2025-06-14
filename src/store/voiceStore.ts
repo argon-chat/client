@@ -1,9 +1,9 @@
+import { audio } from "@/lib/audio/AudioManager";
+import { DisposableBag } from "@/lib/disposables";
 import { logger } from "@/lib/logger";
 import {
-  AudioProcessorOptions,
   type ConnectionQuality,
   ConnectionState,
-  createLocalAudioTrack,
   LocalAudioTrack,
   type LocalTrackPublication,
   type Participant,
@@ -13,27 +13,26 @@ import {
   Room,
   type RoomConnectOptions,
   type Track,
-  TrackProcessor,
+  createLocalAudioTrack,
 } from "livekit-client";
 import { defineStore } from "pinia";
+import { Subject, type Subscription, timer } from "rxjs";
 import {
-  computed,
   type Reactive,
-  reactive,
   type Ref,
+  type WatchHandle,
+  computed,
+  reactive,
   ref,
   watch,
-  type WatchHandle,
 } from "vue";
-import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
+import { usePoolStore } from "./poolStore";
+import { usePreference } from "./preferenceStore";
 import { useConfig } from "./remoteConfig";
+import { useSessionTimer } from "./sessionTimer";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
-import { useSessionTimer } from "./sessionTimer";
-import { usePreference } from "./preferenceStore";
-import { audio } from "@/lib/audio/AudioManager";
-import { DisposableBag } from "@/lib/disposables";
 
 export type DirectRef<T> = Ref<T, T>;
 
@@ -286,8 +285,8 @@ export const useVoice = defineStore("voice", () => {
     try {
       if (room) {
         await api.serverInteraction.DisconnectFromVoiceChannel(
-          activeChannel.value?.ServerId,
-          activeChannel.value?.Id,
+          activeChannel.value?.ServerId as string,
+          activeChannel.value?.Id as string,
         );
         room.off("trackSubscribed", onTrackSubscribed);
         room.off("trackUnsubscribed", onTrackUnsubscribed);
@@ -347,14 +346,14 @@ export const useVoice = defineStore("voice", () => {
         }
       });
 
-      participant.on("trackMuted", (track) => {
+      participant.on("trackMuted", () => {
         if (pool.selectedChannel) {
           pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
             (x.isMuted as any) = true;
           });
         }
       });
-      participant.on("trackUnmuted", (track) => {
+      participant.on("trackUnmuted", () => {
         if (pool.selectedChannel) {
           pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
             (x.isMuted as any) = false;
@@ -518,7 +517,7 @@ export const useVoice = defineStore("voice", () => {
 
   function onTrackUnsubscribed(
     track: RemoteTrack,
-    publication: RemoteTrackPublication,
+    _: RemoteTrackPublication,
     participant: RemoteParticipant,
   ) {
     logger.log(
