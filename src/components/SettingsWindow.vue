@@ -15,7 +15,9 @@
                 <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
                     <Button v-for="category in categories" :key="category.id"
                         :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md inline-flex w-full">
+                        @click="selectedCategory = category.id"
+                        :style="{ willChange: 'transform' }"
+                        class="nav-item px-4 py-2 rounded-md w-full transition-none">
                         {{ t(category.id) }}
                     </Button>
                 </nav>
@@ -99,10 +101,20 @@ onUnmounted(() => {
 .settings-nav {
     display: flex;
     flex-direction: column;
+    backface-visibility: hidden;
+    overflow: hidden;
+    contain: layout paint;
+    transition: none;
+    box-shadow: none;
+    border: none;
 }
 
 .nav-item {
     text-align: left;
+    backface-visibility: hidden;
+    transition: none;
+    box-shadow: none;
+    border: none;
 }
 
 .active-nav {
@@ -126,6 +138,4 @@ onUnmounted(() => {
 .close-button:hover {
     color: #f87171;
 }
-
-
 </style>
