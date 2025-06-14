@@ -17,17 +17,17 @@
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
-                <ContextMenuItem inset :disabled="!IsMeOwnerOfCurrentServer" @click="channelDelete(channel.Id)">
+                <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="channelDelete(channel.Id)">
                   Delete
                   <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem inset :disabled="!IsMeOwnerOfCurrentServer">
+                <ContextMenuItem inset :disabled="true">
                   Leave
                   <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                 </ContextMenuItem>
 
                 <ContextMenuSeparator />
-                <ContextMenuCheckboxItem :disabled="!IsMeOwnerOfCurrentServer">
+                <ContextMenuCheckboxItem :disabled="!pex.has('MuteMember')">
                   Mute
                   <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
                 </ContextMenuCheckboxItem>
@@ -98,18 +98,18 @@ import { useVoice } from '@/store/voiceStore';
 import ArgonAvatar from './ArgonAvatar.vue';
 import { useMe } from '@/store/meStore';
 import delay from '@/lib/delay';
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
+import { usePexStore } from '@/store/permissionStore';
 
-const IsMeOwnerOfCurrentServer = ref(false);
 const servers = useServerStore();
 const pool = usePoolStore();
 const voice = useVoice();
 const me = useMe();
+const pex = usePexStore();
 //
 
 onMounted(async () => {
   await delay(1000);
-  IsMeOwnerOfCurrentServer.value = await servers.IsIAmAdmin();
 })
 
 
