@@ -147,9 +147,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     }
 }
 
-
 const me = useMe();
-
 
 const activityWrapper = ref<HTMLElement | null>(null);
 const activityText = ref<HTMLElement | null>(null);
@@ -157,6 +155,7 @@ const shouldScroll = ref(false);
 
 onMounted(async () => {
     userProfile.value = await api.serverInteraction.PrefetchProfile(pool.selectedServer!, props.userId);
+    userProfile.value.Badges.push(...await pool.generateBadgesByArchetypes(userProfile.value.Archetypes));
     user.value = await pool.getUser(props.userId);
     isLoading.value = false;
 
