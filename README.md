@@ -2,6 +2,9 @@
 
 This documentation provides an overview of the project, its scripts, and configuration options for the front-end interface of the voice chat service.
 
+![image](https://github.com/user-attachments/assets/123e7ac1-e35f-4fc0-a670-9e577831ee44)
+
+
 ## Project Overview
 
 This project is the front-end interface for a voice chat service. It provides an intuitive and responsive user interface to interact with the voice chat system, manage users, and participate in real-time communications. The application is built with modern front-end technologies, ensuring a smooth and interactive user experience.
