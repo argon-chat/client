@@ -30,9 +30,6 @@
   },
   "include": [
     "vite.config.ts",
-    "dotnet.d.ts",
-    "global.d.ts",
-    "wss.d.ts",
     "argon.d.ts"
   ]
 }

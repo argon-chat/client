@@ -36,10 +36,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
-    "dotnet.d.ts",
-    "storageBuckets.api.d.ts",
     "global.d.ts",
-    "wss.d.ts",
     "argon.d.ts"
   ]
 }
