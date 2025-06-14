@@ -1,6 +1,6 @@
 <template>
     <Drawer :open="windows.serverSettingsOpen" :dismissible="false">
-        <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40">
+        <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40" :trap-focus="false" :auto-focus="false">
             <DrawerHeader class="flex items-center justify-between">
                 <div>
                     <DrawerTitle>Settings</DrawerTitle>
@@ -11,15 +11,16 @@
                 </button>
             </DrawerHeader>
 
-            <div class="settings-layout justify-center flex min-h-full space-x-4">
-                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg">
+            <div class="settings-layout justify-between flex min-h-full space-x-4">
+                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
                     <Button v-for="category in categories" :key="category.id"
-                        :variant=" selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id" class="nav-item px-4 py-2 rounded-md">
-                        {{ category.name }}
+                        :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
+                        @click="selectedCategory = category.id" :style="{ willChange: 'transform' }"
+                        class="nav-item px-4 py-2 rounded-md w-full transition-none">
+                        {{ category.id }}
                     </Button>
                 </nav>
-                <div class="settings-content w-1/2 p-6  text-white ">
+                <div class="settings-content w-1/2 p-6  text-white w-[100%]">
                     <component :is="selectedCategoryComponent" />
                 </div>
             </div>
@@ -34,8 +35,12 @@ import { Button } from '@/components/ui/button';
 import { useWindow } from '@/store/windowStore';
 import { CircleXIcon } from 'lucide-vue-next';
 import Invites from '@/components/settings/Invites.vue';
+import RolesSettings from './settings/spaces/RolesSettings.vue';
+import { useLocale } from '@/store/localeStore';
 
 const windows = useWindow();
+
+const { t } = useLocale();
 
 const categories = ref([
     { id: 'server', name: 'Server' },
@@ -47,8 +52,8 @@ const selectedCategory = ref('account');
 
 const categoryComponents = {
     server: Invites,
-    archetypes: Invites,
-    invites: Invites
+    invites: Invites,
+    archetypes: RolesSettings
 };
 
 const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
@@ -92,15 +97,15 @@ onUnmounted(() => {
 }
 
 .close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: color 0.2s ease;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
 .close-button:hover {
-  color: #f87171;
+    color: #f87171;
 }
 </style>
