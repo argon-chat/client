@@ -21,7 +21,7 @@ export function useSound(
     onload,
     audioContext,
     ...delegated
-  }: ComposableOptions = {}
+  }: ComposableOptions = {},
 ) {
   const HowlConstructor = ref<HowlStatic | null>(null);
   const isPlaying = ref<boolean>(false);
@@ -41,7 +41,6 @@ export function useSound(
     // Howler registers `Howl` and `Howler` globally when imported
     await import("howler");
 
-
     // Use global Howl constructor
     HowlConstructor.value = Howl;
 
@@ -50,7 +49,7 @@ export function useSound(
       volume: unref(volume) as number,
       rate: unref(playbackRate) as number,
       onload: handleLoad,
-      ...delegated
+      ...delegated,
     });
   });
 
@@ -71,7 +70,7 @@ export function useSound(
           ...delegated,
         });
       }
-    }
+    },
   );
 
   watch(
@@ -80,13 +79,11 @@ export function useSound(
       if (sound.value) {
         sound.value.volume(unref(volume) as number);
       }
-    }
+    },
   );
 
-  const play: PlayFunction = (options?: PlayOptions) => {
-    if (typeof options === "undefined") {
-      options = {};
-    }
+  const play: PlayFunction = (optionsParam?: PlayOptions) => {
+    const options = optionsParam ?? {};
 
     if (!sound.value || (!soundEnabled && !options.forceSoundEnabled)) {
       return;

@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 defineProps<{
-    keys: string[]
+  keys: string[];
 }>();
 </script>
 <style scoped>

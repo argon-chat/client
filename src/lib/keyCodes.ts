@@ -104,17 +104,13 @@ const keyCodes: { [code: number]: string[] } = {
 };
 
 function keyCodeToCodes(keyCode: number): string[] {
-    const code = keyCodes[keyCode];
-  
-    if (!code) {
-      throw new Error(`No codes found for ${keyCode}`);
-    }
-  
-    return code;
-  }
-  
+  const code = keyCodes[keyCode];
 
-export {
-    keyCodes,
-    keyCodeToCodes
-};
+  if (!code) {
+    throw new Error(`No codes found for ${keyCode}`);
+  }
+
+  return code;
+}
+
+export { keyCodes, keyCodeToCodes };

@@ -23,31 +23,29 @@
 </template>
 
 <script setup lang="ts">
-import UserBar from '@/components/UserBar.vue';
-import ChatList from '@/components/ChatList.vue';
-import ChannelChat from '@/components/ChannelChat.vue';
-import SettingsWindow from '@/components/SettingsWindow.vue';
-import ServerSettingsWindow from '@/components/ServerSettingsWindow.vue';
-import { usePoolStore } from '@/store/poolStore';
-import { onMounted } from 'vue';
-import { useMe } from '@/store/meStore';
-import FloatingMiniVideo from '@/components/FloatingMiniVideo.vue';
-import ControlBar from '@/components/ControlBar.vue';
-import { useLocale } from '@/store/localeStore';
-import LeftSideUserList from '@/components/LeftSideUserList.vue';
+import UserBar from "@/components/UserBar.vue";
+import ChatList from "@/components/ChatList.vue";
+import ChannelChat from "@/components/ChannelChat.vue";
+import SettingsWindow from "@/components/SettingsWindow.vue";
+import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
+import { usePoolStore } from "@/store/poolStore";
+import { onMounted } from "vue";
+import { useMe } from "@/store/meStore";
+import FloatingMiniVideo from "@/components/FloatingMiniVideo.vue";
+import ControlBar from "@/components/ControlBar.vue";
+import { useLocale } from "@/store/localeStore";
+import LeftSideUserList from "@/components/LeftSideUserList.vue";
 import SidebarHeader from "@/components/SidebarHeader.vue";
-import AdminControlBar from '@/components/AdminControlBar.vue';
+import AdminControlBar from "@/components/AdminControlBar.vue";
 
 const dataPool = usePoolStore();
 const me = useMe();
 const { t } = useLocale();
 
-
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
   dataPool.selectedServer = s[0].Id;
-})
-
+});
 </script>
 
 <style scoped>

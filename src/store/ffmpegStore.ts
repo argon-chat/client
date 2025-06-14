@@ -26,14 +26,14 @@ export const useFfmpeg = defineStore("ffmpeg", () => {
   async function convertToJPEG(
     blob: Blob,
     inputName: string,
-    outputName: string
+    outputName: string,
   ): Promise<Blob> {
     const inputData = await fetchFile(blob);
     const result = await ffmpeg.createDir("/mounted");
 
     await ffmpeg.writeFile(`/mounted/${inputName}`, inputData);
     const args = ["-i", `/mounted/${inputName}`, `/mounted/${outputName}`];
-    logger.log(`start converting ffmpeg`, args, result);
+    logger.log("start converting ffmpeg", args, result);
 
     await ffmpeg.exec(args);
     const outputData = await ffmpeg.readFile(outputName);

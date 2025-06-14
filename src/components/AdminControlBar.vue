@@ -73,39 +73,43 @@
 </template>
 
 <script setup lang="ts">
-import { SettingsIcon, CirclePlusIcon, ShieldCheck, NotebookTabsIcon, UsersIcon } from 'lucide-vue-next';
+import {
+  SettingsIcon,
+  CirclePlusIcon,
+  ShieldCheck,
+  NotebookTabsIcon,
+  UsersIcon,
+} from "lucide-vue-next";
 
 import { useMe } from "@/store/meStore";
-import { useLocale } from '@/store/localeStore';
-import { logger } from '@/lib/logger';
-import { useServerStore } from '@/store/serverStore';
-import { useWindow } from '@/store/windowStore';
-import { usePexStore } from '@/store/permissionStore';
-import { ref } from 'vue';
+import { useLocale } from "@/store/localeStore";
+import { logger } from "@/lib/logger";
+import { useServerStore } from "@/store/serverStore";
+import { useWindow } from "@/store/windowStore";
+import { usePexStore } from "@/store/permissionStore";
+import { ref } from "vue";
 
+import { MoreVerticalIcon } from "lucide-vue-next";
 import {
-    MoreVerticalIcon
-} from 'lucide-vue-next';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge'
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogClose,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const { t } = useLocale();
 
@@ -119,20 +123,19 @@ const pex = usePexStore();
 const channelType = ref("" as "Text" | "Voice" | "Announcement");
 const channelName = ref("");
 async function openServerSettings() {
-    windows.serverSettingsOpen = true;
+  windows.serverSettingsOpen = true;
 }
 
 const addChannel = () => {
-    addChannel_Loading.value = true;
-    logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
-    servers.addChannelToServer(channelName.value, channelType.value);
+  addChannel_Loading.value = true;
+  logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
+  servers.addChannelToServer(channelName.value, channelType.value);
 
-    setTimeout(() => {
-        addChannel_Loading.value = false;
-        addChannelOpened.value = false;
-    }, 1000);
+  setTimeout(() => {
+    addChannel_Loading.value = false;
+    addChannelOpened.value = false;
+  }, 1000);
 };
-
 </script>
 
 <style scoped>

@@ -15,16 +15,16 @@
 import { cn } from "@/lib/utils";
 
 interface Props {
-    gaugePrimaryColor?: string;
-    gaugeSecondaryColor?: string;
-    class?: string;
-    circleStrokeWidth?: number;
+  gaugePrimaryColor?: string;
+  gaugeSecondaryColor?: string;
+  class?: string;
+  circleStrokeWidth?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    gaugePrimaryColor: "rgb(79 70 229)", // indigo-600
-    gaugeSecondaryColor: "rgba(0, 0, 0, 0.1)",
-    circleStrokeWidth: 10,
+  gaugePrimaryColor: "rgb(79 70 229)", // indigo-600
+  gaugeSecondaryColor: "rgba(0, 0, 0, 0.1)",
+  circleStrokeWidth: 10,
 });
 </script>
 

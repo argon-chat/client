@@ -1,18 +1,21 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
 import { v7 } from "uuid";
+import { ref } from "vue";
 //import PredictorWorker from "@/workers/predictor.webworker.ts?worker&inline";
 export const usePredictor = defineStore("predictor", () => {
-  let worker: Worker | null = null;
+  const worker: Worker | null = null;
   const isReady = ref(false);
-  let pendingRequests = new Map<
+  const pendingRequests = new Map<
     string,
-    { resolve: Function; reject: Function }
+    {
+      resolve: (value: any[]) => void;
+      reject: (reason?: any) => void;
+    }
   >();
 
   async function init() {
     try {
-      indexedDB.deleteDatabase("tensorflowjs")
+      indexedDB.deleteDatabase("tensorflowjs");
     } catch {}
     //worker = new PredictorWorker();
 
@@ -32,95 +35,89 @@ export const usePredictor = defineStore("predictor", () => {
     worker.postMessage({ type: "init" });*/
   }
 
-  async function blobToTensor(img: HTMLImageElement): Promise<ImageData> {
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+  async function blobToTensor(
+    img: HTMLImageElement,
+  ): Promise<ImageData | undefined> {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     canvas.width = img.width;
     canvas.height = img.height;
 
-    ctx!.drawImage(img, 0, 0);
+    ctx?.drawImage(img, 0, 0);
 
-    const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+    const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (!imageData) {
+      return;
+    }
 
     canvas.remove();
     return imageData;
   }
 
-  async function blobToTensorBlob(blob: Blob): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(blob);
-  
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-  
-        canvas.width = img.width;
-        canvas.height = img.height;
-  
-        ctx!.drawImage(img, 0, 0);
-        const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
-  
-        canvas.remove();
-        URL.revokeObjectURL(url);
-  
-        resolve(imageData);
-      };
-  
-      img.onerror = (err) => {
-        URL.revokeObjectURL(url);
-        reject(err);
-      };
-  
-      img.src = url;
-    });
-  }
-
-
   async function classifyImage(img: HTMLImageElement) {
-    return new Promise<any[]>(async (resolve, reject) => {
-      if (!isReady.value) {
-        reject("Model is not loaded");
-        return;
-      }
-      if (!worker) {
-        reject("Worker is not loaded");
-        return;
-      }
+    if (!isReady.value) {
+      throw new Error("Model is not loaded");
+    }
+    if (!worker) {
+      throw new Error("Worker is not loaded");
+    }
 
-      const id = v7();
+    const id = v7();
+    const imageData = await blobToTensor(img);
 
+    return new Promise<any[]>((resolve, reject) => {
       pendingRequests.set(id, { resolve, reject });
 
-      worker.postMessage({ type: "classify", imageData: await blobToTensor(img), id });
+      worker.postMessage({
+        type: "classify",
+        imageData,
+        id,
+      });
     });
   }
 
   async function classifyImageBlob(img: Blob) {
-    return new Promise<any[]>(async (resolve, reject) => {
-      if (!isReady.value) {
-        reject("Model is not loaded");
-        return;
-      }
-      if (!worker) {
-        reject("Worker is not loaded");
-        return;
-      }
+    if (!isReady.value) {
+      throw new Error("Model is not loaded");
+    }
+    if (!worker) {
+      throw new Error("Worker is not loaded");
+    }
 
-      const id = v7();
+    const id = v7();
 
+    const imageElement = document.createElement("img");
+
+    const imageData = await new Promise<any>((resolveImage, rejectImage) => {
+      imageElement.onload = async () => {
+        try {
+          resolveImage(await blobToTensor(imageElement));
+        } catch (error) {
+          rejectImage(error);
+        }
+      };
+      imageElement.onerror = () =>
+        rejectImage(new Error("Failed to load image"));
+      imageElement.src = URL.createObjectURL(img);
+    });
+
+    return new Promise<any[]>((resolve, reject) => {
       pendingRequests.set(id, { resolve, reject });
 
-      worker.postMessage({ type: "classify", imageData: await blobToTensorBlob(img), id });
+      worker.postMessage({
+        type: "classify",
+        imageData,
+        id,
+      });
     });
   }
 
-  (window as any)["classifyImage"] = classifyImage;
+  (window as any).classifyImage = classifyImage;
 
   return {
     init,
     classifyImage,
-    classifyImageBlob
+    classifyImageBlob,
   };
 });

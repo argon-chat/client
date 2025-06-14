@@ -57,19 +57,17 @@
     </div>
 </template>
 <script setup lang="ts">
-import { RadioIcon } from 'lucide-vue-next';
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useLocale } from '@/store/localeStore';
-import EnterText from './chats/EnterText.vue';
-import ChatView from './ChatView.vue';
-import { usePoolStore } from '@/store/poolStore';
-import { logger } from '@/lib/logger';
-import { Subscription } from 'rxjs';
-import {
-    HashIcon
-} from 'lucide-vue-next';
-import { RealtimeUser } from '@/store/db/dexie';
-import { useBus } from '@/store/busStore';
+import { RadioIcon } from "lucide-vue-next";
+import { onMounted, onUnmounted, ref, watch } from "vue";
+import { useLocale } from "@/store/localeStore";
+import EnterText from "./chats/EnterText.vue";
+import ChatView from "./ChatView.vue";
+import { usePoolStore } from "@/store/poolStore";
+import { logger } from "@/lib/logger";
+import type { Subscription } from "rxjs";
+import { HashIcon } from "lucide-vue-next";
+import type { RealtimeUser } from "@/store/db/dexie";
+import { useBus } from "@/store/busStore";
 const { t } = useLocale();
 const pool = usePoolStore();
 const bus = useBus();
@@ -77,96 +75,113 @@ const channelData = ref(null as null | IChannel);
 const subs = ref(null as Subscription | null);
 const hiddenChannelId = ref(null as null | Guid);
 const messageContainer = ref<HTMLElement | null>(null);
-const typingUsers = ref<RealtimeUser[]>([])
+const typingUsers = ref<RealtimeUser[]>([]);
 const lastTypingTime = new Map<string, number>();
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const TYPING_TIMEOUT_MS = 15000;
 
-const getChannel = function (channelId: Guid) {
-    return pool.getChannel(channelId);
-}
+const getChannel = (channelId: Guid) => pool.getChannel(channelId);
 
 const replyTo = ref<IArgonMessageDto | null>(null);
 
 function onReplySelect(message: IArgonMessageDto) {
-    replyTo.value = message;
+  replyTo.value = message;
 }
 
-watch(() => hiddenChannelId, () => {
-    typingUsers.value = []
-});
+watch(
+  () => hiddenChannelId,
+  () => {
+    typingUsers.value = [];
+  },
+);
 
 const onTypingEvent = () => {
-    if (!channelData.value) return;
-    bus.sendEventAsync({ channelId: channelData.value.Id, serverId: channelData.value.ServerId, EventKey: "IAmTypingEvent" } as IAmTypingEvent);
-}
+  if (!channelData.value) return;
+  bus.sendEventAsync({
+    channelId: channelData.value.Id,
+    serverId: channelData.value.ServerId,
+    EventKey: "IAmTypingEvent",
+  } as IAmTypingEvent);
+};
 const onStopTypingEvent = () => {
-    if (!channelData.value) return;
-    bus.sendEventAsync({ channelId: channelData.value.Id, serverId: channelData.value.ServerId, EventKey: "IAmStopTypingEvent" } as IAmStopTypingEvent);
-}
+  if (!channelData.value) return;
+  bus.sendEventAsync({
+    channelId: channelData.value.Id,
+    serverId: channelData.value.ServerId,
+    EventKey: "IAmStopTypingEvent",
+  } as IAmStopTypingEvent);
+};
 
 function scheduleTypingTimeout(userId: string) {
-    const oldTimer = typingTimers.get(userId);
-    if (oldTimer) clearTimeout(oldTimer);
+  const oldTimer = typingTimers.get(userId);
+  if (oldTimer) clearTimeout(oldTimer);
 
-    const timer = setTimeout(() => {
-        const last = lastTypingTime.get(userId);
-        if (last && Date.now() - last >= TYPING_TIMEOUT_MS) {
-            typingUsers.value = typingUsers.value.filter(u => u.UserId !== userId);
-            typingTimers.delete(userId);
-            lastTypingTime.delete(userId);
-        }
-    }, TYPING_TIMEOUT_MS + 100);
+  const timer = setTimeout(() => {
+    const last = lastTypingTime.get(userId);
+    if (last && Date.now() - last >= TYPING_TIMEOUT_MS) {
+      typingUsers.value = typingUsers.value.filter((u) => u.UserId !== userId);
+      typingTimers.delete(userId);
+      lastTypingTime.delete(userId);
+    }
+  }, TYPING_TIMEOUT_MS + 100);
 
-    typingTimers.set(userId, timer);
+  typingTimers.set(userId, timer);
 }
 
 onMounted(async () => {
-    subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
-    subs.value.add(bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
-        if (q.channelId !== hiddenChannelId.value) return;
+  subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
+  subs.value.add(
+    bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
+      if (q.channelId !== hiddenChannelId.value) return;
 
-        lastTypingTime.set(q.userId, Date.now());
+      lastTypingTime.set(q.userId, Date.now());
 
-        if (!typingUsers.value.some(u => u.UserId === q.userId)) {
-            const user = await pool.getUser(q.userId);
-            if (user) typingUsers.value.push(user);
-        }
+      if (!typingUsers.value.some((u) => u.UserId === q.userId)) {
+        const user = await pool.getUser(q.userId);
+        if (user) typingUsers.value.push(user);
+      }
 
-        scheduleTypingTimeout(q.userId);
-    }));
+      scheduleTypingTimeout(q.userId);
+    }),
+  );
 
-    subs.value.add(bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
-        if (q.channelId !== hiddenChannelId.value) return;
+  subs.value.add(
+    bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
+      if (q.channelId !== hiddenChannelId.value) return;
 
-        typingUsers.value = typingUsers.value.filter(u => u.UserId !== q.userId);
-        lastTypingTime.delete(q.userId);
+      typingUsers.value = typingUsers.value.filter(
+        (u) => u.UserId !== q.userId,
+      );
+      lastTypingTime.delete(q.userId);
 
-        const timer = typingTimers.get(q.userId);
-        if (timer) {
-            clearTimeout(timer);
-            typingTimers.delete(q.userId);
-        }
-    }));
+      const timer = typingTimers.get(q.userId);
+      if (timer) {
+        clearTimeout(timer);
+        typingTimers.delete(q.userId);
+      }
+    }),
+  );
 
-    if (pool.selectedTextChannel) {
-        logger.log("Selected channel", pool.selectedTextChannel);
-        hiddenChannelId.value = pool.selectedTextChannel;
-        channelData.value = (await getChannel(pool.selectedTextChannel!))!;
-    }
+  if (pool.selectedTextChannel) {
+    logger.log("Selected channel", pool.selectedTextChannel);
+    hiddenChannelId.value = pool.selectedTextChannel;
+    const channel = await getChannel(pool.selectedTextChannel);
+    if (channel) channelData.value = channel;
+  }
 });
 
 onUnmounted(() => {
-    subs.value?.unsubscribe();
-})
+  subs.value?.unsubscribe();
+});
 
-const onChannelChanged = async function (channelId: Guid | null) {
-    logger.log("onChannelChanged");
-    hiddenChannelId.value = channelId;
-    if (channelId)
-        channelData.value = (await getChannel(channelId!))!;
-}
-
+const onChannelChanged = async (channelId: Guid | null) => {
+  logger.log("onChannelChanged");
+  hiddenChannelId.value = channelId;
+  if (channelId) {
+    const channel = await getChannel(channelId);
+    if (channel) channelData.value = channel;
+  }
+};
 </script>
 
 <style scoped>

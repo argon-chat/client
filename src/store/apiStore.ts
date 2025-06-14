@@ -7,15 +7,13 @@ export const useApi = defineStore("api", () => {
   const cfg = useConfig();
   const rpcClient = computed(() => new RpcClient(cfg.apiEndpoint));
   const userInteraction = computed(() =>
-    rpcClient.value.create<IUserInteraction>("IUserInteraction")
+    rpcClient.value.create<IUserInteraction>("IUserInteraction"),
   );
   const serverInteraction = computed(() =>
-    rpcClient.value.create<IServerInteraction>("IServerInteraction")
+    rpcClient.value.create<IServerInteraction>("IServerInteraction"),
   );
 
-  const eventBus = computed(() =>
-    rpcClient.value.eventBus<IEventBus>()
-  );
+  const eventBus = computed(() => rpcClient.value.eventBus<IEventBus>());
 
   const getRawClient = () => rpcClient;
 
@@ -23,6 +21,6 @@ export const useApi = defineStore("api", () => {
     userInteraction,
     serverInteraction,
     eventBus,
-    getRawClient
+    getRawClient,
   };
 });

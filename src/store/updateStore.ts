@@ -6,10 +6,10 @@ export const useUpdater = defineStore("update", () => {
   const isRequiredToUpdate = ref(false);
 
   interval(CHECK_INTERVAL_MS)
-  .pipe(map(() => native.isRequiredToUpdate()))
-  .subscribe((result: boolean) => {
-    isRequiredToUpdate.value = result;
-  });
+    .pipe(map(() => native.isRequiredToUpdate()))
+    .subscribe((result: boolean) => {
+      isRequiredToUpdate.value = result;
+    });
 
   return { isRequiredToUpdate };
 });

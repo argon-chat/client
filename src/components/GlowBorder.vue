@@ -18,31 +18,33 @@ import { computed } from "vue";
 import { cn } from "@/lib/utils";
 
 interface Props {
-    borderRadius?: number;
-    color?: string | Array<string>;
-    borderWidth?: number;
-    duration?: number;
-    class?: string;
+  borderRadius?: number;
+  color?: string | Array<string>;
+  borderWidth?: number;
+  duration?: number;
+  class?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    borderRadius: 10,
-    color: "#FFF",
-    borderWidth: 2,
-    duration: 10,
+  borderRadius: 10,
+  color: "#FFF",
+  borderWidth: 2,
+  duration: 10,
 });
 
 const parentStyles = computed(() => {
-    return { "--border-radius": `${props.borderRadius}px` };
+  return { "--border-radius": `${props.borderRadius}px` };
 });
 
 const childStyles = computed(() => ({
-    "--border-width": `${props.borderWidth}px`,
-    "--border-radius": `${props.borderRadius}px`,
-    "--glow-pulse-duration": `${props.duration}s`,
-    "--mask-linear-gradient": `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`,
-    "--background-radial-gradient": `radial-gradient(circle, transparent, ${props.color instanceof Array ? props.color.join(",") : props.color
-        }, transparent)`,
+  "--border-width": `${props.borderWidth}px`,
+  "--border-radius": `${props.borderRadius}px`,
+  "--glow-pulse-duration": `${props.duration}s`,
+  "--mask-linear-gradient":
+    "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+  "--background-radial-gradient": `radial-gradient(circle, transparent, ${
+    Array.isArray(props.color) ? props.color.join(",") : props.color
+  }, transparent)`,
 }));
 </script>
 

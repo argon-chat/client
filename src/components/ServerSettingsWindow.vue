@@ -29,47 +29,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
-import { Button } from '@/components/ui/button';
-import { useWindow } from '@/store/windowStore';
-import { CircleXIcon } from 'lucide-vue-next';
-import Invites from '@/components/settings/Invites.vue';
-import RolesSettings from './settings/spaces/RolesSettings.vue';
-import { useLocale } from '@/store/localeStore';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { useWindow } from "@/store/windowStore";
+import { CircleXIcon } from "lucide-vue-next";
+import Invites from "@/components/settings/Invites.vue";
+import RolesSettings from "./settings/spaces/RolesSettings.vue";
+import { useLocale } from "@/store/localeStore";
 
 const windows = useWindow();
 
 const { t } = useLocale();
 
 const categories = ref([
-    { id: 'server', name: 'Server' },
-    { id: 'archetypes', name: 'Archetypes' },
-    { id: 'invites', name: 'Invites' },
+  { id: "server", name: "Server" },
+  { id: "archetypes", name: "Archetypes" },
+  { id: "invites", name: "Invites" },
 ]);
 
-const selectedCategory = ref('account');
+const selectedCategory = ref("account");
 
 const categoryComponents = {
-    server: Invites,
-    invites: Invites,
-    archetypes: RolesSettings
+  server: Invites,
+  invites: Invites,
+  archetypes: RolesSettings,
 };
 
-const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
+const selectedCategoryComponent = computed(
+  () => (categoryComponents as any)[selectedCategory.value],
+);
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && windows.serverSettingsOpen) {
-        windows.serverSettingsOpen = false;
-    }
+  if (event.key === "Escape" && windows.serverSettingsOpen) {
+    windows.serverSettingsOpen = false;
+  }
 };
 
 onMounted(() => {
-    window.addEventListener('keydown', handleEscape);
+  window.addEventListener("keydown", handleEscape);
 });
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', handleEscape);
+  window.removeEventListener("keydown", handleEscape);
 });
 </script>
 

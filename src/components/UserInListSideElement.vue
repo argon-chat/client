@@ -34,40 +34,45 @@
     </button>
 </template>
 <script setup lang="ts">
-import { RealtimeUser } from '@/store/db/dexie';
-import { useLocale } from '@/store/localeStore';
-import { useMe } from '@/store/meStore';
-import ArgonAvatar from '@/components/ArgonAvatar.vue';
+import type { RealtimeUser } from "@/store/db/dexie";
+import { useLocale } from "@/store/localeStore";
+import { useMe } from "@/store/meStore";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import {
-    Popover,
-    PopoverTrigger,
-    PopoverContent
-} from '@/components/ui/popover';
-import UserProfilePopover from './UserProfilePopover.vue';
-import { ref } from 'vue';
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import UserProfilePopover from "./UserProfilePopover.vue";
+import { ref } from "vue";
 
 const isOpened = ref(false);
-const props = withDefaults(defineProps<{
-    user: RealtimeUser,
-    showActivity?: boolean,
-    enablePopup?: boolean,
-    pickAction?: boolean
-}>(), { showActivity: true, enablePopup: true });
+const props = withDefaults(
+  defineProps<{
+    user: RealtimeUser;
+    showActivity?: boolean;
+    enablePopup?: boolean;
+    pickAction?: boolean;
+  }>(),
+  { showActivity: true, enablePopup: true },
+);
 const me = useMe();
 const { t } = useLocale();
 
-const emit = defineEmits<{
-    (e: 'pick-action'): void
-}>();
+const emit = defineEmits<(e: "pick-action") => void>();
 
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
-    switch (activityKind) {
-        case "GAME": return "activity_play_in";
-        case "SOFTWARE": return "activity_work_in";
-        case "STREAMING": return "activity_stream";
-        case "LISTEN": return "activity_listen";
-        default: return "error";
-    }
-}
-
+  switch (activityKind) {
+    case "GAME":
+      return "activity_play_in";
+    case "SOFTWARE":
+      return "activity_work_in";
+    case "STREAMING":
+      return "activity_stream";
+    case "LISTEN":
+      return "activity_listen";
+    default:
+      return "error";
+  }
+};
 </script>

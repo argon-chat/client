@@ -16,22 +16,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, useTemplateRef, onUnmounted, nextTick, watch } from 'vue'
-import { useInfiniteScroll } from '@vueuse/core'
-import { CircleArrowDown } from 'lucide-vue-next';
-import MessageItem from '@/components/MessageItem.vue'
-import { useApi } from '@/store/apiStore'
-import { Separator } from '@/components/ui/separator'
-import { usePoolStore } from '@/store/poolStore';
-import { Subscription } from 'rxjs';
+import {
+  ref,
+  onMounted,
+  useTemplateRef,
+  onUnmounted,
+  nextTick,
+  watch,
+} from "vue";
+import { useInfiniteScroll } from "@vueuse/core";
+import { CircleArrowDown } from "lucide-vue-next";
+import MessageItem from "@/components/MessageItem.vue";
+import { useApi } from "@/store/apiStore";
+import { Separator } from "@/components/ui/separator";
+import { usePoolStore } from "@/store/poolStore";
+import type { Subscription } from "rxjs";
 import { useMe } from "@/store/meStore.ts";
-import { useTone } from '@/store/toneStore';
+import { useTone } from "@/store/toneStore";
 
 const api = useApi();
 const pool = usePoolStore();
 const props = defineProps<{
-  channelId: Guid
-}>()
+  channelId: Guid;
+}>();
 
 const scroller = useTemplateRef<HTMLElement>("scroller");
 const messages = ref([] as IArgonMessageDto[]);
@@ -45,12 +52,14 @@ const me = useMe();
 const tone = useTone();
 
 const getMessageById = (messageId: number): IArgonMessageDto => {
-  return messages.value.find(x => x.MessageId == messageId)!;
-}
+  return (
+    messages.value.find((x) => x.MessageId === messageId) ??
+    ({} as IArgonMessageDto)
+  );
+};
 
-const emit = defineEmits<{
-  (e: 'select-reply', message: IArgonMessageDto): void
-}>();
+const emit =
+  defineEmits<(e: "select-reply", message: IArgonMessageDto) => void>();
 
 const scrollToBottom = () => {
   if (!scroller.value) return;
@@ -74,24 +83,34 @@ const checkScrollPosition = () => {
   }
 };
 
-useInfiniteScroll(scroller, async () => {
-  if (hasEnded.value) return;
+useInfiniteScroll(
+  scroller,
+  async () => {
+    if (hasEnded.value) return;
 
-  const result = await api.serverInteraction.GetMessages(props.channelId, 10, currentSizeMsgs.value);
-  if (result.length === 0) {
-    hasEnded.value = true;
-    return;
-  }
+    const result = await api.serverInteraction.GetMessages(
+      props.channelId,
+      10,
+      currentSizeMsgs.value,
+    );
+    if (result.length === 0) {
+      hasEnded.value = true;
+      return;
+    }
 
-  const existingIds = new Set(messages.value.map(msg => msg.MessageId));
-  const uniqueNewMessages = result.filter(msg => !existingIds.has(msg.MessageId));
-  currentSizeMsgs.value += uniqueNewMessages.length;
-  messages.value.push(...uniqueNewMessages);
-}, {
-  distance: 100,
-  direction: "top",
-  canLoadMore: () => !hasEnded.value
-});
+    const existingIds = new Set(messages.value.map((msg) => msg.MessageId));
+    const uniqueNewMessages = result.filter(
+      (msg) => !existingIds.has(msg.MessageId),
+    );
+    currentSizeMsgs.value += uniqueNewMessages.length;
+    messages.value.push(...uniqueNewMessages);
+  },
+  {
+    distance: 100,
+    direction: "top",
+    canLoadMore: () => !hasEnded.value,
+  },
+);
 
 const loadMessages = async (channelId: Guid) => {
   messages.value = [];
@@ -111,42 +130,47 @@ const loadMessages = async (channelId: Guid) => {
   });
 };
 
-watch(() => props.channelId, async (newChannelId) => {
-  subs.value?.unsubscribe();
+watch(
+  () => props.channelId,
+  async (newChannelId) => {
+    subs.value?.unsubscribe();
 
-  await loadMessages(newChannelId);
+    await loadMessages(newChannelId);
 
-  subs.value = pool.onNewMessageReceived.subscribe((e) => {
-    if (newChannelId === e.ChannelId) {
-      messages.value.unshift(e);
-      // TODO reply
-      if (e.Entities.filter(filterMention).find(x => x.UserId == me.me?.Id)) {
-        tone.playNotificationSound();
-      }
+    subs.value = pool.onNewMessageReceived.subscribe((e) => {
+      if (newChannelId === e.ChannelId) {
+        messages.value.unshift(e);
+        // TODO reply
+        if (
+          e.Entities.filter(filterMention).find((x) => x.UserId === me.me?.Id)
+        ) {
+          tone.playNotificationSound();
+        }
 
-      nextTick(checkScrollPosition);
+        nextTick(checkScrollPosition);
 
-      if (e.Sender === me.me?.Id) {
-        setTimeout(scrollToBottom, 50);
-      } else {
-        if (isScrolledUp.value) {
-          newMessagesCount.value++;
-        } else {
+        if (e.Sender === me.me?.Id) {
           setTimeout(scrollToBottom, 50);
+        } else {
+          if (isScrolledUp.value) {
+            newMessagesCount.value++;
+          } else {
+            setTimeout(scrollToBottom, 50);
+          }
         }
       }
-    }
-  });
-}, { immediate: true });
+    });
+  },
+  { immediate: true },
+);
 
 const filterMention = (e: IMessageEntity): e is IMessageEntityMention => {
-  return e.Type == 'Mention';
-}
-
+  return e.Type === "Mention";
+};
 
 onMounted(() => {
   if (scroller.value) {
-    scroller.value.addEventListener('scroll', checkScrollPosition);
+    scroller.value.addEventListener("scroll", checkScrollPosition);
   }
 
   nextTick(() => {
@@ -155,7 +179,7 @@ onMounted(() => {
     }
   });
 
-  window.addEventListener('resize', updateChatWidth);
+  window.addEventListener("resize", updateChatWidth);
 });
 
 const updateChatWidth = () => {
@@ -167,9 +191,9 @@ const updateChatWidth = () => {
 onUnmounted(() => {
   subs.value?.unsubscribe();
   if (scroller.value) {
-    scroller.value.removeEventListener('scroll', checkScrollPosition);
+    scroller.value.removeEventListener("scroll", checkScrollPosition);
   }
-  window.removeEventListener('resize', updateChatWidth);
+  window.removeEventListener("resize", updateChatWidth);
 });
 </script>
 

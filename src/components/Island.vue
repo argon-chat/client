@@ -40,33 +40,29 @@ import { cn } from "@/lib/utils";
 import { useColorMode } from "@vueuse/core";
 import { motion, MotionConfig } from "motion-v";
 import { computed, onMounted, onUnmounted, ref, useSlots } from "vue";
-import {
-    VueSpinnerRadio
-} from 'vue3-spinners';
+import { VueSpinnerRadio } from "vue3-spinners";
 
 interface Props {
-    class?: string;
-    title?: string;
-    height?: number;
-    speed?: number;
+  class?: string;
+  title?: string;
+  height?: number;
+  speed?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    class: "",
-    title: "Progress",
-    height: 44,
-    speed: 2,
+  class: "",
+  title: "Progress",
+  height: 44,
+  speed: 2,
 });
 const speedInSeconds = computed(() => `${props.speed}s`);
 const open = ref(false);
 const slots = useSlots();
 const titleRef = ref(props.title);
 
-const isDark = computed(() => useColorMode().value == "dark");
+const isDark = computed(() => useColorMode().value === "dark");
 const isSlotAvailable = computed(() => !!slots.default);
 const borderRadius = computed(() => `${props.height / 2}px`);
-
-
 </script>
 <style scoped>
 .border-radius {

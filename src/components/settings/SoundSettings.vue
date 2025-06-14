@@ -37,52 +37,50 @@
 </template>
 
 <script setup lang="ts">
-import { usePreference } from '@/store/preferenceStore';
-import { useLocale } from '@/store/localeStore';
-import { ref } from 'vue';
-import { Slider } from '@/components/ui/slider'
-import { watchArray } from '@vueuse/core';
-import { storeToRefs } from 'pinia';
-import { Volume2Icon } from 'lucide-vue-next'
-import Switch from '@/components/ui/switch/Switch.vue';
-import Button from '@/components/ui/button/Button.vue';
-import { useTone } from '@/store/toneStore';
+import { usePreference } from "@/store/preferenceStore";
+import { useLocale } from "@/store/localeStore";
+import { ref } from "vue";
+import { Slider } from "@/components/ui/slider";
+import { watchArray } from "@vueuse/core";
+import { storeToRefs } from "pinia";
+import { Volume2Icon } from "lucide-vue-next";
+import Switch from "@/components/ui/switch/Switch.vue";
+import Button from "@/components/ui/button/Button.vue";
+import { useTone } from "@/store/toneStore";
 
 const { t } = useLocale();
 const tone = useTone();
 const preferenceStore = usePreference();
 
 const playTestSound = () => {
-    if (Math.random() > 0.5)
-        tone.playSoftEnterSound();
-    else
-        tone.playSoftLeaveSound();
+  if (Math.random() > 0.5) tone.playSoftEnterSound();
+  else tone.playSoftLeaveSound();
 };
 
 const {
-    isEnable_playSoftEnterSound,
-    isEnable_playReconnectSound,
-    isEnable_playSoftLeaveSound,
-    isEnable_playMuteAllSound,
-    isEnable_playUnmuteAllSound,
-    isEnable_playNotificationSound,
-    isEnable_playRingSound,
+  isEnable_playSoftEnterSound,
+  isEnable_playReconnectSound,
+  isEnable_playSoftLeaveSound,
+  isEnable_playMuteAllSound,
+  isEnable_playUnmuteAllSound,
+  isEnable_playNotificationSound,
+  isEnable_playRingSound,
 } = storeToRefs(preferenceStore);
 
 const soundControllers = [
-    { r: isEnable_playSoftEnterSound, name: "playSoftEnterSound" },
-    { r: isEnable_playReconnectSound, name: "playReconnectSound" },
-    { r: isEnable_playSoftLeaveSound, name: "playSoftLeaveSound" },
-    { r: isEnable_playMuteAllSound, name: "playMuteAllSound" },
-    { r: isEnable_playUnmuteAllSound, name: "playUnmuteAllSound" },
-    { r: isEnable_playNotificationSound, name: "playNotificationSound" },
-    { r: isEnable_playRingSound, name: "playRingSound" },
-]
+  { r: isEnable_playSoftEnterSound, name: "playSoftEnterSound" },
+  { r: isEnable_playReconnectSound, name: "playReconnectSound" },
+  { r: isEnable_playSoftLeaveSound, name: "playSoftLeaveSound" },
+  { r: isEnable_playMuteAllSound, name: "playMuteAllSound" },
+  { r: isEnable_playUnmuteAllSound, name: "playUnmuteAllSound" },
+  { r: isEnable_playNotificationSound, name: "playNotificationSound" },
+  { r: isEnable_playRingSound, name: "playRingSound" },
+];
 
 const soundLevel = ref([preferenceStore.soundLevel]);
 
 watchArray(soundLevel, (newList) => {
-    preferenceStore.soundLevel = newList[0];
+  preferenceStore.soundLevel = newList[0];
 });
 </script>
 <style scoped>

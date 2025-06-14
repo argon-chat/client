@@ -1,21 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuShortcut,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { useVoice } from '@/store/voiceStore';
-import { RemoteVideoTrack } from 'livekit-client';
-import { Subscription } from 'rxjs';
-import { logger } from '@/lib/logger';
+} from "@/components/ui/context-menu";
+import { useVoice } from "@/store/voiceStore";
+import type { RemoteVideoTrack } from "livekit-client";
+import type { Subscription } from "rxjs";
+import { logger } from "@/lib/logger";
 
 const voice = useVoice();
 
-
-const posX = ref(20); 
+const posX = ref(20);
 const posY = ref(20);
 const isDragging = ref(false);
 const isFullscreen = ref(false);
@@ -24,22 +23,22 @@ const videoRef = ref<HTMLMediaElement | null>(null);
 
 (window as any).videoRef = videoRef;
 
-
-
 const videoIsActive = ref(false);
 
 function handleVideoCreation(track: RemoteVideoTrack) {
   logger.warn("Handle Video Creation", track, videoRef);
-  track.attach(videoRef.value!);
-  videoIsActive.value = true;
+  if (videoRef.value) {
+    track.attach(videoRef.value);
+    videoIsActive.value = true;
+  }
 }
 function handleVideoDestroy(track: RemoteVideoTrack) {
   videoIsActive.value = false;
   logger.warn("Handle Video Destroyed", track, videoRef);
-  track.detach(videoRef.value!);
+  if (videoRef.value) {
+    track.detach(videoRef.value);
+  }
 }
-
-
 
 onMounted(() => {
   subs = voice.onVideoCreated.subscribe(handleVideoCreation as any);
@@ -48,10 +47,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   subs?.unsubscribe();
-})
+});
 
 const toggleFullscreen = () => {
-  videoRef.value!.requestFullscreen();
+  videoRef.value?.requestFullscreen();
   //isFullscreen.value = !isFullscreen.value;
 };
 

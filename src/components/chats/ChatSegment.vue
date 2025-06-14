@@ -12,58 +12,59 @@
     <template v-else>{{ props.text }}</template>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntity">
-import BoldSegment from './BoldSegment.vue';
-import FractionSegment from './FractionSegment.vue';
-import HashTagSegment from './HashTagSegment.vue';
-import ItalicSegment from './ItalicSegment.vue';
-import MentionSegment from './MentionSegment.vue';
-import MonospaceSegment from './MonospaceSegment.vue';
-import OrdinalSegment from './OrdinalSegment.vue';
-import UnderlineSegment from './UnderlineSegment.vue';
-import UrlSegment from './UrlSegment.vue';
-
+import BoldSegment from "./BoldSegment.vue";
+import FractionSegment from "./FractionSegment.vue";
+import HashTagSegment from "./HashTagSegment.vue";
+import ItalicSegment from "./ItalicSegment.vue";
+import MentionSegment from "./MentionSegment.vue";
+import MonospaceSegment from "./MonospaceSegment.vue";
+import OrdinalSegment from "./OrdinalSegment.vue";
+import UnderlineSegment from "./UnderlineSegment.vue";
+import UrlSegment from "./UrlSegment.vue";
 
 const props = defineProps<{
-    entity?: T,
-    text: string
+  entity?: T;
+  text: string;
 }>();
 
-const emits = defineEmits<{
-    (e: "unsupported"): void
-}>()
+const emits = defineEmits<(e: "unsupported") => void>();
 
-
-function throwIsNotSupported()
-{
-    emits("unsupported");
-    return true;
+function throwIsNotSupported() {
+  emits("unsupported");
+  return true;
 }
 
-function isMentionEntity(entity: IMessageEntity): entity is IMessageEntityMention {
-    return entity.Type === 'Mention';
+function isMentionEntity(
+  entity: IMessageEntity,
+): entity is IMessageEntityMention {
+  return entity.Type === "Mention";
 }
 function isBoldEntity(entity: IMessageEntity): entity is IMessageEntity {
-    return entity.Type === 'Bold';
+  return entity.Type === "Bold";
 }
 function isItalicEntity(entity: IMessageEntity): entity is IMessageEntity {
-    return entity.Type === 'Italic';
+  return entity.Type === "Italic";
 }
 function isMonospaceEntity(entity: IMessageEntity): entity is IMessageEntity {
-    return entity.Type === 'Monospace';
+  return entity.Type === "Monospace";
 }
-function isUnderlineEntity(entity: IMessageEntity): entity is IMessageEntityUnderline {
-    return entity.Type === 'Underline';
+function isUnderlineEntity(
+  entity: IMessageEntity,
+): entity is IMessageEntityUnderline {
+  return entity.Type === "Underline";
 }
-function isHashtagEntity(entity: IMessageEntity): entity is IMessageEntityHashTag {
-    return entity.Type === 'Hashtag';
+function isHashtagEntity(
+  entity: IMessageEntity,
+): entity is IMessageEntityHashTag {
+  return entity.Type === "Hashtag";
 }
 function isOrdinalEntity(entity: IMessageEntity): entity is IMessageEntity {
-    return entity.Type === 'Ordinal';
+  return entity.Type === "Ordinal";
 }
 function isFractionEntity(entity: IMessageEntity): entity is IMessageEntity {
-    return entity.Type === 'Fraction';
+  return entity.Type === "Fraction";
 }
 function isUrlEntity(entity: IMessageEntity): entity is IMessageEntityUrl {
-    return entity.Type === 'Url';
+  return entity.Type === "Url";
 }
 </script>

@@ -1,4 +1,4 @@
-import { Subject, Subscription } from "rxjs";
+import { type Subject, Subscription } from "rxjs";
 
 export class DisposableBag {
   subscription = new Subscription();
@@ -45,7 +45,7 @@ export interface IDisposable {
 export class Disposable<T> implements IDisposable {
   #value: T;
   #onDestroy: (val: T) => Promise<void>;
-  disposed: boolean = false;
+  disposed = false;
 
   constructor(value: T, onDestroy: (val: T) => Promise<void>) {
     this.#value = value;

@@ -8,9 +8,8 @@
 
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-type PixelShape = 'square' | 'circle' | 'cross' | 'diamond';
-
+import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+type PixelShape = "square" | "circle" | "cross" | "diamond";
 
 class Pixel {
   private width: number;
@@ -51,7 +50,7 @@ class Pixel {
     y: number,
     color: string,
     speed: number,
-    delay: number
+    delay: number,
   ) {
     this.width = canvas.width;
     this.height = canvas.height;
@@ -67,7 +66,8 @@ class Pixel {
     this.sizeStep = Math.random() * 0.4;
     this.minSize = 0.5;
     this.maxSizeInteger = 2;
-    this.maxSize = Math.random() * (this.maxSizeInteger - this.minSize) + this.minSize;
+    this.maxSize =
+      Math.random() * (this.maxSizeInteger - this.minSize) + this.minSize;
 
     this.delay = delay;
     this.counter = 0;
@@ -77,13 +77,15 @@ class Pixel {
     this.isReverse = false;
     this.isShimmer = false;
 
-    // 🎨 Visual Effects
+    // Visual Effects
     this.alpha = 0.6 + Math.random() * 0.4;
-    this.shape = ['square', 'circle', 'cross', 'diamond'][Math.floor(Math.random() * 4)] as PixelShape;
+    this.shape = ["square", "circle", "cross", "diamond"][
+      Math.floor(Math.random() * 4)
+    ] as PixelShape;
     this.pulseOffset = Math.random() * Math.PI * 2;
     this.jitter = Math.random() < 0.2;
 
-    // ⚡ Flicker effect
+    // Flicker effect
     this.flickerTimer = Math.random() * 5000; // flicker interval
     this.flickerState = false;
   }
@@ -111,22 +113,29 @@ class Pixel {
     }
 
     this.ctx.save();
-    this.ctx.globalAlpha = this.alpha * (this.flickerState ? 0.5 + Math.random() * 0.5 : 1);
+    this.ctx.globalAlpha =
+      this.alpha * (this.flickerState ? 0.5 + Math.random() * 0.5 : 1);
     this.ctx.fillStyle = this.color;
 
     switch (this.shape) {
-      case 'circle':
+      case "circle":
         this.ctx.beginPath();
-        this.ctx.arc(px + drawSize / 2, py + drawSize / 2, drawSize / 2, 0, Math.PI * 2);
+        this.ctx.arc(
+          px + drawSize / 2,
+          py + drawSize / 2,
+          drawSize / 2,
+          0,
+          Math.PI * 2,
+        );
         this.ctx.fill();
         break;
 
-      case 'cross':
+      case "cross":
         this.ctx.fillRect(px + drawSize * 0.4, py, drawSize * 0.2, drawSize);
         this.ctx.fillRect(px, py + drawSize * 0.4, drawSize, drawSize * 0.2);
         break;
 
-      case 'diamond':
+      case "diamond":
         this.ctx.beginPath();
         this.ctx.moveTo(px + drawSize / 2, py);
         this.ctx.lineTo(px + drawSize, py + drawSize / 2);
@@ -135,8 +144,6 @@ class Pixel {
         this.ctx.closePath();
         this.ctx.fill();
         break;
-
-      case 'square':
       default:
         this.ctx.fillRect(px, py, drawSize, drawSize);
     }
@@ -182,110 +189,126 @@ class Pixel {
   }
 }
 interface Variant {
-  activeColor: string
-  gap: number
-  speed: number
-  colors: string
-  noFocus: boolean
+  activeColor: string;
+  gap: number;
+  speed: number;
+  colors: string;
+  noFocus: boolean;
 }
 
 const VARIANTS: Record<string, Variant> = {
   default: {
-    activeColor: '#ffffff',
+    activeColor: "#ffffff",
     gap: 18,
     speed: 40,
-    colors: '#0f172a,#1e293b,#64748b',
+    colors: "#0f172a,#1e293b,#64748b",
     noFocus: true,
   },
-}
+};
 
 const props = defineProps<{
-  variant?: string
-  gap?: number
-  speed?: number
-  colors?: string
-  noFocus?: boolean
-}>()
+  variant?: string;
+  gap?: number;
+  speed?: number;
+  colors?: string;
+  noFocus?: boolean;
+}>();
 
-const containerRef = ref<HTMLElement | null>(null)
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const pixelsRef = ref<Pixel[]>([])
-const animationRef = ref<number | null>(null)
-const timePreviousRef = ref<number>(performance.now())
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const containerRef = ref<HTMLElement | null>(null);
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const pixelsRef = ref<Pixel[]>([]);
+const animationRef = ref<number | null>(null);
+const timePreviousRef = ref<number>(performance.now());
+const reducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
-const variantCfg = computed(() => VARIANTS[props.variant ?? 'default'] || VARIANTS.default)
-const finalGap = computed(() => props.gap ?? variantCfg.value.gap)
-const finalSpeed = computed(() => props.speed ?? variantCfg.value.speed)
-const finalColors = computed(() => props.colors ?? variantCfg.value.colors)
-const finalNoFocus = computed(() => props.noFocus ?? variantCfg.value.noFocus)
+const variantCfg = computed(
+  () => VARIANTS[props.variant ?? "default"] || VARIANTS.default,
+);
+const finalGap = computed(() => props.gap ?? variantCfg.value.gap);
+const finalSpeed = computed(() => props.speed ?? variantCfg.value.speed);
+const finalColors = computed(() => props.colors ?? variantCfg.value.colors);
+const finalNoFocus = computed(() => props.noFocus ?? variantCfg.value.noFocus);
 
 const initPixels = () => {
-  if (!containerRef.value || !canvasRef.value) return
+  if (!containerRef.value || !canvasRef.value) return;
 
-  const rect = containerRef.value.getBoundingClientRect()
-  const width = Math.floor(rect.width)
-  const height = Math.floor(rect.height)
-  const ctx = canvasRef.value.getContext('2d')
-  if (!ctx) return
+  const rect = containerRef.value.getBoundingClientRect();
+  const width = Math.floor(rect.width);
+  const height = Math.floor(rect.height);
+  const ctx = canvasRef.value.getContext("2d");
+  if (!ctx) return;
 
-  canvasRef.value.width = width
-  canvasRef.value.height = height
+  canvasRef.value.width = width;
+  canvasRef.value.height = height;
 
-  const colorsArray = finalColors.value.split(',')
-  const pxs: Pixel[] = []
-  const gap = parseInt(String(finalGap.value), 10)
+  const colorsArray = finalColors.value.split(",");
+  const pxs: Pixel[] = [];
+  const gap = Number.parseInt(String(finalGap.value), 10);
 
   for (let x = 0; x < width; x += gap) {
     for (let y = 0; y < height; y += gap) {
-      const jitterX = (Math.random() - 0.5) * gap * 0.955
-      const jitterY = (Math.random() - 0.5) * gap * 0.76
-      const posX = x + jitterX
-      const posY = y + jitterY
-      const color = colorsArray[Math.floor(Math.random() * colorsArray.length)]
-      const delay = reducedMotion ? 0 : Math.sqrt(posX ** 2 + posY ** 2)
+      const jitterX = (Math.random() - 0.5) * gap * 0.955;
+      const jitterY = (Math.random() - 0.5) * gap * 0.76;
+      const posX = x + jitterX;
+      const posY = y + jitterY;
+      const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
+      const delay = reducedMotion ? 0 : Math.sqrt(posX ** 2 + posY ** 2);
 
-      pxs.push(new Pixel(canvasRef.value!, ctx, posX, posY, color, finalSpeed.value * 0.001, delay))
+      pxs.push(
+        new Pixel(
+          canvasRef.value ?? document.createElement("canvas"),
+          ctx,
+          posX,
+          posY,
+          color,
+          finalSpeed.value * 0.001,
+          delay,
+        ),
+      );
     }
   }
 
-  pixelsRef.value = pxs
-  handleAnimation('appear')
-}
+  pixelsRef.value = pxs;
+  handleAnimation("appear");
+};
 
 const doAnimate = (fnName: keyof Pixel) => {
-  animationRef.value = requestAnimationFrame(() => doAnimate(fnName))
+  animationRef.value = requestAnimationFrame(() => doAnimate(fnName));
 
-  const canvas = canvasRef.value
-  const ctx = canvas?.getContext('2d')
-  if (!canvas || !ctx) return
+  const canvas = canvasRef.value;
+  const ctx = canvas?.getContext("2d");
+  if (!canvas || !ctx) return;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  pixelsRef.value.forEach(pixel => pixel[fnName]())
-}
+  for (const pixel of pixelsRef.value) {
+    pixel[fnName]();
+  }
+};
 
 const handleAnimation = (name: keyof Pixel) => {
   if (animationRef.value !== null) {
-    cancelAnimationFrame(animationRef.value)
+    cancelAnimationFrame(animationRef.value);
   }
-  animationRef.value = requestAnimationFrame(() => doAnimate(name))
-}
+  animationRef.value = requestAnimationFrame(() => doAnimate(name));
+};
 
 onMounted(() => {
-  initPixels()
+  initPixels();
 
-  const observer = new ResizeObserver(initPixels)
+  const observer = new ResizeObserver(initPixels);
   if (containerRef.value) {
-    observer.observe(containerRef.value)
+    observer.observe(containerRef.value);
   }
 
   onBeforeUnmount(() => {
-    observer.disconnect()
-  })
-})
+    observer.disconnect();
+  });
+});
 </script>
 
 

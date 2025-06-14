@@ -1,27 +1,29 @@
-import { ref, watchEffect, onScopeDispose, Ref } from 'vue'
-import { liveQuery, Subscription } from 'dexie'
+import { ref, watchEffect, onScopeDispose, type Ref } from "vue";
+import { liveQuery, type Subscription } from "dexie";
 
-export function useLiveQuery<T>(queryFn: () => Promise<T> | T): Ref<T | undefined> {
-  const result = ref<T>()
+export function useLiveQuery<T>(
+  queryFn: () => Promise<T> | T,
+): Ref<T | undefined> {
+  const result = ref<T>();
 
-  let subscription: Subscription | undefined
+  let subscription: Subscription | undefined;
 
   watchEffect(() => {
-    const observable = liveQuery(queryFn)
-    subscription?.unsubscribe()
+    const observable = liveQuery(queryFn);
+    subscription?.unsubscribe();
     subscription = observable.subscribe({
       next: (value) => {
-        result.value = value
+        result.value = value;
       },
       error: (err) => {
-        console.error('liveQuery error', err)
-      }
-    })
-  })
+        console.error("liveQuery error", err);
+      },
+    });
+  });
 
   onScopeDispose(() => {
-    subscription?.unsubscribe()
-  })
+    subscription?.unsubscribe();
+  });
 
-  return result
+  return result;
 }

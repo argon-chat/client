@@ -4,17 +4,14 @@
     }">{{ props.text }}</span>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntityUnderline">
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps<{
-    entity: T,
-    text: string
+  entity: T;
+  text: string;
 }>();
 
-
-const colour = computed(() => 
-    props.entity.Colour == 0 ? 
-    'decoration-blue-600' : 
-    ``);
-
+const colour = computed(() =>
+  props.entity.Colour === 0 ? "decoration-blue-600" : "",
+);
 </script>

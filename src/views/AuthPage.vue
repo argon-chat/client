@@ -1,44 +1,46 @@
 <script setup lang="ts">
-import PixelCard from '@/components/PixelCard.vue';
-import UserAuthForm from '@/components/UserAuthForm.vue'
-import router from '@/router';
-import { useAuthStore } from '@/store/authStore';
-import { onMounted } from 'vue';
-import { useLocale } from '@/store/localeStore';
-import { useConfig } from '@/store/remoteConfig';
+import PixelCard from "@/components/PixelCard.vue";
+import UserAuthForm from "@/components/UserAuthForm.vue";
+import router from "@/router";
+import { useAuthStore } from "@/store/authStore";
+import { onMounted } from "vue";
+import { useLocale } from "@/store/localeStore";
+import { useConfig } from "@/store/remoteConfig";
 
 const { t } = useLocale();
 const cfg = useConfig();
 
 const quotes = [
-    { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
-    { text: "А клыки нам даны, чтобы ... кору деревьев отгрызать?", author: "Miniature" },
-    { text: "СЫН БЛЯДИ КОНЧЕННЫЙ УЕБОК Я ПО НОРМАЛЬНОМУ СПРОСИЛ БЛЯТЬ", author: "Беляш" },
-    { text: "Блядь, ёбанный Юки", author: "Мурзилка" },
-    { text: "Ненавижу блять солнце", author: "Юки" }
-
-
+  { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
+  {
+    text: "А клыки нам даны, чтобы ... кору деревьев отгрызать?",
+    author: "Miniature",
+  },
+  {
+    text: "СЫН БЛЯДИ КОНЧЕННЫЙ УЕБОК Я ПО НОРМАЛЬНОМУ СПРОСИЛ БЛЯТЬ",
+    author: "Беляш",
+  },
+  { text: "Блядь, ёбанный Юки", author: "Мурзилка" },
+  { text: "Ненавижу блять солнце", author: "Юки" },
 ];
 const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 const authStore = useAuthStore();
 onMounted(() => {
-    if (authStore.isAuthenticated) {
-        router.push({ path: "/master.pg" });
-        return;
-    }
+  if (authStore.isAuthenticated) {
+    router.push({ path: "/master.pg" });
+    return;
+  }
 });
 
-
 const changeEndpoint = () => {
-    if (cfg.isDev) {
-        localStorage.setItem("api_endpoint", "live");
-        window.location.reload();
-    } else {
-        localStorage.setItem("api_endpoint", "local");
-        window.location.reload();
-    }
-}
-
+  if (cfg.isDev) {
+    localStorage.setItem("api_endpoint", "live");
+    window.location.reload();
+  } else {
+    localStorage.setItem("api_endpoint", "local");
+    window.location.reload();
+  }
+};
 </script>
 
 <template>

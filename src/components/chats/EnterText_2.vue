@@ -45,60 +45,64 @@
 
 <script setup lang="ts">
 import {
-    LexicalComposer,
-    LexicalContentEditable,
-    LexicalRichTextPlugin,
-    LexicalHistoryPlugin,
-    LexicalOnChangePlugin,
-    LexicalPlainTextPlugin
-} from 'lexical-vue';
-import EmojiPicker, { EmojiExt } from 'vue3-emoji-picker';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { SmileIcon, SendHorizonalIcon, X } from 'lucide-vue-next';
-import { useApi } from '@/store/apiStore';
-import { usePoolStore, MentionUser } from '@/store/poolStore';
+  LexicalComposer,
+  LexicalContentEditable,
+  LexicalRichTextPlugin,
+  LexicalHistoryPlugin,
+  LexicalOnChangePlugin,
+  LexicalPlainTextPlugin,
+} from "lexical-vue";
+import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SmileIcon, SendHorizonalIcon, X } from "lucide-vue-next";
+import { useApi } from "@/store/apiStore";
+import { usePoolStore, type MentionUser } from "@/store/poolStore";
 
 const props = defineProps<{ replyTo: IArgonMessageDto | null }>();
 const emit = defineEmits<{
-    (e: 'clear-reply'): void,
-    (e: 'send', html: string, rawText: string): void;
+  (e: "clear-reply"): void;
+  (e: "send", html: string, rawText: string): void;
 }>();
 
 const pool = usePoolStore();
 const api = useApi();
 
 const editorConfig = {
-    namespace: 'chat-editor',
-    editable: true,
-    theme: {},
-    onError: (e: Error) => console.error(e),
+  namespace: "chat-editor",
+  editable: true,
+  theme: {},
+  onError: (e: Error) => console.error(e),
 };
 
 const mentionQueryFn = async (query: string): Promise<MentionUser[]> => {
-    if (!query) return [];
-    return await pool.searchMentions(query);
+  if (!query) return [];
+  return await pool.searchMentions(query);
 };
 
 const onMentionSelect = (user: MentionUser) => {
-    return {
-        value: `@${user.displayName}`,
-        data: { userId: user.id },
-    };
+  return {
+    value: `@${user.displayName}`,
+    data: { userId: user.id },
+  };
 };
 
 const renderMentionItem = (user: MentionUser) => {
-    return `@${user.displayName}`;
+  return `@${user.displayName}`;
 };
 
 function onEmojiClick(emoji: EmojiExt) {
-    const event = new CustomEvent('insert-emoji', { detail: emoji.i });
-    window.dispatchEvent(event);
+  const event = new CustomEvent("insert-emoji", { detail: emoji.i });
+  window.dispatchEvent(event);
 }
 
 async function handleSend() {
-    // TODO: реализовать парс текста из Lexical (html + plainText + mentions) и вызвать emit('send', html, text);
-    emit('send', '', ''); // заглушка
+  // TODO: реализовать парс текста из Lexical (html + plainText + mentions) и вызвать emit('send', html, text);
+  emit("send", "", ""); // заглушка
 }
 </script>
 

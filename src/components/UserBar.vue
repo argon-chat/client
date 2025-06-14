@@ -25,13 +25,12 @@
 import { useMe } from "@/store/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useWindow } from "@/store/windowStore";
-import { Settings } from 'lucide-vue-next';
+import { Settings } from "lucide-vue-next";
 import { useLocale } from "@/store/localeStore";
 
 const { t } = useLocale();
 const windows = useWindow();
 const me = useMe();
-
 </script>
 
 <style scoped>

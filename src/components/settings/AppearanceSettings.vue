@@ -45,36 +45,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Input } from '@/components/ui/input'
-import ArgonAvatar from '../ArgonAvatar.vue';
-import { useMe } from '@/store/meStore';
-import { useToast } from '@/components/ui/toast/use-toast'
+import { ref } from "vue";
+import { Input } from "@/components/ui/input";
+import ArgonAvatar from "../ArgonAvatar.vue";
+import { useMe } from "@/store/meStore";
+import { useToast } from "@/components/ui/toast/use-toast";
 const me = useMe();
 const toast = useToast();
 
-
 const user = ref({
-    avatar: 'https://placehold.co/100x100',
-    username: 'User123',
-    displayName: 'Display Name',
-    email: 'user@example.com',
-    password: '',
-    phoneNumber: '+1234567890',
-    otpEnabled: false
+  avatar: "https://placehold.co/100x100",
+  username: "User123",
+  displayName: "Display Name",
+  email: "user@example.com",
+  password: "",
+  phoneNumber: "+1234567890",
+  otpEnabled: false,
 });
 
 const toggleOTP = () => {
-    user.value.otpEnabled = !user.value.otpEnabled;
-    alert(`OTP has been ${user.value.otpEnabled ? 'enabled' : 'disabled'}.`);
+  user.value.otpEnabled = !user.value.otpEnabled;
+  alert(`OTP has been ${user.value.otpEnabled ? "enabled" : "disabled"}.`);
 };
 
 const deleteAccount = () => {
-    toast.toast({
-        title: "Охуел?",
-        variant: "destructive",
-        description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу"
-    });
+  toast.toast({
+    title: "Охуел?",
+    variant: "destructive",
+    description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу",
+  });
 };
 </script>
 

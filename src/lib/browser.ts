@@ -1,10 +1,8 @@
 import { logger } from "./logger";
 
 if (!("argon" in window)) {
-  (window as any)["argon"] = {
-    dsn: function () {
-      return "";
-    },
+  (window as any).argon = {
+    dsn: () => "",
     get isArgonHost(): boolean {
       return false;
     },
@@ -20,7 +18,7 @@ class NativeBus implements INativeEventBus {
       this.handlers.set(key, new Set());
     }
 
-    const set = this.handlers.get(key)!;
+    const set = this.handlers.get(key) ?? new Set();
     set.add(fn as AnyHandler);
 
     return () => {
@@ -49,13 +47,13 @@ class NativeBus implements INativeEventBus {
 const bus = new NativeBus();
 
 if (!("native" in window)) {
-  (window as any)["native"] = new Proxy(
+  (window as any).native = new Proxy(
     {},
     {
       get: (_, __) => {
         throw `[${String(__)}] Platform api is not supported in browser`;
       },
-    }
+    },
   ) as INative;
 }
 

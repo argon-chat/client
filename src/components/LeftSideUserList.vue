@@ -19,20 +19,19 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
-import { usePoolStore } from '@/store/poolStore';
-import UserInListSideElement from './UserInListSideElement.vue';
+import { useLocale } from "@/store/localeStore";
+import { usePoolStore } from "@/store/poolStore";
+import UserInListSideElement from "./UserInListSideElement.vue";
 
 const dataPool = usePoolStore();
 const { t } = useLocale();
 const formatColour = (argb: number) => {
-    const a = ((argb >> 24) & 0xff) / 255;
-    const r = (argb >> 16) & 0xff;
-    const g = (argb >> 8) & 0xff;
-    const b = argb & 0xff;
-    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+  const a = ((argb >> 24) & 0xff) / 255;
+  const r = (argb >> 16) & 0xff;
+  const g = (argb >> 8) & 0xff;
+  const b = argb & 0xff;
+  return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
 };
-
 </script>
 
 <style lang="css" scoped>

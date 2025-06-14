@@ -35,7 +35,7 @@ export const ArgonEntitlementFlags = {
   ManageEvents: 1n << 53n,
   ManageBehaviour: 1n << 54n,
   ManageServer: 1n << 55n,
-  Administrator: 1n << 64n
+  Administrator: 1n << 64n,
 } as const;
 
 export type ArgonEntitlementFlag = keyof typeof ArgonEntitlementFlags;
@@ -50,7 +50,9 @@ export interface ArgonEntitlementGroup {
   flags: ArgonEntitlementFlagDefinition[];
 }
 
-export function extractEntitlements(entitlements: bigint): ArgonEntitlementFlag[] {
+export function extractEntitlements(
+  entitlements: bigint,
+): ArgonEntitlementFlag[] {
   const result: ArgonEntitlementFlag[] = [];
 
   for (const [name, value] of Object.entries(ArgonEntitlementFlags)) {
@@ -62,7 +64,9 @@ export function extractEntitlements(entitlements: bigint): ArgonEntitlementFlag[
   return result;
 }
 
-export function extractEntitlementStrict(entitlements: bigint): ArgonEntitlementFlag {
+export function extractEntitlementStrict(
+  entitlements: bigint,
+): ArgonEntitlementFlag {
   for (const [name, value] of Object.entries(ArgonEntitlementFlags)) {
     if ((entitlements & value) !== 0n) {
       return name as ArgonEntitlementFlag;
@@ -75,57 +79,144 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
   {
     i18nKey: "permissions.groups.basic",
     flags: [
-      { value: ArgonEntitlementFlags.ViewChannel, i18nKey: "permissions.flags.ViewChannel" },
-      { value: ArgonEntitlementFlags.ReadHistory, i18nKey: "permissions.flags.ReadHistory" }
-    ]
+      {
+        value: ArgonEntitlementFlags.ViewChannel,
+        i18nKey: "permissions.flags.ViewChannel",
+      },
+      {
+        value: ArgonEntitlementFlags.ReadHistory,
+        i18nKey: "permissions.flags.ReadHistory",
+      },
+    ],
   },
   {
     i18nKey: "permissions.groups.messaging",
     flags: [
-      { value: ArgonEntitlementFlags.SendMessages, i18nKey: "permissions.flags.SendMessages" },
-      { value: ArgonEntitlementFlags.AttachFiles, i18nKey: "permissions.flags.AttachFiles" },
-      { value: ArgonEntitlementFlags.AddReactions, i18nKey: "permissions.flags.AddReactions" },
-      { value: ArgonEntitlementFlags.AnyMentions, i18nKey: "permissions.flags.AnyMentions" },
-      { value: ArgonEntitlementFlags.MentionEveryone, i18nKey: "permissions.flags.MentionEveryone" },
-      { value: ArgonEntitlementFlags.ExternalEmoji, i18nKey: "permissions.flags.ExternalEmoji" },
-      { value: ArgonEntitlementFlags.ExternalStickers, i18nKey: "permissions.flags.ExternalStickers" },
-      { value: ArgonEntitlementFlags.UseCommands, i18nKey: "permissions.flags.UseCommands" },
-      { value: ArgonEntitlementFlags.PostEmbeddedLinks, i18nKey: "permissions.flags.PostEmbeddedLinks" },
-      { value: ArgonEntitlementFlags.SendVoice, i18nKey: "permissions.flags.SendVoice" }
-    ]
+      {
+        value: ArgonEntitlementFlags.SendMessages,
+        i18nKey: "permissions.flags.SendMessages",
+      },
+      {
+        value: ArgonEntitlementFlags.AttachFiles,
+        i18nKey: "permissions.flags.AttachFiles",
+      },
+      {
+        value: ArgonEntitlementFlags.AddReactions,
+        i18nKey: "permissions.flags.AddReactions",
+      },
+      {
+        value: ArgonEntitlementFlags.AnyMentions,
+        i18nKey: "permissions.flags.AnyMentions",
+      },
+      {
+        value: ArgonEntitlementFlags.MentionEveryone,
+        i18nKey: "permissions.flags.MentionEveryone",
+      },
+      {
+        value: ArgonEntitlementFlags.ExternalEmoji,
+        i18nKey: "permissions.flags.ExternalEmoji",
+      },
+      {
+        value: ArgonEntitlementFlags.ExternalStickers,
+        i18nKey: "permissions.flags.ExternalStickers",
+      },
+      {
+        value: ArgonEntitlementFlags.UseCommands,
+        i18nKey: "permissions.flags.UseCommands",
+      },
+      {
+        value: ArgonEntitlementFlags.PostEmbeddedLinks,
+        i18nKey: "permissions.flags.PostEmbeddedLinks",
+      },
+      {
+        value: ArgonEntitlementFlags.SendVoice,
+        i18nKey: "permissions.flags.SendVoice",
+      },
+    ],
   },
   {
     i18nKey: "permissions.groups.voice",
     flags: [
-      { value: ArgonEntitlementFlags.Connect, i18nKey: "permissions.flags.Connect" },
-      { value: ArgonEntitlementFlags.Speak, i18nKey: "permissions.flags.Speak" },
-      { value: ArgonEntitlementFlags.Video, i18nKey: "permissions.flags.Video" },
-      { value: ArgonEntitlementFlags.Stream, i18nKey: "permissions.flags.Stream" },
-      { value: ArgonEntitlementFlags.UseASIO, i18nKey: "permissions.flags.UseASIO" },
-      { value: ArgonEntitlementFlags.AdditionalStreams, i18nKey: "permissions.flags.AdditionalStreams" }
-    ]
+      {
+        value: ArgonEntitlementFlags.Connect,
+        i18nKey: "permissions.flags.Connect",
+      },
+      {
+        value: ArgonEntitlementFlags.Speak,
+        i18nKey: "permissions.flags.Speak",
+      },
+      {
+        value: ArgonEntitlementFlags.Video,
+        i18nKey: "permissions.flags.Video",
+      },
+      {
+        value: ArgonEntitlementFlags.Stream,
+        i18nKey: "permissions.flags.Stream",
+      },
+      {
+        value: ArgonEntitlementFlags.UseASIO,
+        i18nKey: "permissions.flags.UseASIO",
+      },
+      {
+        value: ArgonEntitlementFlags.AdditionalStreams,
+        i18nKey: "permissions.flags.AdditionalStreams",
+      },
+    ],
   },
   {
     i18nKey: "permissions.groups.moderation",
     flags: [
-      { value: ArgonEntitlementFlags.DisconnectMember, i18nKey: "permissions.flags.DisconnectMember" },
-      { value: ArgonEntitlementFlags.MoveMember, i18nKey: "permissions.flags.MoveMember" },
-      { value: ArgonEntitlementFlags.MuteMember, i18nKey: "permissions.flags.MuteMember" },
-      { value: ArgonEntitlementFlags.KickMember, i18nKey: "permissions.flags.KickMember" },
-      { value: ArgonEntitlementFlags.BanMember, i18nKey: "permissions.flags.BanMember" }
-    ]
+      {
+        value: ArgonEntitlementFlags.DisconnectMember,
+        i18nKey: "permissions.flags.DisconnectMember",
+      },
+      {
+        value: ArgonEntitlementFlags.MoveMember,
+        i18nKey: "permissions.flags.MoveMember",
+      },
+      {
+        value: ArgonEntitlementFlags.MuteMember,
+        i18nKey: "permissions.flags.MuteMember",
+      },
+      {
+        value: ArgonEntitlementFlags.KickMember,
+        i18nKey: "permissions.flags.KickMember",
+      },
+      {
+        value: ArgonEntitlementFlags.BanMember,
+        i18nKey: "permissions.flags.BanMember",
+      },
+    ],
   },
   {
     i18nKey: "permissions.groups.management",
     flags: [
-      { value: ArgonEntitlementFlags.ManageChannels, i18nKey: "permissions.flags.ManageChannels" },
-      { value: ArgonEntitlementFlags.ManageArchetype, i18nKey: "permissions.flags.ManageArchetype" },
-      { value: ArgonEntitlementFlags.ManageBots, i18nKey: "permissions.flags.ManageBots" },
-      { value: ArgonEntitlementFlags.ManageEvents, i18nKey: "permissions.flags.ManageEvents" },
-      { value: ArgonEntitlementFlags.ManageBehaviour, i18nKey: "permissions.flags.ManageBehaviour" },
-      { value: ArgonEntitlementFlags.ManageServer, i18nKey: "permissions.flags.ManageServer" }
-    ]
-  }
+      {
+        value: ArgonEntitlementFlags.ManageChannels,
+        i18nKey: "permissions.flags.ManageChannels",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageArchetype,
+        i18nKey: "permissions.flags.ManageArchetype",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageBots,
+        i18nKey: "permissions.flags.ManageBots",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageEvents,
+        i18nKey: "permissions.flags.ManageEvents",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageBehaviour,
+        i18nKey: "permissions.flags.ManageBehaviour",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageServer,
+        i18nKey: "permissions.flags.ManageServer",
+      },
+    ],
+  },
 ];
 
-(window as any)["extractEntitlements"] = extractEntitlements;
+(window as any).extractEntitlements = extractEntitlements;

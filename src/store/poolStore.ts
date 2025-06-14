@@ -1,19 +1,26 @@
-import { defineStore } from "pinia";
-import { computed, onUnmounted, Reactive, reactive, Ref, ref } from "vue";
-import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
-import { useApi } from "./apiStore";
-import { firstValueFrom, from, Subject } from "rxjs";
-import { liveQuery, Observable } from "dexie";
-import { useObservable } from "@vueuse/rxjs";
-import { db, RealtimeUser } from "./db/dexie";
-import { computedAsync } from "@vueuse/core";
-import { useMe } from "./meStore";
-import { watch } from "vue";
 import {
-  ArgonEntitlementFlag,
+  type ArgonEntitlementFlag,
   extractEntitlements,
 } from "@/lib/rbac/ArgonEntitlement";
+import { computedAsync } from "@vueuse/core";
+import { useObservable } from "@vueuse/rxjs";
+import { liveQuery } from "dexie";
+import { defineStore } from "pinia";
+import { Subject, firstValueFrom, from } from "rxjs";
+import {
+  type Reactive,
+  type Ref,
+  computed,
+  onUnmounted,
+  reactive,
+  ref,
+} from "vue";
+import { watch } from "vue";
+import { useApi } from "./apiStore";
+import { useBus } from "./busStore";
+import { type RealtimeUser, db } from "./db/dexie";
+import { useMe } from "./meStore";
 
 export interface MentionUser {
   id: string;
@@ -45,35 +52,29 @@ export const usePoolStore = defineStore("data-pool", () => {
   const onChannelChanged = new Subject<Guid | null>();
 
   watch(selectedTextChannel, (newChannelId, oldChannelId) => {
-    if (newChannelId != oldChannelId) onChannelChanged.next(newChannelId);
+    if (newChannelId !== oldChannelId) onChannelChanged.next(newChannelId);
   });
 
   const realtimeChannelUsers = reactive(
-    new Map<Guid, Reactive<IRealtimeChannelWithUser>>()
+    new Map<Guid, Reactive<IRealtimeChannelWithUser>>(),
   );
 
   const allServers = computed(() => {
     return useObservable(
-      from(liveQuery(async () => await db.servers.toArray()))
+      from(liveQuery(async () => await db.servers.toArray())),
     );
   });
 
-  const getChannel = async function (channelId: Guid) {
-    return await db.channels.where("Id").equals(channelId).first();
-  };
+  const getChannel = async (channelId: Guid) =>
+    await db.channels.where("Id").equals(channelId).first();
 
-  const getServer = async function (serverId: Guid) {
-    return await db.servers.where("Id").equals(serverId).first();
-  };
+  const getServer = async (serverId: Guid) =>
+    await db.servers.where("Id").equals(serverId).first();
 
-  const getUser = async function (userId: Guid) {
-    return await db.users.where("UserId").equals(userId).first();
-  };
+  const getUser = async (userId: Guid) =>
+    await db.users.where("UserId").equals(userId).first();
 
-  const getUsersByServerMemberIds = (
-    serverId: Guid,
-    memberIds: Guid[]
-  ) => {
+  const getUsersByServerMemberIds = (serverId: Guid, memberIds: Guid[]) => {
     return liveQuery(async () => {
       const members = await db.members
         .where("[MemberId+ServerId]")
@@ -87,7 +88,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const getUserReactive = (userId: Guid) => {
     const observable = liveQuery(
-      async () => await db.users.where("UserId").equals(userId).first()
+      async () => await db.users.where("UserId").equals(userId).first(),
     );
     return useObservable(from(observable));
   };
@@ -108,7 +109,7 @@ export const usePoolStore = defineStore("data-pool", () => {
           id: u.UserId,
           displayName: u.DisplayName,
           username: u.Username,
-        }))
+        })),
       );
   }
 
@@ -125,22 +126,13 @@ export const usePoolStore = defineStore("data-pool", () => {
       .toArray();
   }
 
-  const getBatchUser = async function (userIds: Guid[]) {
-    return await db.users.bulkGet(userIds);
-  };
-  const getBatchUsersExcept = async function (excludedUserIds: Guid[]) {
-    return await db.users
-      .filter((user) => !excludedUserIds.includes(user.UserId))
-      .toArray();
-  };
-
   const refreshAllArchetypesForServer = async (serverId: Guid) => {
     const serverArchetypes =
       await api.serverInteraction.GetServerArchetypes(serverId);
 
     logger.log(
       `Loaded '${serverArchetypes.length}' archetypes`,
-      serverArchetypes
+      serverArchetypes,
     );
 
     for (const arch of serverArchetypes) {
@@ -154,7 +146,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     logger.log(
       `Loaded '${serverArchetypes.length}' archetypes`,
-      serverArchetypes
+      serverArchetypes,
     );
 
     for (const arch of serverArchetypes) {
@@ -194,7 +186,7 @@ export const usePoolStore = defineStore("data-pool", () => {
           .toArray();
 
         const flags = archetypes.flatMap((x) =>
-          extractEntitlements(BigInt(x.Entitlement))
+          extractEntitlements(BigInt(x.Entitlement)),
         );
 
         return new Set(flags);
@@ -207,7 +199,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         },
       });
     },
-    { immediate: true }
+    { immediate: true },
   );
 
   onUnmounted(() => {
@@ -219,64 +211,72 @@ export const usePoolStore = defineStore("data-pool", () => {
       getMePermissions.value.has(flag);
   });
 
-  const indicateSpeaking = async function (
+  const indicateSpeaking = async (
     channelId: Guid,
     userId: Guid,
-    isSpeaking: boolean
-  ) {
+    isSpeaking: boolean,
+  ) => {
     if (realtimeChannelUsers.has(channelId)) {
-      if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
-        realtimeChannelUsers.get(channelId)!.Users.get(userId)!.isSpeaking =
-          isSpeaking;
+      if (realtimeChannelUsers.get(channelId)?.Users.has(userId)) {
+        const user = realtimeChannelUsers.get(channelId)?.Users.get(userId);
+        if (user) {
+          user.isSpeaking = isSpeaking;
+        }
       } else {
         logger.warn(
           "Detected speaking user, but in realtime channel user not found, maybe bug",
           channelId,
-          userId
+          userId,
         );
       }
     } else {
       logger.warn(
         "Detected speaking user, but in realtime channel not found, maybe bug",
         channelId,
-        userId
+        userId,
       );
     }
   };
 
-  const setProperty = async function (
+  const setProperty = async (
     channelId: Guid,
     userId: Guid,
-    action: (user: IRealtimeChannelUserWithData) => void
-  ) {
+    action: (user: IRealtimeChannelUserWithData) => void,
+  ) => {
     if (realtimeChannelUsers.has(channelId)) {
-      if (realtimeChannelUsers.get(channelId)!.Users.has(userId)) {
-        action(realtimeChannelUsers.get(channelId)!.Users.get(userId) as any);
+      if (realtimeChannelUsers.get(channelId)?.Users.has(userId)) {
+        const user = realtimeChannelUsers.get(channelId)?.Users.get(userId);
+        if (user) {
+          action(user as any);
+        }
       } else {
         logger.warn(
           "Detected speaking user, but in realtime channel user not found, maybe bug",
           channelId,
-          userId
+          userId,
         );
       }
     } else {
       logger.warn(
         "Detected speaking user, but in realtime channel not found, maybe bug",
         channelId,
-        userId
+        userId,
       );
     }
   };
 
   const allServerAsync = computed(() =>
     firstValueFrom<IServerDto[]>(
-      from(liveQuery(async () => await db.servers.toArray()))
-    )
+      from(liveQuery(async () => await db.servers.toArray())),
+    ),
   );
 
   const getSelectedServer = computedAsync(async () => {
     if (!selectedServer.value) return null;
-    return await db.servers.where("Id").equals(selectedServer.value!).first()!;
+    return (
+      (await db.servers.where("Id").equals(selectedServer.value).first()) ||
+      null
+    );
   });
 
   const activeServerChannels = computed(() => {
@@ -286,15 +286,15 @@ export const usePoolStore = defineStore("data-pool", () => {
           if (!selectedServer.value) return [];
           return db.channels
             .where("ServerId")
-            .equals(selectedServer.value!)
+            .equals(selectedServer.value)
             .toArray();
-        })
-      )
+        }),
+      ),
     );
   });
 
   const generateBadgesByArchetypes = async (
-    archetypes: IServerMemberArchetypeDto[]
+    archetypes: IServerMemberArchetypeDto[],
   ): Promise<string[]> => {
     if (!archetypes || archetypes.length === 0) return [];
 
@@ -303,7 +303,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     const results = await db.archetypes
       .where("Id")
       .anyOf(ids)
-      .filter((q) => q.IsHidden && q.IsLocked && q.Name == "owner")
+      .filter((q) => q.IsHidden && q.IsLocked && q.Name === "owner")
       .toArray();
 
     return results.map((x) => x.Name);
@@ -319,16 +319,16 @@ export const usePoolStore = defineStore("data-pool", () => {
             .first();
           if (!server) return [];
           const users = await db.users.bulkGet(
-            server.Users.map((x) => x.UserId)
+            server.Users.map((x) => x.UserId),
           );
           const members = await db.members.bulkGet(
-            server.Users.map((x) => x.MemberId)
+            server.Users.map((x) => x.MemberId),
           );
           const archetypes = await db.archetypes.bulkGet(
             members
               .filter((x) => !!x)
               .flatMap((x) => x?.Archetypes)
-              .map((x) => x!.ArchetypeId)
+              .map((x) => x?.ArchetypeId),
           );
 
           return users
@@ -345,17 +345,19 @@ export const usePoolStore = defineStore("data-pool", () => {
               return a.DisplayName.localeCompare(b.DisplayName);
             })
             .map((q) => {
-              const meb = members.find((w) => w?.UserId == q.UserId);
+              const meb = members.find((w) => w?.UserId === q.UserId);
 
               if (meb)
                 q.archetypes = archetypes.filter((we) =>
-                  new Set(meb.Archetypes.map((x) => x.ArchetypeId)).has(we!.Id)
+                  new Set(meb.Archetypes.map((x) => x.ArchetypeId)).has(
+                    we?.Id as string,
+                  ),
                 ) as IArchetypeDto[];
 
               return q;
             });
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -371,10 +373,10 @@ export const usePoolStore = defineStore("data-pool", () => {
           if (!server) return [];
 
           const users = await db.users.bulkGet(
-            server.Users.map((x) => x.UserId)
+            server.Users.map((x) => x.UserId),
           );
           const members = await db.members.bulkGet(
-            server.Users.map((x) => x.MemberId)
+            server.Users.map((x) => x.MemberId),
           );
 
           const allArchetypeIds = members
@@ -392,7 +394,7 @@ export const usePoolStore = defineStore("data-pool", () => {
               const member = members.find((m) => m?.UserId === user.UserId);
               if (member) {
                 const userArchetypes = archetypes.filter((a) =>
-                  member.Archetypes.some((x) => x.ArchetypeId === a?.Id)
+                  member.Archetypes.some((x) => x.ArchetypeId === a?.Id),
                 ) as IArchetypeDto[];
                 user.archetypes = userArchetypes;
               }
@@ -430,7 +432,7 @@ export const usePoolStore = defineStore("data-pool", () => {
               if (!groupMap.has(targetGroup.Id)) {
                 groupMap.set(targetGroup.Id, []);
               }
-              groupMap.get(targetGroup.Id)!.push(user);
+              groupMap.get(targetGroup.Id)?.push(user);
             } else {
               ungroupedUsers.push(user);
             }
@@ -470,36 +472,36 @@ export const usePoolStore = defineStore("data-pool", () => {
           }
 
           return result;
-        })
-      )
+        }),
+      ),
     );
   });
 
-  const trackServer = async function (server: IServerDto) {
+  const trackServer = async (server: IServerDto) => {
     await db.servers.put(server, server.Id);
   };
 
-  const trackArchetype = async function (archetype: IArchetypeDto) {
+  const trackArchetype = async (archetype: IArchetypeDto) => {
     await db.archetypes.put(archetype, archetype.Id);
   };
 
-  const trackMember = async function (member: IServerMemberDto) {
+  const trackMember = async (member: IServerMemberDto) => {
     await db.members.put(member, member.MemberId);
   };
 
-  const trackUser = async function (
+  const trackUser = async (
     user: IUserDto,
     extendedStatus?: UserStatus,
-    extendedActivity?: IUserActivityPresence
-  ) {
+    extendedActivity?: IUserActivityPresence,
+  ) => {
     const exist = await db.users.get(user.UserId);
     if (exist) {
       await db.users.update(exist.UserId, {
         ...user,
-        status: !!extendedStatus ? extendedStatus : exist.status,
+        status: extendedStatus ? extendedStatus : exist.status,
         activity:
           extendedActivity ??
-          ((!!extendedStatus ? extendedStatus : exist.status == "Offline")
+          ((extendedStatus ? extendedStatus : exist.status === "Offline")
             ? undefined
             : exist.activity),
       });
@@ -511,20 +513,20 @@ export const usePoolStore = defineStore("data-pool", () => {
         status: extendedStatus ?? "Offline",
         activity: extendedActivity ?? undefined,
       },
-      user.UserId
+      user.UserId,
     );
   };
 
-  const trackChannel = async function (
+  const trackChannel = async (
     channel: IChannel,
-    users?: Map<Guid, IRealtimeChannelUserWithData>
-  ) {
+    users?: Map<Guid, IRealtimeChannelUserWithData>,
+  ) => {
     realtimeChannelUsers.set(
       channel.Id,
       reactive({
         Channel: channel,
         Users: users ?? new Map<Guid, IRealtimeChannelUserWithData>(),
-      })
+      }),
     );
     const exist = await db.channels.get(channel.Id);
 
@@ -540,7 +542,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const onNewMessageReceived: Subject<IArgonMessageDto> =
     new Subject<IArgonMessageDto>();
 
-  const subscribeToEvents = function () {
+  const subscribeToEvents = () => {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
       const c = await db.servers.get(x.serverId);
 
@@ -570,7 +572,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       const server = await db.servers.get(x.serverId);
       if (server) {
         server.Channels = server.Channels.filter(
-          (channel) => channel.Id !== channelId
+          (channel) => channel.Id !== channelId,
         );
         await db.servers.put(server);
       }
@@ -591,14 +593,14 @@ export const usePoolStore = defineStore("data-pool", () => {
 
           if (!e)
             throw new Error(
-              " realtimeChannelUsers.get(x.channelId) return null"
+              " realtimeChannelUsers.get(x.channelId) return null",
             );
 
           if (e.Users.has(x.userId)) {
             e.Users.delete(x.userId);
           }
         }
-      }
+      },
     );
 
     bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", async (x) => {
@@ -611,10 +613,10 @@ export const usePoolStore = defineStore("data-pool", () => {
       let user = await db.users.get(x.userId);
       if (!user) {
         trackUser(
-          await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+          await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
         );
-        user = await db.users.get(x.userId)!;
-        if (!user) throw new Error("await db.users.get(x.userId)! return null");
+        user = await db.users.get(x.userId);
+        if (!user) throw new Error("await db.users.get(x.userId) return null");
       }
 
       if (realtimeChannelUsers.has(x.channelId)) {
@@ -626,15 +628,19 @@ export const usePoolStore = defineStore("data-pool", () => {
         e.Users.set(x.userId, {
           State: 0,
           UserId: x.userId,
-          User: user!,
-          isSpeaking: false,
-          isMuted: false,
-          isScreenShare: false,
-          volume: [100],
+          User: user,
+          // @ts-expect-error Пошел нахуй
+          isSpeaking: ref(false),
+          // @ts-expect-error Пошел нахуй
+          isMuted: ref(false),
+          // @ts-expect-error Пошел нахуй
+          isScreenShare: ref(false),
+          // @ts-expect-error Пошел нахуй
+          volume: ref([100]),
         });
       } else
         logger.error(
-          "realtime channel not contains received from JoinedToChannelUser channel, maybe bug"
+          "realtime channel not contains received from JoinedToChannelUser channel, maybe bug",
         );
     });
 
@@ -643,7 +649,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       if (!s) {
         logger.error(
-          "bug, JoinToServerUser request cannot get server assigned, missed cache?"
+          "bug, JoinToServerUser request cannot get server assigned, missed cache?",
         );
         return;
       }
@@ -653,7 +659,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       if (!existsUser) {
         const user = await api.serverInteraction.GetMember(
           x.serverId,
-          x.userId
+          x.userId,
         );
         s.Users.push(user.Member);
         await db.servers.put(s);
@@ -661,14 +667,14 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
     });
 
-    bus.onServerEvent<ChannelModified>("ChannelModified", (x) => {
+    bus.onServerEvent<ChannelModified>("ChannelModified", () => {
       // TODO
       //trackChannel({ Channel: x., Users: [] });
     });
 
     bus.onServerEvent<UserUpdated>("UserUpdated", (x) => {
       trackUser(x.dto);
-      if (x.dto.UserId == me.me?.Id) {
+      if (x.dto.UserId === me.me?.Id) {
         me.me.AvatarFileId = x.dto.AvatarFileId;
         me.me.DisplayName = x.dto.DisplayName;
         me.me.Username = x.dto.Username;
@@ -681,15 +687,15 @@ export const usePoolStore = defineStore("data-pool", () => {
         let user = await db.users.get(x.userId);
         if (!user) {
           trackUser(
-            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+            await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
           );
-          user = await db.users.get(x.userId)!;
+          user = await db.users.get(x.userId);
           if (!user)
-            throw new Error("await db.users.get(x.userId)! return null");
+            throw new Error("await db.users.get(x.userId) return null");
         }
         user.activity = x.presence;
         await db.users.put(user);
-      }
+      },
     );
 
     bus.onServerEvent<OnUserPresenceActivityRemoved>(
@@ -698,29 +704,29 @@ export const usePoolStore = defineStore("data-pool", () => {
         let user = await db.users.get(x.userId);
         if (!user) {
           trackUser(
-            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+            await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
           );
-          user = await db.users.get(x.userId)!;
+          user = await db.users.get(x.userId);
           if (!user)
-            throw new Error("await db.users.get(x.userId)! return null");
+            throw new Error("await db.users.get(x.userId) return null");
         }
         user.activity = undefined;
         await db.users.put(user);
-      }
+      },
     );
 
     bus.onServerEvent<UserChangedStatus>("UserChangedStatus", async (x) => {
-      let user = await db.users.get(x.userId);
+      const user = await db.users.get(x.userId);
       if (!user) {
         trackUser(
           await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
-          x.status
+          x.status,
         );
         return;
       }
       user.status = x.status;
 
-      if (x.status == "Offline" && user.activity) {
+      if (x.status === "Offline" && user.activity) {
         user.activity = undefined;
       }
 
@@ -732,11 +738,11 @@ export const usePoolStore = defineStore("data-pool", () => {
     });
   };
 
-  const refershDatas = async function () {
+  const refershDatas = async () => {
     await loadServerDetails(false);
   };
 
-  const loadServerDetails = async function (listenEvents: boolean = true) {
+  const loadServerDetails = async (listenEvents = true) => {
     if (listenEvents) subscribeToEvents();
 
     const servers = await api.userInteraction.GetServers();
@@ -751,7 +757,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
         logger.log(
           `Loaded '${serverArchetypes.length}' archetypes`,
-          serverArchetypes
+          serverArchetypes,
         );
 
         for (const arch of serverArchetypes) {
@@ -770,7 +776,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
 
       const excludeSet = new Set(
-        users.filter((x) => x.Member).map((x) => x.Member.UserId)
+        users.filter((x) => x.Member).map((x) => x.Member.UserId),
       );
 
       await db.users
@@ -792,21 +798,21 @@ export const usePoolStore = defineStore("data-pool", () => {
         trackedIds.push(c.Channel.Id);
         const we = new Map<Guid, IRealtimeChannelUserWithData>();
         for (const uw of c.Users) {
-          let selectedUser = users
-            .filter((z) => z.Member.UserId == uw.UserId)
+          const selectedUser = users
+            .filter((z) => z.Member.UserId === uw.UserId)
             .at(0);
           if (!selectedUser) {
             trackUser(
-              await api.serverInteraction.PrefetchUser(s.Id, uw.UserId)
+              await api.serverInteraction.PrefetchUser(s.Id, uw.UserId),
             );
           }
 
-          let member = selectedUser!.Member.User;
+          let member = selectedUser?.Member.User;
 
           if (!member) {
             member = await api.serverInteraction.PrefetchUser(
               c.Channel.ServerId,
-              selectedUser?.Member.UserId!
+              selectedUser?.Member.UserId || "",
             );
           }
 
@@ -814,7 +820,7 @@ export const usePoolStore = defineStore("data-pool", () => {
             logger.fatal(
               "Cannot fileter user from store, and cannot prefetch user from user, its bug or maybe trying use member id, memberId != userId",
               uw,
-              users
+              users,
             );
             continue;
           }
@@ -837,7 +843,8 @@ export const usePoolStore = defineStore("data-pool", () => {
         .and((q) => q.ServerId === s.Id)
         .delete();
 
-      if (prunedChannels != 0) logger.warn(`Pruned ${prunedChannels} channels`);
+      if (prunedChannels !== 0)
+        logger.warn(`Pruned ${prunedChannels} channels`);
 
       if (listenEvents) bus.listenEvents(s.Id);
     }
@@ -883,6 +890,6 @@ export const usePoolStore = defineStore("data-pool", () => {
     has,
     refreshAllArchetypesForServer,
     getDetailedArchetypesAndRefreshDb,
-    getUsersByServerMemberIds
+    getUsersByServerMemberIds,
   };
 });

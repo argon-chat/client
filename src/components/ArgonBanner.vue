@@ -10,26 +10,35 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, type HTMLAttributes } from 'vue'
+import { onMounted, ref, watch, type HTMLAttributes } from "vue";
 import { useFileStorage } from "@/store/fileStorage";
-import { logger } from '@/lib/logger';
+import { logger } from "@/lib/logger";
 const loaded = ref(false);
 const loading = ref(true);
 const blobSrc = ref("");
 const fileStorage = useFileStorage();
-const props = withDefaults(defineProps<{
-  class?: HTMLAttributes['class'],
-  fileId?: string,
-  userId?: string
-}>(), {});
+const props = withDefaults(
+  defineProps<{
+    class?: HTMLAttributes["class"];
+    fileId?: string;
+    userId?: string;
+  }>(),
+  {},
+);
 
-watch(() => props.fileId, async () => {
-  if (!props.userId) return;
-  if (!props.fileId) return;
+watch(
+  () => props.fileId,
+  async () => {
+    if (!props.userId) return;
+    if (!props.fileId) return;
 
-  blobSrc.value = await fileStorage.fetchUserAvatar(props.fileId, props.userId);
-  loaded.value = true;
-});
+    blobSrc.value = await fileStorage.fetchUserAvatar(
+      props.fileId,
+      props.userId,
+    );
+    loaded.value = true;
+  },
+);
 
 onMounted(async () => {
   if (props.userId) {
@@ -40,7 +49,10 @@ onMounted(async () => {
       return;
     }
 
-    blobSrc.value = await fileStorage.fetchUserAvatar(props.fileId, props.userId);
+    blobSrc.value = await fileStorage.fetchUserAvatar(
+      props.fileId,
+      props.userId,
+    );
     if (blobSrc.value === fileStorage.FAILED_ADDRESS) {
       loading.value = false;
       loaded.value = false;
@@ -52,6 +64,5 @@ onMounted(async () => {
   }
   logger.error("no no no mister fish");
 });
-
 </script>
 <style scoped></style>

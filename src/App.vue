@@ -1,28 +1,23 @@
 <script setup lang="ts">
-import { Toaster } from '@/components/ui/toast/'
-import { useColorMode, useMagicKeys } from '@vueuse/core';
-import DevPanel from './components/DevPanel.vue';
-import { useSystemStore } from './store/systemStore';
-import {
-  MinusIcon,
-  XIcon,
-  FullscreenIcon
-} from 'lucide-vue-next';
-import { ref, watch } from 'vue';
-import { usePreference } from './store/preferenceStore';
-import Island from './components/Island.vue';
+import { Toaster } from "@/components/ui/toast/";
+import { useColorMode, useMagicKeys } from "@vueuse/core";
+import DevPanel from "./components/DevPanel.vue";
+import { useSystemStore } from "./store/systemStore";
+import { MinusIcon, XIcon, FullscreenIcon } from "lucide-vue-next";
+import { ref, watch } from "vue";
+import { usePreference } from "./store/preferenceStore";
+import Island from "./components/Island.vue";
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
 const isRestored = ref(false);
 
-let mode = useColorMode();
+const mode = useColorMode();
 
-mode.value = 'dark';
-
+mode.value = "dark";
 
 if (argon.isArgonHost) {
-  document.body.style.setProperty('background', 'transparent', 'important');
+  document.body.style.setProperty("background", "transparent", "important");
 }
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
@@ -33,14 +28,13 @@ watch(shiftCtrlA, (_) => {
   native.toggleDevTools();
 });
 
-
 const beginMove = () => {
   native.beginMoveWindow();
-}
+};
 
 const pressSystemKey = (key: number) => {
   native.pressSystemKey(key);
-}
+};
 
 const pressMaximize = () => {
   if (isRestored.value) {
@@ -50,11 +44,11 @@ const pressMaximize = () => {
   }
 
   isRestored.value = !isRestored.value;
-}
+};
 
 const endMove = () => {
   native.endMoveWindow();
-}
+};
 
 const closeWindow = () => {
   if (preferences.minimizeToTrayOnClose) {
@@ -62,7 +56,7 @@ const closeWindow = () => {
   } else {
     pressSystemKey(0);
   }
-}
+};
 </script>
 
 <template>

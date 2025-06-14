@@ -1,30 +1,28 @@
 <script setup lang="ts">
-import { useMagicKeys } from '@vueuse/core'
-import { ref, watch } from 'vue';
-import { AutoForm } from './ui/auto-form';
+import { useMagicKeys } from "@vueuse/core";
+import { ref, watch } from "vue";
+import { AutoForm } from "./ui/auto-form";
 import { Button } from "@/components/ui/button";
-import { logger } from '@/lib/logger';
-import { useConfig } from '@/store/remoteConfig';
+import { logger } from "@/lib/logger";
+import { useConfig } from "@/store/remoteConfig";
 
 const keys = useMagicKeys();
 const cfg = useConfig();
 
-watch(keys['Ctrl+Shift+F9'], (v) => {
-    if (v) {
-        devPanelShow.value = !devPanelShow.value;
-    }
+watch(keys["Ctrl+Shift+F9"], (v) => {
+  if (v) {
+    devPanelShow.value = !devPanelShow.value;
+  }
 });
 
 const devPanelShow = ref(false);
 
 function applyChanges(data: any) {
-    logger.success('Changes Applied!', data);
-    for (let key in data) {
-        if (data[key])
-            cfg.setOverride(key, data[key]);
-    }
+  logger.success("Changes Applied!", data);
+  for (const key in data) {
+    if (data[key]) cfg.setOverride(key, data[key]);
+  }
 }
-
 </script>
 
 <template>

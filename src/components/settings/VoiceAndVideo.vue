@@ -122,30 +122,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, onUnmounted } from 'vue';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { usePreference } from '@/store/preferenceStore';
-import Switch from '../ui/switch/Switch.vue';
-import { useLocale } from '@/store/localeStore';
-import { BeanIcon, BeanOffIcon } from 'lucide-vue-next'
-import { audio } from '@/lib/audio/AudioManager';
-import { logger } from '@/lib/logger';
-import { worklets } from '@/lib/audio/WorkletBase';
-import { DisposableBag } from '@/lib/disposables';
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { audio } from "@/lib/audio/AudioManager";
+import { worklets } from "@/lib/audio/WorkletBase";
+import { DisposableBag } from "@/lib/disposables";
+import { logger } from "@/lib/logger";
+import { useLocale } from "@/store/localeStore";
+import { usePreference } from "@/store/preferenceStore";
+import { BeanIcon, BeanOffIcon } from "lucide-vue-next";
+import { onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
+import Switch from "../ui/switch/Switch.vue";
 const { t } = useLocale();
 
 const preferenceStore = usePreference();
 const selectedMicrophone = ref(""); // audio.getInputDevice()
 const selectedAudioOutput = ref(""); // audio.getOutputDevice()
-const selectedCamera = ref('');
+const selectedCamera = ref("");
 const audioDevices = ref([] as MediaDeviceInfo[]);
 const videoDevices = ref([] as MediaDeviceInfo[]);
 const audioOutputs = ref<MediaDeviceInfo[]>([]);
@@ -155,23 +155,23 @@ const videoActive = ref(false);
 const loaded = ref(false);
 
 const startVideoPreview = async () => {
-    await updateVideoStream();
-    videoActive.value = true;
+  await updateVideoStream();
+  videoActive.value = true;
 };
 
 watch(selectedAudioOutput, async (x) => {
-    logger.info("selectedAudioOutput ", x);
-    //await (audio.getCurrentAudioContext() as any).setSinkId(x);
+  logger.info("selectedAudioOutput ", x);
+  //await (audio.getCurrentAudioContext() as any).setSinkId(x);
 });
 watch(selectedMicrophone, async (x) => {
-    logger.info("selectedMicrophone ", x);
-    audio.getInputDevice().value = x;
-    stopMonitoring();
-    startMonitoring();
-})
+  logger.info("selectedMicrophone ", x);
+  audio.getInputDevice().value = x;
+  stopMonitoring();
+  startMonitoring();
+});
 
 const updateVideoStream = async () => {
-    /*preferenceStore.defaultVideoDevice = selectedCamera.value;
+  /*preferenceStore.defaultVideoDevice = selectedCamera.value;
     if (videoStream.value) {
         videoStream.value.getTracks().forEach(track => track.stop());
     }
@@ -188,26 +188,25 @@ const updateVideoStream = async () => {
 };
 
 onBeforeUnmount(() => {
-    if (videoStream.value) {
-        videoStream.value.getTracks().forEach(track => track.stop());
+  if (videoStream.value) {
+    for (const track of videoStream.value.getTracks()) {
+      track.stop();
     }
+  }
 });
 
 onMounted(async () => {
-    audioDevices.value = await audio.enumerateDevicesByKind("audioinput");
-    videoDevices.value = await audio.enumerateDevicesByKind("videoinput");
-    audioOutputs.value = await audio.enumerateDevicesByKind("audiooutput");
+  audioDevices.value = await audio.enumerateDevicesByKind("audioinput");
+  videoDevices.value = await audio.enumerateDevicesByKind("videoinput");
+  audioOutputs.value = await audio.enumerateDevicesByKind("audiooutput");
 
-    selectedMicrophone.value = audio.getInputDevice().value ?? "default";
-    selectedAudioOutput.value = audio.getOutputDevice().value ?? "default";
+  selectedMicrophone.value = audio.getInputDevice().value ?? "default";
+  selectedAudioOutput.value = audio.getOutputDevice().value ?? "default";
 
-    loaded.value = true;
+  loaded.value = true;
 
-    await startMonitoring();
+  await startMonitoring();
 });
-
-
-
 
 const leftVolume = ref(0);
 const rightVolume = ref(0);
@@ -220,78 +219,86 @@ let monitoringAudio: HTMLAudioElement | null = null;
 const stmNode = ref(null as AudioWorkletNode | null);
 
 async function onChangeForceToMono(x: boolean) {
-    preferenceStore.forceToMono = x;
-    if (stmNode.value) {
-        worklets.setEnabledVUNode(stmNode.value!, x);
-    }
+  preferenceStore.forceToMono = x;
+  if (stmNode.value) {
+    worklets.setEnabledVUNode(stmNode.value, x);
+  }
 }
 
 watch(isVUMeterEnabled, () => {
-    leftVolume.value = 0;
-    rightVolume.value = 0;
+  leftVolume.value = 0;
+  rightVolume.value = 0;
 });
 
 watch(isMonitoring, (x) => {
-    if (monitoringAudio)
-        monitoringAudio.muted = !x;
-})
-
+  if (monitoringAudio) monitoringAudio.muted = !x;
+});
 
 const disposableBag = new DisposableBag();
 
 async function startMonitoring() {
-    if (isVUMeterEnabled.value) {
-        stopMonitoring();
-        return;
-    }
+  if (isVUMeterEnabled.value) {
+    stopMonitoring();
+    return;
+  }
 
-    try {
-        mediaStream = await audio.createRawInputMediaStream();
+  try {
+    mediaStream = await audio.createRawInputMediaStream();
 
-        source = audio.getCurrentAudioContext().createMediaStreamSource(mediaStream);
+    source = audio
+      .getCurrentAudioContext()
+      .createMediaStreamSource(mediaStream);
 
-        logger.info("Created media stream, ", mediaStream, source);
+    logger.info("Created media stream, ", mediaStream, source);
 
-        const vuNode = (await worklets.createVUMeter(leftVolume, rightVolume)).injectInto(disposableBag);
+    const vuNode = (
+      await worklets.createVUMeter(leftVolume, rightVolume)
+    ).injectInto(disposableBag);
 
-        const stm = (await worklets.createStereoToMonoProcessor()).injectInto(disposableBag);
+    const stm = (await worklets.createStereoToMonoProcessor()).injectInto(
+      disposableBag,
+    );
 
-        worklets.setEnabledVUNode(stm, preferenceStore.forceToMono);
-        const dest = audio.getCurrentAudioContext().createMediaStreamDestination();
+    worklets.setEnabledVUNode(stm, preferenceStore.forceToMono);
+    const dest = audio.getCurrentAudioContext().createMediaStreamDestination();
 
-        source.connect(stm);
-        stm.connect(dest);
-        stm.connect(vuNode);
+    source.connect(stm);
+    stm.connect(dest);
+    stm.connect(vuNode);
 
-        stmNode.value = stm;
+    stmNode.value = stm;
 
-        monitoringAudio = (await audio.createAudioElement(dest.stream)).injectInto(disposableBag);
-        monitoringAudio.muted = !isMonitoring.value;
-        isVUMeterEnabled.value = true;
-    } catch (err) {
-        console.error("Microphone access error:", err);
-    }
+    monitoringAudio = (await audio.createAudioElement(dest.stream)).injectInto(
+      disposableBag,
+    );
+    monitoringAudio.muted = !isMonitoring.value;
+    isVUMeterEnabled.value = true;
+  } catch (err) {
+    console.error("Microphone access error:", err);
+  }
 }
 function stopMonitoring() {
-    disposableBag.dispose();
-    isVUMeterEnabled.value = false;
+  disposableBag.dispose();
+  isVUMeterEnabled.value = false;
 
-    source?.disconnect();
+  source?.disconnect();
 
-    mediaStream?.getTracks().forEach(track => track.stop());
+  for (const track of mediaStream?.getTracks() ?? []) {
+    track.stop();
+  }
 
-    source = null;
-    mediaStream = null;
-    stmNode.value = null;
+  source = null;
+  mediaStream = null;
+  stmNode.value = null;
 
-    setTimeout(() => {
-        leftVolume.value = 0;
-        rightVolume.value = 0;
-    }, 50);
+  setTimeout(() => {
+    leftVolume.value = 0;
+    rightVolume.value = 0;
+  }, 50);
 }
 
 onUnmounted(() => {
-    stopMonitoring();
+  stopMonitoring();
 });
 </script>
 

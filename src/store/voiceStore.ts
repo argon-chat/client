@@ -1,33 +1,32 @@
 import { logger } from "@/lib/logger";
 import {
   AudioProcessorOptions,
-  ConnectionQuality,
+  type ConnectionQuality,
   ConnectionState,
   createLocalAudioTrack,
   LocalAudioTrack,
-  LocalTrackPublication,
-  Participant,
-  RemoteParticipant,
-  RemoteTrack,
-  RemoteTrackPublication,
+  type LocalTrackPublication,
+  type Participant,
+  type RemoteParticipant,
+  type RemoteTrack,
+  type RemoteTrackPublication,
   Room,
-  RoomConnectOptions,
-  Track,
+  type RoomConnectOptions,
+  type Track,
   TrackProcessor,
 } from "livekit-client";
 import { defineStore } from "pinia";
 import {
   computed,
-  Reactive,
+  type Reactive,
   reactive,
-  Ref,
+  type Ref,
   ref,
   watch,
-  WatchHandle,
+  type WatchHandle,
 } from "vue";
 import { usePoolStore } from "./poolStore";
 import { useApi } from "./apiStore";
-import { Subject, Subscription, timer } from "rxjs";
 import { useConfig } from "./remoteConfig";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
@@ -68,7 +67,7 @@ export const useVoice = defineStore("voice", () => {
   async function switchMicrophone(room: Room, newDeviceId: string) {
     const localParticipant = room.localParticipant;
     const publication = Array.from(
-      localParticipant.trackPublications.values()
+      localParticipant.trackPublications.values(),
     )[0];
 
     const newTrack = await createLocalAudioTrack({ deviceId: newDeviceId });
@@ -129,24 +128,29 @@ export const useVoice = defineStore("voice", () => {
   });
 
   async function connectToChannel(channelId: string) {
-    if (activeChannel.value?.Id == channelId) return;
+    if (activeChannel.value?.Id === channelId) return;
 
     sessionTimerStore.stopTimer();
     pool.selectedChannel = channelId;
-    activeChannel.value = (await pool.getChannel(channelId))!;
+    const channel = await pool.getChannel(channelId);
+    if (!channel) return;
+    activeChannel.value = channel;
     currentState.value = "BEGIN_CONNECT";
 
+    const selectedServer = pool.selectedServer;
+    if (!selectedServer) return;
+
     const livekitToken = await api.serverInteraction.JoinToVoiceChannel(
-      pool.selectedServer!,
-      channelId
+      selectedServer,
+      channelId,
     );
 
-    logger.log(`Livekit authorization`, livekitToken);
+    logger.log("Livekit authorization", livekitToken);
 
     if (!livekitToken.IsSuccess) {
       logger.error(
-        `Failed retrive authorization token for login to room`,
-        livekitToken.Error
+        "Failed retrive authorization token for login to room",
+        livekitToken.Error,
       );
       currentState.value = "NONE";
       activeChannel.value = null;
@@ -172,7 +176,7 @@ export const useVoice = defineStore("voice", () => {
         ...connectOptions,
       });
 
-      (window as any)["room"] = room;
+      (window as any).room = room;
     } catch (e) {
       logger.error(e);
       logger.error("Failed connect to web rtc server");
@@ -196,7 +200,7 @@ export const useVoice = defineStore("voice", () => {
       autoGainControl: false,
       channelCount: 2,
       echoCancellation: false,
-      voiceIsolation: false
+      voiceIsolation: false,
     });
 
     localAudioTrack.setAudioContext(audio.getCurrentAudioContext());
@@ -209,7 +213,7 @@ export const useVoice = defineStore("voice", () => {
       sys.muteEvent.subscribe((x) => {
         if (x) localAudioTrack.mute();
         else localAudioTrack.unmute();
-      })
+      }),
     );
 
     const source = timer(50, 500);
@@ -217,14 +221,14 @@ export const useVoice = defineStore("voice", () => {
     connectedRoom.subs.push(
       source.subscribe(() => {
         rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
-      })
+      }),
     );
 
     connectedRoom.subs.push(
       audio.onInputDeviceChanged(async (devId) => {
         logger.error("onInputDeviceChanged", devId, audio.getInputDevice());
         await switchMicrophone(room, devId);
-      })
+      }),
     );
 
     if (sys.microphoneMuted) {
@@ -237,31 +241,32 @@ export const useVoice = defineStore("voice", () => {
     logger.success("Connected to channel");
 
     room.localParticipant.on("isSpeakingChanged", (val) => {
+      const selectedChannel = pool.selectedChannel;
+      if (!selectedChannel) return;
+
       pool.indicateSpeaking(
-        pool.selectedChannel!,
+        selectedChannel,
         room.localParticipant.identity,
-        val
+        val,
       );
     });
 
     room.localParticipant.on("trackMuted", (_) => {
-      pool.setProperty(
-        pool.selectedChannel!,
-        room.localParticipant.identity,
-        (x) => {
-          (x.isMuted as any) = true;
-        }
-      );
+      const selectedChannel = pool.selectedChannel;
+      if (!selectedChannel) return;
+
+      pool.setProperty(selectedChannel, room.localParticipant.identity, (x) => {
+        (x.isMuted as any) = true;
+      });
     });
 
     room.localParticipant.on("trackUnmuted", (_) => {
-      pool.setProperty(
-        pool.selectedChannel!,
-        room.localParticipant.identity,
-        (x) => {
-          (x.isMuted as any) = false;
-        }
-      );
+      const selectedChannel = pool.selectedChannel;
+      if (!selectedChannel) return;
+
+      pool.setProperty(selectedChannel, room.localParticipant.identity, (x) => {
+        (x.isMuted as any) = false;
+      });
     });
   }
 
@@ -281,8 +286,8 @@ export const useVoice = defineStore("voice", () => {
     try {
       if (room) {
         await api.serverInteraction.DisconnectFromVoiceChannel(
-          activeChannel.value!.ServerId,
-          activeChannel.value!.Id
+          activeChannel.value?.ServerId,
+          activeChannel.value?.Id,
         );
         room.off("trackSubscribed", onTrackSubscribed);
         room.off("trackUnsubscribed", onTrackUnsubscribed);
@@ -312,13 +317,13 @@ export const useVoice = defineStore("voice", () => {
   function onTrackSubscribed(
     track: RemoteTrack,
     publication: RemoteTrackPublication,
-    participant: RemoteParticipant
+    participant: RemoteParticipant,
   ) {
     logger.log(
       "Track subscribed:",
       track.kind,
       "at particant:",
-      participant.identity
+      participant.identity,
     );
 
     if (track.kind === "video") {
@@ -333,31 +338,43 @@ export const useVoice = defineStore("voice", () => {
       logger.info("Audio is attached");
 
       participant.on("isSpeakingChanged", (val) => {
-        pool.indicateSpeaking(pool.selectedChannel!, participant.identity, val);
+        if (pool.selectedChannel) {
+          pool.indicateSpeaking(
+            pool.selectedChannel,
+            participant.identity,
+            val,
+          );
+        }
       });
 
       participant.on("trackMuted", (track) => {
-        pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
-          (x.isMuted as any) = true;
-        });
+        if (pool.selectedChannel) {
+          pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
+            (x.isMuted as any) = true;
+          });
+        }
       });
       participant.on("trackUnmuted", (track) => {
-        pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
-          (x.isMuted as any) = false;
-        });
+        if (pool.selectedChannel) {
+          pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
+            (x.isMuted as any) = false;
+          });
+        }
       });
 
       const source = audioCtx.createMediaStreamSource(
-        new MediaStream([track.mediaStreamTrack])
+        new MediaStream([track.mediaStreamTrack]),
       );
       source.connect(gain);
       //gain.connect(audioCtx.destination);
 
       const volume = reactive([100]);
 
-      pool.setProperty(pool.selectedChannel!, participant.identity, (x) => {
-        (x.volume as any) = volume;
-      });
+      if (pool.selectedChannel) {
+        pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
+          (x.volume as any) = volume;
+        });
+      }
 
       const item: IChannelMemberData = {
         context: audioCtx,
@@ -370,7 +387,7 @@ export const useVoice = defineStore("voice", () => {
             logger.error("IChannelMemberData:watcher", e);
             setUserVolume(participant.identity, e[0]);
           },
-          { deep: true }
+          { deep: true },
         ),
       };
 
@@ -385,12 +402,12 @@ export const useVoice = defineStore("voice", () => {
   }
 
   function getVolumeRef(userId: Guid) {
-    return connectedRoom.roomData.get(userId)!.volume;
+    return connectedRoom.roomData.get(userId)?.volume;
   }
 
   function onParticipantQualityChanged(
     quality: ConnectionQuality,
-    participant: Participant
+    participant: Participant,
   ) {
     logger.warn("onParticipantQualityChanged", quality, participant);
   }
@@ -427,7 +444,12 @@ export const useVoice = defineStore("voice", () => {
     deviceKind: "screen" | "desktop";
   }) => {
     try {
-      const room = connectedRoom.room!;
+      if (!connectedRoom.room) {
+        logger.error("Cannot start screen share: no active room");
+        return;
+      }
+
+      const room = connectedRoom.room;
 
       const enabled = room.localParticipant.isScreenShareEnabled;
 
@@ -452,13 +474,13 @@ export const useVoice = defineStore("voice", () => {
             chromeMediaSourceId: options.deviceId,
             chromeMediaSource: options.deviceKind,
           } as any,
-        } as any
+        } as any,
       );
 
       logger.warn("Started video scren share", screenTrack);
       onVideoCreated.next(screenTrack?.track as any);
 
-      screenTrack!.once("ended", () => {
+      screenTrack?.once("ended", () => {
         stopScreenShare();
         onVideoDestroyed.next(screenTrack?.track as any);
       });
@@ -468,10 +490,10 @@ export const useVoice = defineStore("voice", () => {
   };
 
   const stopScreenShare = async () => {
-    if (screenTrack) {
-      onVideoDestroyed.next(screenTrack.track!);
+    if (screenTrack?.track) {
+      onVideoDestroyed.next(screenTrack.track);
       screenTrack =
-        await connectedRoom.room!.localParticipant.setScreenShareEnabled(false);
+        await connectedRoom.room?.localParticipant.setScreenShareEnabled(false);
       screenTrack = undefined;
       isSharing.value = false;
     }
@@ -482,28 +504,28 @@ export const useVoice = defineStore("voice", () => {
     if (currentlyReconnect.value) return;
     currentlyReconnect.value = true;
 
-    var internvalId: NodeJS.Timeout;
-    internvalId = setInterval(async () => {
+    const intervalId = setInterval(async () => {
       await tone.playReconnectSound();
       if (
-        connectedRoom.room?.state == ConnectionState.Connected ||
-        connectedRoom.room?.state == ConnectionState.Disconnected
-      )
-        clearInterval(internvalId);
-      currentlyReconnect.value = false;
-    }, 1250);
+        connectedRoom.room?.state === ConnectionState.Connected ||
+        connectedRoom.room?.state === ConnectionState.Disconnected
+      ) {
+        clearInterval(intervalId);
+        currentlyReconnect.value = false;
+      }
+    }, 2000);
   }
 
   function onTrackUnsubscribed(
     track: RemoteTrack,
     publication: RemoteTrackPublication,
-    participant: RemoteParticipant
+    participant: RemoteParticipant,
   ) {
     logger.log(
       "Track unsubscribed:",
       track.kind,
       "at particant:",
-      participant.identity
+      participant.identity,
     );
 
     if (track.kind === "video") {

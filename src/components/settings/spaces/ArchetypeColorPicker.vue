@@ -1,69 +1,97 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed } from "vue";
 
 const props = defineProps<{
-  modelValue: number | null
-  readonly?: boolean
-}>()
+  modelValue: number | null;
+  readonly?: boolean;
+}>();
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: number | null): void
-}>()
+const emit =
+  defineEmits<(e: "update:modelValue", value: number | null) => void>();
 
 function hexToArgb(hex: string): number {
-  const rgb = parseInt(hex.slice(1), 16)
-  return 0xFF000000 | rgb
+  const rgb = Number.parseInt(hex.slice(1), 16);
+  return 0xff000000 | rgb;
 }
 
 function argbToHex(argb: number): string {
-  const rgb = argb & 0xFFFFFF
-  return `#${rgb.toString(16).padStart(6, '0')}`
+  const rgb = argb & 0xffffff;
+  return `#${rgb.toString(16).padStart(6, "0")}`;
 }
 
 const colors = [
-  '#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FAA61A',
-  '#1ABC9C', '#2ECC71', '#3498DB', '#9B59B6', '#E67E22', '#E74C3C',
-  '#95A5A6', '#99AAB5', '#2C2F33', '#23272A',
-  '#A3BE8C', '#88C0D0', '#D08770', '#B48EAD', '#D8DEE9', '#BF616A',
-  '#EBCB8B', '#5E81AC', '#6C757D', '#ADB5BD', '#495057', '#343A40',
-  '#FFFFFF', '#000000', '#808080', '#666666'
-]
+  "#5865F2",
+  "#57F287",
+  "#FEE75C",
+  "#EB459E",
+  "#ED4245",
+  "#FAA61A",
+  "#1ABC9C",
+  "#2ECC71",
+  "#3498DB",
+  "#9B59B6",
+  "#E67E22",
+  "#E74C3C",
+  "#95A5A6",
+  "#99AAB5",
+  "#2C2F33",
+  "#23272A",
+  "#A3BE8C",
+  "#88C0D0",
+  "#D08770",
+  "#B48EAD",
+  "#D8DEE9",
+  "#BF616A",
+  "#EBCB8B",
+  "#5E81AC",
+  "#6C757D",
+  "#ADB5BD",
+  "#495057",
+  "#343A40",
+  "#FFFFFF",
+  "#000000",
+  "#808080",
+  "#666666",
+];
 
-const colorPicker = ref<HTMLInputElement | null>(null)
-const customColor = ref<string | null>(null)
+const colorPicker = ref<HTMLInputElement | null>(null);
+const customColor = ref<string | null>(null);
 
-watch(() => props.modelValue, (val) => {
-  if (val != null && !colors.includes(argbToHex(val))) {
-    customColor.value = argbToHex(val)
-  }
-})
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val != null && !colors.includes(argbToHex(val))) {
+      customColor.value = argbToHex(val);
+    }
+  },
+);
 
 function selectColor(color: string | null) {
-  if (props.readonly) return
+  if (props.readonly) return;
   if (!color) {
-    emit('update:modelValue', null)
+    emit("update:modelValue", null);
   } else {
-    emit('update:modelValue', hexToArgb(color))
+    emit("update:modelValue", hexToArgb(color));
     if (!colors.includes(color)) {
-      customColor.value = color
+      customColor.value = color;
     }
   }
 }
 
 function openColorPicker() {
   if (!props.readonly) {
-    colorPicker.value?.click()
+    colorPicker.value?.click();
   }
 }
 
 function handleCustomColorChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  selectColor(input.value)
+  const input = event.target as HTMLInputElement;
+  selectColor(input.value);
 }
 
 const displayColor = computed(() =>
-  props.modelValue != null ? argbToHex(props.modelValue) : '#99AAB5'
-)
+  props.modelValue != null ? argbToHex(props.modelValue) : "#99AAB5",
+);
 </script>
 
 <template>

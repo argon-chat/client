@@ -30,14 +30,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { Button } from '@/components/ui/button';
-import { useServerStore } from '@/store/serverStore';
+import { onMounted, ref } from "vue";
+import { Button } from "@/components/ui/button";
+import { useServerStore } from "@/store/serverStore";
 //@ts-ignore
-import { AtomSpinner } from 'epic-spinners'
-import { Input } from '@/components/ui/input';
-import { useLocale } from '@/store/localeStore';
-import { usePexStore } from '@/store/permissionStore';
+import { AtomSpinner } from "epic-spinners";
+import { Input } from "@/components/ui/input";
+import { useLocale } from "@/store/localeStore";
+import { usePexStore } from "@/store/permissionStore";
 
 const { t } = useLocale();
 const servers = useServerStore();
@@ -45,28 +45,26 @@ const loading = ref(true);
 const pex = usePexStore();
 
 onMounted(async () => {
-    await refreshInvites();
+  await refreshInvites();
 });
 
-
 const refreshInvites = async () => {
-    loading.value = true;
-    const result = await servers.getServerInvites();
-    invites.value = result;
+  loading.value = true;
+  const result = await servers.getServerInvites();
+  invites.value = result;
 
-    console.log(invites);
-    loading.value = false;
-}
+  console.log(invites);
+  loading.value = false;
+};
 
 const invites = ref<InviteCodeEntity[]>([]);
 
 const addInvite = async () => {
-    await servers.addInvite();
-    await refreshInvites();
+  await servers.addInvite();
+  await refreshInvites();
 };
 
-const removeInvite = (id: string) => {
-};
+const removeInvite = (id: string) => {};
 </script>
 
 <style scoped>
