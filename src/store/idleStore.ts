@@ -3,7 +3,6 @@ import { useIdle, useTimestamp } from "@vueuse/core";
 import { interval, switchMap } from "rxjs";
 import { useMe } from "./meStore";
 import { ref } from "vue";
-import { UserStatus } from "@/lib/glue/UserStatus";
 export const useIdleStore = defineStore("idle", () => {
   const savedStatus = ref("Online" as UserStatus);
 

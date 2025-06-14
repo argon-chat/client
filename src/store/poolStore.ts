@@ -1,23 +1,25 @@
 import { defineStore } from "pinia";
-import { computed, Reactive, reactive, Ref, ref } from "vue";
+import { computed, onUnmounted, Reactive, reactive, Ref, ref } from "vue";
 import { useBus } from "./busStore";
 import { logger } from "@/lib/logger";
 import { useApi } from "./apiStore";
 import { firstValueFrom, from, Subject } from "rxjs";
-import { liveQuery } from "dexie";
+import { liveQuery, Observable } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { db, RealtimeUser } from "./db/dexie";
 import { computedAsync } from "@vueuse/core";
 import { useMe } from "./meStore";
 import { watch } from "vue";
+import {
+  ArgonEntitlementFlag,
+  extractEntitlements,
+} from "@/lib/rbac/ArgonEntitlement";
 
 export interface MentionUser {
-    id: string
-    displayName: string
-    username: string;
+  id: string;
+  displayName: string;
+  username: string;
 }
-
-
 
 export type IRealtimeChannelUserWithData = IRealtimeChannelUser & {
   User: IUserDto;
@@ -68,6 +70,21 @@ export const usePoolStore = defineStore("data-pool", () => {
     return await db.users.where("UserId").equals(userId).first();
   };
 
+  const getUsersByServerMemberIds = (
+    serverId: Guid,
+    memberIds: Guid[]
+  ) => {
+    return liveQuery(async () => {
+      const members = await db.members
+        .where("[MemberId+ServerId]")
+        .anyOf(memberIds.map((id) => [id, serverId] as [Guid, Guid]))
+        .toArray();
+      const userIds = members.map((m) => m.UserId);
+      const users = await db.users.where("UserId").anyOf(userIds).toArray();
+      return users;
+    });
+  };
+
   const getUserReactive = (userId: Guid) => {
     const observable = liveQuery(
       async () => await db.users.where("UserId").equals(userId).first()
@@ -90,9 +107,22 @@ export const usePoolStore = defineStore("data-pool", () => {
         users.map((u) => ({
           id: u.UserId,
           displayName: u.DisplayName,
-          username: u.Username
+          username: u.Username,
         }))
       );
+  }
+
+  async function searchUser(query: string): Promise<RealtimeUser[]> {
+    const normalized = query.toLowerCase();
+    return await db.users
+      .filter((user: RealtimeUser) => {
+        return (
+          user.Username.toLowerCase().includes(normalized) ||
+          user.DisplayName.toLowerCase().includes(normalized)
+        );
+      })
+      .limit(10)
+      .toArray();
   }
 
   const getBatchUser = async function (userIds: Guid[]) {
@@ -103,6 +133,91 @@ export const usePoolStore = defineStore("data-pool", () => {
       .filter((user) => !excludedUserIds.includes(user.UserId))
       .toArray();
   };
+
+  const refreshAllArchetypesForServer = async (serverId: Guid) => {
+    const serverArchetypes =
+      await api.serverInteraction.GetServerArchetypes(serverId);
+
+    logger.log(
+      `Loaded '${serverArchetypes.length}' archetypes`,
+      serverArchetypes
+    );
+
+    for (const arch of serverArchetypes) {
+      trackArchetype(arch);
+    }
+  };
+
+  const getDetailedArchetypesAndRefreshDb = async (serverId: Guid) => {
+    const serverArchetypes =
+      await api.serverInteraction.GetDetailedServerArchetypes(serverId);
+
+    logger.log(
+      `Loaded '${serverArchetypes.length}' archetypes`,
+      serverArchetypes
+    );
+
+    for (const arch of serverArchetypes) {
+      trackArchetype(arch.Archetype);
+    }
+
+    return serverArchetypes;
+  };
+
+  const getMePermissions = ref<Set<ArgonEntitlementFlag>>(new Set());
+
+  let currentSubscription: { unsubscribe(): void } | null = null;
+
+  watch(
+    [() => selectedServer.value, () => me.me?.Id],
+    ([serverId, userId]) => {
+      // убить старую подписку
+      currentSubscription?.unsubscribe();
+
+      if (!serverId || !userId) {
+        getMePermissions.value = new Set();
+        return;
+      }
+
+      currentSubscription = liveQuery(async () => {
+        const member = await db.members
+          .where("[UserId+ServerId]")
+          .equals([userId, serverId])
+          .first();
+
+        if (!member?.Archetypes?.length) return new Set<ArgonEntitlementFlag>();
+
+        const archetypeIds = member.Archetypes.map((a) => a.ArchetypeId);
+        const archetypes = await db.archetypes
+          .where("Id")
+          .anyOf(archetypeIds)
+          .toArray();
+
+        const flags = archetypes.flatMap((x) =>
+          extractEntitlements(BigInt(x.Entitlement))
+        );
+
+        return new Set(flags);
+      }).subscribe({
+        next(value) {
+          getMePermissions.value = value;
+        },
+        error(err) {
+          console.error("LiveQuery error", err);
+        },
+      });
+    },
+    { immediate: true }
+  );
+
+  onUnmounted(() => {
+    currentSubscription?.unsubscribe();
+  });
+
+  const has = computed(() => {
+    return (flag: ArgonEntitlementFlag): boolean =>
+      getMePermissions.value.has(flag);
+  });
 
   const indicateSpeaking = async function (
     channelId: Guid,
@@ -178,6 +293,22 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   });
 
+  const generateBadgesByArchetypes = async (
+    archetypes: IServerMemberArchetypeDto[]
+  ): Promise<string[]> => {
+    if (!archetypes || archetypes.length === 0) return [];
+
+    const ids = archetypes.map((x) => x.ArchetypeId);
+
+    const results = await db.archetypes
+      .where("Id")
+      .anyOf(ids)
+      .filter((q) => q.IsHidden && q.IsLocked && q.Name == "owner")
+      .toArray();
+
+    return results.map((x) => x.Name);
+  };
+
   const activeServerUsers = computed(() => {
     return useObservable(
       from(
@@ -189,6 +320,15 @@ export const usePoolStore = defineStore("data-pool", () => {
           if (!server) return [];
           const users = await db.users.bulkGet(
             server.Users.map((x) => x.UserId)
+          );
+          const members = await db.members.bulkGet(
+            server.Users.map((x) => x.MemberId)
+          );
+          const archetypes = await db.archetypes.bulkGet(
+            members
+              .filter((x) => !!x)
+              .flatMap((x) => x?.Archetypes)
+              .map((x) => x!.ArchetypeId)
           );
 
           return users
@@ -203,7 +343,133 @@ export const usePoolStore = defineStore("data-pool", () => {
               const statusDiff = statusOrder(a.status) - statusOrder(b.status);
               if (statusDiff !== 0) return statusDiff;
               return a.DisplayName.localeCompare(b.DisplayName);
+            })
+            .map((q) => {
+              const meb = members.find((w) => w?.UserId == q.UserId);
+
+              if (meb)
+                q.archetypes = archetypes.filter((we) =>
+                  new Set(meb.Archetypes.map((x) => x.ArchetypeId)).has(we!.Id)
+                ) as IArchetypeDto[];
+
+              return q;
             });
+        })
+      )
+    );
+  });
+
+  const groupedServerUsers = computed(() => {
+    return useObservable(
+      from(
+        liveQuery(async () => {
+          if (!selectedServer.value) return [];
+
+          const server = await db.servers
+            .filter((s) => s.Id === selectedServer.value)
+            .first();
+          if (!server) return [];
+
+          const users = await db.users.bulkGet(
+            server.Users.map((x) => x.UserId)
+          );
+          const members = await db.members.bulkGet(
+            server.Users.map((x) => x.MemberId)
+          );
+
+          const allArchetypeIds = members
+            .filter((m): m is NonNullable<typeof m> => !!m)
+            .flatMap((m) => m.Archetypes.map((a) => a.ArchetypeId));
+          const archetypes = await db.archetypes.bulkGet(allArchetypeIds);
+
+          const groupArchetypes = archetypes
+            .filter((a): a is IArchetypeDto => !!a && a.IsGroup)
+            .sort((a, b) => a.Name.localeCompare(b.Name)); // используем сортировку по имени как приоритет
+
+          const usersWithArchetypes = users
+            .filter((u): u is RealtimeUser => !!u)
+            .map((user) => {
+              const member = members.find((m) => m?.UserId === user.UserId);
+              if (member) {
+                const userArchetypes = archetypes.filter((a) =>
+                  member.Archetypes.some((x) => x.ArchetypeId === a?.Id)
+                ) as IArchetypeDto[];
+                user.archetypes = userArchetypes;
+              }
+              return user;
+            });
+
+          const sortFn = (a: RealtimeUser, b: RealtimeUser) => {
+            const statusOrder = (status: string) => {
+              if (status === "Online") return 0;
+              if (status === "Offline") return 2;
+              return 1;
+            };
+            const statusDiff = statusOrder(a.status) - statusOrder(b.status);
+            if (statusDiff !== 0) return statusDiff;
+            return a.DisplayName.localeCompare(b.DisplayName);
+          };
+
+          // Определим группу с наивысшим приоритетом
+          const groupMap = new Map<Guid, RealtimeUser[]>(); // key = archetype.Id
+
+          const ungroupedUsers: RealtimeUser[] = [];
+
+          for (const user of usersWithArchetypes) {
+            const groupRoles = (user.archetypes ?? []).filter((a) => a.IsGroup);
+
+            if (groupRoles.length > 0) {
+              const sortedByPriority = groupRoles.slice().sort((a, b) => {
+                // Приоритет по позиции в groupArchetypes
+                const ia = groupArchetypes.findIndex((x) => x.Id === a.Id);
+                const ib = groupArchetypes.findIndex((x) => x.Id === b.Id);
+                return ia - ib;
+              });
+
+              const targetGroup = sortedByPriority[0];
+              if (!groupMap.has(targetGroup.Id)) {
+                groupMap.set(targetGroup.Id, []);
+              }
+              groupMap.get(targetGroup.Id)!.push(user);
+            } else {
+              ungroupedUsers.push(user);
+            }
+          }
+
+          const result: {
+            archetype: IArchetypeDto;
+            users: RealtimeUser[];
+          }[] = [];
+
+          for (const group of groupArchetypes) {
+            const groupUsers = (groupMap.get(group.Id) ?? []).sort(sortFn);
+            if (groupUsers.length > 0) {
+              result.push({
+                archetype: group,
+                users: groupUsers,
+              });
+            }
+          }
+
+          if (ungroupedUsers.length > 0) {
+            result.push({
+              archetype: {
+                Id: "00000000-0000-0000-0000-000000000000",
+                ServerId: selectedServer.value,
+                Name: "Users",
+                Description: "",
+                IsMentionable: false,
+                Colour: 0xffffffff,
+                IsHidden: false,
+                IsLocked: false,
+                IsGroup: true,
+                Entitlement: "",
+              },
+              users: ungroupedUsers.sort(sortFn),
+            });
+          }
+
+          return result;
         })
       )
     );
@@ -211,6 +477,14 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const trackServer = async function (server: IServerDto) {
     await db.servers.put(server, server.Id);
+  };
+
+  const trackArchetype = async function (archetype: IArchetypeDto) {
+    await db.archetypes.put(archetype, archetype.Id);
+  };
+
+  const trackMember = async function (member: IServerMemberDto) {
+    await db.members.put(member, member.MemberId);
   };
 
   const trackUser = async function (
@@ -471,10 +745,27 @@ export const usePoolStore = defineStore("data-pool", () => {
     for (const s of servers) {
       await trackServer(s);
 
+      try {
+        const serverArchetypes =
+          await api.serverInteraction.GetServerArchetypes(s.Id);
+
+        logger.log(
+          `Loaded '${serverArchetypes.length}' archetypes`,
+          serverArchetypes
+        );
+
+        for (const arch of serverArchetypes) {
+          trackArchetype(arch);
+        }
+      } catch (e) {
+        logger.error(e, "failed receive archetypes for server", s.Id);
+      }
+
       const users = await api.serverInteraction.GetMembers(s.Id);
       logger.log(`Loaded '${users.length}' users`, users);
 
       for (const u of users) {
+        await trackMember(u.Member);
         if (u.Member.User) await trackUser(u.Member.User, u.Status, u.Presence);
       }
 
@@ -562,6 +853,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     activeServerChannels,
     activeServerUsers,
+    groupedServerUsers,
     subscribeToEvents,
 
     selectedServer,
@@ -583,6 +875,14 @@ export const usePoolStore = defineStore("data-pool", () => {
     getServer,
     getUserReactive,
 
-    searchMentions
+    searchMentions,
+    searchUser,
+    generateBadgesByArchetypes,
+    getMePermissions,
+    db,
+    has,
+    refreshAllArchetypesForServer,
+    getDetailedArchetypesAndRefreshDb,
+    getUsersByServerMemberIds
   };
 });

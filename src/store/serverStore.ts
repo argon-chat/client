@@ -95,15 +95,6 @@ export const useServerStore = defineStore("server", () => {
     );
   }
 
-  async function IsIAmAdmin(): Promise<boolean> {
-    const server = await pool.getServer(pool.selectedServer!);
-
-    logger.info(
-      `Checking admin right, creator: ${(server as any).CreatorId}, meId: ${me.me?.Id}`
-    );
-
-    return (server as any).CreatorId == me.me?.Id;
-  }
 
   return {
     isBeginConnect,
@@ -113,7 +104,6 @@ export const useServerStore = defineStore("server", () => {
     deleteChannel,
     getServerInvites,
     addInvite,
-    IsIAmAdmin,
     createServer
   };
 });
