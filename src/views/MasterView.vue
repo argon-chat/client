@@ -2,6 +2,7 @@
   <div class="app-container flex h-screen gap-4 p-7" style="width: 100svw; height: 100svh;">
     <div class="channel-container flex flex-col justify-between rounded-xl  space-y-3 w-55 min-w-[230px] max-w-[230px]">
       <SidebarHeader/>
+      <AdminControlBar/>
       <ChatList />
       <ControlBar />
       <UserBar />
@@ -35,6 +36,7 @@ import ControlBar from '@/components/ControlBar.vue';
 import { useLocale } from '@/store/localeStore';
 import LeftSideUserList from '@/components/LeftSideUserList.vue';
 import SidebarHeader from "@/components/SidebarHeader.vue";
+import AdminControlBar from '@/components/AdminControlBar.vue';
 
 const dataPool = usePoolStore();
 const me = useMe();

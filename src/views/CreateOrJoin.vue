@@ -43,7 +43,6 @@ import PixelCard from '@/components/PixelCard.vue';
 import { DeferFlag } from '@/lib/DeferFlag';
 import delay from '@/lib/delay';
 import { useConfig } from '@/store/remoteConfig';
-import { useApi } from '@/store/apiStore';
 
 const { t } = useLocale();
 
@@ -51,13 +50,11 @@ const inviteCode = ref('');
 const serverStore = useServerStore();
 const isLoading = ref(false);
 const cfg = useConfig();
-const api = useApi();
 
 
 const logout = async () => {
     await pruneDatabases(true);
 }
-
 
 const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
     const allIndexDbs = await indexedDB.databases();
