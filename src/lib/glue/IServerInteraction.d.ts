@@ -15,6 +15,9 @@
 ///<reference path="InviteCode.d.ts"/>
 ///<reference path="IUserDto.d.ts"/>
 ///<reference path="IUserProfileDto.d.ts"/>
+///<reference path="IArchetypeDto.d.ts"/>
+///<reference path="IArchetypeDtoGroup.d.ts"/>
+///<reference path="IChannelEntitlementOverwrite.d.ts"/>
 
 interface IServerInteraction
 {
@@ -31,4 +34,10 @@ interface IServerInteraction
 	CreateInviteCode(serverId: Guid, expiration: any) : Promise<InviteCode>;
 	PrefetchUser(serverId: Guid, userId: Guid) : Promise<IUserDto>;
 	PrefetchProfile(serverId: Guid, userId: Guid) : Promise<IUserProfileDto>;
+	GetServerArchetypes(serverId: Guid) : Promise<IArchetypeDto[]>;
+	CreateArchetypeAsync(serverId: Guid, name: string) : Promise<IArchetypeDto>;
+	UpdateArchetypeAsync(serverId: Guid, dto: IArchetypeDto) : Promise<IArchetypeDto>;
+	SetArchetypeToMember(serverId: Guid, memberId: Guid, archetypeId: Guid, isGrant: boolean) : Promise<boolean>;
+	GetDetailedServerArchetypes(serverId: Guid) : Promise<IArchetypeDtoGroup[]>;
+	UpsertArchetypeEntitlementForChannel(serverId: Guid, channelId: Guid, archetypeId: Guid, deny: number, allow: number) : Promise<IChannelEntitlementOverwrite>;
 }

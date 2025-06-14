@@ -5,15 +5,9 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
-///<reference path="IUserDto.d.ts"/>
-///<reference path="IServerMemberArchetypeDto.d.ts"/>
 
-interface IServerMemberDto
+interface IServerMemberArchetypeDto
 {
-	UserId: Guid;
-	ServerId: Guid;
-	JoinedAt: number;
-	MemberId: Guid;
-	User?: IUserDto;
-	Archetypes: IServerMemberArchetypeDto[];
+	ServerMemberId: Guid;
+	ArchetypeId: Guid;
 }

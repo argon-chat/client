@@ -15,6 +15,8 @@ interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IArgonEntityWi
 	ServerId: Guid;
 	Name: string;
 	Description?: string;
+	SlowMode?: any;
+	DoNotRestrictBoosters: boolean;
 	EntitlementOverwrites: IChannelEntitlementOverwrite[];
 	Overwrites: any[];
 }

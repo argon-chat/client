@@ -5,6 +5,7 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="IServerMemberArchetypeDto.d.ts"/>
 
 interface IUserProfileDto
 {
@@ -16,4 +17,5 @@ interface IUserProfileDto
 	Bio?: string;
 	IsPremium: boolean;
 	Badges: string[];
+	Archetypes: IServerMemberArchetypeDto[];
 }
