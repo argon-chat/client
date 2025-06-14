@@ -2,7 +2,7 @@
     <div class="flex flex-col space-y-4">
         <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold">{{ t("invite_codes") }}</h2>
-            <Button @click="addInvite" :disabled="loading" variant="default" class="px-4 py-2">
+            <Button @click="addInvite" :disabled="loading || !pex.has('ManageServer')" variant="default" class="px-4 py-2">
                 {{ t("add_invite") }}
             </Button>
         </div>
@@ -33,12 +33,16 @@
 import { onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useServerStore } from '@/store/serverStore';
+//@ts-ignore
 import { AtomSpinner } from 'epic-spinners'
 import { Input } from '@/components/ui/input';
 import { useLocale } from '@/store/localeStore';
+import { usePexStore } from '@/store/permissionStore';
+
 const { t } = useLocale();
 const servers = useServerStore();
 const loading = ref(true);
+const pex = usePexStore();
 
 onMounted(async () => {
     await refreshInvites();
