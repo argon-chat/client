@@ -113,5 +113,151 @@
     "force_to_mono_voice_desc": "If your sound card outputs the microphone output to one of the channels, then you can force duplication in stereo mode to avoid the effect of sound in one ear.",
     "unnamed_speaker": "Unnamed Speakers",
     "no_speakers_found": "No Speakers Found",
-    "select_output": "Select Speakers"
+    "select_output": "Select Speakers",
+    "permissions": {
+        "groups": {
+            "basic": {
+                "name": "Basic Access",
+                "description": "Minimal rights to view and read."
+            },
+            "messaging": {
+                "name": "Messaging",
+                "description": "Permissions to chat and send content."
+            },
+            "voice": {
+                "name": "Voice & Video",
+                "description": "Rights for voice and video communication."
+            },
+            "moderation": {
+                "name": "Moderation",
+                "description": "Rights to manage members."
+            },
+            "management": {
+                "name": "Management",
+                "description": "Rights for settings and administration."
+            }
+        },
+        "flags": {
+            "ViewChannel": {
+                "name": "View Channels",
+                "description": "Allows seeing the channel and its content."
+            },
+            "ReadHistory": {
+                "name": "Read History",
+                "description": "Allows viewing previous messages."
+            },
+            "JoinToVoice": {
+                "name": "Join Voice",
+                "description": "Allows joining voice channels."
+            },
+            "SendMessages": {
+                "name": "Send Messages",
+                "description": "Allows sending text messages."
+            },
+            "AttachFiles": {
+                "name": "Attach Files",
+                "description": "Allows attaching images and documents."
+            },
+            "AddReactions": {
+                "name": "Add Reactions",
+                "description": "Allows adding reactions to messages."
+            },
+            "AnyMentions": {
+                "name": "Mention Members",
+                "description": "Allows mentioning other users."
+            },
+            "MentionEveryone": {
+                "name": "Mention Everyone",
+                "description": "Allows using {'@'}everyone and {'@'}here."
+            },
+            "ExternalEmoji": {
+                "name": "External Emoji",
+                "description": "Allows using emojis from other servers."
+            },
+            "ExternalStickers": {
+                "name": "External Stickers",
+                "description": "Allows using stickers from other servers."
+            },
+            "UseCommands": {
+                "name": "Use Commands",
+                "description": "Allows using slash commands."
+            },
+            "PostEmbeddedLinks": {
+                "name": "Embed Links",
+                "description": "Allows embedding content via links."
+            },
+            "SendVoice": {
+                "name": "Send Voice",
+                "description": "Allows sending voice messages."
+            },
+            "Connect": {
+                "name": "Connect to Voice",
+                "description": "Allows connecting to voice channels."
+            },
+            "Speak": {
+                "name": "Speak",
+                "description": "Allows speaking in voice channel."
+            },
+            "Video": {
+                "name": "Video",
+                "description": "Allows using camera."
+            },
+            "Stream": {
+                "name": "Screen Share",
+                "description": "Allows streaming your screen."
+            },
+            "UseASIO": {
+                "name": "ASIO Mode",
+                "description": "Allows using low-latency audio mode."
+            },
+            "AdditionalStreams": {
+                "name": "Additional Streams",
+                "description": "Allows using multiple video streams."
+            },
+            "DisconnectMember": {
+                "name": "Disconnect Member",
+                "description": "Allows forcibly disconnecting a member from voice."
+            },
+            "MoveMember": {
+                "name": "Move Member",
+                "description": "Allows moving members between channels."
+            },
+            "MuteMember": {
+                "name": "Mute Member",
+                "description": "Allows muting a member's mic."
+            },
+            "KickMember": {
+                "name": "Kick Member",
+                "description": "Allows kicking a member from the server."
+            },
+            "BanMember": {
+                "name": "Ban Member",
+                "description": "Allows banning a member from the server."
+            },
+            "ManageChannels": {
+                "name": "Manage Channels",
+                "description": "Allows creating, deleting, and editing channels."
+            },
+            "ManageArchetype": {
+                "name": "Manage Roles",
+                "description": "Allows editing server roles (archetypes)."
+            },
+            "ManageBots": {
+                "name": "Manage Bots",
+                "description": "Allows configuring and running bots."
+            },
+            "ManageEvents": {
+                "name": "Manage Events",
+                "description": "Allows creating and editing server events."
+            },
+            "ManageBehaviour": {
+                "name": "Manage Behaviour",
+                "description": "Allows configuring server scripts or automations."
+            },
+            "ManageServer": {
+                "name": "Manage Server",
+                "description": "Grants full administrative access to server settings."
+            }
+        }
+    }
 }
