@@ -100,62 +100,34 @@ const displayColor = computed(() =>
     <p class="text-xs text-muted">Members use the colour of the highest role they have on the roles list.</p>
 
     <div class="flex items-center gap-2 mt-2">
-      <div
-        class="w-10 h-10 rounded-md border border-white/20"
-        :style="{ backgroundColor: displayColor }"
-      />
-      <button
-        type="button"
-        :disabled="readonly"
-        :class="[
-          'w-10 h-10 flex items-center justify-center rounded-md border transition',
-          'border-white/20 hover:border-white',
-          readonly ? 'cursor-not-allowed opacity-50' : ''
-        ]"
-        @click="openColorPicker"
-        title="Custom color"
-      >
+      <div class="w-10 h-10 rounded-md border border-white/20" :style="{ backgroundColor: displayColor }" />
+      <button type="button" :disabled="readonly" :class="[
+        'w-10 h-10 flex items-center justify-center rounded-md border transition',
+        'border-white/20 hover:border-white',
+        readonly ? 'cursor-not-allowed opacity-50' : ''
+      ]" @click="openColorPicker" title="Custom color">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
           <path
             d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM5 15v-1.586l7.586-7.586L14.586 7 7 14.586H5z" />
         </svg>
       </button>
-      <input
-        ref="colorPicker"
-        type="color"
-        class="absolute opacity-0 w-0 h-0 pointer-events-none"
-        :disabled="readonly"
-        :value="displayColor"
-        @change="handleCustomColorChange"
-      />
+      <input ref="colorPicker" type="color" class="absolute opacity-0 w-0 h-0 pointer-events-none" :disabled="readonly"
+        :value="displayColor" @change="handleCustomColorChange" />
     </div>
 
     <div class="flex flex-wrap gap-2 mt-3">
-      <button
-        class="w-8 h-8 rounded-md border-2"
-        :disabled="readonly"
-        :class="[
-          modelValue === null ? 'border-blue-500' : 'border-transparent',
-          readonly ? 'cursor-not-allowed opacity-50' : ''
-        ]"
-        @click="selectColor(null)"
-      >
+      <button class="w-8 h-8 rounded-md border-2" :disabled="readonly" :class="[
+        modelValue === null ? 'border-blue-500' : 'border-transparent',
+        readonly ? 'cursor-not-allowed opacity-50' : ''
+      ]" @click="selectColor(null)">
         <div class="w-full h-full bg-gray-400 rounded-md" />
       </button>
 
-      <button
-        v-for="color in colors"
-        :key="color"
-        type="button"
-        :disabled="readonly"
-        class="w-8 h-8 rounded-md border-2"
-        :style="{ backgroundColor: color }"
-        :class="[
+      <button v-for="color in colors" :key="color" type="button" :disabled="readonly"
+        class="w-8 h-8 rounded-md border-2" :style="{ backgroundColor: color }" :class="[
           modelValue !== null && argbToHex(modelValue) === color ? 'border-blue-500' : 'border-transparent',
           readonly ? 'cursor-not-allowed opacity-50' : ''
-        ]"
-        @click="selectColor(color)"
-      />
+        ]" @click="selectColor(color)" />
     </div>
   </div>
 </template>

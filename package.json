@@ -17,7 +17,6 @@
 	},
 	"dependencies": {
 		"@argon-chat/infer": "^1.0.4",
-		"@biomejs/biome": "^1.9.4",
 		"@ffmpeg/core": "^0.12.10",
 		"@ffmpeg/ffmpeg": "^0.12.15",
 		"@ffmpeg/util": "^0.12.2",
@@ -59,7 +58,7 @@
 		"livekit-client": "^2.7.5",
 		"lottie-web": "^5.12.2",
 		"lowlight": "^3.3.0",
-		"lucide-vue-next": "^0.469.0",
+		"lucide-vue-next": "^0.515.0",
 		"markdown-it": "^14.1.0",
 		"marked": "^15.0.7",
 		"motion-v": "^1.1.0-alpha.0",
@@ -94,6 +93,7 @@
 		"zod": "^3.24.1"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
 		"@iconify-json/lucide": "^1.2.8",
 		"@iconify-json/radix-icons": "^1.2.1",
 		"@iconify/vue": "^4.1.2",
@@ -116,7 +116,7 @@
 		"vite-plugin-vue-devtools": "^7.6.8",
 		"vite-plugin-wasm": "^3.4.1",
 		"vite-svg-loader": "^5.1.0",
-		"vue-tsc": "^2.1.6"
+		"vue-tsc": "^2.2.10"
 	},
 	"trustedDependencies": [
 		"@biomejs/biome",

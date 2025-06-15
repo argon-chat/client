@@ -1,163 +1,151 @@
 <template>
-    <div>
-        <div class="flex items-center justify-between p-4 gap-2">
-            <Button @click="addArchetype" variant="ghost" title="Add Role">
-                <PlusCircleIcon />
-            </Button>
-            <Input v-model="search" type="text" placeholder="Search roles..." />
+  <div>
+    <div class="flex items-center justify-between p-4 gap-2">
+      <Button @click="addArchetype" variant="ghost" title="Add Role">
+        <PlusCircleIcon />
+      </Button>
+      <Input v-model="search" type="text" placeholder="Search roles..." />
 
-        </div>
-        <div v-if="!isLoading">
-            <div class="grid grid-cols-2 gap-4">
-                <ScrollArea class="p-2 max-h-[calc(100vh-270px)]">
-                    <div class="space-y-2 p-4">
-                        <Card v-for="arch in filteredArchetypes" :key="arch.Id" @click="() => switchTo(arch.Id)"
-                            :class="selectedArchetypeId === arch.Id ? 'border-2 border-r-indigo-500' : ''"
-                            class="cursor-pointer">
-                            <CardContent class="flex gap-4 items-center p-4">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 rounded-full shrink-0"
-                                        :style="{ backgroundColor: formatColour(arch.Colour) }" />
-                                    <div class="flex-1 min-w-0 flex items-center gap-1 truncate">
-                                        <span class="font-semibold text-base truncate"
-                                            :style="{ color: formatColour(arch.Colour) }">{{ arch.Name }}</span>
-                                        <span v-if="arch.IsLocked" class="text-muted">🔒</span>
-                                        <span class="text-muted text-sm truncate">— {{ arch.Description }}</span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </ScrollArea>
-                <ScrollArea class="p-2 max-h-[calc(100vh-270px)]">
-                    <div class="space-y-4" v-if="selectedArchetype">
-                        <Tabs v-model="activeTab" default-value="permissions" class="space-y-2">
-                            <TabsList class="w-full justify-center space-x-2 mb-2"
-                                style="background-color: unset !important;">
-                                <TabsTrigger
-                                    :style="{ backgroundColor: activeTab == 'permissions' ? 'rgb(30 30 30)' : '' }"
-                                    class="w-[100%]" value="permissions">Permissions</TabsTrigger>
-                                <TabsTrigger :style="{ backgroundColor: activeTab == 'users' ? 'rgb(30 30 30)' : '' }"
-                                    class="w-[100%]" value="users">{{ t("users") }}</TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="permissions" class="space-y-4">
-                                <Card>
-                                    <CardContent class="p-4 space-y-2">
-                                        <div class="space-y-1">
-                                            <label class="text-sm font-medium text-white">Name<span
-                                                    class="text-red-500 ml-1">*</span></label>
-                                            <Input v-model="selectedArchetype.Name" type="text"
-                                                :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
-                                                :readonly="isLockedArchetype(selectedArchetype, true)"
-                                                placeholder="Role name..." />
-                                        </div>
-                                        <div class="space-y-1">
-                                            <label class="text-sm font-medium text-white">Description<span
-                                                    class="text-red-500 ml-1">*</span></label>
-                                            <Textarea v-model="selectedArchetype.Description"
-                                                :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
-                                                placeholder="Type description here."
-                                                :readonly="isLockedArchetype(selectedArchetype, true)" />
-                                        </div>
-
-                                        <ArchetypeColorPicker v-model="selectedArchetype.Colour"
-                                            :readonly="isLockedArchetype(selectedArchetype, true)" />
-                                        <br />
-                                        <div class="space-y-1 flex items-center justify-between">
-                                            <label class="text-sm font-medium text-white">Group members with this
-                                                role?</label>
-                                            <Switch :checked="selectedArchetype.IsGroup"
-                                                @update:checked="selectedArchetype.IsGroup = !selectedArchetype.IsGroup"
-                                                :disabled="isLockedArchetype(selectedArchetype, true)" />
-                                        </div>
-                                        <div class="space-y-1 flex items-center justify-between">
-                                            <label class="text-sm font-medium text-white">Allow <span
-                                                    class="text-blue-500">@mention</span> allow this role to everyone
-                                                else?</label>
-                                            <Switch :checked="selectedArchetype.IsMentionable"
-                                                @update:checked="selectedArchetype.IsMentionable = !selectedArchetype.IsMentionable"
-                                                :disabled="selectedArchetype.IsLocked" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card v-for="group in ArgonEntitlementGroups" :key="group.i18nKey">
-                                    <CardContent class="p-4 space-y-2">
-                                        <div class="font-semibold text-base">
-                                            {{ t(group.i18nKey + '.name') }}
-                                        </div>
-                                        <div class="text-muted text-sm">
-                                            {{ t(group.i18nKey + '.description') }}
-                                        </div>
-                                        <ul class="space-y-2 mt-2">
-                                            <li v-for="flag in group.flags" :key="flag.value.toString()"
-                                                class="flex items-center justify-between text-sm">
-                                                <div>
-                                                    <div class="font-medium">{{ t(flag.i18nKey + '.name') }}</div>
-                                                    <div class="text-muted text-xs">
-                                                        {{ t(flag.i18nKey + '.description') }}
-                                                    </div>
-                                                </div>
-                                                <Switch :disabled="selectedArchetype.IsLocked"
-                                                    :checked="includesEntitlement(entitlementFlags, flag)"
-                                                    @update:checked="toggleFlag(flag.value, $event)" />
-                                            </li>
-                                        </ul>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            <TabsContent value="users" class="space-y-2">
-                                <Card>
-                                    <CardContent class="p-4 space-y-4">
-                                        <!-- Уже добавленные пользователи -->
-                                        <div>
-                                            <h3 class="text-sm font-semibold">{{ t("Users with this role") }}</h3>
-                                            <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
-                                                <div v-for="user in usersForRole" :key="user.UserId"
-                                                    class="flex items-center gap-2 p-2 rounded">
-                                                    <UserInListSideElement :user="user" :enable-popup="false"
-                                                        :show-activity="false" :pick-action="true"
-                                                        @pick-action="() => revokeArchetype(user.UserId)" />
-                                                </div>
-                                            </div>
-                                            <div v-else class="text-muted text-sm mt-2">
-                                                {{ t("No users with this role") }}
-                                            </div>
-                                        </div>
-
-                                        <!-- Поиск и добавление новых -->
-                                        <div>
-                                            <h3 class="text-sm font-semibold">{{ t("Add user to this role") }}</h3>
-                                            <Input v-model="userSearchQuery" type="text" @focusin="console.log('focus in')" @focusout="console.log('focus out')"
-                                                :placeholder="t('Search users...')" class="w-full mt-2" />
-
-                                            <div v-if="searchResults.length > 0" class="space-y-2 mt-4">
-                                                <div v-for="user in addableSearchResults" :key="user.UserId"
-                                                    class="flex items-center gap-2 p-2 rounded bg-muted/10">
-                                                    <UserInListSideElement :user="user" :enable-popup="false"
-                                                        :show-activity="false" :pick-action="true"
-                                                        @pick-action="() => assignArchetype(user.UserId)" />
-                                                </div>
-                                            </div>
-                                            <div v-else-if="userSearchQuery.trim().length > 0"
-                                                class="text-muted text-sm mt-2">
-                                                {{ t("No users found") }}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-                </ScrollArea>
-            </div>
-        </div>
-        <div v-else>
-            Loading...
-        </div>
     </div>
+    <div v-if="!isLoading">
+      <div class="grid grid-cols-2 gap-4">
+        <ScrollArea class="p-2 max-h-[calc(100vh-270px)]">
+          <div class="space-y-2 p-4">
+            <Card v-for="arch in filteredArchetypes" :key="arch.Id" @click="() => switchTo(arch.Id)"
+              :class="selectedArchetypeId === arch.Id ? 'border-2 border-r-indigo-500' : ''" class="cursor-pointer">
+              <CardContent class="flex gap-4 items-center p-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: formatColour(arch.Colour) }" />
+                  <div class="flex-1 min-w-0 flex items-center gap-1 truncate">
+                    <span class="font-semibold text-base truncate" :style="{ color: formatColour(arch.Colour) }">{{
+                      arch.Name }}</span>
+                    <span v-if="arch.IsLocked" class="text-muted">🔒</span>
+                    <span class="text-muted text-sm truncate">— {{ arch.Description }}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
+        <ScrollArea class="p-2 max-h-[calc(100vh-270px)]">
+          <div class="space-y-4" v-if="selectedArchetype">
+            <Tabs v-model="activeTab" default-value="permissions" class="space-y-2">
+              <TabsList class="w-full justify-center space-x-2 mb-2" style="background-color: unset !important;">
+                <TabsTrigger :style="{ backgroundColor: activeTab == 'permissions' ? 'rgb(30 30 30)' : '' }"
+                  class="w-[100%]" value="permissions">Permissions</TabsTrigger>
+                <TabsTrigger :style="{ backgroundColor: activeTab == 'users' ? 'rgb(30 30 30)' : '' }" class="w-[100%]"
+                  value="users">{{ t("users") }}</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="permissions" class="space-y-4">
+                <Card>
+                  <CardContent class="p-4 space-y-2">
+                    <div class="space-y-1">
+                      <label class="text-sm font-medium text-white">Name<span class="text-red-500 ml-1">*</span></label>
+                      <Input v-model="selectedArchetype.Name" type="text"
+                        :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
+                        :readonly="isLockedArchetype(selectedArchetype, true)" placeholder="Role name..." />
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-sm font-medium text-white">Description<span
+                          class="text-red-500 ml-1">*</span></label>
+                      <Textarea v-model="selectedArchetype.Description"
+                        :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
+                        placeholder="Type description here." :readonly="isLockedArchetype(selectedArchetype, true)" />
+                    </div>
+
+                    <ArchetypeColorPicker v-model="selectedArchetype.Colour"
+                      :readonly="isLockedArchetype(selectedArchetype, true)" />
+                    <br />
+                    <div class="space-y-1 flex items-center justify-between">
+                      <label class="text-sm font-medium text-white">Group members with this
+                        role?</label>
+                      <Switch :checked="selectedArchetype.IsGroup"
+                        @update:checked="selectedArchetype.IsGroup = !selectedArchetype.IsGroup"
+                        :disabled="isLockedArchetype(selectedArchetype, true)" />
+                    </div>
+                    <div class="space-y-1 flex items-center justify-between">
+                      <label class="text-sm font-medium text-white">Allow <span class="text-blue-500">@mention</span>
+                        allow this role to everyone
+                        else?</label>
+                      <Switch :checked="selectedArchetype.IsMentionable"
+                        @update:checked="selectedArchetype.IsMentionable = !selectedArchetype.IsMentionable"
+                        :disabled="selectedArchetype.IsLocked" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card v-for="group in ArgonEntitlementGroups" :key="group.i18nKey">
+                  <CardContent class="p-4 space-y-2">
+                    <div class="font-semibold text-base">
+                      {{ t(group.i18nKey + '.name') }}
+                    </div>
+                    <div class="text-muted text-sm">
+                      {{ t(group.i18nKey + '.description') }}
+                    </div>
+                    <ul class="space-y-2 mt-2">
+                      <li v-for="flag in group.flags" :key="flag.value.toString()"
+                        class="flex items-center justify-between text-sm">
+                        <div>
+                          <div class="font-medium">{{ t(flag.i18nKey + '.name') }}</div>
+                          <div class="text-muted text-xs">
+                            {{ t(flag.i18nKey + '.description') }}
+                          </div>
+                        </div>
+                        <Switch :disabled="selectedArchetype.IsLocked"
+                          :checked="includesEntitlement(entitlementFlags, flag)"
+                          @update:checked="toggleFlag(flag.value, $event)" />
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="users" class="space-y-2">
+                <Card>
+                  <CardContent class="p-4 space-y-4">
+                    <div>
+                      <h3 class="text-sm font-semibold">{{ t("Users with this role") }}</h3>
+                      <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
+                        <div v-for="user in usersForRole" :key="user.UserId"
+                          class="flex items-center gap-2 p-2 rounded">
+                          <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false"
+                            :pick-action="true" @pick-action="() => revokeArchetype(user.UserId)" />
+                        </div>
+                      </div>
+                      <div v-else class="text-muted text-sm mt-2">
+                        {{ t("No users with this role") }}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 class="text-sm font-semibold">{{ t("Add user to this role") }}</h3>
+                      <Input v-model="userSearchQuery" type="text" @focusin="console.log('focus in')"
+                        @focusout="console.log('focus out')" :placeholder="t('Search users...')" class="w-full mt-2" />
+
+                      <div v-if="searchResults.length > 0" class="space-y-2 mt-4">
+                        <div v-for="user in addableSearchResults" :key="user.UserId"
+                          class="flex items-center gap-2 p-2 rounded bg-muted/10">
+                          <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false"
+                            :pick-action="true" @pick-action="() => assignArchetype(user.UserId)" />
+                        </div>
+                      </div>
+                      <div v-else-if="userSearchQuery.trim().length > 0" class="text-muted text-sm mt-2">
+                        {{ t("No users found") }}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+    <div v-else>
+      Loading...
+    </div>
+  </div>
 
 </template>
 
@@ -246,8 +234,8 @@ const selectedArchetype = computed(() => {
   return archetypes.value?.find((a) => a.Id === selectedArchetypeId.value);
 });
 
-const revokeArchetype = (userId: Guid) => {};
-const assignArchetype = (userId: Guid) => {};
+const revokeArchetype = (userId: Guid) => { };
+const assignArchetype = (userId: Guid) => { };
 
 const usersForRole = ref<RealtimeUser[]>([]);
 let unsubscribeUsers: Subscription | null = null;
@@ -319,7 +307,7 @@ const getUsersForArchetypeGroup = (archetypeId: Guid) => {
   if (!members) return [];
 
   return pool.getUsersByServerMemberIds(
-    selectedServer.value ?? pool.servers[0],
+    selectedServer.value ?? "",
     members,
   );
 };
@@ -428,6 +416,6 @@ const formatColour = (argb: number) => {
 
 <style scoped>
 .text-muted {
-    color: #6b7280;
+  color: #6b7280;
 }
 </style>
