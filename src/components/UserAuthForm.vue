@@ -1,49 +1,48 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref } from "vue";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription
-} from '@/components/ui/card'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/store/authStore'
-import { useRouter } from 'vue-router';
-import { Checkbox } from '@/components/ui/checkbox'
-import { ReloadIcon } from '@radix-icons/vue'
+  CardDescription,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/authStore";
+import { useRouter } from "vue-router";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ReloadIcon } from "@radix-icons/vue";
 import {
   PinInput,
   PinInputGroup,
   PinInputInput,
   PinInputSeparator,
-} from '@/components/ui/pin-input'
-import { logger } from '@/lib/logger'
+} from "@/components/ui/pin-input";
+import { logger } from "@/lib/logger";
 
 const router = useRouter();
 
 const isLoading = ref(false);
-const tabValue = ref<"login" | "register" | "otp-code" | "otp-reset" | "pass-reset">('login');
-const isRegister = computed(() => tabValue.value === 'register');
-const isResetPass = computed(() => tabValue.value === 'otp-reset' || tabValue.value === 'pass-reset');
+const tabValue = ref<
+  "login" | "register" | "otp-code" | "otp-reset" | "pass-reset"
+>("login");
+const isRegister = computed(() => tabValue.value === "register");
+const isResetPass = computed(
+  () => tabValue.value === "otp-reset" || tabValue.value === "pass-reset",
+);
 
 const authStore = useAuthStore();
 
-const email = ref('');
-const password = ref('');
-const username = ref('');
+const email = ref("");
+const password = ref("");
+const username = ref("");
 const allowSendMeOptionalEmails = ref(false);
 const agreeTos = ref(false);
-const displayName = ref('');
+const displayName = ref("");
 const otpModel = ref<string[]>([]);
 const otpCode = ref<string>("");
 const handleCompleteOtpCode = (e: string[]) => {
@@ -59,19 +58,17 @@ async function onSubmit(event: Event | null) {
   isLoading.value = true;
 
   try {
-
     logger.info("Do submit, ", { isRegister: isRegister.value, event });
 
     if (isResetPass.value) {
-      if (tabValue.value === 'otp-reset') {
+      if (tabValue.value === "otp-reset") {
         await authStore.resetPass(email.value, password.value, otpCode.value);
-      }
-      else {
+      } else {
         await authStore.beginResetPass(email.value);
         tabValue.value = "otp-reset";
       }
       if (authStore.isAuthenticated) {
-        window.location.href = window.location.href;
+        window.location.reload();
       }
       return;
     }
@@ -84,11 +81,16 @@ async function onSubmit(event: Event | null) {
         DisplayName: displayName.value,
         Email: email.value,
         Password: password.value,
-        Username: username.value
+        Username: username.value,
       });
     } else {
-      await authStore.login(email.value, password.value, !!otpCode.value ? otpCode.value : undefined, undefined);
-      if (authStore.isRequiredOtp && tabValue.value == "login") {
+      await authStore.login(
+        email.value,
+        password.value,
+        otpCode.value ? otpCode.value : undefined,
+        undefined,
+      );
+      if (authStore.isRequiredOtp && tabValue.value === "login") {
         tabValue.value = "otp-code";
         return;
       }
@@ -104,11 +106,11 @@ async function onSubmit(event: Event | null) {
         return;
       }
       router.push({ path: "/master.pg" });*/
-      window.location.href = window.location.href;
+      window.location.reload();
       //(window as any).restartApp();
     }
   } catch (error) {
-    console.error('Error when login/register:', error);
+    console.error("Error when login/register:", error);
   } finally {
     isLoading.value = false;
   }
@@ -116,7 +118,7 @@ async function onSubmit(event: Event | null) {
 
 const goToResetPass = () => {
   tabValue.value = "pass-reset";
-}
+};
 </script>
 <template>
   <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">

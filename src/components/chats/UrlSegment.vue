@@ -3,30 +3,27 @@
     }}</a>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntityUrl">
-import { useToast } from '../ui/toast';
+import { useToast } from "../ui/toast";
 
 const props = defineProps<{
-    entity: T,
-    text: string
+  entity: T;
+  text: string;
 }>();
 const { toast } = useToast();
-const isArgonDomain = (host: string) => /^([a-z0-9-]+\.)*argon\.gl$/i.test(host) || /^([a-z0-9-]+\.)*argon\.zone$/i.test(host);
+const isArgonDomain = (host: string) =>
+  /^([a-z0-9-]+\.)*argon\.gl$/i.test(host) ||
+  /^([a-z0-9-]+\.)*argon\.zone$/i.test(host);
 const onClickUrl = () => {
-    const fullyUrl = `https://${props.entity.Domain}${props.entity.Path}`;
-    if (isArgonDomain(props.entity.Domain)) {
-        if (argon.isArgonHost)
-            window.open(fullyUrl, '_blank', 'noopener');
-        else
-            native.openUrl(fullyUrl);
-        return;
-    }
-    else {
-        toast({
-            title: `Cannot be open '${fullyUrl}'`,
-            variant: "destructive",
-            duration: 2500,
-        });
-    }
+  const fullyUrl = `https://${props.entity.Domain}${props.entity.Path}`;
+  if (isArgonDomain(props.entity.Domain)) {
+    if (argon.isArgonHost) window.open(fullyUrl, "_blank", "noopener");
+    else native.openUrl(fullyUrl);
+    return;
+  }
+  toast({
+    title: `Cannot be open '${fullyUrl}'`,
+    variant: "destructive",
+    duration: 2500,
+  });
 };
-
 </script>

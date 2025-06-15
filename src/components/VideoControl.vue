@@ -37,10 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { Room, LocalVideoTrack, LocalAudioTrack, Track } from 'livekit-client';
-import UiButton from './ui/button/Button.vue';
-import Input from './ui/input/Input.vue';
+import { ref, reactive, onMounted } from "vue";
+import { Room, LocalVideoTrack, LocalAudioTrack, Track } from "livekit-client";
+import UiButton from "./ui/button/Button.vue";
+import Input from "./ui/input/Input.vue";
 
 const localVideo = ref<HTMLVideoElement | null>(null);
 const localStream = ref<MediaStream | null>(null);
@@ -50,123 +50,132 @@ const isMuted = ref(false);
 const isConnectedToLive = ref(false);
 const tokenRef = ref("");
 
-const selectedAudioSource = ref<string>('');
+const selectedAudioSource = ref<string>("");
 const selectedVideoSource = ref<string | null>(null);
 
 const audioDevices = ref<MediaDeviceInfo[]>([]);
 const videoDevices = ref<MediaDeviceInfo[]>([]);
 
 onMounted(() => {
-    getDevices();
+  getDevices();
 });
 
 async function beginConnect() {
-    room.value = new Room();
-    await room.value.connect('wss://argon-f14ic5ia.livekit.cloud', tokenRef.value);
-    isConnectedToLive.value = true;
+  room.value = new Room();
+  await room.value.connect(
+    "wss://argon-f14ic5ia.livekit.cloud",
+    tokenRef.value,
+  );
+  isConnectedToLive.value = true;
 
-    room.value.on('trackSubscribed', (track, publication, participant) => {
-        console.log({ track, publication, participant });
-        if (track.kind === Track.Kind.Video) {
-            remoteTracks.push(track);
-        }
-    });
+  room.value.on("trackSubscribed", (track, publication, participant) => {
+    console.log({ track, publication, participant });
+    if (track.kind === Track.Kind.Video) {
+      remoteTracks.push(track);
+    }
+  });
 
-    await startVideo();
+  await startVideo();
 }
 
 const getDevices = async () => {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    audioDevices.value = devices.filter(device => device.kind === 'audioinput');
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  videoDevices.value = devices.filter((device) => device.kind === "videoinput");
+  audioDevices.value = devices.filter((device) => device.kind === "audioinput");
 
-    if (videoDevices.value.length && !selectedVideoSource.value) {
-        selectedVideoSource.value = videoDevices.value[0].deviceId;
-    }
-    if (audioDevices.value.length && !selectedAudioSource.value) {
-        selectedAudioSource.value = audioDevices.value[0].deviceId;
-    }
+  if (videoDevices.value.length && !selectedVideoSource.value) {
+    selectedVideoSource.value = videoDevices.value[0].deviceId;
+  }
+  if (audioDevices.value.length && !selectedAudioSource.value) {
+    selectedAudioSource.value = audioDevices.value[0].deviceId;
+  }
 };
 
 const switchVideoSource = async () => {
-    if (!selectedVideoSource.value || !room.value) return;
+  if (!selectedVideoSource.value || !room.value) return;
 
-    const constraints = {
-        video: { deviceId: { exact: selectedVideoSource.value } },
-        audio: true
-    };
+  const constraints = {
+    video: { deviceId: { exact: selectedVideoSource.value } },
+    audio: true,
+  };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    localStream.value = stream;
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  localStream.value = stream;
 
-    if (localVideo.value && localStream.value) {
-        localVideo.value.srcObject = localStream.value;
-    }
+  if (localVideo.value && localStream.value) {
+    localVideo.value.srcObject = localStream.value;
+  }
 
-    const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
-    await room.value.localParticipant.publishTrack(videoTrack);
+  const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
+  await room.value.localParticipant.publishTrack(videoTrack);
 };
 
 const switchAudioSource = async () => {
-    if (!selectedAudioSource.value || !room.value) return;
+  if (!selectedAudioSource.value || !room.value) return;
 
-    const constraints = {
-        audio: { deviceId: { exact: selectedAudioSource.value } }
-    };
+  const constraints = {
+    audio: { deviceId: { exact: selectedAudioSource.value } },
+  };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    const audioTrack = new LocalAudioTrack(stream.getAudioTracks()[0]);
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  const audioTrack = new LocalAudioTrack(stream.getAudioTracks()[0]);
 
-    room.value.localParticipant.unpublishTrack(room.value.localParticipant.getTrackPublication(Track.Source.Microphone)?.track!);
+  room.value.localParticipant.unpublishTrack(
+    room.value.localParticipant.getTrackPublication(Track.Source.Microphone)
+      ?.track ?? new LocalAudioTrack(),
+  );
 
-    await room.value.localParticipant.publishTrack(audioTrack);
+  await room.value.localParticipant.publishTrack(audioTrack);
 };
 
 const startVideo = async () => {
-    if (!selectedVideoSource.value || !room.value) return;
+  if (!selectedVideoSource.value || !room.value) return;
 
-    const constraints = {
-        video: { deviceId: { exact: selectedVideoSource.value } },
-        audio: { deviceId: { exact: selectedAudioSource.value } }
-    };
+  const constraints = {
+    video: { deviceId: { exact: selectedVideoSource.value } },
+    audio: { deviceId: { exact: selectedAudioSource.value } },
+  };
 
-    localStream.value = await navigator.mediaDevices.getUserMedia(constraints);
+  localStream.value = await navigator.mediaDevices.getUserMedia(constraints);
 
-    if (localVideo.value && localStream.value) {
-        localVideo.value.srcObject = localStream.value;
-    }
+  if (localVideo.value && localStream.value) {
+    localVideo.value.srcObject = localStream.value;
+  }
 
-    const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
-    const audioTrack = new LocalAudioTrack(localStream.value.getAudioTracks()[0]);
+  const videoTrack = new LocalVideoTrack(localStream.value.getVideoTracks()[0]);
+  const audioTrack = new LocalAudioTrack(localStream.value.getAudioTracks()[0]);
 
-    await room.value.localParticipant.publishTrack(videoTrack);
-    await room.value.localParticipant.publishTrack(audioTrack);
+  await room.value.localParticipant.publishTrack(videoTrack);
+  await room.value.localParticipant.publishTrack(audioTrack);
 };
 
 const stopVideo = () => {
-    localStream.value?.getTracks().forEach((track) => track.stop());
-    if (localVideo.value) localVideo.value.srcObject = null;
+  const tracks = localStream.value?.getTracks() || [];
+  for (const track of tracks) track.stop();
+  if (localVideo.value) localVideo.value.srcObject = null;
 };
 
 const toggleMute = async () => {
-    if (!room.value) return;
+  if (!room.value) return;
 
-    isMuted.value = !isMuted.value;
+  isMuted.value = !isMuted.value;
 
-    const audioTrack = room.value.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
-    if (audioTrack) {
-        if (isMuted.value) {
-            audioTrack.mute();
-        } else {
-            audioTrack.unmute();
-        }
+  const audioTrack = room.value.localParticipant.getTrackPublication(
+    Track.Source.Microphone,
+  )?.track;
+  if (audioTrack) {
+    if (isMuted.value) {
+      audioTrack.mute();
+    } else {
+      audioTrack.unmute();
     }
+  }
 };
 
 const setRemoteVideoRef = (index: number) => (el: HTMLVideoElement | null) => {
-    if (el && remoteTracks[index]) {
-        el.srcObject = new MediaStream([remoteTracks[index].mediaStreamTrack]);
-    }
+  if (el && remoteTracks[index]) {
+    el.srcObject = new MediaStream([remoteTracks[index].mediaStreamTrack]);
+  }
 };
 </script>
 

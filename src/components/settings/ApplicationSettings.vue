@@ -131,21 +131,21 @@
 </template>
 
 <script setup lang="ts">
-import { useMe } from '@/store/meStore';
-import { usePreference } from '@/store/preferenceStore';
-import Switch from '../ui/switch/Switch.vue';
-import { useLocale } from '@/store/localeStore';
-import { onMounted, ref, watch } from 'vue';
-import { logger } from '@/lib/logger';
+import { useMe } from "@/store/meStore";
+import { usePreference } from "@/store/preferenceStore";
+import Switch from "../ui/switch/Switch.vue";
+import { useLocale } from "@/store/localeStore";
+import { onMounted, ref, watch } from "vue";
+import { logger } from "@/lib/logger";
 import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/components/ui/toast/'
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/toast/";
 const { t } = useLocale();
 const toast = useToast();
 
@@ -161,76 +161,73 @@ const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
 const isArgonHost = ref(argon.isArgonHost);
 
 const toggleDevTools = () => {
-    native.toggleDevTools();
-}
+  native.toggleDevTools();
+};
 
 const copyMyUserId = () => {
-    toast.toast({
-        title: "Your UserId has been copied!"
-    });
-    navigator.clipboard.writeText(me.me?.Id ?? "error");
-}
+  toast.toast({
+    title: "Your UserId has been copied!",
+  });
+  navigator.clipboard.writeText(me.me?.Id ?? "error");
+};
 
 watch(selected_channel, (e) => {
-    native.setChannel(e);
+  native.setChannel(e);
 });
 
 watch(selected_api_endpoint, async (e) => {
-    if (!e) return;
-    if (localStorage.getItem("api_endpoint") == e)
-        return;
-    localStorage.setItem("api_endpoint", e);
+  if (!e) return;
+  if (localStorage.getItem("api_endpoint") === e) return;
+  localStorage.setItem("api_endpoint", e);
 
-
-    localStorage.removeItem("token");
-    await pruneDatabases(false);
-})
+  localStorage.removeItem("token");
+  await pruneDatabases(false);
+});
 
 onMounted(() => {
-    if (!argon.isArgonHost) {
-        disable_channel_select.value = true;
-    } else {
-        selected_channel.value = native.getCurrentChannel();
+  if (!argon.isArgonHost) {
+    disable_channel_select.value = true;
+  } else {
+    selected_channel.value = native.getCurrentChannel();
+  }
+
+  const currentApiEndpoint = localStorage.getItem("api_endpoint");
+
+  if (currentApiEndpoint) {
+    selected_api_endpoint.value = currentApiEndpoint as
+      | "live"
+      | "dev"
+      | "local";
+  } else {
+    localStorage.setItem("api_endpoint", "live");
+  }
+});
+
+const pruneDatabases = async (pruneLocalStorage = true) => {
+  const allIndexDbs = await indexedDB.databases();
+
+  for (const db of allIndexDbs) {
+    try {
+      indexedDB.deleteDatabase(db.name ?? "");
+    } catch (e) {
+      logger.error(e);
     }
+  }
 
+  const allStorages = await navigator.storageBuckets.keys();
 
-    const currentApiEndpoint = localStorage.getItem("api_endpoint");
-
-    if (currentApiEndpoint) {
-        selected_api_endpoint.value = currentApiEndpoint as "live" | "dev" | "local";
-    } else {
-        localStorage.setItem("api_endpoint", "live");
+  for (const storage of allStorages) {
+    try {
+      navigator.storageBuckets.delete(storage);
+    } catch (e) {
+      logger.error(e);
     }
-})
+  }
 
-const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
-    const allIndexDbs = await indexedDB.databases();
+  if (pruneLocalStorage) localStorage.clear();
 
-    for (let db of allIndexDbs) {
-        try {
-            indexedDB.deleteDatabase(db.name!);
-        } catch (e) {
-            logger.error(e);
-        }
-    }
-
-    const allStorages = await navigator.storageBuckets.keys();
-
-
-    for (let storage of allStorages) {
-        try {
-            navigator.storageBuckets.delete(storage);
-        } catch (e) {
-            logger.error(e);
-        }
-    }
-
-    if (pruneLocalStorage)
-        localStorage.clear();
-
-    location.reload();
-}
-
+  location.reload();
+};
 </script>
 <style scoped>
 .profile-settings {

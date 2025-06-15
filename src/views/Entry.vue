@@ -20,12 +20,12 @@
 </template>
 
 <script setup lang="ts">
-import router from '@/router';
-import { useAppState } from '@/store/appState';
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { logger } from '@/lib/logger';
-import { usePoolStore } from '@/store/poolStore';
-import { useSystemStore } from '@/store/systemStore';
+import router from "@/router";
+import { useAppState } from "@/store/appState";
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { logger } from "@/lib/logger";
+import { usePoolStore } from "@/store/poolStore";
+import { useSystemStore } from "@/store/systemStore";
 const sys = useSystemStore();
 const terminalContainer = ref(null);
 const app = useAppState();
@@ -39,7 +39,11 @@ let u_timeLocation: WebGLUniformLocation | null = null;
 let u_resolutionLocation: WebGLUniformLocation | null = null;
 
 function logMessage(message: string, type: "info" | "error") {
-  logs.value.push({ message, type, time: new Date().toLocaleTimeString() } as any);
+  logs.value.push({
+    message,
+    type,
+    time: new Date().toLocaleTimeString(),
+  } as any);
 }
 
 const initWebGL = () => {
@@ -47,10 +51,10 @@ const initWebGL = () => {
   const canvasElement = canvas.value;
   onResize();
 
-  gl = canvasElement.getContext('webgl');
+  gl = canvasElement.getContext("webgl");
 
   if (!gl) {
-    console.error('WebGL не поддерживается');
+    console.error("WebGL не поддерживается");
     return;
   }
 
@@ -65,13 +69,10 @@ const initWebGL = () => {
       }
     `;
   function getRandomFloat(min: number, max: number, decimals: number) {
-    const str = (Math.random() * (max - min) + min).toFixed(
-      decimals,
-    );
+    const str = (Math.random() * (max - min) + min).toFixed(decimals);
 
     return str;
   }
-
 
   const polyU = getRandomFloat(0, 15, 2);
   const polyV = getRandomFloat(0, 15, 2);
@@ -450,10 +451,14 @@ g_rot = rot;
 
   // Создаем шейдеры
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+  const fragmentShader = createShader(
+    gl,
+    gl.FRAGMENT_SHADER,
+    fragmentShaderSource,
+  );
 
   if (!vertexShader || !fragmentShader) {
-    console.error('Не удалось создать шейдеры');
+    console.error("Не удалось создать шейдеры");
     return;
   }
 
@@ -461,39 +466,27 @@ g_rot = rot;
   program = createProgram(gl, vertexShader, fragmentShader);
 
   if (!program) {
-    console.error('Не удалось создать программу шейдеров');
+    console.error("Не удалось создать программу шейдеров");
     return;
   }
 
   // Получаем локации атрибутов и униформ
-  const positionLocation = gl.getAttribLocation(program, 'a_position');
-  const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
-  u_timeLocation = gl.getUniformLocation(program, 'u_time');
-  u_resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+  const positionLocation = gl.getAttribLocation(program, "a_position");
+  const texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+  u_timeLocation = gl.getUniformLocation(program, "u_time");
+  u_resolutionLocation = gl.getUniformLocation(program, "u_resolution");
 
   // Создаем буферы
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   const positions = new Float32Array([
-    -1, -1,
-    1, -1,
-    -1, 1,
-    -1, 1,
-    1, -1,
-    1, 1,
+    -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
   ]);
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 
   const texCoordBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-  const texCoords = new Float32Array([
-    0, 0,
-    1, 0,
-    0, 1,
-    0, 1,
-    1, 0,
-    1, 1,
-  ]);
+  const texCoords = new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]);
   gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
 
   // Устанавливаем атрибуты
@@ -508,10 +501,14 @@ g_rot = rot;
   gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 };
 
-const createShader = (gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null => {
+const createShader = (
+  gl: WebGLRenderingContext,
+  type: number,
+  source: string,
+): WebGLShader | null => {
   const shader = gl.createShader(type);
   if (!shader) {
-    console.error('Не удалось создать шейдер');
+    console.error("Не удалось создать шейдер");
     return null;
   }
   gl.shaderSource(shader, source);
@@ -526,10 +523,14 @@ const createShader = (gl: WebGLRenderingContext, type: number, source: string): 
   return shader;
 };
 
-const createProgram = (gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader): WebGLProgram | null => {
+const createProgram = (
+  gl: WebGLRenderingContext,
+  vertexShader: WebGLShader,
+  fragmentShader: WebGLShader,
+): WebGLProgram | null => {
   const program = gl.createProgram();
   if (!program) {
-    console.error('Не удалось создать программу');
+    console.error("Не удалось создать программу");
     return null;
   }
   gl.attachShader(program, vertexShader);
@@ -572,18 +573,20 @@ const render = () => {
 };
 
 const onResize = () => {
-  const width = canvas.value!.parentElement?.offsetWidth ?? 0;
-  canvas.value!.width = width;
-  canvas.value!.height = width;
+  const width = canvas.value?.parentElement?.offsetWidth ?? 0;
+  if (canvas.value) {
+    canvas.value.width = width;
+    canvas.value.height = width;
+  }
 };
 
 function onInitTerminal() {
   logger.addReporter({
     log: (obj, ctx) => {
-      if (obj.type == "error" || obj.type == "fail" || obj.type == "fatal") {
-        logMessage(obj.args.join(' '), "error");
+      if (obj.type === "error" || obj.type === "fail" || obj.type === "fatal") {
+        logMessage(obj.args.join(" "), "error");
       }
-    }
+    },
   });
 }
 
@@ -592,15 +595,15 @@ onMounted(() => {
   initWebGL();
   startTime = performance.now();
   render();
-  window.addEventListener('resize', onResize);
+  window.addEventListener("resize", onResize);
 
   app.initApp().then(async () => {
     const serverStore = usePoolStore();
 
     const servers = await serverStore.allServerAsync;
 
-    if (servers.length == 0) {
-      router.push({ path: '/create-or-join.pg' });
+    if (servers.length === 0) {
+      router.push({ path: "/create-or-join.pg" });
       return;
     }
     router.push({ path: "/master.pg" });
@@ -609,7 +612,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(animationFrameId);
-  window.removeEventListener('resize', onResize);
+  window.removeEventListener("resize", onResize);
 });
 </script>
 

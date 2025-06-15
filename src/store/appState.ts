@@ -21,52 +21,50 @@ export const useAppState = defineStore("app", () => {
   const isLoaded = ref(false);
 
   async function initializeArgonApp(): Promise<void> {
-    while(!isOnline.value) {
-        logger.info(`Waiting network online...`);
-        await delay(1000);
+    while (!isOnline.value) {
+      logger.info("Waiting network online...");
+      await delay(1000);
     }
 
-    logger.info(`Begin initialization firebase runtime...`);
+    logger.info("Begin initialization firebase runtime...");
     await delay(1000);
 
     await useFirebase().initCfg();
 
-    logger.info(`Begin init tone audio engine...`);
+    logger.info("Begin init tone audio engine...");
     await delay(1000);
 
     useTone().init();
 
-    logger.info(`Restoring session...`);
+    logger.info("Restoring session...");
     await delay(1000);
 
     const auth = await useAuthStore();
     auth.restoreSession();
 
-
-    logger.info(`Load wasm render...`);
+    logger.info("Load wasm render...");
 
     const ffmpeg = useFfmpeg();
 
     await ffmpeg.init();
 
-    logger.info(`Load wasm predictor...`);
+    logger.info("Load wasm predictor...");
 
     const predictor = usePredictor();
 
     await predictor.init();
 
-    logger.info(`Load audio manager...`);
+    logger.info("Load audio manager...");
 
     await worklets.init();
-    
-    logger.info(`Create buckets...`);
+
+    logger.info("Create buckets...");
     await useFileStorage().initStorages();
 
-    logger.info(`Fetch data...`);
+    logger.info("Fetch data...");
     await delay(1000);
 
-    if(auth.isAuthenticated)
-    {  
+    if (auth.isAuthenticated) {
       await usePoolStore().loadServerDetails();
       await useMe().init();
       await useIdleStore().init();
@@ -75,15 +73,14 @@ export const useAppState = defineStore("app", () => {
   }
 
   async function initApp() {
-    logger.info(`Begin initialization argon application`);
+    logger.info("Begin initialization argon application");
     try {
-        await initializeArgonApp();
-        isLoaded.value = true;
-        logger.success(`Complete initialization`);
-    }
-    catch (e) {
-        isFailedLoad.value = true;
-        logger.error(`Failed init argon app`, e);
+      await initializeArgonApp();
+      isLoaded.value = true;
+      logger.success("Complete initialization");
+    } catch (e) {
+      isFailedLoad.value = true;
+      logger.error("Failed init argon app", e);
     }
   }
 

@@ -1,6 +1,6 @@
-import { Subject, Subscription } from "rxjs";
+import { Subject, type Subscription } from "rxjs";
 import { v4 } from "uuid";
-import { ref, Ref, watch } from "vue";
+import { ref, type Ref, watch } from "vue";
 import { logger } from "../logger";
 import { Disposable } from "../disposables";
 import { WebRTCProcessor } from "./WebRTCProcessor";
@@ -11,7 +11,7 @@ export type WorkletId = string;
 
 export interface IAudioManagement {
   createAudioElement(
-    stream?: MediaStream
+    stream?: MediaStream,
   ): Promise<Disposable<HTMLAudioElement>>;
   createVideoElement(): Promise<Disposable<HTMLVideoElement>>;
 
@@ -30,7 +30,7 @@ export interface IAudioManagement {
 
   getOrCreateWorkletModule(
     name: WorkletId,
-    options: AudioWorkletNodeOptions
+    options: AudioWorkletNodeOptions,
   ): Promise<Disposable<AudioWorkletNode>>;
 
   workletBranchByOrderConnect(worklets: AudioWorkletNode[]): void;
@@ -40,7 +40,7 @@ export interface IAudioManagement {
   createRtcProcessor(): WebRTCProcessor;
 
   enumerateDevicesByKind(
-    kind: "audioinput" | "videoinput" | "audiooutput"
+    kind: "audioinput" | "videoinput" | "audiooutput",
   ): Promise<MediaDeviceInfo[]>;
 }
 
@@ -80,10 +80,12 @@ export class AudioManagement implements IAudioManagement {
   }
 
   async enumerateDevicesByKind(
-    kind: "audioinput" | "videoinput" | "audiooutput"
+    kind: "audioinput" | "videoinput" | "audiooutput",
   ): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.filter((d) => d.kind === kind && d.deviceId && d.deviceId != "communications");
+    return devices.filter(
+      (d) => d.kind === kind && d.deviceId && d.deviceId !== "communications",
+    );
   }
 
   private setInputDevice(deviceId: DeviceId) {
@@ -142,7 +144,7 @@ export class AudioManagement implements IAudioManagement {
   }
 
   async createAudioElement(
-    stream?: MediaStream
+    stream?: MediaStream,
   ): Promise<Disposable<HTMLAudioElement>> {
     const el = document.createElement("audio");
     el.autoplay = true;
@@ -192,7 +194,7 @@ export class AudioManagement implements IAudioManagement {
     if (vol <= 0) return 0;
 
     const exponent = 0.3;
-    return Math.pow(vol, exponent) * 100;
+    return vol ** exponent * 100;
   }
   volumeColor(volume: number): string {
     if (volume < 20) return "#10b981";
@@ -207,14 +209,18 @@ export class AudioManagement implements IAudioManagement {
 
   async addWorkletModule(
     workletPath: WorkledPath,
-    name: WorkletId
+    name: WorkletId,
   ): Promise<void> {
     this.workletPaths.set(name, workletPath);
-    await this.audioCtx.audioWorklet.addModule(this.workletPaths.get(name)!);
+    const path = this.workletPaths.get(name);
+    if (path) {
+      await this.audioCtx.audioWorklet.addModule(path);
+    }
   }
+
   async getOrCreateWorkletModule(
     name: WorkletId,
-    options: AudioWorkletNodeOptions
+    options: AudioWorkletNodeOptions,
   ): Promise<Disposable<AudioWorkletNode>> {
     const ctx = this.audioCtx;
 
@@ -224,7 +230,7 @@ export class AudioManagement implements IAudioManagement {
 
     if (!ctx.audioWorklet) {
       throw new Error(
-        "[AudioManagement] AudioContext does not support AudioWorklet"
+        "[AudioManagement] AudioContext does not support AudioWorklet",
       );
     }
 

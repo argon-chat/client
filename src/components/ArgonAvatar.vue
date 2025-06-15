@@ -1,26 +1,35 @@
 <script setup lang="ts">
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { computed, toRef, type HTMLAttributes } from 'vue'
-import { useAvatarBlob } from '@/lib/useAvatarBlob'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { computed, toRef, type HTMLAttributes } from "vue";
+import { useAvatarBlob } from "@/lib/useAvatarBlob";
 
-const props = withDefaults(defineProps<{
-  class?: HTMLAttributes['class'],
-  fileId: string | null,
-  fallback: string,
-  serverId?: string,
-  userId?: string,
-  overridedSize?: number
-}>(), {
-  overridedSize: undefined
-});
+const props = withDefaults(
+  defineProps<{
+    class?: HTMLAttributes["class"];
+    fileId: string | null;
+    fallback: string;
+    serverId?: string;
+    userId?: string;
+    overridedSize?: number;
+  }>(),
+  {
+    overridedSize: undefined,
+  },
+);
 
-const fileIdRef = toRef(props, 'fileId')
-const userIdRef = toRef(props, 'userId')
+const fileIdRef = toRef(props, "fileId");
+const userIdRef = toRef(props, "userId");
 
-const { loaded, loading, blobSrc } = useAvatarBlob(fileIdRef, userIdRef, 'user')
+const { loaded, loading, blobSrc } = useAvatarBlob(
+  fileIdRef,
+  userIdRef,
+  "user",
+);
 
-const size = computed(() => props.overridedSize ? `${props.overridedSize}px` : null)
+const size = computed(() =>
+  props.overridedSize ? `${props.overridedSize}px` : null,
+);
 </script>
 
 <template>

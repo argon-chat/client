@@ -22,18 +22,18 @@ export const useActivity = defineStore("activity", () => {
     debounceTime(1000),
     switchMap((lastEvent) => {
       return [lastEvent];
-    })
+    }),
   );
 
   async function init() {
     if (!argon.isArgonHost) return;
     const populatePinnedFn = native.createPinnedObject(
-      onActivityDetected //useDebounceFn(, 1000)
+      onActivityDetected, //useDebounceFn(, 1000)
     );
     if (!argon.onGameActivityDetected(populatePinnedFn))
       logger.error("failed to bind activity manager 1");
     const terminatedPinnedFn = native.createPinnedObject(
-      onActivityTerminated //useDebounceFn(, 1000)
+      onActivityTerminated, //useDebounceFn(, 1000)
     );
     if (!argon.onGameActivityTerminated(terminatedPinnedFn))
       logger.error("failed to bind activity manager 2");
@@ -46,7 +46,7 @@ export const useActivity = defineStore("activity", () => {
       .pipe(
         switchMap(() => {
           return Promise.resolve(publishLatestActivity());
-        })
+        }),
       )
       .subscribe();
     argon.listenActivity();
@@ -55,7 +55,11 @@ export const useActivity = defineStore("activity", () => {
 
   function onMusicStop(sessionId: string, state: boolean, data: string) {
     const audioEntity = JSON.parse(data) as IAudioEntity;
-    musicSessions.set(sessionId, { author: audioEntity.Author, isPlaying: state, title: audioEntity.TitleName });
+    musicSessions.set(sessionId, {
+      author: audioEntity.Author,
+      isPlaying: state,
+      title: audioEntity.TitleName,
+    });
     onActivityChanged.next(0);
   }
 
@@ -83,7 +87,7 @@ export const useActivity = defineStore("activity", () => {
 
     logger.info("publishLatestActivity, ", latestGame, latestMusic);
 
-    if (latestMusic && latestMusic.isPlaying) {
+    if (latestMusic?.isPlaying) {
       api.userInteraction.BroadcastPresenceAsync({
         Kind: "LISTEN",
         StartTimestampSeconds: 0,
@@ -91,13 +95,13 @@ export const useActivity = defineStore("activity", () => {
       });
     } else if (latestGame) {
       api.userInteraction.BroadcastPresenceAsync({
-        Kind:  "GAME" ,
+        Kind: "GAME",
         StartTimestampSeconds: 0,
         TitleName: latestGame.name,
       });
     } else if (lastSoftware) {
       api.userInteraction.BroadcastPresenceAsync({
-        Kind: "SOFTWARE" ,
+        Kind: "SOFTWARE",
         StartTimestampSeconds: 0,
         TitleName: lastSoftware.name,
       });
@@ -112,14 +116,18 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function getLastGameSession(): IProcessEntity | null {
-    const sessionsArray = Array.from(gameSessions.values().filter(x => x.kind == 0));
+    const sessionsArray = Array.from(
+      gameSessions.values().filter((x) => x.kind === 0),
+    );
     return sessionsArray.length > 0
       ? sessionsArray[sessionsArray.length - 1]
       : null;
   }
 
   function getLastSoftwareSession(): IProcessEntity | null {
-    const sessionsArray = Array.from(gameSessions.values().filter(x => x.kind == 1));
+    const sessionsArray = Array.from(
+      gameSessions.values().filter((x) => x.kind === 1),
+    );
     return sessionsArray.length > 0
       ? sessionsArray[sessionsArray.length - 1]
       : null;

@@ -13,34 +13,31 @@
     </Popover>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntityMention">
-import { RealtimeUser } from '@/store/db/dexie';
-import { useMe } from '@/store/meStore';
-import { usePoolStore } from '@/store/poolStore';
-import { computed, onMounted, ref } from 'vue';
-import UserProfilePopover from '../UserProfilePopover.vue';
+import type { RealtimeUser } from "@/store/db/dexie";
+import { useMe } from "@/store/meStore";
+import { usePoolStore } from "@/store/poolStore";
+import { computed, onMounted, ref } from "vue";
+import UserProfilePopover from "../UserProfilePopover.vue";
 import {
-    Popover,
-    PopoverTrigger,
-    PopoverContent
-} from '@/components/ui/popover';
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 const isOpened = ref(false);
 const pool = usePoolStore();
 
 const props = defineProps<{
-    entity: T,
-    text: string
+  entity: T;
+  text: string;
 }>();
 
 const user = ref(undefined as RealtimeUser | undefined);
 const me = useMe();
 
-
 const isForMeMention = computed(() => user.value?.UserId === me.me?.Id);
 
-
 onMounted(async () => {
-    user.value = await pool.getUser(props.entity.UserId);
-})
-
+  user.value = await pool.getUser(props.entity.UserId);
+});
 </script>

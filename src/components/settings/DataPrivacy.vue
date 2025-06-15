@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import Switch from '../ui/switch/Switch.vue';
-import { useLocale } from '@/store/localeStore';
+import Switch from "../ui/switch/Switch.vue";
+import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();
 </script>

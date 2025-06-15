@@ -77,10 +77,14 @@
 </template>
 
 <script setup lang="ts">
-import { useServerStore } from '@/store/serverStore';
+import { useServerStore } from "@/store/serverStore";
 import {
-  HashIcon, Volume2Icon, AntennaIcon, MicOffIcon, ScreenShare
-} from 'lucide-vue-next';
+  HashIcon,
+  Volume2Icon,
+  AntennaIcon,
+  MicOffIcon,
+  ScreenShare,
+} from "lucide-vue-next";
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -89,17 +93,17 @@ import {
   ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
-  ContextMenuLabel
-} from '@/components/ui/context-menu';
-import { Slider } from '@/components/ui/slider'
-import { logger } from '@/lib/logger';
-import { usePoolStore } from '@/store/poolStore';
-import { useVoice } from '@/store/voiceStore';
-import ArgonAvatar from './ArgonAvatar.vue';
-import { useMe } from '@/store/meStore';
-import delay from '@/lib/delay';
-import { onMounted } from 'vue';
-import { usePexStore } from '@/store/permissionStore';
+  ContextMenuLabel,
+} from "@/components/ui/context-menu";
+import { Slider } from "@/components/ui/slider";
+import { logger } from "@/lib/logger";
+import { usePoolStore } from "@/store/poolStore";
+import { useVoice } from "@/store/voiceStore";
+import ArgonAvatar from "./ArgonAvatar.vue";
+import { useMe } from "@/store/meStore";
+import delay from "@/lib/delay";
+import { onMounted } from "vue";
+import { usePexStore } from "@/store/permissionStore";
 
 const servers = useServerStore();
 const pool = usePoolStore();
@@ -110,14 +114,13 @@ const pex = usePexStore();
 
 onMounted(async () => {
   await delay(1000);
-})
-
+});
 
 async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
   const channel = await pool.getChannel(channelId);
 
-  if (channel && channel.ChannelType != "Voice") {
+  if (channel && channel.ChannelType !== "Voice") {
     pool.selectedTextChannel = channel.Id;
   }
 
@@ -126,7 +129,7 @@ async function channelSelect(channelId: string) {
   }
 
   if (!channel) return;
-  if (channel.ChannelType == "Voice") {
+  if (channel.ChannelType === "Voice") {
     await voice.connectToChannel(channelId);
   }
   /*const channel = servers.getDetailsOfChannel(channelId);
@@ -138,12 +141,9 @@ async function channelSelect(channelId: string) {
   }*/
 }
 
-
-
 async function channelDelete(channelId: string) {
   await servers.deleteChannel(channelId);
 }
-
 
 const connectToChannel = (channelId: string) => {
   //servers.connectTo(channelId);

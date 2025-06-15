@@ -9,20 +9,23 @@
 </template>
 
 <script setup lang="ts">
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { computed, ref, watch, type HTMLAttributes } from 'vue'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { computed, ref, watch, type HTMLAttributes } from "vue";
 import { useFileStorage } from "@/store/fileStorage";
-import { usePoolStore } from '@/store/poolStore';
-import { logger } from '@/lib/logger';
+import { usePoolStore } from "@/store/poolStore";
+import { logger } from "@/lib/logger";
 
-const props = withDefaults(defineProps<{
-    class?: HTMLAttributes['class'],
-    userId: string,
-    overridedSize?: number
-}>(), {
-    overridedSize: undefined
-});
+const props = withDefaults(
+  defineProps<{
+    class?: HTMLAttributes["class"];
+    userId: string;
+    overridedSize?: number;
+  }>(),
+  {
+    overridedSize: undefined,
+  },
+);
 
 const pool = usePoolStore();
 const fileStorage = useFileStorage();
@@ -32,36 +35,43 @@ const loaded = ref(false);
 const blobSrc = ref("");
 const fallbackLetter = ref("?");
 
-const size = computed(() => props.overridedSize ? `${props.overridedSize}px` : null);
+const size = computed(() =>
+  props.overridedSize ? `${props.overridedSize}px` : null,
+);
 
 const user = pool.getUserReactive(props.userId);
 
-watch(() => user.value?.AvatarFileId, async (fileId) => {
+watch(
+  () => user.value?.AvatarFileId,
+  async (fileId) => {
     loading.value = true;
     loaded.value = false;
 
     if (!fileId) {
-        logger.warn("User has no avatar fileId");
-        blobSrc.value = fileStorage.FAILED_ADDRESS;
-        fallbackLetter.value = user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
-        loading.value = false;
-        return;
+      logger.warn("User has no avatar fileId");
+      blobSrc.value = fileStorage.FAILED_ADDRESS;
+      fallbackLetter.value =
+        user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
+      loading.value = false;
+      return;
     }
 
     try {
-        fallbackLetter.value = user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
+      fallbackLetter.value =
+        user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
 
-        const src = await fileStorage.fetchUserAvatar(fileId, props.userId);
-        blobSrc.value = src;
-        loaded.value = src !== fileStorage.FAILED_ADDRESS;
+      const src = await fileStorage.fetchUserAvatar(fileId, props.userId);
+      blobSrc.value = src;
+      loaded.value = src !== fileStorage.FAILED_ADDRESS;
     } catch (e) {
-        logger.error("Error loading avatar:", e);
-        blobSrc.value = fileStorage.FAILED_ADDRESS;
-        fallbackLetter.value = "?";
-        loaded.value = false;
+      logger.error("Error loading avatar:", e);
+      blobSrc.value = fileStorage.FAILED_ADDRESS;
+      fallbackLetter.value = "?";
+      loaded.value = false;
     } finally {
-        loading.value = false;
+      loading.value = false;
     }
-}, { immediate: true });
-
+  },
+  { immediate: true },
+);
 </script>

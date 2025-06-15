@@ -32,64 +32,72 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
-import { Button } from '@/components/ui/button';
-import { useWindow } from '@/store/windowStore';
-import { CircleXIcon } from 'lucide-vue-next';
-import VoiceVideoSettings from '@/components/settings/VoiceAndVideo.vue';
-import ProfileSettings from '@/components/settings/ProfileSettings.vue';
-import ConnectedDevices from '@/components/settings/ConnectedDevices.vue';
-import ApplicationSettings from './settings/ApplicationSettings.vue';
-import HotKeySettings from './settings/HotKeySettings.vue';
-import LanguageSettings from './settings/LanguageSettings.vue';
-import SoundSettings from './settings/SoundSettings.vue';
-import SocialSettings from './settings/SocialSettings.vue';
-import { useLocale } from '@/store/localeStore';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { useWindow } from "@/store/windowStore";
+import { CircleXIcon } from "lucide-vue-next";
+import VoiceVideoSettings from "@/components/settings/VoiceAndVideo.vue";
+import ProfileSettings from "@/components/settings/ProfileSettings.vue";
+import ConnectedDevices from "@/components/settings/ConnectedDevices.vue";
+import ApplicationSettings from "./settings/ApplicationSettings.vue";
+import HotKeySettings from "./settings/HotKeySettings.vue";
+import LanguageSettings from "./settings/LanguageSettings.vue";
+import SoundSettings from "./settings/SoundSettings.vue";
+import SocialSettings from "./settings/SocialSettings.vue";
+import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();
 const windows = useWindow();
 
 const categories = ref([
-    { id: 'account' },
-    //{ id: 'appearance', name: 'Appearance' },
-    { id: 'application' },
-    //{ id: 'notifications', name: 'Notifications' },
-    //{ id: 'privacy', name: 'Privacy' },
-    //{ id: 'devices', name: 'Devices' },
-    { id: 'voice_video' },
-    { id: 'hotkeys' },
-    { id: 'languages' },
-    { id: 'sounds' },
-    { id: "socials" }
+  { id: "account" },
+  //{ id: 'appearance', name: 'Appearance' },
+  { id: "application" },
+  //{ id: 'notifications', name: 'Notifications' },
+  //{ id: 'privacy', name: 'Privacy' },
+  //{ id: 'devices', name: 'Devices' },
+  { id: "voice_video" },
+  { id: "hotkeys" },
+  { id: "languages" },
+  { id: "sounds" },
+  { id: "socials" },
 ]);
 
-const selectedCategory = ref('account');
+const selectedCategory = ref("account");
 
 const categoryComponents = {
-    account: ProfileSettings,
-    devices: ConnectedDevices,
-    voice_video: VoiceVideoSettings,
-    application: ApplicationSettings,
-    hotkeys: HotKeySettings,
-    languages: LanguageSettings,
-    sounds: SoundSettings,
-    socials: SocialSettings
+  account: ProfileSettings,
+  devices: ConnectedDevices,
+  voice_video: VoiceVideoSettings,
+  application: ApplicationSettings,
+  hotkeys: HotKeySettings,
+  languages: LanguageSettings,
+  sounds: SoundSettings,
+  socials: SocialSettings,
 };
 
-const selectedCategoryComponent = computed(() => (categoryComponents as any)[selectedCategory.value]);
+const selectedCategoryComponent = computed(
+  () => (categoryComponents as any)[selectedCategory.value],
+);
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && windows.settingsOpen) {
-        windows.settingsOpen = false;
-    }
+  if (event.key === "Escape" && windows.settingsOpen) {
+    windows.settingsOpen = false;
+  }
 };
 
 onMounted(() => {
-    window.addEventListener('keydown', handleEscape);
+  window.addEventListener("keydown", handleEscape);
 });
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', handleEscape);
+  window.removeEventListener("keydown", handleEscape);
 });
 </script>
 

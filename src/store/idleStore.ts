@@ -15,31 +15,45 @@ export const useIdleStore = defineStore("idle", () => {
         .pipe(
           switchMap(() => {
             const inactiveSeconds = native.getIdleTimeSeconds();
-            if (me.me?.currentStatus !== "Away" && inactiveSeconds > idleTimeValue) {
-              savedStatus.value = me.me!.currentStatus;
+            if (
+              me.me?.currentStatus !== "Away" &&
+              inactiveSeconds > idleTimeValue
+            ) {
+              savedStatus.value = me.me?.currentStatus;
               me.changeStatusTo("Away");
-            } else if (me.me?.currentStatus === "Away" && inactiveSeconds < idleTimeValue) {
+            } else if (
+              me.me?.currentStatus === "Away" &&
+              inactiveSeconds < idleTimeValue
+            ) {
               me.changeStatusTo(savedStatus.value);
             }
             return Promise.resolve();
-          })
+          }),
         )
         .subscribe();
     } else {
       const { lastActive } = useIdle(idleTimeValue);
-      const now = useTimestamp({ interval: 1000 })
+      const now = useTimestamp({ interval: 1000 });
       interval(2000)
         .pipe(
           switchMap(() => {
-            const inactiveSeconds = Math.floor((now.value - lastActive.value) / 1000);
-            if (me.me?.currentStatus !== "Away" && inactiveSeconds > idleTimeValue) {
-              savedStatus.value = me.me!.currentStatus;
+            const inactiveSeconds = Math.floor(
+              (now.value - lastActive.value) / 1000,
+            );
+            if (
+              me.me?.currentStatus !== "Away" &&
+              inactiveSeconds > idleTimeValue
+            ) {
+              savedStatus.value = me.me?.currentStatus;
               me.changeStatusTo("Away");
-            } else if (me.me?.currentStatus === "Away" && inactiveSeconds < idleTimeValue) {
+            } else if (
+              me.me?.currentStatus === "Away" &&
+              inactiveSeconds < idleTimeValue
+            ) {
               me.changeStatusTo(savedStatus.value);
             }
             return Promise.resolve();
-          })
+          }),
         )
         .subscribe();
     }

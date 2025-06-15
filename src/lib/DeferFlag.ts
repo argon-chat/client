@@ -1,4 +1,4 @@
-import { Ref } from "vue";
+import type { Ref } from "vue";
 
 export class DeferFlag {
   constructor(private readonly flag: Ref<boolean, boolean>) {

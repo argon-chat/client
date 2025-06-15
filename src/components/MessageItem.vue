@@ -73,44 +73,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed, Ref } from 'vue'
-import { usePoolStore } from '@/store/poolStore'
-import ArgonAvatar from '@/components/ArgonAvatar.vue'
-import { useMe } from '@/store/meStore';
-import emojiRegex from 'emoji-regex';
-import { cn } from '@/lib/utils';
+import { ref, watch, onMounted, onBeforeUnmount, computed, Ref } from "vue";
+import { usePoolStore } from "@/store/poolStore";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import { useMe } from "@/store/meStore";
+import emojiRegex from "emoji-regex";
+import { cn } from "@/lib/utils";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger
-} from '@/components/ui/tooltip'
-import { useDateFormat } from '@vueuse/core';
-import { useUserColors } from '@/store/userColors';
-import ChatSegment from './chats/ChatSegment.vue';
-import UserProfilePopover from './UserProfilePopover.vue';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useDateFormat } from "@vueuse/core";
+import { useUserColors } from "@/store/userColors";
+import ChatSegment from "./chats/ChatSegment.vue";
+import UserProfilePopover from "./UserProfilePopover.vue";
 import {
-    Popover,
-    PopoverTrigger,
-    PopoverContent
-} from '@/components/ui/popover';
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 const isOpened = ref(false);
 
 const props = defineProps<{
-    message: IArgonMessageDto,
-    getMsgById: (replyId: number) => IArgonMessageDto
+  message: IArgonMessageDto;
+  getMsgById: (replyId: number) => IArgonMessageDto;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);
-const bubble = ref<HTMLElement | null>(null)
-const backgroundOffset = ref(0)
-const pool = usePoolStore()
+const bubble = ref<HTMLElement | null>(null);
+const backgroundOffset = ref(0);
+const pool = usePoolStore();
 const user = pool.getUserReactive(props.message.Sender);
 const me = useMe();
 const userColors = useUserColors();
 
-interface IFrag { entity?: IMessageEntity, text: string };
+interface IFrag {
+  entity?: IMessageEntity;
+  text: string;
+}
 
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 
@@ -118,89 +121,93 @@ const isIncoming = computed(() => props.message.Sender !== me.me?.Id);
 
 const renderedMessage = ref([] as IFrag[]);
 
-
 function fragmentMessageText(
-    text: string,
-    entities: IMessageEntity[]
+  text: string,
+  entities: IMessageEntity[],
 ): IFrag[] {
-    const fragments: IFrag[] = []
-    let cursor = 0;
+  const fragments: IFrag[] = [];
+  let cursor = 0;
 
-    const sorted = [...entities].sort((a, b) => a.Offset - b.Offset)
+  const sorted = [...entities].sort((a, b) => a.Offset - b.Offset);
 
-    for (const entity of sorted) {
-        const start = entity.Offset
-        const end = entity.Offset + entity.Length
+  for (const entity of sorted) {
+    const start = entity.Offset;
+    const end = entity.Offset + entity.Length;
 
-        if (cursor < start) {
-            fragments.push({
-                text: text.slice(cursor, start),
-            })
-        }
-
-        fragments.push({
-            text: text.slice(start, end),
-            entity,
-        })
-
-        cursor = end
+    if (cursor < start) {
+      fragments.push({
+        text: text.slice(cursor, start),
+      });
     }
 
-    if (cursor < text.length) {
-        fragments.push({
-            text: text.slice(cursor),
-        })
-    }
+    fragments.push({
+      text: text.slice(start, end),
+      entity,
+    });
 
-    return fragments
+    cursor = end;
+  }
+
+  if (cursor < text.length) {
+    fragments.push({
+      text: text.slice(cursor),
+    });
+  }
+
+  return fragments;
 }
 const replyMessage = computed(() => {
-    if (!props.message.ReplyId) return null;
-    return props.getMsgById(props.message.ReplyId);
+  if (!props.message.ReplyId) return null;
+  return props.getMsgById(props.message.ReplyId);
 });
 
 const replyUser = computed(() => {
-    if (!replyMessage.value) return null;
-    return pool.getUserReactive(replyMessage.value.Sender);
+  if (!replyMessage.value) return null;
+  return pool.getUserReactive(replyMessage.value.Sender);
 });
 
 const updateBackground = () => {
-    if (!bubble.value) return
-    const rect = bubble.value.getBoundingClientRect()
-    backgroundOffset.value = rect.top
-}
+  if (!bubble.value) return;
+  const rect = bubble.value.getBoundingClientRect();
+  backgroundOffset.value = rect.top;
+};
 
 onMounted(async () => {
-    renderedMessage.value = fragmentMessageText(props.message.Text, props.message.Entities);
-    updateBackground()
-    window.addEventListener('scroll', updateBackground, { passive: true })
+  renderedMessage.value = fragmentMessageText(
+    props.message.Text,
+    props.message.Entities,
+  );
+  updateBackground();
+  window.addEventListener("scroll", updateBackground, { passive: true });
 });
 
 onBeforeUnmount(() => {
-    window.removeEventListener('scroll', updateBackground)
+  window.removeEventListener("scroll", updateBackground);
 });
 
 const formattedTime = computed(() => {
-    const date = new Date(props.message.TimeSent * 1000);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+  const date = new Date(props.message.TimeSent * 1000);
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
 });
 
-const formattedFullTime = useDateFormat(new Date(props.message.TimeSent * 1000), 'YYYY-MM-DD HH:mm:ss')
+const formattedFullTime = useDateFormat(
+  new Date(props.message.TimeSent * 1000),
+  "YYYY-MM-DD HH:mm:ss",
+);
 
 function getColorByUserId(userId: string): string {
-    return userColors.getColorByUserId(userId);
+  return userColors.getColorByUserId(userId);
 }
 
 function isUpEmojisOnly(message: IArgonMessageDto): boolean {
-    const text = message.Text.trim();
-    const regex = emojiRegex();
-    const matches = [...text.matchAll(regex)];
-    const emojisOnly = matches.map(m => m[0]).join('');
-    return matches.length >= 1 && matches.length <= 2 && emojisOnly === text;
+  const text = message.Text.trim();
+  const regex = emojiRegex();
+  const matches = [...text.matchAll(regex)];
+  const emojisOnly = matches.map((m) => m[0]).join("");
+  return matches.length >= 1 && matches.length <= 2 && emojisOnly === text;
 }
-
 </script>
 
 <style scoped>

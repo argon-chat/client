@@ -15,8 +15,8 @@ export function useChat(channelId: string) {
   const api = useApi();
   const pool = usePoolStore();
 
-  async function loadInitial(totalRequested?: number) {
-    totalRequested ??= PAGE_SIZE;
+  async function loadInitial(totalRequestedParam?: number) {
+    const totalRequested = totalRequestedParam ?? PAGE_SIZE;
     const local = await db.messages
       .where("[ChannelId+MessageId]")
       .between([channelId, Dexie.minKey], [channelId, Dexie.maxKey])
@@ -30,15 +30,19 @@ export function useChat(channelId: string) {
     await loadOlderMessages(totalRequested);
   }
 
-  async function loadOlderMessages(totalRequested?: number) {
+  async function loadOlderMessages(totalRequestedParam?: number) {
     if (isLoading.value || !hasMore.value) return;
-    totalRequested ??= PAGE_SIZE;
+    const totalRequested = totalRequestedParam ?? PAGE_SIZE;
     isLoading.value = true;
 
     const before = lastLoadedMessageId.value;
 
     try {
-      const data = await api.serverInteraction.GetMessages(channelId, totalRequested, before ?? 0);
+      const data = await api.serverInteraction.GetMessages(
+        channelId,
+        totalRequested,
+        before ?? 0,
+      );
 
       logger.log("Received messages", data);
 
@@ -58,7 +62,9 @@ export function useChat(channelId: string) {
   function addNewMessage(message: IArgonMessage) {
     if (message.ChannelId !== channelId) return;
 
-    const exists = messages.value.some(m => m.MessageId === message.MessageId);
+    const exists = messages.value.some(
+      (m) => m.MessageId === message.MessageId,
+    );
     if (exists) return;
 
     messages.value = [...messages.value, message];

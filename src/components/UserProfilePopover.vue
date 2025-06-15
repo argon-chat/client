@@ -105,21 +105,25 @@
 
 </template>
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import ArgonAvatar from './ArgonAvatar.vue';
-import { CrownIcon, ShieldCheckIcon, GitPullRequestCreateArrow } from 'lucide-vue-next';
+import { nextTick, onMounted, onUnmounted, ref } from "vue";
+import ArgonAvatar from "./ArgonAvatar.vue";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger
-} from '@/components/ui/tooltip';
-import { useApi } from '@/store/apiStore';
-import { usePoolStore } from '@/store/poolStore';
-import { RealtimeUser } from '@/store/db/dexie';
-import { useMe } from '@/store/meStore';
-import { useLocale } from '@/store/localeStore';
-import ArgonBanner from './ArgonBanner.vue';
+  CrownIcon,
+  ShieldCheckIcon,
+  GitPullRequestCreateArrow,
+} from "lucide-vue-next";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useApi } from "@/store/apiStore";
+import { usePoolStore } from "@/store/poolStore";
+import type { RealtimeUser } from "@/store/db/dexie";
+import { useMe } from "@/store/meStore";
+import { useLocale } from "@/store/localeStore";
+import ArgonBanner from "./ArgonBanner.vue";
 
 const isLoading = ref(true);
 const api = useApi();
@@ -127,25 +131,31 @@ const pool = usePoolStore();
 
 const userProfile = ref(null as null | IUserProfileDto);
 const user = ref(undefined as undefined | RealtimeUser);
-const props = withDefaults(defineProps<{
-    userId: Guid
-}>(), {});
+const props = withDefaults(
+  defineProps<{
+    userId: Guid;
+  }>(),
+  {},
+);
 
-const emit = defineEmits<{
-    (e: 'close:pressed'): void
-}>()
+const emit = defineEmits<(e: "close:pressed") => void>();
 
 const { t } = useLocale();
 
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
-    switch (activityKind) {
-        case "GAME": return "activity_play_in";
-        case "SOFTWARE": return "activity_work_in";
-        case "STREAMING": return "activity_stream";
-        case "LISTEN": return "activity_listen";
-        default: return "error";
-    }
-}
+  switch (activityKind) {
+    case "GAME":
+      return "activity_play_in";
+    case "SOFTWARE":
+      return "activity_work_in";
+    case "STREAMING":
+      return "activity_stream";
+    case "LISTEN":
+      return "activity_listen";
+    default:
+      return "error";
+  }
+};
 
 const me = useMe();
 
@@ -154,22 +164,26 @@ const activityText = ref<HTMLElement | null>(null);
 const shouldScroll = ref(false);
 
 onMounted(async () => {
-    userProfile.value = await api.serverInteraction.PrefetchProfile(pool.selectedServer!, props.userId);
-    userProfile.value.Badges.push(...await pool.generateBadgesByArchetypes(userProfile.value.Archetypes));
-    user.value = await pool.getUser(props.userId);
-    isLoading.value = false;
+  userProfile.value = await api.serverInteraction.PrefetchProfile(
+    pool.selectedServer ?? pool.servers[0],
+    props.userId,
+  );
+  userProfile.value.Badges.push(
+    ...(await pool.generateBadgesByArchetypes(userProfile.value.Archetypes)),
+  );
+  user.value = await pool.getUser(props.userId);
+  isLoading.value = false;
 
-    await nextTick();
-    const wrapper = activityWrapper.value;
-    const text = activityText.value;
+  await nextTick();
+  const wrapper = activityWrapper.value;
+  const text = activityText.value;
 
-    if (wrapper && text) {
-        shouldScroll.value = text.scrollWidth > wrapper.clientWidth;
-    }
+  if (wrapper && text) {
+    shouldScroll.value = text.scrollWidth > wrapper.clientWidth;
+  }
 });
 
-onUnmounted(() => {
-});
+onUnmounted(() => {});
 </script>
 <style lang="css" scoped>
 @keyframes marquee {

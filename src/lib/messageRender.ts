@@ -1,4 +1,4 @@
-import { JSONContent } from "@tiptap/vue-3";
+import type { JSONContent } from "@tiptap/vue-3";
 
 export function tiptapToArgonMessage(json: JSONContent): {
   entities: IMessageEntity[];

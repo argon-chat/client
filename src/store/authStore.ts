@@ -23,7 +23,7 @@ export const useAuthStore = defineStore("auth", () => {
     email: string,
     pass: string,
     otp: string | undefined,
-    captchaToken: string | undefined
+    captchaToken: string | undefined,
   ) => {
     const api = useApi();
     await delay(500);
@@ -86,40 +86,39 @@ export const useAuthStore = defineStore("auth", () => {
       isAuthenticated.value = true;
       localStorage.setItem("token", r.Value);
       return;
-    } else {
-      switch (r.Error.Code) {
-        case "EMAIL_ALREADY_REGISTERED":
-          toast({
-            title: `Email already registered`,
-            description: "Maybe you need reset password?",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-        case "USERNAME_ALREADY_TAKEN":
-          toast({
-            title: `Username already claimed`,
-            description: "It's time to be creative!",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-        case "VALIDATION_FAILED":
-          toast({
-            title: `Validation for ${r.Error.Field} failed`,
-            description: r.Error.Message,
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-      }
-
-      toast({
-        title: `${r.Error}`,
-        variant: "destructive",
-        duration: 2500,
-      });
     }
+    switch (r.Error.Code) {
+      case "EMAIL_ALREADY_REGISTERED":
+        toast({
+          title: "Email already registered",
+          description: "Maybe you need reset password?",
+          variant: "destructive",
+          duration: 2500,
+        });
+        return;
+      case "USERNAME_ALREADY_TAKEN":
+        toast({
+          title: "Username already claimed",
+          description: "It's time to be creative!",
+          variant: "destructive",
+          duration: 2500,
+        });
+        return;
+      case "VALIDATION_FAILED":
+        toast({
+          title: `Validation for ${r.Error.Field} failed`,
+          description: r.Error.Message,
+          variant: "destructive",
+          duration: 2500,
+        });
+        return;
+    }
+
+    toast({
+      title: `${r.Error}`,
+      variant: "destructive",
+      duration: 2500,
+    });
   };
 
   const logout = () => {
@@ -144,15 +143,19 @@ export const useAuthStore = defineStore("auth", () => {
     await api.userInteraction.BeginResetPassword(email);
 
     isRequiredFormResetPass.value = true;
-  }
+  };
 
-  const resetPass = async (email: string, newPass: string, resetCode: string) => {
+  const resetPass = async (
+    email: string,
+    newPass: string,
+    resetCode: string,
+  ) => {
     const api = useApi();
 
     const r = await api.userInteraction.ResetPassword({
       Email: email,
       newPassword: newPass,
-      otpCode: resetCode
+      otpCode: resetCode,
     });
 
     if (r.IsSuccess) logger.success("Success reset password");
@@ -197,8 +200,7 @@ export const useAuthStore = defineStore("auth", () => {
       isAuthenticated.value = true;
       localStorage.setItem("token", r.Value);
     }
-  }
-
+  };
 
   return {
     user,
@@ -211,6 +213,6 @@ export const useAuthStore = defineStore("auth", () => {
     isRequiredOtp,
     isRequiredFormResetPass,
     beginResetPass,
-    resetPass
+    resetPass,
   };
 });

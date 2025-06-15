@@ -1,7 +1,13 @@
-import { DeepReadonly, onBeforeUnmount, readonly, ref, Ref } from "vue";
+import {
+  type DeepReadonly,
+  onBeforeUnmount,
+  readonly,
+  ref,
+  type Ref,
+} from "vue";
 import { Disposable } from "../disposables";
 import { logger } from "../logger";
-import { BehaviorSubject } from "rxjs";
+import type { BehaviorSubject } from "rxjs";
 import { audio } from "./AudioManager";
 
 export class WorkletBase {
@@ -11,17 +17,17 @@ export class WorkletBase {
     if (this.#inited) return;
     await audio.addWorkletModule(
       "/audio/vu-meter-processor.js",
-      "vu-meter-processor"
+      "vu-meter-processor",
     );
     await audio.addWorkletModule(
       "/audio/vu-stm.js",
-      "vu-stereo-to-mono-processor"
+      "vu-stereo-to-mono-processor",
     );
     this.#inited = true;
   }
 
   useSubjectAsRef<T>(
-    subject: BehaviorSubject<T>
+    subject: BehaviorSubject<T>,
   ): Readonly<Ref<DeepReadonly<T>>> {
     const state = ref(subject.getValue()) as Ref<T>;
 
@@ -38,7 +44,7 @@ export class WorkletBase {
 
   async createVUMeter(
     leftRef: Ref<number>,
-    rightRef: Ref<number>
+    rightRef: Ref<number>,
   ): Promise<Disposable<AudioWorkletNode>> {
     const vuNode = new AudioWorkletNode(
       audio.getCurrentAudioContext(),
@@ -50,7 +56,7 @@ export class WorkletBase {
         channelCount: 2,
         channelCountMode: "explicit",
         channelInterpretation: "discrete",
-      }
+      },
     );
 
     vuNode.port.onmessage = (event) => {
@@ -65,7 +71,7 @@ export class WorkletBase {
         logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
-      }
+      },
     );
 
     return disposable;
@@ -82,7 +88,7 @@ export class WorkletBase {
         channelCount: 2,
         channelCountMode: "explicit",
         channelInterpretation: "speakers",
-      }
+      },
     );
 
     const disposable = new Disposable<AudioWorkletNode>(
@@ -91,7 +97,7 @@ export class WorkletBase {
         logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
-      }
+      },
     );
 
     return disposable;
@@ -100,15 +106,14 @@ export class WorkletBase {
   setEnabledVUNode(node: AudioWorkletNode, isEnabled: boolean) {
     logger.info("set vu node settings, enabled ", isEnabled ? 1.0 : 0.0);
     node.parameters
-      .get("enabled")!
-      .setValueAtTime(
+      .get("enabled")
+      ?.setValueAtTime(
         isEnabled ? 1.0 : 0.0,
-        audio.getCurrentAudioContext().currentTime
+        audio.getCurrentAudioContext().currentTime,
       );
   }
 }
 
-
 const worklets = new WorkletBase();
 
-export { worklets }
+export { worklets };

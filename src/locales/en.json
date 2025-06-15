@@ -1,263 +1,263 @@
 {
-    "close": "Close",
-    "ok": "Confirm",
-    "or": "or",
-    "start": "Start",
-    "wait_connect": "Waiting for connection, please wait...",
-    "create_new_server": "Create New Server",
-    "join_to_server": "Join Server",
-    "invite_code": "Invite Code",
-    "join_or_create_server": "Join or Create a Server",
-    "servers": "Servers",
-    "users": "Users",
-    "mute": "Mute",
-    "unmute": "Unmute",
-    "echo_cancellation": "Echo Cancellation",
-    "noise_sup": "Noise Suppressor",
-    "send_message": "Send message",
-    "window_preview": "Window preview",
-    "enable_sound_from_window": "Include sound from window",
-    "enable_system_sound": "Include system sound",
-    "screencast_title": "Show your screen or windows",
-    "screencast": "Screen Cast",
-    "monitors": "Monitors",
-    "windows": "Windows",
-    "monitor_index": "Monitor {idx}",
-    "quality": "Quality",
-    "select_quality": "Select Quality",
-    "fps": "FPS",
-    "select_fps": "Select FPS",
-    "action": "Action",
-    "hotkey": "Hotkey",
-    "press_any_key": "Press any key combination...",
-    "app_language": "App Language",
-    "close_behaviour": "Close Behaviour",
-    "minimize_to_tray": "Minimize to tray or close application",
-    "application_settings": "Application Settings",
-    "connected_devices": "Connected Devices",
-    "logout_all_devices": "Logout All",
-    "list_hotkeys": "A list of your hotkeys.",
-    "name": "Name",
-    "is_global_q": "Is Global?",
-    "global_toltip": "Global hotkeys work even with a minimized window in the tray and in other programs.",
-    "add_invite": "Add Invite",
-    "remove": "Remove",
-    "no_any_invite_codes_created": "No any created invite codes",
-    "profile_settings": "Profile Settings",
-    "username": "Username",
-    "display_name": "Display Name",
-    "email": "EMail",
-    "phone_number": "Phone Number",
-    "otp_title": "Two-Factor Authentication (OTP)",
-    "delete_account": "Delete Account",
-    "key.microphone.toggle": "Toggle mute in microphone",
-    "key.microphone.on": "Disable mute in microphone",
-    "key.microphone.off": "Mute microphone",
-    "key.sound.toggle": "Toggle mute sound",
-    "key.sound.on": "Mute sound",
-    "key.sound.off": "Unmute sound",
-    "invite_codes": "Invite Codes",
-    "select_camera": "Select Camera",
-    "no_camera_found": "No cameras found",
-    "unnamed_camera": "Unnamed Camera",
-    "test_camera": "Test Video",
-    "you_not_access_to_channel_or_not_found_channels": "You don't have access to any text channel or there are none in this server.",
-    "no_text_channel_found": "No Text Channel",
-    "settings": "Settings",
-    "manage_settings": "Manage your account and preferences",
-    "account": "Account",
-    "application": "Application",
-    "voice_video": "Voice & Video",
-    "hotkeys": "Hot & keys",
-    "languages": "Languages",
-    "sounds": "Sounds",
-    "playSoftEnterSound": "Channel Join Sound",
-    "playSoftEnterSound_details": "Should the channel join sound be played?",
-    "playSoftLeaveSound": "Channel Leave Sound",
-    "playSoftLeaveSound_details": "Should the channel leave sound be played?",
-    "playMuteAllSound": "Mute/Unmute Sound",
-    "playMuteAllSound_details": "Should the mute/unmute sound be played?",
-    "playReconnectSound": "Reconnect Sound",
-    "playReconnectSound_details": "Should the reconnect sound be played?",
-    "playUnmuteAllSound": "Unmute Sound",
-    "playUnmuteAllSound_details": "Should the unmute sound be played?",
-    "playNotificationSound": "Notification Sound",
-    "playNotificationSound_details": "Should the notification sound be played?",
-    "playRingSound": "Ring Sound",
-    "playRingSound_details": "Should the ring sound be played?",
-    "activity_play_in": "Playing in",
-    "activity_work_in": "Works in",
-    "activity_stream": "Streaming",
-    "activity_listen": "Listen",
-    "status_TouchGrass": "Touch Grass",
-    "status_DoNotDisturb": "Do not disturb",
-    "status_Offline": "Offline",
-    "status_Online": "Online",
-    "status_Away": "Away",
-    "echo_cancellation_desc": "A feature which attempts to prevent echo effects on a two-way audio connection by attempting \nto reduce or eliminate crosstalk between the user's output device and their input device",
-    "agc_desc": "Is an audio algorithm module that I think has the longest link and most affects sound\nquality and subjective hearing.",
-    "voice_isolation": "Voice Isolation",
-    "voice_isolation_desc": "Isolate Isolation of Isolation Voice for Isolation",
-    "noise_sup_desc": "Noise Suppression (Noise Suppression)",
-    "select_microphone": "Select Microphone",
-    "voice_video_settings": "Voice & Video Settings",
-    "link_soc_": "Link",
-    "socials": "Social Integrations",
-    "account_socials": "Social Accounts",
-    "typing": {
-        "one": "{name} is typing",
-        "few": "{names} are typing",
-        "many": "Several people are typing"
+  "close": "Close",
+  "ok": "Confirm",
+  "or": "or",
+  "start": "Start",
+  "wait_connect": "Waiting for connection, please wait...",
+  "create_new_server": "Create New Server",
+  "join_to_server": "Join Server",
+  "invite_code": "Invite Code",
+  "join_or_create_server": "Join or Create a Server",
+  "servers": "Servers",
+  "users": "Users",
+  "mute": "Mute",
+  "unmute": "Unmute",
+  "echo_cancellation": "Echo Cancellation",
+  "noise_sup": "Noise Suppressor",
+  "send_message": "Send message",
+  "window_preview": "Window preview",
+  "enable_sound_from_window": "Include sound from window",
+  "enable_system_sound": "Include system sound",
+  "screencast_title": "Show your screen or windows",
+  "screencast": "Screen Cast",
+  "monitors": "Monitors",
+  "windows": "Windows",
+  "monitor_index": "Monitor {idx}",
+  "quality": "Quality",
+  "select_quality": "Select Quality",
+  "fps": "FPS",
+  "select_fps": "Select FPS",
+  "action": "Action",
+  "hotkey": "Hotkey",
+  "press_any_key": "Press any key combination...",
+  "app_language": "App Language",
+  "close_behaviour": "Close Behaviour",
+  "minimize_to_tray": "Minimize to tray or close application",
+  "application_settings": "Application Settings",
+  "connected_devices": "Connected Devices",
+  "logout_all_devices": "Logout All",
+  "list_hotkeys": "A list of your hotkeys.",
+  "name": "Name",
+  "is_global_q": "Is Global?",
+  "global_toltip": "Global hotkeys work even with a minimized window in the tray and in other programs.",
+  "add_invite": "Add Invite",
+  "remove": "Remove",
+  "no_any_invite_codes_created": "No any created invite codes",
+  "profile_settings": "Profile Settings",
+  "username": "Username",
+  "display_name": "Display Name",
+  "email": "EMail",
+  "phone_number": "Phone Number",
+  "otp_title": "Two-Factor Authentication (OTP)",
+  "delete_account": "Delete Account",
+  "key.microphone.toggle": "Toggle mute in microphone",
+  "key.microphone.on": "Disable mute in microphone",
+  "key.microphone.off": "Mute microphone",
+  "key.sound.toggle": "Toggle mute sound",
+  "key.sound.on": "Mute sound",
+  "key.sound.off": "Unmute sound",
+  "invite_codes": "Invite Codes",
+  "select_camera": "Select Camera",
+  "no_camera_found": "No cameras found",
+  "unnamed_camera": "Unnamed Camera",
+  "test_camera": "Test Video",
+  "you_not_access_to_channel_or_not_found_channels": "You don't have access to any text channel or there are none in this server.",
+  "no_text_channel_found": "No Text Channel",
+  "settings": "Settings",
+  "manage_settings": "Manage your account and preferences",
+  "account": "Account",
+  "application": "Application",
+  "voice_video": "Voice & Video",
+  "hotkeys": "Hot & keys",
+  "languages": "Languages",
+  "sounds": "Sounds",
+  "playSoftEnterSound": "Channel Join Sound",
+  "playSoftEnterSound_details": "Should the channel join sound be played?",
+  "playSoftLeaveSound": "Channel Leave Sound",
+  "playSoftLeaveSound_details": "Should the channel leave sound be played?",
+  "playMuteAllSound": "Mute/Unmute Sound",
+  "playMuteAllSound_details": "Should the mute/unmute sound be played?",
+  "playReconnectSound": "Reconnect Sound",
+  "playReconnectSound_details": "Should the reconnect sound be played?",
+  "playUnmuteAllSound": "Unmute Sound",
+  "playUnmuteAllSound_details": "Should the unmute sound be played?",
+  "playNotificationSound": "Notification Sound",
+  "playNotificationSound_details": "Should the notification sound be played?",
+  "playRingSound": "Ring Sound",
+  "playRingSound_details": "Should the ring sound be played?",
+  "activity_play_in": "Playing in",
+  "activity_work_in": "Works in",
+  "activity_stream": "Streaming",
+  "activity_listen": "Listen",
+  "status_TouchGrass": "Touch Grass",
+  "status_DoNotDisturb": "Do not disturb",
+  "status_Offline": "Offline",
+  "status_Online": "Online",
+  "status_Away": "Away",
+  "echo_cancellation_desc": "A feature which attempts to prevent echo effects on a two-way audio connection by attempting \nto reduce or eliminate crosstalk between the user's output device and their input device",
+  "agc_desc": "Is an audio algorithm module that I think has the longest link and most affects sound\nquality and subjective hearing.",
+  "voice_isolation": "Voice Isolation",
+  "voice_isolation_desc": "Isolate Isolation of Isolation Voice for Isolation",
+  "noise_sup_desc": "Noise Suppression (Noise Suppression)",
+  "select_microphone": "Select Microphone",
+  "voice_video_settings": "Voice & Video Settings",
+  "link_soc_": "Link",
+  "socials": "Social Integrations",
+  "account_socials": "Social Accounts",
+  "typing": {
+    "one": "{name} is typing",
+    "few": "{names} are typing",
+    "many": "Several people are typing"
+  },
+  "force_to_mono_voice": "Force to mono channels",
+  "force_to_mono_voice_desc": "If your sound card outputs the microphone output to one of the channels, then you can force duplication in stereo mode to avoid the effect of sound in one ear.",
+  "unnamed_speaker": "Unnamed Speakers",
+  "no_speakers_found": "No Speakers Found",
+  "select_output": "Select Speakers",
+  "permissions": {
+    "groups": {
+      "basic": {
+        "name": "Basic Access",
+        "description": "Minimal rights to view and read."
+      },
+      "messaging": {
+        "name": "Messaging",
+        "description": "Permissions to chat and send content."
+      },
+      "voice": {
+        "name": "Voice & Video",
+        "description": "Rights for voice and video communication."
+      },
+      "moderation": {
+        "name": "Moderation",
+        "description": "Rights to manage members."
+      },
+      "management": {
+        "name": "Management",
+        "description": "Rights for settings and administration."
+      }
     },
-    "force_to_mono_voice": "Force to mono channels",
-    "force_to_mono_voice_desc": "If your sound card outputs the microphone output to one of the channels, then you can force duplication in stereo mode to avoid the effect of sound in one ear.",
-    "unnamed_speaker": "Unnamed Speakers",
-    "no_speakers_found": "No Speakers Found",
-    "select_output": "Select Speakers",
-    "permissions": {
-        "groups": {
-            "basic": {
-                "name": "Basic Access",
-                "description": "Minimal rights to view and read."
-            },
-            "messaging": {
-                "name": "Messaging",
-                "description": "Permissions to chat and send content."
-            },
-            "voice": {
-                "name": "Voice & Video",
-                "description": "Rights for voice and video communication."
-            },
-            "moderation": {
-                "name": "Moderation",
-                "description": "Rights to manage members."
-            },
-            "management": {
-                "name": "Management",
-                "description": "Rights for settings and administration."
-            }
-        },
-        "flags": {
-            "ViewChannel": {
-                "name": "View Channels",
-                "description": "Allows seeing the channel and its content."
-            },
-            "ReadHistory": {
-                "name": "Read History",
-                "description": "Allows viewing previous messages."
-            },
-            "JoinToVoice": {
-                "name": "Join Voice",
-                "description": "Allows joining voice channels."
-            },
-            "SendMessages": {
-                "name": "Send Messages",
-                "description": "Allows sending text messages."
-            },
-            "AttachFiles": {
-                "name": "Attach Files",
-                "description": "Allows attaching images and documents."
-            },
-            "AddReactions": {
-                "name": "Add Reactions",
-                "description": "Allows adding reactions to messages."
-            },
-            "AnyMentions": {
-                "name": "Mention Members",
-                "description": "Allows mentioning other users."
-            },
-            "MentionEveryone": {
-                "name": "Mention Everyone",
-                "description": "Allows using {'@'}everyone and {'@'}here."
-            },
-            "ExternalEmoji": {
-                "name": "External Emoji",
-                "description": "Allows using emojis from other servers."
-            },
-            "ExternalStickers": {
-                "name": "External Stickers",
-                "description": "Allows using stickers from other servers."
-            },
-            "UseCommands": {
-                "name": "Use Commands",
-                "description": "Allows using slash commands."
-            },
-            "PostEmbeddedLinks": {
-                "name": "Embed Links",
-                "description": "Allows embedding content via links."
-            },
-            "SendVoice": {
-                "name": "Send Voice",
-                "description": "Allows sending voice messages."
-            },
-            "Connect": {
-                "name": "Connect to Voice",
-                "description": "Allows connecting to voice channels."
-            },
-            "Speak": {
-                "name": "Speak",
-                "description": "Allows speaking in voice channel."
-            },
-            "Video": {
-                "name": "Video",
-                "description": "Allows using camera."
-            },
-            "Stream": {
-                "name": "Screen Share",
-                "description": "Allows streaming your screen."
-            },
-            "UseASIO": {
-                "name": "ASIO Mode",
-                "description": "Allows using low-latency audio mode."
-            },
-            "AdditionalStreams": {
-                "name": "Additional Streams",
-                "description": "Allows using multiple video streams."
-            },
-            "DisconnectMember": {
-                "name": "Disconnect Member",
-                "description": "Allows forcibly disconnecting a member from voice."
-            },
-            "MoveMember": {
-                "name": "Move Member",
-                "description": "Allows moving members between channels."
-            },
-            "MuteMember": {
-                "name": "Mute Member",
-                "description": "Allows muting a member's mic."
-            },
-            "KickMember": {
-                "name": "Kick Member",
-                "description": "Allows kicking a member from the server."
-            },
-            "BanMember": {
-                "name": "Ban Member",
-                "description": "Allows banning a member from the server."
-            },
-            "ManageChannels": {
-                "name": "Manage Channels",
-                "description": "Allows creating, deleting, and editing channels."
-            },
-            "ManageArchetype": {
-                "name": "Manage Roles",
-                "description": "Allows editing server roles (archetypes)."
-            },
-            "ManageBots": {
-                "name": "Manage Bots",
-                "description": "Allows configuring and running bots."
-            },
-            "ManageEvents": {
-                "name": "Manage Events",
-                "description": "Allows creating and editing server events."
-            },
-            "ManageBehaviour": {
-                "name": "Manage Behaviour",
-                "description": "Allows configuring server scripts or automations."
-            },
-            "ManageServer": {
-                "name": "Manage Server",
-                "description": "Grants full administrative access to server settings."
-            }
-        }
+    "flags": {
+      "ViewChannel": {
+        "name": "View Channels",
+        "description": "Allows seeing the channel and its content."
+      },
+      "ReadHistory": {
+        "name": "Read History",
+        "description": "Allows viewing previous messages."
+      },
+      "JoinToVoice": {
+        "name": "Join Voice",
+        "description": "Allows joining voice channels."
+      },
+      "SendMessages": {
+        "name": "Send Messages",
+        "description": "Allows sending text messages."
+      },
+      "AttachFiles": {
+        "name": "Attach Files",
+        "description": "Allows attaching images and documents."
+      },
+      "AddReactions": {
+        "name": "Add Reactions",
+        "description": "Allows adding reactions to messages."
+      },
+      "AnyMentions": {
+        "name": "Mention Members",
+        "description": "Allows mentioning other users."
+      },
+      "MentionEveryone": {
+        "name": "Mention Everyone",
+        "description": "Allows using {'@'}everyone and {'@'}here."
+      },
+      "ExternalEmoji": {
+        "name": "External Emoji",
+        "description": "Allows using emojis from other servers."
+      },
+      "ExternalStickers": {
+        "name": "External Stickers",
+        "description": "Allows using stickers from other servers."
+      },
+      "UseCommands": {
+        "name": "Use Commands",
+        "description": "Allows using slash commands."
+      },
+      "PostEmbeddedLinks": {
+        "name": "Embed Links",
+        "description": "Allows embedding content via links."
+      },
+      "SendVoice": {
+        "name": "Send Voice",
+        "description": "Allows sending voice messages."
+      },
+      "Connect": {
+        "name": "Connect to Voice",
+        "description": "Allows connecting to voice channels."
+      },
+      "Speak": {
+        "name": "Speak",
+        "description": "Allows speaking in voice channel."
+      },
+      "Video": {
+        "name": "Video",
+        "description": "Allows using camera."
+      },
+      "Stream": {
+        "name": "Screen Share",
+        "description": "Allows streaming your screen."
+      },
+      "UseASIO": {
+        "name": "ASIO Mode",
+        "description": "Allows using low-latency audio mode."
+      },
+      "AdditionalStreams": {
+        "name": "Additional Streams",
+        "description": "Allows using multiple video streams."
+      },
+      "DisconnectMember": {
+        "name": "Disconnect Member",
+        "description": "Allows forcibly disconnecting a member from voice."
+      },
+      "MoveMember": {
+        "name": "Move Member",
+        "description": "Allows moving members between channels."
+      },
+      "MuteMember": {
+        "name": "Mute Member",
+        "description": "Allows muting a member's mic."
+      },
+      "KickMember": {
+        "name": "Kick Member",
+        "description": "Allows kicking a member from the server."
+      },
+      "BanMember": {
+        "name": "Ban Member",
+        "description": "Allows banning a member from the server."
+      },
+      "ManageChannels": {
+        "name": "Manage Channels",
+        "description": "Allows creating, deleting, and editing channels."
+      },
+      "ManageArchetype": {
+        "name": "Manage Roles",
+        "description": "Allows editing server roles (archetypes)."
+      },
+      "ManageBots": {
+        "name": "Manage Bots",
+        "description": "Allows configuring and running bots."
+      },
+      "ManageEvents": {
+        "name": "Manage Events",
+        "description": "Allows creating and editing server events."
+      },
+      "ManageBehaviour": {
+        "name": "Manage Behaviour",
+        "description": "Allows configuring server scripts or automations."
+      },
+      "ManageServer": {
+        "name": "Manage Server",
+        "description": "Grants full administrative access to server settings."
+      }
     }
+  }
 }

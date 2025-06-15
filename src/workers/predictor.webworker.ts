@@ -8,7 +8,7 @@ async function loadModel() {
     model = await nsfwjs.load("indexeddb://predictor", { size: 299 });
     postMessage({ type: "ready", from: "indexeddb" });
   } else {
-    const modelUrl = new URL('/p/model.json', self.location.origin).toString();
+    const modelUrl = new URL("/p/model.json", self.location.origin).toString();
     const m = await nsfwjs.load(modelUrl, { size: 299 });
     await m.model.save("indexeddb://predictor");
     model = m;

@@ -11,14 +11,13 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { onMounted } from 'vue';
-import { usePoolStore } from '@/store/poolStore';
-import delay from '@/lib/delay';
+import { onMounted } from "vue";
+import { usePoolStore } from "@/store/poolStore";
+import delay from "@/lib/delay";
 
 const pool = usePoolStore();
 
 onMounted(async () => {
   await delay(1000);
-})
-
+});
 </script>

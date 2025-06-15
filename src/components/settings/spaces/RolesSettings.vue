@@ -162,33 +162,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, WatchStopHandle } from 'vue';
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+  type WatchStopHandle,
+} from "vue";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { usePoolStore } from '@/store/poolStore';
-import { useLiveQuery } from '@/lib/useLiveQuery';
-import { extractEntitlements, ArgonEntitlementGroups, ArgonEntitlementFlag, ArgonEntitlementFlagDefinition, extractEntitlementStrict } from '@/lib/rbac/ArgonEntitlement';
-import { useLocale } from '@/store/localeStore';
-import delay from '@/lib/delay';
-import ArchetypeColorPicker from './ArchetypeColorPicker.vue';
-import Button from '@/components/ui/button/Button.vue';
-import { PlusCircleIcon } from "lucide-vue-next"
-import Input from '@/components/ui/input/Input.vue';
-import { watchDebounced } from '@vueuse/core'
-import { useApi } from '@/store/apiStore';
-import { useToast } from '@/components/ui/toast';
-import { logger } from '@/lib/logger';
-import Textarea from '@/components/ui/textarea/Textarea.vue';
+import { usePoolStore } from "@/store/poolStore";
+import { useLiveQuery } from "@/lib/useLiveQuery";
 import {
-    Tabs,
-    TabsList,
-    TabsTrigger,
-    TabsContent,
-} from "@/components/ui/tabs";
-import { RealtimeUser } from '@/store/db/dexie';
-import { Subscription } from 'dexie';
-import UserInListSideElement from '@/components/UserInListSideElement.vue';
+  extractEntitlements,
+  ArgonEntitlementGroups,
+  type ArgonEntitlementFlag,
+  type ArgonEntitlementFlagDefinition,
+  extractEntitlementStrict,
+} from "@/lib/rbac/ArgonEntitlement";
+import { useLocale } from "@/store/localeStore";
+import delay from "@/lib/delay";
+import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
+import Button from "@/components/ui/button/Button.vue";
+import { PlusCircleIcon } from "lucide-vue-next";
+import Input from "@/components/ui/input/Input.vue";
+import { watchDebounced } from "@vueuse/core";
+import { useApi } from "@/store/apiStore";
+import { useToast } from "@/components/ui/toast";
+import { logger } from "@/lib/logger";
+import Textarea from "@/components/ui/textarea/Textarea.vue";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type { RealtimeUser } from "@/store/db/dexie";
+import type { Subscription } from "dexie";
+import UserInListSideElement from "@/components/UserInListSideElement.vue";
 
 const pool = usePoolStore();
 const selectedServer = computed(() => pool.selectedServer);
@@ -198,15 +206,14 @@ const api = useApi();
 const toast = useToast();
 const debouncerHandle = ref(null as WatchStopHandle | null);
 const archetypesGroup = ref(null as IArchetypeDtoGroup[] | null);
-const activeTab = ref<'permissions' | 'users'>('permissions');
-const search = ref('');
-const userSearchQuery = ref('');
+const activeTab = ref<"permissions" | "users">("permissions");
+const search = ref("");
+const userSearchQuery = ref("");
 const searchResults = ref<RealtimeUser[]>([]);
 
-
 const addableSearchResults = computed(() => {
-  const existingIds = new Set(usersForRole.value.map(u => u.UserId));
-  return searchResults.value.filter(u => !existingIds.has(u.UserId));
+  const existingIds = new Set(usersForRole.value.map((u) => u.UserId));
+  return searchResults.value.filter((u) => !existingIds.has(u.UserId));
 });
 
 watchDebounced(
@@ -224,186 +231,198 @@ watchDebounced(
       searchResults.value = [];
     }
   },
-  { debounce: 300, immediate: false }
+  { debounce: 300, immediate: false },
 );
 
 const archetypes = useLiveQuery(() => {
-    const serverId = selectedServer.value;
-    if (!serverId) return [];
-    return pool.db.archetypes.where('ServerId').equals(serverId).toArray();
+  const serverId = selectedServer.value;
+  if (!serverId) return [];
+  return pool.db.archetypes.where("ServerId").equals(serverId).toArray();
 });
 
 const selectedArchetypeId = ref<string | null>(null);
 
 const selectedArchetype = computed(() => {
-    return archetypes.value?.find(a => a.Id === selectedArchetypeId.value);
+  return archetypes.value?.find((a) => a.Id === selectedArchetypeId.value);
 });
 
-
-const revokeArchetype = (userId: Guid) => {
-}
-const assignArchetype = (userId: Guid) => {
-
-}
+const revokeArchetype = (userId: Guid) => {};
+const assignArchetype = (userId: Guid) => {};
 
 const usersForRole = ref<RealtimeUser[]>([]);
 let unsubscribeUsers: Subscription | null = null;
 
 const entitlementFlags = computed(() => {
-    if (!selectedArchetype.value) return [];
-    return extractEntitlements(BigInt(selectedArchetype.value.Entitlement));
+  if (!selectedArchetype.value) return [];
+  return extractEntitlements(BigInt(selectedArchetype.value.Entitlement));
 });
-const includesEntitlement = (val: ArgonEntitlementFlag[], flag: ArgonEntitlementFlagDefinition) => {
-    return extractEntitlements(flag.value).some(q => val.includes(q));
-}
-
-
+const includesEntitlement = (
+  val: ArgonEntitlementFlag[],
+  flag: ArgonEntitlementFlagDefinition,
+) => {
+  return extractEntitlements(flag.value).some((q) => val.includes(q));
+};
 
 onMounted(async () => {
-    while (!selectedServer.value) {
-        await delay(500);
-    }
-    archetypesGroup.value = await pool.getDetailedArchetypesAndRefreshDb(selectedServer.value);
+  while (!selectedServer.value) {
+    await delay(500);
+  }
+  archetypesGroup.value = await pool.getDetailedArchetypesAndRefreshDb(
+    selectedServer.value,
+  );
 
-    isLoading.value = false;
+  isLoading.value = false;
 
-    setTimeout(() => {
-        startTrackingDebouncer();
-    }, 200);
+  setTimeout(() => {
+    startTrackingDebouncer();
+  }, 200);
 });
 
-
 watch(
-    () => selectedArchetype.value?.Id,
-    (newId) => {
-        if (unsubscribeUsers) {
-            unsubscribeUsers.unsubscribe();
-            unsubscribeUsers = null;
-        }
+  () => selectedArchetype.value?.Id,
+  (newId) => {
+    if (unsubscribeUsers) {
+      unsubscribeUsers.unsubscribe();
+      unsubscribeUsers = null;
+    }
 
-        if (!newId) {
-            usersForRole.value = [];
-            return;
-        }
+    if (!newId) {
+      usersForRole.value = [];
+      return;
+    }
 
-        const obs = getUsersForArchetypeGroup(newId);
-        if (Array.isArray(obs)) {
-            usersForRole.value = obs;
-        } else {
-            unsubscribeUsers = obs.subscribe((val) => {
-                usersForRole.value = val;
-            });
-        }
-    },
-    { immediate: true }
+    const obs = getUsersForArchetypeGroup(newId);
+    if (Array.isArray(obs)) {
+      usersForRole.value = obs;
+    } else {
+      unsubscribeUsers = obs.subscribe((val) => {
+        usersForRole.value = val;
+      });
+    }
+  },
+  { immediate: true },
 );
 
 onUnmounted(() => {
-    if (unsubscribeUsers) {
-        unsubscribeUsers.unsubscribe();
-        unsubscribeUsers = null;
-    }
+  if (unsubscribeUsers) {
+    unsubscribeUsers.unsubscribe();
+    unsubscribeUsers = null;
+  }
 });
 
 const getUsersForArchetypeGroup = (archetypeId: Guid) => {
-    if (!archetypesGroup.value) return [];
-    const members = archetypesGroup.value.find(x => x.Archetype.Id == archetypeId)?.Members;
+  if (!archetypesGroup.value) return [];
+  const members = archetypesGroup.value.find(
+    (x) => x.Archetype.Id === archetypeId,
+  )?.Members;
 
-    if (!members) return [];
+  if (!members) return [];
 
-    return pool.getUsersByServerMemberIds(selectedServer.value!, members);
-}
+  return pool.getUsersByServerMemberIds(
+    selectedServer.value ?? pool.servers[0],
+    members,
+  );
+};
 
-
-const isLockedArchetype = (arch: IArchetypeDto, includeEveryone: boolean = false) => {
-    if (arch.IsLocked) return true;
-    if (arch.IsHidden) return true;
-    if (arch.Name === "owner") return true;
-    if (includeEveryone && arch.Name === "everyone")
-        return true;
-    return false;
-}
-
+const isLockedArchetype = (arch: IArchetypeDto, includeEveryone = false) => {
+  if (arch.IsLocked) return true;
+  if (arch.IsHidden) return true;
+  if (arch.Name === "owner") return true;
+  if (includeEveryone && arch.Name === "everyone") return true;
+  return false;
+};
 
 const stopTrackingDebouncer = () => {
-    if (debouncerHandle.value)
-        debouncerHandle.value();
-    debouncerHandle.value = null;
-}
+  if (debouncerHandle.value) debouncerHandle.value();
+  debouncerHandle.value = null;
+};
 
 const startTrackingDebouncer = () => {
-    debouncerHandle.value = watchDebounced(
-        () => [
-            selectedArchetype.value?.Name,
-            selectedArchetype.value?.Description,
-            selectedArchetype.value?.Colour,
-            selectedArchetype.value?.Entitlement,
-            selectedArchetype.value?.IsGroup,
-            selectedArchetype.value?.IsMentionable,
-        ],
-        async () => await updateArchetypeLocal(),
-        { debounce: 1300, immediate: false }
-    );
-}
+  debouncerHandle.value = watchDebounced(
+    () => [
+      selectedArchetype.value?.Name,
+      selectedArchetype.value?.Description,
+      selectedArchetype.value?.Colour,
+      selectedArchetype.value?.Entitlement,
+      selectedArchetype.value?.IsGroup,
+      selectedArchetype.value?.IsMentionable,
+    ],
+    async () => await updateArchetypeLocal(),
+    { debounce: 1300, immediate: false },
+  );
+};
 
 const switchTo = (id: Guid) => {
-    stopTrackingDebouncer();
-    selectedArchetypeId.value = id;
-    startTrackingDebouncer();
-}
-
-
+  stopTrackingDebouncer();
+  selectedArchetypeId.value = id;
+  startTrackingDebouncer();
+};
 
 const filteredArchetypes = computed(() => {
-    if (!search.value.trim()) return archetypes.value;
-    const q = search.value.toLowerCase();
-    return archetypes.value?.filter(a =>
-        a.Name.toLowerCase().includes(q) || a.Description.toLowerCase().includes(q)
-    );
+  if (!search.value.trim()) return archetypes.value;
+  const q = search.value.toLowerCase();
+  return archetypes.value?.filter(
+    (a) =>
+      a.Name.toLowerCase().includes(q) ||
+      a.Description.toLowerCase().includes(q),
+  );
 });
 
 async function addArchetype() {
-    if (!selectedServer.value) return;
-    await api.serverInteraction.CreateArchetypeAsync(selectedServer.value, "New Archetype")
+  if (!selectedServer.value) return;
+  await api.serverInteraction.CreateArchetypeAsync(
+    selectedServer.value,
+    "New Archetype",
+  );
 }
 
 function updateArchetypeLocal() {
-    logger.info("called update archetype", selectedArchetype.value);
-    if (!selectedArchetype.value) return;
-    try {
-        const result = api.serverInteraction.UpdateArchetypeAsync(selectedArchetype.value.ServerId, selectedArchetype.value);
-        toast.toast({
-            title: "📁 Saved!",
-            duration: 1000
-        });
-        // TODO
-    } catch (e) {
-        toast.toast({
-            title: "Failed to save Role",
-            variant: "destructive"
-        });
-    }
+  logger.info("called update archetype", selectedArchetype.value);
+  if (!selectedArchetype.value) return;
+  try {
+    const result = api.serverInteraction.UpdateArchetypeAsync(
+      selectedArchetype.value.ServerId,
+      selectedArchetype.value,
+    );
+    toast.toast({
+      title: "📁 Saved!",
+      duration: 1000,
+    });
+    // TODO
+  } catch (e) {
+    toast.toast({
+      title: "Failed to save Role",
+      variant: "destructive",
+    });
+  }
 }
-
-
 
 function toggleFlag(flag: bigint, checked: boolean) {
-    if (!selectedArchetype.value) return;
-    logger.info("toggle rule", flag, checked, extractEntitlements(flag));
-    const idx = entitlementFlags.value.findIndex(f => f === extractEntitlementStrict(flag));
-    if (checked && idx === -1) {
-        selectedArchetype.value.Entitlement = (BigInt(selectedArchetype.value.Entitlement) | flag).toString();
-    } else if (!checked && idx !== -1) {
-        selectedArchetype.value.Entitlement = (BigInt(selectedArchetype.value.Entitlement) & ~flag).toString();
-    }
-    logger.info("updated", extractEntitlements(BigInt(selectedArchetype.value.Entitlement)));
+  if (!selectedArchetype.value) return;
+  logger.info("toggle rule", flag, checked, extractEntitlements(flag));
+  const idx = entitlementFlags.value.findIndex(
+    (f) => f === extractEntitlementStrict(flag),
+  );
+  if (checked && idx === -1) {
+    selectedArchetype.value.Entitlement = (
+      BigInt(selectedArchetype.value.Entitlement) | flag
+    ).toString();
+  } else if (!checked && idx !== -1) {
+    selectedArchetype.value.Entitlement = (
+      BigInt(selectedArchetype.value.Entitlement) & ~flag
+    ).toString();
+  }
+  logger.info(
+    "updated",
+    extractEntitlements(BigInt(selectedArchetype.value.Entitlement)),
+  );
 }
 const formatColour = (argb: number) => {
-    const a = ((argb >> 24) & 0xff) / 255;
-    const r = (argb >> 16) & 0xff;
-    const g = (argb >> 8) & 0xff;
-    const b = argb & 0xff;
-    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+  const a = ((argb >> 24) & 0xff) / 255;
+  const r = (argb >> 16) & 0xff;
+  const g = (argb >> 8) & 0xff;
+  const b = argb & 0xff;
+  return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
 };
 </script>
 

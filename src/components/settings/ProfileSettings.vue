@@ -70,26 +70,26 @@
 </template>
 
 <script setup lang="ts">
-import { Cropper, CircleStencil } from 'vue-advanced-cropper'
-import { Input } from '@/components/ui/input'
-import ArgonAvatar from '../ArgonAvatar.vue';
-import { useMe } from '@/store/meStore';
-import { useToast } from '@/components/ui/toast/use-toast'
-import { useLocale } from '@/store/localeStore';
-import { CameraIcon } from 'lucide-vue-next';
+import { Cropper, CircleStencil } from "vue-advanced-cropper";
+import { Input } from "@/components/ui/input";
+import ArgonAvatar from "../ArgonAvatar.vue";
+import { useMe } from "@/store/meStore";
+import { useToast } from "@/components/ui/toast/use-toast";
+import { useLocale } from "@/store/localeStore";
+import { CameraIcon } from "lucide-vue-next";
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button';
-import { onUnmounted, ref } from 'vue';
-import { useConfig } from '@/store/remoteConfig';
-import { useAuthStore } from '@/store/authStore';
-import { v7 } from 'uuid';
-import { useApi } from '@/store/apiStore';
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { onUnmounted, ref } from "vue";
+import { useConfig } from "@/store/remoteConfig";
+import { useAuthStore } from "@/store/authStore";
+import { v7 } from "uuid";
+import { useApi } from "@/store/apiStore";
 const { t } = useLocale();
 const me = useMe();
 const toast = useToast();
@@ -100,107 +100,102 @@ const isLoadingAvatar = ref(false);
 
 const api = useApi();
 const toggleOTP = () => {
-    //user.value.otpEnabled = !user.value.otpEnabled;
-    //alert(`OTP has been ${user.value.otpEnabled ? 'enabled' : 'disabled'}.`);
+  //user.value.otpEnabled = !user.value.otpEnabled;
+  //alert(`OTP has been ${user.value.otpEnabled ? 'enabled' : 'disabled'}.`);
 };
 
 const change = ({ canvas }: { canvas: HTMLCanvasElement }) => {
-    canvasRef.value = canvas;
-}
-
-const onAvatarChange = async (event: Event) => {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        console.log('File selected: ', file.name, file.size);
-
-        if (img.value) {
-            URL.revokeObjectURL(img.value);
-        }
-        isFileSelected.value = true;
-        img.value = URL.createObjectURL(file);
-    }
+  canvasRef.value = canvas;
 };
 
+const onAvatarChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.files?.[0]) {
+    const file = input.files[0];
+    console.log("File selected: ", file.name, file.size);
+
+    if (img.value) {
+      URL.revokeObjectURL(img.value);
+    }
+    isFileSelected.value = true;
+    img.value = URL.createObjectURL(file);
+  }
+};
 
 const saveChanges = async () => {
-    try {
-        isLoadingAvatar.value = true;
+  try {
+    isLoadingAvatar.value = true;
 
-        const image = canvasRef.value!.toDataURL("image/jpeg", 1);
+    const image = canvasRef.value?.toDataURL("image/jpeg", 1);
 
-        await uploadUserAvatar(image, `${v7()}.jpg`);
+    await uploadUserAvatar(image, `${v7()}.jpg`);
 
-        isFileSelected.value = false;
-    }
-    catch (e) {
-        toast.toast({
-            title: "Error on upload avatar...",
-            variant: "destructive",
-            description: `${e}`
-        });
-    }
-    finally {
-        isLoadingAvatar.value = false;
-    }
+    isFileSelected.value = false;
+  } catch (e) {
+    toast.toast({
+      title: "Error on upload avatar...",
+      variant: "destructive",
+      description: `${e}`,
+    });
+  } finally {
+    isLoadingAvatar.value = false;
+  }
 };
 
 async function uploadUserAvatar(dataUrl: string, name: string): Promise<void> {
-    const formData = new FormData();
-    const cfg = useConfig();
-    const auth = useAuthStore();
-    const blob = dataURLtoBlob(dataUrl);
-    const file = new File([blob], name, { type: blob.type });
+  const formData = new FormData();
+  const cfg = useConfig();
+  const auth = useAuthStore();
+  const blob = dataURLtoBlob(dataUrl);
+  const file = new File([blob], name, { type: blob.type });
 
-    formData.append("file", file);
+  formData.append("file", file);
 
-    const response = await fetch(`${cfg.apiEndpoint}/files/user/@me/avatar`, {
-        method: "POST",
-        body: formData,
-        headers: {
-            "Authorization": `Bearer ${auth.token}`,
-            "X-Host-Name": v7()
-        },
-    });
+  const response = await fetch(`${cfg.apiEndpoint}/files/user/@me/avatar`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${auth.token}`,
+      "X-Host-Name": v7(),
+    },
+  });
 
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Error in upload avatar ${response.status} — ${error}`);
-    }
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error in upload avatar ${response.status} — ${error}`);
+  }
 
-    console.log("Avatar success load");
+  console.log("Avatar success load");
 }
 
 function dataURLtoBlob(dataUrl: string): Blob {
-    const arr = dataUrl.split(",");
-    const mimeMatch = arr[0].match(/:(.*?);/);
-    if (!mimeMatch) throw new Error("Cant detect MIME-type");
+  const arr = dataUrl.split(",");
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  if (!mimeMatch) throw new Error("Cant detect MIME-type");
 
-    const mime = mimeMatch[1];
-    const bstr = atob(arr[1]);
-    const n = bstr.length;
-    const u8arr = new Uint8Array(n);
+  const mime = mimeMatch[1];
+  const bstr = atob(arr[1]);
+  const n = bstr.length;
+  const u8arr = new Uint8Array(n);
 
-    for (let i = 0; i < n; i++) {
-        u8arr[i] = bstr.charCodeAt(i);
-    }
+  for (let i = 0; i < n; i++) {
+    u8arr[i] = bstr.charCodeAt(i);
+  }
 
-    return new Blob([u8arr], { type: mime });
+  return new Blob([u8arr], { type: mime });
 }
 
 const deleteAccount = () => {
-    toast.toast({
-        title: "Охуел?",
-        variant: "destructive",
-        description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу"
-    });
+  toast.toast({
+    title: "Охуел?",
+    variant: "destructive",
+    description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу",
+  });
 };
 
 onUnmounted(() => {
-    isFileSelected.value = false;
+  isFileSelected.value = false;
 });
-
-
 </script>
 
 <style scoped>

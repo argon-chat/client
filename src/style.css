@@ -1,6 +1,7 @@
 @plugin "@tailwindcss/typography";
 :root {
-  font-family: Tengwar Annatar,Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Tengwar Annatar, Inter, system-ui, Avenir, Helvetica, Arial,
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
 

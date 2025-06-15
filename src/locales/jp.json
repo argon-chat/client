@@ -1,263 +1,263 @@
 {
-    "close": "閉じる",
-    "ok": "確認",
-    "or": "または",
-    "start": "開始",
-    "wait_connect": "接続を待っています、お待ちください...",
-    "create_new_server": "新しいサーバーを作成",
-    "join_to_server": "サーバーに参加",
-    "invite_code": "招待コード",
-    "join_or_create_server": "サーバーに参加または作成",
-    "servers": "サーバー",
-    "users": "ユーザー",
-    "mute": "ミュート",
-    "unmute": "ミュート解除",
-    "echo_cancellation": "エコーキャンセル",
-    "noise_sup": "ノイズ抑制",
-    "send_message": "メッセージを送信",
-    "window_preview": "ウィンドウプレビュー",
-    "enable_sound_from_window": "ウィンドウの音声を含める",
-    "enable_system_sound": "システム音声を含める",
-    "screencast_title": "画面またはウィンドウを共有",
-    "screencast": "画面共有",
-    "monitors": "モニター",
-    "windows": "ウィンドウ",
-    "monitor_index": "モニター {idx}",
-    "quality": "品質",
-    "select_quality": "品質を選択",
-    "fps": "FPS",
-    "select_fps": "FPSを選択",
-    "action": "アクション",
-    "hotkey": "ホットキー",
-    "press_any_key": "任意のキーを押してください...",
-    "app_language": "アプリの言語",
-    "close_behaviour": "閉じる動作",
-    "minimize_to_tray": "トレイに最小化するかアプリを終了する",
-    "application_settings": "アプリケーション設定",
-    "connected_devices": "接続されたデバイス",
-    "logout_all_devices": "すべてのデバイスからログアウト",
-    "list_hotkeys": "ホットキーの一覧",
-    "name": "名前",
-    "is_global_q": "グローバルですか？",
-    "global_toltip": "グローバルホットキーは、ウィンドウをトレイに最小化しても、他のプログラム内でも動作します。",
-    "add_invite": "招待を追加",
-    "remove": "削除",
-    "no_any_invite_codes_created": "作成された招待コードはありません",
-    "profile_settings": "プロフィール設定",
-    "username": "ユーザー名",
-    "display_name": "表示名",
-    "email": "Eメール",
-    "phone_number": "電話番号",
-    "otp_title": "二要素認証 (OTP)",
-    "delete_account": "アカウントを削除",
-    "invite_codes": "招待コード",
-    "select_camera": "カメラを選択",
-    "no_camera_found": "カメラが見つかりません",
-    "unnamed_camera": "名前なしのカメラ",
-    "test_camera": "ビデオテスト",
-    "you_not_access_to_channel_or_not_found_channels": "どのテキストチャンネルにもアクセスできないか、このサーバーにはチャンネルがありません。",
-    "no_text_channel_found": "テキストチャンネルが見つかりません",
-    "settings": "設定",
-    "manage_settings": "アカウントと設定を管理",
-    "account": "アカウント",
-    "application": "アプリケーション",
-    "voice_video": "音声とビデオ",
-    "hotkeys": "ホットキー",
-    "languages": "言語",
-    "sounds": "音",
-    "playSoftEnterSound": "チャンネル参加音",
-    "playSoftEnterSound_details": "チャンネルに参加したときの音を再生しますか？",
-    "playSoftLeaveSound": "チャンネル退出音",
-    "playSoftLeaveSound_details": "チャンネルから退出したときの音を再生しますか？",
-    "playMuteAllSound": "ミュート/ミュート解除音",
-    "playMuteAllSound_details": "ミュートやミュート解除時の音を再生しますか？",
-    "playReconnectSound": "再接続音",
-    "playReconnectSound_details": "再接続時の音を再生しますか？",
-    "playUnmuteAllSound": "ミュート解除音",
-    "playUnmuteAllSound_details": "ミュート解除時の音を再生しますか？",
-    "playNotificationSound": "通知音",
-    "playNotificationSound_details": "通知音を再生しますか？",
-    "playRingSound": "着信音",
-    "playRingSound_details": "着信音を再生しますか？",
-    "activity_play_in": "でプレイ中",
-    "activity_work_in": "で働いている",
-    "activity_stream": "配信中",
-    "activity_listen": "を聴きます",
-    "key.microphone.toggle": "マイクのミュート切替",
-    "key.microphone.on": "マイクのミュートを解除",
-    "key.microphone.off": "マイクをミュート",
-    "key.sound.toggle": "サウンドのミュート切替",
-    "key.sound.on": "サウンドをミュート",
-    "key.sound.off": "サウンドのミュートを解除",
-    "status_Offline": "Offline",
-    "status_Online": "Online",
-    "status_Away": "Away",
-    "status_TouchGrass": "外でリフレッシュ中",
-    "status_DoNotDisturb": "取り込み中",
-    "echo_cancellation_desc": "双方向の音声通信でエコーを防ぐために、出力デバイスと入力デバイス間のクロストークを減らす機能です。",
-    "agc_desc": "自動ゲイン調整（AGC）は、音声信号の音量を一定に保つためのアルゴリズムです。",
-    "voice_isolation": "ボイスアイソレーション",
-    "voice_isolation_desc": "ボイスのアイソレーションをアイソレーションのためにアイソレートします",
-    "noise_sup_desc": "ノイズ抑制（ノイズ抑制）",
-    "select_microphone": "マイクを選択",
-    "voice_video_settings": "音声とビデオの設定",
-    "link_soc_": "連携する",
-    "socials": "ソーシャル連携",
-    "account_socials": "ソーシャルアカウント",
-    "typing": {
-        "one": "{name}が入力中です",
-        "few": "{names}が入力しています",
-        "many": "複数のユーザーが入力しています"
+  "close": "閉じる",
+  "ok": "確認",
+  "or": "または",
+  "start": "開始",
+  "wait_connect": "接続を待っています、お待ちください...",
+  "create_new_server": "新しいサーバーを作成",
+  "join_to_server": "サーバーに参加",
+  "invite_code": "招待コード",
+  "join_or_create_server": "サーバーに参加または作成",
+  "servers": "サーバー",
+  "users": "ユーザー",
+  "mute": "ミュート",
+  "unmute": "ミュート解除",
+  "echo_cancellation": "エコーキャンセル",
+  "noise_sup": "ノイズ抑制",
+  "send_message": "メッセージを送信",
+  "window_preview": "ウィンドウプレビュー",
+  "enable_sound_from_window": "ウィンドウの音声を含める",
+  "enable_system_sound": "システム音声を含める",
+  "screencast_title": "画面またはウィンドウを共有",
+  "screencast": "画面共有",
+  "monitors": "モニター",
+  "windows": "ウィンドウ",
+  "monitor_index": "モニター {idx}",
+  "quality": "品質",
+  "select_quality": "品質を選択",
+  "fps": "FPS",
+  "select_fps": "FPSを選択",
+  "action": "アクション",
+  "hotkey": "ホットキー",
+  "press_any_key": "任意のキーを押してください...",
+  "app_language": "アプリの言語",
+  "close_behaviour": "閉じる動作",
+  "minimize_to_tray": "トレイに最小化するかアプリを終了する",
+  "application_settings": "アプリケーション設定",
+  "connected_devices": "接続されたデバイス",
+  "logout_all_devices": "すべてのデバイスからログアウト",
+  "list_hotkeys": "ホットキーの一覧",
+  "name": "名前",
+  "is_global_q": "グローバルですか？",
+  "global_toltip": "グローバルホットキーは、ウィンドウをトレイに最小化しても、他のプログラム内でも動作します。",
+  "add_invite": "招待を追加",
+  "remove": "削除",
+  "no_any_invite_codes_created": "作成された招待コードはありません",
+  "profile_settings": "プロフィール設定",
+  "username": "ユーザー名",
+  "display_name": "表示名",
+  "email": "Eメール",
+  "phone_number": "電話番号",
+  "otp_title": "二要素認証 (OTP)",
+  "delete_account": "アカウントを削除",
+  "invite_codes": "招待コード",
+  "select_camera": "カメラを選択",
+  "no_camera_found": "カメラが見つかりません",
+  "unnamed_camera": "名前なしのカメラ",
+  "test_camera": "ビデオテスト",
+  "you_not_access_to_channel_or_not_found_channels": "どのテキストチャンネルにもアクセスできないか、このサーバーにはチャンネルがありません。",
+  "no_text_channel_found": "テキストチャンネルが見つかりません",
+  "settings": "設定",
+  "manage_settings": "アカウントと設定を管理",
+  "account": "アカウント",
+  "application": "アプリケーション",
+  "voice_video": "音声とビデオ",
+  "hotkeys": "ホットキー",
+  "languages": "言語",
+  "sounds": "音",
+  "playSoftEnterSound": "チャンネル参加音",
+  "playSoftEnterSound_details": "チャンネルに参加したときの音を再生しますか？",
+  "playSoftLeaveSound": "チャンネル退出音",
+  "playSoftLeaveSound_details": "チャンネルから退出したときの音を再生しますか？",
+  "playMuteAllSound": "ミュート/ミュート解除音",
+  "playMuteAllSound_details": "ミュートやミュート解除時の音を再生しますか？",
+  "playReconnectSound": "再接続音",
+  "playReconnectSound_details": "再接続時の音を再生しますか？",
+  "playUnmuteAllSound": "ミュート解除音",
+  "playUnmuteAllSound_details": "ミュート解除時の音を再生しますか？",
+  "playNotificationSound": "通知音",
+  "playNotificationSound_details": "通知音を再生しますか？",
+  "playRingSound": "着信音",
+  "playRingSound_details": "着信音を再生しますか？",
+  "activity_play_in": "でプレイ中",
+  "activity_work_in": "で働いている",
+  "activity_stream": "配信中",
+  "activity_listen": "を聴きます",
+  "key.microphone.toggle": "マイクのミュート切替",
+  "key.microphone.on": "マイクのミュートを解除",
+  "key.microphone.off": "マイクをミュート",
+  "key.sound.toggle": "サウンドのミュート切替",
+  "key.sound.on": "サウンドをミュート",
+  "key.sound.off": "サウンドのミュートを解除",
+  "status_Offline": "Offline",
+  "status_Online": "Online",
+  "status_Away": "Away",
+  "status_TouchGrass": "外でリフレッシュ中",
+  "status_DoNotDisturb": "取り込み中",
+  "echo_cancellation_desc": "双方向の音声通信でエコーを防ぐために、出力デバイスと入力デバイス間のクロストークを減らす機能です。",
+  "agc_desc": "自動ゲイン調整（AGC）は、音声信号の音量を一定に保つためのアルゴリズムです。",
+  "voice_isolation": "ボイスアイソレーション",
+  "voice_isolation_desc": "ボイスのアイソレーションをアイソレーションのためにアイソレートします",
+  "noise_sup_desc": "ノイズ抑制（ノイズ抑制）",
+  "select_microphone": "マイクを選択",
+  "voice_video_settings": "音声とビデオの設定",
+  "link_soc_": "連携する",
+  "socials": "ソーシャル連携",
+  "account_socials": "ソーシャルアカウント",
+  "typing": {
+    "one": "{name}が入力中です",
+    "few": "{names}が入力しています",
+    "many": "複数のユーザーが入力しています"
+  },
+  "force_to_mono_voice": "モノラル強制",
+  "force_to_mono_voice_desc": "サウンドカードがマイクの音声を片方のチャンネルだけに出力する場合、ステレオモードで音声を複製して、片耳だけで聞こえる問題を防ぐことができます。",
+  "unnamed_speaker": "名前なしのスピーカー",
+  "no_speakers_found": "スピーカーが見つかりません",
+  "select_output": "スピーカーを選択",
+  "permissions": {
+    "groups": {
+      "basic": {
+        "name": "基本アクセス",
+        "description": "閲覧と読み取りに必要な最小限の権限。"
+      },
+      "messaging": {
+        "name": "メッセージ",
+        "description": "チャットやコンテンツ送信の権限。"
+      },
+      "voice": {
+        "name": "音声・ビデオ",
+        "description": "音声およびビデオ通話の権限。"
+      },
+      "moderation": {
+        "name": "モデレーション",
+        "description": "メンバー管理の権限。"
+      },
+      "management": {
+        "name": "管理",
+        "description": "設定や管理者操作の権限。"
+      }
     },
-    "force_to_mono_voice": "モノラル強制",
-    "force_to_mono_voice_desc": "サウンドカードがマイクの音声を片方のチャンネルだけに出力する場合、ステレオモードで音声を複製して、片耳だけで聞こえる問題を防ぐことができます。",
-    "unnamed_speaker": "名前なしのスピーカー",
-    "no_speakers_found": "スピーカーが見つかりません",
-    "select_output": "スピーカーを選択",
-    "permissions": {
-        "groups": {
-            "basic": {
-                "name": "基本アクセス",
-                "description": "閲覧と読み取りに必要な最小限の権限。"
-            },
-            "messaging": {
-                "name": "メッセージ",
-                "description": "チャットやコンテンツ送信の権限。"
-            },
-            "voice": {
-                "name": "音声・ビデオ",
-                "description": "音声およびビデオ通話の権限。"
-            },
-            "moderation": {
-                "name": "モデレーション",
-                "description": "メンバー管理の権限。"
-            },
-            "management": {
-                "name": "管理",
-                "description": "設定や管理者操作の権限。"
-            }
-        },
-        "flags": {
-            "ViewChannel": {
-                "name": "チャンネル閲覧",
-                "description": "チャンネルとその内容を見ることができます。"
-            },
-            "ReadHistory": {
-                "name": "履歴閲覧",
-                "description": "過去のメッセージを見ることができます。"
-            },
-            "JoinToVoice": {
-                "name": "ボイス参加",
-                "description": "ボイスチャネルに参加できます。"
-            },
-            "SendMessages": {
-                "name": "メッセージ送信",
-                "description": "テキストメッセージを送信できます。"
-            },
-            "AttachFiles": {
-                "name": "ファイル添付",
-                "description": "画像やドキュメントを添付できます。"
-            },
-            "AddReactions": {
-                "name": "リアクション追加",
-                "description": "メッセージにリアクションを追加できます。"
-            },
-            "AnyMentions": {
-                "name": "メンション",
-                "description": "他のユーザーをメンションできます。"
-            },
-            "MentionEveryone": {
-                "name": "全員にメンション",
-                "description": "{'@'}everyone と {'@'}here を使用できます。"
-            },
-            "ExternalEmoji": {
-                "name": "外部絵文字",
-                "description": "他サーバーの絵文字が使用できます。"
-            },
-            "ExternalStickers": {
-                "name": "外部スタンプ",
-                "description": "他サーバーのスタンプが使用できます。"
-            },
-            "UseCommands": {
-                "name": "コマンド使用",
-                "description": "スラッシュコマンドを使用できます。"
-            },
-            "PostEmbeddedLinks": {
-                "name": "リンク埋め込み",
-                "description": "リンクでコンテンツを埋め込めます。"
-            },
-            "SendVoice": {
-                "name": "音声送信",
-                "description": "音声メッセージを送信できます。"
-            },
-            "Connect": {
-                "name": "ボイス接続",
-                "description": "ボイスチャネルに接続できます。"
-            },
-            "Speak": {
-                "name": "発言",
-                "description": "ボイスチャネルで話せます。"
-            },
-            "Video": {
-                "name": "ビデオ",
-                "description": "カメラを使用できます。"
-            },
-            "Stream": {
-                "name": "画面共有",
-                "description": "画面を共有できます。"
-            },
-            "UseASIO": {
-                "name": "ASIOモード",
-                "description": "低遅延オーディオモードが使用できます。"
-            },
-            "AdditionalStreams": {
-                "name": "追加ストリーム",
-                "description": "複数の映像ストリームを使用できます。"
-            },
-            "DisconnectMember": {
-                "name": "メンバー切断",
-                "description": "ボイスからメンバーを強制切断できます。"
-            },
-            "MoveMember": {
-                "name": "メンバー移動",
-                "description": "メンバーをチャンネル間で移動できます。"
-            },
-            "MuteMember": {
-                "name": "ミュート",
-                "description": "メンバーのマイクをミュートできます。"
-            },
-            "KickMember": {
-                "name": "キック",
-                "description": "サーバーからメンバーをキックできます。"
-            },
-            "BanMember": {
-                "name": "バン",
-                "description": "サーバーからメンバーを禁止できます。"
-            },
-            "ManageChannels": {
-                "name": "チャンネル管理",
-                "description": "チャンネルの作成・削除・編集ができます。"
-            },
-            "ManageArchetype": {
-                "name": "役割管理",
-                "description": "サーバーの役割 (アーキタイプ) を編集できます。"
-            },
-            "ManageBots": {
-                "name": "ボット管理",
-                "description": "ボットの設定と実行ができます。"
-            },
-            "ManageEvents": {
-                "name": "イベント管理",
-                "description": "サーバーイベントの作成と編集ができます。"
-            },
-            "ManageBehaviour": {
-                "name": "動作管理",
-                "description": "サーバースクリプトや自動処理の設定ができます。"
-            },
-            "ManageServer": {
-                "name": "サーバー管理",
-                "description": "設定へのフル管理アクセスが付与されます。"
-            }
-        }
+    "flags": {
+      "ViewChannel": {
+        "name": "チャンネル閲覧",
+        "description": "チャンネルとその内容を見ることができます。"
+      },
+      "ReadHistory": {
+        "name": "履歴閲覧",
+        "description": "過去のメッセージを見ることができます。"
+      },
+      "JoinToVoice": {
+        "name": "ボイス参加",
+        "description": "ボイスチャネルに参加できます。"
+      },
+      "SendMessages": {
+        "name": "メッセージ送信",
+        "description": "テキストメッセージを送信できます。"
+      },
+      "AttachFiles": {
+        "name": "ファイル添付",
+        "description": "画像やドキュメントを添付できます。"
+      },
+      "AddReactions": {
+        "name": "リアクション追加",
+        "description": "メッセージにリアクションを追加できます。"
+      },
+      "AnyMentions": {
+        "name": "メンション",
+        "description": "他のユーザーをメンションできます。"
+      },
+      "MentionEveryone": {
+        "name": "全員にメンション",
+        "description": "{'@'}everyone と {'@'}here を使用できます。"
+      },
+      "ExternalEmoji": {
+        "name": "外部絵文字",
+        "description": "他サーバーの絵文字が使用できます。"
+      },
+      "ExternalStickers": {
+        "name": "外部スタンプ",
+        "description": "他サーバーのスタンプが使用できます。"
+      },
+      "UseCommands": {
+        "name": "コマンド使用",
+        "description": "スラッシュコマンドを使用できます。"
+      },
+      "PostEmbeddedLinks": {
+        "name": "リンク埋め込み",
+        "description": "リンクでコンテンツを埋め込めます。"
+      },
+      "SendVoice": {
+        "name": "音声送信",
+        "description": "音声メッセージを送信できます。"
+      },
+      "Connect": {
+        "name": "ボイス接続",
+        "description": "ボイスチャネルに接続できます。"
+      },
+      "Speak": {
+        "name": "発言",
+        "description": "ボイスチャネルで話せます。"
+      },
+      "Video": {
+        "name": "ビデオ",
+        "description": "カメラを使用できます。"
+      },
+      "Stream": {
+        "name": "画面共有",
+        "description": "画面を共有できます。"
+      },
+      "UseASIO": {
+        "name": "ASIOモード",
+        "description": "低遅延オーディオモードが使用できます。"
+      },
+      "AdditionalStreams": {
+        "name": "追加ストリーム",
+        "description": "複数の映像ストリームを使用できます。"
+      },
+      "DisconnectMember": {
+        "name": "メンバー切断",
+        "description": "ボイスからメンバーを強制切断できます。"
+      },
+      "MoveMember": {
+        "name": "メンバー移動",
+        "description": "メンバーをチャンネル間で移動できます。"
+      },
+      "MuteMember": {
+        "name": "ミュート",
+        "description": "メンバーのマイクをミュートできます。"
+      },
+      "KickMember": {
+        "name": "キック",
+        "description": "サーバーからメンバーをキックできます。"
+      },
+      "BanMember": {
+        "name": "バン",
+        "description": "サーバーからメンバーを禁止できます。"
+      },
+      "ManageChannels": {
+        "name": "チャンネル管理",
+        "description": "チャンネルの作成・削除・編集ができます。"
+      },
+      "ManageArchetype": {
+        "name": "役割管理",
+        "description": "サーバーの役割 (アーキタイプ) を編集できます。"
+      },
+      "ManageBots": {
+        "name": "ボット管理",
+        "description": "ボットの設定と実行ができます。"
+      },
+      "ManageEvents": {
+        "name": "イベント管理",
+        "description": "サーバーイベントの作成と編集ができます。"
+      },
+      "ManageBehaviour": {
+        "name": "動作管理",
+        "description": "サーバースクリプトや自動処理の設定ができます。"
+      },
+      "ManageServer": {
+        "name": "サーバー管理",
+        "description": "設定へのフル管理アクセスが付与されます。"
+      }
     }
+  }
 }

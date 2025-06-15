@@ -1,33 +1,33 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '../store/authStore';
-import LoginPage from '../views/AuthPage.vue';
-import MasterView from '../views/MasterView.vue';
-import CreateOrJoin from '../views/CreateOrJoin.vue';
-import Entry from '@/views/Entry.vue';
-import { useAppState } from '@/store/appState';
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "../store/authStore";
+import LoginPage from "../views/AuthPage.vue";
+import MasterView from "../views/MasterView.vue";
+import CreateOrJoin from "../views/CreateOrJoin.vue";
+import Entry from "@/views/Entry.vue";
+import { useAppState } from "@/store/appState";
 const routes = [
   {
-    path: '/',
-    name: 'Entry',
+    path: "/",
+    name: "Entry",
     component: Entry,
   },
   {
-    path: '/login.pg',
-    name: 'Login',
+    path: "/login.pg",
+    name: "Login",
     component: LoginPage,
   },
   {
-    path: '/create-or-join.pg',
-    name: 'Create Or Join',
+    path: "/create-or-join.pg",
+    name: "Create Or Join",
     component: CreateOrJoin,
     meta: { requiresAuth: true },
   },
   {
-    path: '/master.pg',
-    name: 'MasterView',
+    path: "/master.pg",
+    name: "MasterView",
     component: MasterView,
-    meta: { requiresAuth: true }
-  }
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({
@@ -38,17 +38,16 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   const appState = useAppState();
-  if (!appState.isLoaded && to.path != '/') {
-    next({ path: '/' });
+  if (!appState.isLoaded && to.path !== "/") {
+    next({ path: "/" });
     return;
   }
 
-
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next({ name: 'Login' });
+    next({ name: "Login" });
   } else if (to.meta.redirectTo) {
     next({ path: to.meta.redirectTo as string });
-  }else {
+  } else {
     next();
   }
 });

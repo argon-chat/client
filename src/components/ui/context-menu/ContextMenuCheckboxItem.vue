@@ -1,25 +1,27 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
-import { Check } from 'lucide-vue-next'
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-vue-next";
 import {
   ContextMenuCheckboxItem,
   type ContextMenuCheckboxItemEmits,
   type ContextMenuCheckboxItemProps,
   ContextMenuItemIndicator,
   useForwardPropsEmits,
-} from 'radix-vue'
-import { computed, type HTMLAttributes } from 'vue'
+} from "radix-vue";
+import { computed, type HTMLAttributes } from "vue";
 
-const props = defineProps<ContextMenuCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
-const emits = defineEmits<ContextMenuCheckboxItemEmits>()
+const props = defineProps<
+  ContextMenuCheckboxItemProps & { class?: HTMLAttributes["class"] }
+>();
+const emits = defineEmits<ContextMenuCheckboxItemEmits>();
 
 const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props
+  const { class: _, ...delegated } = props;
 
-  return delegated
-})
+  return delegated;
+});
 
-const forwarded = useForwardPropsEmits(delegatedProps, emits)
+const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>
 
 <template>

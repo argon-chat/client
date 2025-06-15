@@ -1,7 +1,12 @@
 import { usePreference } from "@/store/preferenceStore";
-import { AudioProcessorOptions, Room, Track, TrackProcessor } from "livekit-client";
+import type {
+  AudioProcessorOptions,
+  Room,
+  Track,
+  TrackProcessor,
+} from "livekit-client";
 import { DisposableBag } from "../disposables";
-import { IAudioManagement } from "./AudioManager";
+import type { IAudioManagement } from "./AudioManager";
 import { worklets } from "./WorkletBase";
 
 export class WebRTCProcessor
@@ -17,22 +22,22 @@ export class WebRTCProcessor
 
   name = "audio-processor";
   async init(opts: AudioProcessorOptions): Promise<void> {
-    let { track } = opts;
+    const { track } = opts;
 
     const prefs = usePreference();
 
     const sub = prefs.onforceToMonoChanged.subscribe((x) => {
-      this.worklets.forEach((element) => {
+      for (const element of this.worklets) {
         if (element.parameters.has("enabled")) {
           worklets.setEnabledVUNode(element, x);
         }
-      });
+      }
     });
 
     this.bag.addSubscription(sub);
 
     const w1 = (await worklets.createStereoToMonoProcessor()).injectInto(
-      this.bag
+      this.bag,
     );
 
     worklets.setEnabledVUNode(w1, prefs.forceToMono);
@@ -44,7 +49,7 @@ export class WebRTCProcessor
       this.audio.getCurrentAudioContext(),
       {
         mediaStream: inputStream,
-      }
+      },
     );
     sourceNode.connect(this.worklets[0]);
 
@@ -56,7 +61,7 @@ export class WebRTCProcessor
       this.audio.getCurrentAudioContext(),
       {
         channelCount: 2,
-      }
+      },
     );
 
     this.worklets[this.worklets.length - 1].connect(destinationNode);

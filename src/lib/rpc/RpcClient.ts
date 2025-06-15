@@ -1,24 +1,23 @@
-import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
-import { encode, decode } from "@msgpack/msgpack";
-import { ArgonTransportClient } from "../proto/transport.client";
-import { useAuthStore } from "@/store/authStore";
-import { logger } from "../logger";
-import { useSystemStore } from "@/store/systemStore";
-import { fromEvent, tap } from "rxjs";
-import delay from "../delay";
-import { useMe } from "@/store/meStore";
 import { useToast } from "@/components/ui/toast/";
-import { v7 } from "uuid";
-import { RemovableRef, useLocalStorage } from "@vueuse/core";
-import { Ref, ref } from "vue";
+import { useAuthStore } from "@/store/authStore";
 import { usePoolStore } from "@/store/poolStore";
+import { useSystemStore } from "@/store/systemStore";
+import { decode, encode } from "@msgpack/msgpack";
+import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
+import { useLocalStorage } from "@vueuse/core";
+import { fromEvent, tap } from "rxjs";
+import { v7 } from "uuid";
+import { type Ref, ref } from "vue";
+import delay from "../delay";
+import { logger } from "../logger";
+import { ArgonTransportClient } from "../proto/transport.client";
 
 export function buildAtUrl(
   upgrade: string,
   aat: string,
   sequence?: number,
   eventId?: number,
-  srv?: string
+  srv?: string,
 ) {
   const sys = useSystemStore();
   const args = [];
@@ -28,8 +27,8 @@ export function buildAtUrl(
   if (eventId) args.push(`&eventId=${eventId}`);
 
   const url = new URL(
-    `${sys.preferUseWs ? `/$at.ws` : `/$at.wt`}?aat=${aat}${args.join()}`,
-    `https://${upgrade}`
+    `${sys.preferUseWs ? "/$at.ws" : "/$at.wt"}?aat=${aat}${args.join()}`,
+    `https://${upgrade}`,
   );
   logger.warn("builded wt url", url, `upgrade: ${upgrade}`);
   return url;
@@ -101,7 +100,7 @@ export class RpcClient {
       await this.activeTransport.value.write(
         encode(pkg, {
           useBigInt64: true,
-        })
+        }),
       );
     } else logger.warn("no active stream defined");
   }
@@ -116,62 +115,58 @@ export class RpcClient {
             const payload = encode(args, {
               useBigInt64: true,
             });
-            try {
-              const headers = this.getExtendedHeaders();
-              const response = await this.client.unary(
-                {
-                  interface: serviceName,
-                  method: String(methodName),
-                  payload: payload,
+            const headers = this.getExtendedHeaders();
+            const response = await this.client.unary(
+              {
+                interface: serviceName,
+                method: String(methodName),
+                payload: payload,
+              },
+              {
+                meta: {
+                  authorize: authStore.token ?? "",
+                  ...(headers as any),
                 },
-                {
-                  meta: {
-                    authorize: authStore.token ?? "",
-                    ...(headers as any),
-                  },
-                }
-              );
+              },
+            );
 
-              if (response.response.statusCode == 2 && !!authStore.token) {
-                logger.warn("NOT AUTHORIZED, logout...");
-                const toast = useToast();
+            if (response.response.statusCode === 2 && !!authStore.token) {
+              logger.warn("NOT AUTHORIZED, logout...");
+              const toast = useToast();
 
-                toast.toast({
-                  duration: 7000,
-                  title: "Authorization invalidated...",
-                  description:
-                    "You authorization has invalidated, required new login...",
-                  variant: "destructive",
-                });
-                await delay(7000);
-                authStore.logout();
-                window.location.reload();
-                throw "not authorized";
-              }
-              if (response.status.code !== "OK") {
-                throw new Error(
-                  `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`
-                );
-              }
-
-              if (response.response.statusCode !== 0) {
-                throw new Error(
-                  `${response.response.statusCode} - ${response.response.errorMessage || "Unknown error occurred."}, ${response.response.exceptionType}`
-                );
-              }
-
-              if (response.response.payload.length === 0) return null;
-
-              const resposnse_data = decode(response.response.payload);
-
-              logger.log(resposnse_data);
-              return resposnse_data;
-            } catch (error) {
-              throw error;
+              toast.toast({
+                duration: 7000,
+                title: "Authorization invalidated...",
+                description:
+                  "You authorization has invalidated, required new login...",
+                variant: "destructive",
+              });
+              await delay(7000);
+              authStore.logout();
+              window.location.reload();
+              throw "not authorized";
             }
+            if (response.status.code !== "OK") {
+              throw new Error(
+                `${response.status.code} - ${response.status.detail || "Unknown error occurred."}`,
+              );
+            }
+
+            if (response.response.statusCode !== 0) {
+              throw new Error(
+                `${response.response.statusCode} - ${response.response.errorMessage || "Unknown error occurred."}, ${response.response.exceptionType}`,
+              );
+            }
+
+            if (response.response.payload.length === 0) return null;
+
+            const resposnse_data = decode(response.response.payload);
+
+            logger.log(resposnse_data);
+            return resposnse_data;
           };
         },
-      }
+      },
     ) as T;
   }
 
@@ -201,24 +196,37 @@ export class RpcClient {
             const baseAddr = this.baseUrl;
             const sys = useSystemStore();
 
-            let sequence: number | undefined = undefined;
-            let eventId: number | undefined = undefined;
+            const sequence: number | undefined = undefined;
+            const eventId: number | undefined = undefined;
 
             async function fetchTransportDetails() {
+              if (!authStore.token) {
+                throw new Error("No authorization token available");
+              }
+
               const attResponse = await fetch(wtUrl, {
                 method: "GET",
-                headers: { Authorization: authStore.token!, ...headers },
+                headers: { Authorization: authStore.token, ...headers },
               });
 
               if (!attResponse.ok) {
                 logger.error(
-                  `Error: ${attResponse.status} - ${attResponse.statusText}`
+                  `Error: ${attResponse.status} - ${attResponse.statusText}`,
                 );
                 throw new Error("Failed to fetch transport details");
               }
 
-              let upgrade = attResponse.headers.get("X-Wt-Upgrade")!;
-              const aat = attResponse.headers.get("X-Wt-AAT")!;
+              const upgradeHeader = attResponse.headers.get("X-Wt-Upgrade");
+              const aatHeader = attResponse.headers.get("X-Wt-AAT");
+
+              if (!upgradeHeader || !aatHeader) {
+                throw new Error(
+                  "Missing required headers in transport response",
+                );
+              }
+
+              let upgrade = upgradeHeader;
+              const aat = aatHeader;
 
               if (upgrade === "localhost") {
                 upgrade = baseAddr.replace("https://", "");
@@ -229,7 +237,7 @@ export class RpcClient {
                 aat,
                 sequence,
                 eventId,
-                methodName === "SubscribeToMeEvents" ? null : args[0]
+                methodName === "SubscribeToMeEvents" ? null : args[0],
               );
 
               return { transportUrl };
@@ -240,7 +248,7 @@ export class RpcClient {
                 let reconnectDelay = 1000;
 
                 while (true) {
-                  let transport: WebSocketStream = null!;
+                  let transport: WebSocketStream | null = null;
                   const sub = fromEvent(window, "beforeunload")
                     .pipe(tap(() => transport?.close()))
                     .subscribe();
@@ -250,7 +258,7 @@ export class RpcClient {
 
                     transport = new WebSocketStream(
                       transportUrl.toString(),
-                      {}
+                      {},
                     );
                     const stream = await transport.opened;
                     const reader = stream.readable.getReader();
@@ -260,7 +268,7 @@ export class RpcClient {
 
                     const reconnectTime = sys.stopRequestRetry(
                       "argon-transport-streams",
-                      "ws"
+                      "ws",
                     );
                     reconnectDelay = 1000;
 
@@ -286,7 +294,7 @@ export class RpcClient {
                         } catch (e) {
                           logger.warn(
                             "Failed to process message, but continuing stream",
-                            e
+                            e,
                           );
                         }
                       }
@@ -300,10 +308,10 @@ export class RpcClient {
                   }
                   sys.startRequestRetry("argon-transport-streams", "ws");
                   logger.warn(
-                    `Reconnecting in ${reconnectDelay / 1000} seconds...`
+                    `Reconnecting in ${reconnectDelay / 1000} seconds...`,
                   );
                   await new Promise((resolve) =>
-                    setTimeout(resolve, reconnectDelay)
+                    setTimeout(resolve, reconnectDelay),
                   );
                   reconnectDelay = Math.min(reconnectDelay * 2, 10000);
                 }
@@ -311,7 +319,7 @@ export class RpcClient {
             };
           };
         },
-      }
+      },
     ) as T;
   }
   eventBusWt<T>(): T {
@@ -327,25 +335,38 @@ export class RpcClient {
             const baseAddr = this.baseUrl;
             const sys = useSystemStore();
 
-            let sequence: number | undefined = undefined;
-            let eventId: number | undefined = undefined;
+            const sequence: number | undefined = undefined;
+            const eventId: number | undefined = undefined;
 
             async function fetchTransportDetails() {
+              if (!authStore.token) {
+                throw new Error("No authorization token available");
+              }
+
               const attResponse = await fetch(wtUrl, {
                 method: "GET",
-                headers: { Authorization: authStore.token! },
+                headers: { Authorization: authStore.token },
               });
 
               if (!attResponse.ok) {
                 logger.error(
-                  `Error: ${attResponse.status} - ${attResponse.statusText}`
+                  `Error: ${attResponse.status} - ${attResponse.statusText}`,
                 );
                 throw new Error("Failed to fetch transport details");
               }
 
-              let upgrade = attResponse.headers.get("X-Wt-Upgrade")!;
+              const upgradeHeader = attResponse.headers.get("X-Wt-Upgrade");
+              const aatHeader = attResponse.headers.get("X-Wt-AAT");
               const fingerprint = attResponse.headers.get("X-Wt-Fingerprint");
-              const aat = attResponse.headers.get("X-Wt-AAT")!;
+
+              if (!upgradeHeader || !aatHeader) {
+                throw new Error(
+                  "Missing required headers in transport response",
+                );
+              }
+
+              let upgrade = upgradeHeader;
+              const aat = aatHeader;
 
               if (upgrade === "localhost") {
                 upgrade = baseAddr.replace("https://", "");
@@ -356,14 +377,14 @@ export class RpcClient {
                 aat,
                 sequence,
                 eventId,
-                methodName === "SubscribeToMeEvents" ? null : args[0]
+                methodName === "SubscribeToMeEvents" ? null : args[0],
               );
 
               const certs: WebTransportHash[] = [];
               if (fingerprint) {
                 certs.push({
                   value: Uint8Array.from(atob(fingerprint), (c) =>
-                    c.charCodeAt(0)
+                    c.charCodeAt(0),
                   ),
                   algorithm: "sha-256",
                 });
@@ -374,7 +395,7 @@ export class RpcClient {
 
             async function createTransport(
               transportUrl: URL,
-              certs: WebTransportHash[]
+              certs: WebTransportHash[],
             ) {
               const transport = new WebTransport(transportUrl.toString(), {
                 congestionControl: "throughput",
@@ -392,16 +413,16 @@ export class RpcClient {
                 let reconnectDelay = 1000;
 
                 while (true) {
-                  let transport: WebTransport = null!;
+                  let transport: WebTransport | null = null;
                   const sub = fromEvent(window, "beforeunload")
                     .pipe(tap(() => transport?.close()))
                     .subscribe();
                   try {
                     const { transportUrl, certs } =
                       await fetchTransportDetails();
-                    let transport = await createTransport(transportUrl, certs);
-                    let stream = await transport.createBidirectionalStream();
-                    let reader =
+                    transport = await createTransport(transportUrl, certs);
+                    const stream = await transport.createBidirectionalStream();
+                    const reader =
                       stream.readable.getReader() as ReadableStreamDefaultReader<Uint8Array>;
 
                     reconnectDelay = 1000;
@@ -421,7 +442,7 @@ export class RpcClient {
                         } catch (e) {
                           logger.warn(
                             "Failed to process message, but continuing stream",
-                            e
+                            e,
                           );
                         }
                       }
@@ -433,10 +454,10 @@ export class RpcClient {
                   }
                   sys.startRequestRetry("argon-transport-streams", "wt");
                   logger.warn(
-                    `Reconnecting in ${reconnectDelay / 1000} seconds...`
+                    `Reconnecting in ${reconnectDelay / 1000} seconds...`,
                   );
                   await new Promise((resolve) =>
-                    setTimeout(resolve, reconnectDelay)
+                    setTimeout(resolve, reconnectDelay),
                   );
                   reconnectDelay = Math.min(reconnectDelay * 2, 10000);
                 }
@@ -444,7 +465,7 @@ export class RpcClient {
             };
           };
         },
-      }
+      },
     ) as T;
   }
 }

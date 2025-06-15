@@ -25,38 +25,44 @@ export const useSystemStore = defineStore("system", () => {
       activeRetries.value.set(key, Date.now());
     }
   }
-  
+
   function hasRequestRetry(serviceName: string, methodName: string) {
     return activeRetries.value.has(`${serviceName}.${methodName}`);
   }
-  
-  function stopRequestRetry(serviceName: string, methodName: string): number | null {
+
+  function stopRequestRetry(
+    serviceName: string,
+    methodName: string,
+  ): number | null {
     const key = `${serviceName}.${methodName}`;
     const startTime = activeRetries.value.get(key);
     activeRetries.value.delete(key);
-  
+
     if (startTime != null) {
       const durationMs = Date.now() - startTime;
       return Math.round(durationMs / 1000);
     }
-  
+
     return null;
   }
 
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);
 
-  mainSub.add(hotkeys.onAction("key.microphone.toggle", () => {
-    toggleMicrophoneMute();
-  }));
-  mainSub.add(hotkeys.onAction("key.microphone.on", () => {
-    if (microphoneMuted.value)
+  mainSub.add(
+    hotkeys.onAction("key.microphone.toggle", () => {
       toggleMicrophoneMute();
-  }));
-  mainSub.add(hotkeys.onAction("key.microphone.off", () => {
-    if (!microphoneMuted.value)
-      toggleMicrophoneMute();
-  }));
-
+    }),
+  );
+  mainSub.add(
+    hotkeys.onAction("key.microphone.on", () => {
+      if (microphoneMuted.value) toggleMicrophoneMute();
+    }),
+  );
+  mainSub.add(
+    hotkeys.onAction("key.microphone.off", () => {
+      if (!microphoneMuted.value) toggleMicrophoneMute();
+    }),
+  );
 
   // -----------------------
 
@@ -95,10 +101,9 @@ export const useSystemStore = defineStore("system", () => {
     preferUseWs,
     activeRetries,
 
-
     isRequestRetrying,
     startRequestRetry,
     stopRequestRetry,
-    hasRequestRetry
+    hasRequestRetry,
   };
 });

@@ -9,22 +9,16 @@ export const machine = setup({
       | { type: "RECONNECT" },
   },
   actions: {
-    resetRetryCount: function ({ context, event }, params) {
-    },
-    setChannelContext: function ({ context, event }, params) {
-    },
-    incrementRetryCount: function ({ context, event }, params) {
-    },
-    clearChannelContext: function ({ context, event }, params) {
-    },
+    resetRetryCount: ({ context, event }, params) => {},
+    setChannelContext: ({ context, event }, params) => {},
+    incrementRetryCount: ({ context, event }, params) => {},
+    clearChannelContext: ({ context, event }, params) => {},
   },
   actors: {
-    connectToChannel: createMachine({  }),
+    connectToChannel: createMachine({}),
   },
   guards: {
-    canRetry: function ({ context }) {
-      return context.retryCount < context.maxRetries;
-    },
+    canRetry: ({ context }) => context.retryCount < context.maxRetries,
   },
 }).createMachine({
   context: {
@@ -71,7 +65,7 @@ export const machine = setup({
             type: "clearChannelContext",
           },
         },
-        "RECONNECT": {
+        RECONNECT: {
           target: "connecting",
           actions: {
             type: "clearChannelContext",

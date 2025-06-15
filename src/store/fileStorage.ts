@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger";
 import { defineStore } from "pinia";
-import { Ref, ref } from "vue";
-import { DBSchema, openDB } from "idb";
+import { type Ref, ref } from "vue";
+import { type DBSchema, openDB } from "idb";
 import delay from "@/lib/delay";
 
 interface MyDB extends DBSchema {
@@ -29,7 +29,7 @@ export const useFileStorage = defineStore("files", () => {
 
   async function initBucket(
     bucketName: string,
-    ref: Ref<StorageBucket | null>
+    ref: Ref<StorageBucket | null>,
   ) {
     if (!("storageBuckets" in navigator)) {
       logger.fatal("Storage Buckets API is not supported");
@@ -66,17 +66,29 @@ export const useFileStorage = defineStore("files", () => {
     await initBucket("files", filesBucket);
   }
 
-
   const FAILED_ADDRESS = "https://none/none.png";
   async function fetchUserAvatar(fileId: string, userId: string) {
-    return fetchByFileId({ fileId, bucket: imagesBucket.value!, fileUrlBuilder: (x) => `https://eu.argon.zone/user/${unwrap(userId)}/${x}`, allowFallback: false })
+    if (!imagesBucket.value) return FAILED_ADDRESS;
+
+    return fetchByFileId({
+      fileId,
+      bucket: imagesBucket.value,
+      fileUrlBuilder: (x) =>
+        `https://eu.argon.zone/user/${unwrap(userId)}/${x}`,
+      allowFallback: false,
+    });
   }
   async function fetchServerAvatar(fileId: string, serverId: string) {
-    return fetchByFileId({ fileId, bucket: imagesBucket.value!, fileUrlBuilder: (x) => `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`, allowFallback: false })
+    return fetchByFileId({
+      fileId,
+      bucket: imagesBucket.value,
+      fileUrlBuilder: (x) =>
+        `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
+      allowFallback: false,
+    });
   }
 
-  (window as any)["fetchUserAvatar"] = fetchUserAvatar;
-
+  (window as any).fetchUserAvatar = fetchUserAvatar;
 
   function unwrap(s: string) {
     return s.replaceAll("-", "");
@@ -88,29 +100,26 @@ export const useFileStorage = defineStore("files", () => {
     fileId,
     bucket,
     fileUrlBuilder,
-    allowFallback
+    allowFallback,
   }: {
     fileId: string;
     bucket: StorageBucket;
     fileUrlBuilder: (fileId: string) => string;
-    allowFallback: boolean
+    allowFallback: boolean;
   }): Promise<string> {
-
     if (locks.has(fileId)) {
-      while(locks.has(fileId))
-        await delay(100);
+      while (locks.has(fileId)) await delay(100);
     }
     if (!bucket) {
       logger.error(new Error("Bucket is not initialized"));
-      if (allowFallback) 
-        return fileUrlBuilder(fileId);
+      if (allowFallback) return fileUrlBuilder(fileId);
 
       return FAILED_ADDRESS;
     }
     locks.set(fileId, fileId);
 
     const db = await openDB<MyDB>(bucket.name, 1);
-  
+
     try {
       const record = await db.getFromIndex("objects", "originalFileId", fileId);
 
@@ -120,53 +129,64 @@ export const useFileStorage = defineStore("files", () => {
         const file = await fileHandle.getFile();
         return URL.createObjectURL(file);
       }
-  
+
       const fileUrl = fileUrlBuilder(fileId);
       const response = await fetch(fileUrl);
       await delay(1000);
       if (!response.ok) {
         logger.error(new Error(`Failed to fetch file from ${fileUrl}`));
-        if (allowFallback) 
-          return fileUrlBuilder(fileId);
+        if (allowFallback) return fileUrlBuilder(fileId);
         return FAILED_ADDRESS;
       }
-      
+
       const blob = await response.blob();
       const filePath = fileId;
-      
+
       const directory = await bucket.getDirectory();
 
-      const fileHandle = await directory.getFileHandle(filePath, { create: true });
+      const fileHandle = await directory.getFileHandle(filePath, {
+        create: true,
+      });
       const writable = await fileHandle.createWritable();
-  
+
       await writable.write(blob);
       await writable.close();
 
       await db.add("objects", {
         originalFileId: fileId,
         bucketFilePath: filePath,
-        insertTime: Math.floor(Date.now() / 1000)
+        insertTime: Math.floor(Date.now() / 1000),
       });
 
       return URL.createObjectURL(blob);
-    } 
-    catch(e) {
+    } catch (e) {
       logger.error(e);
-      if (allowFallback) 
-        return fileUrlBuilder(fileId);
+      if (allowFallback) return fileUrlBuilder(fileId);
       return FAILED_ADDRESS;
-    }
-    finally {
+    } finally {
       db.close();
       locks.delete(fileId);
     }
   }
-  
+
+  async function fetchImageByFileId(fileId: string, serverId: string) {
+    if (!imagesBucket.value) {
+      return null;
+    }
+
+    return fetchByFileId({
+      fileId,
+      bucket: imagesBucket.value,
+      fileUrlBuilder: (x) =>
+        `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
+    });
+  }
 
   return {
     initStorages,
     fetchServerAvatar,
     fetchUserAvatar,
-    FAILED_ADDRESS
+    fetchImageByFileId,
+    FAILED_ADDRESS,
   };
 });

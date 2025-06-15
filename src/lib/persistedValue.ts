@@ -1,6 +1,14 @@
-import { ref, reactive, watch, watchEffect, type Ref, type UnwrapRef, Reactive } from 'vue';
-import superjson from 'superjson';
-import { logger } from './logger';
+import superjson from "superjson";
+import {
+  type Reactive,
+  type Ref,
+  type UnwrapRef,
+  reactive,
+  ref,
+  watch,
+  watchEffect,
+} from "vue";
+import { logger } from "./logger";
 
 export type PersistedRef<T> = {
   readonly value: UnwrapRef<T>;
@@ -10,44 +18,51 @@ export type PersistedRef<T> = {
 };
 
 export function persisted<T>(id: string, initial_value: T): PersistedRef<T> {
-  const get_store = () => JSON.parse(localStorage.getItem(id)!) as T;
+  const get_store = () => {
+    const item = localStorage.getItem(id);
+    return item ? (JSON.parse(item) as T) : null;
+  };
 
   const store = ref<T>(get_store() ?? initial_value);
   const locked = ref(false);
 
   function set(value: T) {
-      if (locked.value) return;
-      store.value = value as UnwrapRef<T>;
-      localStorage.setItem(id, JSON.stringify(value));
+    if (locked.value) return;
+    store.value = value as UnwrapRef<T>;
+    localStorage.setItem(id, JSON.stringify(value));
   }
 
   function set_key<K extends keyof T>(key: K, value: T[K]) {
-      const s = get_store();
-      s[key] = value;
-      set(s);
+    const s = get_store();
+    // @ts-expect-error Пошел нахуй
+    s[key] = value;
+    // @ts-expect-error Пошел нахуй
+    set(s);
   }
 
   return {
-      get value() {
-          return store.value;
-      },
-      set,
-      set_key,
-      destroy() {
-          locked.value = true;
-          localStorage.removeItem(id);
-      },
+    get value() {
+      return store.value;
+    },
+    set,
+    set_key,
+    destroy() {
+      locked.value = true;
+      localStorage.removeItem(id);
+    },
   };
 }
 
 export function persistedValue<T extends object | string | number | boolean>(
   key: string,
-  defaultValue: T extends number ? number :
-                T extends string ? string :
-                T extends boolean ? boolean :
-                T
+  defaultValue: T extends number
+    ? number
+    : T extends string
+      ? string
+      : T extends boolean
+        ? boolean
+        : T,
 ): T extends object ? Reactive<T> : Ref<T> {
-
   logger.log("Persist value", key, defaultValue);
 
   const storedValue = localStorage.getItem(key);
@@ -62,16 +77,21 @@ export function persistedValue<T extends object | string | number | boolean>(
       } else {
         value = ref(parsed) as Ref<T>;
       }
-    } catch (e) { 
-      console.error(`Ошибка парсинга JSON из localStorage для ключа "${key}"`, e);
-      value = typeof defaultValue === "object"
-        ? (reactive(defaultValue) as UnwrapRef<T>)
-        : (ref(defaultValue) as Ref<T>);
+    } catch (e) {
+      console.error(
+        `Ошибка парсинга JSON из localStorage для ключа "${key}"`,
+        e,
+      );
+      value =
+        typeof defaultValue === "object"
+          ? (reactive(defaultValue) as UnwrapRef<T>)
+          : (ref(defaultValue) as Ref<T>);
     }
   } else {
-    value = typeof defaultValue === "object"
-      ? (reactive(defaultValue) as UnwrapRef<T>)
-      : (ref(defaultValue) as Ref<T>);
+    value =
+      typeof defaultValue === "object"
+        ? (reactive(defaultValue) as UnwrapRef<T>)
+        : (ref(defaultValue) as Ref<T>);
   }
 
   if (typeof defaultValue === "object") {

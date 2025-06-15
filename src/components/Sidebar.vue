@@ -28,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { Settings, PlusCircleIcon } from 'lucide-vue-next';
-import { useWindow } from '@/store/windowStore';
-import { usePoolStore } from '@/store/poolStore';
+import { Settings, PlusCircleIcon } from "lucide-vue-next";
+import { useWindow } from "@/store/windowStore";
+import { usePoolStore } from "@/store/poolStore";
 const windows = useWindow();
 const pool = usePoolStore();
 </script>

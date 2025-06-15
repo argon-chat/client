@@ -20,30 +20,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Button } from '@/components/ui/button/'
-import { CirclePower } from 'lucide-vue-next';
-import { useLocale } from '@/store/localeStore';
+import { ref } from "vue";
+import { Button } from "@/components/ui/button/";
+import { CirclePower } from "lucide-vue-next";
+import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();
 const devices = ref([
-    { id: 1, name: 'iPhone 12', location: 'New York, USA', lastActive: 'Active 5 minutes ago' },
-    { id: 2, name: 'MacBook Pro', location: 'San Francisco, USA', lastActive: 'Active 2 hours ago' },
-    { id: 3, name: 'Windows PC', location: 'Los Angeles, USA', lastActive: 'Active yesterday' },
+  {
+    id: 1,
+    name: "iPhone 12",
+    location: "New York, USA",
+    lastActive: "Active 5 minutes ago",
+  },
+  {
+    id: 2,
+    name: "MacBook Pro",
+    location: "San Francisco, USA",
+    lastActive: "Active 2 hours ago",
+  },
+  {
+    id: 3,
+    name: "Windows PC",
+    location: "Los Angeles, USA",
+    lastActive: "Active yesterday",
+  },
 ]);
 
 const logoutDevice = (deviceId: number) => {
-    const deviceIndex = devices.value.findIndex(device => device.id === deviceId);
-    if (deviceIndex !== -1) {
-        devices.value.splice(deviceIndex, 1);
-        alert(`Logged out from ${devices.value[deviceIndex]?.name || 'the device'}.`);
-    }
+  const deviceIndex = devices.value.findIndex(
+    (device) => device.id === deviceId,
+  );
+  if (deviceIndex !== -1) {
+    devices.value.splice(deviceIndex, 1);
+    alert(
+      `Logged out from ${devices.value[deviceIndex]?.name || "the device"}.`,
+    );
+  }
 };
 
 const logoutAllDevices = () => {
-    if (confirm('Are you sure you want to log out from all devices?')) {
-        devices.value = [];
-        alert('Logged out from all devices.');
-    }
+  if (confirm("Are you sure you want to log out from all devices?")) {
+    devices.value = [];
+    alert("Logged out from all devices.");
+  }
 };
 </script>
 

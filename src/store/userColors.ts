@@ -4,7 +4,7 @@ export const useUserColors = defineStore("userColors", () => {
   const userColorCache = new Map<string, string>();
   function getColorByUserId(userId: string): string {
     if (userColorCache.has(userId)) {
-      return userColorCache.get(userId)!;
+      return userColorCache.get(userId) ?? "";
     }
     let hash = 0;
     for (let i = 0; i < userId.length; i++) {

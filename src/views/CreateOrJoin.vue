@@ -30,124 +30,115 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useServerStore } from '@/store/serverStore';
-import { logger } from '@/lib/logger';
-import router from '@/router';
-import { toast } from '@/components/ui/toast';
-import { useLocale } from '@/store/localeStore';
-import PixelCard from '@/components/PixelCard.vue';
-import { DeferFlag } from '@/lib/DeferFlag';
-import delay from '@/lib/delay';
-import { useConfig } from '@/store/remoteConfig';
+import { ref } from "vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useServerStore } from "@/store/serverStore";
+import { logger } from "@/lib/logger";
+import router from "@/router";
+import { toast } from "@/components/ui/toast";
+import { useLocale } from "@/store/localeStore";
+import PixelCard from "@/components/PixelCard.vue";
+import { DeferFlag } from "@/lib/DeferFlag";
+import delay from "@/lib/delay";
+import { useConfig } from "@/store/remoteConfig";
 
 const { t } = useLocale();
 
-const inviteCode = ref('');
+const inviteCode = ref("");
 const serverStore = useServerStore();
 const isLoading = ref(false);
 const cfg = useConfig();
 
-
 const logout = async () => {
-    await pruneDatabases(true);
-}
+  await pruneDatabases(true);
+};
 
-const pruneDatabases = async (pruneLocalStorage: boolean = true) => {
-    const allIndexDbs = await indexedDB.databases();
+const pruneDatabases = async (pruneLocalStorage = true) => {
+  const allIndexDbs = await indexedDB.databases();
 
-    for (let db of allIndexDbs) {
-        try {
-            indexedDB.deleteDatabase(db.name!);
-        } catch (e) {
-            logger.error(e);
-        }
+  for (const db of allIndexDbs) {
+    try {
+      indexedDB.deleteDatabase(db.name ?? "");
+    } catch (e) {
+      logger.error(e);
     }
+  }
 
-    const allStorages = await navigator.storageBuckets.keys();
+  const allStorages = await navigator.storageBuckets.keys();
 
-
-    for (let storage of allStorages) {
-        try {
-            navigator.storageBuckets.delete(storage);
-        } catch (e) {
-            logger.error(e);
-        }
+  for (const storage of allStorages) {
+    try {
+      navigator.storageBuckets.delete(storage);
+    } catch (e) {
+      logger.error(e);
     }
+  }
 
-    if (pruneLocalStorage)
-        localStorage.clear();
+  if (pruneLocalStorage) localStorage.clear();
 
-    location.reload();
-}
-
+  location.reload();
+};
 
 const joinServer = async () => {
-    const e = new DeferFlag(isLoading);
-    try {
-        if (!inviteCode.value.trim()) {
-            toast({
-                title: "Please enter a valid invite code."
-            });
-            return;
-        }
-        logger.log(`Joined server with invite code: ${inviteCode.value}`)
-        const result = await serverStore.joinToServer(inviteCode.value.trim());
-        inviteCode.value = '';
+  const e = new DeferFlag(isLoading);
+  try {
+    if (!inviteCode.value.trim()) {
+      toast({
+        title: "Please enter a valid invite code.",
+      });
+      return;
+    }
+    logger.log(`Joined server with invite code: ${inviteCode.value}`);
+    const result = await serverStore.joinToServer(inviteCode.value.trim());
+    inviteCode.value = "";
 
-        if (!result)
-            return;
-        router.push({ path: "/master.pg" });
-    }
-    finally {
-        e[Symbol.dispose]();
-    }
+    if (!result) return;
+    router.push({ path: "/master.pg" });
+  } finally {
+    e[Symbol.dispose]();
+  }
 };
 
 const createServer = async () => {
-    const e = new DeferFlag(isLoading);
-    try {
-        if (cfg.isDev) {
-            try {
-                const srCreation = await serverStore.createServer("test server");
+  const e = new DeferFlag(isLoading);
+  try {
+    if (cfg.isDev) {
+      try {
+        const srCreation = await serverStore.createServer("test server");
 
-                if (!srCreation) {
-                    toast({
-                        title: "Failed to create server",
-                        variant: "destructive",
-                        description: "Internal error!"
-                    });
-                    return;
-                }
-
-                router.push({ path: "/master.pg" });
-            }
-            catch(e) {
-                logger.error(e);
-                toast({
-                        title: "Failed to create server",
-                        variant: "destructive",
-                        description: "Internal error!"
-                });
-            }
-
-            return;
+        if (!srCreation) {
+          toast({
+            title: "Failed to create server",
+            variant: "destructive",
+            description: "Internal error!",
+          });
+          return;
         }
 
-
-        await delay(2000);
+        router.push({ path: "/master.pg" });
+      } catch (e) {
+        logger.error(e);
         toast({
-            title: "Insufficient Permissions",
-            variant: "destructive",
-            description: "You are not allowed this action!"
+          title: "Failed to create server",
+          variant: "destructive",
+          description: "Internal error!",
         });
+      }
+
+      return;
     }
-    finally {
-        e[Symbol.dispose]();
-    }
+
+    await delay(2000);
+    toast({
+      title: "Insufficient Permissions",
+      variant: "destructive",
+      description: "You are not allowed this action!",
+    });
+  } finally {
+    e[Symbol.dispose]();
+  }
 };
 </script>
 

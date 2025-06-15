@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger";
 import { persistedValue } from "@/lib/persistedValue";
 import { defineStore } from "pinia";
-import { filter, Subject, Subscription } from "rxjs";
+import { filter, Subject, type Subscription } from "rxjs";
 import { ref } from "vue";
 
 export type HotKeyMod = {
@@ -30,12 +30,42 @@ export type HotKeyAction = {
 };
 
 export const availableActions = [
-  { actionKey: "key.microphone.toggle" as const, group: "audio", disabled: false, isRadioMode: false },
-  { actionKey: "key.microphone.on" as const, group: "audio", disabled: false, isRadioMode: false },
-  { actionKey: "key.microphone.off" as const, group: "audio", disabled: false, isRadioMode: false },
-  { actionKey: "key.sound.toggle" as const, group: "audio", disabled: true, isRadioMode: false },
-  { actionKey: "key.sound.on" as const, group: "audio", disabled: true, isRadioMode: false },
-  { actionKey: "key.sound.off" as const, group: "audio", disabled: true, isRadioMode: false },
+  {
+    actionKey: "key.microphone.toggle" as const,
+    group: "audio",
+    disabled: false,
+    isRadioMode: false,
+  },
+  {
+    actionKey: "key.microphone.on" as const,
+    group: "audio",
+    disabled: false,
+    isRadioMode: false,
+  },
+  {
+    actionKey: "key.microphone.off" as const,
+    group: "audio",
+    disabled: false,
+    isRadioMode: false,
+  },
+  {
+    actionKey: "key.sound.toggle" as const,
+    group: "audio",
+    disabled: true,
+    isRadioMode: false,
+  },
+  {
+    actionKey: "key.sound.on" as const,
+    group: "audio",
+    disabled: true,
+    isRadioMode: false,
+  },
+  {
+    actionKey: "key.sound.off" as const,
+    group: "audio",
+    disabled: true,
+    isRadioMode: false,
+  },
 ] satisfies HotketActionGroup[];
 
 export type ActionKey = (typeof availableActions)[number]["actionKey"];
@@ -48,10 +78,10 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
   const allHotKeys = persistedValue<Map<string, HotKeyAction>>(
     "HotKeyAction_all",
-    new Map()
+    new Map(),
   );
 
-  for (let i of availableActions) {
+  for (const i of availableActions) {
     if (!allHotKeys.has(i.actionKey)) {
       allHotKeys.set(i.actionKey, {
         actionKey: i.actionKey,
@@ -60,7 +90,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
         mod: null,
         group: i.group,
         disabled: i.disabled,
-        isRadioMode: i.isRadioMode
+        isRadioMode: i.isRadioMode,
       });
     } else {
       const hte = allHotKeys.get(i.actionKey);
@@ -70,14 +100,21 @@ export const useHotkeys = defineStore("hotkeys", () => {
   }
 
   function onHotKeyCalled(key: number, isDown: boolean) {
-    logger.log(`onHotKeyCalled: ${key} ${isDown}`, dictHandlers, dictActions, isPaused);
+    logger.log(
+      `onHotKeyCalled: ${key} ${isDown}`,
+      dictHandlers,
+      dictActions,
+      isPaused,
+    );
     //if (isPaused) return;
     logger.log(`onHotKeyCalled (no paused): ${key}`);
     if (dictHandlers.has(key)) {
-      const eta = dictHandlers.get(key)! as any;
-      logger.log(`onHotKeyCalled (no paused): ${key}, eta: ${eta}`);
-
-      hotkeyExecuted.next(dictHandlers.get(key)! as any);
+      const handler = dictHandlers.get(key);
+      if (handler) {
+        const eta = handler as any;
+        logger.log(`onHotKeyCalled (no paused): ${key}, eta: ${eta}`);
+        hotkeyExecuted.next(eta);
+      }
     }
   }
 
@@ -85,7 +122,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
     ? native.createPinnedObject(onHotKeyCalled)
     : ({} as any);
 
-  const enum HotkeyModification {
+  enum HotkeyModification {
     NONE = 0,
     HAS_ALT = 1,
     HAS_CTRL = 1 << 1,
@@ -106,8 +143,8 @@ export const useHotkeys = defineStore("hotkeys", () => {
     if (argon.isArgonHost) native.clearAllKeybinds();
     dictActions.clear();
 
-    for (let i of allHotKeys.values()) {
-      if (i.keyCode == 0) {
+    for (const i of allHotKeys.values()) {
+      if (i.keyCode === 0) {
         if (i.errText) i.errText = undefined;
         continue;
       }
@@ -118,18 +155,24 @@ export const useHotkeys = defineStore("hotkeys", () => {
       }
 
       logger.log(
-        `DoVerify, call bind ${i.actionKey} ->> ${i.keyCode}+${i.mod}`
+        `DoVerify, call bind ${i.actionKey} ->> ${i.keyCode}+${i.mod}`,
       );
 
       try {
-        const result = await createHotKey(i.keyCode, i.actionKey, i.isRadioMode, i.mod);
+        const result = await createHotKey(
+          i.keyCode,
+          i.actionKey,
+          i.isRadioMode,
+          i.mod,
+        );
 
         if (!result) {
-          allHotKeys.get(i.actionKey)!.errText = "unknown error";
-          continue;
+          const hotKey = allHotKeys.get(i.actionKey);
+          if (hotKey) hotKey.errText = "unknown error";
         }
       } catch (e) {
-        allHotKeys.get(i.actionKey)!.errText = `${e}`;
+        const hotKey = allHotKeys.get(i.actionKey);
+        if (hotKey) hotKey.errText = `${e}`;
       }
     }
   }
@@ -138,15 +181,15 @@ export const useHotkeys = defineStore("hotkeys", () => {
     keycode: number,
     action: string,
     isRadioMode: boolean,
-    mod: HotKeyMod | null
+    mod: HotKeyMod | null,
   ) {
     const i = await native.createKeybind(
       {
         keyCode: keycode,
         keyMod: mod ? encodeHotkeyModification(mod) : 0,
-        allowTrackUpDown: isRadioMode
+        allowTrackUpDown: isRadioMode,
       },
-      pinnedHotKeyCallback
+      pinnedHotKeyCallback,
     );
 
     dictHandlers.set(i, action);
