@@ -104,8 +104,13 @@
               <TabsContent value="users" class="space-y-2">
                 <Card>
                   <CardContent class="p-4 space-y-4">
+                    <div class="relative">
+                      <Input ref="reference" v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
+                        placeholder="Search users..." class="w-full" />
+
+                    </div>
                     <div>
-                      <h3 class="text-sm font-semibold">{{ t("Users with this role") }}</h3>
+                      <h3 class="text-sm font-semibold">Users with this role</h3>
                       <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
                         <div v-for="user in usersForRole" :key="user.UserId"
                           class="flex items-center gap-2 p-2 rounded">
@@ -114,32 +119,29 @@
                         </div>
                       </div>
                       <div v-else class="text-muted text-sm mt-2">
-                        {{ t("No users with this role") }}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 class="text-sm font-semibold">{{ t("Add user to this role") }}</h3>
-                      <Input v-model="userSearchQuery" type="text" @focusin="console.log('focus in')"
-                        @focusout="console.log('focus out')" :placeholder="t('Search users...')" class="w-full mt-2" />
-
-                      <div v-if="searchResults.length > 0" class="space-y-2 mt-4">
-                        <div v-for="user in addableSearchResults" :key="user.UserId"
-                          class="flex items-center gap-2 p-2 rounded bg-muted/10">
-                          <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false"
-                            :pick-action="true" @pick-action="() => assignArchetype(user.UserId)" />
-                        </div>
-                      </div>
-                      <div v-else-if="userSearchQuery.trim().length > 0" class="text-muted text-sm mt-2">
-                        {{ t("No users found") }}
+                        No users with this role
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
+
           </div>
         </ScrollArea>
+        <div v-if="isOpen && userSearchQuery.trim().length > 0" ref="floating" :style="floatingStyles"
+          class="z-50 bg-popover border border-border rounded shadow-lg max-h-60 overflow-y-auto w-[300px]">
+          <template v-if="addableSearchResults.length > 0">
+            <div v-for="user in addableSearchResults" :key="user.UserId"
+              class="flex items-center gap-2 p-2 hover:bg-muted cursor-pointer"
+              @mousedown.prevent="assignArchetype(user.UserId)">
+              <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" :pick-action="true" />
+            </div>
+          </template>
+          <div v-else class="text-muted text-sm p-2">
+            No users found
+          </div>
+        </div>
       </div>
     </div>
     <div v-else>
@@ -152,6 +154,7 @@
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onMounted,
   onUnmounted,
   ref,
@@ -185,6 +188,30 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
+import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
+
+
+const isOpen = ref(false)
+
+const reference = ref<HTMLElement | null>(null)
+const floating = ref<HTMLElement | null>(null)
+
+const { floatingStyles, update } = useFloating(reference, floating, {
+  middleware: [offset(4)],
+  whileElementsMounted: autoUpdate,
+})
+
+function open() {
+  isOpen.value = true
+  update() // пересчитать позицию
+}
+
+function close() {
+  setTimeout(() => {
+    isOpen.value = false
+  }, 150)
+}
+
 
 const pool = usePoolStore();
 const selectedServer = computed(() => pool.selectedServer);

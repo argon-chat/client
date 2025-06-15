@@ -20,6 +20,7 @@
 		"@ffmpeg/core": "^0.12.10",
 		"@ffmpeg/ffmpeg": "^0.12.15",
 		"@ffmpeg/util": "^0.12.2",
+		"@floating-ui/vue": "^1.1.6",
 		"@msgpack/msgpack": "^3.0.0-beta2",
 		"@phosphor-icons/vue": "^2.2.1",
 		"@protobuf-ts/grpc-transport": "^2.9.4",
