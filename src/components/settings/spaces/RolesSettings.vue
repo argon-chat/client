@@ -105,7 +105,7 @@
                 <Card>
                   <CardContent class="p-4 space-y-4">
                     <div class="relative">
-                      <Input ref="reference" v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
+                      <Input :disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" ref="reference" v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
                         placeholder="Search users..." class="w-full" />
 
                     </div>
@@ -114,8 +114,12 @@
                       <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
                         <div v-for="user in usersForRole" :key="user.UserId"
                           class="flex items-center gap-2 p-2 rounded">
-                          <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false"
-                            :pick-action="true" @pick-action="() => revokeArchetype(user.UserId)" />
+                          <div>
+                            <BanIcon
+                              class="cursor-pointer text-red-500 hover:text-red-600 transition-colors data-[disabled=true]:text-gray-600 data-[disabled=true]:cursor-not-allowed"
+                              :data-disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" />
+                          </div>
+                          <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
                         </div>
                       </div>
                       <div v-else class="text-muted text-sm mt-2">
@@ -135,7 +139,7 @@
             <div v-for="user in addableSearchResults" :key="user.UserId"
               class="flex items-center gap-2 p-2 hover:bg-muted cursor-pointer"
               @mousedown.prevent="assignArchetype(user.UserId)">
-              <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" :pick-action="true" />
+              <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
             </div>
           </template>
           <div v-else class="text-muted text-sm p-2">
@@ -177,7 +181,7 @@ import { useLocale } from "@/store/localeStore";
 import delay from "@/lib/delay";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
 import Button from "@/components/ui/button/Button.vue";
-import { PlusCircleIcon } from "lucide-vue-next";
+import { PlusCircleIcon, BanIcon } from "lucide-vue-next";
 import Input from "@/components/ui/input/Input.vue";
 import { watchDebounced } from "@vueuse/core";
 import { useApi } from "@/store/apiStore";
