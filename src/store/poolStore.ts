@@ -466,6 +466,7 @@ export const usePoolStore = defineStore("data-pool", () => {
                 IsLocked: false,
                 IsGroup: true,
                 Entitlement: "",
+                IsDefault: false
               },
               users: ungroupedUsers.sort(sortFn),
             });
@@ -736,6 +737,13 @@ export const usePoolStore = defineStore("data-pool", () => {
     bus.onServerEvent<MessageSent>("MessageSent", (x) => {
       onNewMessageReceived.next(x.message);
     });
+
+    bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
+      void trackArchetype(x.dto);
+    });
+    /*bus.onServerEvent<ArchetypeChanged>("ArchetypeChanged", (x) => {
+      void trackArchetype(x.dto);
+    });*/
   };
 
   const refershDatas = async () => {

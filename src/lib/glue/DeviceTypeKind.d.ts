@@ -6,18 +6,4 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 
-interface IArchetypeDto
-{
-	Id: Guid;
-	ServerId: Guid;
-	Name: string;
-	Description: string;
-	IsMentionable: boolean;
-	Colour: number;
-	IsHidden: boolean;
-	IsLocked: boolean;
-	IsGroup: boolean;
-	IsDefault: boolean;
-	IconFileId?: string;
-	Entitlement: string;
-}
+declare type DeviceTypeKind = 'Unknown' | 'WindowsDesktop' | 'OsxDesktop' | 'Browser' | 'IosMobile' | 'AndroidMobile' | 'Xbox' | 'SteamDevice'
