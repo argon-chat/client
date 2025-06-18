@@ -5,10 +5,21 @@
 
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <h1 v-motion-fade-visible :duration="2200" class="text-8xl font-bold mb-4 select-none" style="font-size: 15rem;">
+        <h1 v-motion-fade-visible :duration="2200" class="text-8xl font-bold mb-4 select-none"
+          style="font-size: 15rem;">
           Argon
         </h1>
       </div>
+    </div>
+    <div class="fixed bottom-10 left-10 z-20 mt-auto">
+      <blockquote class="space-y-2">
+        <p class="text-lg">
+          &ldquo;{{ randomQuote.text }}.&rdquo;
+        </p>
+        <footer class="text-sm">
+          {{ randomQuote.author }}
+        </footer>
+      </blockquote>
     </div>
     <div class="fixed top-4 right-4 w-96 bg-gray-900 text-white p-4 rounded-lg shadow-lg overflow-y-auto max-h-64"
       v-if="logs.length > 0">
@@ -37,6 +48,22 @@ let animationFrameId: number;
 let startTime: number;
 let u_timeLocation: WebGLUniformLocation | null = null;
 let u_resolutionLocation: WebGLUniformLocation | null = null;
+
+const quotes = [
+  { text: "у меня на локалке все работает", author: "Юки" },
+  { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
+  {
+    text: "А клыки нам даны, чтобы ... кору деревьев отгрызать?",
+    author: "Miniature",
+  },
+  {
+    text: "СЫН БЛЯДИ КОНЧЕННЫЙ УЕБОК Я ПО НОРМАЛЬНОМУ СПРОСИЛ БЛЯТЬ",
+    author: "Беляш",
+  },
+  { text: "Блядь, ёбанный Юки", author: "Мурзилка" },
+  { text: "Ненавижу блять солнце", author: "Юки" },
+];
+const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
 function logMessage(message: string, type: "info" | "error") {
   logs.value.push({

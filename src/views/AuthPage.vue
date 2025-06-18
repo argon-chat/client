@@ -9,21 +9,6 @@ import { useConfig } from "@/store/remoteConfig";
 
 const { t } = useLocale();
 const cfg = useConfig();
-
-const quotes = [
-  { text: "Если намочить руку — то она будет мокрая.", author: "Арам" },
-  {
-    text: "А клыки нам даны, чтобы ... кору деревьев отгрызать?",
-    author: "Miniature",
-  },
-  {
-    text: "СЫН БЛЯДИ КОНЧЕННЫЙ УЕБОК Я ПО НОРМАЛЬНОМУ СПРОСИЛ БЛЯТЬ",
-    author: "Беляш",
-  },
-  { text: "Блядь, ёбанный Юки", author: "Мурзилка" },
-  { text: "Ненавижу блять солнце", author: "Юки" },
-];
-const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 const authStore = useAuthStore();
 onMounted(() => {
   if (authStore.isAuthenticated) {
@@ -59,16 +44,6 @@ const changeEndpoint = () => {
 
             <div class="lg:p-8 flex-1 flex items-center justify-center z-[555]">
                 <UserAuthForm />
-            </div>
-            <div class="relative z-20 mt-auto">
-                <blockquote class="space-y-2">
-                    <p class="text-lg">
-                        &ldquo;{{ randomQuote.text }}.&rdquo;
-                    </p>
-                    <footer class="text-sm">
-                        {{ randomQuote.author }}
-                    </footer>
-                </blockquote>
             </div>
         </div>
 

@@ -105,7 +105,8 @@
                 <Card>
                   <CardContent class="p-4 space-y-4">
                     <div class="relative">
-                      <Input :disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" ref="reference" v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
+                      <Input :disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" ref="reference"
+                        v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
                         placeholder="Search users..." class="w-full" />
 
                     </div>
@@ -117,7 +118,7 @@
                           <div>
                             <BanIcon
                               class="cursor-pointer text-red-500 hover:text-red-600 transition-colors data-[disabled=true]:text-gray-600 data-[disabled=true]:cursor-not-allowed"
-                              :data-disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" />
+                              :data-disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" @click="revokeArchetype(user.UserId)" />
                           </div>
                           <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
                         </div>
@@ -265,8 +266,22 @@ const selectedArchetype = computed(() => {
   return archetypes.value?.find((a) => a.Id === selectedArchetypeId.value);
 });
 
-const revokeArchetype = (userId: Guid) => { };
-const assignArchetype = (userId: Guid) => { };
+const revokeArchetype = async (userId: Guid) => {
+  await grantOrRevoke(userId, false);
+};
+const assignArchetype = async (userId: Guid) => {
+  await grantOrRevoke(userId, true);
+};
+
+const grantOrRevoke = async (userId: Guid, isGrain: boolean) => {
+  logger.warn("called assign to archetype for user", userId);
+  if (!selectedArchetype.value) return;
+  const userIds = await pool.getMemberIdsByUserIds(selectedArchetype.value.ServerId, [userId]);
+
+  if (!userIds || userIds.length == 0) return;
+
+  api.serverInteraction.SetArchetypeToMember(selectedArchetype.value.ServerId, userIds.at(0)!, selectedArchetype.value.Id, isGrain);
+}
 
 const usersForRole = ref<RealtimeUser[]>([]);
 let unsubscribeUsers: Subscription | null = null;

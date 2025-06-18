@@ -49,7 +49,7 @@ Sentry.init({
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
-  dsn: argon?.dsn() ?? "",
+  dsn:"",
 });
 Sentry.setTag("branch", pkg.branch);
 Sentry.setTag("version.full", pkg.fullVersion);
