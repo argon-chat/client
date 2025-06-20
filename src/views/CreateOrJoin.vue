@@ -104,7 +104,7 @@ const joinServer = async () => {
 const createServer = async () => {
   const e = new DeferFlag(isLoading);
   try {
-    if (!cfg.isDev) {
+    if (cfg.isDev) {
       try {
         const srCreation = await serverStore.createServer("test server");
 

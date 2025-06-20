@@ -56,7 +56,7 @@
 		"howler": "^2.2.4",
 		"idb": "^8.0.1",
 		"lexical-vue": "^0.11.0",
-		"livekit-client": "^2.7.5",
+		"livekit-client": "^2.13.8",
 		"lottie-web": "^5.12.2",
 		"lowlight": "^3.3.0",
 		"lucide-vue-next": "^0.515.0",
