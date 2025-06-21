@@ -204,7 +204,10 @@ export const useVoice = defineStore("voice", () => {
 
     localAudioTrack.setAudioContext(audio.getCurrentAudioContext());
 
-    await room.localParticipant.publishTrack(localAudioTrack);
+    await room.localParticipant.publishTrack(localAudioTrack, {
+      dtx: true,
+      red: true
+    });
 
     localAudioTrack.setProcessor(audio.createRtcProcessor());
 
