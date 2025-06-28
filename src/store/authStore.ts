@@ -23,7 +23,7 @@ export const useAuthStore = defineStore("auth", () => {
     email: string,
     pass: string,
     otp: string | undefined,
-    captchaToken: string | undefined,
+    captchaToken: string | undefined
   ) => {
     const api = useApi();
     await delay(500);
@@ -73,7 +73,9 @@ export const useAuthStore = defineStore("auth", () => {
     } else {
       isRequiredOtp.value = false;
       isAuthenticated.value = true;
-      localStorage.setItem("token", r.Value);
+
+      if (argon.isArgonHost) native.protectedStore.setValue("token", r.Value);
+      else localStorage.setItem("token", r.Value);
     }
   };
   const register = async (data: INewUserCredentialsInput) => {
@@ -84,7 +86,8 @@ export const useAuthStore = defineStore("auth", () => {
     if (r.IsSuccess) {
       isRequiredOtp.value = false;
       isAuthenticated.value = true;
-      localStorage.setItem("token", r.Value);
+      if (argon.isArgonHost) native.protectedStore.setValue("token", r.Value);
+      else localStorage.setItem("token", r.Value);
       return;
     }
     switch (r.Error.Code) {
@@ -125,14 +128,17 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     _token.value = null;
     isAuthenticated.value = false;
-    localStorage.removeItem("token");
+    if (argon.isArgonHost) 
+      native.protectedStore.setValue("token", "");
+    else 
+      localStorage.removeItem("token");
   };
 
   const restoreSession = async (): Promise<void> => {
-    const savedToken = localStorage.getItem("token");
+    const savedToken = argon.isArgonHost ? native.protectedStore.getValue("token") : localStorage.getItem("token");
     logger.info(`restored session, ${savedToken}`);
     if (savedToken) {
-      _token.value = savedToken;
+      _token.value = savedToken as string;
       isAuthenticated.value = true;
     }
   };
@@ -148,7 +154,7 @@ export const useAuthStore = defineStore("auth", () => {
   const resetPass = async (
     email: string,
     newPass: string,
-    resetCode: string,
+    resetCode: string
   ) => {
     const api = useApi();
 
@@ -198,7 +204,8 @@ export const useAuthStore = defineStore("auth", () => {
       isRequiredOtp.value = false;
       isRequiredFormResetPass.value = false;
       isAuthenticated.value = true;
-      localStorage.setItem("token", r.Value);
+      if (argon.isArgonHost) native.protectedStore.setValue("token", r.Value);
+      else localStorage.setItem("token", r.Value);
     }
   };
 

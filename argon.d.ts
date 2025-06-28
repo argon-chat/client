@@ -79,6 +79,11 @@ declare global {
     Author: string;
   }
 
+  interface IProtectionStore {
+    setValue(key: string, value: string): boolean;
+    getValue(key: string): string | boolean;
+  }
+
   interface IArgon {
     get isArgonHost(): boolean;
 
@@ -161,6 +166,8 @@ declare global {
 
 
     renderDiagnostic(i: number) : boolean;
+
+    protectedStore: IProtectionStore;
   }
 
 

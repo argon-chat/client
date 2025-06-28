@@ -19,7 +19,7 @@ export const useIdleStore = defineStore("idle", () => {
               me.me?.currentStatus !== "Away" &&
               inactiveSeconds > idleTimeValue
             ) {
-              savedStatus.value = me.me?.currentStatus;
+              savedStatus.value = me.me?.currentStatus!;
               me.changeStatusTo("Away");
             } else if (
               me.me?.currentStatus === "Away" &&
@@ -44,7 +44,7 @@ export const useIdleStore = defineStore("idle", () => {
               me.me?.currentStatus !== "Away" &&
               inactiveSeconds > idleTimeValue
             ) {
-              savedStatus.value = me.me?.currentStatus;
+              savedStatus.value = me.me?.currentStatus!;
               me.changeStatusTo("Away");
             } else if (
               me.me?.currentStatus === "Away" &&

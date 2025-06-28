@@ -146,6 +146,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast/";
+import { useAuthStore } from "@/store/authStore";
 const { t } = useLocale();
 const toast = useToast();
 
@@ -180,7 +181,7 @@ watch(selected_api_endpoint, async (e) => {
   if (localStorage.getItem("api_endpoint") === e) return;
   localStorage.setItem("api_endpoint", e);
 
-  localStorage.removeItem("token");
+  useAuthStore().logout();
   await pruneDatabases(false);
 });
 
