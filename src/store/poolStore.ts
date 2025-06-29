@@ -379,122 +379,132 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   });
 
-  const groupedServerUsers = computed(() => {
-    return useObservable(
-      from(
-        liveQuery(async () => {
-          if (!selectedServer.value) return [];
+const groupedServerUsers = computed(() => {
+  return useObservable(
+    from(
+      liveQuery(async () => {
+        if (!selectedServer.value) return [];
 
-          const server = await db.servers
-            .filter((s) => s.Id === selectedServer.value)
-            .first();
-          if (!server) return [];
+        const server = await db.servers
+          .filter((s) => s.Id === selectedServer.value)
+          .first();
+        if (!server) return [];
 
-          const users = await db.users.bulkGet(
-            server.Users.map((x) => x.UserId)
-          );
-          const members = await db.members.bulkGet(
-            server.Users.map((x) => x.MemberId)
-          );
+        const users = await db.users.bulkGet(
+          server.Users.map((x) => x.UserId)
+        );
+        const members = await db.members.bulkGet(
+          server.Users.map((x) => x.MemberId)
+        );
 
-          const allArchetypeIds = members
-            .filter((m): m is NonNullable<typeof m> => !!m)
-            .flatMap((m) => m.Archetypes.map((a) => a.ArchetypeId));
-          const archetypes = await db.archetypes.bulkGet(allArchetypeIds);
+        // Уникальные ArchetypeId
+        const allArchetypeIds = [
+          ...new Set(
+            members
+              .filter((m): m is NonNullable<typeof m> => !!m)
+              .flatMap((m) => m.Archetypes.map((a) => a.ArchetypeId))
+          ),
+        ];
 
-          const groupArchetypes = archetypes
-            .filter((a): a is IArchetypeDto => !!a && a.IsGroup)
-            .sort((a, b) => a.Name.localeCompare(b.Name)); // используем сортировку по имени как приоритет
+        const archetypes = await db.archetypes.bulkGet(allArchetypeIds);
 
-          const usersWithArchetypes = users
-            .filter((u): u is RealtimeUser => !!u)
-            .map((user) => {
-              const member = members.find((m) => m?.UserId === user.UserId);
-              if (member) {
-                const userArchetypes = archetypes.filter((a) =>
-                  member.Archetypes.some((x) => x.ArchetypeId === a?.Id)
-                ) as IArchetypeDto[];
-                user.archetypes = userArchetypes;
-              }
-              return user;
-            });
+        // Удаление дубликатов group-архетипов по Id
+        const groupArchetypes = [
+          ...new Map(
+            archetypes
+              .filter((a): a is IArchetypeDto => !!a && a.IsGroup)
+              .map((a) => [a.Id, a])
+          ).values(),
+        ].sort((a, b) => a.Name.localeCompare(b.Name)); // сортировка по имени
 
-          const sortFn = (a: RealtimeUser, b: RealtimeUser) => {
-            const statusOrder = (status: string) => {
-              if (status === "Online") return 0;
-              if (status === "Offline") return 2;
-              return 1;
-            };
-            const statusDiff = statusOrder(a.status) - statusOrder(b.status);
-            if (statusDiff !== 0) return statusDiff;
-            return a.DisplayName.localeCompare(b.DisplayName);
+        const usersWithArchetypes = users
+          .filter((u): u is RealtimeUser => !!u)
+          .map((user) => {
+            const member = members.find((m) => m?.UserId === user.UserId);
+            if (member) {
+              const userArchetypes = archetypes.filter((a) =>
+                member.Archetypes.some((x) => x.ArchetypeId === a?.Id)
+              ) as IArchetypeDto[];
+              user.archetypes = userArchetypes;
+            }
+            return user;
+          });
+
+        const sortFn = (a: RealtimeUser, b: RealtimeUser) => {
+          const statusOrder = (status: string) => {
+            if (status === "Online") return 0;
+            if (status === "Offline") return 2;
+            return 1;
           };
+          const statusDiff = statusOrder(a.status) - statusOrder(b.status);
+          if (statusDiff !== 0) return statusDiff;
+          return a.DisplayName.localeCompare(b.DisplayName);
+        };
 
-          // Определим группу с наивысшим приоритетом
-          const groupMap = new Map<Guid, RealtimeUser[]>(); // key = archetype.Id
+        const groupMap = new Map<Guid, RealtimeUser[]>();
+        const ungroupedUsers: RealtimeUser[] = [];
 
-          const ungroupedUsers: RealtimeUser[] = [];
+        for (const user of usersWithArchetypes) {
+          const groupRoles = (user.archetypes ?? []).filter((a) => a.IsGroup);
 
-          for (const user of usersWithArchetypes) {
-            const groupRoles = (user.archetypes ?? []).filter((a) => a.IsGroup);
+          if (groupRoles.length > 0) {
+            // Берём первую подходящую группу по приоритету из groupArchetypes
+            const targetGroup = groupArchetypes.find((g) =>
+              groupRoles.some((r) => r.Id === g.Id)
+            );
 
-            if (groupRoles.length > 0) {
-              const sortedByPriority = groupRoles.slice().sort((a, b) => {
-                // Приоритет по позиции в groupArchetypes
-                const ia = groupArchetypes.findIndex((x) => x.Id === a.Id);
-                const ib = groupArchetypes.findIndex((x) => x.Id === b.Id);
-                return ia - ib;
-              });
-
-              const targetGroup = sortedByPriority[0];
+            if (targetGroup) {
               if (!groupMap.has(targetGroup.Id)) {
                 groupMap.set(targetGroup.Id, []);
               }
-              groupMap.get(targetGroup.Id)?.push(user);
+              groupMap.get(targetGroup.Id)!.push(user);
             } else {
               ungroupedUsers.push(user);
             }
+          } else {
+            ungroupedUsers.push(user);
           }
+        }
 
-          const result: {
-            archetype: IArchetypeDto;
-            users: RealtimeUser[];
-          }[] = [];
+        const result: {
+          archetype: IArchetypeDto;
+          users: RealtimeUser[];
+        }[] = [];
 
-          for (const group of groupArchetypes) {
-            const groupUsers = (groupMap.get(group.Id) ?? []).sort(sortFn);
-            if (groupUsers.length > 0) {
-              result.push({
-                archetype: group,
-                users: groupUsers,
-              });
-            }
-          }
-
-          if (ungroupedUsers.length > 0) {
+        for (const group of groupArchetypes) {
+          const groupUsers = (groupMap.get(group.Id) ?? []).sort(sortFn);
+          if (groupUsers.length > 0) {
             result.push({
-              archetype: {
-                Id: "00000000-0000-0000-0000-000000000000",
-                ServerId: selectedServer.value,
-                Name: "Users",
-                Description: "",
-                IsMentionable: false,
-                Colour: 0xffffffff,
-                IsHidden: false,
-                IsLocked: false,
-                IsGroup: true,
-                Entitlement: "",
-                IsDefault: false,
-              },
-              users: ungroupedUsers.sort(sortFn),
+              archetype: group,
+              users: groupUsers,
             });
           }
+        }
 
-          return result;
-        })
-      )
-    );
-  });
+        if (ungroupedUsers.length > 0) {
+          result.push({
+            archetype: {
+              Id: "00000000-0000-0000-0000-000000000000",
+              ServerId: selectedServer.value,
+              Name: "Users",
+              Description: "",
+              IsMentionable: false,
+              Colour: 0xffffffff,
+              IsHidden: false,
+              IsLocked: false,
+              IsGroup: true,
+              Entitlement: "",
+              IsDefault: false,
+            },
+            users: ungroupedUsers.sort(sortFn),
+          });
+        }
+
+        return result;
+      })
+    )
+  );
+});
 
   const trackServer = async (server: IServerDto) => {
     await db.servers.put(server, server.Id);
