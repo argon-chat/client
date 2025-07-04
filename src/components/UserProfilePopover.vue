@@ -51,9 +51,9 @@
                     v-if="userProfile.Badges.find(q => q == 'owner')">
                     <Tooltip>
                         <TooltipTrigger>
-                            <CrownIcon class="w-5 h-5 text-yellow-400 align-middle" />
+                            <CrownIcon class="w-6 h-6 fill-blue-400 text-yellow-400  align-middle" />
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent> 
                             <p>Space Owner</p>
                         </TooltipContent>
                     </Tooltip>
@@ -62,7 +62,7 @@
                     v-if="userProfile.Badges.find(q => q == 'staff')">
                     <Tooltip>
                         <TooltipTrigger>
-                            <ShieldCheckIcon class="w-5 h-5 text-purple-400 align-middle" />
+                            <IconCat class="w-6 h-6 align-middle fill-purple-400" />
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Argon Staff</p>
@@ -74,7 +74,7 @@
                     v-if="userProfile.Badges.find(q => q == 'contributor')">
                     <Tooltip>
                         <TooltipTrigger>
-                            <GitPullRequestCreateArrow class="w-5 h-5 text-yellow-400 align-middle" />
+                            <IconCpu class="w-6 h-6 fill-yellow-400 align-middle" />
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Argon Contributor</p>
@@ -124,6 +124,10 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
 import ArgonBanner from "./ArgonBanner.vue";
+import IconCat from "@/assets/icons/icon_cat.svg"
+import IconCpu from "@/assets/icons/icon_gpu_04.svg"
+import IconClean from "@/assets/icons/icon_clean.svg"
+import IconGiga from "@/assets/icons/icon_gigachad.svg"
 
 const isLoading = ref(true);
 const api = useApi();
