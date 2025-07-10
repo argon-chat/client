@@ -88,11 +88,15 @@ useInfiniteScroll(
   async () => {
     if (hasEnded.value) return;
 
-    const result = await api.serverInteraction.GetMessages(
+    const lastMsg = messages.value.at(-1);
+    const fromMessageId = lastMsg ? lastMsg.MessageId : null;
+
+    const result = await api.serverInteraction.QueryMessages(
       props.channelId,
+      fromMessageId as any,
       10,
-      currentSizeMsgs.value,
     );
+
     if (result.length === 0) {
       hasEnded.value = true;
       return;
@@ -102,7 +106,6 @@ useInfiniteScroll(
     const uniqueNewMessages = result.filter(
       (msg) => !existingIds.has(msg.MessageId),
     );
-    currentSizeMsgs.value += uniqueNewMessages.length;
     messages.value.push(...uniqueNewMessages);
   },
   {
@@ -118,7 +121,7 @@ const loadMessages = async (channelId: Guid) => {
   currentSizeMsgs.value = 0;
   newMessagesCount.value = 0;
 
-  messages.value = await api.serverInteraction.GetMessages(channelId, 10, 0);
+  messages.value = await api.serverInteraction.QueryMessages(channelId, null as any, 10);
   currentSizeMsgs.value = messages.value.length;
 
   nextTick(() => {

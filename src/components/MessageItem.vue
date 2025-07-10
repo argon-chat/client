@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed, Ref } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed, Ref } from "vue";
 import { usePoolStore } from "@/store/poolStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
@@ -148,7 +148,7 @@ function fragmentMessageText(
     cursor = end;
   }
 
-  if (cursor < text.length) {
+  if (cursor < (text?.length ?? 0)) {
     fragments.push({
       text: text.slice(cursor),
     });
@@ -202,6 +202,7 @@ function getColorByUserId(userId: string): string {
 }
 
 function isUpEmojisOnly(message: IArgonMessageDto): boolean {
+  if (!message.Text) return false;
   const text = message.Text.trim();
   const regex = emojiRegex();
   const matches = [...text.matchAll(regex)];

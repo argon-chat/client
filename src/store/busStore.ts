@@ -5,7 +5,6 @@ import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
-import type { UserStatus } from "@/lib/glue/UserStatus";
 
 export type EventWithServerId<T> = { serverId: string } & T;
 
@@ -38,8 +37,8 @@ export const useBus = defineStore("bus", () => {
 
     const handle = await api.eventBus.SubscribeToServerEvents(id);
     for await (const e of handle) {
-      //if (e.EventKey !== "UserChangedStatus")
-      logger.log(`Received event, ${e.EventKey}`, e);
+      if (e.EventKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.EventKey}`, e);
       argonEventBus.next({ serverId: id, ...e });
       if (signal.aborted) break;
     }
@@ -48,8 +47,8 @@ export const useBus = defineStore("bus", () => {
   async function doListenMyEvents() {
     const handle = await api.eventBus.SubscribeToMeEvents();
     for await (const e of handle) {
-      //if (e.EventKey !== "UserChangedStatus")
-      logger.log(`Received event, ${e.EventKey}`, e);
+      if (e.EventKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.EventKey}`, e);
       userEventBus.next(e);
       if (signal.aborted) break;
     }

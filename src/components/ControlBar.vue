@@ -270,20 +270,20 @@ const toggleScreenCast = () => {
 
 async function getPreviewForScreen(display: IScreen) {
   if (!argon.isArgonHost) return new MediaStream();
-
-  const p = await navigator.mediaDevices.getUserMedia({
+    return new MediaStream();
+  /*const p = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
       mandatory: {
         chromeMediaSourceId: `screen:${display.DisplayIndex}:0`,
         chromeMediaSource: "screen",
-        maxWidth: 220, // Максимальная ширина превью
-        maxHeight: 110, // Максимальная высота превью
+        maxWidth: 2220,
+        maxHeight: 1210,
       },
     } as any,
   });
 
-  return p;
+  return p;*/
 }
 
 async function getPreviewForWindow(window: IWindowInfo) {
@@ -294,8 +294,8 @@ async function getPreviewForWindow(window: IWindowInfo) {
       mandatory: {
         chromeMediaSourceId: window.deviceId,
         chromeMediaSource: "desktop",
-        maxWidth: 220, // Максимальная ширина превью
-        maxHeight: 110, // Максимальная высота превью
+        maxWidth: 220,
+        maxHeight: 110, 
       },
     } as any,
   });

@@ -43,6 +43,7 @@ import PixelCard from "@/components/PixelCard.vue";
 import { DeferFlag } from "@/lib/DeferFlag";
 import delay from "@/lib/delay";
 import { useConfig } from "@/store/remoteConfig";
+import { useAuthStore } from "@/store/authStore";
 
 const { t } = useLocale();
 
@@ -50,6 +51,7 @@ const inviteCode = ref("");
 const serverStore = useServerStore();
 const isLoading = ref(false);
 const cfg = useConfig();
+const auth = useAuthStore();
 
 const logout = async () => {
   await pruneDatabases(true);
@@ -76,7 +78,10 @@ const pruneDatabases = async (pruneLocalStorage = true) => {
     }
   }
 
-  if (pruneLocalStorage) localStorage.clear();
+  if (pruneLocalStorage) {
+    localStorage.clear();
+    auth.logout();
+  }
 
   location.reload();
 };

@@ -25,6 +25,7 @@ interface IServerInteraction
 	DeleteChannel(serverId: Guid, channelId: Guid) : Promise<void>;
 	GetChannels(serverId: Guid) : Promise<IRealtimeChannel[]>;
 	GetMessages(channelId: Guid, count: number, offset: number) : Promise<IArgonMessageDto[]>;
+	QueryMessages(channelId: Guid, from: number, limit: number) : Promise<IArgonMessageDto[]>;
 	SendMessage(channelId: Guid, text: string, entities: IMessageEntity[], replyTo: number) : Promise<void>;
 	GetMembers(serverId: Guid) : Promise<IRealtimeServerMember[]>;
 	GetMember(serverId: Guid, userId: Guid) : Promise<IRealtimeServerMember>;
