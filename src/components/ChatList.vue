@@ -56,11 +56,11 @@
                 <!-- <ContextMenuItem inset @click="voice.muteForMeUser(user.UserId)">
                     Mute
                     <ContextMenuShortcut>⌘[</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuItem inset :disabled="true">
+                  </ContextMenuItem>-->
+                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.UserId, channel.Id)">
                     Kick
                     <ContextMenuShortcut>⌘]</ContextMenuShortcut>
-                  </ContextMenuItem> -->
+                  </ContextMenuItem> 
 
                 <ContextMenuSeparator v-show="user.UserId != me.me?.Id" />
                 <ContextMenuCheckboxItem :disabled="true">
@@ -104,12 +104,14 @@ import { useMe } from "@/store/meStore";
 import delay from "@/lib/delay";
 import { onMounted } from "vue";
 import { usePexStore } from "@/store/permissionStore";
+import { useApi } from "@/store/apiStore";
 
 const servers = useServerStore();
 const pool = usePoolStore();
 const voice = useVoice();
 const me = useMe();
 const pex = usePexStore();
+const api = useApi();
 //
 
 onMounted(async () => {
@@ -148,6 +150,11 @@ async function channelDelete(channelId: string) {
 const connectToChannel = (channelId: string) => {
   //servers.connectTo(channelId);
 };
+
+
+const kickMember = async (userId: string, channelId: string) => {
+  await api.serverInteraction.KickMemberFromChannel("", channelId, userId);
+}
 </script>
 
 <style scoped>

@@ -6,10 +6,10 @@
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
 ///<reference path="Argon/ArchetypeModel/IArchetypeObject.d.ts"/>
-///<reference path="IArgonEntityWithOwnership.d.ts"/>
+///<reference path="IOrderableArgonEntity.d.ts"/>
 ///<reference path="IChannelEntitlementOverwrite.d.ts"/>
 
-interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IArgonEntityWithOwnership
+interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IOrderableArgonEntity
 {
 	ChannelType: 'Announcement' | 'Voice' | 'Text';
 	ServerId: Guid;
@@ -19,4 +19,6 @@ interface IChannel extends Argon.ArchetypeModel.IArchetypeObject, IArgonEntityWi
 	DoNotRestrictBoosters: boolean;
 	EntitlementOverwrites: IChannelEntitlementOverwrite[];
 	Overwrites: any[];
+	Category?: any;
+	CategoryId?: Guid;
 }

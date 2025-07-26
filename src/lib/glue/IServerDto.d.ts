@@ -19,4 +19,5 @@ interface IServerDto
 	Channels: IChannel[];
 	Users: IServerMemberDto[];
 	Archetypes: IArchetype[];
+	Categories: any[];
 }

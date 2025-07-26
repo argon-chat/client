@@ -41,4 +41,5 @@ interface IServerInteraction
 	SetArchetypeToMember(serverId: Guid, memberId: Guid, archetypeId: Guid, isGrant: boolean) : Promise<boolean>;
 	GetDetailedServerArchetypes(serverId: Guid) : Promise<IArchetypeDtoGroup[]>;
 	UpsertArchetypeEntitlementForChannel(serverId: Guid, channelId: Guid, archetypeId: Guid, deny: number, allow: number) : Promise<IChannelEntitlementOverwrite>;
+	KickMemberFromChannel(serverId: Guid, channelId: Guid, memberId: Guid) : Promise<boolean>;
 }

@@ -5,5 +5,9 @@
 ///<reference path="../Guid.d.ts"/>
 ///<reference path="../Either.d.ts"/>
 ///<reference path="../Maybe.ts"/>
+///<reference path="IArgonEntityWithOwnership.d.ts"/>
 
-declare type MeetJoinError = 'OK' | 'NO_LINK_EXIST' | 'YOU_ARE_BANNED'
+interface IOrderableArgonEntity extends IArgonEntityWithOwnership
+{
+	FractionalIndex: string;
+}

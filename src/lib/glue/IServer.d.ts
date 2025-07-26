@@ -20,4 +20,5 @@ interface IServer extends Argon.ArchetypeModel.IArchetypeSubject, IArgonEntityWi
 	Users: any[];
 	Archetypes: IArchetype[];
 	SubjectArchetypes: any[];
+	SpaceCategories: any[];
 }
