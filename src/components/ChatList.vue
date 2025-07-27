@@ -57,7 +57,7 @@
                     Mute
                     <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                   </ContextMenuItem>-->
-                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.UserId, channel.Id)">
+                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.UserId, channel.Id, channel.ServerId)">
                     Kick
                     <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                   </ContextMenuItem> 
@@ -152,8 +152,8 @@ const connectToChannel = (channelId: string) => {
 };
 
 
-const kickMember = async (userId: string, channelId: string) => {
-  await api.serverInteraction.KickMemberFromChannel("", channelId, userId);
+const kickMember = async (userId: string, channelId: string, serverId: string) => {
+  await api.serverInteraction.KickMemberFromChannel(serverId, channelId, userId);
 }
 </script>
 
