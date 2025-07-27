@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import {
   type ConnectionQuality,
   ConnectionState,
+  DisconnectReason,
   LocalAudioTrack,
   type LocalTrackPublication,
   LocalVideoTrack,
@@ -173,6 +174,10 @@ export const useVoice = defineStore("voice", () => {
     room.on("trackSubscribed", onTrackSubscribed);
     room.on("trackUnsubscribed", onTrackUnsubscribed);
     room.on("reconnecting", onReconnectiong);
+    room.once("disconnected", async (reason) => {
+      logger.warn("DISCONECT CALLED", reason);
+      await disconnectFromChannel(); 
+    });
     try {
       await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
         ...connectOptions,
