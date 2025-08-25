@@ -7,18 +7,18 @@
         <Popover v-model:open="isOpened">
             <PopoverContent style="width: 19rem;min-height: 25rem;"
                 class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
-                <UserProfilePopover :user-id="user!.UserId" @close:pressed="isOpened = false" />
+                <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
             </PopoverContent>
             <PopoverTrigger>
-                <ArgonAvatar :file-id="user.AvatarFileId ?? null" :fallback="user.DisplayName"
-                    :serverId="message.ServerId" :userId="user.UserId" class="avatar" />
+                <ArgonAvatar :file-id="user.avatarFileId.unwrapOrDefault()" :fallback="user.displayName"
+                    :serverId="message.spaceId" :userId="user.userId" class="avatar" />
             </PopoverTrigger>
         </Popover>
 
         <div class="message-content">
             <div class="meta">
-                <span class="username" :data-user-id="user.UserId"
-                    :style="{ 'color': getColorByUserId(user.UserId) }">{{ user?.DisplayName || 'Неизвестный' }}</span>
+                <span class="username" :data-user-id="user.userId"
+                    :style="{ 'color': getColorByUserId(user.userId) }">{{ user?.displayName || 'Неизвестный' }}</span>
 
                 <TooltipProvider>
                     <Tooltip>
@@ -39,9 +39,9 @@
                         'reply-preview inline-table',
                         'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                         ">
-                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
-                            replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
-                        <div class="reply-text">{{ replyMessage.Text }}</div>
+                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                            replyUser?.value?.displayName || 'Неизвестный' }}</div>
+                        <div class="reply-text">{{ replyMessage.text }}</div>
                     </div>
                     <div>
                         <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true"  />
@@ -52,9 +52,9 @@
                         'reply-preview inline-table',
                         'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                         ">
-                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.UserId) }">{{
-                            replyUser?.value?.DisplayName || 'Неизвестный' }}</div>
-                        <div class="reply-text">{{ replyMessage.Text }}</div>
+                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                            replyUser?.value?.displayName || 'Неизвестный' }}</div>
+                        <div class="reply-text">{{ replyMessage.text }}</div>
                     </div>
                     <div>
                         <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
@@ -94,19 +94,21 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import { ArgonMessage, IMessageEntity } from "@/lib/glue/argonChat";
+import { IonMaybe } from "@argon-chat/ion.webcore";
 
 const isOpened = ref(false);
 
 const props = defineProps<{
-  message: IArgonMessageDto;
-  getMsgById: (replyId: number) => IArgonMessageDto;
+  message: ArgonMessage;
+  getMsgById: (replyId: IonMaybe<bigint>) => ArgonMessage;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);
 const bubble = ref<HTMLElement | null>(null);
 const backgroundOffset = ref(0);
 const pool = usePoolStore();
-const user = pool.getUserReactive(props.message.Sender);
+const user = pool.getUserReactive(props.message.sender);
 const me = useMe();
 const userColors = useUserColors();
 
@@ -117,7 +119,7 @@ interface IFrag {
 
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 
-const isIncoming = computed(() => props.message.Sender !== me.me?.Id);
+const isIncoming = computed(() => props.message.sender !== me.me?.userId);
 
 const renderedMessage = ref([] as IFrag[]);
 
@@ -128,11 +130,11 @@ function fragmentMessageText(
   const fragments: IFrag[] = [];
   let cursor = 0;
 
-  const sorted = [...entities].sort((a, b) => a.Offset - b.Offset);
+  const sorted = [...entities].sort((a, b) => a.offset - b.offset);
 
   for (const entity of sorted) {
-    const start = entity.Offset;
-    const end = entity.Offset + entity.Length;
+    const start = entity.offset;
+    const end = entity.offset + entity.length;
 
     if (cursor < start) {
       fragments.push({
@@ -157,13 +159,13 @@ function fragmentMessageText(
   return fragments;
 }
 const replyMessage = computed(() => {
-  if (!props.message.ReplyId) return null;
-  return props.getMsgById(props.message.ReplyId);
+  if (!props.message.replyId) return null;
+  return props.getMsgById(props.message.replyId);
 });
 
 const replyUser = computed(() => {
   if (!replyMessage.value) return null;
-  return pool.getUserReactive(replyMessage.value.Sender);
+  return pool.getUserReactive(replyMessage.value.sender);
 });
 
 const updateBackground = () => {
@@ -174,8 +176,8 @@ const updateBackground = () => {
 
 onMounted(async () => {
   renderedMessage.value = fragmentMessageText(
-    props.message.Text,
-    props.message.Entities,
+    props.message.text,
+    props.message.entities,
   );
   updateBackground();
   window.addEventListener("scroll", updateBackground, { passive: true });
@@ -186,14 +188,14 @@ onBeforeUnmount(() => {
 });
 
 const formattedTime = computed(() => {
-  const date = new Date(props.message.TimeSent * 1000);
+  const date = props.message.timeSent.date;
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes}`;
 });
 
 const formattedFullTime = useDateFormat(
-  new Date(props.message.TimeSent * 1000),
+  props.message.timeSent.date,
   "YYYY-MM-DD HH:mm:ss",
 );
 
@@ -201,9 +203,9 @@ function getColorByUserId(userId: string): string {
   return userColors.getColorByUserId(userId);
 }
 
-function isUpEmojisOnly(message: IArgonMessageDto): boolean {
-  if (!message.Text) return false;
-  const text = message.Text.trim();
+function isUpEmojisOnly(message: ArgonMessage): boolean {
+  if (!message.text) return false;
+  const text = message.text.trim();
   const regex = emojiRegex();
   const matches = [...text.matchAll(regex)];
   const emojisOnly = matches.map((m) => m[0]).join("");

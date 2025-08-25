@@ -98,7 +98,7 @@
                     <CameraIcon class="w-5 h-5" />
                 </button>
                 <button @click="toggleDoNotDistrurb">
-                    <OctagonMinusIcon v-if="status == 'DoNotDisturb'" class="w-5 h-5 text-red-600" />
+                    <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
                     <OctagonMinusIcon v-else class="w-5 h-5" />
                 </button>
             </div>
@@ -125,7 +125,7 @@
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <span class="font-semibold marquee">{{ voice.activeChannel?.Name }}</span>
+                    <span class="font-semibold marquee">{{ voice.activeChannel?.name }}</span>
                 </div>
                 <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer
                     }}</span>
@@ -188,6 +188,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { onMounted, ref, watch } from "vue";
 import { useLocale } from "@/store/localeStore";
+import { UserStatus } from "@/lib/glue/argonChat";
 
 const { t } = useLocale();
 
@@ -199,12 +200,12 @@ const sessionTimerStore = useSessionTimer();
 const status = ref(me.me?.currentStatus);
 
 watch(status, (newStatus) => {
-  me.changeStatusTo(newStatus);
+  me.changeStatusTo(newStatus!);
 });
 
 const toggleDoNotDistrurb = () => {
-  if (status.value === "DoNotDisturb") status.value = "Online";
-  else status.value = "DoNotDisturb";
+  if (status.value === UserStatus.DoNotDisturb) status.value = UserStatus.Online;
+  else status.value = UserStatus.DoNotDisturb;
 };
 
 const allSizes = [

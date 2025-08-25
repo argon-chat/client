@@ -169,7 +169,7 @@ const copyMyUserId = () => {
   toast.toast({
     title: "Your UserId has been copied!",
   });
-  navigator.clipboard.writeText(me.me?.Id ?? "error");
+  navigator.clipboard.writeText(me.me?.userId ?? "error");
 };
 
 watch(selected_channel, (e) => {

@@ -6,7 +6,7 @@
                 <label>
                     <input type="file" accept="image/jpeg, image/jpg, image/png" class="hidden"
                         @change="onAvatarChange" />
-                    <ArgonAvatar :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!" :user-id="me.me.Id"
+                    <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId.unwrapOrDefault()!" :user-id="me.me.userId"
                         alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500" />
                     <div
                         class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -18,19 +18,16 @@
             </div>
             <div>
                 <label class="block font-semibold mb-1">{{ t("username") }}</label>
-                <Input readonly disabled v-model="me.me.Username" type="text" class="input-field"
+                <Input readonly disabled v-model="me.me.username" type="text" class="input-field"
                     placeholder="Enter username" />
             </div>
         </div>
         <div>
             <label class="block font-semibold mb-1">{{ t("display_name") }}</label>
-            <Input readonly disabled v-model="me.me.DisplayName" type="text" class="input-field"
+            <Input readonly disabled v-model="me.me.displayName" type="text" class="input-field"
                 placeholder="Enter display name" />
         </div>
         <div>
-            <label class="block font-semibold mb-1">{{ t("email") }}</label>
-            <Input readonly disabled v-model="me.me.Email" type="email" class="input-field" placeholder="Enter email" />
-        </div>
         <div v-if="false">
             <label class="block font-semibold mb-1">{{ t("password") }}</label>
             <Input type="password" class="input-field" placeholder="Enter new password" />
@@ -126,7 +123,7 @@ const saveChanges = async () => {
   try {
     isLoadingAvatar.value = true;
 
-    const image = canvasRef.value?.toDataURL("image/jpeg", 1);
+    const image = canvasRef.value?.toDataURL("image/jpeg", 1) ?? "";
 
     await uploadUserAvatar(image, `${v7()}.jpg`);
 

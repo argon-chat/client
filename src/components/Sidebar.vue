@@ -2,11 +2,11 @@
     <div class="flex flex-col items-center justify-between h-full">
         <div class="sidebar">
             <ul>
-                <li v-for="server in pool.allServers.value" :key="server.Id"
-                    :class="{ 'active-server': server.Id === pool.selectedServer }" >
+                <li v-for="server in pool.allServers.value" :key="server.spaceId"
+                    :class="{ 'active-server': server.spaceId === pool.selectedServer }" >
                     <!-- @click="serverStore.selectServer(server.Id)" -->
                     <div class="server-icon-wrapper">
-                        <img :src="server.AvatarFileId" :alt="server.Id" class="server-icon" />
+                        <img :src="server.avatarFieldId.unwrapOrDefault()!" :alt="server.spaceId" class="server-icon" />
                     </div>
                 </li>
             </ul>

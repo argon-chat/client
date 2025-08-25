@@ -38,6 +38,7 @@ import { AtomSpinner } from "epic-spinners";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/store/localeStore";
 import { usePexStore } from "@/store/permissionStore";
+import { InviteCodeEntity } from "@/lib/glue/argonChat";
 
 const { t } = useLocale();
 const servers = useServerStore();

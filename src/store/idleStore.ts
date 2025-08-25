@@ -3,8 +3,9 @@ import { useIdle, useTimestamp } from "@vueuse/core";
 import { interval, switchMap } from "rxjs";
 import { useMe } from "./meStore";
 import { ref } from "vue";
+import { UserStatus } from "@/lib/glue/argonChat";
 export const useIdleStore = defineStore("idle", () => {
-  const savedStatus = ref("Online" as UserStatus);
+  const savedStatus = ref(UserStatus.Online);
 
   const idleTimeValue = 60 * 3;
 
@@ -16,13 +17,13 @@ export const useIdleStore = defineStore("idle", () => {
           switchMap(() => {
             const inactiveSeconds = native.getIdleTimeSeconds();
             if (
-              me.me?.currentStatus !== "Away" &&
+              me.me?.currentStatus !== UserStatus.Away &&
               inactiveSeconds > idleTimeValue
             ) {
               savedStatus.value = me.me?.currentStatus!;
-              me.changeStatusTo("Away");
+              me.changeStatusTo(UserStatus.Away);
             } else if (
-              me.me?.currentStatus === "Away" &&
+              me.me?.currentStatus === UserStatus.Away &&
               inactiveSeconds < idleTimeValue
             ) {
               me.changeStatusTo(savedStatus.value);
@@ -41,13 +42,13 @@ export const useIdleStore = defineStore("idle", () => {
               (now.value - lastActive.value) / 1000,
             );
             if (
-              me.me?.currentStatus !== "Away" &&
+              me.me?.currentStatus !== UserStatus.Away &&
               inactiveSeconds > idleTimeValue
             ) {
               savedStatus.value = me.me?.currentStatus!;
-              me.changeStatusTo("Away");
+              me.changeStatusTo(UserStatus.Away);
             } else if (
-              me.me?.currentStatus === "Away" &&
+              me.me?.currentStatus === UserStatus.Away &&
               inactiveSeconds < idleTimeValue
             ) {
               me.changeStatusTo(savedStatus.value);

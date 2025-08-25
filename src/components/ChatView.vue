@@ -7,7 +7,7 @@
       </div>
     </button>
 
-    <div v-for="(message) in messages" :key="message.MessageId" class="chat-message">
+    <div v-for="(message) in messages" :key="message.messageId.toString()" class="chat-message">
       <MessageItem :message="message" :get-msg-by-id="getMessageById" @dblclick="() => emit('select-reply', message)" />
     </div>
     <Separator v-if="hasEnded" orientation="horizontal"> </Separator>
@@ -33,6 +33,8 @@ import { usePoolStore } from "@/store/poolStore";
 import type { Subscription } from "rxjs";
 import { useMe } from "@/store/meStore.ts";
 import { useTone } from "@/store/toneStore";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@/lib/glue/argonChat";
+import { IonMaybe } from "@argon-chat/ion.webcore";
 
 const api = useApi();
 const pool = usePoolStore();
@@ -41,7 +43,7 @@ const props = defineProps<{
 }>();
 
 const scroller = useTemplateRef<HTMLElement>("scroller");
-const messages = ref([] as IArgonMessageDto[]);
+const messages = ref([] as ArgonMessage[]);
 const hasEnded = ref(false);
 const subs = ref(null as null | Subscription);
 const currentSizeMsgs = ref(0);
@@ -51,15 +53,15 @@ const chatWidth = ref(0);
 const me = useMe();
 const tone = useTone();
 
-const getMessageById = (messageId: number): IArgonMessageDto => {
+const getMessageById = (messageId: IonMaybe<bigint>): ArgonMessage => {
   return (
-    messages.value.find((x) => x.MessageId === messageId) ??
-    ({} as IArgonMessageDto)
+    messages.value.find((x) => x.messageId === (messageId.unwrapOrDefault() ?? 0n)) ??
+    ({} as ArgonMessage)
   );
 };
 
 const emit =
-  defineEmits<(e: "select-reply", message: IArgonMessageDto) => void>();
+  defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
 
 const scrollToBottom = () => {
   if (!scroller.value) return;
@@ -89,9 +91,10 @@ useInfiniteScroll(
     if (hasEnded.value) return;
 
     const lastMsg = messages.value.at(-1);
-    const fromMessageId = lastMsg ? lastMsg.MessageId : null;
+    const fromMessageId = lastMsg ? lastMsg.messageId : null;
 
-    const result = await api.serverInteraction.QueryMessages(
+    const result = await api.channelInteraction.QueryMessages(
+      "",
       props.channelId,
       fromMessageId as any,
       10,
@@ -102,9 +105,9 @@ useInfiniteScroll(
       return;
     }
 
-    const existingIds = new Set(messages.value.map((msg) => msg.MessageId));
+    const existingIds = new Set(messages.value.map((msg) => msg.messageId));
     const uniqueNewMessages = result.filter(
-      (msg) => !existingIds.has(msg.MessageId),
+      (msg) => !existingIds.has(msg.messageId),
     );
     messages.value.push(...uniqueNewMessages);
   },
@@ -115,13 +118,13 @@ useInfiniteScroll(
   },
 );
 
-const loadMessages = async (channelId: Guid) => {
+const loadMessages = async (spaceId: string, channelId: Guid) => {
   messages.value = [];
   hasEnded.value = false;
   currentSizeMsgs.value = 0;
   newMessagesCount.value = 0;
 
-  messages.value = await api.serverInteraction.QueryMessages(channelId, null as any, 10);
+  messages.value = await api.channelInteraction.QueryMessages(spaceId, channelId, null as any, 10);
   currentSizeMsgs.value = messages.value.length;
 
   nextTick(() => {
@@ -138,21 +141,21 @@ watch(
   async (newChannelId) => {
     subs.value?.unsubscribe();
 
-    await loadMessages(newChannelId);
+    await loadMessages("", newChannelId);
 
     subs.value = pool.onNewMessageReceived.subscribe((e) => {
-      if (newChannelId === e.ChannelId) {
+      if (newChannelId === e.channelId) {
         messages.value.unshift(e);
         // TODO reply
         if (
-          e.Entities.filter(filterMention).find((x) => x.UserId === me.me?.Id)
+          e.entities.filter(filterMention).find((x) => x.userId === me.me?.userId)
         ) {
           tone.playNotificationSound();
         }
 
         nextTick(checkScrollPosition);
 
-        if (e.Sender === me.me?.Id) {
+        if (e.sender === me.me?.userId) {
           setTimeout(scrollToBottom, 50);
         } else {
           if (isScrolledUp.value) {
@@ -167,8 +170,8 @@ watch(
   { immediate: true },
 );
 
-const filterMention = (e: IMessageEntity): e is IMessageEntityMention => {
-  return e.Type === "Mention";
+const filterMention = (e: IMessageEntity): e is MessageEntityMention => {
+  return e.type === EntityType.Bold;
 };
 
 onMounted(() => {

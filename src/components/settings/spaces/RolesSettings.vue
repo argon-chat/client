@@ -11,16 +11,16 @@
       <div class="grid grid-cols-2 gap-4">
         <ScrollArea class="p-2 max-h-[calc(100vh-270px)]">
           <div class="space-y-2 p-4">
-            <Card v-for="arch in filteredArchetypes" :key="arch.Id" @click="() => switchTo(arch.Id)"
-              :class="selectedArchetypeId === arch.Id ? 'border-2 border-r-indigo-500' : ''" class="cursor-pointer">
+            <Card v-for="arch in filteredArchetypes" :key="arch.id" @click="() => switchTo(arch.id)"
+              :class="selectedArchetypeId === arch.id ? 'border-2 border-r-indigo-500' : ''" class="cursor-pointer">
               <CardContent class="flex gap-4 items-center p-4">
                 <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: formatColour(arch.Colour) }" />
+                  <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: formatColour(arch.colour) }" />
                   <div class="flex-1 min-w-0 flex items-center gap-1 truncate">
-                    <span class="font-semibold text-base truncate" :style="{ color: formatColour(arch.Colour) }">{{
-                      arch.Name }}</span>
-                    <span v-if="arch.IsLocked" class="text-muted">🔒</span>
-                    <span class="text-muted text-sm truncate">— {{ arch.Description }}</span>
+                    <span class="font-semibold text-base truncate" :style="{ color: formatColour(arch.colour) }">{{
+                      arch.name }}</span>
+                    <span v-if="arch.isLocked" class="text-muted">🔒</span>
+                    <span class="text-muted text-sm truncate">— {{ arch.description }}</span>
                   </div>
                 </div>
               </CardContent>
@@ -42,35 +42,35 @@
                   <CardContent class="p-4 space-y-2">
                     <div class="space-y-1">
                       <label class="text-sm font-medium text-white">Name<span class="text-red-500 ml-1">*</span></label>
-                      <Input v-model="selectedArchetype.Name" type="text"
+                      <Input v-model="selectedArchetype.name" type="text"
                         :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
                         :readonly="isLockedArchetype(selectedArchetype, true)" placeholder="Role name..." />
                     </div>
                     <div class="space-y-1">
                       <label class="text-sm font-medium text-white">Description<span
                           class="text-red-500 ml-1">*</span></label>
-                      <Textarea v-model="selectedArchetype.Description"
+                      <Textarea v-model="selectedArchetype.description"
                         :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
                         placeholder="Type description here." :readonly="isLockedArchetype(selectedArchetype, true)" />
                     </div>
 
-                    <ArchetypeColorPicker v-model="selectedArchetype.Colour"
+                    <ArchetypeColorPicker v-model="selectedArchetype.colour"
                       :readonly="isLockedArchetype(selectedArchetype, true)" />
                     <br />
                     <div class="space-y-1 flex items-center justify-between">
                       <label class="text-sm font-medium text-white">Group members with this
                         role?</label>
-                      <Switch :checked="selectedArchetype.IsGroup"
-                        @update:checked="selectedArchetype.IsGroup = !selectedArchetype.IsGroup"
+                      <Switch :checked="selectedArchetype.isGroup"
+                        @update:checked="selectedArchetype.isGroup = !selectedArchetype.isGroup"
                         :disabled="isLockedArchetype(selectedArchetype, true)" />
                     </div>
                     <div class="space-y-1 flex items-center justify-between">
                       <label class="text-sm font-medium text-white">Allow <span class="text-blue-500">@mention</span>
                         allow this role to everyone
                         else?</label>
-                      <Switch :checked="selectedArchetype.IsMentionable"
-                        @update:checked="selectedArchetype.IsMentionable = !selectedArchetype.IsMentionable"
-                        :disabled="selectedArchetype.IsLocked" />
+                      <Switch :checked="selectedArchetype.isMentionable"
+                        @update:checked="selectedArchetype.isMentionable = !selectedArchetype.isMentionable"
+                        :disabled="selectedArchetype.isLocked" />
                     </div>
                   </CardContent>
                 </Card>
@@ -92,7 +92,7 @@
                             {{ t(flag.i18nKey + '.description') }}
                           </div>
                         </div>
-                        <Switch :disabled="selectedArchetype.IsLocked"
+                        <Switch :disabled="selectedArchetype.isLocked"
                           :checked="includesEntitlement(entitlementFlags, flag)"
                           @update:checked="toggleFlag(flag.value, $event)" />
                       </li>
@@ -105,7 +105,7 @@
                 <Card>
                   <CardContent class="p-4 space-y-4">
                     <div class="relative">
-                      <Input :disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" ref="reference"
+                      <Input :disabled="selectedArchetype.isLocked || selectedArchetype.isDefault" ref="reference"
                         v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
                         placeholder="Search users..." class="w-full" />
 
@@ -113,12 +113,12 @@
                     <div>
                       <h3 class="text-sm font-semibold">Users with this role</h3>
                       <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
-                        <div v-for="user in usersForRole" :key="user.UserId"
+                        <div v-for="user in usersForRole" :key="user.userId"
                           class="flex items-center gap-2 p-2 rounded">
                           <div>
                             <BanIcon
                               class="cursor-pointer text-red-500 hover:text-red-600 transition-colors data-[disabled=true]:text-gray-600 data-[disabled=true]:cursor-not-allowed"
-                              :data-disabled="selectedArchetype.IsLocked || selectedArchetype.IsDefault" @click="revokeArchetype(user.UserId)" />
+                              :data-disabled="selectedArchetype.isLocked || selectedArchetype.isDefault" @click="revokeArchetype(user.userId)" />
                           </div>
                           <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
                         </div>
@@ -137,9 +137,9 @@
         <div v-if="isOpen && userSearchQuery.trim().length > 0" ref="floating" :style="floatingStyles"
           class="z-50 bg-popover border border-border rounded shadow-lg max-h-60 overflow-y-auto w-[300px]">
           <template v-if="addableSearchResults.length > 0">
-            <div v-for="user in addableSearchResults" :key="user.UserId"
+            <div v-for="user in addableSearchResults" :key="user.userId"
               class="flex items-center gap-2 p-2 hover:bg-muted cursor-pointer"
-              @mousedown.prevent="assignArchetype(user.UserId)">
+              @mousedown.prevent="assignArchetype(user.userId)">
               <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
             </div>
           </template>
@@ -194,6 +194,7 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
+import { Archetype, ArchetypeGroup } from "@/lib/glue/argonChat";
 
 
 const isOpen = ref(false)
@@ -208,7 +209,7 @@ const { floatingStyles, update } = useFloating(reference, floating, {
 
 function open() {
   isOpen.value = true
-  update() // пересчитать позицию
+  update()
 }
 
 function close() {
@@ -225,15 +226,15 @@ const isLoading = ref(true);
 const api = useApi();
 const toast = useToast();
 const debouncerHandle = ref(null as WatchStopHandle | null);
-const archetypesGroup = ref(null as IArchetypeDtoGroup[] | null);
+const archetypesGroup = ref(null as ArchetypeGroup[] | null);
 const activeTab = ref<"permissions" | "users">("permissions");
 const search = ref("");
 const userSearchQuery = ref("");
 const searchResults = ref<RealtimeUser[]>([]);
 
 const addableSearchResults = computed(() => {
-  const existingIds = new Set(usersForRole.value.map((u) => u.UserId));
-  return searchResults.value.filter((u) => !existingIds.has(u.UserId));
+  const existingIds = new Set(usersForRole.value.map((u) => u.userId));
+  return searchResults.value.filter((u) => !existingIds.has(u.userId));
 });
 
 watchDebounced(
@@ -263,7 +264,7 @@ const archetypes = useLiveQuery(() => {
 const selectedArchetypeId = ref<string | null>(null);
 
 const selectedArchetype = computed(() => {
-  return archetypes.value?.find((a) => a.Id === selectedArchetypeId.value);
+  return archetypes.value?.find((a) => a.id === selectedArchetypeId.value);
 });
 
 const revokeArchetype = async (userId: Guid) => {
@@ -276,11 +277,11 @@ const assignArchetype = async (userId: Guid) => {
 const grantOrRevoke = async (userId: Guid, isGrain: boolean) => {
   logger.warn("called assign to archetype for user", userId);
   if (!selectedArchetype.value) return;
-  const userIds = await pool.getMemberIdsByUserIds(selectedArchetype.value.ServerId, [userId]);
+  const userIds = await pool.getMemberIdsByUserIds(selectedArchetype.value.spaceId, [userId]);
 
   if (!userIds || userIds.length == 0) return;
 
-  api.serverInteraction.SetArchetypeToMember(selectedArchetype.value.ServerId, userIds.at(0)!, selectedArchetype.value.Id, isGrain);
+  api.archetypeInteraction.SetArchetypeToMember(selectedArchetype.value.spaceId, userIds.at(0)!, selectedArchetype.value.id, isGrain);
 }
 
 const usersForRole = ref<RealtimeUser[]>([]);
@@ -288,7 +289,7 @@ let unsubscribeUsers: Subscription | null = null;
 
 const entitlementFlags = computed(() => {
   if (!selectedArchetype.value) return [];
-  return extractEntitlements(BigInt(selectedArchetype.value.Entitlement));
+  return extractEntitlements(BigInt(selectedArchetype.value.entitlement));
 });
 const includesEntitlement = (
   val: ArgonEntitlementFlag[],
@@ -313,7 +314,7 @@ onMounted(async () => {
 });
 
 watch(
-  () => selectedArchetype.value?.Id,
+  () => selectedArchetype.value?.id,
   (newId) => {
     if (unsubscribeUsers) {
       unsubscribeUsers.unsubscribe();
@@ -347,8 +348,8 @@ onUnmounted(() => {
 const getUsersForArchetypeGroup = (archetypeId: Guid) => {
   if (!archetypesGroup.value) return [];
   const members = archetypesGroup.value.find(
-    (x) => x.Archetype.Id === archetypeId,
-  )?.Members;
+    (x) => x.archetype.id === archetypeId,
+  )?.members;
 
   if (!members) return [];
 
@@ -358,11 +359,11 @@ const getUsersForArchetypeGroup = (archetypeId: Guid) => {
   );
 };
 
-const isLockedArchetype = (arch: IArchetypeDto, includeEveryone = false) => {
-  if (arch.IsLocked) return true;
-  if (arch.IsHidden) return true;
-  if (arch.Name === "owner") return true;
-  if (includeEveryone && arch.Name === "everyone") return true;
+const isLockedArchetype = (arch: Archetype, includeEveryone = false) => {
+  if (arch.isLocked) return true;
+  if (arch.isHidden) return true;
+  if (arch.name === "owner") return true;
+  if (includeEveryone && arch.name === "everyone") return true;
   return false;
 };
 
@@ -374,12 +375,12 @@ const stopTrackingDebouncer = () => {
 const startTrackingDebouncer = () => {
   debouncerHandle.value = watchDebounced(
     () => [
-      selectedArchetype.value?.Name,
-      selectedArchetype.value?.Description,
-      selectedArchetype.value?.Colour,
-      selectedArchetype.value?.Entitlement,
-      selectedArchetype.value?.IsGroup,
-      selectedArchetype.value?.IsMentionable,
+      selectedArchetype.value?.name,
+      selectedArchetype.value?.description,
+      selectedArchetype.value?.colour,
+      selectedArchetype.value?.entitlement,
+      selectedArchetype.value?.isGroup,
+      selectedArchetype.value?.isMentionable,
     ],
     async () => await updateArchetypeLocal(),
     { debounce: 1300, immediate: false },
@@ -397,14 +398,14 @@ const filteredArchetypes = computed(() => {
   const q = search.value.toLowerCase();
   return archetypes.value?.filter(
     (a) =>
-      a.Name.toLowerCase().includes(q) ||
-      a.Description.toLowerCase().includes(q),
+      a.name.toLowerCase().includes(q) ||
+      a.description.toLowerCase().includes(q),
   );
 });
 
 async function addArchetype() {
   if (!selectedServer.value) return;
-  await api.serverInteraction.CreateArchetypeAsync(
+  await api.archetypeInteraction.CreateArchetype(
     selectedServer.value,
     "New Archetype",
   );
@@ -414,8 +415,8 @@ function updateArchetypeLocal() {
   logger.info("called update archetype", selectedArchetype.value);
   if (!selectedArchetype.value) return;
   try {
-    const result = api.serverInteraction.UpdateArchetypeAsync(
-      selectedArchetype.value.ServerId,
+    const result = api.archetypeInteraction.UpdateArchetype(
+      selectedArchetype.value.spaceId,
       selectedArchetype.value,
     );
     toast.toast({
@@ -438,17 +439,17 @@ function toggleFlag(flag: bigint, checked: boolean) {
     (f) => f === extractEntitlementStrict(flag),
   );
   if (checked && idx === -1) {
-    selectedArchetype.value.Entitlement = (
-      BigInt(selectedArchetype.value.Entitlement) | flag
+    selectedArchetype.value.entitlement = (
+      BigInt(selectedArchetype.value.entitlement) | flag
     ).toString();
   } else if (!checked && idx !== -1) {
-    selectedArchetype.value.Entitlement = (
-      BigInt(selectedArchetype.value.Entitlement) & ~flag
+    selectedArchetype.value.entitlement = (
+      BigInt(selectedArchetype.value.entitlement) & ~flag
     ).toString();
   }
   logger.info(
     "updated",
-    extractEntitlements(BigInt(selectedArchetype.value.Entitlement)),
+    extractEntitlements(BigInt(selectedArchetype.value.entitlement)),
   );
 }
 const formatColour = (argb: number) => {

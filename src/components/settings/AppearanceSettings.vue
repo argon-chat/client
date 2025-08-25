@@ -3,21 +3,17 @@
         <h2 class="text-2xl font-bold">Profile Settings</h2>
         <div class="avatar-username flex items-center space-x-4">
             <div class="avatar">
-                <ArgonAvatar :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
-                        :user-id="me.me.Id" alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500"  />
+                <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId.unwrapOrDefault()!"
+                        :user-id="me.me.userId" alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500"  />
             </div>
             <div>
                 <label class="block font-semibold mb-1">Username</label>
-                <Input v-model="me.me.Username" type="text" class="input-field" placeholder="Enter username" />
+                <Input v-model="me.me.username" type="text" class="input-field" placeholder="Enter username" />
             </div>
         </div>
         <div>
             <label class="block font-semibold mb-1">Display Name</label>
-            <Input v-model="me.me.DisplayName" type="text" class="input-field" placeholder="Enter display name" />
-        </div>
-        <div>
-            <label class="block font-semibold mb-1">Email</label>
-            <Input v-model="me.me.Email" type="email" class="input-field" placeholder="Enter email" />
+            <Input v-model="me.me.displayName" type="text" class="input-field" placeholder="Enter display name" />
         </div>
         <div v-if="false">
             <label class="block font-semibold mb-1">Password</label>

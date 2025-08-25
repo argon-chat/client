@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-ignore
 import type { toggleVariants } from "@/lib/registry/default/ui/toggle";
 import type { VariantProps } from "class-variance-authority";
 import type { ToggleGroupRootEmits, ToggleGroupRootProps } from "radix-vue";

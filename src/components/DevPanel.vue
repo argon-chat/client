@@ -32,11 +32,7 @@ function applyChanges(data: any) {
         <div v-if="devPanelShow"
             class="fixed top-0 left-0 h-full w-80 bg-black bg-opacity-70 backdrop-blur-md z-50 p-6 overflow-y-auto">
             <h2 class="text-xl font-bold mb-4 text-white">Development Panel</h2>
-            <AutoForm class="space-y-4 text-white" @submit="applyChanges" :schema="cfg.scheme">
-                <Button type="submit">
-                    Save
-                </Button>
-            </AutoForm>
+            
         </div>
     </Transition>
 </template>

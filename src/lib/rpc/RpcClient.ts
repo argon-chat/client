@@ -11,6 +11,7 @@ import { type Ref, ref } from "vue";
 import delay from "../delay";
 import { logger } from "../logger";
 import { ArgonTransportClient } from "../proto/transport.client";
+import { IArgonEvent } from "../glue/argonChat";
 
 export function buildAtUrl(
   upgrade: string,

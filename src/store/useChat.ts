@@ -4,14 +4,16 @@ import Dexie from "dexie";
 import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
 import { usePoolStore } from "./poolStore";
+import { ArgonMessage } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 
 const PAGE_SIZE = 30;
 
-export function useChat(channelId: string) {
-  const messages = ref<IArgonMessage[]>([]);
+export function useChat(serverId: Guid, channelId: Guid) {
+  const messages = ref<ArgonMessage[]>([]);
   const isLoading = ref(false);
   const hasMore = ref(true);
-  const lastLoadedMessageId = ref<number | null>(null);
+  const lastLoadedMessageId = ref<bigint | null>(null);
   const api = useApi();
   const pool = usePoolStore();
 
@@ -25,7 +27,7 @@ export function useChat(channelId: string) {
 
     messages.value = local;
     if (local.length) {
-      lastLoadedMessageId.value = local[0].MessageId;
+      lastLoadedMessageId.value = local[0].messageId;
     }
     await loadOlderMessages(totalRequested);
   }
@@ -38,10 +40,11 @@ export function useChat(channelId: string) {
     const before = lastLoadedMessageId.value;
 
     try {
-      const data = await api.serverInteraction.GetMessages(
+      const data = await api.channelInteraction.GetMessages(
+        serverId,
         channelId,
         totalRequested,
-        before ?? 0,
+        before ?? 0n,
       );
 
       logger.log("Received messages", data);
@@ -53,17 +56,17 @@ export function useChat(channelId: string) {
 
       await db.messages.bulkPut(data);
       messages.value = [...data, ...messages.value];
-      lastLoadedMessageId.value = data[0].MessageId;
+      lastLoadedMessageId.value = data[0].messageId;
     } finally {
       isLoading.value = false;
     }
   }
 
-  function addNewMessage(message: IArgonMessage) {
-    if (message.ChannelId !== channelId) return;
+  function addNewMessage(message: ArgonMessage) {
+    if (message.channelId !== channelId) return;
 
     const exists = messages.value.some(
-      (m) => m.MessageId === message.MessageId,
+      (m) => m.messageId === message.messageId,
     );
     if (exists) return;
 

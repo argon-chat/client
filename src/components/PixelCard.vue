@@ -1,4 +1,6 @@
+
 <template>
+  <!-- @vue-ignore -->
   <div ref="containerRef" class="pixel-card" @focus="finalNoFocus ? undefined : onFocus"
     @blur="finalNoFocus ? undefined : onBlur" :tabindex="finalNoFocus ? -1 : 0">
     <canvas ref="canvasRef" class="pixel-canvas"></canvas>

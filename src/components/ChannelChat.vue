@@ -5,7 +5,7 @@
             <div class="p-4 flex flex-col border-b space-y-1">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold relative z-10 text-white flex items-center">
-                        <HashIcon class="mr-2" /> {{ channelData.Name }}
+                        <HashIcon class="mr-2" /> {{ channelData.name }}
                     </h2>
                 </div>
             </div>
@@ -17,10 +17,10 @@
                         <span>
                             {{
                                 typingUsers.length === 1
-                                    ? t("typing.one", { name: typingUsers[0].DisplayName })
+                                    ? t("typing.one", { name: typingUsers[0].displayName })
                                     : typingUsers.length <= 3 ? t("typing.few", {
                                         names: typingUsers.map(u =>
-                                            u.DisplayName).join(", ")
+                                            u.displayName).join(", ")
                                     }) : t("typing.many")
                             }}
                         </span>
@@ -68,10 +68,11 @@ import type { Subscription } from "rxjs";
 import { HashIcon } from "lucide-vue-next";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useBus } from "@/store/busStore";
+import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent, UserStopTypingEvent, UserTypingEvent } from "@/lib/glue/argonChat";
 const { t } = useLocale();
 const pool = usePoolStore();
 const bus = useBus();
-const channelData = ref(null as null | IChannel);
+const channelData = ref(null as null | ArgonChannel);
 const subs = ref(null as Subscription | null);
 const hiddenChannelId = ref(null as null | Guid);
 const messageContainer = ref<HTMLElement | null>(null);
@@ -82,9 +83,9 @@ const TYPING_TIMEOUT_MS = 15000;
 
 const getChannel = (channelId: Guid) => pool.getChannel(channelId);
 
-const replyTo = ref<IArgonMessageDto | null>(null);
+const replyTo = ref<ArgonMessage | null>(null);
 
-function onReplySelect(message: IArgonMessageDto) {
+function onReplySelect(message: ArgonMessage) {
   replyTo.value = message;
 }
 
@@ -98,18 +99,18 @@ watch(
 const onTypingEvent = () => {
   if (!channelData.value) return;
   bus.sendEventAsync({
-    channelId: channelData.value.Id,
-    serverId: channelData.value.ServerId,
+    channelId: channelData.value.channelId,
+    serverId: channelData.value.spaceId,
     EventKey: "IAmTypingEvent",
-  } as IAmTypingEvent);
+  } as any);
 };
 const onStopTypingEvent = () => {
   if (!channelData.value) return;
   bus.sendEventAsync({
-    channelId: channelData.value.Id,
-    serverId: channelData.value.ServerId,
+    channelId: channelData.value.channelId,
+    serverId: channelData.value.spaceId,
     EventKey: "IAmStopTypingEvent",
-  } as IAmStopTypingEvent);
+  } as any);
 };
 
 function scheduleTypingTimeout(userId: string) {
@@ -119,7 +120,7 @@ function scheduleTypingTimeout(userId: string) {
   const timer = setTimeout(() => {
     const last = lastTypingTime.get(userId);
     if (last && Date.now() - last >= TYPING_TIMEOUT_MS) {
-      typingUsers.value = typingUsers.value.filter((u) => u.UserId !== userId);
+      typingUsers.value = typingUsers.value.filter((u) => u.userId !== userId);
       typingTimers.delete(userId);
       lastTypingTime.delete(userId);
     }
@@ -136,7 +137,7 @@ onMounted(async () => {
 
       lastTypingTime.set(q.userId, Date.now());
 
-      if (!typingUsers.value.some((u) => u.UserId === q.userId)) {
+      if (!typingUsers.value.some((u) => u.userId === q.userId)) {
         const user = await pool.getUser(q.userId);
         if (user) typingUsers.value.push(user);
       }
@@ -150,7 +151,7 @@ onMounted(async () => {
       if (q.channelId !== hiddenChannelId.value) return;
 
       typingUsers.value = typingUsers.value.filter(
-        (u) => u.UserId !== q.userId,
+        (u) => u.userId !== q.userId,
       );
       lastTypingTime.delete(q.userId);
 

@@ -4,7 +4,6 @@ import { logger } from "@/lib/logger";
 import {
   type ConnectionQuality,
   ConnectionState,
-  DisconnectReason,
   LocalAudioTrack,
   type LocalTrackPublication,
   LocalVideoTrack,
@@ -36,7 +35,7 @@ import { useConfig } from "./remoteConfig";
 import { useSessionTimer } from "./sessionTimer";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
-import { M } from "motion-v";
+import { ArgonChannel } from "@/lib/glue/argonChat";
 
 export type DirectRef<T> = Ref<T, T>;
 
@@ -65,7 +64,7 @@ export const useVoice = defineStore("voice", () => {
 
   const isConnected = computed(() => currentState.value === "CONNECTED");
 
-  const activeChannel = ref(null as null | IChannel);
+  const activeChannel = ref(null as null | ArgonChannel);
 
   async function switchMicrophone(room: Room, newDeviceId: string) {
     const localParticipant = room.localParticipant;
@@ -131,7 +130,7 @@ export const useVoice = defineStore("voice", () => {
   });
 
   async function connectToChannel(channelId: string) {
-    if (activeChannel.value?.Id === channelId) return;
+    if (activeChannel.value?.channelId === channelId) return;
 
     sessionTimerStore.stopTimer();
     pool.selectedChannel = channelId;
@@ -143,23 +142,24 @@ export const useVoice = defineStore("voice", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return;
 
-    const livekitToken = await api.serverInteraction.JoinToVoiceChannel(
+    const joinResult = await api.channelInteraction.JoinToVoiceChannel(
       selectedServer,
       channelId
     );
 
-    logger.log("Livekit authorization", livekitToken);
-
-    if (!livekitToken.IsSuccess) {
+    if (joinResult.isFailedJoinVoice()) {
       logger.error(
         "Failed retrive authorization token for login to room",
-        livekitToken.Error
+        joinResult.error
       );
       currentState.value = "NONE";
       activeChannel.value = null;
       pool.selectedChannel = null;
       return;
+    } else if (!joinResult.isSuccessJoinVoice()) {
+      throw new Error("");
     }
+
 
     const connectOptions: RoomConnectOptions = {
       maxRetries: 500,
@@ -176,10 +176,10 @@ export const useVoice = defineStore("voice", () => {
     room.on("reconnecting", onReconnectiong);
     room.once("disconnected", async (reason) => {
       logger.warn("DISCONECT CALLED", reason);
-      await disconnectFromChannel(); 
+      await disconnectFromChannel();
     });
     try {
-      await room.connect(cfg.webRtcEndpoint, livekitToken.Value, {
+      await room.connect(cfg.webRtcEndpoint, joinResult.token, {
         ...connectOptions,
       });
 
@@ -295,9 +295,9 @@ export const useVoice = defineStore("voice", () => {
     const room = connectedRoom.room;
     try {
       if (room) {
-        await api.serverInteraction.DisconnectFromVoiceChannel(
-          activeChannel.value?.ServerId as string,
-          activeChannel.value?.Id as string
+        await api.channelInteraction.DisconnectFromVoiceChannel(
+          activeChannel.value?.spaceId as string,
+          activeChannel.value?.channelId as string
         );
         room.off("trackSubscribed", onTrackSubscribed);
         room.off("trackUnsubscribed", onTrackUnsubscribed);
@@ -463,20 +463,14 @@ export const useVoice = defineStore("voice", () => {
 
       const room = connectedRoom.room;
 
-      const enabled = room.localParticipant.isScreenShareEnabled;
-
-      const selectedPreset = allSizes
-        .filter((x) => x.preset === options.preset)
-        .at(0);
-
       const sharingOptions: ScreenShareCaptureOptions = {
         video: {
           mandatory: {
             chromeMediaSource: "desktop",
             chromeMediaSourceId: options.deviceId,
             resizeMode: "none",
-          },
-        },
+          } as any,
+        } as any,
         audio: false,
         systemAudio: options.systemAudio,
         suppressLocalAudioPlayback: true,
@@ -484,8 +478,8 @@ export const useVoice = defineStore("voice", () => {
           width: 1920,
           height: 1080,
         },
-        resizeMode: "none",
-      };
+        resizeMode: "none" as any,
+      } as any;
 
       const mediaStream =
         await navigator.mediaDevices.getUserMedia(sharingOptions);
@@ -493,9 +487,7 @@ export const useVoice = defineStore("voice", () => {
       const localVideoTrack = new LocalVideoTrack(mediaStream.getTracks()[0]);
       localVideoTrack.source = Track.Source.ScreenShare;
 
-      screenTrack = await room.localParticipant.publishTrack(
-        localVideoTrack
-      );
+      screenTrack = await room.localParticipant.publishTrack(localVideoTrack);
 
       isSharing.value = true;
       /*screenTrack = await room.localParticipant.setScreenShareEnabled(

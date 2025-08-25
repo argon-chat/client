@@ -36,7 +36,7 @@
                     <Label for="channel-type" class="text-right">
                         Type
                     </Label>
-                    <RadioGroup id="channel-type" v-model="channelType" :orientation="'vertical'">
+                    <RadioGroup id="channel-type" v-model="channelType.toString()" :orientation="'vertical'">
                         <div class="flex items-center space-x-2">
                             <RadioGroupItem id="r1" value="Text" />
                             <Label for="r1">
@@ -88,15 +88,6 @@ import { useServerStore } from "@/store/serverStore";
 import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
-
-import { MoreVerticalIcon } from "lucide-vue-next";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -110,6 +101,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ChannelType } from "@/lib/glue/argonChat";
 
 const { t } = useLocale();
 
@@ -120,7 +112,7 @@ const addChannel_Loading = ref(false);
 const addChannelOpened = ref(false);
 const pex = usePexStore();
 
-const channelType = ref("" as "Text" | "Voice" | "Announcement");
+const channelType = ref(ChannelType.Text);
 const channelName = ref("");
 async function openServerSettings() {
   windows.serverSettingsOpen = true;

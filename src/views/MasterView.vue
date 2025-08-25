@@ -44,7 +44,7 @@ const { t } = useLocale();
 
 onMounted(async () => {
   const s = await dataPool.allServerAsync;
-  dataPool.selectedServer = s[0].Id;
+  dataPool.selectedServer = s[0].spaceId;
 });
 </script>
 

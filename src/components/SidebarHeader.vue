@@ -5,7 +5,7 @@
 
         <div class="relative p-4 flex justify-between items-center " v-if="pool.selectedServer">
             <h2 class="text-lg font-bold relative z-10 text-white ">
-                {{ pool.getSelectedServer?.Name }}
+                {{ pool.getSelectedServer?.name }}
             </h2>
         </div>
     </div>

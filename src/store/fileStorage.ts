@@ -72,7 +72,7 @@ export const useFileStorage = defineStore("files", () => {
 
     return fetchByFileId({
       fileId,
-      bucket: imagesBucket.value,
+      bucket: imagesBucket.value as any,
       fileUrlBuilder: (x) =>
         `https://eu.argon.zone/user/${unwrap(userId)}/${x}`,
       allowFallback: false,
@@ -81,7 +81,7 @@ export const useFileStorage = defineStore("files", () => {
   async function fetchServerAvatar(fileId: string, serverId: string) {
     return fetchByFileId({
       fileId,
-      bucket: imagesBucket.value,
+      bucket: imagesBucket.value as any,
       fileUrlBuilder: (x) =>
         `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
       allowFallback: false,
@@ -177,9 +177,9 @@ export const useFileStorage = defineStore("files", () => {
     return fetchByFileId({
       fileId,
       bucket: imagesBucket.value,
-      fileUrlBuilder: (x) =>
+      fileUrlBuilder: (x: any) =>
         `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
-    });
+    } as any);
   }
 
   return {

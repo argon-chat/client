@@ -23,6 +23,7 @@ import {
   PinInputSeparator,
 } from "@/components/ui/pin-input";
 import { logger } from "@/lib/logger";
+import { IonMaybe } from "@argon-chat/ion.webcore";
 
 const router = useRouter();
 
@@ -75,13 +76,13 @@ async function onSubmit(event: Event | null) {
 
     if (isRegister.value) {
       await authStore.register({
-        AgreeOptionalEmails: allowSendMeOptionalEmails.value,
-        AgreeTos: agreeTos.value,
-        BirthDate: new Date(),
-        DisplayName: displayName.value,
-        Email: email.value,
-        Password: password.value,
-        Username: username.value,
+        argreeOptionalEmails: allowSendMeOptionalEmails.value,
+        argreeTos: agreeTos.value,
+        displayName: displayName.value,
+        email: email.value,
+        password: password.value,
+        username: username.value,
+        captchaToken: IonMaybe.None()
       });
     } else {
       await authStore.login(

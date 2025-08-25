@@ -4,6 +4,7 @@ import { ref } from "vue";
 import { logger } from "@/lib/logger";
 import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
+import { ActivityPresenceKind } from "@/lib/glue/argonChat";
 
 export interface IMusicEvent {
   title: string;
@@ -73,7 +74,7 @@ export const useActivity = defineStore("activity", () => {
   function onActivityTerminated(pid: number) {
     logger.info("onActivityTerminated", pid);
     if (activeActivity.value === pid) {
-      api.userInteraction.RemoveBroadcastPresenceAsync();
+      api.userInteraction.RemoveBroadcastPresence();
       activeActivity.value = null;
     }
     gameSessions.delete(pid);
@@ -88,24 +89,24 @@ export const useActivity = defineStore("activity", () => {
     logger.info("publishLatestActivity, ", latestGame, latestMusic);
 
     if (latestMusic?.isPlaying) {
-      api.userInteraction.BroadcastPresenceAsync({
-        Kind: "LISTEN",
-        StartTimestampSeconds: 0,
-        TitleName: `${latestMusic.title} - ${latestMusic.author}`,
+      api.userInteraction.BroadcastPresence({
+        kind: ActivityPresenceKind.LISTEN,
+        startTimestampSeconds: 0n,
+        titleName: `${latestMusic.title} - ${latestMusic.author}`,
       });
     } else if (latestGame) {
-      api.userInteraction.BroadcastPresenceAsync({
-        Kind: "GAME",
-        StartTimestampSeconds: 0,
-        TitleName: latestGame.name,
+      api.userInteraction.BroadcastPresence({
+        kind: ActivityPresenceKind.GAME,
+        startTimestampSeconds: 0n,
+        titleName: latestGame.name,
       });
     } else if (lastSoftware) {
-      api.userInteraction.BroadcastPresenceAsync({
-        Kind: "SOFTWARE",
-        StartTimestampSeconds: 0,
-        TitleName: lastSoftware.name,
+      api.userInteraction.BroadcastPresence({
+        kind: ActivityPresenceKind.SOFTWARE,
+        startTimestampSeconds: 0n,
+        titleName: lastSoftware.name,
       });
-    } else api.userInteraction.RemoveBroadcastPresenceAsync();
+    } else api.userInteraction.RemoveBroadcastPresence();
   }
 
   function getLastMusicSession(): IMusicEvent | null {

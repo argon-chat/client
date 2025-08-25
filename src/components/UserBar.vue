@@ -1,10 +1,10 @@
 <template>
   <div class="user-bar" v-if="me.me">
     <div class="user-info" style="width: 150px;">
-      <ArgonAvatar class="user-avatar" :fallback="me.me.DisplayName" :file-id="me.me?.AvatarFileId!"
-        :user-id="me.me.Id" />
+      <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId.unwrapOrDefault()"
+        :user-id="me.me.userId" />
       <div class="user-details items-start">
-        <span class="user-name">{{ me.me?.DisplayName }}</span>
+        <span class="user-name">{{ me.me?.displayName }}</span>
         <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
           {{ t(`status_${me.me?.currentStatus}`) }}
         </span>

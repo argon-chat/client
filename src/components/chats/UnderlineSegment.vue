@@ -1,9 +1,10 @@
 <template>
     <span :class="['underline', colour]" :style="{
-        'text-decoration-color': props.entity.Colour == 0 ? '' : `#${(props.entity.Colour & 0xFFFFFF).toString(16).padStart(6, '0')}`
+        'text-decoration-color': props.entity.colour == 0 ? '' : `#${(props.entity.colour & 0xFFFFFF).toString(16).padStart(6, '0')}`
     }">{{ props.text }}</span>
 </template>
-<script setup lang="ts" generic="T extends IMessageEntityUnderline">
+<script setup lang="ts" generic="T extends MessageEntityUnderline">
+import { MessageEntityUnderline } from "@/lib/glue/argonChat";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -12,6 +13,6 @@ const props = defineProps<{
 }>();
 
 const colour = computed(() =>
-  props.entity.Colour === 0 ? "decoration-blue-600" : "",
+  props.entity.colour === 0 ? "decoration-blue-600" : "",
 );
 </script>

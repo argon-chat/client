@@ -5,16 +5,17 @@ import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
+import { IArgonEvent, UserStatus } from "@/lib/glue/argonChat";
 
 export type EventWithServerId<T> = { serverId: string } & T;
 
 export const useBus = defineStore("bus", () => {
-  const argonEventBus = new Subject<{ serverId: string } & IArgonEvent>();
+  const argonEventBus = new Subject<IArgonEvent>();
   const userEventBus = new Subject<IArgonEvent>();
   const intervalSubject = ref(null as Subscription | null);
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
-    "Online",
+    UserStatus.Online,
     { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true },
   );
 
@@ -35,34 +36,34 @@ export const useBus = defineStore("bus", () => {
         .subscribe();
     }
 
-    const handle = await api.eventBus.SubscribeToServerEvents(id);
+    const handle = await api.eventBus.ForServer(id);
     for await (const e of handle) {
-      if (e.EventKey !== "UserChangedStatus")
-        logger.log(`Received event, ${e.EventKey}`, e);
-      argonEventBus.next({ serverId: id, ...e });
+      if (e.UnionKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.UnionKey}`, e);
+      argonEventBus.next(e);
       if (signal.aborted) break;
     }
   }
 
   async function doListenMyEvents() {
-    const handle = await api.eventBus.SubscribeToMeEvents();
+    const handle = await api.eventBus.ForSelf();
     for await (const e of handle) {
-      if (e.EventKey !== "UserChangedStatus")
-        logger.log(`Received event, ${e.EventKey}`, e);
+      if (e.UnionKey !== "UserChangedStatus")
+        logger.log(`Received event, ${e.UnionKey}`, e);
       userEventBus.next(e);
       if (signal.aborted) break;
     }
   }
 
   async function sendEventAsync<T extends IArgonEvent>(t: T) {
-    await api.getRawClient().value.sendPackageToActieTransport(t);
+    /*await api.getRawClient().value.sendPackageToActieTransport(t);*/
   }
 
   async function sendHeartbeat() {
-    await api.getRawClient().value.sendPackageToActieTransport({
+    /*await api.getRawClient().value.sendPackageToActieTransport({
       EventKey: "HeartBeatEvent",
       status: preferredStatus.value,
-    } as HeartBeatEvent);
+    } as HeartBeatEvent);*/
   }
 
   function listenEvents(id: string) {
@@ -70,24 +71,24 @@ export const useBus = defineStore("bus", () => {
   }
 
   function onServerEvent<T extends IArgonEvent>(
-    key: T["EventKey"],
+    key: T["UnionKey"],
     callback: (event: EventWithServerId<T>) => void,
   ): Subscription {
     return argonEventBus
       .pipe(
         filter(
-          (event): event is EventWithServerId<T> => event.EventKey === key,
+          (event): event is EventWithServerId<T> => event.UnionKey === key,
         ),
       )
       .subscribe(callback);
   }
 
   function onUserEvent<T extends IArgonEvent>(
-    key: T["EventKey"],
+    key: T["UnionKey"],
     callback: (event: T) => void,
   ): Subscription {
     return userEventBus
-      .pipe(filter((event): event is T => event.EventKey === key))
+      .pipe(filter((event): event is T => event.UnionKey === key))
       .subscribe(callback);
   }
 

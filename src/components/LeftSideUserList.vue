@@ -2,15 +2,15 @@
   <div
     class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
     style="background-color: #161616f5; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-    <div v-for="group in dataPool.groupedServerUsers.value" :key="group.archetype.Id" class="mb-4">
+    <div v-for="group in dataPool.groupedServerUsers.value" :key="group.archetype.id" class="mb-4">
       <h4 class="text-sm font-semibold text-gray-300 tracking-wide mb-2 flex items-center space-x-1">
-        <span v-if="group.archetype.IconFileId">
-          <img :src="`/api/icons/${group.archetype.IconFileId}`" class="w-4 h-4 inline-block mr-1" />
+        <span v-if="group.archetype.iconFileId">
+          <img :src="`/api/icons/${group.archetype.iconFileId}`" class="w-4 h-4 inline-block mr-1" />
         </span>
-        <span :style="{ color: formatColour(group.archetype.Colour) }">{{ group.archetype.Name }}</span>
+        <span :style="{ color: formatColour(group.archetype.colour) }">{{ group.archetype.name }}</span>
       </h4>
       <ul class="text-gray-400 space-y-2">
-        <li v-for="user in group.users" :key="user.UserId"
+        <li v-for="user in group.users" :key="user.userId"
           class="flex items-center space-x-3 hover:text-white user-item">
           <UserInListSideElement :user="user" />
         </li>

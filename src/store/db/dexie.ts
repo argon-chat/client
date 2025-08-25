@@ -1,9 +1,10 @@
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonUser, SpaceMember, UserActivityPresence, UserStatus } from "@/lib/glue/argonChat";
 import Dexie, { type Table } from "dexie";
 
-export type RealtimeUser = IUserDto & {
+export type RealtimeUser = ArgonUser & {
   status: UserStatus;
-  activity?: IUserActivityPresence;
-  archetypes?: IArchetypeDto[];
+  activity?: UserActivityPresence;
+  archetypes?: Archetype[];
 };
 
 const tryDropOldDb = (s: string) => {
@@ -14,27 +15,28 @@ const tryDropOldDb = (s: string) => {
 
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
-  servers!: Table<IServerDto, Guid>;
-  channels!: Table<IChannel, Guid>;
-  messages!: Table<IArgonMessageDto, number>;
-  archetypes!: Table<IArchetypeDto, Guid>;
-  members!: Table<IServerMemberDto, Guid>;
+  servers!: Table<ArgonSpace, Guid>;
+  channels!: Table<ArgonChannel, Guid>;
+  messages!: Table<ArgonMessage, number>;
+  archetypes!: Table<Archetype, Guid>;
+  members!: Table<SpaceMember, Guid>;
 
   constructor() {
-    super("argon-db-v3");
+    super("argon-db-v4");
     this.version(1).stores({
-      users: "UserId",
-      servers: "Id",
-      channels: "Id, ServerId",
+      users: "userId",
+      servers: "spaceId",
+      channels: "channelId, spaceId",
       messages:
-        "MessageId, [ChannelId+MessageId], [ServerId+ChannelId+MessageId]",
-      archetypes: "Id, ServerId, [Id+ServerId]",
+        "messageId, [channelId+messageId], [spaceId+channelId+messageId]",
+      archetypes: "id, spaceId, [Id+spaceId]",
       members:
-        "MemberId, [MemberId+UserId], [UserId+ServerId], [MemberId+UserId+ServerId], [MemberId+ServerId]",
+        "memberId, [memberId+userId], [userId+spaceId], [memberId+userId+spaceId], [memberId+spaceId]",
     });
 
     tryDropOldDb("argon-db");
     tryDropOldDb("argon-db-v2");
+    tryDropOldDb("argon-db-v3");
   }
 }
 

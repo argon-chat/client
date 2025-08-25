@@ -2,7 +2,7 @@
     <div class="relative w-full">
         <div v-if="replyTo" class="reply-banner">
             <div class="reply-info">
-                <strong>Replying to:</strong> {{ replyTo.Text }}
+                <strong>Replying to:</strong> {{ replyTo.text }}
             </div>
             <X class="text-red-600" @click="$emit('clear-reply')" />
         </div>
@@ -66,6 +66,8 @@ import { useApi } from "@/store/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/poolStore";
 import { useDebounce } from "@vueuse/core";
 import { Subscription } from "rxjs";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
+import { IonMaybe } from "@argon-chat/ion.webcore";
 
 const editorRef = ref<HTMLElement | null>(null);
 const api = useApi();
@@ -160,7 +162,7 @@ watch(debouncedQuery, async (query) => {
 });
 
 const props = defineProps<{
-  replyTo: IArgonMessageDto | null;
+  replyTo: ArgonMessage | null;
 }>();
 
 const emit = defineEmits<{
@@ -588,28 +590,28 @@ function extractEntitiesFromEditor(): IMessageEntity[] {
       if (el.dataset.userId) {
         el.childNodes.forEach(processNode);
         entities.push({
-          Type: "Mention",
-          Offset: offsetStart,
-          Length: currentOffset - offsetStart,
-          UserId: el.dataset.userId,
-          Version: 1,
-        } as IMessageEntityMention);
+          type: EntityType.Mention,
+          offset: offsetStart,
+          length: currentOffset - offsetStart,
+          userId: el.dataset.userId,
+          version: 1,
+        } as MessageEntityMention);
       } else if (el.tagName === "I") {
         el.childNodes.forEach(processNode);
         entities.push({
-          Type: "Italic",
-          Offset: offsetStart,
-          Length: currentOffset - offsetStart,
-          Version: 1,
-        });
+          type: EntityType.Italic,
+          offset: offsetStart,
+          length: currentOffset - offsetStart,
+          version: 1
+        }as any);
       } else if (el.tagName === "B") {
         el.childNodes.forEach(processNode);
         entities.push({
-          Type: "Bold",
-          Offset: offsetStart,
-          Length: currentOffset - offsetStart,
-          Version: 1,
-        });
+          type: EntityType.Bold,
+          offset: offsetStart,
+          length: currentOffset - offsetStart,
+          version: 1,
+        } as any);
       } else if (el.tagName === "U") {
         el.childNodes.forEach(processNode);
         const classColor = [...el.classList].find((c) =>
@@ -633,20 +635,20 @@ function extractEntitiesFromEditor(): IMessageEntity[] {
         const colourNum = colourHex ? Number.parseInt(colourHex, 16) : 0xffffff;
 
         entities.push({
-          Type: "Underline",
-          Offset: offsetStart,
-          Length: currentOffset - offsetStart,
-          Colour: colourNum,
-          Version: 1,
-        } as IMessageEntityUnderline);
+          type: EntityType.Underline,
+          offset: offsetStart,
+          length: currentOffset - offsetStart,
+          colour: colourNum,
+          version: 1,
+        } as MessageEntityUnderline);
       } else if (el.tagName === "SPAN" && el.dataset.fractions === "1") {
         el.childNodes.forEach(processNode);
         entities.push({
-          Type: "Fraction",
-          Offset: offsetStart,
-          Length: currentOffset - offsetStart,
-          Version: 1,
-        });
+          type: EntityType.Fraction,
+          offset: offsetStart,
+          length: currentOffset - offsetStart,
+          version: 1,
+        } as any);
       } else {
         el.childNodes.forEach(processNode);
       }
@@ -670,11 +672,11 @@ const handleSend = async () => {
   console.log("Sending message:", plainText);
   console.log("totalEntities:", entities);
 
-  await api.serverInteraction.SendMessage(
+  await api.channelInteraction.SendMessage("",
     pool.selectedTextChannel,
     plainText,
     entities,
-    (props.replyTo?.MessageId ?? null) as number,
+    props.replyTo ? IonMaybe.Some(props.replyTo?.messageId) : IonMaybe.None(),
   );
 
   emit("stop_typing");

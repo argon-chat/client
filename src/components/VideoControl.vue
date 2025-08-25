@@ -18,6 +18,7 @@
         </div>
 
         <div v-for="(track, index) in remoteTracks" :key="index" class="remote-video-container">
+            <!-- @vue-ignore -->
             <video :ref="setRemoteVideoRef(index)" autoplay playsinline class="remote-video"></video>
         </div>
 
@@ -122,6 +123,7 @@ const switchAudioSource = async () => {
 
   room.value.localParticipant.unpublishTrack(
     room.value.localParticipant.getTrackPublication(Track.Source.Microphone)
+    // @ts-ignore
       ?.track ?? new LocalAudioTrack(),
   );
 

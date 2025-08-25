@@ -4,6 +4,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
 import { usePoolStore } from "./poolStore";
+import {
+  AcceptInviteError,
+  ChannelType,
+  InviteCode,
+  InviteCodeEntity,
+} from "@/lib/glue/argonChat";
 
 export const useServerStore = defineStore("server", () => {
   const api = useApi();
@@ -13,10 +19,10 @@ export const useServerStore = defineStore("server", () => {
 
   async function createServer(name: string): Promise<boolean> {
     try {
-      await api.userInteraction.CreateServer({
-        AvatarFileId: "",
-        Description: "",
-        Name: name,
+      await api.userInteraction.CreateSpace({
+        avatarFieldId: "",
+        description: "",
+        name: name,
       });
       await pool.loadServerDetails();
       return true;
@@ -27,34 +33,37 @@ export const useServerStore = defineStore("server", () => {
   }
 
   async function joinToServer(inviteCode: string): Promise<boolean> {
-    const r = await api.userInteraction.JoinToServerAsync({
+    const r = await api.userInteraction.JoinToSpace({
       inviteCode,
     });
 
-    if (r.IsSuccess) {
+    if (r.isSuccessJoin()) {
       await pool.loadServerDetails();
       return true;
+    } else if (r.isFailedJoin()) {
+      switch (r.error) {
+        case AcceptInviteError.EXPIRED:
+          toast({
+            title: "Invite code expired",
+            description:
+              "Ask the person who gave you the code to give it again",
+            variant: "destructive",
+            duration: 2500,
+          });
+          return false;
+        case AcceptInviteError.NOT_FOUND:
+        case AcceptInviteError.YOU_ARE_BANNED:
+          toast({
+            title: "Invite code incorrect",
+            description:
+              "Invite code not found or you are not allowed to join this server",
+            variant: "destructive",
+            duration: 2500,
+          });
+          return false;
+      }
     }
-    switch (r.Error) {
-      case "EXPIRED":
-        toast({
-          title: "Invite code expired",
-          description: "Ask the person who gave you the code to give it again",
-          variant: "destructive",
-          duration: 2500,
-        });
-        return false;
-      case "NOT_FOUND":
-      case "YOU_ARE_BANNED":
-        toast({
-          title: "Invite code incorrect",
-          description:
-            "Invite code not found or you are not allowed to join this server",
-          variant: "destructive",
-          duration: 2500,
-        });
-        return false;
-    }
+
     toast({
       title: "Unknown error",
       description: "An error occurred while connecting to the server",
@@ -66,16 +75,16 @@ export const useServerStore = defineStore("server", () => {
 
   async function addChannelToServer(
     channelName: string,
-    channelKind: "Text" | "Voice" | "Announcement",
+    channelKind: ChannelType
   ) {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return;
 
-    await api.serverInteraction.CreateChannel({
+    await api.channelInteraction.CreateChannel(selectedServer, "", {
       name: channelName,
       desc: "",
       kind: channelKind,
-      serverId: selectedServer,
+      spaceId: selectedServer,
     });
   }
 
@@ -83,7 +92,7 @@ export const useServerStore = defineStore("server", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return;
 
-    await api.serverInteraction.DeleteChannel(selectedServer, channelId);
+    await api.channelInteraction.DeleteChannel(selectedServer, channelId);
   }
 
   async function getServerInvites(): Promise<InviteCodeEntity[]> {
@@ -97,10 +106,7 @@ export const useServerStore = defineStore("server", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return null;
 
-    return api.serverInteraction.CreateInviteCode(
-      selectedServer,
-      77760000000000n,
-    );
+    return api.serverInteraction.CreateInviteCode(selectedServer);
   }
 
   return {

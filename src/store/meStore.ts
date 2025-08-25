@@ -5,17 +5,11 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
 import { useBus } from "./busStore";
+import { ArgonUser, UserStatus } from "@/lib/glue/argonChat";
 
 export type ExtendedUser = {
-  currentStatus:
-    | "Offline"
-    | "Online"
-    | "Away"
-    | "InGame"
-    | "Listen"
-    | "TouchGrass"
-    | "DoNotDisturb";
-} & IUser;
+  currentStatus: UserStatus;
+} & ArgonUser;
 
 export const useMe = defineStore("me", () => {
   const api = useApi();
@@ -23,7 +17,7 @@ export const useMe = defineStore("me", () => {
   const me = ref(null as ExtendedUser | null);
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
-    "Online",
+    UserStatus.Online,
     { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true },
   );
 
@@ -43,14 +37,10 @@ export const useMe = defineStore("me", () => {
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
 
     logger.info("Received user info ", me.value);
-    bus.onUserEvent<WelcomeCommander>("WelcomeCommander", (e) => {
-      logger.box(`Welcome commander, ${e.welcomeMessage}`);
-      if (me.value) me.value.currentStatus = e.status;
-    });
     WelcomeCommanderHasReceived.value = true;
     bus.doListenMyEvents();
 
-    setUser({ id: me.value.Id, username: me.value.Username });
+    setUser({ id: me.value.userId, username: me.value.username });
   }
 
   const statusClass = (status: UserStatus | string, useBg = true) => {

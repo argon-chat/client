@@ -5,14 +5,15 @@
                 Загрузка истории...
             </div>
 
-            <div v-for="message in visibleMessages" :key="message.MessageId" class="message-item">
-                {{ message.Text }}
+            <div v-for="message in visibleMessages" :key="message.messageId.toString()" class="message-item">
+                {{ message.text }}
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
+import { ArgonMessage } from "@/lib/glue/argonChat";
 import {
   ref,
   computed,
@@ -24,7 +25,7 @@ import {
 } from "vue";
 
 interface Props {
-  items: IArgonMessage[];
+  items: ArgonMessage[];
 }
 
 const props = defineProps<Props>();

@@ -2,22 +2,22 @@
   <div class="chat-list rounded-xl scroll-smooth">
     <div class="flex flex-col">
       <div class="flex-1 overflow-y-auto py-4 overflow-x-hidden" style="text-overflow: ellipsis;">
-        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.Id">
+        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.channelId">
           <div class="px-4 py-2 hover:bg-gray-700/50 cursor-pointer flex flex-col"
-            v-on:click="channelSelect(channel.Id)">
+            v-on:click="channelSelect(channel.channelId)">
             <ContextMenu>
               <ContextMenuTrigger>
                 <div class="flex items-center justify-between group">
                   <div class="flex items-center space-x-2">
-                    <HashIcon v-if="channel.ChannelType === 'Text'" class="w-5 h-5 text-gray-400" />
-                    <Volume2Icon v-else-if="channel.ChannelType === 'Voice'" class="w-5 h-5 text-gray-400" />
-                    <AntennaIcon v-else-if="channel.ChannelType === 'Announcement'" class="w-5 h-5 text-gray-400" />
-                    <span>{{ channel?.Name }}</span>
+                    <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400" />
+                    <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400" />
+                    <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400" />
+                    <span>{{ channel?.name }}</span>
                   </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
-                <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="channelDelete(channel.Id)">
+                <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="channelDelete(channel.channelId)">
                   Delete
                   <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                 </ContextMenuItem>
@@ -35,34 +35,34 @@
             </ContextMenu>
           </div>
           <ul
-            v-if="channel.ChannelType === 'Voice' && pool.realtimeChannelUsers.has(channel.Id) && pool.realtimeChannelUsers.get(channel.Id)?.Users.size != 0"
+            v-if="channel.type === ChannelType.Voice && pool.realtimeChannelUsers.has(channel.channelId) && pool.realtimeChannelUsers.get(channel.channelId)?.Users.size != 0"
             class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
-            <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.Id)!.Users.values()" :key="user.UserId">
+            <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()" :key="user.userId">
               <ContextMenuTrigger :disabled="!voice.activeChannel">
                 <li class="flex items-center mt-1 text-gray-400 hover:text-white">
-                  <ArgonAvatar :fallback="user.User.DisplayName" :fileId="user.User.AvatarFileId!" :userId="user.UserId"
+                  <ArgonAvatar :fallback="user.User.displayName" :fileId="user.User.avatarFileId.unwrapOrDefault()" :userId="user.userId"
                     :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
                     class="w-7 h-7 rounded-full mr-3 transition" />
-                  <span>{{ user.User.DisplayName }}</span>
+                  <span>{{ user.User.displayName }}</span>
                   <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;" />
                   <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;" />
                 </li>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
-                <ContextMenuLabel v-show="user.UserId != me.me?.Id">
+                <ContextMenuLabel v-show="user.userId != me.me?.userId">
                   <Slider :max="200" :step="1" v-model="user.volume"
-                    v-on:update:model-value="(val) => { voice.setUserVolume(user.UserId, val![0]); }" />
+                    v-on:update:model-value="(val) => { voice.setUserVolume(user.userId, val![0]); }" />
                 </ContextMenuLabel>
                 <!-- <ContextMenuItem inset @click="voice.muteForMeUser(user.UserId)">
                     Mute
                     <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                   </ContextMenuItem>-->
-                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.UserId, channel.Id, channel.ServerId)">
+                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.userId, channel.channelId, channel.spaceId)">
                     Kick
                     <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                   </ContextMenuItem> 
 
-                <ContextMenuSeparator v-show="user.UserId != me.me?.Id" />
+                <ContextMenuSeparator v-show="user.userId != me.me?.userId" />
                 <ContextMenuCheckboxItem :disabled="true">
                   Ya ebal mamu
                   <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
@@ -105,6 +105,7 @@ import delay from "@/lib/delay";
 import { onMounted } from "vue";
 import { usePexStore } from "@/store/permissionStore";
 import { useApi } from "@/store/apiStore";
+import { ChannelType } from "@/lib/glue/argonChat";
 
 const servers = useServerStore();
 const pool = usePoolStore();
@@ -122,8 +123,8 @@ async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
   const channel = await pool.getChannel(channelId);
 
-  if (channel && channel.ChannelType !== "Voice") {
-    pool.selectedTextChannel = channel.Id;
+  if (channel && channel.type !== ChannelType.Voice) {
+    pool.selectedTextChannel = channel.channelId;
   }
 
   if (voice.activeChannel) {
@@ -131,7 +132,7 @@ async function channelSelect(channelId: string) {
   }
 
   if (!channel) return;
-  if (channel.ChannelType === "Voice") {
+  if (channel.type === ChannelType.Voice) {
     await voice.connectToChannel(channelId);
   }
   /*const channel = servers.getDetailsOfChannel(channelId);
@@ -153,7 +154,7 @@ const connectToChannel = (channelId: string) => {
 
 
 const kickMember = async (userId: string, channelId: string, serverId: string) => {
-  await api.serverInteraction.KickMemberFromChannel(serverId, channelId, userId);
+  await api.channelInteraction.KickMemberFromChannel(serverId, channelId, userId);
 }
 </script>
 

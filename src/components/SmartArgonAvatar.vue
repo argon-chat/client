@@ -42,7 +42,7 @@ const size = computed(() =>
 const user = pool.getUserReactive(props.userId);
 
 watch(
-  () => user.value?.AvatarFileId,
+  () => user.value?.avatarFileId.value,
   async (fileId) => {
     loading.value = true;
     loaded.value = false;
@@ -51,14 +51,14 @@ watch(
       logger.warn("User has no avatar fileId");
       blobSrc.value = fileStorage.FAILED_ADDRESS;
       fallbackLetter.value =
-        user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
+        user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
       loading.value = false;
       return;
     }
 
     try {
       fallbackLetter.value =
-        user.value?.DisplayName?.at(0)?.toUpperCase() ?? "?";
+        user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
 
       const src = await fileStorage.fetchUserAvatar(fileId, props.userId);
       blobSrc.value = src;

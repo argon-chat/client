@@ -12,6 +12,7 @@
     <template v-else>{{ props.text }}</template>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntity">
+import { EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline, MessageEntityUrl } from "@/lib/glue/argonChat";
 import BoldSegment from "./BoldSegment.vue";
 import FractionSegment from "./FractionSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
@@ -36,35 +37,35 @@ function throwIsNotSupported() {
 
 function isMentionEntity(
   entity: IMessageEntity,
-): entity is IMessageEntityMention {
-  return entity.Type === "Mention";
+): entity is MessageEntityMention {
+  return entity.type === EntityType.Mention;
 }
 function isBoldEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.Type === "Bold";
+  return entity.type === EntityType.Bold;
 }
 function isItalicEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.Type === "Italic";
+  return entity.type === EntityType.Italic;
 }
 function isMonospaceEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.Type === "Monospace";
+  return entity.type === EntityType.Monospace;
 }
 function isUnderlineEntity(
   entity: IMessageEntity,
-): entity is IMessageEntityUnderline {
-  return entity.Type === "Underline";
+): entity is MessageEntityUnderline {
+  return entity.type === EntityType.Underline;
 }
 function isHashtagEntity(
   entity: IMessageEntity,
-): entity is IMessageEntityHashTag {
-  return entity.Type === "Hashtag";
+): entity is MessageEntityHashTag {
+  return entity.type === EntityType.Hashtag;
 }
 function isOrdinalEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.Type === "Ordinal";
+  return entity.type === EntityType.Ordinal;
 }
 function isFractionEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.Type === "Fraction";
+  return entity.type === EntityType.Fraction;
 }
-function isUrlEntity(entity: IMessageEntity): entity is IMessageEntityUrl {
-  return entity.Type === "Url";
+function isUrlEntity(entity: IMessageEntity): entity is MessageEntityUrl {
+  return entity.type === EntityType.Url;
 }
 </script>

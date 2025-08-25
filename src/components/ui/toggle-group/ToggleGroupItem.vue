@@ -28,6 +28,7 @@ const forwardedProps = useForwardProps(delegatedProps);
 </script>
 
 <template>
+  <!-- @vue-ignore -->
   <ToggleGroupItem
     v-bind="forwardedProps" :class="cn(toggleVariants({
       variant: context?.variant || variant,

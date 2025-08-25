@@ -2,7 +2,7 @@
     <div class="relative w-full">
         <div v-if="replyTo" class="reply-banner">
             <div class="reply-info">
-                <strong>Replying to:</strong> {{ replyTo.Text }}
+                <strong>Replying to:</strong> {{ replyTo.text }}
             </div>
             <X class="text-red-600" @click="$emit('clear-reply')" />
         </div>
@@ -62,8 +62,9 @@ import {
 import { SmileIcon, SendHorizonalIcon, X } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { usePoolStore, type MentionUser } from "@/store/poolStore";
+import { ArgonMessage } from "@/lib/glue/argonChat";
 
-const props = defineProps<{ replyTo: IArgonMessageDto | null }>();
+const props = defineProps<{ replyTo: ArgonMessage | null }>();
 const emit = defineEmits<{
   (e: "clear-reply"): void;
   (e: "send", html: string, rawText: string): void;

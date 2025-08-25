@@ -36,9 +36,6 @@ import { useAppState } from "@/store/appState";
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { logger } from "@/lib/logger";
 import { usePoolStore } from "@/store/poolStore";
-import { useSystemStore } from "@/store/systemStore";
-const sys = useSystemStore();
-const terminalContainer = ref(null);
 const app = useAppState();
 const logs = ref([] as any[]);
 const canvas = ref<HTMLCanvasElement | null>(null);
@@ -609,7 +606,7 @@ const onResize = () => {
 
 function onInitTerminal() {
   logger.addReporter({
-    log: (obj, ctx) => {
+    log: (obj, _) => {
       if (obj.type === "error" || obj.type === "fail" || obj.type === "fatal") {
         logMessage(obj.args.join(" "), "error");
       }
