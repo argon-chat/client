@@ -3,7 +3,7 @@
         <h2 class="text-2xl font-bold">Profile Settings</h2>
         <div class="avatar-username flex items-center space-x-4">
             <div class="avatar">
-                <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId.unwrapOrDefault()!"
+                <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
                         :user-id="me.me.userId" alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500"  />
             </div>
             <div>

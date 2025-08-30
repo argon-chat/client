@@ -10,6 +10,7 @@ import {
   InviteCode,
   InviteCodeEntity,
 } from "@/lib/glue/argonChat";
+import { v7 } from "uuid";
 
 export const useServerStore = defineStore("server", () => {
   const api = useApi();
@@ -80,7 +81,7 @@ export const useServerStore = defineStore("server", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return;
 
-    await api.channelInteraction.CreateChannel(selectedServer, "", {
+    await api.channelInteraction.CreateChannel(selectedServer, v7(), {
       name: channelName,
       desc: "",
       kind: channelKind,

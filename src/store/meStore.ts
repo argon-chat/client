@@ -40,23 +40,23 @@ export const useMe = defineStore("me", () => {
     WelcomeCommanderHasReceived.value = true;
     bus.doListenMyEvents();
 
-    setUser({ id: me.value.userId, username: me.value.username });
+    setUser({ id: me.value.userId, username: me.value.username,  });
   }
 
-  const statusClass = (status: UserStatus | string, useBg = true) => {
+  const statusClass = (status: UserStatus, useBg = true) => {
     if (useBg)
       return {
-        "bg-green-500": status === "Online",
-        "bg-yellow-500": status === "Away",
-        "bg-gray-500": status === "Offline",
-        "bg-red-500": status === "DoNotDisturb",
+        "bg-green-500": status === UserStatus.Online,
+        "bg-yellow-500": status === UserStatus.Away,
+        "bg-gray-500": status === UserStatus.Offline,
+        "bg-red-500": status === UserStatus.DoNotDisturb,
       };
 
     return {
-      "text-green-500": status === "Online",
-      "text-yellow-500": status === "Away",
-      "text-gray-500": status === "Offline",
-      "text-red-500": status === "DoNotDisturb",
+      "text-green-500": status === UserStatus.Online,
+      "text-yellow-500": status === UserStatus.Away,
+      "text-gray-500": status === UserStatus.Offline,
+      "text-red-500": status === UserStatus.DoNotDisturb,
     };
   };
 

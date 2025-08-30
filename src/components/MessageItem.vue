@@ -10,7 +10,7 @@
                 <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
             </PopoverContent>
             <PopoverTrigger>
-                <ArgonAvatar :file-id="user.avatarFileId.unwrapOrDefault()" :fallback="user.displayName"
+                <ArgonAvatar :file-id="user.avatarFileId" :fallback="user.displayName"
                     :serverId="message.spaceId" :userId="user.userId" class="avatar" />
             </PopoverTrigger>
         </Popover>
@@ -95,13 +95,12 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { ArgonMessage, IMessageEntity } from "@/lib/glue/argonChat";
-import { IonMaybe } from "@argon-chat/ion.webcore";
 
 const isOpened = ref(false);
 
 const props = defineProps<{
   message: ArgonMessage;
-  getMsgById: (replyId: IonMaybe<bigint>) => ArgonMessage;
+  getMsgById: (replyId: bigint | null) => ArgonMessage;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);

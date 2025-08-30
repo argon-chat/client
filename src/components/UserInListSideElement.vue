@@ -6,7 +6,7 @@
     </PopoverContent>
     <PopoverTrigger as-child>
       <div class="relative" style="width: 35px; height: 40px;">
-        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId.unwrapOrDefault()" :user-id="user.userId"
+        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
           :overridedSize="35" />
         <span :class="me.statusClass(user.status)"
           class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
@@ -15,7 +15,7 @@
   </Popover>
 
   <div v-else class="relative" style="width: 40px; height: 45px;">
-    <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId.unwrapOrDefault()" :user-id="user.userId"
+    <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
       :overridedSize="40" />
     <span :class="me.statusClass(user.status)"
       class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>

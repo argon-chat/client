@@ -36,9 +36,9 @@ export const useAuthStore = defineStore("auth", () => {
     const r = await api.userInteraction.Authorize({
       email: email,
       password: pass,
-      otpCode: otp ? IonMaybe.Some(otp) : IonMaybe.None(),
-      captchaToken: captchaToken ? IonMaybe.Some(captchaToken) : IonMaybe.None(),
-      username: IonMaybe.None()
+      otpCode: otp ?? null,
+      captchaToken: captchaToken ?? null,
+      username: null
     });
     console.log(r);
     if (r.isSuccessAuthorize()) logger.success("Success authorization");
@@ -117,7 +117,7 @@ export const useAuthStore = defineStore("auth", () => {
         case RegistrationError.VALIDATION_FAILED:
           toast({
             title: `Validation for ${r.field} failed`,
-            description: r.message.unwrapOrDefault() ?? "",
+            description: r.message ?? "",
             variant: "destructive",
             duration: 2500,
           });

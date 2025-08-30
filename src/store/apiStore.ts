@@ -4,26 +4,48 @@ import { useConfig } from "./remoteConfig";
 import { createClient } from "@/lib/glue/argonChat";
 import { IonCallContext, IonInterceptor } from "@argon-chat/ion.webcore";
 import { useAuthStore } from "./authStore";
+import { v7 } from "uuid";
 
 export function lazy<T>(getter: () => T): ComputedRef<T> {
-  let initialized = false
-  let cached: ComputedRef<T>
+  let initialized = false;
+  let cached: ComputedRef<T>;
 
   return computed(() => {
     if (!initialized) {
-      cached = computed(getter)
-      initialized = true
+      cached = computed(getter);
+      initialized = true;
     }
-    return cached.value
-  })
+    return cached.value;
+  });
 }
-
 
 class AuthInterceptor implements IonInterceptor {
   constructor(public lazyStore: ComputedRef<ReturnType<typeof useAuthStore>>) {}
-  async invokeAsync(ctx: IonCallContext, next: (ctx: IonCallContext, signal?: AbortSignal) 
-    => Promise<void>, signal?: AbortSignal): Promise<void> {
-    ctx.requestHeadets = { ...ctx.requestHeadets, "Authorization": this.lazyStore.value.token! };
+  async invokeAsync(
+    ctx: IonCallContext,
+    next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    if (!localStorage.getItem("secref")) {
+      localStorage.setItem("secref", v7());
+    }
+    if (!localStorage.getItem("seccarry")) {
+      localStorage.setItem("seccarry", v7());
+    }
+
+    let authData = {} as any;
+
+    if ( this.lazyStore.value.token) {
+      authData.Authorization = `Bearer ${this.lazyStore.value.token}`;
+    }
+    
+    ctx.requestHeadets = {
+      ...ctx.requestHeadets,
+      ...authData,
+      'X-Sec-Ref': localStorage.getItem("secref")!,
+      'X-Sec-Ner': '1',
+      'X-Sec-Carry': localStorage.getItem("seccarry")!
+    };
     await next(ctx, signal);
   }
 }
@@ -31,22 +53,17 @@ class AuthInterceptor implements IonInterceptor {
 export const useApi = defineStore("api", () => {
   const cfg = useConfig();
   const authLazy = lazy(() => useAuthStore());
-  
-  const rpcClient = computed(() => createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy)]));
 
+  const rpcClient = computed(() =>
+    createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy)])
+  );
 
-  const userInteraction = computed(() =>
-    rpcClient.value.UserInteraction
+  const userInteraction = computed(() => rpcClient.value.UserInteraction);
+  const serverInteraction = computed(() => rpcClient.value.ServerInteraction);
+  const archetypeInteraction = computed(
+    () => rpcClient.value.ArchetypeInteraction
   );
-  const serverInteraction = computed(() =>
-    rpcClient.value.ServerInteraction
-  );
-  const archetypeInteraction = computed(() =>
-    rpcClient.value.ArchetypeInteraction
-  );
-  const channelInteraction = computed(() =>
-    rpcClient.value.ChannelInteraction
-  );
+  const channelInteraction = computed(() => rpcClient.value.ChannelInteraction);
   const eventBus = computed(() => rpcClient.value.EventBus);
 
   const getRawClient = () => rpcClient;

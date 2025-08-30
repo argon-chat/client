@@ -36,6 +36,7 @@ import { useSessionTimer } from "./sessionTimer";
 import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
 import { ArgonChannel } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 
 export type DirectRef<T> = Ref<T, T>;
 

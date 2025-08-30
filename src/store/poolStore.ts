@@ -26,8 +26,10 @@ import {
   Archetype,
   ArchetypeCreated,
   ArgonChannel,
+  ArgonEntitlement,
   ArgonMessage,
   ArgonSpace,
+  ArgonSpaceBase,
   ArgonUser,
   ChannelCreated,
   ChannelModified,
@@ -47,7 +49,7 @@ import {
   UserStatus,
   UserUpdated,
 } from "@/lib/glue/argonChat";
-import { IonMaybe } from "@argon-chat/ion.webcore";
+import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
 
 export interface MentionUser {
   id: string;
@@ -86,29 +88,23 @@ export const usePoolStore = defineStore("data-pool", () => {
     new Map<Guid, Reactive<IRealtimeChannelWithUser>>()
   );
 
-  const allServers = computed(() => {
-    return useObservable(
-      from(liveQuery(async () => await db.servers.toArray()))
-    );
-  });
-
   const getChannel = async (channelId: Guid) =>
-    await db.channels.where("Id").equals(channelId).first();
+    await db.channels.where("channelId").equals(channelId).first();
 
   const getServer = async (serverId: Guid) =>
-    await db.servers.where("Id").equals(serverId).first();
+    await db.servers.where("spaceId").equals(serverId).first();
 
   const getUser = async (userId: Guid) =>
-    await db.users.where("UserId").equals(userId).first();
+    await db.users.where("userId").equals(userId).first();
 
   const getUsersByServerMemberIds = (serverId: Guid, memberIds: Guid[]) => {
     return liveQuery(async () => {
       const members = await db.members
-        .where("[MemberId+ServerId]")
+        .where("[memberId+spaceId]")
         .anyOf(memberIds.map((id) => [id, serverId] as [Guid, Guid]))
         .toArray();
       const userIds = members.map((m) => m.userId);
-      const users = await db.users.where("UserId").anyOf(userIds).toArray();
+      const users = await db.users.where("userId").anyOf(userIds).toArray();
       return users;
     });
   };
@@ -116,7 +112,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const getMemberIdsByUserIdsQuery = (serverId: Guid, userIds: Guid[]) => {
     return liveQuery(async () => {
       const members = await db.members
-        .where("[UserId+ServerId]")
+        .where("[userId+spaceId]")
         .anyOf(userIds.map((id) => [id, serverId] as [Guid, Guid]))
         .toArray();
       return members.map((m) => m.memberId);
@@ -125,7 +121,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const getMemberIdsByUserIds = async (serverId: Guid, userIds: Guid[]) => {
     const members = await db.members
-      .where("[UserId+ServerId]")
+      .where("[userId+spaceId]")
       .anyOf(userIds.map((id) => [id, serverId] as [Guid, Guid]))
       .toArray();
     return members.map((m) => m.memberId);
@@ -133,7 +129,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const getUserReactive = (userId: Guid) => {
     const observable = liveQuery(
-      async () => await db.users.where("UserId").equals(userId).first()
+      async () => await db.users.where("userId").equals(userId).first()
     );
     return useObservable(from(observable));
   };
@@ -217,15 +213,30 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       currentSubscription = liveQuery(async () => {
         const member = await db.members
-          .where("[UserId+ServerId]")
+          .where("[userId+spaceId]")
           .equals([userId, serverId])
           .first();
 
-        if (!member?.archetypes?.length) return new Set<ArgonEntitlementFlag>();
+        console.error("liveQuery",member);
+
+        if (!member) {
+          logger.warn("no found member for fetch self entitlement");
+          return new Set<ArgonEntitlementFlag>();
+        }
+
+        if (!member.archetypes) {
+          logger.warn("no found archetypes for self member for fetch self entitlement");
+          return new Set<ArgonEntitlementFlag>();
+        }
+
+        if (member.archetypes.length == 0) {
+          logger.warn("empty archetypes, failed fetch self entitlement");
+          return new Set<ArgonEntitlementFlag>();
+        }
 
         const archetypeIds = member.archetypes.map((a) => a.archetypeId);
         const archetypes = await db.archetypes
-          .where("Id")
+          .where("id")
           .anyOf(archetypeIds)
           .toArray();
 
@@ -310,7 +321,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   const allServerAsync = computed(() =>
-    firstValueFrom<ArgonSpace[]>(
+    firstValueFrom<ArgonSpaceBase[]>(
       from(liveQuery(async () => await db.servers.toArray()))
     )
   );
@@ -318,8 +329,10 @@ export const usePoolStore = defineStore("data-pool", () => {
   const getSelectedServer = computedAsync(async () => {
     if (!selectedServer.value) return null;
     return (
-      (await db.servers.where("Id").equals(selectedServer.value).first()) ||
-      null
+      (await db.servers
+        .where("spaceId")
+        .equals(selectedServer.value)
+        .first()) || null
     );
   });
 
@@ -345,7 +358,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     const ids = archetypes.map((x) => x.archetypeId);
 
     const results = await db.archetypes
-      .where("Id")
+      .where("id")
       .anyOf(ids)
       .filter((q) => q.isHidden && q.isLocked && q.name === "owner")
       .toArray();
@@ -353,75 +366,20 @@ export const usePoolStore = defineStore("data-pool", () => {
     return results.map((x) => x.name);
   };
 
-  const activeServerUsers = computed(() => {
-    return useObservable(
-      from(
-        liveQuery(async () => {
-          if (!selectedServer.value) return [];
-          const server = await db.servers
-            .filter((s) => s.spaceId === selectedServer.value)
-            .first();
-          if (!server) return [];
-          const users = await db.users.bulkGet(
-            server.members.map((x) => x.userId)
-          );
-          const members = await db.members.bulkGet(
-            server.members.map((x) => x.memberId)
-          );
-          const archetypes = await db.archetypes.bulkGet(
-            members
-              .filter((x) => !!x)
-              .flatMap((x) => x?.archetypes)
-              .map((x) => x?.archetypeId)
-          );
-
-          return users
-            .filter((user): user is RealtimeUser => !!user)
-            .sort((a, b) => {
-              const statusOrder = (status: UserStatus) => {
-                if (status === UserStatus.Online) return 0;
-                if (status === UserStatus.Offline) return 2;
-                return 1;
-              };
-
-              const statusDiff = statusOrder(a.status) - statusOrder(b.status);
-              if (statusDiff !== 0) return statusDiff;
-              return a.displayName.localeCompare(b.displayName);
-            })
-            .map((q) => {
-              const meb = members.find((w) => w?.userId === q.userId);
-
-              if (meb)
-                q.archetypes = archetypes.filter((we) =>
-                  new Set(meb.archetypes.map((x) => x.archetypeId)).has(
-                    we?.id as string
-                  )
-                ) as Archetype[];
-
-              return q;
-            });
-        })
-      )
-    );
-  });
-
   const groupedServerUsers = computed(() => {
     return useObservable(
       from(
         liveQuery(async () => {
           if (!selectedServer.value) return [];
-
           const server = await db.servers
             .filter((s) => s.spaceId === selectedServer.value)
             .first();
           if (!server) return [];
 
-          const users = await db.users.bulkGet(
-            server.members.map((x) => x.userId)
-          );
-          const members = await db.members.bulkGet(
-            server.members.map((x) => x.memberId)
-          );
+          const members = await db.members
+            .filter((x) => x.spaceId == server.spaceId)
+            .toArray();
+          const users = await db.users.bulkGet(members.map((x) => x.userId));
 
           const allArchetypeIds = [
             ...new Set(
@@ -516,22 +474,24 @@ export const usePoolStore = defineStore("data-pool", () => {
                 isHidden: false,
                 isLocked: false,
                 isGroup: true,
-                entitlement: "",
+                entitlement: ArgonEntitlement.None,
                 isDefault: false,
-                iconFileId: IonMaybe.None<string>(),
+                iconFileId: null,
               },
               users: ungroupedUsers.sort(sortFn),
             });
           }
-
           return result;
         })
       )
     );
   });
 
-  const trackServer = async (server: ArgonSpace) => {
-    await db.servers.put(server, server.spaceId);
+  const trackServer = async (server: ArgonSpaceBase) => {
+    await db.servers.put(
+      server,
+      server.spaceId
+    );
   };
 
   const trackArchetype = async (archetype: Archetype) => {
@@ -602,10 +562,8 @@ export const usePoolStore = defineStore("data-pool", () => {
   const subscribeToEvents = () => {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
       const c = await db.servers.get(x.serverId);
-
       if (c) {
-        c.channels.push(x.data);
-        await db.servers.put(c);
+        await db.channels.put(x.data);
       } else {
         logger.error("recollect server required, maybe bug");
       }
@@ -625,14 +583,6 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
 
       await db.channels.delete(channelId);
-
-      const server = await db.servers.get(x.serverId);
-      if (server) {
-        server.channels = server.channels.filter(
-          (channel) => channel.channelId !== channelId
-        );
-        await db.servers.put(server);
-      }
     });
 
     bus.onServerEvent<LeavedFromChannelUser>(
@@ -708,13 +658,13 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
 
       const existsUser =
-        (await db.users.where("UserId").equals(x.userId).count()) > 0;
+        (await db.users.where("userId").equals(x.userId).count()) > 0;
       if (!existsUser) {
         const user = await api.serverInteraction.GetMember(
           x.serverId,
           x.userId
         );
-        s.members.push(user.member);
+        db.members.put(user.member);
         await db.servers.put(s);
         logger.info("Fetchet member for server", x);
       }
@@ -836,7 +786,7 @@ export const usePoolStore = defineStore("data-pool", () => {
           await trackUser(
             u.member.user,
             u.status,
-            u.presence.unwrapOrDefault()
+            u.presence
           );
       }
 
@@ -916,7 +866,6 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   return {
-    allServers,
     allServerAsync,
 
     trackUser,
@@ -924,7 +873,6 @@ export const usePoolStore = defineStore("data-pool", () => {
     trackChannel,
 
     activeServerChannels,
-    activeServerUsers,
     groupedServerUsers,
     subscribeToEvents,
 

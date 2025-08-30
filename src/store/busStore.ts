@@ -5,7 +5,7 @@ import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
-import { IArgonEvent, UserStatus } from "@/lib/glue/argonChat";
+import { HeartBeatEvent, IArgonClientEvent, IArgonEvent, UserStatus } from "@/lib/glue/argonChat";
 
 export type EventWithServerId<T> = { serverId: string } & T;
 
@@ -26,7 +26,6 @@ export const useBus = defineStore("bus", () => {
 
   async function doListenServer(id: string) {
     if (!intervalSubject.value) {
-      logger.warn("CREATED SUBJECT INTERVAL");
       intervalSubject.value = interval(2000)
         .pipe(
           switchMap(() => {
@@ -55,15 +54,12 @@ export const useBus = defineStore("bus", () => {
     }
   }
 
-  async function sendEventAsync<T extends IArgonEvent>(t: T) {
-    /*await api.getRawClient().value.sendPackageToActieTransport(t);*/
+  async function sendEventAsync<T extends IArgonClientEvent>(t: T) {
+    await api.eventBus.Dispatch(t);
   }
 
   async function sendHeartbeat() {
-    /*await api.getRawClient().value.sendPackageToActieTransport({
-      EventKey: "HeartBeatEvent",
-      status: preferredStatus.value,
-    } as HeartBeatEvent);*/
+    await api.eventBus.Dispatch(new HeartBeatEvent(preferredStatus.value));
   }
 
   function listenEvents(id: string) {

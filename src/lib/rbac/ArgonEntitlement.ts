@@ -1,47 +1,48 @@
+import { ArgonEntitlement } from "../glue/argonChat";
+
 export const ArgonEntitlementFlags = {
-  None: 0n << 0n,
-  ViewChannel: 1n << 0n,
-  ReadHistory: 1n << 1n,
-  JoinToVoice: 1n << 2n,
+  None: ArgonEntitlement.None,
+  ViewChannel: ArgonEntitlement.ViewChannel,
+  ReadHistory: ArgonEntitlement.ReadHistory,
+  JoinToVoice: ArgonEntitlement.JoinToVoice,
 
-  SendMessages: 1n << 5n,
-  SendVoice: 1n << 6n,
-  AttachFiles: 1n << 7n,
-  AddReactions: 1n << 8n,
-  AnyMentions: 1n << 9n,
-  MentionEveryone: 1n << 10n,
-  ExternalEmoji: 1n << 11n,
-  ExternalStickers: 1n << 12n,
-  UseCommands: 1n << 13n,
-  PostEmbeddedLinks: 1n << 14n,
+  SendMessages: ArgonEntitlement.SendMessages,
+  SendVoice: ArgonEntitlement.SendVoice,
+  AttachFiles: ArgonEntitlement.AttachFiles,
+  AddReactions: ArgonEntitlement.AddReactions,
+  AnyMentions: ArgonEntitlement.AnyMentions,
+  MentionEveryone: ArgonEntitlement.MentionEveryone,
+  ExternalEmoji: ArgonEntitlement.ExternalEmoji,
+  ExternalStickers: ArgonEntitlement.ExternalStickers,
+  UseCommands: ArgonEntitlement.UseCommands,
+  PostEmbeddedLinks: ArgonEntitlement.PostEmbeddedLinks,
 
-  Connect: 1n << 20n,
-  Speak: 1n << 21n,
-  Video: 1n << 22n,
-  Stream: 1n << 23n,
+  Connect: ArgonEntitlement.Connect,
+  Speak: ArgonEntitlement.Speak,
+  Video: ArgonEntitlement.Video,
+  Stream: ArgonEntitlement.Stream,
 
-  UseASIO: 1n << 30n,
-  AdditionalStreams: 1n << 31n,
+  UseASIO: ArgonEntitlement.UseASIO,
+  AdditionalStreams: ArgonEntitlement.AdditionalStreams,
 
-  DisconnectMember: 1n << 40n,
-  MoveMember: 1n << 41n,
-  BanMember: 1n << 42n,
-  MuteMember: 1n << 43n,
-  KickMember: 1n << 44n,
+  DisconnectMember: ArgonEntitlement.DisconnectMember,
+  MoveMember: ArgonEntitlement.MoveMember,
+  BanMember: ArgonEntitlement.BanMember,
+  MuteMember: ArgonEntitlement.MuteMember,
+  KickMember: ArgonEntitlement.KickMember,
 
-  ManageChannels: 1n << 50n,
-  ManageArchetype: 1n << 51n,
-  ManageBots: 1n << 52n,
-  ManageEvents: 1n << 53n,
-  ManageBehaviour: 1n << 54n,
-  ManageServer: 1n << 55n,
-  Administrator: 1n << 64n,
+  ManageChannels: ArgonEntitlement.ManageChannels,
+  ManageArchetype: ArgonEntitlement.ManageArchetype,
+  ManageBots: ArgonEntitlement.ManageBots,
+  ManageEvents: ArgonEntitlement.ManageEvents,
+  ManageBehaviour: ArgonEntitlement.ManageBehaviour,
+  ManageServer: ArgonEntitlement.ManageServer
 } as const;
 
 export type ArgonEntitlementFlag = keyof typeof ArgonEntitlementFlags;
 
 export interface ArgonEntitlementFlagDefinition {
-  value: bigint;
+  value: any;
   i18nKey: string;
 }
 
@@ -56,11 +57,12 @@ export function extractEntitlements(
   const result: ArgonEntitlementFlag[] = [];
 
   for (const [name, value] of Object.entries(ArgonEntitlementFlags)) {
+    // @ts-ignore
     if ((entitlements & value) !== 0n) {
       result.push(name as ArgonEntitlementFlag);
     }
   }
-
+  console.error("[extractEntitlements]", entitlements, result);
   return result;
 }
 
@@ -68,6 +70,7 @@ export function extractEntitlementStrict(
   entitlements: bigint,
 ): ArgonEntitlementFlag {
   for (const [name, value] of Object.entries(ArgonEntitlementFlags)) {
+    // @ts-ignore
     if ((entitlements & value) !== 0n) {
       return name as ArgonEntitlementFlag;
     }

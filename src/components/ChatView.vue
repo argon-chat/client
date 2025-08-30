@@ -34,7 +34,8 @@ import type { Subscription } from "rxjs";
 import { useMe } from "@/store/meStore.ts";
 import { useTone } from "@/store/toneStore";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@/lib/glue/argonChat";
-import { IonMaybe } from "@argon-chat/ion.webcore";
+import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
+import { v7 } from "uuid";
 
 const api = useApi();
 const pool = usePoolStore();
@@ -53,9 +54,9 @@ const chatWidth = ref(0);
 const me = useMe();
 const tone = useTone();
 
-const getMessageById = (messageId: IonMaybe<bigint>): ArgonMessage => {
+const getMessageById = (messageId: bigint | null): ArgonMessage => {
   return (
-    messages.value.find((x) => x.messageId === (messageId.unwrapOrDefault() ?? 0n)) ??
+    messages.value.find((x) => x.messageId === (messageId ?? 0n)) ??
     ({} as ArgonMessage)
   );
 };
@@ -94,7 +95,7 @@ useInfiniteScroll(
     const fromMessageId = lastMsg ? lastMsg.messageId : null;
 
     const result = await api.channelInteraction.QueryMessages(
-      "",
+      v7(),
       props.channelId,
       fromMessageId as any,
       10,
@@ -141,7 +142,7 @@ watch(
   async (newChannelId) => {
     subs.value?.unsubscribe();
 
-    await loadMessages("", newChannelId);
+    await loadMessages(v7(), newChannelId);
 
     subs.value = pool.onNewMessageReceived.subscribe((e) => {
       if (newChannelId === e.channelId) {

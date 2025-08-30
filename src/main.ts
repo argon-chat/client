@@ -17,6 +17,7 @@ import tailwindColorMap from "../tailwind-colors.json";
 import "vue-advanced-cropper/dist/style.css";
 import { createSentryPiniaPlugin } from "@sentry/vue";
 import { setLogLevel } from "livekit-client";
+import "@/lib/glue/argonChat";
 setLogLevel("debug");
 if (argon.isArgonHost) {
   native.V8ThreadingInit();

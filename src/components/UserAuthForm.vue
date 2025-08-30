@@ -82,7 +82,7 @@ async function onSubmit(event: Event | null) {
         email: email.value,
         password: password.value,
         username: username.value,
-        captchaToken: IonMaybe.None()
+        captchaToken: null
       });
     } else {
       await authStore.login(

@@ -1,4 +1,5 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonUser, SpaceMember, UserActivityPresence, UserStatus } from "@/lib/glue/argonChat";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, SpaceMember, UserActivityPresence, UserStatus } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 import Dexie, { type Table } from "dexie";
 
 export type RealtimeUser = ArgonUser & {
@@ -15,7 +16,7 @@ const tryDropOldDb = (s: string) => {
 
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
-  servers!: Table<ArgonSpace, Guid>;
+  servers!: Table<ArgonSpaceBase, Guid>;
   channels!: Table<ArgonChannel, Guid>;
   messages!: Table<ArgonMessage, number>;
   archetypes!: Table<Archetype, Guid>;

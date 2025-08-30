@@ -194,7 +194,8 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
-import { Archetype, ArchetypeGroup } from "@/lib/glue/argonChat";
+import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 
 
 const isOpen = ref(false)
@@ -258,7 +259,7 @@ watchDebounced(
 const archetypes = useLiveQuery(() => {
   const serverId = selectedServer.value;
   if (!serverId) return [];
-  return pool.db.archetypes.where("ServerId").equals(serverId).toArray();
+  return pool.db.archetypes.where("spaceId").equals(serverId).toArray();
 });
 
 const selectedArchetypeId = ref<string | null>(null);
@@ -439,13 +440,11 @@ function toggleFlag(flag: bigint, checked: boolean) {
     (f) => f === extractEntitlementStrict(flag),
   );
   if (checked && idx === -1) {
-    selectedArchetype.value.entitlement = (
-      BigInt(selectedArchetype.value.entitlement) | flag
-    ).toString();
+    selectedArchetype.value.entitlement = ( BigInt(selectedArchetype.value.entitlement) | flag) as any;
   } else if (!checked && idx !== -1) {
     selectedArchetype.value.entitlement = (
       BigInt(selectedArchetype.value.entitlement) & ~flag
-    ).toString();
+    ) as any;
   }
   logger.info(
     "updated",

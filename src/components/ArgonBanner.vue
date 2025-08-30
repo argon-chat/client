@@ -20,7 +20,7 @@ const fileStorage = useFileStorage();
 const props = withDefaults(
   defineProps<{
     class?: HTMLAttributes["class"];
-    fileId?: string;
+    fileId: string | null | undefined;
     userId?: string;
   }>(),
   {},

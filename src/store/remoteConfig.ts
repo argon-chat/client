@@ -8,7 +8,7 @@ export const useConfig = defineStore("config", () => {
   const fb = useFirebase();
 
   const overrides = ref<{ [key: string]: string | boolean | number }>({
-    //apiEndpoint: 'https://localhost:5001'
+   // apiEndpoint: 'https://localhost:5001'
   });
 
   function setOverride(key: string, value: string | boolean | number) {
@@ -53,7 +53,8 @@ export const useConfig = defineStore("config", () => {
   const isDev = computed(
     () =>
       localStorage.getItem("api_endpoint") === "dev" ||
-      localStorage.getItem("api_endpoint") === "local",
+      localStorage.getItem("api_endpoint") === "local" ||
+      apiEndpoint.value.includes("https://localhost:"),
   );
 
   const scheme = z.object({

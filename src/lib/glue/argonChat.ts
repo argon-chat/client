@@ -60,8 +60,8 @@ declare type f8 = number;
 
 export interface ChannelEntitlementOverwrite {
   channelId: guid;
-  archetypeId: IonMaybe<guid>;
-  serverMemberId: IonMaybe<guid>;
+  archetypeId: guid | null;
+  serverMemberId: guid | null;
   allow: ArgonEntitlement;
   deny: ArgonEntitlement;
   creatorId: guid;
@@ -80,8 +80,8 @@ export interface Archetype {
   isLocked: bool;
   isGroup: bool;
   isDefault: bool;
-  iconFileId: IonMaybe<string>;
-  entitlement: string;
+  iconFileId: string | null;
+  entitlement: ArgonEntitlement;
 };
 
 
@@ -104,14 +104,14 @@ export interface ArgonChannel {
   spaceId: guid;
   channelId: guid;
   name: string;
-  description: IonMaybe<string>;
+  description: string | null;
   categoryId: guid;
 };
 
 
 export interface ArgonMessage {
   messageId: u8;
-  replyId: IonMaybe<u8>;
+  replyId: u8 | null;
   channelId: guid;
   spaceId: guid;
   text: string;
@@ -188,12 +188,56 @@ export enum ChannelMemberState
 }
 
 
+export interface JoinMeetResponse {
+  voiceToken: string;
+  endpoint: RtcEndpoint;
+  meetInfo: MeetInfo;
+};
+
+
+export interface MeetInfo {
+  title: string;
+  startTime: u4;
+  roomId: string;
+};
+
+
+export interface RtcEndpoint {
+  endpoint: string;
+  ices: IonArray<IceEndpoint>;
+};
+
+
+export interface IceEndpoint {
+  endpoint: string;
+  username: string;
+  password: string;
+};
+
+
+export enum MeetJoinError
+{
+  OK = 0,
+  NO_LINK_EXIST = 1,
+  YOU_ARE_BANNED = 2,
+}
+
+
+export interface ArgonSpaceBase {
+  spaceId: guid;
+  name: string;
+  description: string;
+  avatarFieldId: string | null;
+  topBannerFileId: string | null;
+};
+
+
 export interface ArgonSpace {
   spaceId: guid;
   name: string;
   description: string;
-  avatarFieldId: IonMaybe<string>;
-  topBannerFileId: IonMaybe<string>;
+  avatarFieldId: string | null;
+  topBannerFileId: string | null;
   channels: IonArray<ArgonChannel>;
   members: IonArray<SpaceMember>;
   archetypes: IonArray<Archetype>;
@@ -225,7 +269,7 @@ export interface SpaceMember {
 export interface RealtimeServerMember {
   member: SpaceMember;
   status: UserStatus;
-  presence: IonMaybe<UserActivityPresence>;
+  presence: UserActivityPresence | null;
 };
 
 
@@ -247,17 +291,17 @@ export interface ArgonUser {
   userId: guid;
   username: string;
   displayName: string;
-  avatarFileId: IonMaybe<string>;
+  avatarFileId: string | null;
 };
 
 
 export interface ArgonUserProfile {
   userId: guid;
-  customStatus: IonMaybe<string>;
-  customStatusIconId: IonMaybe<string>;
-  bannerFileID: IonMaybe<string>;
-  dateOfBirth: IonMaybe<dateonly>;
-  bio: IonMaybe<string>;
+  customStatus: string | null;
+  customStatusIconId: string | null;
+  bannerFileID: string | null;
+  dateOfBirth: dateonly | null;
+  bio: string | null;
   isPremium: bool;
   badges: IonArray<string>;
   archetypes: IonArray<SpaceMemberArchetype>;
@@ -278,45 +322,63 @@ export enum UserStatus
 
 export enum ArgonEntitlement
 {
-  None = 0,
-  ViewChannel = 1,
-  ReadHistory = 2,
-  JoinToVoice = 4,
-  SendMessages = 32,
-  SendVoice = 64,
-  AttachFiles = 128,
-  AddReactions = 256,
-  AnyMentions = 512,
-  MentionEveryone = 1024,
-  ExternalEmoji = 2048,
-  ExternalStickers = 4096,
-  UseCommands = 8192,
-  PostEmbeddedLinks = 16384,
-  Connect = 1048576,
-  Speak = 2097152,
-  Video = 4194304,
-  Stream = 8388608,
-  UseASIO = 1073741824,
-  AdditionalStreams = 2147483648,
-  DisconnectMember = 1099511627776,
-  MoveMember = 2199023255552,
-  BanMember = 4398046511104,
-  MuteMember = 8796093022208,
-  KickMember = 17592186044416,
-  ManageChannels = 1125899906842624,
-  ManageArchetype = 2251799813685248,
-  ManageBots = 4503599627370496,
-  ManageEvents = 9007199254740992,
-  ManageBehaviour = 18014398509481984,
-  ManageServer = 36028797018963968,
-  Administrator = 9223372036854775808,
+  None = 0n as any,
+  ViewChannel = 1n as any,
+  ReadHistory = 2n as any,
+  JoinToVoice = 4n as any,
+  SendMessages = 32n as any,
+  SendVoice = 64n as any,
+  AttachFiles = 128n as any,
+  AddReactions = 256n as any,
+  AnyMentions = 512n as any,
+  MentionEveryone = 1024n as any,
+  ExternalEmoji = 2048n as any,
+  ExternalStickers = 4096n as any,
+  UseCommands = 8192n as any,
+  PostEmbeddedLinks = 16384n as any,
+  Connect = 1048576n as any,
+  Speak = 2097152n as any,
+  Video = 4194304n as any,
+  Stream = 8388608n as any,
+  UseASIO = 1073741824n as any,
+  AdditionalStreams = 2147483648n as any,
+  DisconnectMember = 1099511627776n as any,
+  MoveMember = 2199023255552n as any,
+  BanMember = 4398046511104n as any,
+  MuteMember = 8796093022208n as any,
+  KickMember = 17592186044416n as any,
+  ManageChannels = 1125899906842624n as any,
+  ManageArchetype = 2251799813685248n as any,
+  ManageBots = 4503599627370496n as any,
+  ManageEvents = 9007199254740992n as any,
+  ManageBehaviour = 18014398509481984n as any,
+  ManageServer = 36028797018963968n as any,
 }
+
+
+export interface ArgonIonTicket {
+  userId: guid;
+  ip: string;
+  ray: string;
+  clientName: string;
+  hostName: string;
+  appId: string;
+  sessionId: guid;
+  machineId: string;
+  region: string;
+};
+
+
+export interface UserEditInput {
+  displayName: string | null;
+  avatarId: string | null;
+};
 
 
 export interface FeatureFlag {
   key: string;
   enabled: bool;
-  variant: IonMaybe<string>;
+  variant: string | null;
   parameters: IonArray<FeatureFlagParameter>;
 };
 
@@ -336,10 +398,10 @@ export interface CreateServerRequest {
 
 export interface UserCredentialsInput {
   email: string;
-  username: IonMaybe<string>;
+  username: string | null;
   password: string;
-  otpCode: IonMaybe<string>;
-  captchaToken: IonMaybe<string>;
+  otpCode: string | null;
+  captchaToken: string | null;
 };
 
 
@@ -350,7 +412,7 @@ export interface NewUserCredentialsInput {
   displayName: string;
   argreeTos: bool;
   argreeOptionalEmails: bool;
-  captchaToken: IonMaybe<string>;
+  captchaToken: string | null;
 };
 
 
@@ -382,6 +444,20 @@ export enum RegistrationError
   SSO_EMAILS_NOT_ALLOWED = 5,
   INTERNAL_ERROR = 6,
   VALIDATION_FAILED = 7,
+}
+
+
+export enum LockdownReason
+{
+  NONE = 0,
+  SPAM_SCAM_ACCOUNT = 1,
+  INCITING_MOMENT = 2,
+  NON_BINARY_PERSON = 3,
+  TOS_VIOLATION = 4,
+  LGBT_AGITATION = 5,
+  DRUG_VIOLATION = 6,
+  TERRORISM_AGITATION = 7,
+  CHILD_ABUSE = 8,
 }
 
 
@@ -497,22 +573,28 @@ IonFormatterStorage.register("IMessageEntity", {
     return value!;
   },
   write(writer: CborWriter, value: IMessageEntity): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").write(writer, value as MessageEntityMention);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").write(writer, value as MessageEntityEmail);
-    else if (value.UnionIndex == 2)
-      IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").write(writer, value as MessageEntityHashTag);
-    else if (value.UnionIndex == 3)
-      IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").write(writer, value as MessageEntityQuote);
-    else if (value.UnionIndex == 4)
-      IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").write(writer, value as MessageEntityUnderline);
-    else if (value.UnionIndex == 5)
-      IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").write(writer, value as MessageEntityUrl);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").write(writer, value as MessageEntityMention);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").write(writer, value as MessageEntityEmail);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").write(writer, value as MessageEntityHashTag);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").write(writer, value as MessageEntityQuote);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").write(writer, value as MessageEntityUnderline);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").write(writer, value as MessageEntityUrl);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -522,17 +604,17 @@ IonFormatterStorage.register("IMessageEntity", {
 
 IonFormatterStorage.register("MessageEntityMention", {
   read(reader: CborReader): MessageEntityMention {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 5);
     return new MessageEntityMention(type, offset, length, version, userId);
   },
   write(writer: CborWriter, value: MessageEntityMention): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -544,17 +626,17 @@ IonFormatterStorage.register("MessageEntityMention", {
 
 IonFormatterStorage.register("MessageEntityEmail", {
   read(reader: CborReader): MessageEntityEmail {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const email = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 5);
     return new MessageEntityEmail(type, offset, length, version, email);
   },
   write(writer: CborWriter, value: MessageEntityEmail): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -566,17 +648,17 @@ IonFormatterStorage.register("MessageEntityEmail", {
 
 IonFormatterStorage.register("MessageEntityHashTag", {
   read(reader: CborReader): MessageEntityHashTag {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const hashtag = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 5);
     return new MessageEntityHashTag(type, offset, length, version, hashtag);
   },
   write(writer: CborWriter, value: MessageEntityHashTag): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -588,17 +670,17 @@ IonFormatterStorage.register("MessageEntityHashTag", {
 
 IonFormatterStorage.register("MessageEntityQuote", {
   read(reader: CborReader): MessageEntityQuote {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const quotedUserId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 5);
     return new MessageEntityQuote(type, offset, length, version, quotedUserId);
   },
   write(writer: CborWriter, value: MessageEntityQuote): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -610,17 +692,17 @@ IonFormatterStorage.register("MessageEntityQuote", {
 
 IonFormatterStorage.register("MessageEntityUnderline", {
   read(reader: CborReader): MessageEntityUnderline {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const colour = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 5);
     return new MessageEntityUnderline(type, offset, length, version, colour);
   },
   write(writer: CborWriter, value: MessageEntityUnderline): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -632,18 +714,18 @@ IonFormatterStorage.register("MessageEntityUnderline", {
 
 IonFormatterStorage.register("MessageEntityUrl", {
   read(reader: CborReader): MessageEntityUrl {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i4>('i4').read(reader);
     const domain = IonFormatterStorage.get<string>('string').read(reader);
     const path = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 6);
     return new MessageEntityUrl(type, offset, length, version, domain, path);
   },
   write(writer: CborWriter, value: MessageEntityUrl): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(6);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -711,14 +793,16 @@ IonFormatterStorage.register("IJoinToVoiceResult", {
     return value!;
   },
   write(writer: CborWriter, value: IJoinToVoiceResult): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<SuccessJoinVoice>("SuccessJoinVoice").write(writer, value as SuccessJoinVoice);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<FailedJoinVoice>("FailedJoinVoice").write(writer, value as FailedJoinVoice);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessJoinVoice>("SuccessJoinVoice").write(writer, value as SuccessJoinVoice);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedJoinVoice>("FailedJoinVoice").write(writer, value as FailedJoinVoice);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -728,13 +812,13 @@ IonFormatterStorage.register("IJoinToVoiceResult", {
 
 IonFormatterStorage.register("SuccessJoinVoice", {
   read(reader: CborReader): SuccessJoinVoice {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const token = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessJoinVoice(token);
   },
   write(writer: CborWriter, value: SuccessJoinVoice): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(1);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
     writer.writeEndArray();
   }
@@ -742,13 +826,13 @@ IonFormatterStorage.register("SuccessJoinVoice", {
 
 IonFormatterStorage.register("FailedJoinVoice", {
   read(reader: CborReader): FailedJoinVoice {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const error = IonFormatterStorage.get<JoinToChannelError>('JoinToChannelError').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedJoinVoice(error);
   },
   write(writer: CborWriter, value: FailedJoinVoice): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(1);
     IonFormatterStorage.get<JoinToChannelError>('JoinToChannelError').write(writer, value.error);
     writer.writeEndArray();
   }
@@ -780,12 +864,6 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChannelRemoved(): this is ChannelRemoved {
     return this.UnionKey === "ChannelRemoved";
   }
-  public isIAmTypingEvent(): this is IAmTypingEvent {
-    return this.UnionKey === "IAmTypingEvent";
-  }
-  public isIAmStopTypingEvent(): this is IAmStopTypingEvent {
-    return this.UnionKey === "IAmStopTypingEvent";
-  }
   public isUserTypingEvent(): this is UserTypingEvent {
     return this.UnionKey === "UserTypingEvent";
   }
@@ -815,6 +893,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   }
   public isMessageSent(): this is MessageSent {
     return this.UnionKey === "MessageSent";
+  }
+  public isServerModified(): this is ServerModified {
+    return this.UnionKey === "ServerModified";
   }
 
 }
@@ -860,28 +941,12 @@ export class ChannelRemoved extends IArgonEvent
   UnionIndex: number = 4;
 }
 
-export class IAmTypingEvent extends IArgonEvent
-{
-  constructor(public spaceId: guid, public channelId: guid) { super(); }
-
-  UnionKey: string = "IAmTypingEvent";
-  UnionIndex: number = 5;
-}
-
-export class IAmStopTypingEvent extends IArgonEvent
-{
-  constructor(public spaceId: guid, public channelId: guid) { super(); }
-
-  UnionKey: string = "IAmStopTypingEvent";
-  UnionIndex: number = 6;
-}
-
 export class UserTypingEvent extends IArgonEvent
 {
   constructor(public spaceId: guid, public channelId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "UserTypingEvent";
-  UnionIndex: number = 7;
+  UnionIndex: number = 5;
 }
 
 export class UserStopTypingEvent extends IArgonEvent
@@ -889,7 +954,7 @@ export class UserStopTypingEvent extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "UserStopTypingEvent";
-  UnionIndex: number = 8;
+  UnionIndex: number = 6;
 }
 
 export class JoinedToChannelUser extends IArgonEvent
@@ -897,7 +962,7 @@ export class JoinedToChannelUser extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "JoinedToChannelUser";
-  UnionIndex: number = 9;
+  UnionIndex: number = 7;
 }
 
 export class JoinToServerUser extends IArgonEvent
@@ -905,7 +970,7 @@ export class JoinToServerUser extends IArgonEvent
   constructor(public spaceId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "JoinToServerUser";
-  UnionIndex: number = 10;
+  UnionIndex: number = 8;
 }
 
 export class LeavedFromChannelUser extends IArgonEvent
@@ -913,7 +978,7 @@ export class LeavedFromChannelUser extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "LeavedFromChannelUser";
-  UnionIndex: number = 11;
+  UnionIndex: number = 9;
 }
 
 export class UserUpdated extends IArgonEvent
@@ -921,7 +986,7 @@ export class UserUpdated extends IArgonEvent
   constructor(public spaceId: guid, public dto: ArgonUser) { super(); }
 
   UnionKey: string = "UserUpdated";
-  UnionIndex: number = 12;
+  UnionIndex: number = 10;
 }
 
 export class OnUserPresenceActivityChanged extends IArgonEvent
@@ -929,7 +994,7 @@ export class OnUserPresenceActivityChanged extends IArgonEvent
   constructor(public spaceId: guid, public userId: guid, public presence: UserActivityPresence) { super(); }
 
   UnionKey: string = "OnUserPresenceActivityChanged";
-  UnionIndex: number = 13;
+  UnionIndex: number = 11;
 }
 
 export class OnUserPresenceActivityRemoved extends IArgonEvent
@@ -937,7 +1002,7 @@ export class OnUserPresenceActivityRemoved extends IArgonEvent
   constructor(public spaceId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "OnUserPresenceActivityRemoved";
-  UnionIndex: number = 14;
+  UnionIndex: number = 12;
 }
 
 export class UserChangedStatus extends IArgonEvent
@@ -945,7 +1010,7 @@ export class UserChangedStatus extends IArgonEvent
   constructor(public spaceId: guid, public userId: guid, public status: UserStatus, public bag: IonArray<string>) { super(); }
 
   UnionKey: string = "UserChangedStatus";
-  UnionIndex: number = 15;
+  UnionIndex: number = 13;
 }
 
 export class MessageSent extends IArgonEvent
@@ -953,7 +1018,15 @@ export class MessageSent extends IArgonEvent
   constructor(public spaceId: guid, public message: ArgonMessage) { super(); }
 
   UnionKey: string = "MessageSent";
-  UnionIndex: number = 16;
+  UnionIndex: number = 14;
+}
+
+export class ServerModified extends IArgonEvent
+{
+  constructor(public spaceId: guid, public bag: IonArray<string>) { super(); }
+
+  UnionKey: string = "ServerModified";
+  UnionIndex: number = 15;
 }
 
 
@@ -977,29 +1050,27 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (unionIndex == 4)
       value = IonFormatterStorage.get<ChannelRemoved>("ChannelRemoved").read(reader);
     else if (unionIndex == 5)
-      value = IonFormatterStorage.get<IAmTypingEvent>("IAmTypingEvent").read(reader);
-    else if (unionIndex == 6)
-      value = IonFormatterStorage.get<IAmStopTypingEvent>("IAmStopTypingEvent").read(reader);
-    else if (unionIndex == 7)
       value = IonFormatterStorage.get<UserTypingEvent>("UserTypingEvent").read(reader);
-    else if (unionIndex == 8)
+    else if (unionIndex == 6)
       value = IonFormatterStorage.get<UserStopTypingEvent>("UserStopTypingEvent").read(reader);
-    else if (unionIndex == 9)
+    else if (unionIndex == 7)
       value = IonFormatterStorage.get<JoinedToChannelUser>("JoinedToChannelUser").read(reader);
-    else if (unionIndex == 10)
+    else if (unionIndex == 8)
       value = IonFormatterStorage.get<JoinToServerUser>("JoinToServerUser").read(reader);
-    else if (unionIndex == 11)
+    else if (unionIndex == 9)
       value = IonFormatterStorage.get<LeavedFromChannelUser>("LeavedFromChannelUser").read(reader);
-    else if (unionIndex == 12)
+    else if (unionIndex == 10)
       value = IonFormatterStorage.get<UserUpdated>("UserUpdated").read(reader);
-    else if (unionIndex == 13)
+    else if (unionIndex == 11)
       value = IonFormatterStorage.get<OnUserPresenceActivityChanged>("OnUserPresenceActivityChanged").read(reader);
-    else if (unionIndex == 14)
+    else if (unionIndex == 12)
       value = IonFormatterStorage.get<OnUserPresenceActivityRemoved>("OnUserPresenceActivityRemoved").read(reader);
-    else if (unionIndex == 15)
+    else if (unionIndex == 13)
       value = IonFormatterStorage.get<UserChangedStatus>("UserChangedStatus").read(reader);
-    else if (unionIndex == 16)
+    else if (unionIndex == 14)
       value = IonFormatterStorage.get<MessageSent>("MessageSent").read(reader);
+    else if (unionIndex == 15)
+      value = IonFormatterStorage.get<ServerModified>("ServerModified").read(reader);
 
     else throw new Error();
   
@@ -1007,44 +1078,58 @@ IonFormatterStorage.register("IArgonEvent", {
     return value!;
   },
   write(writer: CborWriter, value: IArgonEvent): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<ArchetypeChanged>("ArchetypeChanged").write(writer, value as ArchetypeChanged);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<ArchetypeCreated>("ArchetypeCreated").write(writer, value as ArchetypeCreated);
-    else if (value.UnionIndex == 2)
-      IonFormatterStorage.get<ChannelCreated>("ChannelCreated").write(writer, value as ChannelCreated);
-    else if (value.UnionIndex == 3)
-      IonFormatterStorage.get<ChannelModified>("ChannelModified").write(writer, value as ChannelModified);
-    else if (value.UnionIndex == 4)
-      IonFormatterStorage.get<ChannelRemoved>("ChannelRemoved").write(writer, value as ChannelRemoved);
-    else if (value.UnionIndex == 5)
-      IonFormatterStorage.get<IAmTypingEvent>("IAmTypingEvent").write(writer, value as IAmTypingEvent);
-    else if (value.UnionIndex == 6)
-      IonFormatterStorage.get<IAmStopTypingEvent>("IAmStopTypingEvent").write(writer, value as IAmStopTypingEvent);
-    else if (value.UnionIndex == 7)
-      IonFormatterStorage.get<UserTypingEvent>("UserTypingEvent").write(writer, value as UserTypingEvent);
-    else if (value.UnionIndex == 8)
-      IonFormatterStorage.get<UserStopTypingEvent>("UserStopTypingEvent").write(writer, value as UserStopTypingEvent);
-    else if (value.UnionIndex == 9)
-      IonFormatterStorage.get<JoinedToChannelUser>("JoinedToChannelUser").write(writer, value as JoinedToChannelUser);
-    else if (value.UnionIndex == 10)
-      IonFormatterStorage.get<JoinToServerUser>("JoinToServerUser").write(writer, value as JoinToServerUser);
-    else if (value.UnionIndex == 11)
-      IonFormatterStorage.get<LeavedFromChannelUser>("LeavedFromChannelUser").write(writer, value as LeavedFromChannelUser);
-    else if (value.UnionIndex == 12)
-      IonFormatterStorage.get<UserUpdated>("UserUpdated").write(writer, value as UserUpdated);
-    else if (value.UnionIndex == 13)
-      IonFormatterStorage.get<OnUserPresenceActivityChanged>("OnUserPresenceActivityChanged").write(writer, value as OnUserPresenceActivityChanged);
-    else if (value.UnionIndex == 14)
-      IonFormatterStorage.get<OnUserPresenceActivityRemoved>("OnUserPresenceActivityRemoved").write(writer, value as OnUserPresenceActivityRemoved);
-    else if (value.UnionIndex == 15)
-      IonFormatterStorage.get<UserChangedStatus>("UserChangedStatus").write(writer, value as UserChangedStatus);
-    else if (value.UnionIndex == 16)
-      IonFormatterStorage.get<MessageSent>("MessageSent").write(writer, value as MessageSent);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<ArchetypeChanged>("ArchetypeChanged").write(writer, value as ArchetypeChanged);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<ArchetypeCreated>("ArchetypeCreated").write(writer, value as ArchetypeCreated);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<ChannelCreated>("ChannelCreated").write(writer, value as ChannelCreated);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<ChannelModified>("ChannelModified").write(writer, value as ChannelModified);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<ChannelRemoved>("ChannelRemoved").write(writer, value as ChannelRemoved);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<UserTypingEvent>("UserTypingEvent").write(writer, value as UserTypingEvent);
+    }
+    else if (value.UnionIndex == 6) {
+        IonFormatterStorage.get<UserStopTypingEvent>("UserStopTypingEvent").write(writer, value as UserStopTypingEvent);
+    }
+    else if (value.UnionIndex == 7) {
+        IonFormatterStorage.get<JoinedToChannelUser>("JoinedToChannelUser").write(writer, value as JoinedToChannelUser);
+    }
+    else if (value.UnionIndex == 8) {
+        IonFormatterStorage.get<JoinToServerUser>("JoinToServerUser").write(writer, value as JoinToServerUser);
+    }
+    else if (value.UnionIndex == 9) {
+        IonFormatterStorage.get<LeavedFromChannelUser>("LeavedFromChannelUser").write(writer, value as LeavedFromChannelUser);
+    }
+    else if (value.UnionIndex == 10) {
+        IonFormatterStorage.get<UserUpdated>("UserUpdated").write(writer, value as UserUpdated);
+    }
+    else if (value.UnionIndex == 11) {
+        IonFormatterStorage.get<OnUserPresenceActivityChanged>("OnUserPresenceActivityChanged").write(writer, value as OnUserPresenceActivityChanged);
+    }
+    else if (value.UnionIndex == 12) {
+        IonFormatterStorage.get<OnUserPresenceActivityRemoved>("OnUserPresenceActivityRemoved").write(writer, value as OnUserPresenceActivityRemoved);
+    }
+    else if (value.UnionIndex == 13) {
+        IonFormatterStorage.get<UserChangedStatus>("UserChangedStatus").write(writer, value as UserChangedStatus);
+    }
+    else if (value.UnionIndex == 14) {
+        IonFormatterStorage.get<MessageSent>("MessageSent").write(writer, value as MessageSent);
+    }
+    else if (value.UnionIndex == 15) {
+        IonFormatterStorage.get<ServerModified>("ServerModified").write(writer, value as ServerModified);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -1054,14 +1139,14 @@ IonFormatterStorage.register("IArgonEvent", {
 
 IonFormatterStorage.register("ArchetypeChanged", {
   read(reader: CborReader): ArchetypeChanged {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new ArchetypeChanged(spaceId, data);
   },
   write(writer: CborWriter, value: ArchetypeChanged): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<Archetype>('Archetype').write(writer, value.data);
     writer.writeEndArray();
@@ -1070,14 +1155,14 @@ IonFormatterStorage.register("ArchetypeChanged", {
 
 IonFormatterStorage.register("ArchetypeCreated", {
   read(reader: CborReader): ArchetypeCreated {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new ArchetypeCreated(spaceId, data);
   },
   write(writer: CborWriter, value: ArchetypeCreated): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<Archetype>('Archetype').write(writer, value.data);
     writer.writeEndArray();
@@ -1086,14 +1171,14 @@ IonFormatterStorage.register("ArchetypeCreated", {
 
 IonFormatterStorage.register("ChannelCreated", {
   read(reader: CborReader): ChannelCreated {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new ChannelCreated(spaceId, data);
   },
   write(writer: CborWriter, value: ChannelCreated): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.data);
     writer.writeEndArray();
@@ -1102,15 +1187,15 @@ IonFormatterStorage.register("ChannelCreated", {
 
 IonFormatterStorage.register("ChannelModified", {
   read(reader: CborReader): ChannelModified {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const bag = IonFormatterStorage.readArray<string>(reader, 'string');
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new ChannelModified(spaceId, channelId, bag);
   },
   write(writer: CborWriter, value: ChannelModified): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.writeArray<string>(writer, value.bag, 'string');
@@ -1120,46 +1205,14 @@ IonFormatterStorage.register("ChannelModified", {
 
 IonFormatterStorage.register("ChannelRemoved", {
   read(reader: CborReader): ChannelRemoved {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new ChannelRemoved(spaceId, channelId);
   },
   write(writer: CborWriter, value: ChannelRemoved): void {
-    writer.writeStartArray(null);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("IAmTypingEvent", {
-  read(reader: CborReader): IAmTypingEvent {
-    reader.readStartArray();
-    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
-    return new IAmTypingEvent(spaceId, channelId);
-  },
-  write(writer: CborWriter, value: IAmTypingEvent): void {
-    writer.writeStartArray(null);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("IAmStopTypingEvent", {
-  read(reader: CborReader): IAmStopTypingEvent {
-    reader.readStartArray();
-    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
-    return new IAmStopTypingEvent(spaceId, channelId);
-  },
-  write(writer: CborWriter, value: IAmStopTypingEvent): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     writer.writeEndArray();
@@ -1168,15 +1221,15 @@ IonFormatterStorage.register("IAmStopTypingEvent", {
 
 IonFormatterStorage.register("UserTypingEvent", {
   read(reader: CborReader): UserTypingEvent {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new UserTypingEvent(spaceId, channelId, userId);
   },
   write(writer: CborWriter, value: UserTypingEvent): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
@@ -1186,15 +1239,15 @@ IonFormatterStorage.register("UserTypingEvent", {
 
 IonFormatterStorage.register("UserStopTypingEvent", {
   read(reader: CborReader): UserStopTypingEvent {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new UserStopTypingEvent(spaceId, channelId, userId);
   },
   write(writer: CborWriter, value: UserStopTypingEvent): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
@@ -1204,15 +1257,15 @@ IonFormatterStorage.register("UserStopTypingEvent", {
 
 IonFormatterStorage.register("JoinedToChannelUser", {
   read(reader: CborReader): JoinedToChannelUser {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new JoinedToChannelUser(spaceId, channelId, userId);
   },
   write(writer: CborWriter, value: JoinedToChannelUser): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
@@ -1222,14 +1275,14 @@ IonFormatterStorage.register("JoinedToChannelUser", {
 
 IonFormatterStorage.register("JoinToServerUser", {
   read(reader: CborReader): JoinToServerUser {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new JoinToServerUser(spaceId, userId);
   },
   write(writer: CborWriter, value: JoinToServerUser): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     writer.writeEndArray();
@@ -1238,15 +1291,15 @@ IonFormatterStorage.register("JoinToServerUser", {
 
 IonFormatterStorage.register("LeavedFromChannelUser", {
   read(reader: CborReader): LeavedFromChannelUser {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new LeavedFromChannelUser(spaceId, channelId, userId);
   },
   write(writer: CborWriter, value: LeavedFromChannelUser): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
@@ -1256,14 +1309,14 @@ IonFormatterStorage.register("LeavedFromChannelUser", {
 
 IonFormatterStorage.register("UserUpdated", {
   read(reader: CborReader): UserUpdated {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const dto = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new UserUpdated(spaceId, dto);
   },
   write(writer: CborWriter, value: UserUpdated): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonUser>('ArgonUser').write(writer, value.dto);
     writer.writeEndArray();
@@ -1272,15 +1325,15 @@ IonFormatterStorage.register("UserUpdated", {
 
 IonFormatterStorage.register("OnUserPresenceActivityChanged", {
   read(reader: CborReader): OnUserPresenceActivityChanged {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const presence = IonFormatterStorage.get<UserActivityPresence>('UserActivityPresence').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new OnUserPresenceActivityChanged(spaceId, userId, presence);
   },
   write(writer: CborWriter, value: OnUserPresenceActivityChanged): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<UserActivityPresence>('UserActivityPresence').write(writer, value.presence);
@@ -1290,14 +1343,14 @@ IonFormatterStorage.register("OnUserPresenceActivityChanged", {
 
 IonFormatterStorage.register("OnUserPresenceActivityRemoved", {
   read(reader: CborReader): OnUserPresenceActivityRemoved {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new OnUserPresenceActivityRemoved(spaceId, userId);
   },
   write(writer: CborWriter, value: OnUserPresenceActivityRemoved): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     writer.writeEndArray();
@@ -1306,16 +1359,16 @@ IonFormatterStorage.register("OnUserPresenceActivityRemoved", {
 
 IonFormatterStorage.register("UserChangedStatus", {
   read(reader: CborReader): UserChangedStatus {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
     const bag = IonFormatterStorage.readArray<string>(reader, 'string');
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 4);
     return new UserChangedStatus(spaceId, userId, status, bag);
   },
   write(writer: CborWriter, value: UserChangedStatus): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(4);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
@@ -1326,16 +1379,164 @@ IonFormatterStorage.register("UserChangedStatus", {
 
 IonFormatterStorage.register("MessageSent", {
   read(reader: CborReader): MessageSent {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new MessageSent(spaceId, message);
   },
   write(writer: CborWriter, value: MessageSent): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ServerModified", {
+  read(reader: CborReader): ServerModified {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const bag = IonFormatterStorage.readArray<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ServerModified(spaceId, bag);
+  },
+  write(writer: CborWriter, value: ServerModified): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.writeArray<string>(writer, value.bag, 'string');
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isIAmTypingEvent(): this is IAmTypingEvent {
+    return this.UnionKey === "IAmTypingEvent";
+  }
+  public isIAmStopTypingEvent(): this is IAmStopTypingEvent {
+    return this.UnionKey === "IAmStopTypingEvent";
+  }
+  public isHeartBeatEvent(): this is HeartBeatEvent {
+    return this.UnionKey === "HeartBeatEvent";
+  }
+
+}
+
+
+export class IAmTypingEvent extends IArgonClientEvent
+{
+  constructor(public channelId: guid) { super(); }
+
+  UnionKey: string = "IAmTypingEvent";
+  UnionIndex: number = 0;
+}
+
+export class IAmStopTypingEvent extends IArgonClientEvent
+{
+  constructor(public channelId: guid) { super(); }
+
+  UnionKey: string = "IAmStopTypingEvent";
+  UnionIndex: number = 1;
+}
+
+export class HeartBeatEvent extends IArgonClientEvent
+{
+  constructor(public status: UserStatus) { super(); }
+
+  UnionKey: string = "HeartBeatEvent";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IArgonClientEvent", {
+  read(reader: CborReader): IArgonClientEvent {
+    reader.readStartArray();
+    let value: IArgonClientEvent = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<IAmTypingEvent>("IAmTypingEvent").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<IAmStopTypingEvent>("IAmStopTypingEvent").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<HeartBeatEvent>("HeartBeatEvent").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IArgonClientEvent): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<IAmTypingEvent>("IAmTypingEvent").write(writer, value as IAmTypingEvent);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<IAmStopTypingEvent>("IAmStopTypingEvent").write(writer, value as IAmStopTypingEvent);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<HeartBeatEvent>("HeartBeatEvent").write(writer, value as HeartBeatEvent);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("IAmTypingEvent", {
+  read(reader: CborReader): IAmTypingEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new IAmTypingEvent(channelId);
+  },
+  write(writer: CborWriter, value: IAmTypingEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IAmStopTypingEvent", {
+  read(reader: CborReader): IAmStopTypingEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new IAmStopTypingEvent(channelId);
+  },
+  write(writer: CborWriter, value: IAmStopTypingEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("HeartBeatEvent", {
+  read(reader: CborReader): HeartBeatEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new HeartBeatEvent(status);
+  },
+  write(writer: CborWriter, value: HeartBeatEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
     writer.writeEndArray();
   }
 });
@@ -1362,7 +1563,7 @@ export abstract class IAuthorizeResult implements IIonUnion<IAuthorizeResult>
 
 export class SuccessAuthorize extends IAuthorizeResult
 {
-  constructor(public token: string, public refreshToken: IonMaybe<string>) { super(); }
+  constructor(public token: string, public refreshToken: string | null) { super(); }
 
   UnionKey: string = "SuccessAuthorize";
   UnionIndex: number = 0;
@@ -1397,14 +1598,16 @@ IonFormatterStorage.register("IAuthorizeResult", {
     return value!;
   },
   write(writer: CborWriter, value: IAuthorizeResult): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<SuccessAuthorize>("SuccessAuthorize").write(writer, value as SuccessAuthorize);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<FailedAuthorize>("FailedAuthorize").write(writer, value as FailedAuthorize);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessAuthorize>("SuccessAuthorize").write(writer, value as SuccessAuthorize);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedAuthorize>("FailedAuthorize").write(writer, value as FailedAuthorize);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -1414,29 +1617,29 @@ IonFormatterStorage.register("IAuthorizeResult", {
 
 IonFormatterStorage.register("SuccessAuthorize", {
   read(reader: CborReader): SuccessAuthorize {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const token = IonFormatterStorage.get<string>('string').read(reader);
-    const refreshToken = IonFormatterStorage.readMaybe<string>(reader, 'string');
-    reader.readEndArray();
+    const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new SuccessAuthorize(token, refreshToken);
   },
   write(writer: CborWriter, value: SuccessAuthorize): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
-    IonFormatterStorage.writeMaybe<string>(writer, value.refreshToken, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.refreshToken, 'string');
     writer.writeEndArray();
   }
 });
 
 IonFormatterStorage.register("FailedAuthorize", {
   read(reader: CborReader): FailedAuthorize {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const error = IonFormatterStorage.get<AuthorizationError>('AuthorizationError').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedAuthorize(error);
   },
   write(writer: CborWriter, value: FailedAuthorize): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(1);
     IonFormatterStorage.get<AuthorizationError>('AuthorizationError').write(writer, value.error);
     writer.writeEndArray();
   }
@@ -1464,7 +1667,7 @@ export abstract class IRegistrationResult implements IIonUnion<IRegistrationResu
 
 export class SuccessRegistration extends IRegistrationResult
 {
-  constructor(public token: string, public refreshToken: IonMaybe<string>) { super(); }
+  constructor(public token: string, public refreshToken: string | null) { super(); }
 
   UnionKey: string = "SuccessRegistration";
   UnionIndex: number = 0;
@@ -1472,7 +1675,7 @@ export class SuccessRegistration extends IRegistrationResult
 
 export class FailedRegistration extends IRegistrationResult
 {
-  constructor(public error: RegistrationError, public field: IonMaybe<string>, public message: IonMaybe<string>) { super(); }
+  constructor(public error: RegistrationError, public field: string | null, public message: string | null) { super(); }
 
   UnionKey: string = "FailedRegistration";
   UnionIndex: number = 1;
@@ -1499,14 +1702,16 @@ IonFormatterStorage.register("IRegistrationResult", {
     return value!;
   },
   write(writer: CborWriter, value: IRegistrationResult): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<SuccessRegistration>("SuccessRegistration").write(writer, value as SuccessRegistration);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<FailedRegistration>("FailedRegistration").write(writer, value as FailedRegistration);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRegistration>("SuccessRegistration").write(writer, value as SuccessRegistration);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRegistration>("FailedRegistration").write(writer, value as FailedRegistration);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -1516,34 +1721,34 @@ IonFormatterStorage.register("IRegistrationResult", {
 
 IonFormatterStorage.register("SuccessRegistration", {
   read(reader: CborReader): SuccessRegistration {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const token = IonFormatterStorage.get<string>('string').read(reader);
-    const refreshToken = IonFormatterStorage.readMaybe<string>(reader, 'string');
-    reader.readEndArray();
+    const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
     return new SuccessRegistration(token, refreshToken);
   },
   write(writer: CborWriter, value: SuccessRegistration): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
-    IonFormatterStorage.writeMaybe<string>(writer, value.refreshToken, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.refreshToken, 'string');
     writer.writeEndArray();
   }
 });
 
 IonFormatterStorage.register("FailedRegistration", {
   read(reader: CborReader): FailedRegistration {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const error = IonFormatterStorage.get<RegistrationError>('RegistrationError').read(reader);
-    const field = IonFormatterStorage.readMaybe<string>(reader, 'string');
-    const message = IonFormatterStorage.readMaybe<string>(reader, 'string');
-    reader.readEndArray();
+    const field = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const message = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
     return new FailedRegistration(error, field, message);
   },
   write(writer: CborWriter, value: FailedRegistration): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<RegistrationError>('RegistrationError').write(writer, value.error);
-    IonFormatterStorage.writeMaybe<string>(writer, value.field, 'string');
-    IonFormatterStorage.writeMaybe<string>(writer, value.message, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.field, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.message, 'string');
     writer.writeEndArray();
   }
 });
@@ -1605,14 +1810,16 @@ IonFormatterStorage.register("IJoinToSpaceResult", {
     return value!;
   },
   write(writer: CborWriter, value: IJoinToSpaceResult): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
     {}
-        else if (value.UnionIndex == 0)
-      IonFormatterStorage.get<SuccessJoin>("SuccessJoin").write(writer, value as SuccessJoin);
-    else if (value.UnionIndex == 1)
-      IonFormatterStorage.get<FailedJoin>("FailedJoin").write(writer, value as FailedJoin);
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessJoin>("SuccessJoin").write(writer, value as SuccessJoin);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedJoin>("FailedJoin").write(writer, value as FailedJoin);
+    }
   
     else throw new Error();
     writer.writeEndArray();
@@ -1622,13 +1829,13 @@ IonFormatterStorage.register("IJoinToSpaceResult", {
 
 IonFormatterStorage.register("SuccessJoin", {
   read(reader: CborReader): SuccessJoin {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const space = IonFormatterStorage.get<ArgonSpace>('ArgonSpace').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessJoin(space);
   },
   write(writer: CborWriter, value: SuccessJoin): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(1);
     IonFormatterStorage.get<ArgonSpace>('ArgonSpace').write(writer, value.space);
     writer.writeEndArray();
   }
@@ -1636,18 +1843,763 @@ IonFormatterStorage.register("SuccessJoin", {
 
 IonFormatterStorage.register("FailedJoin", {
   read(reader: CborReader): FailedJoin {
-    reader.readStartArray();
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const error = IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').read(reader);
-    reader.readEndArray();
+    reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedJoin(error);
   },
   write(writer: CborWriter, value: FailedJoin): void {
-    writer.writeStartArray(null);
+    writer.writeStartArray(1);
     IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
 
+
+
+IonFormatterStorage.register("ArgonEntitlement", {
+  read(reader: CborReader): ArgonEntitlement {
+    const num = (IonFormatterStorage.get<u8>('u8').read(reader))
+    return num as any;
+  },
+  write(writer: CborWriter, value: ArgonEntitlement): void {
+    const casted: u8 = value as any;
+    IonFormatterStorage.get<u8>('u8').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ChannelEntitlementOverwrite", {
+  read(reader: CborReader): ChannelEntitlementOverwrite {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const archetypeId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const serverMemberId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const allow = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    const deny = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    const creatorId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const id = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { channelId, archetypeId, serverMemberId, allow, deny, creatorId, id };
+  },
+  write(writer: CborWriter, value: ChannelEntitlementOverwrite): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.archetypeId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, value.serverMemberId, 'guid');
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.allow);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.deny);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.creatorId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.id);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Archetype", {
+  read(reader: CborReader): Archetype {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const isMentionable = IonFormatterStorage.get<bool>('bool').read(reader);
+    const colour = IonFormatterStorage.get<i4>('i4').read(reader);
+    const isHidden = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isLocked = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isGroup = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isDefault = IonFormatterStorage.get<bool>('bool').read(reader);
+    const iconFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const entitlement = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { id, spaceId, name, description, isMentionable, colour, isHidden, isLocked, isGroup, isDefault, iconFileId, entitlement };
+  },
+  write(writer: CborWriter, value: Archetype): void {
+    writer.writeStartArray(12);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.id);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isMentionable);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.colour);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isHidden);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isLocked);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isGroup);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isDefault);
+    IonFormatterStorage.writeNullable<string>(writer, value.iconFileId, 'string');
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.entitlement);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelType", {
+  read(reader: CborReader): ChannelType {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return ChannelType[num] !== undefined ? num as ChannelType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ChannelType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CreateChannelRequest", {
+  read(reader: CborReader): CreateChannelRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const kind = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
+    const desc = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { spaceId, name, kind, desc };
+  },
+  write(writer: CborWriter, value: CreateChannelRequest): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.kind);
+    IonFormatterStorage.get<string>('string').write(writer, value.desc);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonChannel", {
+  read(reader: CborReader): ArgonChannel {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const categoryId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { type, spaceId, channelId, name, description, categoryId };
+  },
+  write(writer: CborWriter, value: ArgonChannel): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.get<guid>('guid').write(writer, value.categoryId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("RealtimeChannel", {
+  read(reader: CborReader): RealtimeChannel {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
+    const users = IonFormatterStorage.readArray<RealtimeChannelUser>(reader, 'RealtimeChannelUser');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { channel, users };
+  },
+  write(writer: CborWriter, value: RealtimeChannel): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
+    IonFormatterStorage.writeArray<RealtimeChannelUser>(writer, value.users, 'RealtimeChannelUser');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonMessage", {
+  read(reader: CborReader): ArgonMessage {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const messageId = IonFormatterStorage.get<u8>('u8').read(reader);
+    const replyId = IonFormatterStorage.readNullable<u8>(reader, 'u8');
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const text = IonFormatterStorage.get<string>('string').read(reader);
+    const entities = IonFormatterStorage.readArray<IMessageEntity>(reader, 'IMessageEntity');
+    const timeSent = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const sender = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender };
+  },
+  write(writer: CborWriter, value: ArgonMessage): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<u8>('u8').write(writer, value.messageId);
+    IonFormatterStorage.writeNullable<u8>(writer, value.replyId, 'u8');
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, value.entities, 'IMessageEntity');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.timeSent);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sender);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelMemberState", {
+  read(reader: CborReader): ChannelMemberState {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return num as any;
+  },
+  write(writer: CborWriter, value: ChannelMemberState): void {
+    const casted: u4 = value as any;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RealtimeChannelUser", {
+  read(reader: CborReader): RealtimeChannelUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const state = IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { userId, state };
+  },
+  write(writer: CborWriter, value: RealtimeChannelUser): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').write(writer, value.state);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ActivityPresenceKind", {
+  read(reader: CborReader): ActivityPresenceKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ActivityPresenceKind[num] !== undefined ? num as ActivityPresenceKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ActivityPresenceKind): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UserActivityPresence", {
+  read(reader: CborReader): UserActivityPresence {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const kind = IonFormatterStorage.get<ActivityPresenceKind>('ActivityPresenceKind').read(reader);
+    const startTimestampSeconds = IonFormatterStorage.get<u8>('u8').read(reader);
+    const titleName = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { kind, startTimestampSeconds, titleName };
+  },
+  write(writer: CborWriter, value: UserActivityPresence): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<ActivityPresenceKind>('ActivityPresenceKind').write(writer, value.kind);
+    IonFormatterStorage.get<u8>('u8').write(writer, value.startTimestampSeconds);
+    IonFormatterStorage.get<string>('string').write(writer, value.titleName);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("JoinToChannelError", {
+  read(reader: CborReader): JoinToChannelError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return JoinToChannelError[num] !== undefined ? num as JoinToChannelError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: JoinToChannelError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("EntityType", {
+  read(reader: CborReader): EntityType {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return EntityType[num] !== undefined ? num as EntityType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: EntityType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RtcEndpoint", {
+  read(reader: CborReader): RtcEndpoint {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
+    const ices = IonFormatterStorage.readArray<IceEndpoint>(reader, 'IceEndpoint');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { endpoint, ices };
+  },
+  write(writer: CborWriter, value: RtcEndpoint): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
+    IonFormatterStorage.writeArray<IceEndpoint>(writer, value.ices, 'IceEndpoint');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetInfo", {
+  read(reader: CborReader): MeetInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const title = IonFormatterStorage.get<string>('string').read(reader);
+    const startTime = IonFormatterStorage.get<u4>('u4').read(reader);
+    const roomId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { title, startTime, roomId };
+  },
+  write(writer: CborWriter, value: MeetInfo): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.title);
+    IonFormatterStorage.get<u4>('u4').write(writer, value.startTime);
+    IonFormatterStorage.get<string>('string').write(writer, value.roomId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("JoinMeetResponse", {
+  read(reader: CborReader): JoinMeetResponse {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const voiceToken = IonFormatterStorage.get<string>('string').read(reader);
+    const endpoint = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
+    const meetInfo = IonFormatterStorage.get<MeetInfo>('MeetInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { voiceToken, endpoint, meetInfo };
+  },
+  write(writer: CborWriter, value: JoinMeetResponse): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.voiceToken);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.endpoint);
+    IonFormatterStorage.get<MeetInfo>('MeetInfo').write(writer, value.meetInfo);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IceEndpoint", {
+  read(reader: CborReader): IceEndpoint {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const password = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { endpoint, username, password };
+  },
+  write(writer: CborWriter, value: IceEndpoint): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.get<string>('string').write(writer, value.password);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetJoinError", {
+  read(reader: CborReader): MeetJoinError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return MeetJoinError[num] !== undefined ? num as MeetJoinError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: MeetJoinError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ArgonSpaceBase", {
+  read(reader: CborReader): ArgonSpaceBase {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFieldId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const topBannerFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId };
+  },
+  write(writer: CborWriter, value: ArgonSpaceBase): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFieldId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.topBannerFileId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonSpace", {
+  read(reader: CborReader): ArgonSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFieldId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const topBannerFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const channels = IonFormatterStorage.readArray<ArgonChannel>(reader, 'ArgonChannel');
+    const members = IonFormatterStorage.readArray<SpaceMember>(reader, 'SpaceMember');
+    const archetypes = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes };
+  },
+  write(writer: CborWriter, value: ArgonSpace): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFieldId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.topBannerFileId, 'string');
+    IonFormatterStorage.writeArray<ArgonChannel>(writer, value.channels, 'ArgonChannel');
+    IonFormatterStorage.writeArray<SpaceMember>(writer, value.members, 'SpaceMember');
+    IonFormatterStorage.writeArray<Archetype>(writer, value.archetypes, 'Archetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArchetypeGroup", {
+  read(reader: CborReader): ArchetypeGroup {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const archetype = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
+    const members = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { archetype, members };
+  },
+  write(writer: CborWriter, value: ArchetypeGroup): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<Archetype>('Archetype').write(writer, value.archetype);
+    IonFormatterStorage.writeArray<guid>(writer, value.members, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceMemberArchetype", {
+  read(reader: CborReader): SpaceMemberArchetype {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const serverMemberId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const archetypeId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { serverMemberId, archetypeId };
+  },
+  write(writer: CborWriter, value: SpaceMemberArchetype): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.serverMemberId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.archetypeId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonUser", {
+  read(reader: CborReader): ArgonUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const displayName = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { userId, username, displayName, avatarFileId };
+  },
+  write(writer: CborWriter, value: ArgonUser): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.get<string>('string').write(writer, value.displayName);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceMember", {
+  read(reader: CborReader): SpaceMember {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const joinedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const memberId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const user = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
+    const archetypes = IonFormatterStorage.readArray<SpaceMemberArchetype>(reader, 'SpaceMemberArchetype');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { userId, spaceId, joinedAt, memberId, user, archetypes };
+  },
+  write(writer: CborWriter, value: SpaceMember): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.joinedAt);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.memberId);
+    IonFormatterStorage.get<ArgonUser>('ArgonUser').write(writer, value.user);
+    IonFormatterStorage.writeArray<SpaceMemberArchetype>(writer, value.archetypes, 'SpaceMemberArchetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserStatus", {
+  read(reader: CborReader): UserStatus {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UserStatus[num] !== undefined ? num as UserStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UserStatus): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RealtimeServerMember", {
+  read(reader: CborReader): RealtimeServerMember {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const member = IonFormatterStorage.get<SpaceMember>('SpaceMember').read(reader);
+    const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
+    const presence = IonFormatterStorage.readNullable<UserActivityPresence>(reader, 'UserActivityPresence');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { member, status, presence };
+  },
+  write(writer: CborWriter, value: RealtimeServerMember): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<SpaceMember>('SpaceMember').write(writer, value.member);
+    IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
+    IonFormatterStorage.writeNullable<UserActivityPresence>(writer, value.presence, 'UserActivityPresence');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InviteCode", {
+  read(reader: CborReader): InviteCode {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const inviteCode = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { inviteCode };
+  },
+  write(writer: CborWriter, value: InviteCode): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.inviteCode);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InviteCodeEntity", {
+  read(reader: CborReader): InviteCodeEntity {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const code = IonFormatterStorage.get<InviteCode>('InviteCode').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const issuerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const expireTime = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const used = IonFormatterStorage.get<u8>('u8').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { code, spaceId, issuerId, expireTime, used };
+  },
+  write(writer: CborWriter, value: InviteCodeEntity): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, value.code);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.issuerId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expireTime);
+    IonFormatterStorage.get<u8>('u8').write(writer, value.used);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonUserProfile", {
+  read(reader: CborReader): ArgonUserProfile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const bannerFileID = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const dateOfBirth = IonFormatterStorage.readNullable<dateonly>(reader, 'dateonly');
+    const bio = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isPremium = IonFormatterStorage.get<bool>('bool').read(reader);
+    const badges = IonFormatterStorage.readArray<string>(reader, 'string');
+    const archetypes = IonFormatterStorage.readArray<SpaceMemberArchetype>(reader, 'SpaceMemberArchetype');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, isPremium, badges, archetypes };
+  },
+  write(writer: CborWriter, value: ArgonUserProfile): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.bannerFileID, 'string');
+    IonFormatterStorage.writeNullable<dateonly>(writer, value.dateOfBirth, 'dateonly');
+    IonFormatterStorage.writeNullable<string>(writer, value.bio, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isPremium);
+    IonFormatterStorage.writeArray<string>(writer, value.badges, 'string');
+    IonFormatterStorage.writeArray<SpaceMemberArchetype>(writer, value.archetypes, 'SpaceMemberArchetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonIonTicket", {
+  read(reader: CborReader): ArgonIonTicket {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const ip = IonFormatterStorage.get<string>('string').read(reader);
+    const ray = IonFormatterStorage.get<string>('string').read(reader);
+    const clientName = IonFormatterStorage.get<string>('string').read(reader);
+    const hostName = IonFormatterStorage.get<string>('string').read(reader);
+    const appId = IonFormatterStorage.get<string>('string').read(reader);
+    const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const machineId = IonFormatterStorage.get<string>('string').read(reader);
+    const region = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { userId, ip, ray, clientName, hostName, appId, sessionId, machineId, region };
+  },
+  write(writer: CborWriter, value: ArgonIonTicket): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.ip);
+    IonFormatterStorage.get<string>('string').write(writer, value.ray);
+    IonFormatterStorage.get<string>('string').write(writer, value.clientName);
+    IonFormatterStorage.get<string>('string').write(writer, value.hostName);
+    IonFormatterStorage.get<string>('string').write(writer, value.appId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sessionId);
+    IonFormatterStorage.get<string>('string').write(writer, value.machineId);
+    IonFormatterStorage.get<string>('string').write(writer, value.region);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserEditInput", {
+  read(reader: CborReader): UserEditInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const displayName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { displayName, avatarId };
+  },
+  write(writer: CborWriter, value: UserEditInput): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeNullable<string>(writer, value.displayName, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FeatureFlag", {
+  read(reader: CborReader): FeatureFlag {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const enabled = IonFormatterStorage.get<bool>('bool').read(reader);
+    const variant = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const parameters = IonFormatterStorage.readArray<FeatureFlagParameter>(reader, 'FeatureFlagParameter');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { key, enabled, variant, parameters };
+  },
+  write(writer: CborWriter, value: FeatureFlag): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.enabled);
+    IonFormatterStorage.writeNullable<string>(writer, value.variant, 'string');
+    IonFormatterStorage.writeArray<FeatureFlagParameter>(writer, value.parameters, 'FeatureFlagParameter');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FeatureFlagParameter", {
+  read(reader: CborReader): FeatureFlagParameter {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { key, value };
+  },
+  write(writer: CborWriter, value: FeatureFlagParameter): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CreateServerRequest", {
+  read(reader: CborReader): CreateServerRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFieldId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { name, description, avatarFieldId };
+  },
+  write(writer: CborWriter, value: CreateServerRequest): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.get<string>('string').write(writer, value.avatarFieldId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserCredentialsInput", {
+  read(reader: CborReader): UserCredentialsInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const email = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const password = IonFormatterStorage.get<string>('string').read(reader);
+    const otpCode = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const captchaToken = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { email, username, password, otpCode, captchaToken };
+  },
+  write(writer: CborWriter, value: UserCredentialsInput): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<string>('string').write(writer, value.email);
+    IonFormatterStorage.writeNullable<string>(writer, value.username, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.password);
+    IonFormatterStorage.writeNullable<string>(writer, value.otpCode, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.captchaToken, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("NewUserCredentialsInput", {
+  read(reader: CborReader): NewUserCredentialsInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const email = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const password = IonFormatterStorage.get<string>('string').read(reader);
+    const displayName = IonFormatterStorage.get<string>('string').read(reader);
+    const argreeTos = IonFormatterStorage.get<bool>('bool').read(reader);
+    const argreeOptionalEmails = IonFormatterStorage.get<bool>('bool').read(reader);
+    const captchaToken = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { email, username, password, displayName, argreeTos, argreeOptionalEmails, captchaToken };
+  },
+  write(writer: CborWriter, value: NewUserCredentialsInput): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<string>('string').write(writer, value.email);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.get<string>('string').write(writer, value.password);
+    IonFormatterStorage.get<string>('string').write(writer, value.displayName);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.argreeTos);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.argreeOptionalEmails);
+    IonFormatterStorage.writeNullable<string>(writer, value.captchaToken, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AcceptInviteError", {
+  read(reader: CborReader): AcceptInviteError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return AcceptInviteError[num] !== undefined ? num as AcceptInviteError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: AcceptInviteError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("AuthorizationError", {
+  read(reader: CborReader): AuthorizationError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return AuthorizationError[num] !== undefined ? num as AuthorizationError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: AuthorizationError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RegistrationError", {
+  read(reader: CborReader): RegistrationError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return RegistrationError[num] !== undefined ? num as RegistrationError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: RegistrationError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("LockdownReason", {
+  read(reader: CborReader): LockdownReason {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return LockdownReason[num] !== undefined ? num as LockdownReason : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: LockdownReason): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
 
 
 
@@ -1658,7 +2610,7 @@ export interface IArchetypeInteraction extends IIonService
   UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<IonMaybe<ChannelEntitlementOverwrite>>;
+  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
 }
 
 
@@ -1669,8 +2621,8 @@ export interface IChannelInteraction extends IIonService
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  QueryMessages(spaceId: guid, channelId: guid, from: IonMaybe<u8>, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: IonMaybe<u8>): Promise<ArgonMessage>;
+  QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
   GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   JoinToVoiceChannel(spaceId: guid, channelId: guid): Promise<IJoinToVoiceResult>;
@@ -1682,6 +2634,19 @@ export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
   ForSelf(): AsyncIterable<IArgonEvent>;
+  Dispatch(ev: IArgonClientEvent): Promise<void>;
+}
+
+
+
+
+export interface IMeetingInteraction extends IIonService
+{
+  Join(inviteCode: string, username: string): Promise<void>;
+  CreateMeetingLink(): Promise<string>;
+  SetDefaultPermissions(roomId: string, permissions: i8): Promise<void>;
+  BeginRecordAsync(roomId: string): Promise<string>;
+  EndRecordAsync(roomId: string): Promise<void>;
 }
 
 
@@ -1703,11 +2668,14 @@ export interface IServerInteraction extends IIonService
 
 
 
+
+
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
-  CreateSpace(request: CreateServerRequest): Promise<ArgonSpace>;
-  GetSpaces(): Promise<IonArray<ArgonSpace>>;
+  CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
+  GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
+  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
   Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
   Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
   BeginResetPassword(email: string): Promise<bool>;
@@ -1716,6 +2684,15 @@ export interface IUserInteraction extends IIonService
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
+}
+
+
+
+
+export interface IPreferenceInteraction extends IIonService
+{
+  SetPreference(scope: string, value: string): Promise<void>;
+  GetPreference(scope: string, value: string): Promise<void>;
 }
 
 
@@ -1737,7 +2714,7 @@ export interface IArchetypeInteraction extends IIonService
   UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<IonMaybe<ChannelEntitlementOverwrite>>;
+  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
 }
 
 
@@ -1748,8 +2725,8 @@ export interface IChannelInteraction extends IIonService
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  QueryMessages(spaceId: guid, channelId: guid, from: IonMaybe<u8>, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: IonMaybe<u8>): Promise<ArgonMessage>;
+  QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
   GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   JoinToVoiceChannel(spaceId: guid, channelId: guid): Promise<IJoinToVoiceResult>;
@@ -1761,6 +2738,19 @@ export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
   ForSelf(): AsyncIterable<IArgonEvent>;
+  Dispatch(ev: IArgonClientEvent): Promise<void>;
+}
+
+
+
+
+export interface IMeetingInteraction extends IIonService
+{
+  Join(inviteCode: string, username: string): Promise<void>;
+  CreateMeetingLink(): Promise<string>;
+  SetDefaultPermissions(roomId: string, permissions: i8): Promise<void>;
+  BeginRecordAsync(roomId: string): Promise<string>;
+  EndRecordAsync(roomId: string): Promise<void>;
 }
 
 
@@ -1782,11 +2772,14 @@ export interface IServerInteraction extends IIonService
 
 
 
+
+
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
-  CreateSpace(request: CreateServerRequest): Promise<ArgonSpace>;
-  GetSpaces(): Promise<IonArray<ArgonSpace>>;
+  CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
+  GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
+  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
   Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
   Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
   BeginResetPassword(email: string): Promise<bool>;
@@ -1795,6 +2788,15 @@ export interface IUserInteraction extends IIonService
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
+}
+
+
+
+
+export interface IPreferenceInteraction extends IIonService
+{
+  SetPreference(scope: string, value: string): Promise<void>;
+  GetPreference(scope: string, value: string): Promise<void>;
 }
 
 
@@ -1894,7 +2896,7 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
           
     return await req.callAsyncT<IonArray<ArchetypeGroup>>("IonArray<ArchetypeGroup>", writer.data, this.signal);
   }
-  async UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<IonMaybe<ChannelEntitlementOverwrite>> {
+  async UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null> {
     const req = new IonRequest(this.ctx, "IArchetypeInteraction", "UpsertArchetypeEntitlementForChannel");
           
     const writer = new CborWriter();
@@ -1909,7 +2911,7 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<IonMaybe<ChannelEntitlementOverwrite>>("IonMaybe<ChannelEntitlementOverwrite>", writer.data, this.signal);
+    return await req.callAsyncT<ChannelEntitlementOverwrite | null>("ChannelEntitlementOverwrite | null", writer.data, this.signal);
   }
 
 }
@@ -1965,7 +2967,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IonArray<RealtimeChannel>>("IonArray<RealtimeChannel>", writer.data, this.signal);
   }
-  async QueryMessages(spaceId: guid, channelId: guid, from: IonMaybe<u8>, limit: i4): Promise<IonArray<ArgonMessage>> {
+  async QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "QueryMessages");
           
     const writer = new CborWriter();
@@ -1974,14 +2976,14 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.writeMaybe<u8>(writer, from, 'u8');
+    IonFormatterStorage.writeNullable<u8>(writer, from, 'u8');
     IonFormatterStorage.get<i4>('i4').write(writer, limit);
       
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<ArgonMessage>>("IonArray<ArgonMessage>", writer.data, this.signal);
   }
-  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: IonMaybe<u8>): Promise<ArgonMessage> {
+  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "SendMessage");
           
     const writer = new CborWriter();
@@ -1992,11 +2994,11 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     IonFormatterStorage.get<guid>('guid').write(writer, channelId);
     IonFormatterStorage.get<string>('string').write(writer, text);
     IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
-    IonFormatterStorage.writeMaybe<u8>(writer, replyTo, 'u8');
+    IonFormatterStorage.writeNullable<u8>(writer, replyTo, 'u8');
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ArgonMessage>("ArgonMessage", writer.data, this.signal);
+    return await req.callAsyncT<u8>("u8", writer.data, this.signal);
   }
   async GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "GetMessages");
@@ -2069,7 +3071,7 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
 
   
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent> {
-    const ws = new IonWsClient(this.ctx.baseUrl, "IEventBus", "ForServer");
+    const ws = new IonWsClient(this.ctx, "IEventBus", "ForServer");
     
     const writer = new CborWriter();
     
@@ -2082,7 +3084,7 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
     return ws.callServerStreaming<IArgonEvent>("IArgonEvent", writer.data, this.signal);
   }
   ForSelf(): AsyncIterable<IArgonEvent> {
-    const ws = new IonWsClient(this.ctx.baseUrl, "IEventBus", "ForSelf");
+    const ws = new IonWsClient(this.ctx, "IEventBus", "ForSelf");
     
     const writer = new CborWriter();
     
@@ -2094,10 +3096,101 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
     
     return ws.callServerStreaming<IArgonEvent>("IArgonEvent", writer.data, this.signal);
   }
+  async Dispatch(ev: IArgonClientEvent): Promise<void> {
+    const req = new IonRequest(this.ctx, "IEventBus", "Dispatch");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<IArgonClientEvent>('IArgonClientEvent').write(writer, ev);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
 
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class MeetingInteraction_Executor extends ServiceExecutor<IMeetingInteraction> implements IMeetingInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async Join(inviteCode: string, username: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IMeetingInteraction", "Join");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, inviteCode);
+    IonFormatterStorage.get<string>('string').write(writer, username);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async CreateMeetingLink(): Promise<string> {
+    const req = new IonRequest(this.ctx, "IMeetingInteraction", "CreateMeetingLink");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+  async SetDefaultPermissions(roomId: string, permissions: i8): Promise<void> {
+    const req = new IonRequest(this.ctx, "IMeetingInteraction", "SetDefaultPermissions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, roomId);
+    IonFormatterStorage.get<i8>('i8').write(writer, permissions);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async BeginRecordAsync(roomId: string): Promise<string> {
+    const req = new IonRequest(this.ctx, "IMeetingInteraction", "BeginRecordAsync");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, roomId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+  async EndRecordAsync(roomId: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IMeetingInteraction", "EndRecordAsync");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, roomId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IMeetingInteraction>('MeetingInteraction', MeetingInteraction_Executor);
 
 export class ServerInteraction_Executor extends ServiceExecutor<IServerInteraction> implements IServerInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -2249,7 +3342,7 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
           
     return await req.callAsyncT<ArgonUser>("ArgonUser", writer.data, this.signal);
   }
-  async CreateSpace(request: CreateServerRequest): Promise<ArgonSpace> {
+  async CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "CreateSpace");
           
     const writer = new CborWriter();
@@ -2260,9 +3353,9 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ArgonSpace>("ArgonSpace", writer.data, this.signal);
+    return await req.callAsyncT<ArgonSpaceBase>("ArgonSpaceBase", writer.data, this.signal);
   }
-  async GetSpaces(): Promise<IonArray<ArgonSpace>> {
+  async GetSpaces(): Promise<IonArray<ArgonSpaceBase>> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "GetSpaces");
           
     const writer = new CborWriter();
@@ -2273,7 +3366,20 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<IonArray<ArgonSpace>>("IonArray<ArgonSpace>", writer.data, this.signal);
+    return await req.callAsyncT<IonArray<ArgonSpaceBase>>("IonArray<ArgonSpaceBase>", writer.data, this.signal);
+  }
+  async UpdateMe(request: UserEditInput): Promise<ArgonUser> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "UpdateMe");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<UserEditInput>('UserEditInput').write(writer, request);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ArgonUser>("ArgonUser", writer.data, this.signal);
   }
   async Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "Authorize");
@@ -2386,6 +3492,45 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
 
 IonFormatterStorage.registerClientExecutor<IUserInteraction>('UserInteraction', UserInteraction_Executor);
 
+export class PreferenceInteraction_Executor extends ServiceExecutor<IPreferenceInteraction> implements IPreferenceInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async SetPreference(scope: string, value: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IPreferenceInteraction", "SetPreference");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, scope);
+    IonFormatterStorage.get<string>('string').write(writer, value);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetPreference(scope: string, value: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IPreferenceInteraction", "GetPreference");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, scope);
+    IonFormatterStorage.get<string>('string').write(writer, value);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IPreferenceInteraction>('PreferenceInteraction', PreferenceInteraction_Executor);
+
 export class VoiceInteraction_Executor extends ServiceExecutor<IVoiceInteraction> implements IVoiceInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -2432,18 +3577,21 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     baseUrl: endpoint,
     interceptors: interceptors
   } as IonClientContext;
+  const controller = new AbortController();
 
   return new Proxy(
     {},
     {
       get(_target, propKey) {
         if (typeof propKey !== "string") return undefined;
-        if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, new AbortSignal());
-        if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, new AbortSignal());
-        if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, new AbortSignal());
-        if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, new AbortSignal());
-        if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, new AbortSignal());
-        if (propKey === "VoiceInteraction") return IonFormatterStorage.createExecutor("VoiceInteraction", ctx, new AbortSignal());
+        if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, controller.signal);
+        if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
+        if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "MeetingInteraction") return IonFormatterStorage.createExecutor("MeetingInteraction", ctx, controller.signal);
+        if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
+        if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
+        if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
+        if (propKey === "VoiceInteraction") return IonFormatterStorage.createExecutor("VoiceInteraction", ctx, controller.signal);
 
 
         throw new Error(`${propKey} service is not defined`);
@@ -2453,8 +3601,10 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     ArchetypeInteraction: IArchetypeInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    MeetingInteraction: IMeetingInteraction;
     ServerInteraction: IServerInteraction;
     UserInteraction: IUserInteraction;
+    PreferenceInteraction: IPreferenceInteraction;
     VoiceInteraction: IVoiceInteraction;
 
   };

@@ -67,7 +67,7 @@ import { type MentionUser, usePoolStore } from "@/store/poolStore";
 import { useDebounce } from "@vueuse/core";
 import { Subscription } from "rxjs";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
-import { IonMaybe } from "@argon-chat/ion.webcore";
+import { v7 } from "uuid";
 
 const editorRef = ref<HTMLElement | null>(null);
 const api = useApi();
@@ -672,11 +672,11 @@ const handleSend = async () => {
   console.log("Sending message:", plainText);
   console.log("totalEntities:", entities);
 
-  await api.channelInteraction.SendMessage("",
-    pool.selectedTextChannel,
+  await api.channelInteraction.SendMessage(v7(),
+    pool.selectedTextChannel, 
     plainText,
     entities,
-    props.replyTo ? IonMaybe.Some(props.replyTo?.messageId) : IonMaybe.None(),
+    props.replyTo?.messageId ?? null,
   );
 
   emit("stop_typing");

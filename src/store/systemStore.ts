@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useTone } from "@/store/toneStore";
 import { Subject, Subscription } from "rxjs";
 import { useHotkeys } from "./hotKeyStore";
+import { IonWsClient } from "@argon-chat/ion.webcore";
 
 export const useSystemStore = defineStore("system", () => {
   // voice
@@ -89,6 +90,19 @@ export const useSystemStore = defineStore("system", () => {
     if (headphoneMuted.value) tone.playMuteAllSound();
     else tone.playUnmuteAllSound();
   }
+
+
+  IonWsClient.on("reconnecting", (x, t) => {
+    if (!hasRequestRetry("ws", "ws")) {
+      startRequestRetry("ws", "ws");
+    }
+  });
+
+  IonWsClient.on("reconnected", () => {
+    if (hasRequestRetry("ws", "ws")) {
+      stopRequestRetry("ws", "ws");
+    }
+  });
 
   return {
     microphoneMuted,

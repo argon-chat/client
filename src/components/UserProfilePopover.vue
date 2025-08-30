@@ -11,11 +11,11 @@
                     </svg>
                 </button>
                 <!-- Banner -->
-                <ArgonBanner :file-id="userProfile.bannerFileID.unwrapOrDefault()!" :user-id="userProfile.userId" />
+                <ArgonBanner :file-id="userProfile.bannerFileID" :user-id="userProfile.userId" />
                 <!-- Avatar -->
                 <div class="absolute left-4 -bottom-10">
                     <div class="relative">
-                        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId.unwrapOrDefault()" :user-id="props.userId"
+                        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
                             :overridedSize="80" />
                         <span :class="me.statusClass(user.status)"
                             class="absolute bottom-0 right-0 w-6 h-4 rounded-full border-2 border-gray-800"></span>
@@ -129,6 +129,7 @@ import IconCpu from "@/assets/icons/icon_gpu_04.svg"
 import IconClean from "@/assets/icons/icon_clean.svg"
 import IconGiga from "@/assets/icons/icon_gigachad.svg"
 import { ActivityPresenceKind, ArgonUserProfile } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 
 const isLoading = ref(true);
 const api = useApi();

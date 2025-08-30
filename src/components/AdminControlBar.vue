@@ -36,7 +36,7 @@
                     <Label for="channel-type" class="text-right">
                         Type
                     </Label>
-                    <RadioGroup id="channel-type" v-model="channelType.toString()" :orientation="'vertical'">
+                    <RadioGroup id="channel-type" v-model="channelType" :orientation="'vertical'">
                         <div class="flex items-center space-x-2">
                             <RadioGroupItem id="r1" value="Text" />
                             <Label for="r1">
@@ -112,7 +112,7 @@ const addChannel_Loading = ref(false);
 const addChannelOpened = ref(false);
 const pex = usePexStore();
 
-const channelType = ref(ChannelType.Text);
+const channelType = ref("Text");
 const channelName = ref("");
 async function openServerSettings() {
   windows.serverSettingsOpen = true;
@@ -121,7 +121,7 @@ async function openServerSettings() {
 const addChannel = () => {
   addChannel_Loading.value = true;
   logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
-  servers.addChannelToServer(channelName.value, channelType.value);
+  servers.addChannelToServer(channelName.value, ChannelType.Text);
 
   setTimeout(() => {
     addChannel_Loading.value = false;

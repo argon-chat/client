@@ -42,7 +42,7 @@ const size = computed(() =>
 const user = pool.getUserReactive(props.userId);
 
 watch(
-  () => user.value?.avatarFileId.value,
+  () => user.value?.avatarFileId,
   async (fileId) => {
     loading.value = true;
     loaded.value = false;

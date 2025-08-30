@@ -69,6 +69,7 @@ import { HashIcon } from "lucide-vue-next";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useBus } from "@/store/busStore";
 import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent, UserStopTypingEvent, UserTypingEvent } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 const { t } = useLocale();
 const pool = usePoolStore();
 const bus = useBus();
@@ -98,19 +99,11 @@ watch(
 
 const onTypingEvent = () => {
   if (!channelData.value) return;
-  bus.sendEventAsync({
-    channelId: channelData.value.channelId,
-    serverId: channelData.value.spaceId,
-    EventKey: "IAmTypingEvent",
-  } as any);
+  bus.sendEventAsync(new IAmTypingEvent(channelData.value.channelId));
 };
 const onStopTypingEvent = () => {
   if (!channelData.value) return;
-  bus.sendEventAsync({
-    channelId: channelData.value.channelId,
-    serverId: channelData.value.spaceId,
-    EventKey: "IAmStopTypingEvent",
-  } as any);
+  bus.sendEventAsync(new IAmStopTypingEvent(channelData.value.channelId));
 };
 
 function scheduleTypingTimeout(userId: string) {
@@ -133,6 +126,7 @@ onMounted(async () => {
   subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
   subs.value.add(
     bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
+      console.error("UserTypingEvent", q);
       if (q.channelId !== hiddenChannelId.value) return;
 
       lastTypingTime.set(q.userId, Date.now());
@@ -148,6 +142,7 @@ onMounted(async () => {
 
   subs.value.add(
     bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
+      console.error("UserStopTypingEvent", q);
       if (q.channelId !== hiddenChannelId.value) return;
 
       typingUsers.value = typingUsers.value.filter(

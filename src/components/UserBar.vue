@@ -1,7 +1,7 @@
 <template>
   <div class="user-bar" v-if="me.me">
     <div class="user-info" style="width: 150px;">
-      <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId.unwrapOrDefault()"
+      <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
         :user-id="me.me.userId" />
       <div class="user-details items-start">
         <span class="user-name">{{ me.me?.displayName }}</span>

@@ -37,10 +37,11 @@
           <ul
             v-if="channel.type === ChannelType.Voice && pool.realtimeChannelUsers.has(channel.channelId) && pool.realtimeChannelUsers.get(channel.channelId)?.Users.size != 0"
             class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
-            <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()" :key="user.userId">
+            <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()"
+              :key="user.userId">
               <ContextMenuTrigger :disabled="!voice.activeChannel">
                 <li class="flex items-center mt-1 text-gray-400 hover:text-white">
-                  <ArgonAvatar :fallback="user.User.displayName" :fileId="user.User.avatarFileId.unwrapOrDefault()" :userId="user.userId"
+                  <ArgonAvatar :fallback="user.User.displayName" :fileId="user.User.avatarFileId" :userId="user.userId"
                     :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
                     class="w-7 h-7 rounded-full mr-3 transition" />
                   <span>{{ user.User.displayName }}</span>
@@ -57,10 +58,11 @@
                     Mute
                     <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                   </ContextMenuItem>-->
-                  <ContextMenuItem inset :disabled="!pex.has('KickMember')" @click="kickMember(user.userId, channel.channelId, channel.spaceId)">
-                    Kick
-                    <ContextMenuShortcut>⌘]</ContextMenuShortcut>
-                  </ContextMenuItem> 
+                <ContextMenuItem inset :disabled="!pex.has('KickMember')"
+                  @click="kickMember(user.userId, channel.channelId, channel.spaceId)">
+                  Kick
+                  <ContextMenuShortcut>⌘]</ContextMenuShortcut>
+                </ContextMenuItem>
 
                 <ContextMenuSeparator v-show="user.userId != me.me?.userId" />
                 <ContextMenuCheckboxItem :disabled="true">
@@ -125,13 +127,20 @@ async function channelSelect(channelId: string) {
 
   if (channel && channel.type !== ChannelType.Voice) {
     pool.selectedTextChannel = channel.channelId;
+  } else {
+    logger.warn("no found channel for ", channelId, channel);
   }
+
+  logger.info(`Do action for channel`, channel);
 
   if (voice.activeChannel) {
     return;
   }
 
-  if (!channel) return;
+  if (!channel) {
+    logger.warn("no found channel for ", channelId);
+    return;
+  }
   if (channel.type === ChannelType.Voice) {
     await voice.connectToChannel(channelId);
   }
