@@ -217,7 +217,6 @@ export const usePoolStore = defineStore("data-pool", () => {
           .equals([userId, serverId])
           .first();
 
-        console.error("liveQuery",member);
 
         if (!member) {
           logger.warn("no found member for fetch self entitlement");

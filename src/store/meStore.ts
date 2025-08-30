@@ -38,7 +38,7 @@ export const useMe = defineStore("me", () => {
 
     logger.info("Received user info ", me.value);
     WelcomeCommanderHasReceived.value = true;
-    bus.doListenMyEvents();
+    //bus.doListenMyEvents();
 
     setUser({ id: me.value.userId, username: me.value.username,  });
   }

@@ -62,7 +62,6 @@ export function extractEntitlements(
       result.push(name as ArgonEntitlementFlag);
     }
   }
-  console.error("[extractEntitlements]", entitlements, result);
   return result;
 }
 

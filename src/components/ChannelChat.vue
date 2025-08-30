@@ -126,7 +126,6 @@ onMounted(async () => {
   subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
   subs.value.add(
     bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
-      console.error("UserTypingEvent", q);
       if (q.channelId !== hiddenChannelId.value) return;
 
       lastTypingTime.set(q.userId, Date.now());
@@ -142,7 +141,6 @@ onMounted(async () => {
 
   subs.value.add(
     bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
-      console.error("UserStopTypingEvent", q);
       if (q.channelId !== hiddenChannelId.value) return;
 
       typingUsers.value = typingUsers.value.filter(
