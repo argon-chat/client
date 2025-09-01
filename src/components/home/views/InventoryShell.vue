@@ -4,7 +4,7 @@ import InventoryView from './InventoryView.vue';
 import itemsData from "@/assets/icons/inventory/items.json";
 import CoalIcon from "@/assets/icons/inventory/magic_coal.png";
 import InventoryItemGranted from './InventoryItemGranted.vue';
-import PurpleEffect from '@/assets/icons/inventory/redEffects.mp4';
+import PurpleEffect from '@/assets/icons/inventory/redEffects.webm';
 import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
 

@@ -9,10 +9,10 @@
             class="absolute inset-0 bg-[linear-gradient(transparent_95%,rgba(255,255,255,.06)_96%),linear-gradient(90deg,transparent_95%,rgba(255,255,255,.06)_96%)] bg-[size:32px_32px] opacity-20" />
         </div>
 
-        <div class="relative mx-auto mt-6 w-full overflow-hidden rounded-2xl ring-1 ring-white/10 backdrop-blur-md">
-          <video v-if="videoSrc" class="absolute inset-0 h-full w-full object-cover opacity-90 [mix-blend-mode:screen]"
+        <div class="relative mx-auto w-full overflow-hidden rounded-2xl ring-1 ring-white/10 backdrop-blur-md">
+          <video v-if="videoSrc" @error="onVideoError" class="absolute inset-0 h-full w-full object-cover opacity-90 [mix-blend-mode:screen]"
             :poster="poster || undefined" :playsinline="true" muted loop autoplay preload="metadata">
-            <source :src="videoSrc" type="video/mp4" />
+            <source :src="videoSrc" type="video/webm" />
           </video>
 
           <div :class="['absolute inset-0']" />
@@ -142,6 +142,12 @@ const glowClass = computed(() => ({
 
 const videoSrc = computed(() => props.videoSrc || '')
 const poster = computed(() => props.poster || '')
+
+function onVideoError(e: Event) {
+  const v = e.target as HTMLVideoElement
+  const code = v.error?.code
+  console.error('!!!!!!!!!!!! Video error', { code, error: v.error })
+}
 </script>
 <style lang="css" scoped>
 .animate-gold-shine {

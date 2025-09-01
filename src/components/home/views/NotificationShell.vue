@@ -7,7 +7,7 @@
             </div>
         </div>
         <div v-if="!items?.length"
-            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center">
+            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2" style="background-color: #161616f5;">
             <IconMail class="w-16 h-16"/>
             <p class="mt-3 text-sm text-muted-foreground">There are no new notifications</p>
         </div>
