@@ -21,7 +21,7 @@
       class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
   </div>
   <div class="flex flex-col items-start overflow-hidden shrink-0">
-    <span>{{ user.displayName }}</span>
+    <span class="font-bold">{{ user.displayName }}</span>
     <span class="text-[10px] flex" v-if="user.activity && props.showActivity">
       {{ t(getTextForActivityKind(user.activity.kind)) }}
       <span class="font-bold pl-1">

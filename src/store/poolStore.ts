@@ -860,7 +860,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       if (prunedChannels !== 0)
         logger.warn(`Pruned ${prunedChannels} channels`);
 
-      if (listenEvents) bus.listenEvents(s.spaceId);
+      bus.listenEvents(s.spaceId);
     }
   };
 

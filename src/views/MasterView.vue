@@ -1,51 +1,45 @@
 <template>
-  <div class="app-container flex h-screen gap-4 p-7" style="width: 100svw; height: 100svh;">
-    <div class="channel-container flex flex-col justify-between rounded-xl  space-y-3 w-55 min-w-[230px] max-w-[230px]">
-      <SidebarHeader/>
-      <AdminControlBar/>
-      <ChatList />
-      <ControlBar />
-      <UserBar />
-    </div>
-
-    <div class="chat-container flex-1 flex-col rounded-xl shadow-md justify-between">
-      <ChannelChat :channel-id="''" />
-    </div>
-    
+  <div class="app-container flex h-screen gap-4 pt-7 pb-7 pr-4 pl-4" style="width: 100svw; height: 100svh;">
+    <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
+      @create="callCreate" :spaces="spaces" class="shrink-0" />
+    <SpaceShell v-show="dataPool.selectedServer" />
+    <HomeShell v-show="!dataPool.selectedServer" />
     <SettingsWindow />
     <ServerSettingsWindow />
-    <FloatingMiniVideo :src="'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'" />
-    <LeftSideUserList v-if="dataPool.selectedServer"/>
-    <div class="overlay select-none" style="z-index: 99999;" v-if="!me.WelcomeCommanderHasReceived">
-      {{ t('wait_connect') }}
-    </div>
+    <FloatingMiniVideo />
   </div>
 </template>
 
 <script setup lang="ts">
-import UserBar from "@/components/UserBar.vue";
-import ChatList from "@/components/ChatList.vue";
-import ChannelChat from "@/components/ChannelChat.vue";
 import SettingsWindow from "@/components/SettingsWindow.vue";
 import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
 import { usePoolStore } from "@/store/poolStore";
-import { onMounted } from "vue";
-import { useMe } from "@/store/meStore";
+import { onMounted, ref } from "vue";
 import FloatingMiniVideo from "@/components/FloatingMiniVideo.vue";
-import ControlBar from "@/components/ControlBar.vue";
-import { useLocale } from "@/store/localeStore";
-import LeftSideUserList from "@/components/LeftSideUserList.vue";
-import SidebarHeader from "@/components/SidebarHeader.vue";
-import AdminControlBar from "@/components/AdminControlBar.vue";
+import ServerSelector from "@/components/ServerSelector.vue";
+import SpaceShell from "@/components/SpaceShell.vue";
+import { ArgonSpaceBase } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
+import HomeShell from "@/components/home/HomeShell.vue";
 
 const dataPool = usePoolStore();
-const me = useMe();
-const { t } = useLocale();
-
+const spaces = ref([] as ArgonSpaceBase[]);
 onMounted(async () => {
-  const s = await dataPool.allServerAsync;
-  dataPool.selectedServer = s[0].spaceId;
+  spaces.value = await dataPool.allServerAsync;
 });
+function selectServer(id: Guid) {
+  console.log("Selected server:", id)
+  dataPool.selectedServer = id;
+}
+
+function selectHome() {
+  dataPool.selectedServer = null;
+}
+
+function callCreate() {
+
+}
+
 </script>
 
 <style scoped>
@@ -56,12 +50,6 @@ body {
   height: 100%;
   width: 100%;
   background-color: #202225;
-}
-
-.chat-container {
-  background-color: #161616f5;
-  border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes marquee {

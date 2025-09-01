@@ -45,13 +45,7 @@ export const useBus = defineStore("bus", () => {
   }
 
   async function doListenMyEvents() {
-    const handle = await api.eventBus.ForSelf();
-    for await (const e of handle) {
-      if (e.UnionKey !== "UserChangedStatus")
-        logger.log(`Received event, ${e.UnionKey}`, e);
-      userEventBus.next(e);
-      if (signal.aborted) break;
-    }
+    
   }
 
   async function sendEventAsync<T extends IArgonClientEvent>(t: T) {

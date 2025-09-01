@@ -369,6 +369,12 @@ export interface ArgonIonTicket {
 };
 
 
+export interface InventoryItem {
+  id: string;
+  grantedDate: datetime;
+};
+
+
 export interface UserEditInput {
   displayName: string | null;
   avatarId: string | null;
@@ -2439,6 +2445,22 @@ IonFormatterStorage.register("ArgonIonTicket", {
   }
 });
 
+IonFormatterStorage.register("InventoryItem", {
+  read(reader: CborReader): InventoryItem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const grantedDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { id, grantedDate };
+  },
+  write(writer: CborWriter, value: InventoryItem): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.grantedDate);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UserEditInput", {
   read(reader: CborReader): UserEditInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -2633,7 +2655,6 @@ export interface IChannelInteraction extends IIonService
 export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
-  ForSelf(): AsyncIterable<IArgonEvent>;
   Dispatch(ev: IArgonClientEvent): Promise<void>;
 }
 
@@ -2684,6 +2705,8 @@ export interface IUserInteraction extends IIonService
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
+  GetMyProfile(): Promise<ArgonUserProfile>;
+  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
 }
 
 
@@ -2737,7 +2760,6 @@ export interface IChannelInteraction extends IIonService
 export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
-  ForSelf(): AsyncIterable<IArgonEvent>;
   Dispatch(ev: IArgonClientEvent): Promise<void>;
 }
 
@@ -2788,6 +2810,8 @@ export interface IUserInteraction extends IIonService
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
+  GetMyProfile(): Promise<ArgonUserProfile>;
+  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
 }
 
 
@@ -3078,19 +3102,6 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
     writer.writeStartArray(1);
     
     IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    
-    writer.writeEndArray();
-    
-    return ws.callServerStreaming<IArgonEvent>("IArgonEvent", writer.data, this.signal);
-  }
-  ForSelf(): AsyncIterable<IArgonEvent> {
-    const ws = new IonWsClient(this.ctx, "IEventBus", "ForSelf");
-    
-    const writer = new CborWriter();
-    
-    writer.writeStartArray(0);
-    
-    
     
     writer.writeEndArray();
     
@@ -3486,6 +3497,32 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<FeatureFlag>>("IonArray<FeatureFlag>", writer.data, this.signal);
+  }
+  async GetMyProfile(): Promise<ArgonUserProfile> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetMyProfile");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ArgonUserProfile>("ArgonUserProfile", writer.data, this.signal);
+  }
+  async GetMyInventoryItems(): Promise<IonArray<InventoryItem>> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetMyInventoryItems");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<InventoryItem>>("IonArray<InventoryItem>", writer.data, this.signal);
   }
 
 }
