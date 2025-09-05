@@ -33,7 +33,7 @@
           </div>
 
           <div class="relative grid grid-cols-[280px,1fr] md:grid-cols-[300px,1fr]">
-            <div class="relative h-[235px]">
+            <div class="relative">
               <div
                 class="absolute inset-0 rounded-2xl border border-white/10 shadow-[inset_0_0_40px_rgba(0,0,0,.35)]" />
               <div ref="tilt" class="relative h-full w-full [perspective:1100px]" @mousemove="onMouse"
@@ -66,7 +66,7 @@
               </p>
 
               <div class="mt-6 flex gap-3">
-                <!-- <Button size="sm" variant="secondary" @click="emit('share')">Поделиться</Button> -->
+                <!-- <Button size="sm" variant="secondary" @click="emit('share')">Share</Button> -->
                 <Button size="lg" variant="outline" @click="emit('close'); open = false">Claim</Button>
               </div>
 

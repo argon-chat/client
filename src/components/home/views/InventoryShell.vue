@@ -43,13 +43,14 @@ const open = ref(false);
 const selected = ref<ItemDef | null>(null);
 
 onMounted(async () => {
-  allItems.value = itemsData.items.map((i: any) => ({
+  const myItems = await api.userInteraction.GetMyInventoryItems() as MyItem[];
+  const myItemsIds = myItems.map(x => x.id);
+  logger.warn("My items: ", myItems);
+
+  allItems.value = itemsData.items.filter(x => myItemsIds.includes(x.id)).map((i: any) => ({
     ...i,
     icon: CoalIcon,
   }));
-
-  const myItems = await api.userInteraction.GetMyInventoryItems() as MyItem[];
-  logger.warn("My items: ", myItems);
 
   const newIds = myItems.map(x => x.id).filter(id => !seen.value.has(id));
 
