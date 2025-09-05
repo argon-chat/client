@@ -20,7 +20,7 @@
 
                     </div>
 
-                    <div class="ml-auto">
+                    <div class="ml-auto" v-if="false">
                         <n-statistic label="Profile Views" tabular-nums>
                             <n-number-animation show-separator :from="0" :to="1832"
                                 :active="true" />
