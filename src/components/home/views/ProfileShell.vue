@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full " v-if="profile">
+    <div class="flex flex-col h-full" v-if="profile">
         <div class="w-full flex justify-center">
             <div class="w-full max-w-4xl">
                 <ProfileBanner :banner-id="profile.bannerFileID" :user-id="profile.userId" />
@@ -16,28 +16,38 @@
                             <span>@{{ me.me?.username }}</span>
                             <ProfileBadges :badges="profile.badges" />
                         </div>
+
+
+                    </div>
+
+                    <div class="ml-auto">
+                        <n-statistic label="Profile Views" tabular-nums>
+                            <n-number-animation show-separator :from="0" :to="1832"
+                                :active="true" />
+                        </n-statistic>
                     </div>
                 </div>
 
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    <div class="md:col-span-2 space-y-4">
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[800px]">
+                    <div class="md:col-span-2 space-y-4 min-h-full">
                         <div class="rounded-xl shadow">
-                            <h2 class="flex items-center gap-2 text-lg font-semibold mb-4 shell-item h-auto text-start p-4">
+                            <h2
+                                class="flex items-center gap-2 text-lg font-semibold mb-4 shell-item h-auto text-start p-4">
                                 <IconRss class="w-5 h-5 text-primary" />
                                 <span>Activity</span>
                             </h2>
-                            <p class="text-muted-foreground text-xs p-4">No any activity...</p>
-                        </div>
+                            <p class="text-muted-foreground text-xs p-4  min-h-[800px] shell-item">No any activity...</p>
+                        </div> 
                     </div>
 
                     <div class="space-y-4 shell-item">
                         <div class="p-4 rounded-xl shadow">
                             <h2 class="flex items-center gap-2 text-lg font-semibold h-auto text-start mb-4 ">
-                                <IconClipboardFilled/>
+                                <IconClipboardFilled />
                                 Bio
                             </h2>
                             <p class="text-muted-foreground">
-                                {{ profile.bio || "Yada awj jaw jakwk jakwj akskkrfle ldllfk qlw kalskd lqw dkklas" }}
+                                {{ profile.bio || "" }}
                             </p>
                         </div>
 
@@ -65,6 +75,7 @@ import ProfileBanner from './ProfileBanner.vue';
 import ProfileAvatar from './ProfileAvatar.vue';
 import ProfileBadges from './ProfileBadges.vue';
 import { IconRss, IconClipboardFilled } from "@tabler/icons-vue"
+import { NStatistic, NNumberAnimation } from "naive-ui";
 
 const { t } = useLocale();
 const api = useApi();

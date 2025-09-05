@@ -1,14 +1,21 @@
 <template>
     <section class="w-full space-y-4">
         <div class="flex items-center justify-between">
-            <h2 class="text-2xl font-semibold tracking-tight">Notifications</h2>
+            <Alert class="flex justify-between items-center h-auto">
+                <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
+                    <IconMail />
+                    Notifications
+                </AlertTitle>
+            </Alert>
+            <br />
             <div class="flex items-center gap-2">
                 <slot name="actions" />
             </div>
         </div>
         <div v-if="!items?.length"
-            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2" style="background-color: #161616f5;">
-            <IconMail class="w-16 h-16"/>
+            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2"
+            style="background-color: #161616f5;">
+            <IconMail class="w-16 h-16" />
             <p class="mt-3 text-sm text-muted-foreground">There are no new notifications</p>
         </div>
 
@@ -47,6 +54,9 @@
 </template>
 
 <script setup lang="ts">
+import Alert from '@/components/ui/alert/Alert.vue'
+import AlertDescription from '@/components/ui/alert/AlertDescription.vue'
+import AlertTitle from '@/components/ui/alert/AlertTitle.vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconMail } from "@tabler/icons-vue"
 export interface NotificationItem {
@@ -81,5 +91,4 @@ function formatTime(v: string | number | Date): string {
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

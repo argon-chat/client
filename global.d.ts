@@ -68,6 +68,7 @@ declare global {
     persisted?: boolean;
     quota?: number;
     expires?: DOMHighResTimeStamp;
+    durability:? 'relaxed'
   }
 
   interface ExtendedStorageManager extends StorageBucket {

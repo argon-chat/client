@@ -1,11 +1,16 @@
 import { defineStore } from "pinia";
-import { interval, Subject, type Subscription } from "rxjs";
-import { filter, switchMap } from "rxjs/operators";
+import { defer, from, interval, of, Subject, timer, type Subscription } from "rxjs";
+import { catchError, filter, repeat, switchMap } from "rxjs/operators";
 import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
-import { HeartBeatEvent, IArgonClientEvent, IArgonEvent, UserStatus } from "@/lib/glue/argonChat";
+import {
+  HeartBeatEvent,
+  IArgonClientEvent,
+  IArgonEvent,
+  UserStatus,
+} from "@/lib/glue/argonChat";
 
 export type EventWithServerId<T> = { serverId: string } & T;
 
@@ -16,7 +21,7 @@ export const useBus = defineStore("bus", () => {
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
     UserStatus.Online,
-    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true },
+    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true }
   );
 
   const controller = new AbortController();
@@ -26,12 +31,19 @@ export const useBus = defineStore("bus", () => {
 
   async function doListenServer(id: string) {
     if (!intervalSubject.value) {
-      intervalSubject.value = interval(2000)
-        .pipe(
-          switchMap(() => {
-            return sendHeartbeat();
-          }),
+      intervalSubject.value = defer(() =>
+        timer(0, 2000).pipe(
+          switchMap(() =>
+            from(sendHeartbeat()).pipe(
+              catchError((err) => {
+                console.error("heartbeat error", err);
+                return of(null);
+              })
+            )
+          )
         )
+      )
+        .pipe(repeat()) 
         .subscribe();
     }
 
@@ -44,9 +56,7 @@ export const useBus = defineStore("bus", () => {
     }
   }
 
-  async function doListenMyEvents() {
-    
-  }
+  async function doListenMyEvents() {}
 
   async function sendEventAsync<T extends IArgonClientEvent>(t: T) {
     await api.eventBus.Dispatch(t);
@@ -62,20 +72,18 @@ export const useBus = defineStore("bus", () => {
 
   function onServerEvent<T extends IArgonEvent>(
     key: T["UnionKey"],
-    callback: (event: EventWithServerId<T>) => void,
+    callback: (event: EventWithServerId<T>) => void
   ): Subscription {
     return argonEventBus
       .pipe(
-        filter(
-          (event): event is EventWithServerId<T> => event.UnionKey === key,
-        ),
+        filter((event): event is EventWithServerId<T> => event.UnionKey === key)
       )
       .subscribe(callback);
   }
 
   function onUserEvent<T extends IArgonEvent>(
     key: T["UnionKey"],
-    callback: (event: T) => void,
+    callback: (event: T) => void
   ): Subscription {
     return userEventBus
       .pipe(filter((event): event is T => event.UnionKey === key))

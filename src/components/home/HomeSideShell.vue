@@ -3,13 +3,12 @@ import { ShrimpIcon, MessageSquareTextIcon } from 'lucide-vue-next';
 import Button from '../ui/button/Button.vue';
 import ControlBar from './../ControlBar.vue';
 import UserBar from './../UserBar.vue';
-import { IconMessageChatbotFilled, IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification } from "@tabler/icons-vue"
-import Separator from '../ui/separator/Separator.vue';
-import UserInListSideElement from '../UserInListSideElement.vue';
+import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification } from "@tabler/icons-vue"
 import { onMounted, PropType, ref } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
 import { useMe } from '@/store/meStore';
 import { RealtimeUser } from '@/store/db/dexie';
+import { NBadge } from 'naive-ui';
 
 const pool = usePoolStore();
 const me = useMe();
@@ -19,8 +18,8 @@ onMounted(async () => {
     user.value = await pool.getUser(me.me?.userId!) ?? null;
 });
 
-const tab = defineModel<'profile' | 'friends' | 'notifications'| 'inventory'>('tab', {
-    type: String as PropType<'profile' | 'friends' | 'notifications'| 'inventory'>, default: 'profile'
+const tab = defineModel<'profile' | 'friends' | 'notifications' | 'inventory'>('tab', {
+    type: String as PropType<'profile' | 'friends' | 'notifications' | 'inventory'>, default: 'profile'
 })
 
 const emit = defineEmits<{
@@ -36,26 +35,37 @@ const emit = defineEmits<{
         </div> -->
         <div class="item-slot flex flex-1 justify-start items-stretch flex-col overflow-hidden gap-1 h-full rounded-xl"
             style="border-radius: 15px;">
-            <Button @click="emit('select', 'profile')" :variant="tab == 'profile' ? 'outline' : 'ghost'" class="justify-start">
+            <Button @click="emit('select', 'profile')" :variant="tab == 'profile' ? 'outline' : 'ghost'"
+                class="justify-start">
                 <IconUserScan class="w-6 h-6 mr-2" />
                 Profile
             </Button>
-            <Button @click="emit('select', 'friends')"  :variant="tab == 'friends' ? 'outline' : 'ghost'" class="justify-start">
+            <Button @click="emit('select', 'friends')" :variant="tab == 'friends' ? 'outline' : 'ghost'"
+                class="justify-start">
                 <IconCookieManFilled class="w-6 h-6 mr-2" />
                 Friends
+                <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <!-- <Button variant="ghost" class="justify-start">
                 <IconMessageChatbotFilled class="w-6 h-6 mr-2" />
                 Direct
             </Button> -->
-            <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'" class="justify-start">
+            <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
+                class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
                 Inventory
+                <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'" class="justify-start">
+            <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
+                class="justify-start">
+
+                
                 <IconNotification class="w-6 h-6 mr-2" />
                 Notifications
+                <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
+
+
             <!-- <Separator />
             <p class="text-sm text-muted-foreground text-center">
                 Direct Messages

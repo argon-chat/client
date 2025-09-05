@@ -259,5 +259,16 @@
         "description": "Grants full administrative access to server settings."
       }
     }
-  }
+  },
+  "storage": {
+    "media": "Media",
+    "audio": "Audio",
+    "files": "Files",
+    "systemCache": "System Cache",
+    "other": "Other",
+    "free": "Free",
+    "total": "Total",
+    "space": "Storage Space"
+  },
+  "storages": "Storage"
 }

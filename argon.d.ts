@@ -168,6 +168,9 @@ declare global {
     renderDiagnostic(i: number) : boolean;
 
     protectedStore: IProtectionStore;
+
+
+    getStorageSpace(): { totalSize: string, availableFreeSpace: string };
   }
 
 

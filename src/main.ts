@@ -50,8 +50,7 @@ Sentry.init({
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
-  dsn: "https://0@sentry.argon.gl/0",
-  tunnel: "https://jojo.argon.gl/tunnel"
+  dsn: argon.dsn(),
 });
 Sentry.setTag("branch", pkg.branch);
 Sentry.setTag("version.full", pkg.fullVersion);
