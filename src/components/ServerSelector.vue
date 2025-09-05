@@ -29,9 +29,25 @@
             <Plus class="w-4 h-4" />
         </Button>
         <div class="flex-1" />
+
+
+        <TooltipProvider v-if="needsUpdate">
+            <Tooltip >
+                <TooltipTrigger>
+                    <Button variant="default" style="background-color: #48bf32; color: white;" size="icon"
+                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
+                        @click="doUpdate">
+                        <ArrowBigDown class="w-4 h-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Update is ready!</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     </div>
 
-    <CreateOrJoinSpace v-model:open="createSpaceOpened" @create="create" @join="join"/>
+    <CreateOrJoinSpace v-model:open="createSpaceOpened" @create="create" @join="join" />
 </template>
 
 <script setup lang="ts">
@@ -39,16 +55,23 @@ import { computed, ref } from "vue"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Home, Plus } from "lucide-vue-next"
+import { Home, Plus, ArrowBigDown } from "lucide-vue-next"
 import IconSw from "@/assets/icons/icon_cat.svg"
 import { ArgonSpaceBase } from "@/lib/glue/argonChat"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/localeStore"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
+import TooltipProvider from "./ui/tooltip/TooltipProvider.vue"
+import Tooltip from "./ui/tooltip/Tooltip.vue"
+import TooltipTrigger from "./ui/tooltip/TooltipTrigger.vue"
+import TooltipContent from "./ui/tooltip/TooltipContent.vue"
+import { useVersionChecker } from "@/lib/useVersionChecker"
 
 const { t } = useLocale();
 
 const createSpaceOpened = ref(false);
+
+const { needsUpdate, doUpdate } = useVersionChecker();
 
 const props = defineProps<{
     spaces: ArgonSpaceBase[]

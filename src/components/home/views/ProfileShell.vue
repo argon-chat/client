@@ -28,7 +28,7 @@
                     </div>
                 </div>
 
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[800px]">
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-2 space-y-4 min-h-full">
                         <div class="rounded-xl shadow">
                             <h2
@@ -36,7 +36,7 @@
                                 <IconRss class="w-5 h-5 text-primary" />
                                 <span>Activity</span>
                             </h2>
-                            <p class="text-muted-foreground text-xs p-4  min-h-[800px] shell-item">No any activity...</p>
+                            <p class="text-muted-foreground text-xs p-4 shell-item">No any activity...</p>
                         </div> 
                     </div>
 
