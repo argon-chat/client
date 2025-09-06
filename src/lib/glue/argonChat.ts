@@ -188,6 +188,62 @@ export enum ChannelMemberState
 }
 
 
+export interface FriendRequest {
+  requestId: guid;
+  fromUser: guid;
+  toUser: guid;
+  requestTime: datetime;
+};
+
+
+export enum FriendRequestStatus
+{
+  Pending = 0,
+  Accepted = 1,
+  Declined = 2,
+  Cancelled = 3,
+  Expired = 4,
+  Blocked = 5,
+}
+
+
+export interface InventoryItem {
+  id: string;
+  instanceId: guid;
+  grantedDate: datetime;
+  usable: bool;
+  giftable: bool;
+  usableVector: ItemUseVector | null;
+  receivedFrom: guid | null;
+  ttl: duration | null;
+};
+
+
+export interface InventoryNotification {
+  inventoryItemId: guid;
+  id: string;
+  createdAt: datetime;
+};
+
+
+export enum ItemUseVector
+{
+  RedeemCode = 0,
+  SpacePremium = 1,
+  UserPremium = 2,
+}
+
+
+export enum RedeemError
+{
+  NOT_FOUND = 0,
+  INACTIVE = 1,
+  EXPIRED = 2,
+  LIMIT_REACHED = 3,
+  ALREADY = 4,
+}
+
+
 export interface JoinMeetResponse {
   voiceToken: string;
   endpoint: RtcEndpoint;
@@ -366,12 +422,6 @@ export interface ArgonIonTicket {
   sessionId: guid;
   machineId: string;
   region: string;
-};
-
-
-export interface InventoryItem {
-  id: string;
-  grantedDate: datetime;
 };
 
 
@@ -1549,6 +1599,108 @@ IonFormatterStorage.register("HeartBeatEvent", {
 
 
 
+export abstract class IRedeemResult implements IIonUnion<IRedeemResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRedeem(): this is SuccessRedeem {
+    return this.UnionKey === "SuccessRedeem";
+  }
+  public isFailedRedeem(): this is FailedRedeem {
+    return this.UnionKey === "FailedRedeem";
+  }
+
+}
+
+
+export class SuccessRedeem extends IRedeemResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRedeem";
+  UnionIndex: number = 0;
+}
+
+export class FailedRedeem extends IRedeemResult
+{
+  constructor(public error: RedeemError) { super(); }
+
+  UnionKey: string = "FailedRedeem";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRedeemResult", {
+  read(reader: CborReader): IRedeemResult {
+    reader.readStartArray();
+    let value: IRedeemResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRedeem>("SuccessRedeem").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRedeem>("FailedRedeem").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRedeemResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRedeem>("SuccessRedeem").write(writer, value as SuccessRedeem);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRedeem>("FailedRedeem").write(writer, value as FailedRedeem);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRedeem", {
+  read(reader: CborReader): SuccessRedeem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRedeem();
+  },
+  write(writer: CborWriter, value: SuccessRedeem): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRedeem", {
+  read(reader: CborReader): FailedRedeem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<RedeemError>('RedeemError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRedeem(error);
+  },
+  write(writer: CborWriter, value: FailedRedeem): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<RedeemError>('RedeemError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IAuthorizeResult implements IIonUnion<IAuthorizeResult>
 {
   abstract UnionKey: string;
@@ -2113,6 +2265,105 @@ IonFormatterStorage.register("EntityType", {
   }
 });
 
+IonFormatterStorage.register("FriendRequest", {
+  read(reader: CborReader): FriendRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const requestId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fromUser = IonFormatterStorage.get<guid>('guid').read(reader);
+    const toUser = IonFormatterStorage.get<guid>('guid').read(reader);
+    const requestTime = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { requestId, fromUser, toUser, requestTime };
+  },
+  write(writer: CborWriter, value: FriendRequest): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.requestId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fromUser);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.toUser);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.requestTime);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestStatus", {
+  read(reader: CborReader): FriendRequestStatus {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return FriendRequestStatus[num] !== undefined ? num as FriendRequestStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: FriendRequestStatus): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("InventoryItem", {
+  read(reader: CborReader): InventoryItem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const instanceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const grantedDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const usable = IonFormatterStorage.get<bool>('bool').read(reader);
+    const giftable = IonFormatterStorage.get<bool>('bool').read(reader);
+    const usableVector = IonFormatterStorage.readNullable<ItemUseVector>(reader, 'ItemUseVector');
+    const receivedFrom = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const ttl = IonFormatterStorage.readNullable<duration>(reader, 'duration');
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { id, instanceId, grantedDate, usable, giftable, usableVector, receivedFrom, ttl };
+  },
+  write(writer: CborWriter, value: InventoryItem): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.instanceId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.grantedDate);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.usable);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.giftable);
+    IonFormatterStorage.writeNullable<ItemUseVector>(writer, value.usableVector, 'ItemUseVector');
+    IonFormatterStorage.writeNullable<guid>(writer, value.receivedFrom, 'guid');
+    IonFormatterStorage.writeNullable<duration>(writer, value.ttl, 'duration');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InventoryNotification", {
+  read(reader: CborReader): InventoryNotification {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const inventoryItemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { inventoryItemId, id, createdAt };
+  },
+  write(writer: CborWriter, value: InventoryNotification): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.inventoryItemId);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ItemUseVector", {
+  read(reader: CborReader): ItemUseVector {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ItemUseVector[num] !== undefined ? num as ItemUseVector : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ItemUseVector): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RedeemError", {
+  read(reader: CborReader): RedeemError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return RedeemError[num] !== undefined ? num as RedeemError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: RedeemError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("RtcEndpoint", {
   read(reader: CborReader): RtcEndpoint {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -2445,22 +2696,6 @@ IonFormatterStorage.register("ArgonIonTicket", {
   }
 });
 
-IonFormatterStorage.register("InventoryItem", {
-  read(reader: CborReader): InventoryItem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const id = IonFormatterStorage.get<string>('string').read(reader);
-    const grantedDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { id, grantedDate };
-  },
-  write(writer: CborWriter, value: InventoryItem): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<string>('string').write(writer, value.id);
-    IonFormatterStorage.get<datetime>('datetime').write(writer, value.grantedDate);
-    writer.writeEndArray();
-  }
-});
-
 IonFormatterStorage.register("UserEditInput", {
   read(reader: CborReader): UserEditInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -2661,6 +2896,24 @@ export interface IEventBus extends IIonService
 
 
 
+export interface IFriendsInteraction extends IIonService
+{
+}
+
+
+
+
+export interface IInventoryInteraction extends IIonService
+{
+  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
+  MarkSeen(itemIds: IonArray<guid>): Promise<void>;
+  GetNotifications(): Promise<IonArray<InventoryNotification>>;
+  RedeemCode(code: string): Promise<IRedeemResult>;
+}
+
+
+
+
 export interface IMeetingInteraction extends IIonService
 {
   Join(inviteCode: string, username: string): Promise<void>;
@@ -2706,7 +2959,6 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
-  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
 }
 
 
@@ -2766,6 +3018,24 @@ export interface IEventBus extends IIonService
 
 
 
+export interface IFriendsInteraction extends IIonService
+{
+}
+
+
+
+
+export interface IInventoryInteraction extends IIonService
+{
+  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
+  MarkSeen(itemIds: IonArray<guid>): Promise<void>;
+  GetNotifications(): Promise<IonArray<InventoryNotification>>;
+  RedeemCode(code: string): Promise<IRedeemResult>;
+}
+
+
+
+
 export interface IMeetingInteraction extends IIonService
 {
   Join(inviteCode: string, username: string): Promise<void>;
@@ -2811,7 +3081,6 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
-  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
 }
 
 
@@ -3124,6 +3393,80 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class FriendsInteraction_Executor extends ServiceExecutor<IFriendsInteraction> implements IFriendsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+
+}
+
+IonFormatterStorage.registerClientExecutor<IFriendsInteraction>('FriendsInteraction', FriendsInteraction_Executor);
+
+export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInteraction> implements IInventoryInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetMyInventoryItems(): Promise<IonArray<InventoryItem>> {
+    const req = new IonRequest(this.ctx, "IInventoryInteraction", "GetMyInventoryItems");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<InventoryItem>>("IonArray<InventoryItem>", writer.data, this.signal);
+  }
+  async MarkSeen(itemIds: IonArray<guid>): Promise<void> {
+    const req = new IonRequest(this.ctx, "IInventoryInteraction", "MarkSeen");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.writeArray<guid>(writer, itemIds, 'guid');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetNotifications(): Promise<IonArray<InventoryNotification>> {
+    const req = new IonRequest(this.ctx, "IInventoryInteraction", "GetNotifications");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<InventoryNotification>>("IonArray<InventoryNotification>", writer.data, this.signal);
+  }
+  async RedeemCode(code: string): Promise<IRedeemResult> {
+    const req = new IonRequest(this.ctx, "IInventoryInteraction", "RedeemCode");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, code);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRedeemResult>("IRedeemResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
 
 export class MeetingInteraction_Executor extends ServiceExecutor<IMeetingInteraction> implements IMeetingInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -3511,19 +3854,6 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
           
     return await req.callAsyncT<ArgonUserProfile>("ArgonUserProfile", writer.data, this.signal);
   }
-  async GetMyInventoryItems(): Promise<IonArray<InventoryItem>> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "GetMyInventoryItems");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(0);
-          
-    
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IonArray<InventoryItem>>("IonArray<InventoryItem>", writer.data, this.signal);
-  }
 
 }
 
@@ -3624,6 +3954,8 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
+        if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
         if (propKey === "MeetingInteraction") return IonFormatterStorage.createExecutor("MeetingInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
@@ -3638,6 +3970,8 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     ArchetypeInteraction: IArchetypeInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    FriendsInteraction: IFriendsInteraction;
+    InventoryInteraction: IInventoryInteraction;
     MeetingInteraction: IMeetingInteraction;
     ServerInteraction: IServerInteraction;
     UserInteraction: IUserInteraction;

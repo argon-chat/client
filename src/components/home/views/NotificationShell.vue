@@ -1,5 +1,5 @@
 <template>
-    <section class="w-full space-y-4">
+    <section class="w-full space-y-4" v-bind="$attrs">
         <div class="flex items-center justify-between">
             <Alert class="flex justify-between items-center h-auto">
                 <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
@@ -55,7 +55,6 @@
 
 <script setup lang="ts">
 import Alert from '@/components/ui/alert/Alert.vue'
-import AlertDescription from '@/components/ui/alert/AlertDescription.vue'
 import AlertTitle from '@/components/ui/alert/AlertTitle.vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconMail } from "@tabler/icons-vue"
@@ -68,7 +67,7 @@ export interface NotificationItem {
     kind?: 'info' | 'success' | 'warning' | 'error'
     meta?: { tags?: string[] }
 }
-
+defineOptions({ inheritAttrs: false })
 const props = withDefaults(defineProps<{ items?: NotificationItem[] }>(), { items: () => [] })
 const emit = defineEmits<{ (e: 'item:click', item: NotificationItem): void }>()
 

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-bind="$attrs">
         <Alert class="flex justify-between items-center h-auto">
             <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
                 <IconCookieManFilled />
@@ -36,6 +36,6 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { IconMessageChatbotFilled, IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification } from "@tabler/icons-vue"
 import Input from "@/components/ui/input/Input.vue"
-
+defineOptions({ inheritAttrs: false })
 const tags: string[] = []
 </script>

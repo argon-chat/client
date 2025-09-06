@@ -1,72 +1,75 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch, nextTick } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import InventoryView from './InventoryView.vue';
-import itemsData from "@/assets/icons/inventory/items.json";
 import CoalIcon from "@/assets/icons/inventory/magic_coal.png";
 import InventoryItemGranted from './InventoryItemGranted.vue';
 import PurpleEffect from '@/assets/icons/inventory/redEffects.webm';
 import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
+import { InventoryItem, RedeemError } from '@/lib/glue/argonChat';
+import itemsData from "@/assets/icons/inventory/items.json";
 
-interface ItemDef { id: string; desc: string; name: string; class: string; size: number; icon: string }
-interface MyItem { id: string; grantedDate: { date: Date | string; offsetMinutes: number } }
-
-const STORAGE_KEY = 'seenInventoryItems:v1';
-
-function loadSeen(): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw) as string[];
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch {
-    return new Set();
-  }
-}
-function saveSeen(seen: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...seen]));
-  } catch (e) {
-    logger?.warn?.('Failed to persist seen items', e);
-  }
+export interface ItemDef {
+  id: string;
+  desc: string;
+  name: string;
+  class: string;
+  size: number;
 }
 
-const allItems = ref<ItemDef[]>([]);
-const itemsById = computed(() => new Map(allItems.value.map(i => [i.id, i])));
+export type InventoryItemView = InventoryItem & ItemDef & {
+  icon: string;
+};
+
+defineOptions({ inheritAttrs: false });
 
 const api = useApi();
+const inventory = computed(() => api.inventoryInteraction);
 
-const seen = ref<Set<string>>(loadSeen());
-const grantQueue = ref<ItemDef[]>([]);
+const allItems = ref<InventoryItemView[]>([]);
+const itemsByInstanceId = computed(() => new Map(allItems.value.map(i => [i.instanceId, i])));
+
+const grantQueue = ref<InventoryItemView[]>([]);
 
 const open = ref(false);
-const selected = ref<ItemDef | null>(null);
+const selected = ref<InventoryItemView | null>(null);
 
 onMounted(async () => {
-  const myItems = await api.userInteraction.GetMyInventoryItems() as MyItem[];
-  const myItemsIds = myItems.map(x => x.id);
-  logger.warn("My items: ", myItems);
+  const [myItems, notifications] = await Promise.all([
+    inventory.value.GetMyInventoryItems(),
+    inventory.value.GetNotifications()
+  ]);
 
-  allItems.value = itemsData.items.filter(x => myItemsIds.includes(x.id)).map((i: any) => ({
-    ...i,
-    icon: CoalIcon,
-  }));
+  logger.warn("My items:", myItems);
+  logger.warn("Unseen notifications:", notifications);
 
-  const newIds = myItems.map(x => x.id).filter(id => !seen.value.has(id));
+  allItems.value = myItems.map(it => {
+    const meta = (itemsData.items as ItemDef[]).find(x => x.id === it.id);
+    return {
+      ...it,
+      ...(meta ?? { id: it.id, desc: "", name: it.id, class: "", size: 0 }),
+      icon: CoalIcon,
+    };
+  });
 
-  grantQueue.value = newIds
-    .map(id => itemsById.value.get(id))
-    .filter((x): x is ItemDef => !!x);
+  grantQueue.value = notifications
+    .map(n => itemsByInstanceId.value.get(n.inventoryItemId))
+    .filter((x): x is InventoryItemView => !!x);
+
   nextGrant();
 });
-function nextGrant() {
+
+async function nextGrant() {
   const next = grantQueue.value.shift();
   if (!next) return;
   selected.value = next;
   open.value = true;
 
-  seen.value.add(next.id);
-  saveSeen(seen.value);
+  try {
+    await inventory.value.MarkSeen([next.instanceId]);
+  } catch (e) {
+    logger.warn("Failed to mark seen", e, next.instanceId);
+  }
 }
 
 function onSlotClick(i: number) {
@@ -82,6 +85,17 @@ function onGrantedClose() {
 }
 
 function share() {
+  // TODO
+}
+
+async function onRedeem(code: string) {
+  const result = await api.inventoryInteraction.RedeemCode(code);
+
+  if (result.isFailedRedeem()) {
+    logger.fail("Redeem failed!", RedeemError[result.error]);
+    return;
+  }
+  logger.success("Redeem ok!");
 }
 
 watch(open, (v) => {
@@ -92,10 +106,12 @@ watch(open, (v) => {
 </script>
 
 <template>
-  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick">
+  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem"
+    v-bind="$attrs">
     <template #item="{ index }">
       <div v-if="allItems[index]" class="flex flex-col items-center gap-1">
-        <img :src="allItems[index].icon" :alt="allItems[index].name" class="w-16 h-16 object-contain" draggable="false" />
+        <img :src="allItems[index].icon" :alt="allItems[index].name" class="w-16 h-16 object-contain"
+          draggable="false" />
         <p class="text-xs text-center leading-tight opacity-90
                    bg-gradient-to-r from-yellow-300 via-amber-500 to-yellow-200 font-bold
                    bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine">
@@ -105,19 +121,22 @@ watch(open, (v) => {
     </template>
   </InventoryView>
 
-  <InventoryItemGranted
-    v-model="open"
-    :item="selected"
-    @close="onGrantedClose"
-    @share="share"
-    :video-src="PurpleEffect"
-  />
+  <InventoryItemGranted v-model="open" :item="selected" @close="onGrantedClose" @share="share"
+    :video-src="PurpleEffect" />
 </template>
 
 <style scoped>
-.animate-gold-shine { animation: gold-shine 4s linear infinite; }
+.animate-gold-shine {
+  animation: gold-shine 4s linear infinite;
+}
+
 @keyframes gold-shine {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
+  0% {
+    background-position: 200% center;
+  }
+
+  100% {
+    background-position: -200% center;
+  }
 }
 </style>

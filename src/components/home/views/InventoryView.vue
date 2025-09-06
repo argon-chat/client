@@ -1,5 +1,5 @@
 <template>
-    <section class="w-full space-y-4">
+    <section class="w-full space-y-4" v-bind="$attrs">
         <div class="flex items-center justify-between">
             <Alert class="flex justify-between items-center h-auto">
                 <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
@@ -8,7 +8,7 @@
                 </AlertTitle>
 
                 <AlertDescription class="ml-auto">
-                    <Input type="redeem" placeholder="Redeem..." class="w-full" />
+                    <Input type="redeem" placeholder="Redeem..." class="w-full" v-model="redeemModel" @keydown.enter="redeem" />
                 </AlertDescription>
             </Alert>
             <br />
@@ -38,9 +38,9 @@ import AlertTitle from '@/components/ui/alert/AlertTitle.vue';
 import { Card, CardContent } from '@/components/ui/card'
 import Input from '@/components/ui/input/Input.vue';
 import { IconBasket } from '@tabler/icons-vue';
-import { computed, CSSProperties } from 'vue'
-
-
+import { computed, CSSProperties, ref } from 'vue'
+defineOptions({ inheritAttrs: false })
+const redeemModel = ref("");
 const props = withDefaults(
     defineProps<{
         title?: string
@@ -52,8 +52,15 @@ const props = withDefaults(
 )
 
 
-const emit = defineEmits<{ (e: 'slot:click', index: number): void }>()
+const emit = defineEmits<{ 
+    (e: 'slot:click', index: number): void,
+    (e: 'redeem', code: string): void,
+}>()
 
+function redeem() {
+    emit('redeem', redeemModel.value);
+    redeemModel.value ="";
+}
 
 function onClick(index: number) {
     if (props.disabled) return
