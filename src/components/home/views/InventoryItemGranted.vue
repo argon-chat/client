@@ -52,7 +52,7 @@
               </div>
             </div>
 
-            <div class="relative p-6 pr-7 text-white">
+            <div class="relative p-6 pr-7 text-white bg-black opacity-90">
               <h3 class="text-[22px] font-semibold tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">
                 Вы получили предмет!
               </h3>
