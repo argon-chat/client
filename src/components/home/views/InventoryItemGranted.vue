@@ -10,7 +10,7 @@
         </div>
 
         <div class="relative mx-auto w-full overflow-hidden rounded-2xl ring-1 ring-white/10 backdrop-blur-md">
-          <video v-if="videoSrc" @error="onVideoError" class="absolute inset-0 h-full w-full object-cover opacity-90 [mix-blend-mode:screen]"
+          <video v-if="videoSrc" @error="onVideoError" class="absolute inset-0 h-full object-cover opacity-90 [mix-blend-mode:screen] w-[300px]"
             :poster="poster || undefined" :playsinline="true" muted loop autoplay preload="metadata">
             <source :src="videoSrc" type="video/webm" />
           </video>
@@ -42,7 +42,7 @@
                   <div :class="['pointer-events-none absolute -inset-2 rounded-xl blur-2xl', glowClass]" />
                   <div class="relative flex h-full w-full items-center justify-center">
                     <div class="animate-float">
-                      <img :src="item?.icon" :alt="item?.name" class="pointer-events-none h-[132px] w-[132px] select-none object-contain
+                      <img :src="item?.icon" :alt="item?.name" class="pointer-events-none h-[256px] w-[256px] select-none object-contain
              drop-shadow-[0_14px_40px_rgba(0,0,0,.6)] animate-flicker" draggable="false" />
                     </div>
                     <div class="pointer-events-none absolute bottom-[26px] h-5 w-24 rounded-full bg-black/50 blur-md" />
@@ -56,9 +56,7 @@
               <h3 class="text-[22px] font-semibold tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">
                 Вы получили предмет!
               </h3>
-              <p class="mt-2 text-[15px] uppercase tracking-[0.15em] opacity-90
-         bg-gradient-to-r from-yellow-300 via-amber-500 to-yellow-200 font-bold
-         bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine">
+              <p class="mt-2 text-[15px] uppercase tracking-[0.15em] opacity-90" :class="getCardClass(item?.class ?? null)">
                 {{ item?.name }}
               </p>
               <p class="mt-3 text-sm leading-6 text-white/80">
@@ -94,6 +92,7 @@ const props = defineProps<{
   item?: ItemDef | null
   videoSrc?: string
   poster?: string
+  getCardClass: (clazz: string | null) => string
 }>()
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'close'): void; (e: 'share'): void }>()

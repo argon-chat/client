@@ -8,7 +8,8 @@
                 </AlertTitle>
 
                 <AlertDescription class="ml-auto">
-                    <Input type="redeem" placeholder="Redeem..." class="w-full" v-model="redeemModel" @keydown.enter="redeem" />
+                    <Input type="redeem" placeholder="Redeem..." class="w-full" v-model="redeemModel"
+                        @keydown.enter="redeem" />
                 </AlertDescription>
             </Alert>
             <br />
@@ -16,10 +17,12 @@
                 <slot name="actions" />
             </div>
         </div>
-        <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+        <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 "
             :style="gridStyle">
-            <Card v-for="i in slots" :key="i - 1"
-                class="aspect-square rounded-2xl border border-border border-dashed ring-offset-background transition hover:ring-1 hover:ring-muted-foreground/30 w-48 h-48"
+            <Card v-for="i in slots" :key="i - 1" :class="[
+                'aspect-square rounded-2xl border border-border border-dashed ring-offset-background transition hover:ring-1 hover:ring-muted-foreground/30 w-48 h-48',
+                props.getCardClass ? props.getCardClass(i - 1) : ''
+            ]"
                 role="button" :aria-label="`Empty slot ${i}`" :aria-disabled="disabled ? 'true' : 'false'"
                 :tabindex="disabled ? -1 : 0" :data-index="i - 1" @click="onClick(i - 1)"
                 @keydown.enter.prevent="onClick(i - 1)" @keydown.space.prevent="onClick(i - 1)">
@@ -47,19 +50,20 @@ const props = withDefaults(
         slots?: number
         disabled?: boolean
         minColWidth?: string
+        getCardClass?: (index: number) => string
     }>(),
     { title: 'Inventory', slots: 24, disabled: false }
 )
 
 
-const emit = defineEmits<{ 
+const emit = defineEmits<{
     (e: 'slot:click', index: number): void,
     (e: 'redeem', code: string): void,
 }>()
 
 function redeem() {
     emit('redeem', redeemModel.value);
-    redeemModel.value ="";
+    redeemModel.value = "";
 }
 
 function onClick(index: number) {

@@ -229,8 +229,9 @@ export interface InventoryNotification {
 export enum ItemUseVector
 {
   RedeemCode = 0,
-  SpacePremium = 1,
-  UserPremium = 2,
+  Premium = 1,
+  Box = 2,
+  QualifierBox = 3,
 }
 
 
@@ -2909,6 +2910,7 @@ export interface IInventoryInteraction extends IIonService
   MarkSeen(itemIds: IonArray<guid>): Promise<void>;
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
+  UseItem(itemId: guid): Promise<bool>;
 }
 
 
@@ -3031,6 +3033,7 @@ export interface IInventoryInteraction extends IIonService
   MarkSeen(itemIds: IonArray<guid>): Promise<void>;
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
+  UseItem(itemId: guid): Promise<bool>;
 }
 
 
@@ -3462,6 +3465,19 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
     writer.writeEndArray();
           
     return await req.callAsyncT<IRedeemResult>("IRedeemResult", writer.data, this.signal);
+  }
+  async UseItem(itemId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IInventoryInteraction", "UseItem");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, itemId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
 
 }

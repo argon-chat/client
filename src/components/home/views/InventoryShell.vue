@@ -3,17 +3,19 @@ import { onMounted, ref, computed, watch } from 'vue';
 import InventoryView from './InventoryView.vue';
 import CoalIcon from "@/assets/icons/inventory/magic_coal.png";
 import InventoryItemGranted from './InventoryItemGranted.vue';
-import PurpleEffect from '@/assets/icons/inventory/redEffects.webm';
 import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
 import { InventoryItem, RedeemError } from '@/lib/glue/argonChat';
 import itemsData from "@/assets/icons/inventory/items.json";
 
+const effects = import.meta.glob('@/assets/icons/inventory/*.webm', { eager: true, import: 'default' });
+const icons = import.meta.glob('@/assets/icons/inventory/*.png', { eager: true, import: 'default' });
+
 export interface ItemDef {
   id: string;
   desc: string;
   name: string;
-  class: string;
+  class: "common" | "rare" | "legendary" | "relic" | string;
   size: number;
 }
 
@@ -34,21 +36,45 @@ const grantQueue = ref<InventoryItemView[]>([]);
 const open = ref(false);
 const selected = ref<InventoryItemView | null>(null);
 
+
+const getVideoForItem = (item: InventoryItemView | null) => {
+  return effects[`/src/assets/icons/inventory/effect_${item?.class}.webm`] as string;
+}
+const getIconForItem = (item: ItemDef | null): string => {
+  return icons[`/src/assets/icons/inventory/${item?.id}.png`] as string;
+}
+
+const rarityClasses = {
+  common: "bg-gradient-to-r from-gray-300 via-gray-500 to-gray-200 font-bold bg-clip-text text-transparent",
+  rare: "bg-gradient-to-r from-blue-300 via-blue-500 to-blue-200 font-bold bg-clip-text text-transparent",
+  legendary: "bg-gradient-to-r from-yellow-300 via-amber-500 to-yellow-200 font-bold bg-clip-text text-transparent",
+  relic: "bg-gradient-to-r from-purple-300 via-pink-500 to-red-400 font-bold bg-clip-text text-transparent",
+} as Record<string, string>;
+
+const rarityClassesCards = {
+  common: "border-gray-500",
+  rare: "border-purple-500",
+  legendary: "border-red-500",
+  relic: "border-yellow-500",
+} as Record<string, string>;
+
+
 onMounted(async () => {
+  await reloadData();
+});
+
+async function reloadData() {
   const [myItems, notifications] = await Promise.all([
     inventory.value.GetMyInventoryItems(),
     inventory.value.GetNotifications()
   ]);
-
-  logger.warn("My items:", myItems);
-  logger.warn("Unseen notifications:", notifications);
 
   allItems.value = myItems.map(it => {
     const meta = (itemsData.items as ItemDef[]).find(x => x.id === it.id);
     return {
       ...it,
       ...(meta ?? { id: it.id, desc: "", name: it.id, class: "", size: 0 }),
-      icon: CoalIcon,
+      icon: getIconForItem(meta ?? null),
     };
   });
 
@@ -57,7 +83,7 @@ onMounted(async () => {
     .filter((x): x is InventoryItemView => !!x);
 
   nextGrant();
-});
+}
 
 async function nextGrant() {
   const next = grantQueue.value.shift();
@@ -106,23 +132,21 @@ watch(open, (v) => {
 </script>
 
 <template>
-  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem"
+  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem" :getCardClass="i => allItems[i] ? rarityClassesCards[allItems[i].class] : ''"
     v-bind="$attrs">
     <template #item="{ index }">
-      <div v-if="allItems[index]" class="flex flex-col items-center gap-1">
-        <img :src="allItems[index].icon" :alt="allItems[index].name" class="w-16 h-16 object-contain"
+      <div v-if="allItems[index]" class="flex flex-col items-center gap-1 ">
+        <img :src="allItems[index].icon" :alt="allItems[index].name" class="w-32 h-32 object-contain"
           draggable="false" />
-        <p class="text-xs text-center leading-tight opacity-90
-                   bg-gradient-to-r from-yellow-300 via-amber-500 to-yellow-200 font-bold
-                   bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine">
+        <p class="text-xs text-center leading-tight opacity-90 font-bold bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine" :class="`${rarityClasses[allItems[index].class]}`">
           {{ allItems[index].name }}
         </p>
       </div>
     </template>
   </InventoryView>
 
-  <InventoryItemGranted v-model="open" :item="selected" @close="onGrantedClose" @share="share"
-    :video-src="PurpleEffect" />
+  <InventoryItemGranted v-model="open" :item="selected" @close="onGrantedClose" @share="share" :getCardClass="i => rarityClasses[i ?? 'rare']"
+    :video-src="getVideoForItem(selected)" />
 </template>
 
 <style scoped>

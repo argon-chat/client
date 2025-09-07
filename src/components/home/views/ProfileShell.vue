@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full" v-if="profile">
+    <div v-bind="$attrs" class="flex flex-col h-full" v-if="profile">
         <div class="w-full flex justify-center">
             <div class="w-full max-w-4xl">
                 <ProfileBanner :banner-id="profile.bannerFileID" :user-id="profile.userId" />
@@ -81,6 +81,8 @@ const { t } = useLocale();
 const api = useApi();
 const profile = ref(null as null | ArgonUserProfile);
 const me = useMe();
+
+defineOptions({ inheritAttrs: false })
 
 onMounted(async () => {
     profile.value = await api.userInteraction.GetMyProfile();

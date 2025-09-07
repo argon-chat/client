@@ -81,6 +81,18 @@
   }
 }
 
+@layer components {
+  .rarity-common { @apply text-xs text-center leading-tight opacity-90 text-gray-400; }
+  .rarity-rare   { @apply text-xs text-center leading-tight opacity-90 text-blue-400 font-semibold; }
+  .rarity-legendary {
+    @apply text-xs text-center leading-tight opacity-90 bg-gradient-to-r from-yellow-300 via-amber-500 to-yellow-200 font-bold bg-clip-text text-transparent;
+    
+    background-size: 200% auto;
+  }
+  .rarity-relic {
+    @apply text-xs text-center leading-tight opacity-90 bg-gradient-to-r from-purple-300 via-pink-500 to-red-400 font-bold bg-clip-text text-transparent;
+  }
+}
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
 }
