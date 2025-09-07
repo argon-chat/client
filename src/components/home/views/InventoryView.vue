@@ -17,7 +17,7 @@
                 <slot name="actions" />
             </div>
         </div>
-        <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 "
+        <div class="flex gap-3"
             :style="gridStyle">
             <Card v-for="i in slots" :key="i - 1" :class="[
                 'aspect-square rounded-2xl border border-border border-dashed ring-offset-background transition hover:ring-1 hover:ring-muted-foreground/30 w-48 h-48',
