@@ -22,8 +22,7 @@
             <Card v-for="i in slots" :key="i - 1" :class="[
                 'aspect-square rounded-2xl border border-border border-dashed ring-offset-background transition hover:ring-1 hover:ring-muted-foreground/30 w-48 h-48',
                 props.getCardClass ? props.getCardClass(i - 1) : ''
-            ]"
-                role="button" :aria-label="`Empty slot ${i}`" :aria-disabled="disabled ? 'true' : 'false'"
+            ]" role="button" :aria-label="`Empty slot ${i}`" :aria-disabled="disabled ? 'true' : 'false'"
                 :tabindex="disabled ? -1 : 0" :data-index="i - 1" @click="onClick(i - 1)"
                 @keydown.enter.prevent="onClick(i - 1)" @keydown.space.prevent="onClick(i - 1)">
                 <CardContent class="w-full h-full p-0 flex items-center justify-center select-none">

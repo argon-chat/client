@@ -2,35 +2,12 @@
   <Dialog v-model:open="open">
     <DialogContent class="w-[760px] max-w-[95vw] overflow-hidden border-0 bg-transparent p-0 shadow-none">
       <div class="relative">
-        <div class="pointer-events-none absolute inset-0">
-          <div
-            class="absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_20%,rgba(0,0,0,0)_0%,rgba(0,0,0,.65)_70%,rgba(0,0,0,.9)_100%)]" />
-          <div
-            class="absolute inset-0 bg-[linear-gradient(transparent_95%,rgba(255,255,255,.06)_96%),linear-gradient(90deg,transparent_95%,rgba(255,255,255,.06)_96%)] bg-[size:32px_32px] opacity-20" />
-        </div>
-
         <div class="relative mx-auto w-full overflow-hidden rounded-2xl ring-1 ring-white/10 backdrop-blur-md">
-          <video v-if="videoSrc" @error="onVideoError" class="absolute inset-0 h-full object-cover opacity-90 [mix-blend-mode:screen] w-[300px]"
+          <video v-if="videoSrc" @error="onVideoError"
+            class="absolute inset-0 h-full object-cover opacity-90 [mix-blend-mode:screen] w-[300px]"
             :poster="poster || undefined" :playsinline="true" muted loop autoplay preload="metadata">
             <source :src="videoSrc" type="video/webm" />
           </video>
-
-          <div :class="['absolute inset-0']" />
-          <div class="pointer-events-none absolute inset-0 overflow-hidden">
-            <div class="beam" />
-            <div class="beam beam--2" />
-            <div class="beam beam--3" />
-
-            <div :class="['aura', auraToneClass]" />
-            <div class="aura aura--soft" />
-
-            <div class="sparkles">
-              <span v-for="n in 18" :key="n" class="sparkle" />
-            </div>
-
-            <div
-              class="absolute inset-0 bg-[radial-gradient(120%_140%_at_20%_30%,transparent_0,transparent_55%,rgba(0,0,0,.25)_85%)]" />
-          </div>
 
           <div class="relative grid grid-cols-[280px,1fr] md:grid-cols-[300px,1fr]">
             <div class="relative">
@@ -54,9 +31,10 @@
 
             <div class="relative p-6 pr-7 text-white bg-black opacity-90">
               <h3 class="text-[22px] font-semibold tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">
-                Вы получили предмет!
+                {{ props.title }}
               </h3>
-              <p class="mt-2 text-[15px] uppercase tracking-[0.15em] opacity-90" :class="getCardClass(item?.class ?? null)">
+              <p class="mt-2 text-[15px] uppercase tracking-[0.15em] opacity-90"
+                :class="getCardClass(item?.class ?? null)">
                 {{ item?.name }}
               </p>
               <p class="mt-3 text-sm leading-6 text-white/80">
@@ -64,10 +42,13 @@
               </p>
 
               <div class="mt-6 flex gap-3">
-                <!-- <Button size="sm" variant="secondary" @click="emit('share')">Share</Button> -->
-                <Button size="lg" variant="outline" @click="emit('close'); open = false">Claim</Button>
+                <Button v-if="primaryAction" size="lg" variant="outline" @click="emit('primary'); open = false">
+                  {{ primaryAction }}
+                </Button>
+                <Button v-if="secondaryAction" size="lg" variant="outline" @click="emit('secondary')">
+                  {{ secondaryAction }}
+                </Button>
               </div>
-
               <div
                 class="pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
               <div
@@ -87,15 +68,27 @@ import { Button } from '@/components/ui/button'
 
 export interface ItemDef { id: string; desc: string; name: string; class: string; size: number; icon: string }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  title?: string
+  secondaryAction?: string
+  primaryAction?: string
   modelValue?: boolean
   item?: ItemDef | null
   videoSrc?: string
   poster?: string
   getCardClass: (clazz: string | null) => string
-}>()
+}>(), {
+  title: "Вы получили предмет!",
+  primaryAction: "Claim"
+})
 
-const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'close'): void; (e: 'share'): void }>()
+
+
+const emit = defineEmits<{ 
+  (e: 'update:modelValue', v: boolean): void; 
+  (e: 'primary'): void; 
+  (e: 'secondary'): void 
+}>()
 
 const open = ref(!!props.modelValue)
 watch(() => props.modelValue, v => (open.value = !!v))

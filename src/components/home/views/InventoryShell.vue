@@ -7,6 +7,10 @@ import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
 import { InventoryItem, RedeemError } from '@/lib/glue/argonChat';
 import itemsData from "@/assets/icons/inventory/items.json";
+import ContextMenu from '@/components/ui/context-menu/ContextMenu.vue';
+import ContextMenuTrigger from '@/components/ui/context-menu/ContextMenuTrigger.vue';
+import ContextMenuContent from '@/components/ui/context-menu/ContextMenuContent.vue';
+import ContextMenuItem from '@/components/ui/context-menu/ContextMenuItem.vue';
 
 const effects = import.meta.glob('@/assets/icons/inventory/*.webm', { eager: true, import: 'default' });
 const icons = import.meta.glob('@/assets/icons/inventory/*.png', { eager: true, import: 'default' });
@@ -34,7 +38,12 @@ const itemsByInstanceId = computed(() => new Map(allItems.value.map(i => [i.inst
 const grantQueue = ref<InventoryItemView[]>([]);
 
 const open = ref(false);
+const openSidebar = ref(false);
 const selected = ref<InventoryItemView | null>(null);
+
+function closeSidebar() {
+  openSidebar.value = false;
+}
 
 
 const getVideoForItem = (item: InventoryItemView | null) => {
@@ -102,7 +111,7 @@ function onSlotClick(i: number) {
   const item = allItems.value[i];
   if (!item) return;
   selected.value = item;
-  open.value = true;
+  openSidebar.value = true;
 }
 
 function onGrantedClose() {
@@ -122,6 +131,25 @@ async function onRedeem(code: string) {
     return;
   }
   logger.success("Redeem ok!");
+  await reloadData();
+}
+
+async function useItem() {
+  openSidebar.value = false;
+
+  try {
+    const result = await api.inventoryInteraction.UseItem(selected.value!.instanceId);
+
+    if (result) {
+      logger.success("Success use item");
+      selected.value = null;
+      await reloadData();
+    } else {
+      logger.fail("failed use item");
+    }
+  } catch {
+    selected.value = null;
+  }
 }
 
 watch(open, (v) => {
@@ -132,21 +160,28 @@ watch(open, (v) => {
 </script>
 
 <template>
-  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem" :getCardClass="i => allItems[i] ? rarityClassesCards[allItems[i].class] : ''"
-    v-bind="$attrs">
+  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem"
+    :getCardClass="i => allItems[i] ? rarityClassesCards[allItems[i].class] : ''" v-bind="$attrs">
     <template #item="{ index }">
       <div v-if="allItems[index]" class="flex flex-col items-center gap-1 ">
         <img :src="allItems[index].icon" :alt="allItems[index].name" class="w-32 h-32 object-contain"
           draggable="false" />
-        <p class="text-xs text-center leading-tight opacity-90 font-bold bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine" :class="`${rarityClasses[allItems[index].class]}`">
+        <p class="text-xs text-center leading-tight opacity-90 font-bold bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine"
+          :class="`${rarityClasses[allItems[index].class]}`">
           {{ allItems[index].name }}
         </p>
       </div>
     </template>
   </InventoryView>
 
-  <InventoryItemGranted v-model="open" :item="selected" @close="onGrantedClose" @share="share" :getCardClass="i => rarityClasses[i ?? 'rare']"
-    :video-src="getVideoForItem(selected)" />
+  <InventoryItemGranted v-model="open" :item="selected" @primary="onGrantedClose" @secondary="share"
+    primary-action="Claim" :getCardClass="i => rarityClasses[i ?? 'rare']" :video-src="getVideoForItem(selected)" />
+
+
+  <InventoryItemGranted v-model="openSidebar" :item="selected" @primary="useItem()"
+    :primary-action="selected?.usable ? 'Use' : undefined" :title="''"
+    :getCardClass="i => rarityClasses[i ?? 'rare']" />
+
 </template>
 
 <style scoped>
