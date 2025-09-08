@@ -300,12 +300,8 @@ export const useVoice = defineStore("voice", () => {
           activeChannel.value?.spaceId as string,
           activeChannel.value?.channelId as string
         );
-        room.off("trackSubscribed", onTrackSubscribed);
-        room.off("trackUnsubscribed", onTrackUnsubscribed);
-        room.off("connectionQualityChanged", onParticipantQualityChanged);
-        room.off("signalReconnecting", onReconnectiong);
-
-        //room.disconnect();
+        room.removeAllListeners();
+        room.disconnect();
         logger.warn("Success disconnected from channel");
 
         for (const s of connectedRoom.subs) {
