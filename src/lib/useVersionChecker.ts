@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { logger } from "./logger";
 
-export function useVersionChecker(intervalMs = 60_000) {
+export function useVersionChecker(intervalMs = 120_000) {
   const needsUpdate = ref(false);
   let timer: number | null = null;
   let currentVersion: string | null = null;
