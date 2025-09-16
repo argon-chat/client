@@ -48,6 +48,13 @@
             "name": "Монета Argon Staff",
             "class": "relic",
             "size": 512
+        },
+        {
+            "id": "coin_argon_contributor",
+            "desc": "Знак тех, чьи строки стали кирпичами фундамента.",
+            "name": "Монета Argon Contributor",
+            "class": "rare",
+            "size": 512
         }
     ]
 }
