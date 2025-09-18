@@ -51,8 +51,7 @@
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
                 <ContextMenuLabel v-show="user.userId != me.me?.userId">
-                  <Slider :max="200" :step="1" v-model="user.volume"
-                    v-on:update:model-value="(val) => { voice.setUserVolume(user.userId, val![0]); }" />
+                  <VolumeSlider :user="user"/>
                 </ContextMenuLabel>
                 <!-- <ContextMenuItem inset @click="voice.muteForMeUser(user.UserId)">
                     Mute
@@ -108,6 +107,7 @@ import { onMounted } from "vue";
 import { usePexStore } from "@/store/permissionStore";
 import { useApi } from "@/store/apiStore";
 import { ChannelType } from "@/lib/glue/argonChat";
+import VolumeSlider from "./VolumeSlider.vue";
 
 const servers = useServerStore();
 const pool = usePoolStore();

@@ -8,6 +8,7 @@ import {
   type LocalTrackPublication,
   LocalVideoTrack,
   type Participant,
+  RemoteAudioTrack,
   type RemoteParticipant,
   type RemoteTrack,
   type RemoteTrackPublication,
@@ -161,7 +162,6 @@ export const useVoice = defineStore("voice", () => {
       throw new Error("");
     }
 
-
     const connectOptions: RoomConnectOptions = {
       maxRetries: 500,
     };
@@ -281,14 +281,16 @@ export const useVoice = defineStore("voice", () => {
     });
   }
 
-  function setUserVolume(participantId: string, volume: number) {
+  function setUserVolume(participantId: string, volumePercent: number) {
     const data = connectedRoom.roomData.get(participantId);
     if (!data) {
-      logger.error("No particant found in room data");
+      logger.error("No participant found in room data");
       return;
     }
-    data.gain.gain.value = Math.max(0.0, volume / 100);
-    data.volume[0] = volume;
+    const gain = Math.max(0, volumePercent) / 100;
+    const clamped = Math.min(gain, 2.0);
+    data.gain.gain.setValueAtTime(clamped, data.context.currentTime);
+    data.volume[0] = Math.max(0, volumePercent);
   }
 
   async function disconnectFromChannel() {
@@ -329,20 +331,94 @@ export const useVoice = defineStore("voice", () => {
     logger.log(
       "Track subscribed:",
       track.kind,
-      "at particant:",
+      "at participant:",
       participant.identity
     );
 
     if (track.kind === "video") {
-      logger.log(track, publication);
       isOtherUserSharing.value = true;
       onVideoCreated.next(track);
-    } else if (track.kind === "audio") {
-      const audioCtx = audio.getCurrentAudioContext();
-      const gain = audioCtx.createGain();
+      return;
+    }
 
-      gain.gain.value = 1;
-      logger.info("Audio is attached");
+    if (track.kind !== "audio") return;
+
+    const audioCtx = audio.getCurrentAudioContext();
+
+    if (audioCtx.state === "suspended") {
+      const resume = () => {
+        audioCtx.resume();
+        document.removeEventListener("click", resume);
+        document.removeEventListener("keydown", resume);
+      };
+      document.addEventListener("click", resume, { once: true });
+      document.addEventListener("keydown", resume, { once: true });
+    }
+
+    const el = document.createElement("audio");
+    el.autoplay = true;
+    el.muted = true;
+    el.style.display = "none";
+
+    const mediaStream = new MediaStream([
+      (track as RemoteAudioTrack).mediaStreamTrack,
+    ]);
+    el.srcObject = mediaStream;
+    document.body.appendChild(el);
+
+    let sourceNode:
+      | MediaStreamAudioSourceNode
+      | MediaElementAudioSourceNode
+      | null = null;
+
+    const setupGraph = () => {
+      // @ts-ignore
+      const captured: MediaStream | null = typeof el.captureStream === "function" ? el.captureStream() : null;
+
+      const hasCapturedAudio =
+        !!captured &&
+        captured.getAudioTracks &&
+        captured.getAudioTracks().length > 0;
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = 1.0;
+
+      if (hasCapturedAudio) {
+        sourceNode = audioCtx.createMediaStreamSource(captured!);
+        sourceNode.connect(gain).connect(audioCtx.destination);
+      } else {
+        try {
+          const directSource = audioCtx.createMediaStreamSource(mediaStream);
+          directSource.connect(gain).connect(audioCtx.destination);
+          sourceNode = directSource;
+        } catch (e) {
+          const elemSource = audioCtx.createMediaElementSource(el);
+          elemSource.connect(gain).connect(audioCtx.destination);
+          sourceNode = elemSource;
+        }
+      }
+
+      const volume = reactive([100]);
+
+      if (pool.selectedChannel) {
+        pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
+          (x.volume as any) = volume;
+        });
+      }
+
+      const item: IChannelMemberData = {
+        context: audioCtx,
+        gain,
+        userId: participant.identity,
+        volume,
+        watcher: watch(
+          () => [...volume],
+          (e) => setUserVolume(participant.identity, e[0]),
+          { deep: true }
+        ),
+      };
+
+      connectedRoom.roomData.set(participant.identity, item);
 
       participant.on("isSpeakingChanged", (val) => {
         if (pool.selectedChannel) {
@@ -353,7 +429,6 @@ export const useVoice = defineStore("voice", () => {
           );
         }
       });
-
       participant.on("trackMuted", () => {
         if (pool.selectedChannel) {
           pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
@@ -369,45 +444,25 @@ export const useVoice = defineStore("voice", () => {
         }
       });
 
-      const source = audioCtx.createMediaStreamSource(
-        new MediaStream([track.mediaStreamTrack])
-      );
-      source.connect(gain);
-      //gain.connect(audioCtx.destination);
-
-      const volume = reactive([100]);
-
-      if (pool.selectedChannel) {
-        pool.setProperty(pool.selectedChannel, participant.identity, (x) => {
-          (x.volume as any) = volume;
-        });
-      }
-
-      const item: IChannelMemberData = {
-        context: audioCtx,
-        gain: gain,
-        userId: participant.identity,
-        volume: volume,
-        watcher: watch(
-          () => [...volume],
-          (e) => {
-            logger.error("IChannelMemberData:watcher", e);
-            setUserVolume(participant.identity, e[0]);
-          },
-          { deep: true }
-        ),
-      };
-
-      connectedRoom.roomData.set(participant.identity, item);
-
-      audioCtx.resume();
-
-      audio.createAudioElement(source.mediaStream);
-
       tone.playSoftEnterSound();
-    }
-  }
+    };
 
+    el.play()
+      .then(setupGraph)
+      .catch((err) => {
+        logger.warn(
+          "Autoplay blocked, will init graph after first user gesture",
+          err
+        );
+        const handler = () => {
+          el.play().then(setupGraph).catch(logger.error);
+          document.removeEventListener("click", handler);
+          document.removeEventListener("keydown", handler);
+        };
+        document.addEventListener("click", handler);
+        document.addEventListener("keydown", handler);
+      });
+  }
   function getVolumeRef(userId: Guid) {
     return connectedRoom.roomData.get(userId)?.volume;
   }

@@ -12,13 +12,20 @@ import {
 import { computed } from "vue";
 
 const props = defineProps<
-  SliderRootProps & { class?: HTMLAttributes["class"] }
+  SliderRootProps & {
+    class?: HTMLAttributes["class"];
+    trackClass?: string;
+    rangeClass?: string;
+    thumbClass?: string;
+  }
 >();
-const emits = defineEmits<SliderRootEmits>();
+const emits = defineEmits<SliderRootEmits | {
+    dblclick: void;
+}>();
 
 const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
+  const { class: _, trackClass: __, rangeClass: ___, thumbClass: ____, ...delegated } =
+    props;
   return delegated;
 });
 
@@ -32,14 +39,28 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
       props.class,
     )"
     v-bind="forwarded"
+    @dblclick="$emit('dblclick')"
   >
-    <SliderTrack class="relative h-2 w-full data-[orientation=vertical]:w-2 grow overflow-hidden rounded-full bg-secondary">
-      <SliderRange class="absolute h-full data-[orientation=vertical]:w-full bg-primary" />
+    <SliderTrack
+      :class="cn(
+        'relative h-2 w-full data-[orientation=vertical]:w-2 grow overflow-hidden rounded-full bg-secondary',
+        props.trackClass
+      )"
+    >
+      <SliderRange
+        :class="cn(
+          'absolute h-full data-[orientation=vertical]:w-full bg-primary',
+          props.rangeClass
+        )"
+      />
     </SliderTrack>
     <SliderThumb
       v-for="(_, key) in modelValue"
       :key="key"
-      class="block h-5 w-5 rounded-full border-2 border-primary bg-background disabled:pointer-events-none disabled:opacity-50"
+      :class="cn(
+        'block h-5 w-5 rounded-full border-2 border-primary bg-background disabled:pointer-events-none disabled:opacity-50',
+        props.thumbClass
+      )"
     />
   </SliderRoot>
 </template>

@@ -9,7 +9,7 @@
             <source :src="videoSrc" type="video/webm" />
           </video>
 
-          <div class="relative grid grid-cols-[280px,1fr] md:grid-cols-[300px,1fr]">
+          <div class="relative grid grid-cols-[280px,1fr] md:grid-cols-[300px,1fr] min-h-[250px]">
             <div class="relative">
               <div
                 class="absolute inset-0 rounded-2xl border border-white/10 shadow-[inset_0_0_40px_rgba(0,0,0,.35)]" />
