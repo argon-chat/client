@@ -1,48 +1,120 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="sm:max-w-[525px]">
-            <div class="grid gap-4 py-4">
-                <div
-                    class="modal-content p-6 text-white rounded-lg shadow-lg max-w-lg w-full space-y-6 rounded-md grid w-full gap-2 z-[50]">
-                    <h2 class="text-2xl font-bold text-center">{{ t('join_or_create_server') }}</h2>
-                    <Button @click="emit('create', 'test-server')" :disabled="true">
-                        {{ t('create_new_server') }}
-                    </Button>
-                    <div class="divider text-gray-400 text-center"> {{ t('or') }} </div>
-                    <div class="grid w-full gap-2">
-                        <Label for="invite-code">{{ t('invite_code') }}</Label>
-                        <Input id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" />
-                        <br />
-                        <Button @click="emit('join', inviteCode)" :disabled="isLoading">
-                            {{ t('join_to_server') }}
-                        </Button>
-                    </div>
-                </div>
+        <DialogContent
+            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8">
+
+            <div
+                class="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none">
+            </div>
+
+            <div class="relative text-center space-y-2">
+                <h2 class="text-3xl font-extrabold text-white tracking-wide">
+                    {{ t('join_or_create_server') }}
+                </h2>
+                <p class="text-gray-400 text-sm">
+                    Choose your path below ✨
+                </p>
+            </div>
+
+            <div class="relative space-y-3">
+
+                <InputWithError v-model="spaceName" placeholder="e.g., Cool Space" :error="createError"
+                    @clear-error="createError = ''">
+                    <template #label>
+                        <Label for="space-name" class="text-gray-300 flex items-center gap-2">
+                            <span class="i-lucide-plus-circle text-blue-400"></span>
+                            {{ t('name') }}
+                        </Label>
+                    </template>
+                </InputWithError>
+                <Button @click="createServerCmd"
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all">
+                    <span class="i-lucide-rocket mr-2"></span>
+                    {{ t('create_new_server') }}
+                </Button>
+            </div>
+
+            <div class="relative flex items-center gap-2 text-gray-400">
+                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                <span class="text-xs uppercase tracking-widest">{{ t('or') }}</span>
+                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+            </div>
+
+            <div class="relative space-y-3">
+                <Label for="invite-code" class="text-gray-300 flex items-center gap-2">
+                    <span class="i-lucide-link-2 text-purple-400"></span>
+                    {{ t('invite_code') }}
+                </Label>
+                <Input id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" class="h-11 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500
+                 focus:border-purple-500 focus:ring focus:ring-purple-500/30" />
+                <Button @click="emit('join', inviteCode)" :disabled="isLoading"
+                    class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-all">
+                    <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
+                    <span v-else class="i-lucide-log-in mr-2"></span>
+                    {{ t('join_to_server') }}
+                </Button>
             </div>
         </DialogContent>
     </Dialog>
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { ref } from 'vue';
-import { useLocale } from '@/store/localeStore';
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { ref } from 'vue'
+import { useLocale } from '@/store/localeStore'
+import { useApi } from '@/store/apiStore'
+import { ReloadIcon, ExclamationTriangleIcon } from '@radix-icons/vue'
+import { CreateSpaceError } from '@/lib/glue/argonChat'
+import InputWithError from '../InputWithError.vue'
+import { logger } from '@/lib/logger'
 
-const { t } = useLocale();
+const { t } = useLocale()
 
-const isLoading = ref(false);
-const inviteCode = ref("");
+const isLoading = ref(false)
+const createLoading = ref(false)
+const createError = ref<string>('')
 
-const emit = defineEmits<{
-    (e: 'create', name: string): void
-    (e: 'join', name: string): void
-}>()
+const inviteCode = ref("")
+const spaceName = ref("")
+const api = useApi()
 
+const emit = defineEmits<{ (e: 'join', name: string): void }>()
 
-const open = defineModel<boolean>('open', {
-    type: Boolean, default: false
-})
+async function createServerCmd() {
+    createError.value = ''
+    if (!spaceName.value?.trim()) {
+        createError.value = t?.('space_name_required') ?? 'Please enter a name.'
+        return
+    }
+
+    try {
+        createLoading.value = true
+        const res = await api.userInteraction.CreateSpace({ name: spaceName.value.trim(), description: "", avatarFieldId: "" });
+
+        // Если API возвращает поле error — показываем его
+        if (res.isFailedCreateSpace()) {
+            logger.error("failed to create space, error: ", res.error);
+            createError.value = humanizeError(res.error);
+            return
+        }
+
+        spaceName.value = ''
+        open.value = false
+    } catch (e: any) {
+        createError.value = humanizeError(e)
+    } finally {
+        createLoading.value = false
+    }
+}
+
+function humanizeError(err: CreateSpaceError): string {
+    if (err === CreateSpaceError.LIMIT_REACHED)
+        return "Limit reached";
+    return "Unknown error";
+}
+
+const open = defineModel<boolean>('open', { type: Boolean, default: false })
 </script>

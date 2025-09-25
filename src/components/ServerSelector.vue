@@ -47,7 +47,7 @@
         </TooltipProvider>
     </div>
 
-    <CreateOrJoinSpace v-model:open="createSpaceOpened" @create="create" @join="join" />
+    <CreateOrJoinSpace v-model:open="createSpaceOpened" @join="join" />
 </template>
 
 <script setup lang="ts">
@@ -83,15 +83,11 @@ const model = defineModel<string | null>('selectedSpace', {
 
 const emit = defineEmits<{
     (e: 'home'): void
-    (e: 'create', name: string): void
     (e: 'join', name: string): void
     (e: 'select', id: Guid): void
 }>()
 
 
-function create(name: string) {
-    emit("create", name);
-}
 function join(inviteCode: string) {
     emit("join", inviteCode);
 }

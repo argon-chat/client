@@ -481,6 +481,13 @@ export interface NewUserCredentialsInput {
 };
 
 
+export enum CreateSpaceError
+{
+  UNKNOWN = 0,
+  LIMIT_REACHED = 1,
+}
+
+
 export enum AcceptInviteError
 {
   NONE = 0,
@@ -1710,6 +1717,108 @@ IonFormatterStorage.register("FailedRedeem", {
 
 
 
+export abstract class ICreateSpaceResult implements IIonUnion<ICreateSpaceResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateSpace(): this is SuccessCreateSpace {
+    return this.UnionKey === "SuccessCreateSpace";
+  }
+  public isFailedCreateSpace(): this is FailedCreateSpace {
+    return this.UnionKey === "FailedCreateSpace";
+  }
+
+}
+
+
+export class SuccessCreateSpace extends ICreateSpaceResult
+{
+  constructor(public space: ArgonSpaceBase) { super(); }
+
+  UnionKey: string = "SuccessCreateSpace";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateSpace extends ICreateSpaceResult
+{
+  constructor(public error: CreateSpaceError) { super(); }
+
+  UnionKey: string = "FailedCreateSpace";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateSpaceResult", {
+  read(reader: CborReader): ICreateSpaceResult {
+    reader.readStartArray();
+    let value: ICreateSpaceResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateSpace>("SuccessCreateSpace").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateSpace>("FailedCreateSpace").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateSpaceResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateSpace>("SuccessCreateSpace").write(writer, value as SuccessCreateSpace);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateSpace>("FailedCreateSpace").write(writer, value as FailedCreateSpace);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateSpace", {
+  read(reader: CborReader): SuccessCreateSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const space = IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreateSpace(space);
+  },
+  write(writer: CborWriter, value: SuccessCreateSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').write(writer, value.space);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateSpace", {
+  read(reader: CborReader): FailedCreateSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<CreateSpaceError>('CreateSpaceError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateSpace(error);
+  },
+  write(writer: CborWriter, value: FailedCreateSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CreateSpaceError>('CreateSpaceError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IAuthorizeResult implements IIonUnion<IAuthorizeResult>
 {
   abstract UnionKey: string;
@@ -2843,6 +2952,17 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
   }
 });
 
+IonFormatterStorage.register("CreateSpaceError", {
+  read(reader: CborReader): CreateSpaceError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return CreateSpaceError[num] !== undefined ? num as CreateSpaceError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: CreateSpaceError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("AcceptInviteError", {
   read(reader: CborReader): AcceptInviteError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -2989,7 +3109,7 @@ export interface IServerInteraction extends IIonService
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
-  CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
+  CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<ArgonUser>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
@@ -3120,7 +3240,7 @@ export interface IServerInteraction extends IIonService
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
-  CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
+  CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<ArgonUser>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
@@ -3834,7 +3954,7 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
           
     return await req.callAsyncT<ArgonUser>("ArgonUser", writer.data, this.signal);
   }
-  async CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase> {
+  async CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "CreateSpace");
           
     const writer = new CborWriter();
@@ -3845,7 +3965,7 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ArgonSpaceBase>("ArgonSpaceBase", writer.data, this.signal);
+    return await req.callAsyncT<ICreateSpaceResult>("ICreateSpaceResult", writer.data, this.signal);
   }
   async GetSpaces(): Promise<IonArray<ArgonSpaceBase>> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "GetSpaces");

@@ -1,7 +1,7 @@
 <template>
   <div class="app-container flex h-screen gap-4 pt-7 pb-7 pr-4 pl-4" style="width: 100svw; height: 100svh;">
     <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
-      @create="callCreate" :spaces="spaces" class="shrink-0" />
+      :spaces="spaces" class="shrink-0" />
     <SpaceShell v-show="dataPool.selectedServer" />
     <HomeShell v-show="!dataPool.selectedServer" />
     <SettingsWindow />
@@ -21,8 +21,10 @@ import SpaceShell from "@/components/SpaceShell.vue";
 import { ArgonSpaceBase } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 import HomeShell from "@/components/home/HomeShell.vue";
+import { useApi } from "@/store/apiStore";
 
 const dataPool = usePoolStore();
+const api = useApi();
 const spaces = ref([] as ArgonSpaceBase[]);
 onMounted(async () => {
   spaces.value = await dataPool.allServerAsync;
@@ -34,10 +36,6 @@ function selectServer(id: Guid) {
 
 function selectHome() {
   dataPool.selectedServer = null;
-}
-
-function callCreate() {
-
 }
 
 </script>

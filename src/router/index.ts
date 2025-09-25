@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../store/authStore";
 import LoginPage from "../views/AuthPage.vue";
 import MasterView from "../views/MasterView.vue";
-import CreateOrJoin from "../views/CreateOrJoin.vue";
 import Entry from "@/views/Entry.vue";
 import { useAppState } from "@/store/appState";
 const routes = [
@@ -15,12 +14,6 @@ const routes = [
     path: "/login.pg",
     name: "Login",
     component: LoginPage,
-  },
-  {
-    path: "/create-or-join.pg",
-    name: "Create Or Join",
-    component: CreateOrJoin,
-    meta: { requiresAuth: true },
   },
   {
     path: "/master.pg",

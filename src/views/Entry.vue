@@ -622,14 +622,6 @@ onMounted(() => {
   window.addEventListener("resize", onResize);
 
   app.initApp().then(async () => {
-    const serverStore = usePoolStore();
-
-    const servers = await serverStore.allServerAsync;
-
-    if (servers.length === 0) {
-      router.push({ path: "/create-or-join.pg" });
-      return;
-    }
     router.push({ path: "/master.pg" });
   });
 });
