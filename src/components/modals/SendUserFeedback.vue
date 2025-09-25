@@ -38,7 +38,7 @@
                     <p class="text-gray-400 text-sm">
                         {{ t('drag_or_click_to_upload') }}
                     </p>
-                    <p class="text-gray-500 text-xs">PNG / JPG до 2 MB (макс. 3 файла)</p>
+                    <p class="text-gray-500 text-xs">{{ t('feedback_attachments_limit') }}</p>
                     <input ref="fileInput" type="file" class="hidden" multiple accept="image/*" @change="handleFiles" />
                 </div>
 
