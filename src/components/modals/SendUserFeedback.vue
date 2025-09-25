@@ -39,7 +39,7 @@
                         {{ t('drag_or_click_to_upload') }}
                     </p>
                     <p class="text-gray-500 text-xs">{{ t('feedback_attachments_limit') }}</p>
-                    <input ref="fileInput" type="file" class="hidden" multiple accept="image/*" @change="handleFiles" />
+                    <input ref="fileInput" type="file" class="hidden" multiple  accept="*.png,*.jpg,*.jpeg,image/png,image/jpeg" @change="handleFiles" />
                 </div>
 
                 <div v-if="attachmentsPreview.length" class="flex flex-wrap gap-3 pt-3">
