@@ -219,6 +219,12 @@ export interface InventoryItem {
 };
 
 
+export interface DetailedInventoryItem {
+  item: InventoryItem;
+  containedItem: InventoryItem | null;
+};
+
+
 export interface InventoryNotification {
   inventoryItemId: guid;
   id: string;
@@ -454,9 +460,10 @@ export interface CreateServerRequest {
 
 
 export interface UserCredentialsInput {
-  email: string;
+  email: string | null;
+  phone: string | null;
   username: string | null;
-  password: string;
+  password: string | null;
   otpCode: string | null;
   captchaToken: string | null;
 };
@@ -468,6 +475,7 @@ export interface NewUserCredentialsInput {
   password: string;
   displayName: string;
   argreeTos: bool;
+  birthDate: dateonly;
   argreeOptionalEmails: bool;
   captchaToken: string | null;
 };
@@ -2325,6 +2333,22 @@ IonFormatterStorage.register("InventoryItem", {
   }
 });
 
+IonFormatterStorage.register("DetailedInventoryItem", {
+  read(reader: CborReader): DetailedInventoryItem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const item = IonFormatterStorage.get<InventoryItem>('InventoryItem').read(reader);
+    const containedItem = IonFormatterStorage.readNullable<InventoryItem>(reader, 'InventoryItem');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { item, containedItem };
+  },
+  write(writer: CborWriter, value: DetailedInventoryItem): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<InventoryItem>('InventoryItem').write(writer, value.item);
+    IonFormatterStorage.writeNullable<InventoryItem>(writer, value.containedItem, 'InventoryItem');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("InventoryNotification", {
   read(reader: CborReader): InventoryNotification {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -2770,19 +2794,21 @@ IonFormatterStorage.register("CreateServerRequest", {
 IonFormatterStorage.register("UserCredentialsInput", {
   read(reader: CborReader): UserCredentialsInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const email = IonFormatterStorage.get<string>('string').read(reader);
+    const email = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const phone = IonFormatterStorage.readNullable<string>(reader, 'string');
     const username = IonFormatterStorage.readNullable<string>(reader, 'string');
-    const password = IonFormatterStorage.get<string>('string').read(reader);
+    const password = IonFormatterStorage.readNullable<string>(reader, 'string');
     const otpCode = IonFormatterStorage.readNullable<string>(reader, 'string');
     const captchaToken = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 5);
-    return { email, username, password, otpCode, captchaToken };
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { email, phone, username, password, otpCode, captchaToken };
   },
   write(writer: CborWriter, value: UserCredentialsInput): void {
-    writer.writeStartArray(5);
-    IonFormatterStorage.get<string>('string').write(writer, value.email);
+    writer.writeStartArray(6);
+    IonFormatterStorage.writeNullable<string>(writer, value.email, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.phone, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.username, 'string');
-    IonFormatterStorage.get<string>('string').write(writer, value.password);
+    IonFormatterStorage.writeNullable<string>(writer, value.password, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.otpCode, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.captchaToken, 'string');
     writer.writeEndArray();
@@ -2797,18 +2823,20 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
     const password = IonFormatterStorage.get<string>('string').read(reader);
     const displayName = IonFormatterStorage.get<string>('string').read(reader);
     const argreeTos = IonFormatterStorage.get<bool>('bool').read(reader);
+    const birthDate = IonFormatterStorage.get<dateonly>('dateonly').read(reader);
     const argreeOptionalEmails = IonFormatterStorage.get<bool>('bool').read(reader);
     const captchaToken = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 7);
-    return { email, username, password, displayName, argreeTos, argreeOptionalEmails, captchaToken };
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { email, username, password, displayName, argreeTos, birthDate, argreeOptionalEmails, captchaToken };
   },
   write(writer: CborWriter, value: NewUserCredentialsInput): void {
-    writer.writeStartArray(7);
+    writer.writeStartArray(8);
     IonFormatterStorage.get<string>('string').write(writer, value.email);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
     IonFormatterStorage.get<string>('string').write(writer, value.password);
     IonFormatterStorage.get<string>('string').write(writer, value.displayName);
     IonFormatterStorage.get<bool>('bool').write(writer, value.argreeTos);
+    IonFormatterStorage.get<dateonly>('dateonly').write(writer, value.birthDate);
     IonFormatterStorage.get<bool>('bool').write(writer, value.argreeOptionalEmails);
     IonFormatterStorage.writeNullable<string>(writer, value.captchaToken, 'string');
     writer.writeEndArray();
@@ -2904,6 +2932,18 @@ export interface IFriendsInteraction extends IIonService
 
 
 
+export interface IIdentityInteraction extends IIonService
+{
+  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
+  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
+  BeginResetPassword(email: string): Promise<bool>;
+  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
+  GetAuthorizationScenario(): Promise<string>;
+}
+
+
+
+
 export interface IInventoryInteraction extends IIonService
 {
   GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
@@ -2952,10 +2992,6 @@ export interface IUserInteraction extends IIonService
   CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<ArgonUser>;
-  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
-  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
-  BeginResetPassword(email: string): Promise<bool>;
-  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
@@ -3027,6 +3063,18 @@ export interface IFriendsInteraction extends IIonService
 
 
 
+export interface IIdentityInteraction extends IIonService
+{
+  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
+  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
+  BeginResetPassword(email: string): Promise<bool>;
+  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
+  GetAuthorizationScenario(): Promise<string>;
+}
+
+
+
+
 export interface IInventoryInteraction extends IIonService
 {
   GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
@@ -3075,10 +3123,6 @@ export interface IUserInteraction extends IIonService
   CreateSpace(request: CreateServerRequest): Promise<ArgonSpaceBase>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<ArgonUser>;
-  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
-  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
-  BeginResetPassword(email: string): Promise<bool>;
-  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
@@ -3407,6 +3451,84 @@ export class FriendsInteraction_Executor extends ServiceExecutor<IFriendsInterac
 }
 
 IonFormatterStorage.registerClientExecutor<IFriendsInteraction>('FriendsInteraction', FriendsInteraction_Executor);
+
+export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInteraction> implements IIdentityInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "Authorize");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<UserCredentialsInput>('UserCredentialsInput').write(writer, data);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAuthorizeResult>("IAuthorizeResult", writer.data, this.signal);
+  }
+  async Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "Registration");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<NewUserCredentialsInput>('NewUserCredentialsInput').write(writer, data);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRegistrationResult>("IRegistrationResult", writer.data, this.signal);
+  }
+  async BeginResetPassword(email: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "BeginResetPassword");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, email);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "ResetPassword");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<string>('string').write(writer, email);
+    IonFormatterStorage.get<string>('string').write(writer, otpCode);
+    IonFormatterStorage.get<string>('string').write(writer, newPassword);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAuthorizeResult>("IAuthorizeResult", writer.data, this.signal);
+  }
+  async GetAuthorizationScenario(): Promise<string> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "GetAuthorizationScenario");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IIdentityInteraction>('IdentityInteraction', IdentityInteraction_Executor);
 
 export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInteraction> implements IInventoryInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -3751,60 +3873,6 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
           
     return await req.callAsyncT<ArgonUser>("ArgonUser", writer.data, this.signal);
   }
-  async Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "Authorize");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<UserCredentialsInput>('UserCredentialsInput').write(writer, data);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IAuthorizeResult>("IAuthorizeResult", writer.data, this.signal);
-  }
-  async Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "Registration");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<NewUserCredentialsInput>('NewUserCredentialsInput').write(writer, data);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IRegistrationResult>("IRegistrationResult", writer.data, this.signal);
-  }
-  async BeginResetPassword(email: string): Promise<bool> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "BeginResetPassword");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<string>('string').write(writer, email);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
-  }
-  async ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "ResetPassword");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(3);
-          
-    IonFormatterStorage.get<string>('string').write(writer, email);
-    IonFormatterStorage.get<string>('string').write(writer, otpCode);
-    IonFormatterStorage.get<string>('string').write(writer, newPassword);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IAuthorizeResult>("IAuthorizeResult", writer.data, this.signal);
-  }
   async JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "JoinToSpace");
           
@@ -3971,6 +4039,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
+        if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
         if (propKey === "MeetingInteraction") return IonFormatterStorage.createExecutor("MeetingInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
@@ -3987,6 +4056,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
     FriendsInteraction: IFriendsInteraction;
+    IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
     MeetingInteraction: IMeetingInteraction;
     ServerInteraction: IServerInteraction;

@@ -33,9 +33,10 @@ export const useAuthStore = defineStore("auth", () => {
   ) => {
     const api = useApi();
     await delay(500);
-    const r = await api.userInteraction.Authorize({
+    const r = await api.identityInteraction.Authorize({
       email: email,
       password: pass,
+      phone: null,
       otpCode: otp ?? null,
       captchaToken: captchaToken ?? null,
       username: null
@@ -88,7 +89,7 @@ export const useAuthStore = defineStore("auth", () => {
   const register = async (data: NewUserCredentialsInput) => {
     const api = useApi();
     logger.warn(data);
-    const r = await api.userInteraction.Registration(data);
+    const r = await api.identityInteraction.Registration(data);
 
     if (r.isSuccessRegistration()) {
       isRequiredOtp.value = false;
@@ -154,7 +155,7 @@ export const useAuthStore = defineStore("auth", () => {
   const beginResetPass = async (email: string) => {
     const api = useApi();
 
-    await api.userInteraction.BeginResetPassword(email);
+    await api.identityInteraction.BeginResetPassword(email);
 
     isRequiredFormResetPass.value = true;
   };
@@ -166,7 +167,7 @@ export const useAuthStore = defineStore("auth", () => {
   ) => {
     const api = useApi();
 
-    const r = await api.userInteraction.ResetPassword(
+    const r = await api.identityInteraction.ResetPassword(
       email,
       resetCode,
       newPass

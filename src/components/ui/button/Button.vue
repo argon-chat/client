@@ -31,18 +31,5 @@ const props = withDefaults(defineProps<Props>(), {
     :disabled="props.disabled"
   >
     <slot />
-
-    <template v-if="props.disabled">
-      <div
-        class="absolute right-[28px] top-0 bottom-0 w-[3px] bg-gradient-to-b from-red-300 to-red-600 rounded-full pointer-events-none"
-      ></div>
-
-      <div
-        class="absolute right-[18px] top-1/2 transform -translate-y-1/2 w-6 h-6 bg-red-700 text-white rounded-full shadow-lg flex items-center justify-center"
-      >
-      <LockKeyholeIcon class="w-4 h-4" />
-
-      </div>
-    </template>
   </Primitive>
 </template>
