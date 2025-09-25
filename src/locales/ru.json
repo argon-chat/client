@@ -259,5 +259,11 @@
         "description": "Дает полный административный доступ к настройкам сервера."
       }
     }
-  }
+  },
+  "feedback_title": "Обратная связь",
+  "feedback_subtitle": "Расскажи нам о проблеме или предложении",
+  "attachments": "Вложения",
+  "drag_or_click_to_upload": "Перетащи сюда или нажми для загрузки",
+  "send_feedback": "Отправить",
+  "feedback_attachments_limit": "PNG / JPG до 2 MB (макс. 3 файла)"
 }

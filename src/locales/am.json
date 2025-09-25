@@ -259,5 +259,11 @@
         "description": "Տրվում է լիարժեք ադմինական մուտք կարգավորումների:"
       }
     }
-  }
+  },
+  "feedback_title": "Կարծիք",
+  "feedback_subtitle": "Պատմիր խնդրի կամ առաջարկի մասին",
+  "attachments": "Կցված ֆայլեր",
+  "drag_or_click_to_upload": "Քաշիր այստեղ կամ սեղմիր ներբեռնելու համար",
+  "send_feedback": "Ուղարկել",
+  "feedback_attachments_limit": "PNG / JPG մինչև 2 ՄԲ (առավելագույնը 3 ֆայլ)"
 }

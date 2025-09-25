@@ -270,5 +270,11 @@
     "total": "Total",
     "space": "Storage Space"
   },
-  "storages": "Storage"
+  "storages": "Storage",
+  "feedback_title": "Feedback",
+  "feedback_subtitle": "Tell us about an issue or share your idea",
+  "attachments": "Attachments",
+  "drag_or_click_to_upload": "Drag files here or click to upload",
+  "send_feedback": "Send Feedback",
+  "feedback_attachments_limit": "PNG / JPG up to 2 MB (max 3 files)"
 }

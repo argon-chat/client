@@ -46,6 +46,10 @@ Sentry.init({
       blockAllMedia: false,
     }),
     Sentry.replayCanvasIntegration(),
+    Sentry.feedbackIntegration({
+      colorScheme: "dark",
+      autoInject: false,
+    }),
   ],
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 1.0,

@@ -259,5 +259,11 @@
         "description": "設定へのフル管理アクセスが付与されます。"
       }
     }
-  }
+  },
+  "feedback_title": "フィードバック",
+  "feedback_subtitle": "問題や提案を教えてください",
+  "attachments": "添付ファイル",
+  "drag_or_click_to_upload": "ここにドラッグするかクリックしてアップロード",
+  "send_feedback": "送信",
+  "feedback_attachments_limit": "PNG / JPG 2MBまで（最大3ファイル）"
 }

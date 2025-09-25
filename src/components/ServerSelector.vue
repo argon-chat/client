@@ -32,11 +32,10 @@
 
 
         <TooltipProvider v-if="needsUpdate">
-            <Tooltip >
+            <Tooltip>
                 <TooltipTrigger>
                     <Button variant="default" style="background-color: #48bf32; color: white;" size="icon"
-                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
-                        @click="doUpdate">
+                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200" @click="doUpdate">
                         <ArrowBigDown class="w-4 h-4" />
                     </Button>
                 </TooltipTrigger>
@@ -45,9 +44,25 @@
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
+
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <Button variant="outline" size="icon"
+                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
+                        @click="feedbackOpened = true">
+                        <PaintbrushIcon class="w-4 h-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Send feedback!</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     </div>
 
     <CreateOrJoinSpace v-model:open="createSpaceOpened" @join="join" />
+    <SendUserFeedback v-model:open="feedbackOpened" />
 </template>
 
 <script setup lang="ts">
@@ -55,7 +70,7 @@ import { computed, ref } from "vue"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Home, Plus, ArrowBigDown } from "lucide-vue-next"
+import { Home, Plus, ArrowBigDown, PaintbrushIcon } from "lucide-vue-next"
 import IconSw from "@/assets/icons/icon_cat.svg"
 import { ArgonSpaceBase } from "@/lib/glue/argonChat"
 import { Guid } from "@argon-chat/ion.webcore"
@@ -66,10 +81,13 @@ import Tooltip from "./ui/tooltip/Tooltip.vue"
 import TooltipTrigger from "./ui/tooltip/TooltipTrigger.vue"
 import TooltipContent from "./ui/tooltip/TooltipContent.vue"
 import { useVersionChecker } from "@/lib/useVersionChecker"
+import { showReportDialog } from "@sentry/vue"
+import SendUserFeedback from "./modals/SendUserFeedback.vue"
 
 const { t } = useLocale();
 
 const createSpaceOpened = ref(false);
+const feedbackOpened = ref(false);
 
 const { needsUpdate, doUpdate } = useVersionChecker();
 
@@ -92,6 +110,12 @@ function join(inviteCode: string) {
     emit("join", inviteCode);
 }
 
+
+const sendFeedBack = () => {
+    showReportDialog({
+
+    })
+}
 
 const isSelected = (id: string) => model.value === id
 const select = (id: string) => emit("select", id);
