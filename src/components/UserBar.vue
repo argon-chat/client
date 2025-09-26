@@ -70,8 +70,22 @@ const me = useMe();
   display: flex;
   flex-direction: column;
 }
-
 .user-name {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+
   font-size: 14px;
   color: #fff;
 }

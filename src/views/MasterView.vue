@@ -14,11 +14,9 @@
 import SettingsWindow from "@/components/SettingsWindow.vue";
 import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
 import { usePoolStore } from "@/store/poolStore";
-import { onMounted, ref } from "vue";
 import FloatingMiniVideo from "@/components/FloatingMiniVideo.vue";
 import ServerSelector from "@/components/ServerSelector.vue";
 import SpaceShell from "@/components/SpaceShell.vue";
-import { ArgonSpaceBase } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 import HomeShell from "@/components/home/HomeShell.vue";
 
