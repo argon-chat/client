@@ -120,6 +120,9 @@ export const pruneAll = async (pruneLocalStorage = true) => {
   if (pruneLocalStorage) localStorage.clear();
 
   location.reload();
+
+  if (pruneLocalStorage && argon.isArgonHost) 
+    native.protectedStore.setValue("token", "");
 };
 
 export const pruneIndexDb = async () => {

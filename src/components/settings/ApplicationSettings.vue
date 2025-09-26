@@ -26,21 +26,6 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Prune databases
-                    </div>
-                    <div class="text-sm text-muted-foreground">
-                        Destroy all data, reset storages (and authorization too)
-                    </div>
-                </div>
-                <button @click="pruneDatabases(true)"
-                    class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
-                    Prune Databases
-                </button>
-            </div>
-            <br />
-            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div class="space-y-0.5">
-                    <div class="text-base">
                         Diagnostic Board
                     </div>
                     <div class="text-sm text-muted-foreground">
