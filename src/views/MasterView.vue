@@ -23,10 +23,9 @@ import { Guid } from "@argon-chat/ion.webcore";
 import HomeShell from "@/components/home/HomeShell.vue";
 
 const dataPool = usePoolStore();
-const spaces = ref([] as ArgonSpaceBase[]);
-onMounted(async () => {
-  spaces.value = await dataPool.allServerAsync;
-});
+
+const spaces = dataPool.useAllServers();
+
 function selectServer(id: Guid) {
   console.log("Selected server:", id)
   dataPool.selectedServer = id;

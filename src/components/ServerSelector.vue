@@ -61,7 +61,7 @@
         </TooltipProvider>
     </div>
 
-    <CreateOrJoinSpace v-model:open="createSpaceOpened" @join="join" />
+    <CreateOrJoinSpace v-model:open="createSpaceOpened" />
     <SendUserFeedback v-model:open="feedbackOpened" />
 </template>
 
@@ -101,14 +101,9 @@ const model = defineModel<string | null>('selectedSpace', {
 
 const emit = defineEmits<{
     (e: 'home'): void
-    (e: 'join', name: string): void
     (e: 'select', id: Guid): void
 }>()
 
-
-function join(inviteCode: string) {
-    emit("join", inviteCode);
-}
 
 
 const sendFeedBack = () => {

@@ -41,13 +41,19 @@
             </div>
 
             <div class="relative space-y-3">
-                <Label for="invite-code" class="text-gray-300 flex items-center gap-2">
-                    <span class="i-lucide-link-2 text-purple-400"></span>
-                    {{ t('invite_code') }}
-                </Label>
-                <Input id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" class="h-11 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500
-                 focus:border-purple-500 focus:ring focus:ring-purple-500/30" />
-                <Button @click="emit('join', inviteCode)" :disabled="isLoading"
+
+                <InputWithError id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" :error="joinError"
+                    @clear-error="joinError = ''">
+                    <template #label>
+                        <Label for="invite-code" class="text-gray-300 flex items-center gap-2">
+                            <span class="i-lucide-link-2 text-purple-400"></span>
+                            {{ t('invite_code') }}
+                        </Label>
+                    </template>
+                </InputWithError>
+                <br/>
+
+                <Button @click="join(inviteCode)" :disabled="isLoading"
                     class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-all">
                     <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-log-in mr-2"></span>
@@ -70,12 +76,18 @@ import { ReloadIcon, ExclamationTriangleIcon } from '@radix-icons/vue'
 import { CreateSpaceError } from '@/lib/glue/argonChat'
 import InputWithError from '../InputWithError.vue'
 import { logger } from '@/lib/logger'
+import { DeferFlag } from '@/lib/DeferFlag'
+import { useServerStore } from '@/store/serverStore'
+import { usePoolStore } from '@/store/poolStore'
 
 const { t } = useLocale()
 
 const isLoading = ref(false)
 const createLoading = ref(false)
 const createError = ref<string>('')
+const joinError = ref('');
+const spaceStore = useServerStore();
+const poolStore = usePoolStore();
 
 const inviteCode = ref("")
 const spaceName = ref("")
@@ -94,7 +106,6 @@ async function createServerCmd() {
         createLoading.value = true
         const res = await api.userInteraction.CreateSpace({ name: spaceName.value.trim(), description: "", avatarFieldId: "" });
 
-        // Если API возвращает поле error — показываем его
         if (res.isFailedCreateSpace()) {
             logger.error("failed to create space, error: ", res.error);
             createError.value = humanizeError(res.error);
@@ -114,6 +125,31 @@ function humanizeError(err: CreateSpaceError): string {
     if (err === CreateSpaceError.LIMIT_REACHED)
         return "Limit reached";
     return "Unknown error";
+}
+
+
+const join = async (code: string) => {
+    const e = new DeferFlag(isLoading);
+    try {
+        if (!inviteCode.value.trim()) {
+            joinError.value = "Please enter a valid invite code.";
+            return;
+        }
+        logger.log(`Joined server with invite code: ${inviteCode.value}`);
+        const result = await spaceStore.joinToServer(inviteCode.value.trim());
+
+        if (result) {
+            joinError.value = result;
+            return;
+        }
+        inviteCode.value = "";
+        open.value = false;
+
+        poolStore.refershDatas();
+        
+    } finally {
+        e[Symbol.dispose]();
+    }
 }
 
 const open = defineModel<boolean>('open', { type: Boolean, default: false })

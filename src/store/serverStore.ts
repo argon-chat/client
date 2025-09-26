@@ -34,45 +34,24 @@ export const useServerStore = defineStore("server", () => {
     }
   }
 
-  async function joinToServer(inviteCode: string): Promise<boolean> {
+  async function joinToServer(inviteCode: string): Promise<string> {
     const r = await api.userInteraction.JoinToSpace({
       inviteCode,
     });
 
     if (r.isSuccessJoin()) {
       await pool.loadServerDetails();
-      return true;
+      return '';
     } else if (r.isFailedJoin()) {
       switch (r.error) {
         case AcceptInviteError.EXPIRED:
-          toast({
-            title: "Invite code expired",
-            description:
-              "Ask the person who gave you the code to give it again",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return false;
+          return "Invite code expired";
         case AcceptInviteError.NOT_FOUND:
         case AcceptInviteError.YOU_ARE_BANNED:
-          toast({
-            title: "Invite code incorrect",
-            description:
-              "Invite code not found or you are not allowed to join this server",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return false;
+          return "Invite code incorrect";
       }
     }
-
-    toast({
-      title: "Unknown error",
-      description: "An error occurred while connecting to the server",
-      variant: "destructive",
-      duration: 2500,
-    });
-    return false;
+    return "Unknown error";
   }
 
   async function addChannelToServer(

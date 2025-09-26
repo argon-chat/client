@@ -330,11 +330,13 @@ export const usePoolStore = defineStore("data-pool", () => {
     }
   };
 
-  const allServerAsync = computed(() =>
-    firstValueFrom<ArgonSpaceBase[]>(
-      from(liveQuery(async () => await db.servers.toArray()))
-    )
-  );
+  function useAllServers() {
+    const obs = useObservable(from(liveQuery(() => db.servers.toArray())), {
+      initialValue: [] as ArgonSpaceBase[],
+    })!;
+
+    return computed(() => obs.value ?? []);
+  }
 
   const getSelectedServer = computedAsync(async () => {
     if (!selectedServer.value) return null;
@@ -647,7 +649,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       let user = await db.users.get(x.userId);
       if (!user) {
         trackUser(
-          await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+          await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
         );
         user = await db.users.get(x.userId);
         if (!user) throw new Error("await db.users.get(x.userId) return null");
@@ -675,7 +677,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     });
 
     bus.onServerEvent<JoinToServerUser>("JoinToServerUser", async (x) => {
-      const s = await db.servers.get(x.serverId);
+      const s = await db.servers.get(x.spaceId);
 
       if (!s) {
         logger.error(
@@ -688,7 +690,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         (await db.users.where("userId").equals(x.userId).count()) > 0;
       if (!existsUser) {
         const user = await api.serverInteraction.GetMember(
-          x.serverId,
+          x.spaceId,
           x.userId
         );
         db.members.put(user.member);
@@ -717,7 +719,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         let user = await db.users.get(x.userId);
         if (!user) {
           trackUser(
-            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+            await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
           );
           user = await db.users.get(x.userId);
           if (!user)
@@ -734,7 +736,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         let user = await db.users.get(x.userId);
         if (!user) {
           trackUser(
-            await api.serverInteraction.PrefetchUser(x.serverId, x.userId)
+            await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
           );
           user = await db.users.get(x.userId);
           if (!user)
@@ -749,7 +751,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       const user = await db.users.get(x.userId);
       if (!user) {
         trackUser(
-          await api.serverInteraction.PrefetchUser(x.serverId, x.userId),
+          await api.serverInteraction.PrefetchUser(x.spaceId, x.userId),
           x.status
         );
         return;
@@ -781,7 +783,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const init = () => {
     subscribeToEvents();
-  }
+  };
 
   const loadServerDetails = async () => {
     const servers = await api.userInteraction.GetSpaces();
@@ -890,7 +892,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   return {
-    allServerAsync,
+    useAllServers,
 
     trackUser,
     trackServer,
@@ -929,6 +931,6 @@ export const usePoolStore = defineStore("data-pool", () => {
     getUsersByServerMemberIds,
     getMemberIdsByUserIdsQuery,
     getMemberIdsByUserIds,
-    init
+    init,
   };
 });
