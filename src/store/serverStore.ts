@@ -11,6 +11,7 @@ import {
   InviteCodeEntity,
 } from "@/lib/glue/argonChat";
 import { v7 } from "uuid";
+import { Guid } from "@argon-chat/ion.webcore";
 
 export const useServerStore = defineStore("server", () => {
   const api = useApi();
@@ -75,17 +76,15 @@ export const useServerStore = defineStore("server", () => {
   }
 
   async function addChannelToServer(
+    spaceId: Guid,
     channelName: string,
     channelKind: ChannelType
   ) {
-    const selectedServer = pool.selectedServer;
-    if (!selectedServer) return;
-
-    await api.channelInteraction.CreateChannel(selectedServer, v7(), {
+    await api.channelInteraction.CreateChannel(spaceId, v7(), {
       name: channelName,
       desc: "",
       kind: channelKind,
-      spaceId: selectedServer,
+      spaceId: spaceId,
     });
   }
 

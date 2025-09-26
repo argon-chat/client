@@ -10,15 +10,17 @@
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Editable message area -->
 
-            <div @contextmenu.prevent="onContextMenu"
+            <textarea disabled class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"></textarea>
+
+            <!--   <div @contextmenu.prevent="onContextMenu" 
                 class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"
-                ref="editorRef" contenteditable="true" @input="onEditorInput" @keydown="onEditorKeydown"
-                placeholder="Enter text..." :data-placeholder="'Enter text..'"></div>
+                ref="editorRef" contenteditable="false" @input="onEditorInput" @keydown="onEditorKeydown"
+                placeholder="Enter text..." :data-placeholder="'Enter text..'"></div> -->
 
             <!-- Emoji picker -->
             <Popover>
-                <PopoverTrigger style="align-items: flex-start;">
-                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
+                <PopoverTrigger disabled style="align-items: flex-start;">
+                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0" disabled>
                         <SmileIcon />
                     </Button>
                 </PopoverTrigger>
@@ -30,7 +32,7 @@
 
             <!-- Send button -->
             <div style="align-items: flex-start;">
-                <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
+                <Button disabled variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
                     <SendHorizonalIcon />
                 </Button>
             </div>

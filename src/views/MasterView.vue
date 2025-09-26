@@ -1,8 +1,8 @@
 <template>
   <div class="app-container flex h-screen gap-4 pt-7 pb-7 pr-4 pl-4" style="width: 100svw; height: 100svh;">
     <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
-      :spaces="spaces" class="shrink-0" />
-    <SpaceShell v-show="dataPool.selectedServer" />
+      :spaces="spaces" />
+    <SpaceShell v-show="dataPool.selectedServer" :selected-space="dataPool.selectedServer" />
     <HomeShell v-show="!dataPool.selectedServer" />
     <SettingsWindow />
     <ServerSettingsWindow />
@@ -21,10 +21,8 @@ import SpaceShell from "@/components/SpaceShell.vue";
 import { ArgonSpaceBase } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 import HomeShell from "@/components/home/HomeShell.vue";
-import { useApi } from "@/store/apiStore";
 
 const dataPool = usePoolStore();
-const api = useApi();
 const spaces = ref([] as ArgonSpaceBase[]);
 onMounted(async () => {
   spaces.value = await dataPool.allServerAsync;
@@ -82,24 +80,20 @@ body {
 
 .settings-content::-webkit-scrollbar {
   width: 8px !important;
-  /* Ширина скроллбара */
 }
 
 .settings-content::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.1);
-  /* Темный фон */
   border-radius: 10px;
 }
 
 .settings-content::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
-  /* Цвет ползунка */
   border-radius: 10px;
   transition: background 0.2s;
 }
 
 .settings-content::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
-  /* Светлее при наведении */
 }
 </style>

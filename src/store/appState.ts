@@ -64,8 +64,12 @@ export const useAppState = defineStore("app", () => {
     logger.info("Fetch data...");
     await delay(1000);
 
+    const poolStore = usePoolStore();
+
+    poolStore.init();
+
     if (auth.isAuthenticated) {
-      await usePoolStore().loadServerDetails();
+      poolStore.loadServerDetails();
       await useMe().init();
       await useIdleStore().init();
       await useActivity().init();

@@ -12,7 +12,7 @@ import {
   UserStatus,
 } from "@/lib/glue/argonChat";
 
-export type EventWithServerId<T> = { serverId: string } & T;
+export type EventWithServerId<T> = { spaceId: string } & T;
 
 export const useBus = defineStore("bus", () => {
   const argonEventBus = new Subject<IArgonEvent>();

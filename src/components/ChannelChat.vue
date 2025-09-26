@@ -90,6 +90,12 @@ function onReplySelect(message: ArgonMessage) {
   replyTo.value = message;
 }
 
+
+
+const selectedSpaceId = defineModel<string | null>('selectedSpace', {
+    type: String, required: true
+})
+
 watch(
   () => hiddenChannelId,
   () => {

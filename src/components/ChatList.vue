@@ -2,7 +2,7 @@
   <div class="chat-list rounded-xl scroll-smooth">
     <div class="flex flex-col">
       <div class="flex-1 overflow-y-auto py-4 overflow-x-hidden" style="text-overflow: ellipsis;">
-        <div v-if="pool.selectedServer" v-for="channel in pool.activeServerChannels.value" :key="channel.channelId">
+        <div v-for="channel in channelLists" :key="channel.channelId">
           <div class="px-4 py-2 hover:bg-gray-700/50 cursor-pointer flex flex-col"
             v-on:click="channelSelect(channel.channelId)">
             <ContextMenu>
@@ -51,6 +51,7 @@
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
                 <ContextMenuLabel v-show="user.userId != me.me?.userId">
+                  <!-- @vue-ignore -->
                   <VolumeSlider :user="user"/>
                 </ContextMenuLabel>
                 <!-- <ContextMenuItem inset @click="voice.muteForMeUser(user.UserId)">
@@ -102,12 +103,11 @@ import { usePoolStore } from "@/store/poolStore";
 import { useVoice } from "@/store/voiceStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
-import delay from "@/lib/delay";
-import { onMounted } from "vue";
 import { usePexStore } from "@/store/permissionStore";
 import { useApi } from "@/store/apiStore";
 import { ChannelType } from "@/lib/glue/argonChat";
 import VolumeSlider from "./VolumeSlider.vue";
+import { watch } from "vue";
 
 const servers = useServerStore();
 const pool = usePoolStore();
@@ -115,11 +115,14 @@ const voice = useVoice();
 const me = useMe();
 const pex = usePexStore();
 const api = useApi();
-//
 
-onMounted(async () => {
-  await delay(1000);
-});
+
+const selectedSpaceId = defineModel<string>('selectedSpace', {
+    type: String, required: true
+})
+
+
+const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
 async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
@@ -162,8 +165,8 @@ const connectToChannel = (channelId: string) => {
 };
 
 
-const kickMember = async (userId: string, channelId: string, serverId: string) => {
-  await api.channelInteraction.KickMemberFromChannel(serverId, channelId, userId);
+const kickMember = async (userId: string, channelId: string, spaceId: string) => {
+  await api.channelInteraction.KickMemberFromChannel(spaceId, channelId, userId);
 }
 </script>
 

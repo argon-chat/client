@@ -8,13 +8,13 @@
                 <button @click="addChannelOpened = true">
                     <CirclePlusIcon class="w-5 h-5" />
                 </button>
-                <button>
+                <button disabled>
                     <NotebookTabsIcon class="w-5 h-5" />
                 </button>
-                <button>
+                <button disabled>
                     <UsersIcon class="w-5 h-5" />
                 </button>
-                <button>
+                <button disabled>
                     <ShieldCheck class="w-5 h-5 good" />
                 </button>
             </div>
@@ -74,15 +74,14 @@
 
 <script setup lang="ts">
 import {
-  SettingsIcon,
-  CirclePlusIcon,
-  ShieldCheck,
-  NotebookTabsIcon,
-  UsersIcon,
+    SettingsIcon,
+    CirclePlusIcon,
+    ShieldCheck,
+    NotebookTabsIcon,
+    UsersIcon,
 } from "lucide-vue-next";
 
 import { useMe } from "@/store/meStore";
-import { useLocale } from "@/store/localeStore";
 import { logger } from "@/lib/logger";
 import { useServerStore } from "@/store/serverStore";
 import { useWindow } from "@/store/windowStore";
@@ -90,12 +89,12 @@ import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,7 +102,9 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChannelType } from "@/lib/glue/argonChat";
 
-const { t } = useLocale();
+const selectedSpaceId = defineModel<string>('selectedSpace', {
+    type: String, required: true
+})
 
 const me = useMe();
 const windows = useWindow();
@@ -115,18 +116,24 @@ const pex = usePexStore();
 const channelType = ref("Text");
 const channelName = ref("");
 async function openServerSettings() {
-  windows.serverSettingsOpen = true;
+    windows.serverSettingsOpen = true;
 }
 
 const addChannel = () => {
-  addChannel_Loading.value = true;
-  logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
-  servers.addChannelToServer(channelName.value, ChannelType.Text);
+    addChannel_Loading.value = true;
+    logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
 
-  setTimeout(() => {
-    addChannel_Loading.value = false;
-    addChannelOpened.value = false;
-  }, 1000);
+    if (channelType.value === "Text")
+        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Text);
+    else if (channelType.value === "Voice")
+        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Voice);
+    else if (channelType.value === "Announcement")
+        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Announcement);
+
+    setTimeout(() => {
+        addChannel_Loading.value = false;
+        addChannelOpened.value = false;
+    }, 1000);
 };
 </script>
 

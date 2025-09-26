@@ -1,6 +1,6 @@
 <template>
     <div
-        class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px]">
+        class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px] shrink-0">
         <Button variant="ghost" size="icon" class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
             @click="emit('home')">
             <IconSw class="w-8 h-8 fill-blue-500" />

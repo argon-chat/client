@@ -2,7 +2,7 @@
   <div
     class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800"
     style="background-color: #161616f5; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-    <div v-for="group in dataPool.groupedServerUsers.value" :key="group.archetype.id" class="mb-4">
+    <div v-for="group in groupedUsers" :key="group.archetype.id" class="mb-4">
       <h4 class="text-sm font-semibold text-gray-300 tracking-wide mb-2 flex items-center space-x-1">
         <span v-if="group.archetype.iconFileId">
           <img :src="`/api/icons/${group.archetype.iconFileId}`" class="w-4 h-4 inline-block mr-1" />
@@ -22,8 +22,20 @@
 import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
+import { watch } from "vue";
+
+const model = defineModel<string | null>('selectedSpace', {
+    type: String, required: true
+});
+
+
 
 const dataPool = usePoolStore();
+
+
+const groupedUsers = dataPool.useGroupedServerUsers(model);
+
+
 const { t } = useLocale();
 const formatColour = (argb: number) => {
   const a = ((argb >> 24) & 0xff) / 255;

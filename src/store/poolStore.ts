@@ -5,10 +5,18 @@ import {
 } from "@/lib/rbac/ArgonEntitlement";
 import { computedAsync } from "@vueuse/core";
 import { useObservable } from "@vueuse/rxjs";
-import { liveQuery } from "dexie";
+import { liveQuery, Subscription } from "dexie";
 import { defineStore } from "pinia";
-import { Subject, firstValueFrom, from } from "rxjs";
 import {
+  Subject,
+  distinctUntilChanged,
+  firstValueFrom,
+  from,
+  switchMap,
+} from "rxjs";
+import {
+  ComputedRef,
+  ModelRef,
   Raw,
   type Reactive,
   type Ref,
@@ -28,7 +36,6 @@ import {
   ArgonChannel,
   ArgonEntitlement,
   ArgonMessage,
-  ArgonSpace,
   ArgonSpaceBase,
   ArgonUser,
   ChannelCreated,
@@ -50,6 +57,9 @@ import {
   UserUpdated,
 } from "@/lib/glue/argonChat";
 import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
+import { createCustomEqual } from "fast-equals";
+
+const deepEqual = createCustomEqual({ strict: true });
 
 export interface MentionUser {
   id: string;
@@ -217,14 +227,15 @@ export const usePoolStore = defineStore("data-pool", () => {
           .equals([userId, serverId])
           .first();
 
-
         if (!member) {
           logger.warn("no found member for fetch self entitlement");
           return new Set<ArgonEntitlementFlag>();
         }
 
         if (!member.archetypes) {
-          logger.warn("no found archetypes for self member for fetch self entitlement");
+          logger.warn(
+            "no found archetypes for self member for fetch self entitlement"
+          );
           return new Set<ArgonEntitlementFlag>();
         }
 
@@ -335,19 +346,33 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   });
 
-  const activeServerChannels = computed(() => {
-    return useObservable<ArgonChannel[]>(
-      from(
-        liveQuery<ArgonChannel[]>(() => {
-          if (!selectedServer.value) return [];
-          return db.channels
-            .where("spaceId")
-            .equals(selectedServer.value)
-            .toArray();
-        })
-      )
+  function useActiveServerChannels(spaceId: Ref<Guid | null>) {
+    const result = ref<ArgonChannel[]>([]);
+
+    let sub: Subscription | null = null;
+
+    watch(
+      spaceId,
+      (id) => {
+        sub?.unsubscribe();
+        if (!id) {
+          result.value = [];
+          return;
+        }
+
+        sub = liveQuery(() =>
+          db.channels.where("spaceId").equals(id).toArray()
+        ).subscribe((channels) => {
+          result.value = channels;
+        });
+      },
+      { immediate: true }
     );
-  });
+
+    onUnmounted(() => sub?.unsubscribe());
+
+    return result;
+  }
 
   const generateBadgesByArchetypes = async (
     archetypes: SpaceMemberArchetype[]
@@ -365,132 +390,134 @@ export const usePoolStore = defineStore("data-pool", () => {
     return results.map((x) => x.name);
   };
 
-  const groupedServerUsers = computed(() => {
-    return useObservable(
-      from(
-        liveQuery(async () => {
-          if (!selectedServer.value) return [];
-          const server = await db.servers
-            .filter((s) => s.spaceId === selectedServer.value)
-            .first();
-          if (!server) return [];
+  function useGroupedServerUsers(
+    serverId: Ref<Guid | null> | ModelRef<Guid | null | undefined>
+  ) {
+    const result = ref<{ archetype: Archetype; users: RealtimeUser[] }[]>([]);
+    let sub: Subscription | null = null;
 
-          const members = await db.members
-            .filter((x) => x.spaceId == server.spaceId)
-            .toArray();
-          const users = await db.users.bulkGet(members.map((x) => x.userId));
+    async function buildGroups(id: Guid) {
+      const server = await db.servers.where("spaceId").equals(id).first();
+      if (!server) return [];
 
-          const allArchetypeIds = [
-            ...new Set(
-              members
-                .filter((m): m is NonNullable<typeof m> => !!m)
-                .flatMap((m) => m.archetypes.map((a) => a.archetypeId))
-            ),
-          ];
+      const members = await db.members
+        .where("spaceId")
+        .equals(server.spaceId)
+        .toArray();
 
-          const archetypes = await db.archetypes.bulkGet(allArchetypeIds);
+      const users = (
+        await db.users.bulkGet(members.map((m) => m.userId))
+      ).filter((u): u is RealtimeUser => !!u);
 
-          const groupArchetypes = [
-            ...new Map(
-              archetypes
-                .filter((a): a is Archetype => !!a && a.isGroup)
-                .map((a) => [a.id, a])
-            ).values(),
-          ].sort((a, b) => a.name.localeCompare(b.name));
+      const allArchetypeIds = [
+        ...new Set(
+          members.flatMap((m) => m.archetypes.map((a) => a.archetypeId))
+        ),
+      ];
 
-          const usersWithArchetypes = users
-            .filter((u): u is RealtimeUser => !!u)
-            .map((user) => {
-              const member = members.find((m) => m?.userId === user.userId);
-              if (member) {
-                const userArchetypes = archetypes.filter((a) =>
-                  member.archetypes.some((x) => x.archetypeId === a?.id)
-                ) as Archetype[];
-                user.archetypes = userArchetypes;
-              }
-              return user;
-            });
+      const archetypes = (await db.archetypes.bulkGet(allArchetypeIds)).filter(
+        (a): a is Archetype => !!a
+      );
 
-          const sortFn = (a: RealtimeUser, b: RealtimeUser) => {
-            const statusOrder = (status: UserStatus) => {
-              if (status === UserStatus.Online) return 0;
-              if (status === UserStatus.Offline) return 2;
-              return 1;
-            };
-            const statusDiff = statusOrder(a.status) - statusOrder(b.status);
-            if (statusDiff !== 0) return statusDiff;
-            return a.displayName.localeCompare(b.displayName);
-          };
+      const archetypesMap = new Map(archetypes.map((a) => [a.id, a]));
+      const groupArchetypes = [...archetypesMap.values()]
+        .filter((a) => a.isGroup)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-          const groupMap = new Map<Guid, RealtimeUser[]>();
-          const ungroupedUsers: RealtimeUser[] = [];
+      const memberMap = new Map(members.map((m) => [m.userId, m]));
+      const usersWithArchetypes = users.map((user) => {
+        const member = memberMap.get(user.userId);
+        if (member) {
+          user.archetypes = member.archetypes
+            .map((x) => archetypesMap.get(x.archetypeId))
+            .filter((a): a is Archetype => !!a);
+        }
+        return user;
+      });
 
-          for (const user of usersWithArchetypes) {
-            const groupRoles = (user.archetypes ?? []).filter((a) => a.isGroup);
+      const sortFn = (a: RealtimeUser, b: RealtimeUser) => {
+        const statusOrder = (status: UserStatus) => {
+          if (status === UserStatus.Online) return 0;
+          if (status === UserStatus.Offline) return 2;
+          return 1;
+        };
+        const statusDiff = statusOrder(a.status) - statusOrder(b.status);
+        if (statusDiff !== 0) return statusDiff;
+        return a.displayName.localeCompare(b.displayName);
+      };
+      usersWithArchetypes.sort(sortFn);
 
-            if (groupRoles.length > 0) {
-              const targetGroup = groupArchetypes.find((g) =>
-                groupRoles.some((r) => r.id === g.id)
-              );
+      const groupMap = new Map<Guid, RealtimeUser[]>();
+      const ungroupedUsers: RealtimeUser[] = [];
 
-              if (targetGroup) {
-                if (!groupMap.has(targetGroup.id)) {
-                  groupMap.set(targetGroup.id, []);
-                }
-                groupMap.get(targetGroup.id)!.push(user);
-              } else {
-                ungroupedUsers.push(user);
-              }
-            } else {
-              ungroupedUsers.push(user);
-            }
-          }
+      for (const user of usersWithArchetypes) {
+        const groupRoles = (user.archetypes ?? []).filter((a) => a.isGroup);
+        const target = groupRoles.find((r) => archetypesMap.get(r.id)?.isGroup);
+        if (target) {
+          if (!groupMap.has(target.id)) groupMap.set(target.id, []);
+          groupMap.get(target.id)!.push(user);
+        } else {
+          ungroupedUsers.push(user);
+        }
+      }
 
-          const result: {
-            archetype: Archetype;
-            users: RealtimeUser[];
-          }[] = [];
+      const result: { archetype: Archetype; users: RealtimeUser[] }[] = [];
 
-          for (const group of groupArchetypes) {
-            const groupUsers = (groupMap.get(group.id) ?? []).sort(sortFn);
-            if (groupUsers.length > 0) {
-              result.push({
-                archetype: group,
-                users: groupUsers,
-              });
-            }
-          }
+      for (const group of groupArchetypes) {
+        const groupUsers = groupMap.get(group.id) ?? [];
+        if (groupUsers.length > 0) {
+          result.push({ archetype: group, users: groupUsers });
+        }
+      }
 
-          if (ungroupedUsers.length > 0) {
-            result.push({
-              archetype: {
-                id: "00000000-0000-0000-0000-000000000000",
-                spaceId: selectedServer.value,
-                name: "Users",
-                description: "",
-                isMentionable: false,
-                colour: 0xffffffff,
-                isHidden: false,
-                isLocked: false,
-                isGroup: true,
-                entitlement: ArgonEntitlement.None,
-                isDefault: false,
-                iconFileId: null,
-              },
-              users: ungroupedUsers.sort(sortFn),
-            });
-          }
-          return result;
-        })
-      )
+      if (ungroupedUsers.length > 0) {
+        result.push({
+          archetype: {
+            id: "00000000-0000-0000-0000-000000000000",
+            spaceId: id,
+            name: "Users",
+            description: "",
+            isMentionable: false,
+            colour: 0xffffffff,
+            isHidden: false,
+            isLocked: false,
+            isGroup: true,
+            entitlement: ArgonEntitlement.None,
+            isDefault: false,
+            iconFileId: null,
+          },
+          users: ungroupedUsers,
+        });
+      }
+      return result;
+    }
+
+    watch(
+      serverId,
+      (id) => {
+        sub?.unsubscribe();
+        if (!id) {
+          result.value = [];
+          return;
+        }
+
+        sub = liveQuery(() => buildGroups(id as any)).subscribe({
+          next: (groups) => {
+            result.value = groups;
+          },
+          error: (err) => console.error("[GroupedUsers] liveQuery error:", err),
+        });
+      },
+      { immediate: true }
     );
-  });
+
+    onUnmounted(() => sub?.unsubscribe());
+
+    return result;
+  }
 
   const trackServer = async (server: ArgonSpaceBase) => {
-    await db.servers.put(
-      server,
-      server.spaceId
-    );
+    await db.servers.put(server, server.spaceId);
   };
 
   const trackArchetype = async (archetype: Archetype) => {
@@ -560,7 +587,8 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const subscribeToEvents = () => {
     bus.onServerEvent<ChannelCreated>("ChannelCreated", async (x) => {
-      const c = await db.servers.get(x.serverId);
+      logger.warn(x);
+      const c = await db.servers.get(x.spaceId);
       if (c) {
         await db.channels.put(x.data);
       } else {
@@ -748,12 +776,14 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   const refershDatas = async () => {
-    await loadServerDetails(false);
+    await loadServerDetails();
   };
 
-  const loadServerDetails = async (listenEvents = true) => {
-    if (listenEvents) subscribeToEvents();
+  const init = () => {
+    subscribeToEvents();
+  }
 
+  const loadServerDetails = async () => {
     const servers = await api.userInteraction.GetSpaces();
 
     logger.log(`Loaded '${servers.length}' servers`);
@@ -781,12 +811,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       for (const u of users) {
         await trackMember(u.member);
-        if (u.member.user)
-          await trackUser(
-            u.member.user,
-            u.status,
-            u.presence
-          );
+        if (u.member.user) await trackUser(u.member.user, u.status, u.presence);
       }
 
       const excludeSet = new Set(
@@ -871,9 +896,8 @@ export const usePoolStore = defineStore("data-pool", () => {
     trackServer,
     trackChannel,
 
-    activeServerChannels,
-    groupedServerUsers,
-    subscribeToEvents,
+    useActiveServerChannels,
+    useGroupedServerUsers,
 
     selectedServer,
     selectedChannel,
@@ -905,5 +929,6 @@ export const usePoolStore = defineStore("data-pool", () => {
     getUsersByServerMemberIds,
     getMemberIdsByUserIdsQuery,
     getMemberIdsByUserIds,
+    init
   };
 });

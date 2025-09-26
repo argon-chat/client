@@ -23,7 +23,7 @@ export class PoolDatabase extends Dexie {
   members!: Table<SpaceMember, Guid>;
 
   constructor() {
-    super("argon-db-v4");
+    super("argon-database");
     this.version(1).stores({
       users: "userId",
       servers: "spaceId",
@@ -32,12 +32,8 @@ export class PoolDatabase extends Dexie {
         "messageId, [channelId+messageId], [spaceId+channelId+messageId]",
       archetypes: "id, spaceId, [Id+spaceId]",
       members:
-        "memberId, [memberId+userId], [userId+spaceId], [memberId+userId+spaceId], [memberId+spaceId]",
+        "memberId, spaceId, [memberId+userId], [userId+spaceId], [memberId+userId+spaceId], [memberId+spaceId]",
     });
-
-    tryDropOldDb("argon-db");
-    tryDropOldDb("argon-db-v2");
-    tryDropOldDb("argon-db-v3");
   }
 }
 
