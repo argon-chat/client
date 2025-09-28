@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { useServerStore } from "@/store/serverStore";
+import { useSpaceStore } from "@/store/serverStore";
 import {
   HashIcon,
   Volume2Icon,
@@ -109,7 +109,7 @@ import { ChannelType } from "@/lib/glue/argonChat";
 import VolumeSlider from "./VolumeSlider.vue";
 import { watch } from "vue";
 
-const servers = useServerStore();
+const servers = useSpaceStore();
 const pool = usePoolStore();
 const voice = useVoice();
 const me = useMe();

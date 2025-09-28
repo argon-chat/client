@@ -144,7 +144,7 @@ export const useVoice = defineStore("voice", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return;
 
-    const joinResult = await api.channelInteraction.JoinToVoiceChannel(
+    const joinResult = await api.channelInteraction.Interlink(
       selectedServer,
       channelId
     );
@@ -179,8 +179,10 @@ export const useVoice = defineStore("voice", () => {
       logger.warn("DISCONECT CALLED", reason);
       await disconnectFromChannel();
     });
+    const endpoints = joinResult.rtc;
+
     try {
-      await room.connect(cfg.webRtcEndpoint, joinResult.token, {
+      await room.connect(endpoints.endpoint, joinResult.token, {
         ...connectOptions,
       });
 

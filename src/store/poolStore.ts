@@ -451,8 +451,18 @@ export const usePoolStore = defineStore("data-pool", () => {
 
       const groupMap = new Map<Guid, RealtimeUser[]>();
       const ungroupedUsers: RealtimeUser[] = [];
+      const offlineUsers: RealtimeUser[] = [];
+      const seen = new Set<Guid>();
 
       for (const user of usersWithArchetypes) {
+        if (seen.has(user.userId)) continue;
+
+        if (user.status === UserStatus.Offline) {
+          offlineUsers.push(user);
+          seen.add(user.userId);
+          continue;
+        }
+
         const groupRoles = (user.archetypes ?? []).filter((a) => a.isGroup);
         const target = groupRoles.find((r) => archetypesMap.get(r.id)?.isGroup);
         if (target) {
@@ -461,6 +471,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         } else {
           ungroupedUsers.push(user);
         }
+        seen.add(user.userId);
       }
 
       const result: { archetype: Archetype; users: RealtimeUser[] }[] = [];
@@ -491,6 +502,27 @@ export const usePoolStore = defineStore("data-pool", () => {
           users: ungroupedUsers,
         });
       }
+
+      if (offlineUsers.length > 0) {
+        result.push({
+          archetype: {
+            id: "00000000-0000-0000-0000-000000000001",
+            spaceId: id,
+            name: "Offline",
+            description: "All offline users",
+            isMentionable: false,
+            colour: 0xffaaaaaa,
+            isHidden: false,
+            isLocked: false,
+            isGroup: true,
+            entitlement: ArgonEntitlement.None,
+            isDefault: false,
+            iconFileId: null,
+          },
+          users: offlineUsers,
+        });
+      }
+
       return result;
     }
 
@@ -689,10 +721,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       const existsUser =
         (await db.users.where("userId").equals(x.userId).count()) > 0;
       if (!existsUser) {
-        const user = await api.serverInteraction.GetMember(
-          x.spaceId,
-          x.userId
-        );
+        const user = await api.serverInteraction.GetMember(x.spaceId, x.userId);
         db.members.put(user.member);
         await db.servers.put(s);
         logger.info("Fetchet member for server", x);

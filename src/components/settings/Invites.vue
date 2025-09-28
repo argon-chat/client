@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { Button } from "@/components/ui/button";
-import { useServerStore } from "@/store/serverStore";
+import { useSpaceStore } from "@/store/serverStore";
 //@ts-ignore
 import { AtomSpinner } from "epic-spinners";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,7 @@ import { usePexStore } from "@/store/permissionStore";
 import { InviteCodeEntity } from "@/lib/glue/argonChat";
 
 const { t } = useLocale();
-const servers = useServerStore();
+const servers = useSpaceStore();
 const loading = ref(true);
 const pex = usePexStore();
 

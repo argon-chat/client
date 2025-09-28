@@ -810,7 +810,7 @@ IonFormatterStorage.register("MessageEntityUrl", {
 
 
 
-export abstract class IJoinToVoiceResult implements IIonUnion<IJoinToVoiceResult>
+export abstract class IInterlinkResult implements IIonUnion<IInterlinkResult>
 {
   abstract UnionKey: string;
   abstract UnionIndex: number;
@@ -828,15 +828,15 @@ export abstract class IJoinToVoiceResult implements IIonUnion<IJoinToVoiceResult
 }
 
 
-export class SuccessJoinVoice extends IJoinToVoiceResult
+export class SuccessJoinVoice extends IInterlinkResult
 {
-  constructor(public token: string) { super(); }
+  constructor(public rtc: RtcEndpoint, public token: string) { super(); }
 
   UnionKey: string = "SuccessJoinVoice";
   UnionIndex: number = 0;
 }
 
-export class FailedJoinVoice extends IJoinToVoiceResult
+export class FailedJoinVoice extends IInterlinkResult
 {
   constructor(public error: JoinToChannelError) { super(); }
 
@@ -846,10 +846,10 @@ export class FailedJoinVoice extends IJoinToVoiceResult
 
 
 
-IonFormatterStorage.register("IJoinToVoiceResult", {
-  read(reader: CborReader): IJoinToVoiceResult {
+IonFormatterStorage.register("IInterlinkResult", {
+  read(reader: CborReader): IInterlinkResult {
     reader.readStartArray();
-    let value: IJoinToVoiceResult = null as any;
+    let value: IInterlinkResult = null as any;
     const unionIndex = reader.readUInt32();
     
     if (false)
@@ -864,7 +864,7 @@ IonFormatterStorage.register("IJoinToVoiceResult", {
     reader.readEndArray();
     return value!;
   },
-  write(writer: CborWriter, value: IJoinToVoiceResult): void {
+  write(writer: CborWriter, value: IInterlinkResult): void {
     writer.writeStartArray(2);
     writer.writeUInt32(value.UnionIndex);
     if (false)
@@ -885,12 +885,14 @@ IonFormatterStorage.register("IJoinToVoiceResult", {
 IonFormatterStorage.register("SuccessJoinVoice", {
   read(reader: CborReader): SuccessJoinVoice {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
     const token = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 1);
-    return new SuccessJoinVoice(token);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessJoinVoice(rtc, token);
   },
   write(writer: CborWriter, value: SuccessJoinVoice): void {
-    writer.writeStartArray(1);
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.rtc);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
     writer.writeEndArray();
   }
@@ -3031,7 +3033,7 @@ export interface IChannelInteraction extends IIonService
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
   GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
-  JoinToVoiceChannel(spaceId: guid, channelId: guid): Promise<IJoinToVoiceResult>;
+  Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
 }
 
@@ -3162,7 +3164,7 @@ export interface IChannelInteraction extends IIonService
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
   GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
-  JoinToVoiceChannel(spaceId: guid, channelId: guid): Promise<IJoinToVoiceResult>;
+  Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
 }
 
@@ -3490,8 +3492,8 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     await req.callAsync(writer.data, this.signal);
   }
-  async JoinToVoiceChannel(spaceId: guid, channelId: guid): Promise<IJoinToVoiceResult> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "JoinToVoiceChannel");
+  async Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "Interlink");
           
     const writer = new CborWriter();
       
@@ -3502,7 +3504,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<IJoinToVoiceResult>("IJoinToVoiceResult", writer.data, this.signal);
+    return await req.callAsyncT<IInterlinkResult>("IInterlinkResult", writer.data, this.signal);
   }
   async KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "KickMemberFromChannel");

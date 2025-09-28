@@ -77,7 +77,7 @@ import { CreateSpaceError } from '@/lib/glue/argonChat'
 import InputWithError from '../InputWithError.vue'
 import { logger } from '@/lib/logger'
 import { DeferFlag } from '@/lib/DeferFlag'
-import { useServerStore } from '@/store/serverStore'
+import { useSpaceStore } from '@/store/serverStore'
 import { usePoolStore } from '@/store/poolStore'
 
 const { t } = useLocale()
@@ -86,7 +86,7 @@ const isLoading = ref(false)
 const createLoading = ref(false)
 const createError = ref<string>('')
 const joinError = ref('');
-const spaceStore = useServerStore();
+const spaceStore = useSpaceStore();
 const poolStore = usePoolStore();
 
 const inviteCode = ref("")

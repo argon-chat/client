@@ -83,7 +83,7 @@ import {
 
 import { useMe } from "@/store/meStore";
 import { logger } from "@/lib/logger";
-import { useServerStore } from "@/store/serverStore";
+import { useSpaceStore } from "@/store/serverStore";
 import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
@@ -108,7 +108,7 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 
 const me = useMe();
 const windows = useWindow();
-const servers = useServerStore();
+const servers = useSpaceStore();
 const addChannel_Loading = ref(false);
 const addChannelOpened = ref(false);
 const pex = usePexStore();

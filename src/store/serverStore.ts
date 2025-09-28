@@ -13,7 +13,7 @@ import {
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
 
-export const useServerStore = defineStore("server", () => {
+export const useSpaceStore = defineStore("spaces", () => {
   const api = useApi();
   const isBeginConnect = ref(false);
   const isConnected = ref(false);
