@@ -3,6 +3,7 @@
 This documentation provides an overview of the project, its scripts, and configuration options for the front-end interface of the voice chat service.
 
 ![image](https://github.com/user-attachments/assets/123e7ac1-e35f-4fc0-a670-9e577831ee44)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fargon-chat%2Fclient.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fargon-chat%2Fclient?ref=badge_shield)
 
 
 ## Project Overview
@@ -58,3 +59,6 @@ The application supports the following host arguments for runtime configuration:
 # License    
     
 GNU General Public License v2.0
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fargon-chat%2Fclient.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fargon-chat%2Fclient?ref=badge_large)
