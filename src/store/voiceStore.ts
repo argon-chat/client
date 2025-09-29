@@ -38,6 +38,7 @@ import { useSystemStore } from "./systemStore";
 import { useTone } from "./toneStore";
 import { ArgonChannel } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
+import { toast, useToast } from "@/components/ui/toast";
 
 export type DirectRef<T> = Ref<T, T>;
 
@@ -163,7 +164,22 @@ export const useVoice = defineStore("voice", () => {
     }
 
     const connectOptions: RoomConnectOptions = {
-      maxRetries: 500,
+      maxRetries: 5,
+      rtcConfig: {
+        iceServers: joinResult.rtc.ices.map((ice) => {
+          const server: RTCIceServer = { urls: ice.endpoint };
+
+          if (
+            ice.endpoint.startsWith("turn:") ||
+            ice.endpoint.startsWith("turns:")
+          ) {
+            server.username = ice.username ?? "";
+            server.credential = ice.password ?? "";
+          }
+
+          return server;
+        }),
+      },
     };
 
     const room = new Room();
@@ -204,50 +220,74 @@ export const useVoice = defineStore("voice", () => {
       deviceId: audio.getInputDevice().value ?? undefined,
     });
 
-    const localAudioTrack = await createLocalAudioTrack({
-      noiseSuppression: false,
-      deviceId: audio.getInputDevice().value ?? undefined,
-      autoGainControl: false,
-      channelCount: 2,
-      echoCancellation: false,
-      voiceIsolation: false,
-    });
+    try {
+      const localAudioTrack = await createLocalAudioTrack({
+        deviceId: audio.getInputDevice().value ?? undefined,
+        noiseSuppression: false,
+        autoGainControl: false,
+        echoCancellation: false,
+        channelCount: 2,
+      });
 
-    localAudioTrack.setAudioContext(audio.getCurrentAudioContext());
+      localAudioTrack.setAudioContext(audio.getCurrentAudioContext());
 
-    await room.localParticipant.publishTrack(localAudioTrack, {
-      dtx: true,
-      red: true,
-    });
+      await room.localParticipant.publishTrack(localAudioTrack, {
+        dtx: true,
+        red: true,
+      });
 
-    localAudioTrack.setProcessor(audio.createRtcProcessor());
+      localAudioTrack.setProcessor(audio.createRtcProcessor());
 
-    connectedRoom.subs.push(
-      sys.muteEvent.subscribe((x) => {
-        if (x) localAudioTrack.mute();
-        else localAudioTrack.unmute();
-      })
-    );
+      connectedRoom.subs.push(
+        sys.muteEvent.subscribe((x) => {
+          if (x) localAudioTrack.mute();
+          else localAudioTrack.unmute();
+        })
+      );
+      const source = timer(50, 500);
 
-    const source = timer(50, 500);
+      connectedRoom.subs.push(
+        source.subscribe(() => {
+          rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
+        })
+      );
 
-    connectedRoom.subs.push(
-      source.subscribe(() => {
-        rtt.value = connectedRoom.room?.engine?.client?.rtt ?? -1;
-      })
-    );
+      connectedRoom.subs.push(
+        audio.onInputDeviceChanged(async (devId) => {
+          logger.error("onInputDeviceChanged", devId, audio.getInputDevice());
+          await switchMicrophone(room, devId);
+        })
+      );
 
-    connectedRoom.subs.push(
-      audio.onInputDeviceChanged(async (devId) => {
-        logger.error("onInputDeviceChanged", devId, audio.getInputDevice());
-        await switchMicrophone(room, devId);
-      })
-    );
-
-    if (sys.microphoneMuted) {
-      localAudioTrack.mute();
+      if (sys.microphoneMuted) {
+        localAudioTrack.mute();
+      }
+      tone.playSoftEnterSound();
+    } catch (err: any) {
+      if (err.toString().startsWith("NotAllowedError")) {
+        useToast().toast({
+          type: "foreground",
+          variant: "destructive",
+          title:
+            "Permission denied, no access to microphone, check your settings",
+        });
+      } else if (err.toString().startsWith("NotFoundError")) {
+        useToast().toast({
+          type: "foreground",
+          variant: "destructive",
+          title: "No microphone defined, check your settings",
+        });
+      } else {
+        useToast().toast({
+          type: "foreground",
+          variant: "destructive",
+          title: "Unknown error when activate microphone, check your settings",
+        });
+      }
+      logger.error(err);
+      await disconnectFromChannel();
+      return;
     }
-    tone.playSoftEnterSound();
 
     currentState.value = "CONNECTED";
     sessionTimerStore.startTimer();
@@ -375,7 +415,9 @@ export const useVoice = defineStore("voice", () => {
 
     const setupGraph = () => {
       // @ts-ignore
-      const captured: MediaStream | null = typeof el.captureStream === "function" ? el.captureStream() : null;
+      const captured: MediaStream | null =
+      // @ts-ignore
+        typeof el.captureStream === "function" ? el.captureStream() : null;
 
       const hasCapturedAudio =
         !!captured &&
