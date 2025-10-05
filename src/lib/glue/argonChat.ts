@@ -3042,6 +3042,7 @@ export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
   Dispatch(ev: IArgonClientEvent): Promise<void>;
+  Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
 }
 
 
@@ -3173,6 +3174,7 @@ export interface IEventBus extends IIonService
 {
   ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
   Dispatch(ev: IArgonClientEvent): Promise<void>;
+  Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
 }
 
 
@@ -3557,6 +3559,19 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  Pipe(inputStream: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent> {
+    const ws = new IonWsClient(this.ctx, "IEventBus", "Pipe");
+    
+    const writer = new CborWriter();
+    
+    writer.writeStartArray(0);
+    
+    
+    
+    writer.writeEndArray();
+    
+    return ws.callServerStreamingFullDuplex<IArgonEvent, IArgonClientEvent>("IArgonEvent", writer.data, inputStream, "IArgonClientEvent", this.signal);
   }
 
 }

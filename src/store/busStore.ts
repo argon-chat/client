@@ -1,5 +1,13 @@
 import { defineStore } from "pinia";
-import { defer, from, interval, of, Subject, timer, type Subscription } from "rxjs";
+import {
+  defer,
+  from,
+  interval,
+  of,
+  Subject,
+  timer,
+  type Subscription,
+} from "rxjs";
 import { catchError, filter, repeat, switchMap } from "rxjs/operators";
 import { useApi } from "./apiStore";
 import { logger } from "@/lib/logger";
@@ -17,6 +25,7 @@ export type EventWithServerId<T> = { spaceId: string } & T;
 export const useBus = defineStore("bus", () => {
   const argonEventBus = new Subject<IArgonEvent>();
   const userEventBus = new Subject<IArgonEvent>();
+  const dispatcherEvents = new Subject<IArgonClientEvent>();
   const intervalSubject = ref(null as Subscription | null);
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
@@ -29,7 +38,7 @@ export const useBus = defineStore("bus", () => {
 
   const api = useApi();
 
-  async function doListenServer(id: string) {
+  async function doListenMasterPipe() {
     if (!intervalSubject.value) {
       intervalSubject.value = defer(() =>
         timer(0, 2000).pipe(
@@ -43,11 +52,11 @@ export const useBus = defineStore("bus", () => {
           )
         )
       )
-        .pipe(repeat()) 
+        .pipe(repeat())
         .subscribe();
     }
 
-    const handle = await api.eventBus.ForServer(id);
+    const handle = await api.eventBus.Pipe(toAsyncIterable(dispatcherEvents));
     for await (const e of handle) {
       if (e.UnionKey !== "UserChangedStatus")
         logger.log(`Received event, ${e.UnionKey}`, e);
@@ -56,18 +65,19 @@ export const useBus = defineStore("bus", () => {
     }
   }
 
-  async function doListenMyEvents() {}
+  async function doListenMyEvents() {
+    await doListenMasterPipe();
+  }
 
   async function sendEventAsync<T extends IArgonClientEvent>(t: T) {
-    await api.eventBus.Dispatch(t);
+    dispatcherEvents.next(t);
   }
 
   async function sendHeartbeat() {
-    await api.eventBus.Dispatch(new HeartBeatEvent(preferredStatus.value));
+    dispatcherEvents.next(new HeartBeatEvent(preferredStatus.value))
   }
 
   function listenEvents(id: string) {
-    doListenServer(id);
   }
 
   function onServerEvent<T extends IArgonEvent>(
@@ -92,6 +102,52 @@ export const useBus = defineStore("bus", () => {
 
   function closeAllSubscribes(reason: string) {
     controller.abort(reason);
+  }
+
+  function toAsyncIterable<T>(subject: Subject<T>): AsyncIterable<T> {
+    return {
+      [Symbol.asyncIterator](): AsyncIterator<T> {
+        const queue: T[] = [];
+        const pending: ((value: IteratorResult<T>) => void)[] = [];
+        let done = false;
+
+        const sub: Subscription = subject.subscribe({
+          next(value) {
+            if (pending.length > 0) {
+              const resolve = pending.shift()!;
+              resolve({ value, done: false });
+            } else {
+              queue.push(value);
+            }
+          },
+          error(err) {
+            pending.forEach((r) => r(Promise.reject(err) as any));
+            done = true;
+          },
+          complete() {
+            done = true;
+            pending.forEach((r) => r({ value: undefined, done: true }));
+          },
+        });
+
+        return {
+          next(): Promise<IteratorResult<T>> {
+            if (queue.length > 0) {
+              return Promise.resolve({ value: queue.shift()!, done: false });
+            }
+            if (done) {
+              return Promise.resolve({ value: undefined, done: true });
+            }
+            return new Promise((resolve) => pending.push(resolve));
+          },
+          return(): Promise<IteratorResult<T>> {
+            sub.unsubscribe();
+            done = true;
+            return Promise.resolve({ value: undefined, done: true });
+          },
+        };
+      },
+    };
   }
 
   return {
