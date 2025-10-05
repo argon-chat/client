@@ -1,34 +1,46 @@
 <template>
-  <div style="width: 100%; height: 100%; background-color: black; position: absolute; aspect-ratio: 1 / 1;">
+  <div class="w-full h-full bg-black absolute">
 
-    <canvas ref="canvas"></canvas>
+    <canvas ref="canvas" class="w-full h-full"></canvas>
 
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <h1 v-motion-fade-visible :duration="2200" class="text-8xl font-bold mb-4 select-none"
-          style="font-size: 15rem;">
+        <h1 
+          v-motion-fade-visible 
+          :duration="2200" 
+          class="font-bold mb-4 select-none
+                 text-6xl sm:text-8xl md:text-[10rem] lg:text-[15rem]">
           Argon
         </h1>
       </div>
     </div>
-    <div class="fixed bottom-10 left-10 z-20 mt-auto">
-      <blockquote class="space-y-2">
-        <p class="text-lg">
+
+    <div class="fixed bottom-4 left-4 right-4 z-20">
+      <blockquote class="space-y-1 text-center sm:text-left">
+        <p class="text-base sm:text-lg">
           &ldquo;{{ randomQuote.text }}.&rdquo;
         </p>
-        <footer class="text-sm">
+        <footer class="text-xs sm:text-sm">
           {{ randomQuote.author }}
         </footer>
       </blockquote>
     </div>
-    <div class="fixed top-4 right-4 w-96 bg-gray-900 text-white p-4 rounded-lg shadow-lg overflow-y-auto max-h-64"
-      v-if="logs.length > 0">
-      <div v-for="(log, index) in logs" :key="index" :class="log.type === 'error' ? 'text-red-400' : 'text-green-400'">
+
+    <div 
+      v-if="logs.length > 0"
+      class="fixed top-2 right-2 left-2 sm:left-auto sm:right-4 sm:w-80
+             bg-gray-900 text-white p-2 sm:p-4 rounded-lg shadow-lg 
+             overflow-y-auto max-h-40 sm:max-h-64 text-xs sm:text-sm">
+      <div 
+        v-for="(log, index) in logs" 
+        :key="index" 
+        :class="log.type === 'error' ? 'text-red-400' : 'text-green-400'">
         [{{ log.time }}] {{ log.message }}
       </div>
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import router from "@/router";

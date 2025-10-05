@@ -6,6 +6,9 @@ if (!("argon" in window)) {
     get isArgonHost(): boolean {
       return false;
     },
+    get isMobileHost(): boolean {
+      return window.matchMedia('(max-width: 768px)').matches;
+    },
   } as IArgon;
 }
 

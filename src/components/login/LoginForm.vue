@@ -8,13 +8,14 @@ import CardTitle from "../ui/card/CardTitle.vue";
 import CardDescription from "../ui/card/CardDescription.vue";
 import Input from "../ui/input/Input.vue";
 import Label from "../ui/label/Label.vue";
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
 import { useApi } from "@/store/apiStore";
 
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 const { email, password, isLoading, goToResetPass, onSubmit } = props.auth;
 const api = useApi();
+const isMobileDevice = computed(() => argon.isMobileHost);
 
 const titles = [
   { title: "Good to see you ✨", desc: "Log in and continue your journey" },
@@ -121,7 +122,7 @@ watch(email, (newVal, oldVal) => {
 
       <div class="w-px bg-white/10"></div>
 
-      <div class="flex flex-col justify-center items-center p-6 w-[250px] text-center space-y-4">
+      <div class="flex flex-col justify-center items-center p-6 w-[250px] text-center space-y-4" v-if="!isMobileDevice">
         <p class="text-gray-300 text-sm">Or log in with QR Code</p>
         <QRStyled :value="qrLoginUrl" :size="160" level="M" class="rounded-md shadow-lg" />
         <p class="text-xs text-gray-500">Scan with Argon mobile app</p>

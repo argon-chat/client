@@ -86,6 +86,7 @@ declare global {
 
   interface IArgon {
     get isArgonHost(): boolean;
+    get isMobileHost(): boolean;
 
     dsn(): string;
 
