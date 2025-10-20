@@ -75,24 +75,37 @@ const stopListening = async () => {
       action.keyCode = 0;
       action.mod = null;
       await hotKeyStore.doVerifyHotkeys();
-    } else if (action) {
-      action.keyCode = lastKeyCode.value.keyCode;
+    } 
+    else if (action) {
+      const onlyModifiersPressed =
+        lastKeyCode.value === null ||
+        modifiers.has(lastKeyCode.value.code) ||
+        pressedKeys.value.size > 0 && Array.from(pressedKeys.value).every(k =>
+          ["Ctrl", "Alt", "Shift", "Win"].includes(k)
+        );
 
-      if (!action.mod) {
-        action.mod = {
-          hasAlt: false,
-          hasCtrl: false,
-          hasWin: false,
-          hasShift: false,
-        };
+      if (onlyModifiersPressed) {
+        // Не сохраняем — просто сбрасываем ввод
+        console.warn("Ignoring pure modifier hotkey");
+      } else {
+        action.keyCode = lastKeyCode.value.keyCode;
+
+        if (!action.mod) {
+          action.mod = {
+            hasAlt: false,
+            hasCtrl: false,
+            hasWin: false,
+            hasShift: false,
+          };
+        }
+
+        action.mod.hasAlt = pressedKeys.value.has("Alt");
+        action.mod.hasCtrl = pressedKeys.value.has("Ctrl");
+        action.mod.hasWin = pressedKeys.value.has("Win");
+        action.mod.hasShift = pressedKeys.value.has("Shift");
+
+        await hotKeyStore.doVerifyHotkeys();
       }
-
-      action.mod.hasAlt = pressedKeys.value.has("Alt");
-      action.mod.hasCtrl = pressedKeys.value.has("Ctrl");
-      action.mod.hasWin = pressedKeys.value.has("Win");
-      action.mod.hasShift = pressedKeys.value.has("Shift");
-
-      await hotKeyStore.doVerifyHotkeys();
     }
   }
 
@@ -100,7 +113,6 @@ const stopListening = async () => {
   pressedKeys.value.clear();
   lastKeyCode.value = null;
 };
-
 const handleKeyDown = (event: KeyboardEvent) => {
   if (editingId.value === null) return;
   event.preventDefault();
