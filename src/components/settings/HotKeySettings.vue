@@ -27,7 +27,7 @@ const hotKeyStore = useHotkeys();
 const editingId = ref<string | null>(null);
 const pressedKeys = ref<Set<string>>(new Set());
 const lastKeyCode = ref<{ code: string; keyCode: number } | null>(null);
-
+const MODIFIER_KEYCODES = new Set([16,17,18,91,92,160,161,162,163,164,165]);
 const modifiers = new Set([
   "ControlLeft",
   "ControlRight",
@@ -65,40 +65,46 @@ const startListening = (id: string) => {
 };
 
 const stopListening = async () => {
-  if (editingId.value !== null) {
-    const action = hotKeyStore.allHotKeys.get(editingId.value);
+  if (editingId.value === null) return;
 
-    if (
-      action &&
-      lastKeyCode.value &&
-      (lastKeyCode.value.keyCode === 27 || lastKeyCode.value.keyCode === 8)
-    ) {
-      action.keyCode = 0;
-      action.mod = null;
-      await hotKeyStore.doVerifyHotkeys();
-    } 
-    else if (action && lastKeyCode.value) {
-      action.keyCode = lastKeyCode.value.keyCode;
+  const action = hotKeyStore.allHotKeys.get(editingId.value);
+  const lk = lastKeyCode.value;
+  const code = lk?.code;
+  const keyCode = lk?.keyCode;
 
-      if (!action.mod) {
-        action.mod = {
-          hasAlt: false,
-          hasCtrl: false,
-          hasWin: false,
-          hasShift: false,
-        };
-      }
+  if (!action) {
+    editingId.value = null;
+    pressedKeys.value.clear();
+    lastKeyCode.value = null;
+    return;
+  }
 
-      action.mod.hasAlt = pressedKeys.value.has("Alt");
-      action.mod.hasCtrl = pressedKeys.value.has("Ctrl");
-      action.mod.hasWin = pressedKeys.value.has("Win");
-      action.mod.hasShift = pressedKeys.value.has("Shift");
+  const invalidOrModifier =
+    !lk || !keyCode ||
+    MODIFIER_KEYCODES.has(keyCode) ||
+    (code ? modifiers.has(code) : false);
 
-      await hotKeyStore.doVerifyHotkeys();
-    } 
-    else {
-      console.warn("Ignored pure modifier hotkey");
+  if (keyCode === 27 || keyCode === 8) {
+    action.keyCode = 0;
+    action.mod = null;
+    await hotKeyStore.doVerifyHotkeys();
+  }
+  else if (invalidOrModifier) {
+    console.debug("Ignored invalid hotkey (only modifier or none)", code);
+  }
+  else {
+    action.keyCode = keyCode;
+
+    if (!action.mod) {
+      action.mod = { hasAlt: false, hasCtrl: false, hasWin: false, hasShift: false };
     }
+
+    action.mod.hasAlt = pressedKeys.value.has("Alt");
+    action.mod.hasCtrl = pressedKeys.value.has("Ctrl");
+    action.mod.hasWin = pressedKeys.value.has("Win");
+    action.mod.hasShift = pressedKeys.value.has("Shift");
+
+    await hotKeyStore.doVerifyHotkeys();
   }
 
   editingId.value = null;
