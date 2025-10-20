@@ -79,18 +79,22 @@ const stopListening = async () => {
     return;
   }
 
-  const invalidOrModifier =
-    !lk || !keyCode ||
-    MODIFIER_KEYCODES.has(keyCode) ||
-    (code ? modifiers.has(code) : false);
-
-  if (keyCode === 27 || keyCode === 8) {
+  if (!lk || !keyCode) {
+    console.debug("Ignored: no key pressed");
+  }
+  else if (keyCode === 27 || keyCode === 8) {
     action.keyCode = 0;
     action.mod = null;
     await hotKeyStore.doVerifyHotkeys();
   }
-  else if (invalidOrModifier) {
-    console.debug("Ignored invalid hotkey (only modifier or none)", code);
+  else if (
+    pressedKeys.value.size > 0 &&
+    Array.from(pressedKeys.value).every(k =>
+      ["Shift", "Ctrl", "Alt", "Win"].includes(k)
+    ) &&
+    MODIFIER_KEYCODES.has(keyCode)
+  ) {
+    console.debug("Ignored: pure modifier hotkey", code);
   }
   else {
     action.keyCode = keyCode;
@@ -111,6 +115,7 @@ const stopListening = async () => {
   pressedKeys.value.clear();
   lastKeyCode.value = null;
 };
+
 const handleKeyDown = (event: KeyboardEvent) => {
   if (editingId.value === null) return;
   event.preventDefault();
