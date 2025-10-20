@@ -89,6 +89,12 @@ const keyCodes: { [code: number]: string[] } = {
   123: ["F12"],
   144: ["NumLock"],
   145: ["ScrollLock"],
+  160: ["ShiftLeft"],
+  161: ["ShiftRight"],
+  162: ["ControlLeft"],
+  163: ["ControlRight"],
+  164: ["AltLeft"],
+  165: ["AltRight"],
   186: ["Semicolon"],
   187: ["Equal"],
   188: ["Comma"],
@@ -101,6 +107,9 @@ const keyCodes: { [code: number]: string[] } = {
   221: ["BracketRight"],
   222: ["Quote"],
   226: ["IntlBackslash"],
+
+
+  
 };
 
 function keyCodeToCodes(keyCode: number): string[] {
