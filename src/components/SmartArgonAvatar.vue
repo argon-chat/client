@@ -1,11 +1,12 @@
 <template>
-    <keep-alive :max="10" :key="props.userId">
-        <Avatar :class="props.class" :style="{ width: size, height: size }">
-            <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
-            <AvatarImage v-if="!loading && loaded" :src="blobSrc" />
-            <AvatarFallback v-if="!loading && !loaded">{{ fallbackLetter }}</AvatarFallback>
-        </Avatar>
-    </keep-alive>
+  <keep-alive :max="10" :key="props.userId">
+    <Avatar :class="props.class" :style="{ width: size, height: size }">
+      <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
+      <video playsinline autoplay muted loop v-else-if="!loading && loaded" :poster="blobSrc" :src="blobSrc"
+        disablePictureInPicture controlslist="nodownload nofullscreen noremoteplayback" />
+      <AvatarFallback v-if="!loading && !loaded">{{ fallbackLetter }}</AvatarFallback>
+    </Avatar>
+  </keep-alive>
 </template>
 
 <script setup lang="ts">

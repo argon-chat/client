@@ -4,7 +4,7 @@
     <div class="avatar-username flex items-center space-x-4">
       <div class="avatar relative group w-20 h-20">
         <label>
-          <input type="file" accept="image/jpeg, image/jpg, image/png" class="hidden" @change="onAvatarChange" />
+          <input type="file" accept="image/jpeg, image/jpg, image/png, image/gif, video/webm" class="hidden" @change="onAvatarChange" />
           <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
             :user-id="me.me.userId" alt="User Avatar"
             class="user-avatar w-20 h-20 rounded-full border border-gray-500" />
@@ -43,12 +43,6 @@
           {{ 'Disable OTP' }}
         </button>
       </div>
-      <div class="delete-account">
-        <label class="block font-semibold mb-1">{{ t("delete_account") }}</label>
-        <button @click="deleteAccount" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
-          {{ t("delete_account") }}
-        </button>
-      </div>
       <Dialog v-model:open="isFileSelected">
         <DialogContent class="max-h-[850px] max-w-[750px]" :disableOutsidePointerEvents="true">
           <DialogHeader>
@@ -65,6 +59,8 @@
       </Dialog>
     </div>
   </div>
+
+  <BuyPremium v-model:open="requiredPremium"/>
 </template>
 
 <script setup lang="ts">
@@ -89,6 +85,7 @@ import { useAuthStore } from "@/store/authStore";
 import { v7 } from "uuid";
 import { useApi } from "@/store/apiStore";
 import { UploadFileError } from "@/lib/glue/argonChat";
+import BuyPremium from "../modals/BuyPremium.vue";
 const { t } = useLocale();
 const me = useMe();
 const toast = useToast();
@@ -98,9 +95,10 @@ const canvasRef = ref(null as null | HTMLCanvasElement);
 const isLoadingAvatar = ref(false);
 
 const api = useApi();
+
+const requiredPremium = ref(false);
+
 const toggleOTP = () => {
-  //user.value.otpEnabled = !user.value.otpEnabled;
-  //alert(`OTP has been ${user.value.otpEnabled ? 'enabled' : 'disabled'}.`);
 };
 
 const change = ({ canvas }: { canvas: HTMLCanvasElement }) => {
@@ -109,27 +107,53 @@ const change = ({ canvas }: { canvas: HTMLCanvasElement }) => {
 
 const onAvatarChange = async (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (input.files?.[0]) {
-    const file = input.files[0];
-    console.log("File selected: ", file.name, file.size);
+  if (!input.files?.length) return;
 
-    if (img.value) {
-      URL.revokeObjectURL(img.value);
-    }
-    isFileSelected.value = true;
-    img.value = URL.createObjectURL(file);
+  const file = input.files[0];
+  console.log("File selected:", file.name, file.type, file.size);
+
+  const isAnimated = file.type === "image/gif" || file.type === "video/webm";
+
+  if (isAnimated && !me.isPremium) {
+    requiredPremium.value = true;
+    input.value = ""; 
+    return;
   }
-};
 
+  if (isAnimated) {
+    try {
+      isLoadingAvatar.value = true;
+
+      const blobId = await uploadUserAvatar(file);
+      await api.userInteraction.CompleteUploadAvatar(blobId);
+
+      toast.toast({
+        title: "Avatar updated",
+        description: "Your animated avatar has been successfully uploaded.",
+      });
+    } catch (e) {
+      toast.toast({
+        title: "Error on upload avatar...",
+        variant: "destructive",
+        description: `${e}`,
+      });
+    } finally {
+      isLoadingAvatar.value = false;
+    }
+    return;
+  }
+
+  if (img.value) URL.revokeObjectURL(img.value);
+  img.value = URL.createObjectURL(file);
+  isFileSelected.value = true;
+};
 const saveChanges = async () => {
   try {
     isLoadingAvatar.value = true;
-
-    const image = canvasRef.value?.toDataURL("image/jpeg", 1);
+    const image = canvasRef.value?.toDataURL("image/jpeg", 0.95);
     if (!image) throw new Error("Failed to capture cropped image");
 
     const blobId = await uploadUserAvatar(image);
-
     await api.userInteraction.CompleteUploadAvatar(blobId);
 
     toast.toast({
@@ -149,8 +173,7 @@ const saveChanges = async () => {
   }
 };
 
-async function uploadUserAvatar(dataUrl: string): Promise<string> {
-  // 1. Запрашиваем разрешение на загрузку
+async function uploadUserAvatar(data: string | Blob | File): Promise<string> {
   const begin = await api.userInteraction.BeginUploadAvatar();
 
   if (begin.isFailedUploadFile()) {
@@ -163,8 +186,16 @@ async function uploadUserAvatar(dataUrl: string): Promise<string> {
   const blobId = begin.blobId;
   if (!blobId) throw new Error("No blobId returned from BeginUploadAvatar");
 
-  const blob = dataURLtoBlob(dataUrl);
-  const file = new File([blob], `${v7()}.jpg`, { type: blob.type });
+  let file: File;
+
+  if (typeof data === "string") {
+    const blob = dataURLtoBlob(data);
+    file = new File([blob], `${v7()}.jpg`, { type: blob.type });
+  } else if (data instanceof Blob) {
+    file = new File([data], `${v7()}.${getFileExtension(data.type)}`, { type: data.type });
+  } else {
+    file = data;
+  }
 
   const formData = new FormData();
   formData.append("file", file);
@@ -181,7 +212,18 @@ async function uploadUserAvatar(dataUrl: string): Promise<string> {
     const errText = await response.text();
     throw new Error(`Upload failed (${response.status}): ${errText}`);
   }
+
   return blobId;
+}
+
+function getFileExtension(mime: string): string {
+  switch (mime) {
+    case "image/png": return "png";
+    case "image/jpeg": return "jpg";
+    case "image/gif": return "gif";
+    case "video/webm": return "webm";
+    default: return "bin";
+  }
 }
 
 function dataURLtoBlob(dataUrl: string): Blob {
@@ -200,14 +242,6 @@ function dataURLtoBlob(dataUrl: string): Blob {
 
   return new Blob([u8arr], { type: mime });
 }
-
-const deleteAccount = () => {
-  toast.toast({
-    title: "Охуел?",
-    variant: "destructive",
-    description: "Обойдешься, мы не соблюдаем GRPD чисто по приколу",
-  });
-};
 
 onUnmounted(() => {
   isFileSelected.value = false;
