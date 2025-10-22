@@ -481,6 +481,14 @@ export interface NewUserCredentialsInput {
 };
 
 
+export enum UploadFileError
+{
+  NONE = 0,
+  NOT_AUTHORIZED = 1,
+  INTERNAL_ERROR = 2,
+}
+
+
 export enum CreateSpaceError
 {
   UNKNOWN = 0,
@@ -1502,6 +1510,9 @@ export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
   public isHeartBeatEvent(): this is HeartBeatEvent {
     return this.UnionKey === "HeartBeatEvent";
   }
+  public isSubscribeToMySpaces(): this is SubscribeToMySpaces {
+    return this.UnionKey === "SubscribeToMySpaces";
+  }
 
 }
 
@@ -1530,6 +1541,14 @@ export class HeartBeatEvent extends IArgonClientEvent
   UnionIndex: number = 2;
 }
 
+export class SubscribeToMySpaces extends IArgonClientEvent
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SubscribeToMySpaces";
+  UnionIndex: number = 3;
+}
+
 
 
 IonFormatterStorage.register("IArgonClientEvent", {
@@ -1546,6 +1565,8 @@ IonFormatterStorage.register("IArgonClientEvent", {
       value = IonFormatterStorage.get<IAmStopTypingEvent>("IAmStopTypingEvent").read(reader);
     else if (unionIndex == 2)
       value = IonFormatterStorage.get<HeartBeatEvent>("HeartBeatEvent").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<SubscribeToMySpaces>("SubscribeToMySpaces").read(reader);
 
     else throw new Error();
   
@@ -1565,6 +1586,9 @@ IonFormatterStorage.register("IArgonClientEvent", {
     }
     else if (value.UnionIndex == 2) {
         IonFormatterStorage.get<HeartBeatEvent>("HeartBeatEvent").write(writer, value as HeartBeatEvent);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<SubscribeToMySpaces>("SubscribeToMySpaces").write(writer, value as SubscribeToMySpaces);
     }
   
     else throw new Error();
@@ -1611,6 +1635,20 @@ IonFormatterStorage.register("HeartBeatEvent", {
   write(writer: CborWriter, value: HeartBeatEvent): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SubscribeToMySpaces", {
+  read(reader: CborReader): SubscribeToMySpaces {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SubscribeToMySpaces();
+  },
+  write(writer: CborWriter, value: SubscribeToMySpaces): void {
+    writer.writeStartArray(0);
+    
     writer.writeEndArray();
   }
 });
@@ -1713,6 +1751,108 @@ IonFormatterStorage.register("FailedRedeem", {
   write(writer: CborWriter, value: FailedRedeem): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<RedeemError>('RedeemError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUploadFileResult implements IIonUnion<IUploadFileResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUploadFile(): this is SuccessUploadFile {
+    return this.UnionKey === "SuccessUploadFile";
+  }
+  public isFailedUploadFile(): this is FailedUploadFile {
+    return this.UnionKey === "FailedUploadFile";
+  }
+
+}
+
+
+export class SuccessUploadFile extends IUploadFileResult
+{
+  constructor(public blobId: guid) { super(); }
+
+  UnionKey: string = "SuccessUploadFile";
+  UnionIndex: number = 0;
+}
+
+export class FailedUploadFile extends IUploadFileResult
+{
+  constructor(public error: UploadFileError) { super(); }
+
+  UnionKey: string = "FailedUploadFile";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUploadFileResult", {
+  read(reader: CborReader): IUploadFileResult {
+    reader.readStartArray();
+    let value: IUploadFileResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUploadFile>("SuccessUploadFile").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUploadFile>("FailedUploadFile").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IUploadFileResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUploadFile>("SuccessUploadFile").write(writer, value as SuccessUploadFile);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUploadFile>("FailedUploadFile").write(writer, value as FailedUploadFile);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUploadFile", {
+  read(reader: CborReader): SuccessUploadFile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const blobId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessUploadFile(blobId);
+  },
+  write(writer: CborWriter, value: SuccessUploadFile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.blobId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUploadFile", {
+  read(reader: CborReader): FailedUploadFile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<UploadFileError>('UploadFileError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUploadFile(error);
+  },
+  write(writer: CborWriter, value: FailedUploadFile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UploadFileError>('UploadFileError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -2954,6 +3094,17 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
   }
 });
 
+IonFormatterStorage.register("UploadFileError", {
+  read(reader: CborReader): UploadFileError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UploadFileError[num] !== undefined ? num as UploadFileError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UploadFileError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("CreateSpaceError", {
   read(reader: CborReader): CreateSpaceError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -3102,6 +3253,10 @@ export interface IServerInteraction extends IIonService
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
+  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
+  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
 }
 
 
@@ -3120,6 +3275,10 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
+  BeginUploadAvatar(): Promise<IUploadFileResult>;
+  CompleteUploadAvatar(blobId: guid): Promise<void>;
+  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
+  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
 }
 
 
@@ -3234,6 +3393,10 @@ export interface IServerInteraction extends IIonService
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
+  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
+  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
 }
 
 
@@ -3252,6 +3415,10 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
+  BeginUploadAvatar(): Promise<IUploadFileResult>;
+  CompleteUploadAvatar(blobId: guid): Promise<void>;
+  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
+  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
 }
 
 
@@ -3947,6 +4114,60 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IonArray<ArchetypeGroup>>("IonArray<ArchetypeGroup>", writer.data, this.signal);
   }
+  async BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadSpaceProfileHeader");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<guid>("guid", writer.data, this.signal);
+  }
+  async CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceProfileHeader");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async BeginUploadSpaceAvatar(spaceId: guid): Promise<guid> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadSpaceAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<guid>("guid", writer.data, this.signal);
+  }
+  async CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
 
 }
 
@@ -4074,6 +4295,58 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<ArgonUserProfile>("ArgonUserProfile", writer.data, this.signal);
+  }
+  async BeginUploadAvatar(): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "BeginUploadAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadAvatar(blobId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "CompleteUploadAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async BeginUploadProfileHeader(): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "BeginUploadProfileHeader");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadProfileHeader(blobId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "CompleteUploadProfileHeader");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
   }
 
 }

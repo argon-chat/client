@@ -88,6 +88,7 @@ import { useConfig } from "@/store/remoteConfig";
 import { useAuthStore } from "@/store/authStore";
 import { v7 } from "uuid";
 import { useApi } from "@/store/apiStore";
+import { UploadFileError } from "@/lib/glue/argonChat";
 const { t } = useLocale();
 const me = useMe();
 const toast = useToast();
@@ -124,9 +125,17 @@ const saveChanges = async () => {
   try {
     isLoadingAvatar.value = true;
 
-    const image = canvasRef.value?.toDataURL("image/jpeg", 1) ?? "";
+    const image = canvasRef.value?.toDataURL("image/jpeg", 1);
+    if (!image) throw new Error("Failed to capture cropped image");
 
-    await uploadUserAvatar(image, `${v7()}.jpg`);
+    const blobId = await uploadUserAvatar(image);
+
+    await api.userInteraction.CompleteUploadAvatar(blobId);
+
+    toast.toast({
+      title: "Avatar updated",
+      description: "Your avatar has been successfully uploaded.",
+    });
 
     isFileSelected.value = false;
   } catch (e) {
@@ -140,30 +149,39 @@ const saveChanges = async () => {
   }
 };
 
-async function uploadUserAvatar(dataUrl: string, name: string): Promise<void> {
-  const formData = new FormData();
-  const cfg = useConfig();
-  const auth = useAuthStore();
-  const blob = dataURLtoBlob(dataUrl);
-  const file = new File([blob], name, { type: blob.type });
+async function uploadUserAvatar(dataUrl: string): Promise<string> {
+  // 1. Запрашиваем разрешение на загрузку
+  const begin = await api.userInteraction.BeginUploadAvatar();
 
+  if (begin.isFailedUploadFile()) {
+    throw new Error(UploadFileError[begin.error] ?? "BeginUploadAvatar failed");
+  }
+  if (!begin.isSuccessUploadFile()) {
+    throw new Error("Unexpected upload state");
+  }
+
+  const blobId = begin.blobId;
+  if (!blobId) throw new Error("No blobId returned from BeginUploadAvatar");
+
+  const blob = dataURLtoBlob(dataUrl);
+  const file = new File([blob], `${v7()}.jpg`, { type: blob.type });
+
+  const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${cfg.apiEndpoint}/files/user/@me/avatar`, {
-    method: "POST",
+  const response = await fetch(`https://koko.argon.gl/api/v1/upload/${blobId}`, {
+    method: "PATCH",
     body: formData,
     headers: {
-      Authorization: `Bearer ${auth.token}`,
-      "X-Host-Name": v7(),
-    },
+      "X-Api-Token": "c716665c8a387ca96083a1e3b7d6498b23bb5d1abbfa890dd3db9f63af5f2fc8"
+    }
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Error in upload avatar ${response.status} — ${error}`);
+    const errText = await response.text();
+    throw new Error(`Upload failed (${response.status}): ${errText}`);
   }
-
-  console.log("Avatar success load");
+  return blobId;
 }
 
 function dataURLtoBlob(dataUrl: string): Blob {
