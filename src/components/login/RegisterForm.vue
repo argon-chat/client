@@ -11,6 +11,8 @@ import Label from "../ui/label/Label.vue";
 import { Checkbox } from "../ui/checkbox";
 import { ReloadIcon } from "@radix-icons/vue";
 import { vMaska } from "maska/vue";
+import { NDatePicker } from "naive-ui";
+import { watch } from "vue";
 
 const props = defineProps<{
     auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm>;
@@ -28,6 +30,9 @@ const {
     brithDate,
     onSubmit,
 } = props.auth;
+
+
+
 
 </script>
 
@@ -67,29 +72,28 @@ const {
                      focus:border-blue-500 focus:ring focus:ring-blue-500/30" :disabled="isLoading" />
                     </div>
 
-                    <!-- Date of Birth -->
                     <div class="space-y-1">
                         <Label class="text-gray-200">Date of Birth *</Label>
-                        <Input v-model="brithDate" v-maska="'##/##/####'" class="h-11 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500 text-center
+                        <NDatePicker type="date" format="yyyy/MM/dd" clearable v-model:value="brithDate" class="h-11 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500 text-center
                      focus:border-blue-500 focus:ring focus:ring-blue-500/30" :disabled="isLoading" />
                     </div>
 
                     <div class="flex gap-x-2 items-start">
-                        <Checkbox v-model:checked="allowSendMeOptionalEmails" />
-                        <span class="text-sm text-gray-300">
+                        <Checkbox v-model:checked="allowSendMeOptionalEmails" id="allowSendMeOptionalEmails" />
+                        <label class="text-sm text-gray-300" for="allowSendMeOptionalEmails">
                             Receive optional emails with updates & news
-                        </span>
+                        </label>
                     </div>
                 </CardContent>
 
                 <CardFooter class="flex-col items-start gap-4">
                     <div class="flex gap-x-2 items-start">
-                        <Checkbox v-model:checked="agreeTos" aria-required="true" />
-                        <span class="text-sm text-gray-300">
+                        <Checkbox v-model:checked="agreeTos" aria-required="true" id="agreeTos" />
+                        <label class="text-sm text-gray-300" for="agreeTos">
                             Accept
                             <a href="/tos" class="text-blue-400 hover:text-blue-300">Terms</a> and
                             <a href="/privacy" class="text-blue-400 hover:text-blue-300">Privacy Policy</a> *
-                        </span>
+                        </label>
                     </div>
 
                     <Button :disabled="isLoading" class="w-full hover:opacity-90 transition">

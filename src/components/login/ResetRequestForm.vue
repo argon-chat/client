@@ -12,25 +12,30 @@ const { email, isLoading, onSubmit, goBackToLogin } = props.auth;
 </script>
 
 <template>
-  <form @submit.prevent="onSubmit">
-    <Card>
-      <CardHeader>
-        <CardTitle>Enter email</CardTitle>
-        <CardDescription>We will send you a password reset code.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Label>Email *</Label>
-        <Input v-model="email" type="email" :disabled="isLoading" />
-      </CardContent>
-      <CardFooter class="flex gap-2">
-        <Button type="button" variant="outline" @click="goBackToLogin">
-          <ArrowBigLeftDashIcon/>
-        </Button>
-        <Button :disabled="isLoading" class="flex-1">
-          <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-          Reset Password
-        </Button>
-      </CardFooter>
+  <div class="flex justify-center items-center min-h-screen">
+
+
+    <Card
+      class="flex flex-row rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl overflow-hidden">
+      <form @submit.prevent="onSubmit" class="w-[400px] p-6 flex flex-col">
+        <CardHeader>
+          <CardTitle>Enter email</CardTitle>
+          <CardDescription>We will send you a password reset code.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Label>Email *</Label>
+          <Input v-model="email" type="email" :disabled="isLoading" />
+        </CardContent>
+        <CardFooter class="flex gap-2">
+          <Button type="button" variant="outline" @click="goBackToLogin">
+            <ArrowBigLeftDashIcon />
+          </Button>
+          <Button :disabled="isLoading" class="flex-1">
+            <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+            Reset Password
+          </Button>
+        </CardFooter>
+      </form>
     </Card>
-  </form>
+  </div>
 </template>

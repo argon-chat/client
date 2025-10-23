@@ -20,9 +20,10 @@ const tabValueForTabs = computed({
 <template>
   <div class="mx-auto flex w-full flex-col justify-center space-y-6">
     <LoginForm v-if="tabValueForTabs == 'login'" :auth="auth" />
-    <RegisterForm v-if="tabValueForTabs == 'register'" :auth="auth" />
-    <OtpForm v-if="tabValueForTabs == 'otp-code'" :auth="auth" />
-    <ResetRequestForm v-if="tabValueForTabs == 'pass-reset'" :auth="auth" />
-    <ResetConfirmForm v-if="tabValueForTabs == 'otp-reset'" :auth="auth" />
+    <RegisterForm v-else-if="tabValueForTabs == 'register'" :auth="auth" />
+    <OtpForm v-else-if="tabValueForTabs == 'otp-code'" :auth="auth" />
+    <ResetRequestForm v-else-if="tabValueForTabs === 'pass-reset'" :auth="auth" />
+    <ResetConfirmForm v-else-if="tabValueForTabs === 'otp-reset'" :auth="auth" />
+    <div v-else>error {{ tabValueForTabs }}</div>
   </div>
 </template>

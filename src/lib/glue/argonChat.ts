@@ -469,6 +469,13 @@ export interface UserCredentialsInput {
 };
 
 
+export interface UserLoginInput {
+  email: string | null;
+  phone: string | null;
+  username: string | null;
+};
+
+
 export interface NewUserCredentialsInput {
   email: string;
   username: string;
@@ -3066,6 +3073,24 @@ IonFormatterStorage.register("UserCredentialsInput", {
   }
 });
 
+IonFormatterStorage.register("UserLoginInput", {
+  read(reader: CborReader): UserLoginInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const email = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const phone = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const username = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { email, phone, username };
+  },
+  write(writer: CborWriter, value: UserLoginInput): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.writeNullable<string>(writer, value.email, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.phone, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.username, 'string');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("NewUserCredentialsInput", {
   read(reader: CborReader): NewUserCredentialsInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -3213,6 +3238,7 @@ export interface IIdentityInteraction extends IIonService
   BeginResetPassword(email: string): Promise<bool>;
   ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   GetAuthorizationScenario(): Promise<string>;
+  GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
 }
 
 
@@ -3353,6 +3379,7 @@ export interface IIdentityInteraction extends IIonService
   BeginResetPassword(email: string): Promise<bool>;
   ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   GetAuthorizationScenario(): Promise<string>;
+  GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
 }
 
 
@@ -3824,6 +3851,19 @@ export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInter
     writer.writeStartArray(0);
           
     
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+  async GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "GetAuthorizationScenarioFor");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<UserLoginInput>('UserLoginInput').write(writer, data);
       
     writer.writeEndArray();
           

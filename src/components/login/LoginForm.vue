@@ -11,9 +11,10 @@ import Label from "../ui/label/Label.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
 import { useApi } from "@/store/apiStore";
+import InputWithError from "../InputWithError.vue";
 
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
-const { email, password, isLoading, goToResetPass, onSubmit } = props.auth;
+const { email, password, isLoading, goToResetPass, onSubmit, authError } = props.auth;
 const api = useApi();
 const isMobileDevice = computed(() => argon.isMobileHost);
 
@@ -34,20 +35,28 @@ const qrLoginUrl = ref("https://www.youtube.com/watch?v=HIcSWuKMwOw");
 
 const step = ref<"email" | "password">("email");
 
-async function getLoginScenario(email: string): Promise<"pwd" | "otp"> {
+async function getLoginScenario(email: string): Promise<"pwd" | "otp" | "pwd-otp" | ""> {
 
-  const scenario = await api.identityInteraction.GetAuthorizationScenario();
+  const scenario = await api.identityInteraction.GetAuthorizationScenarioFor({ email: email, phone: null, username: null });
+
+  if (!scenario) {
+    authError.value = "Account does not exist";
+    return "";
+  }
 
   console.log("Scenario", scenario);
 
-  if (scenario == "Email_Pwd_Otp") return "pwd";
-  if (scenario == "Email_Otp") return "otp";
+  if (scenario == "EmailPassword") return "pwd";
+  if (scenario == "EmailPasswordOtp") return "pwd-otp";
+  if (scenario == "EmailOtp") return "otp";
   return "pwd";
 }
 
 async function handleNext() {
   if (!email.value) return;
   const scenario = await getLoginScenario(email.value);
+
+  if (!scenario) return;
 
 
   if (scenario === "pwd") {
@@ -80,13 +89,19 @@ watch(email, (newVal, oldVal) => {
 
         <CardContent class="space-y-4 pt-6 flex-1">
           <div class="space-y-1">
-            <div class="flex items-center justify-between">
-              <Label for="email" class="text-gray-200">Email</Label>
-              <span v-if="step === 'password'" class="text-xs text-gray-400">editing will reset step</span>
-            </div>
-            <Input id="email" v-model="email" type="email" placeholder="example@email.com" class="h-11 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500
-                     focus:border-blue-500 focus:ring focus:ring-blue-500/30" :disabled="isLoading" />
+
+
+            <InputWithError v-model="email" :error="authError" @clear-error="authError = ''" type="email"
+              placeholder="example@email.com" :disabled="isLoading" id="email">
+              <template #label>
+                <div class="flex items-center gap-2">
+                  <Label for="email" class="text-gray-200">Email</Label>
+                  <span v-if="step === 'password'" class="text-xs text-gray-400">editing will reset step</span>
+                </div>
+              </template>
+            </InputWithError>
           </div>
+          <br />
 
           <div v-if="step === 'password'" class="space-y-1">
             <Label for="password" class="text-gray-200">Password</Label>
