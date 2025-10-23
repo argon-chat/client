@@ -20,56 +20,12 @@
             </div>
         </div>
     </div>
-    <Dialog v-model:open="addChannelOpened">
-        <DialogContent class="sm:max-w-[425px]">
-            <DialogHeader>
-                <DialogTitle>Add channel</DialogTitle>
-            </DialogHeader>
-            <div class="grid gap-4 py-4">
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="channel-name" class="text-right">
-                        Name
-                    </Label>
-                    <Input id="channel-name" v-model="channelName" class="col-span-3" />
-                </div>
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="channel-type" class="text-right">
-                        Type
-                    </Label>
-                    <RadioGroup id="channel-type" v-model="channelType" :orientation="'vertical'">
-                        <div class="flex items-center space-x-2">
-                            <RadioGroupItem id="r1" value="Text" />
-                            <Label for="r1">
-                                <Badge>Text</Badge>
-                            </Label>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <RadioGroupItem id="r2" value="Voice" />
-                            <Label for="r2">
-                                <Badge>Voice</Badge>
-                            </Label>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <RadioGroupItem id="r3" value="Announcement" />
-                            <Label for="r3">
-                                <Badge>Announcement</Badge>
-                            </Label>
-                        </div>
-                    </RadioGroup>
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose as-child>
-                    <Button type="button" variant="secondary">
-                        Cancel
-                    </Button>
-                </DialogClose>
-                <Button type="submit" @click="addChannel">
-                    Create Channel
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
+
+    <AddChannel 
+      v-model:open="addChannelOpened" 
+      :selected-space="selectedSpaceId"
+      @close="addChannelOpened = false"
+    />
 </template>
 
 <script setup lang="ts">
@@ -80,27 +36,11 @@ import {
     NotebookTabsIcon,
     UsersIcon,
 } from "lucide-vue-next";
-
 import { useMe } from "@/store/meStore";
-import { logger } from "@/lib/logger";
-import { useSpaceStore } from "@/store/serverStore";
 import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
-import { Badge } from "@/components/ui/badge";
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogClose,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChannelType } from "@/lib/glue/argonChat";
+import AddChannel from "./modals/AddChannel.vue";
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
@@ -108,33 +48,11 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 
 const me = useMe();
 const windows = useWindow();
-const servers = useSpaceStore();
-const addChannel_Loading = ref(false);
 const addChannelOpened = ref(false);
 const pex = usePexStore();
-
-const channelType = ref("Text");
-const channelName = ref("");
 async function openServerSettings() {
     windows.serverSettingsOpen = true;
 }
-
-const addChannel = () => {
-    addChannel_Loading.value = true;
-    logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
-
-    if (channelType.value === "Text")
-        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Text);
-    else if (channelType.value === "Voice")
-        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Voice);
-    else if (channelType.value === "Announcement")
-        servers.addChannelToServer(selectedSpaceId.value, channelName.value, ChannelType.Announcement);
-
-    setTimeout(() => {
-        addChannel_Loading.value = false;
-        addChannelOpened.value = false;
-    }, 1000);
-};
 </script>
 
 <style scoped>
