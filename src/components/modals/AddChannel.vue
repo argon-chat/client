@@ -15,7 +15,7 @@
         <InputWithError v-model="channelName" :placeholder="t('channel_name')">
           <template #label>
             <Label
-              for="space-name"
+              for="channel-name"
               class="text-gray-300 flex items-center gap-2"
             >
               <span class="i-lucide-plus-circle text-blue-400"></span>
@@ -25,7 +25,9 @@
         </InputWithError>
       </div>
       <div class="relative space-y-3">
-        <Label for="channel-type" class="text-right"> {{ t('channel_type') }} </Label>
+        <Label for="channel-type" class="text-right">
+          {{ t("channel_type") }}
+        </Label>
         <RadioGroup
           id="channel-type"
           v-model="channelType"
@@ -86,30 +88,36 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const addChannel = () => {
+const addChannel = async () => {
+  if (!channelName.value.trim()) {
+    logger.warn("Channel name cannot be empty");
+    return;
+  }
   logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
 
-  if (channelType.value === "Text")
-    servers.addChannelToServer(
-      selectedSpaceId.value,
-      channelName.value,
-      ChannelType.Text
-    );
-  else if (channelType.value === "Voice")
-    servers.addChannelToServer(
-      selectedSpaceId.value,
-      channelName.value,
-      ChannelType.Voice
-    );
-  else if (channelType.value === "Announcement")
-    servers.addChannelToServer(
-      selectedSpaceId.value,
-      channelName.value,
-      ChannelType.Announcement
-    );
+  try {
+    if (channelType.value === "Text")
+      await servers.addChannelToServer(
+        selectedSpaceId.value,
+        channelName.value,
+        ChannelType.Text
+      );
+    else if (channelType.value === "Voice")
+      await servers.addChannelToServer(
+        selectedSpaceId.value,
+        channelName.value,
+        ChannelType.Voice
+      );
+    else if (channelType.value === "Announcement")
+      await servers.addChannelToServer(
+        selectedSpaceId.value,
+        channelName.value,
+        ChannelType.Announcement
+      );
 
-  setTimeout(() => {
-    emit('close')
-  }, 1000);
+    emit("close");
+  } catch (error) {
+    logger.error(`Failed to create channel: ${error}`);
+  }
 };
 </script>
