@@ -25,7 +25,7 @@
         </InputWithError>
       </div>
       <div class="relative space-y-3">
-        <Label for="channel-type" class="text-right">
+        <Label class="text-right">
           {{ t("channel_type") }}
         </Label>
         <RadioGroup
@@ -50,9 +50,11 @@
       <div class="relative space-y-3">
         <Button
           @click="addChannel"
+          :disabled="isLoading"
           class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all"
         >
-          <span class="i-lucide-rocket mr-2"></span>
+          <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
+          <span v-else class="i-lucide-rocket mr-2"></span>
           {{ t("add_channel") }}
         </Button>
       </div>
@@ -78,6 +80,7 @@ const servers = useSpaceStore();
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
 const channelType = ref("Text");
 const channelName = ref("");
+const isLoading = ref(false)
 
 const selectedSpaceId = defineModel<string>("selectedSpace", {
   type: String,
@@ -93,6 +96,8 @@ const addChannel = async () => {
     logger.warn("Channel name cannot be empty");
     return;
   }
+
+  isLoading.value = true
   logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
 
   try {
@@ -115,9 +120,12 @@ const addChannel = async () => {
         ChannelType.Announcement
       );
 
+    channelName.value = ""
     emit("close");
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
+  } finally {
+    isLoading.value = false
   }
 };
 </script>
