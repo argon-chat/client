@@ -263,7 +263,7 @@ export const useFileStorage = defineStore("files", () => {
       fileId,
       cache: imagesCache.value,
       fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/user/${unwrap(userId)}/${x}`,
+        `https://eu.argon.zone/${x}`,
       allowFallback: false,
     });
   }
@@ -273,7 +273,7 @@ export const useFileStorage = defineStore("files", () => {
       fileId,
       cache: imagesCache.value,
       fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
+        `https://eu.argon.zone/${x}`,
       allowFallback: false,
     });
   }
@@ -283,7 +283,7 @@ export const useFileStorage = defineStore("files", () => {
       fileId,
       cache: imagesCache.value,
       fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/server/${unwrap(serverId)}/${x}`,
+        `https://eu.argon.zone/${x}`,
       allowFallback: true,
     });
   }

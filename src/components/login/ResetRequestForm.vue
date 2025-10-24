@@ -34,5 +34,5 @@ const { email, isLoading, onSubmit, goBackToLogin } = props.auth;
         </Button>
       </CardFooter>
     </Card>
-  </form>
+  </div>
 </template>

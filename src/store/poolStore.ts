@@ -715,6 +715,8 @@ export const usePoolStore = defineStore("data-pool", () => {
         logger.error(
           "bug, JoinToServerUser request cannot get server assigned, missed cache?"
         );
+
+        await loadServerDetails();
         return;
       }
 
