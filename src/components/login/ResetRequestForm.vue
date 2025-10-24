@@ -5,37 +5,34 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ReloadIcon } from "@radix-icons/vue";
 import { ArrowBigLeftDashIcon } from "lucide-vue-next";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 
 const { email, isLoading, onSubmit, goBackToLogin } = props.auth;
 </script>
 
 <template>
-  <div class="flex justify-center items-center min-h-screen">
-
-
-    <Card
-      class="flex flex-row rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl overflow-hidden">
-      <form @submit.prevent="onSubmit" class="w-[400px] p-6 flex flex-col">
-        <CardHeader>
-          <CardTitle>Enter email</CardTitle>
-          <CardDescription>We will send you a password reset code.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Label>Email *</Label>
-          <Input v-model="email" type="email" :disabled="isLoading" />
-        </CardContent>
-        <CardFooter class="flex gap-2">
-          <Button type="button" variant="outline" @click="goBackToLogin">
-            <ArrowBigLeftDashIcon />
-          </Button>
-          <Button :disabled="isLoading" class="flex-1">
-            <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-            Reset Password
-          </Button>
-        </CardFooter>
-      </form>
+  <form @submit.prevent="onSubmit">
+    <Card>
+      <CardHeader>
+        <CardTitle>{{t("enter_email") }}</CardTitle>
+        <CardDescription>{{t("we_will_send_reset_code")}}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Label>Email *</Label>
+        <Input v-model="email" type="email" :disabled="isLoading" />
+      </CardContent>
+      <CardFooter class="flex gap-2">
+        <Button type="button" variant="outline" @click="goBackToLogin">
+          <ArrowBigLeftDashIcon/>
+        </Button>
+        <Button :disabled="isLoading" class="flex-1">
+          <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+          {{ t("reset_password") }}
+        </Button>
+      </CardFooter>
     </Card>
-  </div>
+  </form>
 </template>

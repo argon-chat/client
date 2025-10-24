@@ -36,12 +36,17 @@ import {
     NotebookTabsIcon,
     UsersIcon,
 } from "lucide-vue-next";
+
+
+import { useTone } from "@/store/toneStore";
+import { useLocale } from "@/store/localeStore";
 import { useMe } from "@/store/meStore";
 import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
 import AddChannel from "./modals/AddChannel.vue";
 
+const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
 })

@@ -7,9 +7,10 @@ import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNoti
 import { onMounted, PropType, ref } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
 import { useMe } from '@/store/meStore';
+import { useLocale } from "@/store/localeStore";
 import { RealtimeUser } from '@/store/db/dexie';
 import { NBadge } from 'naive-ui';
-
+const { t } = useLocale();
 const pool = usePoolStore();
 const me = useMe();
 const user = ref(null as RealtimeUser | null);
@@ -38,12 +39,12 @@ const emit = defineEmits<{
             <Button @click="emit('select', 'profile')" :variant="tab == 'profile' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconUserScan class="w-6 h-6 mr-2" />
-                Profile
+                {{t("profile")}}
             </Button>
             <Button @click="emit('select', 'friends')" :variant="tab == 'friends' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconCookieManFilled class="w-6 h-6 mr-2" />
-                Friends
+                {{t("friends")}}
                 <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <!-- <Button variant="ghost" class="justify-start">
@@ -53,7 +54,7 @@ const emit = defineEmits<{
             <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
-                Inventory
+                {{t("inventory")}}
                 <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
@@ -61,7 +62,7 @@ const emit = defineEmits<{
 
                 
                 <IconNotification class="w-6 h-6 mr-2" />
-                Notifications
+                {{t("notifications")}}
                 <n-badge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
 

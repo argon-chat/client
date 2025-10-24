@@ -12,7 +12,7 @@
                     {{ t('join_or_create_server') }}
                 </h2>
                 <p class="text-gray-400 text-sm">
-                    Choose your path below ✨
+                    {{t("choose_your_path")}}
                 </p>
             </div>
 

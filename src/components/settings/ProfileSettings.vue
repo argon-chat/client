@@ -33,27 +33,27 @@
         <Input type="password" class="input-field" placeholder="Enter new password" />
       </div>
       <div v-if="false">
-        <label class="block font-semibold mb-1">{{ t("Phone Number") }}</label>
+        <label class="block font-semibold mb-1">{{ t("phone_number") }}</label>
         <Input type="tel" class="input-field" placeholder="Enter phone number" />
       </div>
 
       <div class="otp-settings" v-if="false">
         <label class="block font-semibold mb-1">{{ t("otp_title") }}</label>
         <button @click="toggleOTP" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-          {{ 'Disable OTP' }}
+          {{ t('disable_otp')}}
         </button>
       </div>
       <Dialog v-model:open="isFileSelected">
         <DialogContent class="max-h-[850px] max-w-[750px]" :disableOutsidePointerEvents="true">
           <DialogHeader>
-            <DialogTitle>Crop image</DialogTitle>
+            <DialogTitle>{{t("crop_image")  }}</DialogTitle>
           </DialogHeader>
           <Cropper v-if="img" class="cropper" :src="img" :stencil-props="{
             aspectRatio: 1
           }" @change="change" image-restriction="stencil" :stencil-component="CircleStencil"></Cropper>
           <DialogFooter>
 
-            <Button @click="saveChanges" :disabled="isLoadingAvatar">Save changes</Button>
+            <Button @click="saveChanges" :disabled="isLoadingAvatar">{{t("save_changes")}}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
