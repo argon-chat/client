@@ -18,17 +18,17 @@
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
                 <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="channelDelete(channel.channelId)">
-                  Delete
+                  {{ t("delete") }}
                   <ContextMenuShortcut>⌘[</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuItem inset :disabled="true">
-                  Leave
+                  {{ t("leave") }}
                   <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                 </ContextMenuItem>
 
                 <ContextMenuSeparator />
                 <ContextMenuCheckboxItem :disabled="!pex.has('MuteMember')">
-                  Mute
+                  {{t("mute")}}
                   <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
                 </ContextMenuCheckboxItem>
               </ContextMenuContent>
@@ -60,7 +60,7 @@
                   </ContextMenuItem>-->
                 <ContextMenuItem inset :disabled="!pex.has('KickMember')"
                   @click="kickMember(user.userId, channel.channelId, channel.spaceId)">
-                  Kick
+                  {{t("kick")}}
                   <ContextMenuShortcut>⌘]</ContextMenuShortcut>
                 </ContextMenuItem>
 
@@ -101,6 +101,7 @@ import { Slider } from "@/components/ui/slider";
 import { logger } from "@/lib/logger";
 import { usePoolStore } from "@/store/poolStore";
 import { useVoice } from "@/store/voiceStore";
+import { useLocale } from "@/store/localeStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
 import { usePexStore } from "@/store/permissionStore";
@@ -115,7 +116,7 @@ const voice = useVoice();
 const me = useMe();
 const pex = usePexStore();
 const api = useApi();
-
+const { t } = useLocale();
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true

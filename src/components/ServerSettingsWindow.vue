@@ -3,8 +3,8 @@
         <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40" :trap-focus="false" :auto-focus="false">
             <DrawerHeader class="flex items-center justify-between">
                 <div>
-                    <DrawerTitle>Settings</DrawerTitle>
-                    <DrawerDescription>Manage your server and preferences</DrawerDescription>
+                    <DrawerTitle>{{t("settings")}}</DrawerTitle>
+                    <DrawerDescription>{{t("manage_settings")}}</DrawerDescription>
                 </div>
                 <button @click="windows.serverSettingsOpen = false" class="close-button">
                     <CircleXIcon class="w-10 h-10" />

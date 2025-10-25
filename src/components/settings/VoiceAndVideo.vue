@@ -6,13 +6,13 @@
             <label class="block font-semibold mb-1">{{ t("select_microphone") }}</label>
             <Select v-model="selectedMicrophone">
                 <SelectTrigger>
-                    <SelectValue placeholder="No microphones found" />
+                    <SelectValue :placeholder="t('no_microphone')" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectGroup v-for="device in audioDevices.filter(q => !!q.deviceId)" :key="device.deviceId"
                         :value="device.deviceId">
                         <SelectItem :value="device.deviceId">
-                            {{  device.deviceId == 'default' ? ((device.label.trimStart().replace(/^-/, "") || 'Unnamed Microphone') + '🔸') : (device.label || 'Unnamed Microphone') }}
+                            {{  device.deviceId == 'default' ? ((device.label.trimStart().replace(/^-/, "") ||t("noname_microphone")) + '🔸') : (device.label || t("noname_microphone")) }}
                         </SelectItem>
                     </SelectGroup>
                 </SelectContent>
@@ -22,7 +22,7 @@
             <div class="mt-4">
                 <div class="flex" style="align-items: anchor-center;">
                     <div class="space-y-1 w-full">
-                        <div class="text-xs text-muted-foreground">Left</div>
+                        <div class="text-xs text-muted-foreground">{{ t("left") }}</div>
                         <div class="w-full h-3 bg-[#1a1a1a] h-[0.2rem] rounded overflow-hidden transition-colors">
                             <div class="h-full duration-75 transition-colors"
                                 :style="{ width: leftVolume + '%', backgroundColor: audio.volumeColor(leftVolume) }">
@@ -34,7 +34,7 @@
                                 :style="{ width: rightVolume + '%', backgroundColor: audio.volumeColor(rightVolume) }">
                             </div>
                         </div>
-                        <div class="text-xs text-muted-foreground">Right</div>
+                        <div class="text-xs text-muted-foreground">{{ t("right") }}</div>
                     </div>
                     <Button @click="isMonitoring = !isMonitoring" variant="outline" size="icon">
                         <BeanIcon v-if="!isMonitoring" />

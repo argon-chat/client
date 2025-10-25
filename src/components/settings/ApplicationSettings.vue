@@ -16,61 +16,62 @@
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
-                <label class="block font-semibold mb-1">Dev Tools</label>
+                <label class="block font-semibold mb-1">{{ t("dev_tools") }}</label>
                 <button @click="toggleDevTools"
                     class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-                    Open Dev Tools
+                    {{ t("open_dev_tools") }}
                 </button>
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Diagnostic Board
+                        {{t("diagnostic_board")}}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Open diagnostic control panel
+                        {{t("diagnostic_control_board_open")}}  
                     </div>
                 </div>
                 <button class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-                    Open Diagnostic Board
+                    {{t("diagnostic_board_open")}} 
                 </button>
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Copy My UserId
+                       {{t("copy_my_userid")}}
                     </div>
                 </div>
                 <button @click="copyMyUserId" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-                    Copy
+                    {{t("copy")}}
                 </button>
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Channel
+                    {{ t("channel") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Select update channel
+                        {{t("select_update_channel")}}
                     </div>
                 </div>
                 <Select v-model="selected_channel">
+<!-- ne eby dumai  YUKI DUMAI TUT NORM TRANSALTE ILI NE-->
                     <SelectTrigger class="w-[180px]" :disabled="disable_channel_select">
-                        <SelectValue placeholder="Live" />
+                        <SelectValue :placeholder="t('select_channel_placeholder')" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectGroup>
                             <SelectItem value="beta">
-                                Beta Channel
+                                {{ t('beta_channel') }}
                             </SelectItem>
                             <SelectItem value="canary" :disabled="true">
-                                Canary Channel
+                                {{ t('canary_channel') }}
                             </SelectItem>
                             <SelectItem value="live">
-                                Live
+                                {{ t('live_channel') }}
                             </SelectItem>
                         </SelectGroup>
                     </SelectContent>
@@ -80,36 +81,37 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        API Endpoint
+                       {{ t("api_endpoint") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        (WARNING: after change endpoint all data has been cleared)
+                        {{t("warning_change_endpoint")  }}
                     </div>
                 </div>
                 <Select v-model="selected_api_endpoint">
-                    <SelectTrigger class="w-[180px]">
-                        <SelectValue placeholder="Live" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectItem value="live">
-                                Live
-                            </SelectItem>
-                            <SelectItem value="dev">
-                                Development
-                            </SelectItem>
-                            <SelectItem value="local">
-                                Local
-                            </SelectItem>
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
+                        <SelectTrigger class="w-[180px]">
+                            <SelectValue :placeholder="t('select_api_endpoint_placeholder')" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="live">
+                                    {{ t('live_endpoint') }}
+                                </SelectItem>
+                                <SelectItem value="dev">
+                                    {{ t('dev_endpoint') }}
+                                </SelectItem>
+                                <SelectItem value="local">
+                                    {{ t('local_endpoint') }}
+                                </SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+
             </div>
             <br />
             <div class="flex flex-col text-gray-500 items-center justify-between rounded-lg border p-4">
-                <label class="block font-semibold mb-1">Version: {{ version }}</label>
-                <label class="block font-semibold mb-1">Build Time: {{ buildtime }}</label>
-                <label class="block font-semibold mb-1">Host Version: {{ host_version ?? 'no-host-mode' }}</label>
+                <label class="block font-semibold mb-1">{{ t('version_label', { version }) }}</label>
+                <label class="block font-semibold mb-1">{{ t('build_time_label', { buildtime }) }}</label>
+                <label class="block font-semibold mb-1">{{ t('host_version_label', { host_version: host_version ?? 'no-host-mode' }) }}</label>
             </div>
         </div>
     </div>
@@ -152,7 +154,7 @@ const toggleDevTools = () => {
 
 const copyMyUserId = () => {
   toast.toast({
-    title: "Your UserId has been copied!",
+    title: t("usedid_copied"),
   });
   navigator.clipboard.writeText(me.me?.userId ?? "error");
 };

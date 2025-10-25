@@ -24,39 +24,21 @@ export function useAuthForm() {
   const password = ref("");
   const username = ref("");
   const displayName = ref("");
-  const brithDate = ref("");
+  const brithDate = ref(0);
   const allowSendMeOptionalEmails = ref(false);
   const agreeTos = ref(false);
   const otpCode = ref("");
+  const authError = ref("");
+
 
   const decomposeDateOfBirth = (): DateOnly => {
-    const [dayStr, monthStr, yearStr] = brithDate.value.split("/");
-    const day = +dayStr;
-    const month = +monthStr;
-    const year = +yearStr;
+    const d = new Date(brithDate.value);
 
-    if (
-      !Number.isInteger(day) ||
-      !Number.isInteger(month) ||
-      !Number.isInteger(year)
-    ) {
-      throw new Error("Date contains non-numeric values");
-    }
-    if (year <= 0) {
-      throw new Error("Year must be greater than 0");
-    }
-    if (month < 1 || month > 12) {
-      throw new Error("Month must be between 1 and 12");
-    }
-
-    const daysInMonth = new Date(year, month, 0).getDate();
-    if (day < 1 || day > daysInMonth) {
-      throw new Error(
-        `Invalid day: ${day} for month ${month} and year ${year}`
-      );
-    }
-
-    return { day, month, year };
+    return {
+      year: d.getUTCFullYear(),
+      month: d.getUTCMonth() + 1,
+      day: d.getUTCDate(),
+    };
   };
 
   async function onSubmit() {
@@ -131,5 +113,6 @@ export function useAuthForm() {
     goToResetPass,
     goBackToLogin,
     goToRegister,
+    authError,
   };
 }

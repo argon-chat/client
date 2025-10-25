@@ -5,6 +5,8 @@
 <script setup lang="ts" generic="T extends MessageEntityUrl">
 import { MessageEntityUrl } from "@/lib/glue/argonChat";
 import { useToast } from "../ui/toast";
+import { useLocale } from "@/store/localeStore";
+const { t } = useLocale();
 
 const props = defineProps<{
   entity: T;
@@ -22,7 +24,7 @@ const onClickUrl = () => {
     return;
   }
   toast({
-    title: `Cannot be open '${fullyUrl}'`,
+    title: `${t("cannot_be_open")} '${fullyUrl}'`,
     variant: "destructive",
     duration: 2500,
   });
