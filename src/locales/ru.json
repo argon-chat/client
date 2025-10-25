@@ -1,4 +1,5 @@
 {
+  "describe_feedback": "Опишите вашу проблему или отзыв...",
   "close": "Закрыть",
   "ok": "Подтвердить",
   "or": "или",
@@ -6,7 +7,7 @@
   "wait_connect": "Ожидание подключения, пожалуйста, подождите...",
   "create_new_server": "Создать новый сервер",
   "announcement": "Объявление",
-  "privacy_settings":"Настройки приватности",
+  "privacy_settings": "Настройки приватности",
   "cancel": "Отмена",
   "voice": "Голос",
   "start_video": "Начать видео",
@@ -406,5 +407,16 @@
   "attachments": "Вложения",
   "drag_or_click_to_upload": "Перетащи сюда или нажми для загрузки",
   "send_feedback": "Отправить",
-  "feedback_attachments_limit": "PNG / JPG до 2 MB (макс. 3 файла)"
+  "feedback_attachments_limit": "PNG / JPG до 2 MB (макс. 3 файла)",
+  "storage": {
+    "media": "Медиа",
+    "audio": "Аудио",
+    "files": "Файлы",
+    "systemCache": "Кэш системы",
+    "other": "Другие",
+    "free": "Свободно",
+    "total": "Всего",
+    "space": "Место для хранения"
+  },
+  "storages": "Хранилище"
 }

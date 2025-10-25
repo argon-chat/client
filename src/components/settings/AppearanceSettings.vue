@@ -1,40 +1,40 @@
 <template>
     <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
-        <h2 class="text-2xl font-bold">Profile Settings</h2>
+        <h2 class="text-2xl font-bold">{{t("profile_settings")}}</h2>
         <div class="avatar-username flex items-center space-x-4">
             <div class="avatar">
                 <ArgonAvatar :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
                         :user-id="me.me.userId" alt="User Avatar" class="user-avatar w-20 h-20 rounded-full border border-gray-500"  />
             </div>
             <div>
-                <label class="block font-semibold mb-1">Username</label>
+                <label class="block font-semibold mb-1">{{t("username")}}</label>
                 <Input v-model="me.me.username" type="text" class="input-field" placeholder="Enter username" />
             </div>
         </div>
         <div>
-            <label class="block font-semibold mb-1">Display Name</label>
+            <label class="block font-semibold mb-1">{{t("display_name")}}</label>
             <Input v-model="me.me.displayName" type="text" class="input-field" placeholder="Enter display name" />
         </div>
         <div v-if="false">
-            <label class="block font-semibold mb-1">Password</label>
+            <label class="block font-semibold mb-1">{{t("password")}}</label>
             <Input type="password" class="input-field" placeholder="Enter new password" />
         </div>
         <div v-if="false">
-            <label class="block font-semibold mb-1">Phone Number</label>
+            <label class="block font-semibold mb-1">{{t("phone_number")}}</label>
             <Input v-model="user.phoneNumber" type="tel" class="input-field" placeholder="Enter phone number" />
         </div>
 
         <div class="otp-settings" v-if="false">
-            <label class="block font-semibold mb-1">Two-Factor Authentication (OTP)</label>
+            <label class="block font-semibold mb-1">{{t("otp_title")}}</label>
             <button @click="toggleOTP" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
                 {{ user.otpEnabled ? 'Disable OTP' : 'Enable OTP' }}
             </button>
         </div>
 
         <div class="delete-account">
-            <label class="block font-semibold mb-1">Delete Account</label>
+            <label class="block font-semibold mb-1">{{t("delete_account")}}</label>
             <button @click="deleteAccount" class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
-                Delete Account
+                {{t("delete_account")}}
             </button>
         </div>
     </div>

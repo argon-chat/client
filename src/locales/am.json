@@ -1,4 +1,5 @@
 {
+  "describe_feedback": "Նկարագրեք ձեր խնդիր կամ մեկնաբանություն...",
   "close": "Փակել",
   "ok": "Հաստատել",
   "or": "կամ",
@@ -6,7 +7,7 @@
   "wait_connect": "Սպասում է կապին, խնդրում ենք սպասել...",
   "create_new_server": "Ստեղծել նոր սերվեր",
   "announcement": "Հայտարարություն",
-  "privacy_settings":"Գաղտնիության կարգավորումներ",
+  "privacy_settings": "Գաղտնիության կարգավորումներ",
   "cancel": "Չեղարկել",
   "voice": "Ավագ",
   "start_video": "Սկսել տեսանյութը",
@@ -121,8 +122,8 @@
   "sound_power_of_system_notification": "Համակարգային ծանուցումների ձայնային հզորություն",
   "no_microphone": "Փնտռել microphones չեն գտել",
   "noname_microphone": "Անանուն Microphone",
-"left": "MAYDAY Ձախ",
-"right": "MAYDA YԱջ",
+  "left": "Ձախ",
+  "right": "YԱջ",
   "type": "Տիպ",
   "loading_history": "Բեռնվում է պատմությունը...",
   "delete": "Ջնջել",
@@ -406,5 +407,16 @@
   "attachments": "Կցված ֆայլեր",
   "drag_or_click_to_upload": "Քաշիր այստեղ կամ սեղմիր ներբեռնելու համար",
   "send_feedback": "Ուղարկել",
-  "feedback_attachments_limit": "PNG / JPG մինչև 2 ՄԲ (առավելագույնը 3 ֆայլ)"
+  "feedback_attachments_limit": "PNG / JPG մինչև 2 ՄԲ (առավելագույնը 3 ֆայլ)",
+  "storage": {
+    "media": "Մեդիա",
+    "audio": "Աուդիո",
+    "files": "Ֆայլեր",
+    "systemCache": "Համակարգի կեշ",
+    "other": "Այլ",
+    "free": "Հավաքել",
+    "total": "Ընդհանուր",
+    "space": "Պահեստատեղի"
+  },
+  "storages": "Պահեստային"
 }
