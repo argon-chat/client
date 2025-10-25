@@ -130,10 +130,10 @@
                 <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer
                     }}</span>
                 <span class="text-xs text-lime-400 mt-1"
-                    v-if="voice.isConnected && !voice.currentlyReconnect">Connected</span>
+                    v-if="voice.isConnected && !voice.currentlyReconnect">{{t("connected")}}</span>
                 <span class="text-xs text-orange-400 mt-1"
-                    v-if="voice.isBeginConnect && !voice.currentlyReconnect">Connecting...</span>
-                <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">Reconnect...</span>
+                    v-if="voice.isBeginConnect && !voice.currentlyReconnect">{{t("connecting")}}...</span>
+                <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">{{t("reconnect")}}...</span>
             </div>
         </div>
 
