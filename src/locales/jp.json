@@ -1,4 +1,5 @@
 {
+  "describe_feedback": "問題やフィードバックを説明してください...",
   "close": "閉じる",
   "ok": "確認",
   "or": "または",
@@ -6,7 +7,7 @@
   "wait_connect": "接続を待っています、お待ちください...",
   "create_new_server": "新しいサーバーを作成",
   "announcement": "お知らせ",
-  "privacy_settings":"プライバシー設定",
+  "privacy_settings": "プライバシー設定",
   "cancel": "キャンセル",
   "voice": "音声",
   "start_video": "ビデオ開始",

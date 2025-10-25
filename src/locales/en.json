@@ -133,6 +133,7 @@
   "connected": "Connected",
   "connecting": "Connecting",
   "reconnect": "Reconnect",
+  "describe_feedback":"Describe your issue or feedback...",
   "development_panel": "Development Panel",
   "browser_not_support_video": "Your browser not support video.",
   "unknown_display_name": "Unknown",

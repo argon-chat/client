@@ -22,7 +22,7 @@
                 </Label>
                 <textarea v-model="message" class="w-full h-28 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500
                  focus:border-purple-500 focus:ring focus:ring-purple-500/30 resize-none p-3"
-                    placeholder="Describe your issue or feedback..." />
+                    :placeholder='t("describe_feedback")' />
             </div>
 
             <div class="relative space-y-3">
