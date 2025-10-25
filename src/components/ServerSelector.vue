@@ -40,7 +40,7 @@
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Update is ready!</p>
+                    <p>{{t("update_is_ready")}}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
@@ -55,7 +55,7 @@
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Send feedback!</p>
+                    <p>{{ t("send_feedback") }}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
@@ -63,6 +63,7 @@
 
     <CreateOrJoinSpace v-model:open="createSpaceOpened" />
     <SendUserFeedback v-model:open="feedbackOpened" />
+    <CreateSpaceDetailed v-model:open="openDetailed"/>
 </template>
 
 <script setup lang="ts">
@@ -83,11 +84,13 @@ import TooltipContent from "./ui/tooltip/TooltipContent.vue"
 import { useVersionChecker } from "@/lib/useVersionChecker"
 import { showReportDialog } from "@sentry/vue"
 import SendUserFeedback from "./modals/SendUserFeedback.vue"
+import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
 
 const { t } = useLocale();
 
 const createSpaceOpened = ref(false);
 const feedbackOpened = ref(false);
+const openDetailed = ref(false);
 
 const { needsUpdate, doUpdate } = useVersionChecker();
 

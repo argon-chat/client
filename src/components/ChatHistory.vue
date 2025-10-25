@@ -2,7 +2,7 @@
     <div class="chat-scroller" ref="scrollContainer" @scroll.passive="handleScroll">
         <div class="scroll-padder" :style="padderStyle">
             <div v-if="loading" class="loading-indicator">
-                Загрузка истории...
+               {{ t("loading_history") }}
             </div>
 
             <div v-for="message in visibleMessages" :key="message.messageId.toString()" class="message-item">
@@ -14,6 +14,7 @@
 
 <script setup lang="ts">
 import { ArgonMessage } from "@/lib/glue/argonChat";
+import { useLocale } from "@/store/localeStore";
 import {
   ref,
   computed,
@@ -27,7 +28,7 @@ import {
 interface Props {
   items: ArgonMessage[];
 }
-
+const { t } = useLocale();
 const props = defineProps<Props>();
 const emit = defineEmits<(e: "load-more", page: number) => void>();
 

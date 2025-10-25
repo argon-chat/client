@@ -32,7 +32,7 @@
             <Tabs v-model="activeTab" default-value="permissions" class="space-y-2">
               <TabsList class="w-full justify-center space-x-2 mb-2" style="background-color: unset !important;">
                 <TabsTrigger :style="{ backgroundColor: activeTab == 'permissions' ? 'rgb(30 30 30)' : '' }"
-                  class="w-[100%]" value="permissions">Permissions</TabsTrigger>
+                  class="w-[100%]" value="permissions">{{t("permissions_name")}}</TabsTrigger>
                 <TabsTrigger :style="{ backgroundColor: activeTab == 'users' ? 'rgb(30 30 30)' : '' }" class="w-[100%]"
                   value="users">{{ t("users") }}</TabsTrigger>
               </TabsList>
@@ -41,13 +41,13 @@
                 <Card>
                   <CardContent class="p-4 space-y-2">
                     <div class="space-y-1">
-                      <label class="text-sm font-medium text-white">Name<span class="text-red-500 ml-1">*</span></label>
+                      <label class="text-sm font-medium text-white">{{t("name")}}<span class="text-red-500 ml-1">*</span></label>
                       <Input v-model="selectedArchetype.name" type="text"
                         :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
                         :readonly="isLockedArchetype(selectedArchetype, true)" placeholder="Role name..." />
                     </div>
                     <div class="space-y-1">
-                      <label class="text-sm font-medium text-white">Description<span
+                      <label class="text-sm font-medium text-white">{{ t("description") }}<span
                           class="text-red-500 ml-1">*</span></label>
                       <Textarea v-model="selectedArchetype.description"
                         :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
@@ -58,16 +58,15 @@
                       :readonly="isLockedArchetype(selectedArchetype, true)" />
                     <br />
                     <div class="space-y-1 flex items-center justify-between">
-                      <label class="text-sm font-medium text-white">Group members with this
-                        role?</label>
+                      <label class="text-sm font-medium text-white">{{t("group_members_with_this_role")}}</label>
                       <Switch :checked="selectedArchetype.isGroup"
                         @update:checked="selectedArchetype.isGroup = !selectedArchetype.isGroup"
                         :disabled="isLockedArchetype(selectedArchetype, true)" />
                     </div>
                     <div class="space-y-1 flex items-center justify-between">
-                      <label class="text-sm font-medium text-white">Allow <span class="text-blue-500">@mention</span>
-                        allow this role to everyone
-                        else?</label>
+                      <label class="text-sm font-medium text-white">
+  {{ t('mention_hard.allow_mention_role', { mention: '<span class="text-blue-500">' + t('mention_hard.mention') + '</span>' })}}
+</label>
                       <Switch :checked="selectedArchetype.isMentionable"
                         @update:checked="selectedArchetype.isMentionable = !selectedArchetype.isMentionable"
                         :disabled="selectedArchetype.isLocked" />
@@ -107,11 +106,11 @@
                     <div class="relative">
                       <Input :disabled="selectedArchetype.isLocked || selectedArchetype.isDefault" ref="reference"
                         v-model="userSearchQuery" type="text" @focusin="open" @focusout="close"
-                        placeholder="Search users..." class="w-full" />
+                        :placeholder="t('search_users')" class="w-full" />
 
                     </div>
                     <div>
-                      <h3 class="text-sm font-semibold">Users with this role</h3>
+                      <h3 class="text-sm font-semibold">{{ t("users_with_this_role") }}</h3>
                       <div v-if="usersForRole.length > 0" class="space-y-2 mt-2">
                         <div v-for="user in usersForRole" :key="user.userId"
                           class="flex items-center gap-2 p-2 rounded">
@@ -124,7 +123,7 @@
                         </div>
                       </div>
                       <div v-else class="text-muted text-sm mt-2">
-                        No users with this role
+                     {{ t("no_users_with_this_role") }}
                       </div>
                     </div>
                   </CardContent>
@@ -144,13 +143,13 @@
             </div>
           </template>
           <div v-else class="text-muted text-sm p-2">
-            No users found
+            {{t("no_users_found")}}
           </div>
         </div>
       </div>
     </div>
     <div v-else>
-      Loading...
+      {{t("loading")}}
     </div>
   </div>
 
@@ -421,13 +420,13 @@ function updateArchetypeLocal() {
       selectedArchetype.value,
     );
     toast.toast({
-      title: "📁 Saved!",
+      title: t("saved"),
       duration: 1000,
     });
     // TODO
   } catch (e) {
     toast.toast({
-      title: "Failed to save Role",
+      title: t("fail_save"),
       variant: "destructive",
     });
   }

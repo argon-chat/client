@@ -36,7 +36,8 @@ const size = computed(() =>
   <keep-alive :max="10" :key="props.fileId!">
     <Avatar :class="props.class" :key="props.fileId!" :style="{ width: size, height: size }">
       <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
-      <AvatarImage v-else-if="loaded" :src="blobSrc" />
+      <video playsinline autoplay muted loop v-else-if="loaded" :poster="blobSrc" :src="blobSrc" disablePictureInPicture
+  controlslist="nodownload nofullscreen noremoteplayback" />
       <AvatarFallback v-else>{{ props.fallback.at(0)?.toUpperCase() }}</AvatarFallback>
     </Avatar>
   </keep-alive>

@@ -2,17 +2,17 @@
     <div class="video-control" style="height: 90vh; margin: 50px;">
         <video ref="localVideo" autoplay playsinline class="local-video"></video>
         <div class="controls">
-            <label for="videoSource">Select Video Source:</label>
+            <label for="videoSource">{{t("select_video_source")}}:</label>
             <select v-model="selectedVideoSource" @change="switchVideoSource" id="videoSource">
                 <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
-                    {{ device.label || 'Camera ' + (videoDevices.indexOf(device) + 1) }}
+                    {{ device.label || t("camera") + (videoDevices.indexOf(device) + 1) }}
                 </option>
             </select>
 
-            <label for="audioSource">Select Audio Source:</label>
+            <label for="audioSource">{{t("select_audio_source")}}:</label>
             <select v-model="selectedAudioSource" @change="switchAudioSource" id="audioSource">
                 <option v-for="device in audioDevices" :key="device.deviceId" :value="device.deviceId">
-                    {{ device.label || `Microphone ${device.deviceId}` }}
+                    {{ device.label || `${t("microphone")} ${device.deviceId}` }}
                 </option>
             </select>
         </div>
@@ -23,15 +23,15 @@
         </div>
 
         <div class="controls" v-if="isConnectedToLive">
-            <button class="toggle-video-btn" @click="startVideo">Start Video</button>
-            <button class="toggle-video-btn" @click="stopVideo">Stop Video</button>
-            <button class="toggle-mute-btn" @click="toggleMute">{{ isMuted ? 'Unmute' : 'Mute' }}</button>
+            <button class="toggle-video-btn" @click="startVideo">{{t("start_video")}}</button>
+            <button class="toggle-video-btn" @click="stopVideo">{{t("stop_video")}}</button>
+            <button class="toggle-mute-btn" @click="toggleMute">{{ isMuted ? t("unmute") : t("mute") }}</button>
         </div>
 
         <div class="controls" v-else>
             <Input id="token" placeholder="token" type="text" v-model="tokenRef" />
             <UiButton @click="beginConnect">
-                Sign In
+               {{t("signin") }}
             </UiButton>
         </div>
     </div>
@@ -40,6 +40,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { Room, LocalVideoTrack, LocalAudioTrack, Track } from "livekit-client";
+import { useLocale } from "@/store/localeStore";
+
+const { t } = useLocale();
 import UiButton from "./ui/button/Button.vue";
 import Input from "./ui/input/Input.vue";
 

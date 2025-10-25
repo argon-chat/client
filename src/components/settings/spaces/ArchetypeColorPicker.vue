@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const props = defineProps<{
   modelValue: number | null;
   readonly?: boolean;
@@ -96,8 +98,8 @@ const displayColor = computed(() =>
 
 <template>
   <div class="space-y-1">
-    <label class="text-sm font-medium text-white">Role Color</label>
-    <p class="text-xs text-muted">Members use the colour of the highest role they have on the roles list.</p>
+    <label class="text-sm font-medium text-white">{{t("role_color")}}</label>
+    <p class="text-xs text-muted">{{t("role_color_explain")}}.</p>
 
     <div class="flex items-center gap-2 mt-2">
       <div class="w-10 h-10 rounded-md border border-white/20" :style="{ backgroundColor: displayColor }" />

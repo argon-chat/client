@@ -15,6 +15,16 @@ export const useMe = defineStore("me", () => {
   const api = useApi();
   const bus = useBus();
   const me = ref(null as ExtendedUser | null);
+
+  const isPremium = ref(false);
+
+
+  function toggleIsPremium() {
+    isPremium.value = true;
+  }
+
+  (window as any)["tgp"] = toggleIsPremium; // for testing purpose 
+ 
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
     UserStatus.Online,
@@ -66,5 +76,6 @@ export const useMe = defineStore("me", () => {
     WelcomeCommanderHasReceived,
     changeStatusTo,
     statusClass,
+    isPremium
   };
 });
