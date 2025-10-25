@@ -13,27 +13,46 @@ function Write-Header {
 }
 
 function Flatten-Json {
-    param([Parameter(Mandatory = $true)] $Obj, [string]$Prefix = "")
-    $keys = New-Object System.Collections.Generic.List[string]
+    param(
+        [Parameter(Mandatory = $true)] $Obj,
+        [string]$Prefix = ""
+    )
 
+    $keys = New-Object System.Collections.Generic.List[string]
     if ($null -eq $Obj) { return @() }
 
-    if ($Obj -is [System.Management.Automation.PSCustomObject] -or $Obj -is [hashtable]) {
-        foreach ($prop in $Obj.PSObject.Properties) {
-            $name = if ($Prefix) { "$Prefix.$($prop.Name)" } else { "$($prop.Name)" }
-            $val  = $prop.Value
-            if ($val -is [System.Management.Automation.PSCustomObject] -or $val -is [hashtable]) {
-                [string[]]$nested = Flatten-Json -Obj $val -Prefix $name
+    # helpers
+    function Is-Map($x) {
+        return ($x -is [System.Collections.IDictionary] -or
+                $x -is [System.Collections.Specialized.OrderedDictionary])
+    }
+
+    function Is-Obj($x) {
+        return ($x -is [System.Management.Automation.PSCustomObject])
+    }
+
+    function Is-Arr($x) {
+        return (($x -is [System.Collections.IEnumerable]) -and ($x -isnot [string]))
+    }
+
+    if (Is-Map $Obj) {
+        foreach ($key in $Obj.Keys) {
+            $name  = if ($Prefix) { "$Prefix.$key" } else { "$key" }
+            $value = $Obj[$key]
+
+            if ((Is-Map $value) -or (Is-Obj $value)) {
+                [string[]]$nested = Flatten-Json -Obj $value -Prefix $name
                 $keys.AddRange($nested)
             }
-            elseif (($val -is [System.Collections.IEnumerable]) -and ($val -isnot [string])) {
+            elseif (Is-Arr $value) {
                 $i = 0
-                foreach ($el in $val) {
+                foreach ($el in $value) {
                     $arrName = "$name`[$i`]"
-                    if ($el -is [System.Management.Automation.PSCustomObject] -or $el -is [hashtable]) {
+                    if ((Is-Map $el) -or (Is-Obj $el)) {
                         [string[]]$nested = Flatten-Json -Obj $el -Prefix $arrName
                         $keys.AddRange($nested)
-                    } else {
+                    }
+                    else {
                         $keys.Add($arrName)
                     }
                     $i++
@@ -45,14 +64,44 @@ function Flatten-Json {
             }
         }
     }
-    elseif (($Obj -is [System.Collections.IEnumerable]) -and ($Obj -isnot [string])) {
+    elseif (Is-Obj $Obj) {
+        foreach ($prop in $Obj.PSObject.Properties) {
+            $name  = if ($Prefix) { "$Prefix.$($prop.Name)" } else { "$($prop.Name)" }
+            $value = $prop.Value
+
+            if ((Is-Map $value) -or (Is-Obj $value)) {
+                [string[]]$nested = Flatten-Json -Obj $value -Prefix $name
+                $keys.AddRange($nested)
+            }
+            elseif (Is-Arr $value) {
+                $i = 0
+                foreach ($el in $value) {
+                    $arrName = "$name`[$i`]"
+                    if ((Is-Map $el) -or (Is-Obj $el)) {
+                        [string[]]$nested = Flatten-Json -Obj $el -Prefix $arrName
+                        $keys.AddRange($nested)
+                    }
+                    else {
+                        $keys.Add($arrName)
+                    }
+                    $i++
+                }
+                if ($i -eq 0) { $keys.Add($name) }
+            }
+            else {
+                $keys.Add($name)
+            }
+        }
+    }
+    elseif (Is-Arr $Obj) {
         $i = 0
         foreach ($el in $Obj) {
-            $arrName = "$Prefix`[$i`]"
-            if ($el -is [System.Management.Automation.PSCustomObject] -or $el -is [hashtable]) {
+            $arrName = if ($Prefix) { "$Prefix`[$i`]" } else { "[$i]" }
+            if ((Is-Map $el) -or (Is-Obj $el)) {
                 [string[]]$nested = Flatten-Json -Obj $el -Prefix $arrName
                 $keys.AddRange($nested)
-            } else {
+            }
+            else {
                 $keys.Add($arrName)
             }
             $i++
