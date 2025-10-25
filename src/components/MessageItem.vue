@@ -18,7 +18,7 @@
         <div class="message-content">
             <div class="meta">
                 <span class="username" :data-user-id="user.userId"
-                    :style="{ 'color': getColorByUserId(user.userId) }">{{ user?.displayName || 'Неизвестный' }}</span>
+                    :style="{ 'color': getColorByUserId(user.userId) }">{{ user?.displayName || t("unknown_display_name") }}</span>
 
                 <TooltipProvider>
                     <Tooltip>
@@ -40,7 +40,7 @@
                         'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                         ">
                         <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                            replyUser?.value?.displayName || 'Неизвестный' }}</div>
+                            replyUser?.value?.displayName || t("unknown_display_name")}}</div>
                         <div class="reply-text">{{ replyMessage.text }}</div>
                     </div>
                     <div>
@@ -53,7 +53,7 @@
                         'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                         ">
                         <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                            replyUser?.value?.displayName || 'Неизвестный' }}</div>
+                            replyUser?.value?.displayName || t("unknown_display_name") }}</div>
                         <div class="reply-text">{{ replyMessage.text }}</div>
                     </div>
                     <div>
@@ -63,8 +63,7 @@
             </template>
             <template v-else>
                 <div class="rounded-r-lg border-red-500 border-l-4 bg-gray-800/40 italic text-sm p-4">
-                    This message is not supported by your Argon Chat version <br/> 
-                    Please update to the latest version via settings or restart client for auto update.
+                   {{t("not_supported_message_please_update")  }}
                 </div>
 
             </template>
@@ -95,7 +94,9 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { ArgonMessage, IMessageEntity } from "@/lib/glue/argonChat";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const isOpened = ref(false);
 
 const props = defineProps<{

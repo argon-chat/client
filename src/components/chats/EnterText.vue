@@ -2,7 +2,7 @@
     <div class="relative w-full">
         <div v-if="replyTo" class="reply-banner">
             <div class="reply-info">
-                <strong>Replying to:</strong> {{ replyTo.text }}
+                <strong>{{ t("replying_to") }}</strong> {{ replyTo.text }}
             </div>
             <X class="text-red-600" @click="$emit('clear-reply')" />
         </div>
@@ -70,6 +70,8 @@ import { useDebounce } from "@vueuse/core";
 import { Subscription } from "rxjs";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
 import { v7 } from "uuid";
+import { useLocale } from "@/store/localeStore";
+const { t } = useLocale();
 
 const editorRef = ref<HTMLElement | null>(null);
 const api = useApi();

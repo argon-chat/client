@@ -11,18 +11,20 @@ import Label from "../ui/label/Label.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
 import { useApi } from "@/store/apiStore";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 const { email, password, isLoading, goToResetPass, onSubmit } = props.auth;
 const api = useApi();
 const isMobileDevice = computed(() => argon.isMobileHost);
 
 const titles = [
-  { title: "Good to see you ✨", desc: "Log in and continue your journey" },
-  { title: "Hey there 👋", desc: "Enter your account details to continue" },
-  { title: "Welcome back", desc: "Pick up right where you left off" },
-  { title: "Glad you’re here 🌙", desc: "Access your space and stay connected" },
-  { title: "Hello again 🙈", desc: "Sign in and keep exploring" }
+  { title:t("greetings.good_to_see_you.title"), desc:t("greetings.good_to_see_you.desc")},
+  { title:t("greetings.hey_there.title"), desc:t("greetings.hey_there.desc")},
+  { title:t("greetings.welcome_back.title"), desc:t("greetings.welcome_back.desc")},
+  { title:t("greetings.glad_you_here.title"), desc:t("greetings.glad_you_here.desc")},
+  { title:t("greetings.hello_again.title"), desc:t("greetings.hello_again.desc")},
 ];
 const heading = ref(titles[0]);
 function pickRandomHeading() {
@@ -94,7 +96,7 @@ watch(email, (newVal, oldVal) => {
                      focus:border-blue-500 focus:ring focus:ring-blue-500/30" :disabled="isLoading" />
             <div class="flex justify-end">
               <a @click="goToResetPass" class="cursor-pointer text-sm text-blue-400 hover:text-blue-300 transition">
-                Forgot password?
+                {{ t("forgot_password") }}
               </a>
             </div>
           </div>
@@ -103,17 +105,17 @@ watch(email, (newVal, oldVal) => {
         <CardFooter class="flex flex-col space-y-2">
           <Button v-if="step === 'email'" type="button" :disabled="isLoading || !email"
             class="w-full hover:opacity-90 transition" @click="handleNext">
-            Next
+            {{ t("next") }}
           </Button>
 
           <Button v-else type="submit" :disabled="isLoading" class="w-full hover:opacity-90 transition">
-            Sign In
+            {{ t("signin") }}
           </Button>
 
           <p class="text-xs text-gray-400 text-center">
-            Don’t have an account?
+            {{t("dont_have_account")}}
             <a @click="props.auth.goToRegister()" class="cursor-pointer text-blue-400 hover:text-blue-300 transition">
-              Create one
+              {{ t("create_one") }}
             </a>
           </p>
         </CardFooter>
@@ -123,9 +125,9 @@ watch(email, (newVal, oldVal) => {
       <div class="w-px bg-white/10"></div>
 
       <div class="flex flex-col justify-center items-center p-6 w-[250px] text-center space-y-4" v-if="!isMobileDevice">
-        <p class="text-gray-300 text-sm">Or log in with QR Code</p>
+        <p class="text-gray-300 text-sm">{{t("qr_code_login")}}</p>
         <QRStyled :value="qrLoginUrl" :size="160" level="M" class="rounded-md shadow-lg" />
-        <p class="text-xs text-gray-500">Scan with Argon mobile app</p>
+        <p class="text-xs text-gray-500">{{t("scan_with_app")}}</p>
       </div>
     </Card>
   </div>

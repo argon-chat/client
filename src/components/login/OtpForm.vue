@@ -10,7 +10,9 @@ import { ReloadIcon } from "@radix-icons/vue";
 import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@/components/ui/pin-input";
 import { ArrowBigLeftDashIcon } from "lucide-vue-next";
 import { ref } from "vue";
+import { useLocale } from "@/store/localeStore";
 
+const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 const { otpCode, isLoading, onSubmit, goBackToLogin } = props.auth;
 
@@ -33,10 +35,10 @@ function onReturn() {
             <form @submit.prevent="onSubmit" class="flex flex-col h-full">
                 <CardHeader class="text-center space-y-1">
                     <CardTitle class="text-2xl font-bold text-white">
-                        Enter your OTP code
+                       {{t("enter_your_otp")}}
                     </CardTitle>
                     <CardDescription class="text-gray-400">
-                        We’ve sent it to your email.
+                        {{t("we_sent_it_on_email")}}  
                     </CardDescription>
                 </CardHeader>
 
@@ -60,7 +62,7 @@ function onReturn() {
                     </Button>
                     <Button :disabled="isLoading" class="w-full hover:opacity-90 transition">
                         <ReloadIcon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-                        Verify & Sign In
+                        {{t("verify_and_sigin")}} 
                     </Button>
                 </CardFooter>
             </form>

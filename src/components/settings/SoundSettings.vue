@@ -6,10 +6,10 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Sound Level
+                       {{ t("sound_level") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Sound power of system notifications
+                        {{t("sound_power_of_system_nofifaction")}}
                     </div>
                 </div>
                 <Slider style="padding: 10px;" class="isolate" :step="0.05" :max="1" v-model="soundLevel" />

@@ -8,10 +8,11 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useVoice } from "@/store/voiceStore";
+import { useLocale } from "@/store/localeStore";
 import type { RemoteVideoTrack } from "livekit-client";
 import type { Subscription } from "rxjs";
 import { logger } from "@/lib/logger";
-
+const { t } = useLocale();
 const voice = useVoice();
 
 const posX = ref(20);
@@ -92,12 +93,12 @@ const startDrag = (event: MouseEvent) => {
       autoplay
     >
       <source type="video/mp4" />
-      <p>Ваш браузер не поддерживает видео.</p>
+      <p>{{t("browser_not_support_video")}}</p>
     </video>
     </ContextMenuTrigger>
     <ContextMenuContent class="w-64">
       <ContextMenuItem inset disabled>
-        Close
+        {{ t("close") }}
         <ContextMenuShortcut>⌘[</ContextMenuShortcut>
       </ContextMenuItem>
       <ContextMenuItem inset @click="toggleFullscreen">

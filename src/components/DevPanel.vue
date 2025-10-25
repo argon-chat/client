@@ -5,10 +5,11 @@ import { AutoForm } from "./ui/auto-form";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
 import { useConfig } from "@/store/remoteConfig";
+import { useLocale } from "@/store/localeStore";
 
 const keys = useMagicKeys();
 const cfg = useConfig();
-
+const { t } = useLocale();
 watch(keys["Ctrl+Shift+F9"], (v) => {
   if (v) {
     devPanelShow.value = !devPanelShow.value;
@@ -31,7 +32,7 @@ function applyChanges(data: any) {
         enter-to-class="translate-x-0" leave-from-class="translate-x-0" leave-to-class="-translate-x-full">
         <div v-if="devPanelShow"
             class="fixed top-0 left-0 h-full w-80 bg-black bg-opacity-70 backdrop-blur-md z-50 p-6 overflow-y-auto">
-            <h2 class="text-xl font-bold mb-4 text-white">Development Panel</h2>
+            <h2 class="text-xl font-bold mb-4 text-white">{{ t("Development Panel") }}</h2>
             
         </div>
     </Transition>

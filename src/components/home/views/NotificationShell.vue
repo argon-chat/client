@@ -4,7 +4,7 @@
             <Alert class="flex justify-between items-center h-auto">
                 <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
                     <IconMail />
-                    Notifications
+                    {{ t("notifications") }}
                 </AlertTitle>
             </Alert>
             <br />
@@ -16,7 +16,7 @@
             class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2"
             style="background-color: #161616f5;">
             <IconMail class="w-16 h-16" />
-            <p class="mt-3 text-sm text-muted-foreground">There are no new notifications</p>
+            <p class="mt-3 text-sm text-muted-foreground">{{t("no_new_notifications")}}</p>
         </div>
 
         <div v-else class="space-y-2">
@@ -58,6 +58,8 @@ import Alert from '@/components/ui/alert/Alert.vue'
 import AlertTitle from '@/components/ui/alert/AlertTitle.vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconMail } from "@tabler/icons-vue"
+import { useLocale } from "@/store/localeStore";
+const { t } = useLocale();
 export interface NotificationItem {
     id: string
     title: string

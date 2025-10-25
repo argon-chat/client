@@ -23,36 +23,36 @@
     <Dialog v-model:open="addChannelOpened">
         <DialogContent class="sm:max-w-[425px]">
             <DialogHeader>
-                <DialogTitle>Add channel</DialogTitle>
+                <DialogTitle>{{ t("add_channel") }}</DialogTitle>
             </DialogHeader>
             <div class="grid gap-4 py-4">
                 <div class="grid grid-cols-4 items-center gap-4">
                     <Label for="channel-name" class="text-right">
-                        Name
+                        {{t("name")}}
                     </Label>
                     <Input id="channel-name" v-model="channelName" class="col-span-3" />
                 </div>
                 <div class="grid grid-cols-4 items-center gap-4">
                     <Label for="channel-type" class="text-right">
-                        Type
+                        {{t("type")}}  
                     </Label>
                     <RadioGroup id="channel-type" v-model="channelType" :orientation="'vertical'">
                         <div class="flex items-center space-x-2">
                             <RadioGroupItem id="r1" value="Text" />
                             <Label for="r1">
-                                <Badge>Text</Badge>
+                                <Badge>{{ t("text") }}</Badge>
                             </Label>
                         </div>
                         <div class="flex items-center space-x-2">
                             <RadioGroupItem id="r2" value="Voice" />
                             <Label for="r2">
-                                <Badge>Voice</Badge>
+                                <Badge>{{t("voice")}}</Badge>
                             </Label>
                         </div>
                         <div class="flex items-center space-x-2">
                             <RadioGroupItem id="r3" value="Announcement" />
                             <Label for="r3">
-                                <Badge>Announcement</Badge>
+                                <Badge>{{t("announcement")}}</Badge>
                             </Label>
                         </div>
                     </RadioGroup>
@@ -61,11 +61,11 @@
             <DialogFooter>
                 <DialogClose as-child>
                     <Button type="button" variant="secondary">
-                        Cancel
+                        {{ t("cancel") }}
                     </Button>
                 </DialogClose>
                 <Button type="submit" @click="addChannel">
-                    Create Channel
+                    {{ t("create_channel") }}
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -81,6 +81,9 @@ import {
     UsersIcon,
 } from "lucide-vue-next";
 
+
+import { useTone } from "@/store/toneStore";
+import { useLocale } from "@/store/localeStore";
 import { useMe } from "@/store/meStore";
 import { logger } from "@/lib/logger";
 import { useSpaceStore } from "@/store/serverStore";
@@ -102,6 +105,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChannelType } from "@/lib/glue/argonChat";
 
+const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
 })

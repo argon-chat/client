@@ -21,7 +21,7 @@
                     </div>
 
                     <div class="ml-auto" v-if="false">
-                        <n-statistic label="Profile Views" tabular-nums>
+                        <n-statistic :label="t('profile_views')" tabular-nums>
                             <n-number-animation show-separator :from="0" :to="1832"
                                 :active="true" />
                         </n-statistic>
@@ -34,9 +34,9 @@
                             <h2
                                 class="flex items-center gap-2 text-lg font-semibold mb-4 shell-item h-auto text-start p-4">
                                 <IconRss class="w-5 h-5 text-primary" />
-                                <span>Activity</span>
+                                <span>{{ t("activity") }}</span>
                             </h2>
-                            <p class="text-muted-foreground text-xs p-4 shell-item">No any activity...</p>
+                            <p class="text-muted-foreground text-xs p-4 shell-item">{{t("no_activity")}}.</p>
                         </div> 
                     </div>
 
@@ -44,7 +44,7 @@
                         <div class="p-4 rounded-xl shadow">
                             <h2 class="flex items-center gap-2 text-lg font-semibold h-auto text-start mb-4 ">
                                 <IconClipboardFilled />
-                                Bio
+                                {{t("bio")}}
                             </h2>
                             <p class="text-muted-foreground">
                                 {{ profile.bio || "" }}

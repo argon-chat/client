@@ -40,7 +40,7 @@
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Update is ready!</p>
+                    <p>{{t("update_is_ready")}}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
@@ -55,7 +55,7 @@
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Send feedback!</p>
+                    <p>{{ t("send_feedback") }}</p>
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
