@@ -9,7 +9,7 @@
                        {{ t("sound_level") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        {{t("sound_power_of_system_nofifaction")}}
+                        {{t("sound_power_of_system_notification")}}
                     </div>
                 </div>
                 <Slider style="padding: 10px;" class="isolate" :step="0.05" :max="1" v-model="soundLevel" />

@@ -65,7 +65,7 @@
                     </div>
                     <div class="space-y-1 flex items-center justify-between">
                       <label class="text-sm font-medium text-white">
-  {{ t('mention_hard.allow_mention_role', { mention: '<span class=\"text-blue-500\">' + t('mention_hard.mention') + '</span>' }) }}
+  {{ t('mention_hard.allow_mention_role', { mention: '<span class="text-blue-500">' + t('mention_hard.mention') + '</span>' })}}
 </label>
                       <Switch :checked="selectedArchetype.isMentionable"
                         @update:checked="selectedArchetype.isMentionable = !selectedArchetype.isMentionable"

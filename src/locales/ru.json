@@ -118,7 +118,7 @@
   "crop_image": "Обрезать изображение",
   "disable_otp": "Отключить OTP",
   "sound_level": "Уровень звука",
-  "sound_power_of_system_nofifaction": "Громкость системных уведомлений",
+  "sound_power_of_system_notification": "Громкость системных уведомлений",
   "no_microphone": "Микрофоны не найдены",
   "noname_microphone": "Микрофон без имени",
   "left": "Лево",

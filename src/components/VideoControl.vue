@@ -5,7 +5,7 @@
             <label for="videoSource">{{t("select_video_source")}}:</label>
             <select v-model="selectedVideoSource" @change="switchVideoSource" id="videoSource">
                 <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
-                    {{ device.label || t("Camera") + (videoDevices.indexOf(device) + 1) }}
+                    {{ device.label || t("camera") + (videoDevices.indexOf(device) + 1) }}
                 </option>
             </select>
 

@@ -118,7 +118,7 @@
   "crop_image": "画像をトリミング",
   "disable_otp": "OTPを無効にする",
   "sound_level": "音量レベル",
-  "sound_power_of_system_nofifaction": "システム通知の音量",
+  "sound_power_of_system_notification": "システム通知の音量",
   "no_microphone": "マイクが見つかりません",
   "noname_microphone": "無名マイク",
   "left": "左",
