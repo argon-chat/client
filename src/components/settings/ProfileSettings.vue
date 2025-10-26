@@ -204,7 +204,7 @@ async function uploadUserAvatar(data: string | Blob | File): Promise<string> {
     method: "PATCH",
     body: formData,
     headers: {
-      "X-Api-Token": "c716665c8a387ca96083a1e3b7d6498b23bb5d1abbfa890dd3db9f63af5f2fc8"
+      "X-Api-Token": "f2f3be8c3ddf5017c019248fef849bc240e7b4a25ecb662251d8a4ca7ac6fe58"
     }
   });
 
