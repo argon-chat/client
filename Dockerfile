@@ -2,7 +2,7 @@ FROM oven/bun:1 AS builder
 WORKDIR /app
 
 COPY bun.lockb* package.json ./
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --no-progress --silent --frozen-lockfile --concurrent=false
 
 COPY . .
 RUN bun run build
