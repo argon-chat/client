@@ -1,5 +1,5 @@
-const animate = require("tailwindcss-animate")
-const typo = require('@tailwindcss/typography');
+import animate from "tailwindcss-animate";
+import typography from "@tailwindcss/typography";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -111,5 +111,5 @@ export default {
       }
     },
   },
-  plugins: [animate, typo],
+  plugins: [animate, typography],
 }
