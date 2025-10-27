@@ -28,8 +28,15 @@ export default defineConfig({
     {
       name: "version-generator",
       closeBundle() {
+        const dir = path.resolve("dist");
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+
         const version = Date.now().toString();
-        fs.writeFileSync("dist/tag.json", JSON.stringify({ version }));
+        const filePath = path.join(dir, "tag.json");
+        fs.writeFileSync(filePath, JSON.stringify({ version }), "utf8");
+        console.log(`✅ Version tag written to ${filePath}`);
       },
     },
     //tailwindColorExporter()
