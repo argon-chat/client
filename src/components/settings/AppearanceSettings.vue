@@ -13,7 +13,7 @@
         </div>
         <div>
             <label class="block font-semibold mb-1">{{t("display_name")}}</label>
-            <Input v-model="me.me.displayName" type="text" class="input-field" :placeholder="t('enter_diplay_name')" />
+            <Input v-model="me.me.displayName" type="text" class="input-field" :placeholder="t('enter_display_name')" />
         </div>
         <div v-if="false">
             <label class="block font-semibold mb-1">{{t("password")}}</label>
