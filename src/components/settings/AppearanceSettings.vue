@@ -1,4 +1,3 @@
-<!-- DODELAT' -->
 <template>
     <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
         <h2 class="text-2xl font-bold">{{t("profile_settings")}}</h2>
@@ -9,26 +8,26 @@
             </div>
             <div>
                 <label class="block font-semibold mb-1">{{t("username")}}</label>
-                <Input v-model="me.me.username" type="text" class="input-field" placeholder="Enter username" />
+                <Input v-model="me.me.username" type="text" class="input-field" :placeholder="t('enter_username')" />
             </div>
         </div>
         <div>
             <label class="block font-semibold mb-1">{{t("display_name")}}</label>
-            <Input v-model="me.me.displayName" type="text" class="input-field" placeholder="Enter display name" />
+            <Input v-model="me.me.displayName" type="text" class="input-field" :placeholder="t('enter_diplay_name')" />
         </div>
         <div v-if="false">
             <label class="block font-semibold mb-1">{{t("password")}}</label>
-            <Input type="password" class="input-field" placeholder="Enter new password" />
+            <Input type="password" class="input-field" :placeholder="t('enter_new_password')" />
         </div>
         <div v-if="false">
             <label class="block font-semibold mb-1">{{t("phone_number")}}</label>
-            <Input v-model="user.phoneNumber" type="tel" class="input-field" placeholder="Enter phone number" />
+            <Input v-model="user.phoneNumber" type="tel" class="input-field" :placeholder="t('enter_phone_number')" />
         </div>
 
         <div class="otp-settings" v-if="false">
             <label class="block font-semibold mb-1">{{t("otp_title")}}</label>
             <button @click="toggleOTP" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-                {{ user.otpEnabled ? 'Disable OTP' : 'Enable OTP' }}
+                {{ user.otpEnabled ? t("disable_otp") : t("enable_otp") }}
             </button>
         </div>
 
