@@ -147,6 +147,7 @@
   "channel_type_text": "Текстовый канал",
   "channel_type_voice": "Голосовой канал",
   "channel_type_announcement": "Анонсы",
+  "channel_name_required": "Требуется название канала",
   "invite_code": "Код приглашения",
   "join_or_create_server": "Присоединиться или создать сервер",
   "servers": "Серверы",

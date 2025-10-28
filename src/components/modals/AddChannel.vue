@@ -12,7 +12,12 @@
         </h2>
       </div>
       <div class="relative space-y-3">
-        <InputWithError v-model="channelName" :placeholder="t('channel_name')">
+        <InputWithError 
+          v-model="channelName" 
+          :error="addChannelError" 
+          @clear-error="addChannelError = ''" 
+          :placeholder="t('channel_name')"
+        >
           <template #label>
             <Label
               for="channel-name"
@@ -80,6 +85,7 @@ const servers = useSpaceStore();
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
 const channelType = ref("Text");
 const channelName = ref("");
+const addChannelError = ref("")
 const isLoading = ref(false)
 
 const selectedSpaceId = defineModel<string>("selectedSpace", {
@@ -94,6 +100,7 @@ const emit = defineEmits<{
 const addChannel = async () => {
   if (!channelName.value.trim()) {
     logger.warn("Channel name cannot be empty");
+    addChannelError.value = t('channel_name_required')
     return;
   }
 
@@ -121,6 +128,7 @@ const addChannel = async () => {
       );
 
     channelName.value = ""
+    addChannelError.value = ""
     emit("close");
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
