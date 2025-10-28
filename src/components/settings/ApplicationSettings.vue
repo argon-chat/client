@@ -60,18 +60,18 @@
                 <Select v-model="selected_channel">
 <!-- ne eby dumai  YUKI DUMAI TUT NORM TRANSALTE ILI NE-->
                     <SelectTrigger class="w-[180px]" :disabled="disable_channel_select">
-                        <SelectValue :placeholder="t('select_channel_placeholder')" />
+                        <SelectValue placeholder="Live" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectGroup>
                             <SelectItem value="beta">
-                                {{ t('beta_channel') }}
+                                Beta Channel
                             </SelectItem>
                             <SelectItem value="canary" :disabled="true">
-                                {{ t('canary_channel') }}
+                                Canary Channel
                             </SelectItem>
                             <SelectItem value="live">
-                                {{ t('live_channel') }}
+                                Live Channel
                             </SelectItem>
                         </SelectGroup>
                     </SelectContent>
@@ -94,13 +94,13 @@
                         <SelectContent>
                             <SelectGroup>
                                 <SelectItem value="live">
-                                    {{ t('live_endpoint') }}
+                                    Live
                                 </SelectItem>
                                 <SelectItem value="dev">
-                                    {{ t('dev_endpoint') }}
+                                    Developer
                                 </SelectItem>
                                 <SelectItem value="local">
-                                    {{ t('local_endpoint') }}
+                                    Local
                                 </SelectItem>
                             </SelectGroup>
                         </SelectContent>

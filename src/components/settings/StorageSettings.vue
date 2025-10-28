@@ -1,6 +1,6 @@
 <template>
     <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
-        <h2 class="text-2xl font-bold">{{ t("storage") }}</h2>
+        <h2 class="text-2xl font-bold">{{ t("storages") }}</h2>
         <div>
             <div>
                 <UsageStatus v-if="usageReport" :groups="usageReport.groups" :quota-bytes="usageReport.quotaBytes"
@@ -10,45 +10,45 @@
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Wipe databases
+                        {{t("wipe_database")}}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Destroy all data, reset storages (and authorization too)
+                        {{t("destroy_all_data")}}
                     </div>
                 </div>
                 <button @click="pruneAll(true)"
                     class="button bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600">
-                    Wipe
+                    {{t("wipe")}}
                 </button>
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Wipe cache
+                        {{t("wipe_cache")}}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Destroy media cache
+                        {{t("destroy_media_cache")}}
                     </div>
                 </div>
                 <button @click="pruneCache()"
                     class="button bg-orange-800 text-white rounded px-4 py-2 hover:bg-red-600">
-                    Wipe
+                    {{t("wipe")}}
                 </button>
             </div>
             <br />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
-                        Wipe System Cache
+                       {{ t("wipe_system_cache") }}
                     </div>
                     <div class="text-sm text-muted-foreground">
-                        Destroy all data in local system cache
+                        {{ t("destroy_all_data_in_local_cache") }}
                     </div>
                 </div>
                 <button @click="pruneIndexDb()"
                     class="button bg-orange-800 text-white rounded px-4 py-2 hover:bg-red-600">
-                    Wipe
+                    {{t("wipe")}}
                 </button>
             </div>
             <br />

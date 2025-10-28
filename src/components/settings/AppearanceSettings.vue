@@ -1,3 +1,4 @@
+<!-- DODELAT' -->
 <template>
     <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
         <h2 class="text-2xl font-bold">{{t("profile_settings")}}</h2>
@@ -43,12 +44,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { Input } from "@/components/ui/input";
+import { useLocale } from "@/store/localeStore";
 import ArgonAvatar from "../ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
 import { useToast } from "@/components/ui/toast/use-toast";
 const me = useMe();
 const toast = useToast();
-
+const { t } = useLocale();
 const user = ref({
   avatar: "https://placehold.co/100x100",
   username: "User123",
