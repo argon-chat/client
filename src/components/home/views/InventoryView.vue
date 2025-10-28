@@ -8,7 +8,7 @@
                 </AlertTitle>
 
                 <AlertDescription class="ml-auto">
-                    <Input type="redeem" :placeholder="t('reedem')" class="w-full" v-model="redeemModel"
+                    <Input type="redeem" :placeholder="t('redeem')" class="w-full" v-model="redeemModel"
                         @keydown.enter="redeem" />
                 </AlertDescription>
             </Alert>
