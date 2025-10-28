@@ -1,10 +1,10 @@
 <template>
   <div>
     <div class="flex items-center justify-between p-4 gap-2">
-      <Button @click="addArchetype" variant="ghost" title="Add Role">
+      <Button @click="addArchetype" variant="ghost" :title="t('add_role')">
         <PlusCircleIcon />
       </Button>
-      <Input v-model="search" type="text" placeholder="Search roles..." />
+      <Input v-model="search" type="text" :placeholder="t('search_role')+'.'" />
 
     </div>
     <div v-if="!isLoading">

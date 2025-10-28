@@ -58,7 +58,6 @@
                     </div>
                 </div>
                 <Select v-model="selected_channel">
-<!-- ne eby dumai  YUKI DUMAI TUT NORM TRANSALTE ILI NE-->
                     <SelectTrigger class="w-[180px]" :disabled="disable_channel_select">
                         <SelectValue placeholder="Live" />
                     </SelectTrigger>

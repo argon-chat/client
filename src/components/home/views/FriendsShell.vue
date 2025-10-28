@@ -7,7 +7,7 @@
             </AlertTitle>
 
             <AlertDescription class="ml-auto">
-                <Input type="search" placeholder="Search" class="w-full" />
+                <Input type="search" :placeholder="t('search')" class="w-full" />
             </AlertDescription>
         </Alert>
         <br />

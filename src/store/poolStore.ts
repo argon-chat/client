@@ -58,7 +58,7 @@ import {
 } from "@/lib/glue/argonChat";
 import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
 import { createCustomEqual } from "fast-equals";
-
+import { useLocale } from "@/store/localeStore";
 const deepEqual = createCustomEqual({ strict: true });
 
 export interface MentionUser {
@@ -83,13 +83,13 @@ export const usePoolStore = defineStore("data-pool", () => {
   const bus = useBus();
   const api = useApi();
   const me = useMe();
-
+ 
   const selectedServer = ref(null as Guid | null);
   const selectedChannel = ref(null as Guid | null);
   const selectedTextChannel = ref(null as Guid | null);
 
   const onChannelChanged = new Subject<Guid | null>();
-
+  const { t } = useLocale();
   watch(selectedTextChannel, (newChannelId, oldChannelId) => {
     if (newChannelId !== oldChannelId) onChannelChanged.next(newChannelId);
   });
@@ -488,7 +488,7 @@ export const usePoolStore = defineStore("data-pool", () => {
           archetype: {
             id: "00000000-0000-0000-0000-000000000000",
             spaceId: id,
-            name: "Users",
+            name: t("users"),
             description: "",
             isMentionable: false,
             colour: 0xffffffff,
@@ -508,8 +508,8 @@ export const usePoolStore = defineStore("data-pool", () => {
           archetype: {
             id: "00000000-0000-0000-0000-000000000001",
             spaceId: id,
-            name: "Offline",
-            description: "All offline users",
+            name: t("status_0"),
+            description: t("all_users_offline"),
             isMentionable: false,
             colour: 0xffaaaaaa,
             isHidden: false,

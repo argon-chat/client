@@ -7,11 +7,12 @@ import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
 import { InventoryItem, RedeemError } from '@/lib/glue/argonChat';
 import itemsData from "@/assets/icons/inventory/items.json";
+import { useLocale } from "@/store/localeStore";
 import ContextMenu from '@/components/ui/context-menu/ContextMenu.vue';
 import ContextMenuTrigger from '@/components/ui/context-menu/ContextMenuTrigger.vue';
 import ContextMenuContent from '@/components/ui/context-menu/ContextMenuContent.vue';
 import ContextMenuItem from '@/components/ui/context-menu/ContextMenuItem.vue';
-
+const { t } = useLocale();
 const effects = import.meta.glob('@/assets/icons/inventory/*.webm', { eager: true, import: 'default' });
 const icons = import.meta.glob('@/assets/icons/inventory/*.png', { eager: true, import: 'default' });
 
@@ -160,7 +161,7 @@ watch(open, (v) => {
 </script>
 
 <template>
-  <InventoryView title="Inventory" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem"
+  <InventoryView :title="t('inventory')" :slots="allItems.length" @slot:click="onSlotClick" @redeem="onRedeem"
     :getCardClass="i => allItems[i] ? rarityClassesCards[allItems[i].class] : ''" v-bind="$attrs">
     <template #item="{ index }">
       <div v-if="allItems[index]" class="flex flex-col items-center gap-1 ">

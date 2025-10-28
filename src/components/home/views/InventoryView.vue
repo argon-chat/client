@@ -8,7 +8,7 @@
                 </AlertTitle>
 
                 <AlertDescription class="ml-auto">
-                    <Input type="redeem" placeholder="Redeem..." class="w-full" v-model="redeemModel"
+                    <Input type="redeem" :placeholder="t('reedem')" class="w-full" v-model="redeemModel"
                         @keydown.enter="redeem" />
                 </AlertDescription>
             </Alert>
@@ -40,7 +40,9 @@ import AlertTitle from '@/components/ui/alert/AlertTitle.vue';
 import { Card, CardContent } from '@/components/ui/card'
 import Input from '@/components/ui/input/Input.vue';
 import { IconBasket } from '@tabler/icons-vue';
+import { useLocale } from "@/store/localeStore";
 import { computed, CSSProperties, ref } from 'vue'
+const { t } = useLocale();
 defineOptions({ inheritAttrs: false })
 const redeemModel = ref("");
 const props = withDefaults(
