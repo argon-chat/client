@@ -145,6 +145,7 @@
   "channel_type_text": "Балабольный канал",
   "channel_type_voice": "Орущий канал",
   "channel_type_announcement": "Капитанские возгласы",
+  "channel_name_required": "Требуется название канала",
   "or": "иль",
   "servers": "Пиратские гавани",
   "users": "Братва",

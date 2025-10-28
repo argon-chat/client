@@ -141,6 +141,7 @@
   "select_audio_source": "Ընտրեք ձայնային աղբյուր",
   "select_video_source": "Ընտրեք տեսախցիկի աղբյուր",
   "add_channel": "Ավելացնել ալիք",
+  "channel_name_required": "Ալիքի անունը պարտադիր է",
   "channel_type": "Ալիքի տեսակը",
   "channel_name": "Ալիքի անվանումը",
   "channel_type_text": "Տեքստային ալիք",
