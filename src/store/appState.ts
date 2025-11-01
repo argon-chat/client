@@ -14,13 +14,14 @@ import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
 import { worklets } from "@/lib/audio/WorkletBase";
+import router from "@/router";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
   const isFailedLoad = ref(false);
   const isLoaded = ref(false);
 
-  async function initializeArgonApp(): Promise<void> {
+  async function initializeArgonApp(): Promise<boolean> {
     while (!isOnline.value) {
       logger.info("Waiting network online...");
       await delay(1000);
@@ -66,21 +67,36 @@ export const useAppState = defineStore("app", () => {
 
     const poolStore = usePoolStore();
 
-    poolStore.init();
+    await poolStore.init();
 
     if (auth.isAuthenticated) {
+      const me = useMe();
+
+      const continueNext = await me.init();
+
+      if (!continueNext) {
+        router.push({ path: "/blocked.pg" });
+        return false;
+      }
+
       poolStore.loadServerDetails();
-      await useMe().init();
+
+      await me.completeInit();
+      
       await useIdleStore().init();
       await useActivity().init();
     }
+
+    return true;
   }
 
   async function initApp() {
     logger.info("Begin initialization argon application");
     try {
-      await initializeArgonApp();
+      const success = await initializeArgonApp();
       isLoaded.value = true;
+      if (success)
+        router.push({ path: "/master.pg" });
       logger.success("Complete initialization");
     } catch (e) {
       isFailedLoad.value = true;
