@@ -110,8 +110,8 @@ export interface ArgonChannel {
 
 
 export interface ArgonMessage {
-  messageId: u8;
-  replyId: u8 | null;
+  messageId: i8;
+  replyId: i8 | null;
   channelId: guid;
   spaceId: guid;
   text: string;
@@ -204,6 +204,14 @@ export enum FriendRequestStatus
   Cancelled = 3,
   Expired = 4,
   Blocked = 5,
+}
+
+
+export enum BadAuthKind
+{
+  SESSION_EXPIRED = 0,
+  REQUIRED_RELOGIN = 1,
+  BAD_TOKEN = 2,
 }
 
 
@@ -537,14 +545,30 @@ export enum RegistrationError
 export enum LockdownReason
 {
   NONE = 0,
-  SPAM_SCAM_ACCOUNT = 1,
-  INCITING_MOMENT = 2,
-  NON_BINARY_PERSON = 3,
-  TOS_VIOLATION = 4,
-  LGBT_AGITATION = 5,
-  DRUG_VIOLATION = 6,
-  TERRORISM_AGITATION = 7,
-  CHILD_ABUSE = 8,
+  UNDER_INVESTIGATION = 1,
+  COMPROMISED_ACCOUNT = 2,
+  PAYMENT_FRAUD = 3,
+  MULTI_ACCOUNT_ABUSE = 4,
+  DOXXING = 5,
+  CSAM = 6,
+  SPAM_SCAM_ACCOUNT = 7,
+  INCITING_MOMENT = 8,
+  NON_BINARY_PERSON = 9,
+  TOS_VIOLATION = 10,
+  LGBT_AGITATION = 11,
+  DRUG_VIOLATION = 12,
+  TERRORISM_AGITATION = 13,
+  TERRORISM_CONTENT = 14,
+  SELF_HARM_PROMOTION = 15,
+  CHILD_ABUSE = 16,
+}
+
+
+export enum LockdownSeverity
+{
+  Low = 0,
+  Middle = 1,
+  Critical = 2,
 }
 
 
@@ -1662,6 +1686,144 @@ IonFormatterStorage.register("SubscribeToMySpaces", {
 
 
 
+export abstract class IMyAuthStatus implements IIonUnion<IMyAuthStatus>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isGoodAuthStatus(): this is GoodAuthStatus {
+    return this.UnionKey === "GoodAuthStatus";
+  }
+  public isBadAuthStatus(): this is BadAuthStatus {
+    return this.UnionKey === "BadAuthStatus";
+  }
+  public isLockedAuthStatus(): this is LockedAuthStatus {
+    return this.UnionKey === "LockedAuthStatus";
+  }
+
+}
+
+
+export class GoodAuthStatus extends IMyAuthStatus
+{
+  constructor(public token: string) { super(); }
+
+  UnionKey: string = "GoodAuthStatus";
+  UnionIndex: number = 0;
+}
+
+export class BadAuthStatus extends IMyAuthStatus
+{
+  constructor(public error: BadAuthKind) { super(); }
+
+  UnionKey: string = "BadAuthStatus";
+  UnionIndex: number = 1;
+}
+
+export class LockedAuthStatus extends IMyAuthStatus
+{
+  constructor(public lockdownReason: LockdownReason | null, public lockDownExpiration: datetime | null, public isAppealable: bool, public severity: LockdownSeverity) { super(); }
+
+  UnionKey: string = "LockedAuthStatus";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IMyAuthStatus", {
+  read(reader: CborReader): IMyAuthStatus {
+    reader.readStartArray();
+    let value: IMyAuthStatus = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<GoodAuthStatus>("GoodAuthStatus").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<BadAuthStatus>("BadAuthStatus").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<LockedAuthStatus>("LockedAuthStatus").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IMyAuthStatus): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<GoodAuthStatus>("GoodAuthStatus").write(writer, value as GoodAuthStatus);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<BadAuthStatus>("BadAuthStatus").write(writer, value as BadAuthStatus);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<LockedAuthStatus>("LockedAuthStatus").write(writer, value as LockedAuthStatus);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("GoodAuthStatus", {
+  read(reader: CborReader): GoodAuthStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new GoodAuthStatus(token);
+  },
+  write(writer: CborWriter, value: GoodAuthStatus): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BadAuthStatus", {
+  read(reader: CborReader): BadAuthStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<BadAuthKind>('BadAuthKind').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new BadAuthStatus(error);
+  },
+  write(writer: CborWriter, value: BadAuthStatus): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<BadAuthKind>('BadAuthKind').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LockedAuthStatus", {
+  read(reader: CborReader): LockedAuthStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const lockdownReason = IonFormatterStorage.readNullable<LockdownReason>(reader, 'LockdownReason');
+    const lockDownExpiration = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const isAppealable = IonFormatterStorage.get<bool>('bool').read(reader);
+    const severity = IonFormatterStorage.get<LockdownSeverity>('LockdownSeverity').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new LockedAuthStatus(lockdownReason, lockDownExpiration, isAppealable, severity);
+  },
+  write(writer: CborWriter, value: LockedAuthStatus): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.writeNullable<LockdownReason>(writer, value.lockdownReason, 'LockdownReason');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.lockDownExpiration, 'datetime');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isAppealable);
+    IonFormatterStorage.get<LockdownSeverity>('LockdownSeverity').write(writer, value.severity);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IRedeemResult implements IIonUnion<IRedeemResult>
 {
   abstract UnionKey: string;
@@ -2429,8 +2591,8 @@ IonFormatterStorage.register("RealtimeChannel", {
 IonFormatterStorage.register("ArgonMessage", {
   read(reader: CborReader): ArgonMessage {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const messageId = IonFormatterStorage.get<u8>('u8').read(reader);
-    const replyId = IonFormatterStorage.readNullable<u8>(reader, 'u8');
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const replyId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const text = IonFormatterStorage.get<string>('string').read(reader);
@@ -2442,8 +2604,8 @@ IonFormatterStorage.register("ArgonMessage", {
   },
   write(writer: CborWriter, value: ArgonMessage): void {
     writer.writeStartArray(8);
-    IonFormatterStorage.get<u8>('u8').write(writer, value.messageId);
-    IonFormatterStorage.writeNullable<u8>(writer, value.replyId, 'u8');
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.writeNullable<i8>(writer, value.replyId, 'i8');
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.text);
@@ -2558,6 +2720,17 @@ IonFormatterStorage.register("FriendRequestStatus", {
     return FriendRequestStatus[num] !== undefined ? num as FriendRequestStatus : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: FriendRequestStatus): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("BadAuthKind", {
+  read(reader: CborReader): BadAuthKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return BadAuthKind[num] !== undefined ? num as BadAuthKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: BadAuthKind): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -3185,6 +3358,17 @@ IonFormatterStorage.register("LockdownReason", {
   }
 });
 
+IonFormatterStorage.register("LockdownSeverity", {
+  read(reader: CborReader): LockdownSeverity {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return LockdownSeverity[num] !== undefined ? num as LockdownSeverity : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: LockdownSeverity): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 
 
 export interface IArchetypeInteraction extends IIonService
@@ -3205,9 +3389,8 @@ export interface IChannelInteraction extends IIonService
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
-  GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
+  QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
@@ -3239,6 +3422,7 @@ export interface IIdentityInteraction extends IIonService
   ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   GetAuthorizationScenario(): Promise<string>;
   GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
+  GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
 }
 
 
@@ -3346,9 +3530,8 @@ export interface IChannelInteraction extends IIonService
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8>;
-  GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>>;
+  QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
@@ -3380,6 +3563,7 @@ export interface IIdentityInteraction extends IIonService
   ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
   GetAuthorizationScenario(): Promise<string>;
   GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
+  GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
 }
 
 
@@ -3625,7 +3809,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IonArray<RealtimeChannel>>("IonArray<RealtimeChannel>", writer.data, this.signal);
   }
-  async QueryMessages(spaceId: guid, channelId: guid, from: u8 | null, limit: i4): Promise<IonArray<ArgonMessage>> {
+  async QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "QueryMessages");
           
     const writer = new CborWriter();
@@ -3634,45 +3818,30 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.writeNullable<u8>(writer, from, 'u8');
+    IonFormatterStorage.writeNullable<i8>(writer, from, 'i8');
     IonFormatterStorage.get<i4>('i4').write(writer, limit);
       
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<ArgonMessage>>("IonArray<ArgonMessage>", writer.data, this.signal);
   }
-  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, replyTo: u8 | null): Promise<u8> {
+  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "SendMessage");
           
     const writer = new CborWriter();
       
-    writer.writeStartArray(5);
+    writer.writeStartArray(6);
           
     IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, channelId);
     IonFormatterStorage.get<string>('string').write(writer, text);
     IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
-    IonFormatterStorage.writeNullable<u8>(writer, replyTo, 'u8');
+    IonFormatterStorage.get<i8>('i8').write(writer, randomId);
+    IonFormatterStorage.writeNullable<i8>(writer, replyTo, 'i8');
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<u8>("u8", writer.data, this.signal);
-  }
-  async GetMessages(spaceId: guid, channelId: guid, count: i4, offset: u8): Promise<IonArray<ArgonMessage>> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "GetMessages");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(4);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.get<i4>('i4').write(writer, count);
-    IonFormatterStorage.get<u8>('u8').write(writer, offset);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IonArray<ArgonMessage>>("IonArray<ArgonMessage>", writer.data, this.signal);
+    return await req.callAsyncT<i8>("i8", writer.data, this.signal);
   }
   async DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DisconnectFromVoiceChannel");
@@ -3868,6 +4037,20 @@ export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInter
     writer.writeEndArray();
           
     return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+  async GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "GetMyAuthorization");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, token);
+    IonFormatterStorage.writeNullable<string>(writer, refreshToken, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IMyAuthStatus>("IMyAuthStatus", writer.data, this.signal);
   }
 
 }
