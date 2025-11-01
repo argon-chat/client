@@ -1,6 +1,8 @@
+#requires -Version 7.0
 param(
     [string]$Folder = ".",
     [string]$Baseline = "en.json",
+    [string]$IgnoreFile = "validate-locales.ignore.json",
     [switch]$FailOnMissing,
     [switch]$FailOnExtra
 )
@@ -124,6 +126,8 @@ function Load-JsonFile {
 # ──────────────────────────────────────────────────────────────────────────────
 Write-Header "🌍 Locale keys checker — comparing against baseline '$Baseline'"
 
+$exitCode = 0
+
 $baselinePath = Join-Path $Folder $Baseline
 if (-not (Test-Path $baselinePath)) {
     Write-Host "❌ Baseline not found: $baselinePath" -ForegroundColor Red
@@ -137,8 +141,26 @@ $baseKeys = Flatten-Json $baseJson | Sort-Object -Unique
 Write-Host "✅ Baseline loaded: $Baseline — total flattened keys: $($baseKeys.Count)`n" -ForegroundColor Green
 
 # ──────────────────────────────────────────────────────────────────────────────
+# 🔍 Load ignore list
+$ignorePath = Join-Path $Folder $IgnoreFile
+$ignoredKeys = @()
+if (Test-Path $ignorePath) {
+    $ignoreJson = Load-JsonFile $ignorePath
+    if ($ignoreJson -ne $null) {
+        if (Is-Arr $ignoreJson) {
+            $ignoredKeys = $ignoreJson
+        } elseif (Is-Map $ignoreJson -or (Is-Obj $ignoreJson)) {
+            $ignoredKeys = Flatten-Json $ignoreJson
+        }
+        Write-Host "🧩 Loaded ignore list: $($ignoredKeys.Count) keys will be ignored when checking unused." -ForegroundColor Gray
+    }
+} else {
+    Write-Host "ℹ️ No ignore.json file found — all keys will be checked." -ForegroundColor DarkGray
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # 🔎 Check other locales
-$files = Get-ChildItem -Path $Folder -Filter *.json -File | Where-Object { $_.Name -ne $Baseline }
+$files = Get-ChildItem -Path $Folder -Filter *.json -File | Where-Object { $_.Name -ne $Baseline -and $_.Name -ne $IgnoreFile }
 if (-not $files) {
     Write-Host "⚠️ No locale files found." -ForegroundColor Yellow
 }
@@ -153,15 +175,17 @@ foreach ($f in $files) {
     $missing = $baseKeys | Where-Object { $keys -notcontains $_ }
     $extra   = $keys | Where-Object { $baseKeys -notcontains $_ }
 
-    if ($keys.Count -gt $baseKeys.Count) {
-        Write-Host "🟥 ERROR: $($f.Name) has MORE keys ($($keys.Count)) than baseline ($($baseKeys.Count))!" -ForegroundColor Red
-        foreach ($e in $extra) { Write-Host "      + $e" -ForegroundColor DarkRed }
-    }
-    elseif ($missing.Count -gt 0) {
+    if ($missing.Count -gt 0) {
         Write-Host "❌ Missing keys ($($missing.Count)):" -ForegroundColor Red
         foreach ($m in $missing) { Write-Host "      - $m" -ForegroundColor DarkRed }
+        if ($FailOnMissing) { $exitCode = 1 }
     }
-    else {
+    if ($extra.Count -gt 0) {
+        Write-Host "🟥 Extra keys ($($extra.Count)):" -ForegroundColor Red
+        foreach ($e in $extra) { Write-Host "      + $e" -ForegroundColor DarkRed }
+        if ($FailOnExtra) { $exitCode = 1 }
+    }
+    if (($missing.Count -eq 0) -and ($extra.Count -eq 0)) {
         Write-Host "   ✅ Perfect! All keys match." -ForegroundColor Green
     }
 
@@ -176,29 +200,26 @@ Write-Host "━━━━━━━━━━━━━━━━━━━━━━�
 
 $root = Join-Path $Folder ".."
 $tsFiles  = Get-ChildItem -Path $root -Recurse -Include *.ts, *.vue -ErrorAction SilentlyContinue
-$pattern  = "\s*['""]([^'"")]+)"
+$pattern  = "(['""])([^'"")]+)"
 
 $usedKeys = @()
 foreach ($file in $tsFiles) {
     $content = Get-Content -Raw -Path $file.FullName -ErrorAction SilentlyContinue
     $matches = [regex]::Matches($content, $pattern)
     foreach ($m in $matches) {
-        $usedKeys += $m.Groups[1].Value
+        $usedKeys += $m.Groups[2].Value
     }
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Compare with baseline
-$unusedInCode    = $baseKeys | Where-Object { $usedKeys -notcontains $_ }
-
+$unusedInCode = $baseKeys | Where-Object { ($usedKeys -notcontains $_) -and ($ignoredKeys -notcontains $_) }
 
 if ($unusedInCode.Count -gt 0) {
-    Write-Host "`n⚠️ Keys in en.json but NOT USED in code ($($unusedInCode.Count)):" -ForegroundColor Yellow
-    foreach ($k in $unusedInCode) { Write-Host "   + $k" -ForegroundColor DarkYellow }
-}
-
-if (($missingInLocale.Count -eq 0) -and ($unusedInCode.Count -eq 0)) {
-    Write-Host "`n✅ All translation keys in sync with codebase." -ForegroundColor Green
+    Write-Host "`n⚠️ Keys in baseline but NOT USED in code ($($unusedInCode.Count)):" -ForegroundColor Yellow
+    foreach ($k in $unusedInCode) { Write-Host "   ""$k""," -ForegroundColor DarkYellow }
+    $exitCode = 1
+} else {
+    Write-Host "`n✅ All baseline keys are used (or ignored)." -ForegroundColor Green
 }
 
 Write-Host "`n🎉 Done! Review discrepancies above." -ForegroundColor Magenta
+exit $exitCode
