@@ -5,7 +5,14 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
 import { useBus } from "./busStore";
-import { ArgonUser, UserStatus } from "@/lib/glue/argonChat";
+import {
+  ArgonUser,
+  BadAuthKind,
+  LockedAuthStatus,
+  UserStatus,
+} from "@/lib/glue/argonChat";
+import { useAuthStore } from "./authStore";
+import delay from "@/lib/delay";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -16,19 +23,20 @@ export const useMe = defineStore("me", () => {
   const bus = useBus();
   const me = ref(null as ExtendedUser | null);
 
-  const isPremium = ref(false);
+  const limitation = ref(null as LockedAuthStatus | null);
 
+  const isPremium = ref(false);
 
   function toggleIsPremium() {
     isPremium.value = true;
   }
 
-  (window as any)["tgp"] = toggleIsPremium; // for testing purpose 
- 
+  (window as any)["tgp"] = toggleIsPremium; // for testing purpose
+
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
     UserStatus.Online,
-    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true },
+    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true }
   );
 
   const WelcomeCommanderHasReceived = ref(false);
@@ -43,14 +51,47 @@ export const useMe = defineStore("me", () => {
     if (me.value) me.value.currentStatus = status;
   }
 
-  async function init() {
+  async function completeInit() {
+    bus.doListenMyEvents();
+  }
+
+  async function init(): Promise<boolean> {
+    const authStore = useAuthStore();
+
+    const result = await api.identityInteraction.GetMyAuthorization(
+      authStore.token!,
+      authStore.getRefreshToken()
+    );
+
+    if (result.isBadAuthStatus()) {
+      logger.error("bad auth", result.error);
+      logger.error("token info: ", authStore.token!,
+      authStore.getRefreshToken());
+      useAuthStore().logout();
+      await delay(15000);
+      location.reload();
+      return false;
+    }
+
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
 
     logger.info("Received user info ", me.value);
     WelcomeCommanderHasReceived.value = true;
-    bus.doListenMyEvents();
 
-    setUser({ id: me.value.userId, username: me.value.username,  });
+    setUser({ id: me.value.userId, username: me.value.username });
+
+    if (result.isGoodAuthStatus()) {
+      useAuthStore().setAuthToken(result.token);
+      return true;
+    }
+
+    if (result.isLockedAuthStatus()) {
+      limitation.value = result;
+      logger.warn("Detected restriction on account", result);
+      return false;
+    }
+
+    return true;
   }
 
   const statusClass = (status: UserStatus, useBg = true) => {
@@ -73,9 +114,11 @@ export const useMe = defineStore("me", () => {
   return {
     me,
     init,
+    completeInit,
     WelcomeCommanderHasReceived,
     changeStatusTo,
     statusClass,
-    isPremium
+    isPremium,
+    limitation,
   };
 });
