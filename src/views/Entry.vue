@@ -626,16 +626,14 @@ function onInitTerminal() {
   });
 }
 
-onMounted(() => {
+onMounted(async () => {
   onInitTerminal();
   initWebGL();
   startTime = performance.now();
   render();
   window.addEventListener("resize", onResize);
 
-  app.initApp().then(async () => {
-    router.push({ path: "/master.pg" });
-  });
+  await app.initApp();
 });
 
 onBeforeUnmount(() => {
