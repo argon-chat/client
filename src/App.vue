@@ -8,12 +8,18 @@ import { ref, watch } from "vue";
 import { usePreference } from "./store/preferenceStore";
 import Island from "./components/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
+import { useSleepWatcher } from "./composables/useSleepWatcher";
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
 const isRestored = ref(false);
 
 const mode = useColorMode();
+
+
+const wakeWatcher = useSleepWatcher(async () => {
+  location.reload();
+});
 
 mode.value = "dark";
 
