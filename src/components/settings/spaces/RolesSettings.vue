@@ -32,7 +32,7 @@
             <Tabs v-model="activeTab" default-value="permissions" class="space-y-2">
               <TabsList class="w-full justify-center space-x-2 mb-2" style="background-color: unset !important;">
                 <TabsTrigger :style="{ backgroundColor: activeTab == 'permissions' ? 'rgb(30 30 30)' : '' }"
-                  class="w-[100%]" value="permissions">{{t("permissions_name")}}</TabsTrigger>
+                  class="w-[100%]" value="permissions">{{ t("permissions_name") }}</TabsTrigger>
                 <TabsTrigger :style="{ backgroundColor: activeTab == 'users' ? 'rgb(30 30 30)' : '' }" class="w-[100%]"
                   value="users">{{ t("users") }}</TabsTrigger>
               </TabsList>
@@ -41,7 +41,8 @@
                 <Card>
                   <CardContent class="p-4 space-y-2">
                     <div class="space-y-1">
-                      <label class="text-sm font-medium text-white">{{t("name")}}<span class="text-red-500 ml-1">*</span></label>
+                      <label class="text-sm font-medium text-white">{{ t("name") }}<span
+                          class="text-red-500 ml-1">*</span></label>
                       <Input v-model="selectedArchetype.name" type="text"
                         :class="{ 'text-muted': isLockedArchetype(selectedArchetype, true) }"
                         :readonly="isLockedArchetype(selectedArchetype, true)" placeholder="Role name..." />
@@ -58,15 +59,15 @@
                       :readonly="isLockedArchetype(selectedArchetype, true)" />
                     <br />
                     <div class="space-y-1 flex items-center justify-between">
-                      <label class="text-sm font-medium text-white">{{t("group_members_with_this_role")}}</label>
+                      <label class="text-sm font-medium text-white">{{ t("group_members_with_this_role") }}</label>
                       <Switch :checked="selectedArchetype.isGroup"
                         @update:checked="selectedArchetype.isGroup = !selectedArchetype.isGroup"
                         :disabled="isLockedArchetype(selectedArchetype, true)" />
                     </div>
                     <div class="space-y-1 flex items-center justify-between">
-                      <label class="text-sm font-medium text-white">
-  {{ t('mention_hard.allow_mention_role', { mention: '<span class="text-blue-500">' + t('mention_hard.mention') + '</span>' })}}
-</label>
+                      <label class="text-sm font-medium text-white" v-html="t('mention_hard.allow_mention_role', {
+                        mention: `<span class='text-blue-500'>${t('mention_hard.mention')}</span>`
+                      })" />
                       <Switch :checked="selectedArchetype.isMentionable"
                         @update:checked="selectedArchetype.isMentionable = !selectedArchetype.isMentionable"
                         :disabled="selectedArchetype.isLocked" />
@@ -117,13 +118,14 @@
                           <div>
                             <BanIcon
                               class="cursor-pointer text-red-500 hover:text-red-600 transition-colors data-[disabled=true]:text-gray-600 data-[disabled=true]:cursor-not-allowed"
-                              :data-disabled="selectedArchetype.isLocked || selectedArchetype.isDefault" @click="revokeArchetype(user.userId)" />
+                              :data-disabled="selectedArchetype.isLocked || selectedArchetype.isDefault"
+                              @click="revokeArchetype(user.userId)" />
                           </div>
                           <UserInListSideElement :user="user" :enable-popup="false" :show-activity="false" />
                         </div>
                       </div>
                       <div v-else class="text-muted text-sm mt-2">
-                     {{ t("no_users_with_this_role") }}
+                        {{ t("no_users_with_this_role") }}
                       </div>
                     </div>
                   </CardContent>
@@ -143,13 +145,13 @@
             </div>
           </template>
           <div v-else class="text-muted text-sm p-2">
-            {{t("no_users_found")}}
+            {{ t("no_users_found") }}
           </div>
         </div>
       </div>
     </div>
     <div v-else>
-      {{t("loading")}}
+      {{ t("loading") }}
     </div>
   </div>
 
@@ -439,7 +441,7 @@ function toggleFlag(flag: bigint, checked: boolean) {
     (f) => f === extractEntitlementStrict(flag),
   );
   if (checked && idx === -1) {
-    selectedArchetype.value.entitlement = ( BigInt(selectedArchetype.value.entitlement) | flag) as any;
+    selectedArchetype.value.entitlement = (BigInt(selectedArchetype.value.entitlement) | flag) as any;
   } else if (!checked && idx !== -1) {
     selectedArchetype.value.entitlement = (
       BigInt(selectedArchetype.value.entitlement) & ~flag
