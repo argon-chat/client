@@ -812,7 +812,16 @@ export const usePoolStore = defineStore("data-pool", () => {
     await loadServerDetails();
   };
 
-  const init = () => {
+  const init = async () => {
+    await db.transaction("rw", db.users, async () => {
+    await db.users
+      .where("status")
+      .notEqual(UserStatus.Offline)
+      .modify(user => {
+        user.status = UserStatus.Offline;
+      });
+  });
+
     subscribeToEvents();
   };
 
