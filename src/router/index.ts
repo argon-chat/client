@@ -4,6 +4,7 @@ import LoginPage from "../views/AuthPage.vue";
 import MasterView from "../views/MasterView.vue";
 import Entry from "@/views/Entry.vue";
 import { useAppState } from "@/store/appState";
+import LockdownView from "@/views/LockdownView.vue";
 const routes = [
   {
     path: "/",
@@ -21,6 +22,11 @@ const routes = [
     component: MasterView,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/blocked.pg",
+    name: "LockdownView",
+    component: LockdownView
+  }
 ];
 
 const router = createRouter({
