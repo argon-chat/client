@@ -24,8 +24,8 @@ export class PoolDatabase extends Dexie {
 
   constructor() {
     super("argon-database");
-    this.version(1).stores({
-      users: "userId",
+    this.version(2).stores({
+      users: "userId, status",
       servers: "spaceId",
       channels: "channelId, spaceId",
       messages:
