@@ -39,7 +39,7 @@ export const useAuthStore = defineStore("auth", () => {
       phone: null,
       otpCode: otp ?? null,
       captchaToken: captchaToken ?? null,
-      username: null
+      username: null,
     });
     console.log(r);
     if (r.isSuccessAuthorize()) logger.success("Success authorization");
@@ -82,8 +82,8 @@ export const useAuthStore = defineStore("auth", () => {
       isRequiredOtp.value = false;
       isAuthenticated.value = true;
 
-      if (argon.isArgonHost) native.protectedStore.setValue("token", r.token);
-      else localStorage.setItem("token", r.token);
+      setAuthToken(r.token);
+      if (r.refreshToken) setRefreshToken(r.refreshToken);
     }
   };
   const register = async (data: NewUserCredentialsInput) => {
@@ -94,8 +94,8 @@ export const useAuthStore = defineStore("auth", () => {
     if (r.isSuccessRegistration()) {
       isRequiredOtp.value = false;
       isAuthenticated.value = true;
-      if (argon.isArgonHost) native.protectedStore.setValue("token", r.token);
-      else localStorage.setItem("token", r.token);
+      setAuthToken(r.token);
+      if (r.refreshToken) setRefreshToken(r.refreshToken);
       return;
     } else if (r.isFailedRegistration()) {
       switch (r.error) {
@@ -131,6 +131,24 @@ export const useAuthStore = defineStore("auth", () => {
         duration: 2500,
       });
     }
+  };
+
+  const getRefreshToken = (): string | null => {
+    if (argon.isArgonHost)
+      return native.protectedStore.getValue("rft") as string | null;
+    else return localStorage.getItem("rft");
+  };
+
+  const setRefreshToken = (refreshToken: string) => {
+    if (argon.isArgonHost)
+      return native.protectedStore.setValue("rft", refreshToken);
+    else return localStorage.setItem("rft", refreshToken);
+  };
+
+  const setAuthToken = (t: string) => {
+    if (argon.isArgonHost) native.protectedStore.setValue("token", t);
+    else localStorage.setItem("token", t);
+    _token.value = t;
   };
 
   const logout = () => {
@@ -231,5 +249,8 @@ export const useAuthStore = defineStore("auth", () => {
     isRequiredFormResetPass,
     beginResetPass,
     resetPass,
+    getRefreshToken,
+    setRefreshToken,
+    setAuthToken,
   };
 });
