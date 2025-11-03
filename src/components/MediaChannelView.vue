@@ -313,9 +313,7 @@ const miniGridStyle = computed(() => {
     max-width: 220px;
     height: auto;
 }
-</style>
 
-<style>
 @keyframes pulseSpeak {
 
     0%,
@@ -327,8 +325,8 @@ const miniGridStyle = computed(() => {
 
     50% {
         opacity: 1;
-        transform: scale(1.1);
-        box-shadow: 0 0 24px 8px rgba(132, 255, 90, 0.5);
+        transform: scale(1.01);
+        box-shadow: 0 0 10px 6px rgba(132, 255, 90, 0.5);
     }
 }
 
