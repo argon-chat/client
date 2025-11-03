@@ -12,6 +12,7 @@ import { useLocale } from "@/store/localeStore";
 import type { RemoteVideoTrack } from "livekit-client";
 import type { Subscription } from "rxjs";
 import { logger } from "@/lib/logger";
+import { Guid } from "@argon-chat/ion.webcore";
 const { t } = useLocale();
 const voice = useVoice();
 
@@ -26,28 +27,28 @@ const videoRef = ref<HTMLMediaElement | null>(null);
 
 const videoIsActive = ref(false);
 
-function handleVideoCreation(track: RemoteVideoTrack) {
-  logger.warn("Handle Video Creation", track, videoRef);
+function handleVideoCreation(data: { track: RemoteVideoTrack, userId: Guid }) {
+  logger.warn("Handle Video Creation", data.track, videoRef);
   if (videoRef.value) {
-    track.attach(videoRef.value);
+    data.track.attach(videoRef.value);
     videoIsActive.value = true;
   }
 }
-function handleVideoDestroy(track: RemoteVideoTrack) {
+function handleVideoDestroy(data: { track: RemoteVideoTrack, userId: Guid }) {
   videoIsActive.value = false;
-  logger.warn("Handle Video Destroyed", track, videoRef);
+  logger.warn("Handle Video Destroyed", data.track, videoRef);
   if (videoRef.value) {
-    track.detach(videoRef.value);
+    data.track.detach(videoRef.value);
   }
 }
 
 onMounted(() => {
-  subs = voice.onVideoCreated.subscribe(handleVideoCreation as any);
-  voice.onVideoDestroyed.subscribe(handleVideoDestroy as any);
+  //subs = voice.onVideoCreated.subscribe(handleVideoCreation);
+  //voice.onVideoDestroyed.subscribe(handleVideoDestroy);
 });
 
 onUnmounted(() => {
-  subs?.unsubscribe();
+  //subs?.unsubscribe();
 });
 
 const toggleFullscreen = () => {

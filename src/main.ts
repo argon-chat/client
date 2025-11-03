@@ -18,7 +18,7 @@ import "vue-advanced-cropper/dist/style.css";
 import { createSentryPiniaPlugin } from "@sentry/vue";
 import { setLogLevel } from "livekit-client";
 import "@/lib/glue/argonChat";
-setLogLevel("debug");
+setLogLevel("warn");
 if (argon.isArgonHost) {
   native.V8ThreadingInit();
 }

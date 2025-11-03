@@ -21,7 +21,7 @@ const props = withDefaults(
   defineProps<{
     class?: HTMLAttributes["class"];
     userId: string;
-    overridedSize?: number;
+    overridedSize?: number | 'auto';
   }>(),
   {
     overridedSize: undefined,
@@ -37,7 +37,7 @@ const blobSrc = ref("");
 const fallbackLetter = ref("?");
 
 const size = computed(() =>
-  props.overridedSize ? `${props.overridedSize}px` : null,
+  props.overridedSize ? (props.overridedSize == 'auto' ? 'auto' : `${props.overridedSize}px`) : null,
 );
 
 const user = pool.getUserReactive(props.userId);

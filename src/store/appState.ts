@@ -28,17 +28,14 @@ export const useAppState = defineStore("app", () => {
     }
 
     logger.info("Begin initialization firebase runtime...");
-    await delay(1000);
 
     await useFirebase().initCfg();
 
     logger.info("Begin init tone audio engine...");
-    await delay(1000);
 
     useTone().init();
 
     logger.info("Restoring session...");
-    await delay(1000);
 
     const auth = await useAuthStore();
     auth.restoreSession();
@@ -63,7 +60,6 @@ export const useAppState = defineStore("app", () => {
     await useFileStorage().initStorages();
 
     logger.info("Fetch data...");
-    await delay(1000);
 
     const poolStore = usePoolStore();
 

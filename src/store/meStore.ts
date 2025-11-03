@@ -64,11 +64,7 @@ export const useMe = defineStore("me", () => {
     );
 
     if (result.isBadAuthStatus()) {
-      logger.error("bad auth", result.error);
-      logger.error("token info: ", authStore.token!,
-      authStore.getRefreshToken());
       useAuthStore().logout();
-      await delay(15000);
       location.reload();
       return false;
     }

@@ -110,8 +110,8 @@ export const useVoice = defineStore("voice", () => {
     disposableBag: DisposableBag;
   }>;
 
-  const onVideoCreated: Subject<Track> = new Subject<Track>();
-  const onVideoDestroyed: Subject<Track> = new Subject<Track>();
+  const onVideoCreated: Subject<{track: Track, userId: Guid}> = new Subject<{track: Track, userId: Guid}>();
+  const onVideoDestroyed: Subject<{track: Track, userId: Guid}> = new Subject<{track: Track, userId: Guid}>();
 
   const rtt = ref(0);
 
@@ -379,7 +379,8 @@ export const useVoice = defineStore("voice", () => {
 
     if (track.kind === "video") {
       isOtherUserSharing.value = true;
-      onVideoCreated.next(track);
+      logger.error("onVideoCreated", { track, userId: participant.identity })
+      onVideoCreated.next({ track, userId: participant.identity });
       return;
     }
 
@@ -593,7 +594,7 @@ export const useVoice = defineStore("voice", () => {
 
       logger.warn("Started video scren share", screenTrack);
 
-      onVideoCreated.next(screenTrack?.track as any);
+      //onVideoCreated.next(screenTrack?.track as any);
 
       screenTrack?.once("ended", () => {
         stopScreenShare();
@@ -606,7 +607,7 @@ export const useVoice = defineStore("voice", () => {
 
   const stopScreenShare = async () => {
     if (screenTrack?.track) {
-      onVideoDestroyed.next(screenTrack.track);
+      onVideoDestroyed.next({ track: screenTrack.track, userId: connectedRoom!.room!.localParticipant!.identity });
       screenTrack =
         await connectedRoom.room?.localParticipant.setScreenShareEnabled(false);
       screenTrack = undefined;
@@ -645,7 +646,7 @@ export const useVoice = defineStore("voice", () => {
 
     if (track.kind === "video") {
       isOtherUserSharing.value = false;
-      onVideoDestroyed.next(track);
+      onVideoDestroyed.next({ track, userId: participant.identity });
     } else if (track.kind === "audio") {
       track.detach();
       logger.info("Audio is detached");

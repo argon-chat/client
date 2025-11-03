@@ -121,7 +121,9 @@ const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
 })
-
+const selectedChannelId = defineModel<string>('selectedChannelId', {
+    type: String, required: true
+})
 
 const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
@@ -134,7 +136,7 @@ async function channelSelect(channelId: string) {
   } else {
     logger.warn("no found channel for ", channelId, channel);
   }
-
+  selectedChannelId.value = channelId;
   logger.info(`Do action for channel`, channel);
 
   if (voice.activeChannel) {

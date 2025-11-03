@@ -42,7 +42,7 @@
                                         <video autoplay :srcObject="size.preview" class="rounded-lg preview"
                                             :class="{ previewSelected: size.selected }"></video>
                                         <span class="text-sm mt-2">{{ t('monitor_index', { idx: size.DisplayIndex })
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                                 <div class="mt-4">
@@ -128,12 +128,12 @@
                     <span class="font-semibold marquee">{{ voice.activeChannel?.name }}</span>
                 </div>
                 <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer
-                    }}</span>
+                }}</span>
                 <span class="text-xs text-lime-400 mt-1"
-                    v-if="voice.isConnected && !voice.currentlyReconnect">{{t("connected")}}</span>
+                    v-if="voice.isConnected && !voice.currentlyReconnect">{{ t("connected") }}</span>
                 <span class="text-xs text-orange-400 mt-1"
-                    v-if="voice.isBeginConnect && !voice.currentlyReconnect">{{t("connecting")}}...</span>
-                <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">{{t("reconnect")}}...</span>
+                    v-if="voice.isBeginConnect && !voice.currentlyReconnect">{{ t("connecting") }}...</span>
+                <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">{{ t("reconnect") }}...</span>
             </div>
         </div>
 
@@ -143,23 +143,23 @@
 
 <script setup lang="ts">
 import {
-  TooltipProvider,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
+    TooltipProvider,
+    Tooltip,
+    TooltipTrigger,
+    TooltipContent,
 } from "@/components/ui/tooltip";
 import {
-  Mic,
-  MicOff,
-  HeadphoneOff,
-  Headphones,
-  Signal,
-  PhoneOffIcon,
-  ScreenShareOff,
-  ScreenShare,
-  TicketPercent,
-  CameraIcon,
-  OctagonMinusIcon,
+    Mic,
+    MicOff,
+    HeadphoneOff,
+    Headphones,
+    Signal,
+    PhoneOffIcon,
+    ScreenShareOff,
+    ScreenShare,
+    TicketPercent,
+    CameraIcon,
+    OctagonMinusIcon,
 } from "lucide-vue-next";
 
 import { useMe } from "@/store/meStore";
@@ -171,19 +171,19 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-  DialogHeader,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogTitle,
+    DialogDescription,
+    DialogHeader,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { onMounted, ref, watch } from "vue";
@@ -200,43 +200,43 @@ const sessionTimerStore = useSessionTimer();
 const status = ref(me.me?.currentStatus);
 
 watch(status, (newStatus) => {
-  me.changeStatusTo(newStatus!);
+    me.changeStatusTo(newStatus!);
 });
 
 const toggleDoNotDistrurb = () => {
-  if (status.value === UserStatus.DoNotDisturb) status.value = UserStatus.Online;
-  else status.value = UserStatus.DoNotDisturb;
+    if (status.value === UserStatus.DoNotDisturb) status.value = UserStatus.Online;
+    else status.value = UserStatus.DoNotDisturb;
 };
 
 const allSizes = [
-  //{ title: "SVGA (600p)", h: 600, w: 800 },
-  //{ title: "XGA (768p)", h: 768, w: 1024 },
-  { title: "WXGA (720p)", h: 720, w: 1280, preset: "720p" },
-  // { title: "WXGA+ (900p)", h: 900, w: 1440 },
-  //{ title: "HD+ (900p)", h: 900, w: 1600 },
-  { title: "Full HD (1080p)", h: 1080, w: 1920, preset: "1080p" },
-  // { title: "WUXGA (1200p)", h: 1200, w: 1920 },
-  { title: "QHD (1440p)", h: 1440, w: 2560, preset: "1440p" },
-  // { title: "WQXGA (1600p)", h: 1600, w: 2560 },
-  { title: "4K UHD (2160p)", h: 2160, w: 3840, preset: "2160p" },
-  // { title: "5K (2880p)", h: 2880, w: 5120 },
-  // { title: "8K UHD (4320p)", h: 4320, w: 7680 },
-  // { title: "UWHD (1080p)", h: 1080, w: 2560 },
-  //{ title: "UWQHD (1440p)", h: 1440, w: 3440 },
-  // { title: "UWQHD+ (1600p)", h: 1600, w: 3840 },
-  //{ title: "5K2K (2160p)", h: 2160, w: 5120 },
-  // { title: "DFHD (1080p x2)", h: 1080, w: 3840 },
-  // { title: "DQHD (1440p x2)", h: 1440, w: 5120 }
+    //{ title: "SVGA (600p)", h: 600, w: 800 },
+    //{ title: "XGA (768p)", h: 768, w: 1024 },
+    { title: "WXGA (720p)", h: 720, w: 1280, preset: "720p" },
+    // { title: "WXGA+ (900p)", h: 900, w: 1440 },
+    //{ title: "HD+ (900p)", h: 900, w: 1600 },
+    { title: "Full HD (1080p)", h: 1080, w: 1920, preset: "1080p" },
+    // { title: "WUXGA (1200p)", h: 1200, w: 1920 },
+    { title: "QHD (1440p)", h: 1440, w: 2560, preset: "1440p" },
+    // { title: "WQXGA (1600p)", h: 1600, w: 2560 },
+    { title: "4K UHD (2160p)", h: 2160, w: 3840, preset: "2160p" },
+    // { title: "5K (2880p)", h: 2880, w: 5120 },
+    // { title: "8K UHD (4320p)", h: 4320, w: 7680 },
+    // { title: "UWHD (1080p)", h: 1080, w: 2560 },
+    //{ title: "UWQHD (1440p)", h: 1440, w: 3440 },
+    // { title: "UWQHD+ (1600p)", h: 1600, w: 3840 },
+    //{ title: "5K2K (2160p)", h: 2160, w: 5120 },
+    // { title: "DFHD (1080p x2)", h: 1080, w: 3840 },
+    // { title: "DQHD (1440p x2)", h: 1440, w: 5120 }
 ];
 
 const allFps = [
-  { title: "15fps", value: "15" },
-  { title: "30fps", value: "30" },
-  { title: "45fps", value: "45" },
-  { title: "60fps", value: "60" },
-  { title: "90fps", value: "90" },
-  { title: "120fps", value: "120" },
-  { title: "165fps", value: "165" },
+    { title: "15fps", value: "15" },
+    { title: "30fps", value: "30" },
+    { title: "45fps", value: "45" },
+    { title: "60fps", value: "60" },
+    { title: "90fps", value: "90" },
+    { title: "120fps", value: "120" },
+    { title: "165fps", value: "165" },
 ];
 
 const openShareSettings = ref(false);
@@ -245,113 +245,113 @@ const quality = ref(allSizes.at(0)?.title);
 const fps = ref("30");
 
 interface IScreenWithPreview extends IScreen {
-  preview: any;
-  selected: boolean;
+    preview: any;
+    selected: boolean;
 }
 
 const displays = ref([] as IScreenWithPreview[]);
 
 const setSelected = (size: IScreenWithPreview) => {
-  for (const i of displays.value) {
-    if (i.DisplayIndex === size.DisplayIndex) i.selected = true;
-    else i.selected = false;
-  }
+    for (const i of displays.value) {
+        if (i.DisplayIndex === size.DisplayIndex) i.selected = true;
+        else i.selected = false;
+    }
 };
 
 const toggleScreenCast = () => {
-  openShareSettings.value = false;
-  if (!voice.isConnected) return;
-  if (voice.isOtherUserSharing) return;
+    openShareSettings.value = false;
+    if (!voice.isConnected) return;
+    if (voice.isOtherUserSharing) return;
 
-  if (voice.isSharing) voice.stopScreenShare();
-  else {
-    openShareSettings.value = true;
-  }
+    if (voice.isSharing) voice.stopScreenShare();
+    else {
+        openShareSettings.value = true;
+    }
 };
 
 async function getPreviewForScreen(display: IScreen) {
-  if (!argon.isArgonHost) return new MediaStream();
-    return new MediaStream();
-  /*const p = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSourceId: `screen:${display.DisplayIndex}:0`,
-        chromeMediaSource: "screen",
-        maxWidth: 2220,
-        maxHeight: 1210,
-      },
-    } as any,
-  });
+    if (!argon.isArgonHost) return new MediaStream();
 
-  return p;*/
+    const p = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            mandatory: {
+                chromeMediaSourceId: `screen:${display.DisplayIndex}:0`,
+                chromeMediaSource: "screen",
+                maxWidth: 220,
+                maxHeight: 110,
+            },
+        } as any,
+    });
+
+    return p;
 }
 
 async function getPreviewForWindow(window: IWindowInfo) {
-  if (!argon.isArgonHost) return new MediaStream();
-  const p = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSourceId: window.deviceId,
-        chromeMediaSource: "desktop",
-        maxWidth: 220,
-        maxHeight: 110, 
-      },
-    } as any,
-  });
+    if (!argon.isArgonHost) return new MediaStream();
+    const p = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            mandatory: {
+                chromeMediaSourceId: window.deviceId,
+                chromeMediaSource: "desktop",
+                maxWidth: 220,
+                maxHeight: 110,
+            },
+        } as any,
+    });
 
-  return p;
+    return p;
 }
 
 async function goShare() {
-  openShareSettings.value = false;
-  if (!voice.isConnected) return;
-  if (voice.isOtherUserSharing) return;
+    openShareSettings.value = false;
+    if (!voice.isConnected) return;
+    if (voice.isOtherUserSharing) return;
 
-  if (voice.isSharing) voice.stopScreenShare();
-  else {
-    const dev = displays.value.filter((x) => x.selected).at(0);
-    await voice.startScreenShare({
-      fps: +(fps.value ?? "30"),
-      systemAudio: includeAudio.value ? "include" : "exclude",
-      preset: quality.value as any,
-      deviceId: `screen:${dev?.DisplayIndex}:0`,
-      deviceKind: "screen",
-    });
-  }
+    if (voice.isSharing) voice.stopScreenShare();
+    else {
+        const dev = displays.value.filter((x) => x.selected).at(0);
+        await voice.startScreenShare({
+            fps: +(fps.value ?? "30"),
+            systemAudio: includeAudio.value ? "include" : "exclude",
+            preset: quality.value as any,
+            deviceId: `screen:${dev?.DisplayIndex}:0`,
+            deviceKind: "screen",
+        });
+    }
 }
 
 onMounted(async () => {
-  let sc = [] as IScreen[];
+    let sc = [] as IScreen[];
 
-  if (argon.isArgonHost) {
-    sc = native.getDisplays();
-  } else {
-    sc = [
-      {
-        DisplayIndex: "0",
-        Freq: 165,
-        Height: 1440,
-        IsPrimary: true,
-        Left: 0,
-        Top: 0,
-        Width: 2560,
-      },
-    ];
-  }
+    if (argon.isArgonHost) {
+        sc = native.getDisplays();
+    } else {
+        sc = [
+            {
+                DisplayIndex: "0",
+                Freq: 165,
+                Height: 1440,
+                IsPrimary: true,
+                Left: 0,
+                Top: 0,
+                Width: 2560,
+            },
+        ];
+    }
 
-  const sce = [] as IScreenWithPreview[];
+    const sce = [] as IScreenWithPreview[];
 
-  for (const i of sc) {
-    sce.push({
-      ...i,
-      preview: await getPreviewForScreen(i),
-      selected: sce.length === 0,
-    });
-  }
+    for (const i of sc) {
+        sce.push({
+            ...i,
+            preview: await getPreviewForScreen(i),
+            selected: sce.length === 0,
+        });
+    }
 
-  displays.value = sce;
+    displays.value = sce;
 });
 </script>
 
