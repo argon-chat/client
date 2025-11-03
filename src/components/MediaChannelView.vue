@@ -1,12 +1,10 @@
 <template>
     <div class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-6">
-        <!-- === Есть активный стример === -->
         <template v-if="mainStreamer">
             <div class="main-streamer relative flex-1 flex items-center justify-center mb-4">
                 <div class="user-wrapper w-full h-full flex items-center justify-center relative">
-                    <!-- Пульс говорящего -->
-                    <!-- Видео / аватар -->
-                    <div class="user-tile group rounded-2xl relative overflow-hidden shadow-[0_0_16px_rgba(0,0,0,0.45)] transition-all duration-200 z-0"
+                    <div ref="mainVideoContainer"
+                        class="user-tile group rounded-2xl relative overflow-hidden shadow-[0_0_16px_rgba(0,0,0,0.45)] transition-all duration-200 z-0"
                         :class="{
                             'ring-2 ring-lime-400/80 shadow-[0_0_25px_rgba(132,255,90,0.3)] scale-[1.03]': mainStreamer.isSpeaking,
                         }">
@@ -15,6 +13,29 @@
                             class="w-full h-full object-cover rounded-2xl" />
                         <SmartArgonAvatar v-else :user-id="mainStreamer?.User?.userId" :overrided-size="180"
                             class="transition-transform duration-300 group-hover:scale-110" />
+
+                        <div class="absolute top-3 right-3 z-10 flex gap-2">
+                            <button @click="togglePiP"
+                                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
+                                title="Окно 'картинка в картинке'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <rect x="3" y="3" width="18" height="14" rx="2" ry="2" stroke-width="2" />
+                                    <rect x="12" y="10" width="8" height="6" rx="1" ry="1" fill="currentColor" />
+                                </svg>
+                            </button>
+
+                            <button @click="toggleFullscreen"
+                                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
+                                title="Развернуть в полный экран">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 3H5a2 2 0 00-2 2v3m0 8v3a2 2 0 002 2h3m8-18h3a2 2 0 012 2v3m0 8v3a2 2 0 01-2 2h-3" />
+                                </svg>
+                            </button>
+                        </div>
+
                         <div
                             class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-lg font-semibold py-3 text-center">
                             {{ mainStreamer?.User?.displayName }}
@@ -23,29 +44,24 @@
                 </div>
             </div>
 
-            <!-- === Мини-грид остальных === -->
             <div class="other-users grid gap-3" :style="miniGridStyle">
                 <div v-for="[userId, user] in otherUsers" :key="userId"
                     class="user-wrapper flex items-center justify-center">
-                    <!-- Плитка -->
                     <div class="user-tile relative rounded-xl overflow-hidden bg-black/60 transition-transform duration-200 hover:scale-105 flex items-center justify-center aspect-video w-full"
                         :class="{
                             'ring-2 ring-lime-400/80 shadow-[0_0_25px_rgba(132,255,90,0.3)] scale-[1.03]': user.isSpeaking,
                         }">
-                        <!-- Видео или аватар -->
                         <video v-if="activeVideos.has(user.User.userId)"
                             :ref="(el) => setVideoRef(el, user.User.userId)" autoplay playsinline muted
                             class="w-full h-full object-cover" />
                         <SmartArgonAvatar v-else :user-id="user.User.userId" :overrided-size="80"
                             class="transition-transform duration-300 group-hover:scale-110 rounded-full" />
 
-                        <!-- Имя -->
                         <div
                             class="absolute bottom-1 left-0 right-0 text-center text-xs text-white/80 bg-gradient-to-t from-black/50 to-transparent py-0.5">
                             {{ user.User.displayName }}
                         </div>
 
-                        <!-- Иконки -->
                         <div class="absolute top-2 right-2 flex gap-1.5 z-10">
                             <MicOffIcon v-if="user.isMuted" width="18" height="18"
                                 class="text-red-400/90 drop-shadow-[0_0_4px_rgba(255,80,80,0.5)]" />
@@ -53,7 +69,6 @@
                                 class="text-sky-400/90 drop-shadow-[0_0_4px_rgba(80,180,255,0.5)]" />
                         </div>
 
-                        <!-- Пульс -->
                         <div v-if="user.isSpeaking"
                             class="absolute inset-0 -m-[3px] rounded-xl ring-4 ring-lime-400/30 animate-pulse-speak pointer-events-none z-0">
                         </div>
@@ -62,12 +77,10 @@
             </div>
         </template>
 
-        <!-- === Нет стрима — обычная сетка === -->
         <template v-else>
             <div class="media-grid flex-1 grid gap-5 w-full h-full place-items-center" :style="gridStyle">
                 <div v-for="[userId, user] in allUsers" :key="userId"
                     class="user-wrapper relative flex items-center justify-center w-full">
-                    <!-- Пульс -->
                     <div v-if="user.isSpeaking"
                         class="absolute inset-0 -m-[4px] rounded-2xl ring-4 ring-lime-400/30 animate-pulse-speak pointer-events-none z-[1]">
                     </div>
@@ -120,18 +133,16 @@ const voice = useVoice();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
-// === Users ===
 const users = computed(() => {
     const ch = selectedChannelId.value ? pool.realtimeChannelUsers.get(selectedChannelId.value) : null;
     return ch?.Users ?? new Map<Guid, IRealtimeChannelUserWithData>();
 });
 
-// === Video Refs ===
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const activeVideos = ref<Map<Guid, Track<Track.Kind>>>(new Map());
 const lastActiveStream = ref<{ userId: Guid; channelId: string } | null>(null);
 
-function setVideoRef(el: Element | null, userId: Guid) {
+function setVideoRef(el: Element | null | any, userId: Guid) {
     if (el instanceof HTMLVideoElement) {
         videoRefs.value.set(userId, el);
         const track = activeVideos.value.get(userId);
@@ -145,11 +156,42 @@ function setVideoRef(el: Element | null, userId: Guid) {
         videoRefs.value.delete(userId);
     }
 }
+const mainVideoContainer = ref<HTMLElement | null>(null);
 
-// === Video events ===
+function toggleFullscreen() {
+    const el = mainVideoContainer.value;
+    if (!el) return;
+
+    if (!document.fullscreenElement) {
+        el.requestFullscreen().catch(err => {
+            console.warn("failed enter to fullscreen:", err);
+        });
+    } else {
+        document.exitFullscreen().catch(err => {
+            console.warn("failed exit from fullscreen:", err);
+        });
+    }
+}
+async function togglePiP() {
+    const userId = mainUserId.value;
+    if (!userId) return;
+
+    const video = videoRefs.value.get(userId);
+    if (!video) return;
+
+    try {
+        if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+        } else {
+            await video.requestPictureInPicture();
+        }
+    } catch (err) {
+        console.warn("failed to toggle PiP:", err);
+    }
+}
+
 onMounted(() => {
     voice.onVideoCreated.subscribe(({ track, userId }) => {
-        logger.debug("Video created", userId);
         activeVideos.value.set(userId, track);
         const el = videoRefs.value.get(userId);
         if (el) track.attach(el);
@@ -159,7 +201,6 @@ onMounted(() => {
     });
 
     voice.onVideoDestroyed.subscribe(({ userId }: { userId: Guid }) => {
-        logger.debug("Video destroyed", userId);
         const track = activeVideos.value.get(userId);
         const el = videoRefs.value.get(userId);
         if (track && el) track.detach(el);
@@ -179,13 +220,11 @@ onUnmounted(() => {
     videoRefs.value.clear();
 });
 
-// === Floating mini video trigger ===
 const shouldShowMiniVideo = computed(() => {
     const s = lastActiveStream.value;
     return s !== null && activeVideos.value.has(s.userId) && selectedChannelId.value !== s.channelId;
 });
 
-// === Layout logic ===
 const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
     Array.from(users.value as Map<Guid, IRealtimeChannelUserWithData>)
 );
@@ -194,7 +233,7 @@ const mainStreamer = computed<IRealtimeChannelUserWithData | null>(() => {
     if (!lastActiveStream.value) return null;
     const { userId } = lastActiveStream.value;
     if (activeVideos.value.has(userId)) {
-        return users.value.get(userId) ?? null;
+        return (users.value.get(userId) ?? null) as IRealtimeChannelUserWithData | null;
     }
     return null;
 });
@@ -207,7 +246,6 @@ const otherUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() => {
     return allUsers.value.filter(([id]) => id !== mainId);
 });
 
-// === Grid layouts ===
 const gridStyle = computed(() => {
     const n = users.value.size;
     if (n === 0) return "";
@@ -277,7 +315,6 @@ const miniGridStyle = computed(() => {
 }
 </style>
 
-<!-- Глобальный CSS без scoped, чтобы анимация реально работала -->
 <style>
 @keyframes pulseSpeak {
 
