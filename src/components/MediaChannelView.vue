@@ -15,15 +15,15 @@
                             class="transition-transform duration-300 group-hover:scale-110" />
 
                         <div class="absolute top-3 right-3 z-10 flex gap-2">
-                            <button @click="togglePiP"
+                           <!--  <button @click="togglePiP"
                                 class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
-                                title="Окно 'картинка в картинке'">
+                                title="">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
                                     stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="14" rx="2" ry="2" stroke-width="2" />
                                     <rect x="12" y="10" width="8" height="6" rx="1" ry="1" fill="currentColor" />
                                 </svg>
-                            </button>
+                            </button> -->
 
                             <button @click="toggleFullscreen"
                                 class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
