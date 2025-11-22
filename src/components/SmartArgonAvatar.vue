@@ -1,18 +1,21 @@
 <template>
   <keep-alive :max="10" :key="props.userId">
-    <Avatar :class="props.class" :style="{ width: size, height: size }">
+    <Avatar :class="props.class" :style="{
+      width: size,
+      height: size,
+      ...avatarRootStyle
+    }">
       <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
 
       <video v-else-if="!loading && loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc"
         disablePictureInPicture controlslist="nodownload nofullscreen noremoteplayback" />
 
-      <AvatarFallback v-if="!loading && !loaded" :style="fallbackStyle">
+      <AvatarFallback v-else>
         {{ fallbackLetter }}
       </AvatarFallback>
     </Avatar>
   </keep-alive>
 </template>
-
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +53,7 @@ const isCallUser = computed(() =>
   props.userId.toLocaleUpperCase().startsWith("CFFFFFFF")
 );
 
-const fallbackStyle = computed(() => {
+const avatarRootStyle = computed(() => {
   if (!isCallUser.value) return {};
   return {
     backgroundColor: "#ff8b00",
