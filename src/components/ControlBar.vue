@@ -259,12 +259,14 @@ function stopPreview(stream: MediaStream | null) {
 const isRecording = ref(false);
 
 async function toggleRecord() {
-    if (isRecording.value) {
-        await voice.startChannelRecord();
-        isRecording.value = true;
+    if (!isRecording.value) {
+        if (await voice.startChannelRecord()) {
+            isRecording.value = true;
+        }
     } else {
-        await voice.stopChannelRecord();
-        isRecording.value = false;
+        if (await voice.stopChannelRecord()) {
+            isRecording.value = false;
+        }
     }
 }
 

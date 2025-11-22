@@ -110,8 +110,12 @@ export const useVoice = defineStore("voice", () => {
     disposableBag: DisposableBag;
   }>;
 
-  const onVideoCreated: Subject<{track: Track, userId: Guid}> = new Subject<{track: Track, userId: Guid}>();
-  const onVideoDestroyed: Subject<{track: Track, userId: Guid}> = new Subject<{track: Track, userId: Guid}>();
+  const onVideoCreated: Subject<{ track: Track; userId: Guid }> = new Subject<{
+    track: Track;
+    userId: Guid;
+  }>();
+  const onVideoDestroyed: Subject<{ track: Track; userId: Guid }> =
+    new Subject<{ track: Track; userId: Guid }>();
 
   const rtt = ref(0);
 
@@ -379,7 +383,7 @@ export const useVoice = defineStore("voice", () => {
 
     if (track.kind === "video") {
       isOtherUserSharing.value = true;
-      logger.error("onVideoCreated", { track, userId: participant.identity })
+      logger.error("onVideoCreated", { track, userId: participant.identity });
       onVideoCreated.next({ track, userId: participant.identity });
       return;
     }
@@ -417,7 +421,7 @@ export const useVoice = defineStore("voice", () => {
     const setupGraph = () => {
       // @ts-ignore
       const captured: MediaStream | null =
-      // @ts-ignore
+        // @ts-ignore
         typeof el.captureStream === "function" ? el.captureStream() : null;
 
       const hasCapturedAudio =
@@ -607,7 +611,10 @@ export const useVoice = defineStore("voice", () => {
 
   const stopScreenShare = async () => {
     if (screenTrack?.track) {
-      onVideoDestroyed.next({ track: screenTrack.track, userId: connectedRoom!.room!.localParticipant!.identity });
+      onVideoDestroyed.next({
+        track: screenTrack.track,
+        userId: connectedRoom!.room!.localParticipant!.identity,
+      });
       screenTrack =
         await connectedRoom.room?.localParticipant.setScreenShareEnabled(false);
       screenTrack = undefined;
@@ -615,17 +622,51 @@ export const useVoice = defineStore("voice", () => {
     }
   };
 
-  const startChannelRecord = async () => {
-   if (!connectedRoom.room) return;
-   if (!activeChannel.value) return;
-   await api.channelInteraction.BeginRecord(activeChannel.value.spaceId, activeChannel.value.channelId);
-  }
+  const startChannelRecord = async (): Promise<boolean> => {
+    if (!connectedRoom.room) {
+      logger.warn("cant start record, no connected channel");
+      return false;
+    }
+    if (!activeChannel.value) {
+      logger.warn("cant start record, no active channel");
+      return false;
+    }
+
+    const result = await api.channelInteraction.BeginRecord(
+      activeChannel.value.spaceId,
+      activeChannel.value.channelId
+    );
+
+    if (result) {
+      logger.warn("success start record");
+    } else {
+      logger.warn("failed start record");
+    }
+    return result;
+  };
 
   const stopChannelRecord = async () => {
-   if (!connectedRoom.room) return;
-   if (!activeChannel.value) return;
-   await api.channelInteraction.StopRecord(activeChannel.value.spaceId, activeChannel.value.channelId);
-  }
+    if (!connectedRoom.room) {
+      logger.warn("cant stop record, no connected channel");
+      return false;
+    }
+    if (!activeChannel.value) {
+      logger.warn("cant stop record, no active channel");
+      return false;
+    }
+
+    const result = await api.channelInteraction.StopRecord(
+      activeChannel.value.spaceId,
+      activeChannel.value.channelId
+    );
+
+    if (result) {
+      logger.warn("success stop record");
+    } else {
+      logger.warn("failed stop record");
+    }
+    return result;
+  };
 
   const currentlyReconnect = ref(false);
   function onReconnectiong() {
@@ -684,6 +725,6 @@ export const useVoice = defineStore("voice", () => {
     setUserVolume,
     getVolumeRef,
     startChannelRecord,
-    stopChannelRecord
+    stopChannelRecord,
   };
 });

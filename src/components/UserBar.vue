@@ -70,6 +70,7 @@ const me = useMe();
   display: flex;
   flex-direction: column;
 }
+
 .user-name {
   display: block;
   max-width: 100%;
