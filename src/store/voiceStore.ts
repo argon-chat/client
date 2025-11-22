@@ -511,7 +511,13 @@ export const useVoice = defineStore("voice", () => {
         document.addEventListener("click", handler);
         document.addEventListener("keydown", handler);
       });
+
+    if (participant.identity.startsWith("CFFFFFFF")) {
+      onSIPTrackSubscribed(track, publication, participant);
+      return;
+    }
   }
+
   function getVolumeRef(userId: Guid) {
     return connectedRoom.roomData.get(userId)?.volume;
   }
@@ -690,6 +696,11 @@ export const useVoice = defineStore("voice", () => {
     _: RemoteTrackPublication,
     participant: RemoteParticipant
   ) {
+    if (participant.identity.startsWith("CFFFFFFF")) {
+      onSIPTrackUnsubscribed(track, _, participant);
+      return;
+    }
+
     logger.log(
       "Track unsubscribed:",
       track.kind,
@@ -705,6 +716,42 @@ export const useVoice = defineStore("voice", () => {
       logger.info("Audio is detached");
       tone.playSoftLeaveSound();
     }
+  }
+
+  function onSIPTrackSubscribed(
+    track: RemoteTrack,
+    _: RemoteTrackPublication,
+    participant: RemoteParticipant
+  ) {
+    pool.sipUserJoinedToChannel(
+      activeChannel.value?.channelId!,
+      participant.identity,
+      participant.name ?? "VoIP User"
+    );
+  }
+
+  function onSIPTrackUnsubscribed(
+    track: RemoteTrack,
+    _: RemoteTrackPublication,
+    participant: RemoteParticipant
+  ) {
+    logger.log(
+      "Track unsubscribed:",
+      track.kind,
+      "at particant:",
+      participant.identity
+    );
+
+    if (track.kind === "audio") {
+      track.detach();
+      logger.info("SIP Audio is detached");
+      tone.playSoftLeaveSound();
+    } else logger.error("not supported sip track kind", track.kind);
+
+    pool.sipUserLeavedFromChannel(
+      activeChannel.value?.channelId!,
+      participant.identity
+    );
   }
 
   return {

@@ -621,6 +621,67 @@ export const usePoolStore = defineStore("data-pool", () => {
     );
   };
 
+  const sipUserJoinedToChannel = async (
+    channelId: Guid,
+    particantId: Guid,
+    particantName: string
+  ) => {
+    const c = db.channels.get(channelId);
+
+    if (!c) {
+      logger.error("recollect channel required");
+      return;
+    }
+    if (realtimeChannelUsers.has(channelId)) {
+      const e = realtimeChannelUsers.get(channelId);
+
+      if (!e)
+        throw new Error(" realtimeChannelUsers.get(x.channelId) return null");
+
+      e.Users.set(particantId, {
+        state: 0,
+        userId: particantId,
+        User: {
+          displayName: particantName,
+          username: "",
+          userId: particantId,
+          avatarFileId: null,
+        },
+        isSpeaking: ref(false) as any,
+        isMuted: ref(false) as any,
+        isScreenShare: ref(false) as any,
+        volume: ref([100]) as any,
+        isRecoding: ref(false) as any,
+      });
+    } else
+      logger.error(
+        "realtime channel not contains received from JoinedToChannelUser channel, maybe bug"
+      );
+  };
+
+  const sipUserLeavedFromChannel = async (
+    channelId: Guid,
+    particantId: Guid
+  ) => {
+    const c = db.channels.get(channelId);
+
+    if (!c) {
+      logger.error("recollect channel required");
+      return;
+    }
+
+    if (realtimeChannelUsers.has(channelId)) {
+      const e = realtimeChannelUsers.get(channelId);
+
+      if (!e)
+        throw new Error("sip realtimeChannelUsers.get(channelId) return null");
+
+      if (e.Users.has(particantId)) {
+        e.Users.delete(particantId);
+      }
+    }
+  };
+
   const trackChannel = async (
     channel: ArgonChannel,
     users?: Map<Guid, IRealtimeChannelUserWithData>
@@ -860,9 +921,13 @@ export const usePoolStore = defineStore("data-pool", () => {
         if (!e)
           throw new Error("realtimeChannelUsers.get(x.channelId) return null");
 
-        setPropertyQuery(x.channelId, (user) => user.isRecoding as any, (user) => {
-          (user.isRecoding as any) = false;
-        });
+        setPropertyQuery(
+          x.channelId,
+          (user) => user.isRecoding as any,
+          (user) => {
+            (user.isRecoding as any) = false;
+          }
+        );
       }
     });
 
@@ -1036,5 +1101,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     getMemberIdsByUserIdsQuery,
     getMemberIdsByUserIds,
     init,
+    sipUserJoinedToChannel,
+    sipUserLeavedFromChannel
   };
 });
