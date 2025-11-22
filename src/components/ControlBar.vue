@@ -97,9 +97,9 @@
                 <button :disabled="true">
                     <CameraIcon class="w-5 h-5" />
                 </button>
-                <button @click="toggleRecord">
+                <!--<button @click="toggleRecord">
                     <VideotapeIcon class="w-5 h-5" />
-                </button>
+                </button> -->
                 <button @click="toggleDoNotDistrurb">
                     <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
                     <OctagonMinusIcon v-else class="w-5 h-5" />
