@@ -30,15 +30,35 @@ const { loaded, loading, blobSrc } = useAvatarBlob(
 const size = computed(() =>
   props.overridedSize ? `${props.overridedSize}px` : null,
 );
+
+const isSipUser = computed(() =>
+  props.userId?.startsWith("CFFFFFFF") ?? false
+);
+
+const emojiFallback = computed(() =>
+  isSipUser.value
+    ? "📞"
+    : props.fallback.at(0)?.toUpperCase()
+);
+
+const avatarStyle = computed(() => {
+  if (!isSipUser.value) return {};
+  return {
+    backgroundColor: "#ff8b00",
+    color: "white",
+  };
+});
 </script>
 
 <template>
   <keep-alive :max="10" :key="props.fileId!">
     <Avatar :class="props.class" :key="props.fileId!" :style="{ width: size, height: size }">
       <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
-      <video playsinline autoplay muted loop v-else-if="loaded" :poster="blobSrc" :src="blobSrc" disablePictureInPicture
-  controlslist="nodownload nofullscreen noremoteplayback" />
-      <AvatarFallback v-else>{{ props.fallback.at(0)?.toUpperCase() }}</AvatarFallback>
+      <video v-else-if="loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc" disablePictureInPicture
+        controlslist="nodownload nofullscreen noremoteplayback" />
+      <AvatarFallback v-else :style="avatarStyle">
+        {{ emojiFallback }}
+      </AvatarFallback>
     </Avatar>
   </keep-alive>
 </template>
