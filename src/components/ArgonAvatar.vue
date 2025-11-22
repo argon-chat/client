@@ -32,7 +32,7 @@ const size = computed(() =>
 );
 
 const isSipUser = computed(() =>
-  props.userId?.startsWith("CFFFFFFF") ?? false
+  props.userId?.toLocaleUpperCase()?.startsWith("CFFFFFFF") ?? false
 );
 
 const emojiFallback = computed(() =>

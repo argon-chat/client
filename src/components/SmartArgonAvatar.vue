@@ -2,9 +2,13 @@
   <keep-alive :max="10" :key="props.userId">
     <Avatar :class="props.class" :style="{ width: size, height: size }">
       <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
-      <video playsinline autoplay muted loop v-else-if="!loading && loaded" :poster="blobSrc" :src="blobSrc"
+
+      <video v-else-if="!loading && loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc"
         disablePictureInPicture controlslist="nodownload nofullscreen noremoteplayback" />
-      <AvatarFallback v-if="!loading && !loaded">{{ fallbackLetter }}</AvatarFallback>
+
+      <AvatarFallback v-if="!loading && !loaded" :style="fallbackStyle">
+        {{ fallbackLetter }}
+      </AvatarFallback>
     </Avatar>
   </keep-alive>
 </template>
@@ -42,6 +46,18 @@ const size = computed(() =>
 
 const user = pool.getUserReactive(props.userId);
 
+const isCallUser = computed(() =>
+  props.userId.toLocaleUpperCase().startsWith("CFFFFFFF")
+);
+
+const fallbackStyle = computed(() => {
+  if (!isCallUser.value) return {};
+  return {
+    backgroundColor: "#ff8b00",
+    color: "white",
+  };
+});
+
 watch(
   () => user.value?.avatarFileId,
   async (fileId) => {
@@ -58,8 +74,9 @@ watch(
     }
 
     try {
-      fallbackLetter.value =
-        user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
+      fallbackLetter.value = isCallUser.value
+        ? "📞"
+        : (user.value?.displayName?.at(0)?.toUpperCase() ?? "?");
 
       const src = await fileStorage.fetchUserAvatar(fileId, props.userId);
       blobSrc.value = src;
@@ -67,7 +84,7 @@ watch(
     } catch (e) {
       logger.error("Error loading avatar:", e);
       blobSrc.value = fileStorage.FAILED_ADDRESS;
-      fallbackLetter.value = "?";
+      fallbackLetter.value = isCallUser.value ? "📞" : "?";
       loaded.value = false;
     } finally {
       loading.value = false;
