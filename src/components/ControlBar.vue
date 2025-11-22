@@ -97,6 +97,9 @@
                 <button :disabled="true">
                     <CameraIcon class="w-5 h-5" />
                 </button>
+                <button @click="toggleRecord">
+                    <VideotapeIcon class="w-5 h-5" />
+                </button>
                 <button @click="toggleDoNotDistrurb">
                     <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
                     <OctagonMinusIcon v-else class="w-5 h-5" />
@@ -148,6 +151,8 @@ import {
 import {
     Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon,
     ScreenShareOff, ScreenShare, TicketPercent, CameraIcon, OctagonMinusIcon,
+    Videotape,
+    VideotapeIcon,
 } from "lucide-vue-next";
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
@@ -249,6 +254,18 @@ async function getPreviewForScreen(display: IScreen): Promise<MediaStream> {
 function stopPreview(stream: MediaStream | null) {
     if (!stream) return;
     for (const track of stream.getTracks()) track.stop();
+}
+
+const isRecording = ref(false);
+
+async function toggleRecord() {
+    if (isRecording.value) {
+        await voice.startChannelRecord();
+        isRecording.value = true;
+    } else {
+        await voice.stopChannelRecord();
+        isRecording.value = false;
+    }
 }
 
 watch(openShareSettings, async (isOpen) => {

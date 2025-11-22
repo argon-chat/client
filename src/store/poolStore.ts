@@ -49,6 +49,8 @@ import {
   OnUserPresenceActivityChanged,
   OnUserPresenceActivityRemoved,
   RealtimeChannelUser,
+  RecordEnded,
+  RecordStarted,
   SpaceMember,
   SpaceMemberArchetype,
   UserActivityPresence,
@@ -73,10 +75,12 @@ export type IRealtimeChannelUserWithData = RealtimeChannelUser & {
   isMuted: Raw<Ref<boolean>>;
   isScreenShare: Raw<Ref<boolean>>;
   volume: Raw<Ref<number[]>>;
+  isRecoding: Raw<Ref<boolean>>;
 };
 export type IRealtimeChannelWithUser = {
   Channel: ArgonChannel;
   Users: Reactive<Map<Guid, IRealtimeChannelUserWithData>>;
+  isRecordingActive: Raw<Ref<boolean>>;
 };
 
 export const usePoolStore = defineStore("data-pool", () => {
@@ -316,17 +320,40 @@ export const usePoolStore = defineStore("data-pool", () => {
         }
       } else {
         logger.warn(
-          "Detected speaking user, but in realtime channel user not found, maybe bug",
+          "Trying call setProperty, but in realtime channel user not found, maybe bug",
           channelId,
           userId
         );
       }
     } else {
       logger.warn(
-        "Detected speaking user, but in realtime channel not found, maybe bug",
+        "Trying call, but in realtime channel not found, maybe bug",
         channelId,
         userId
       );
+    }
+  };
+
+  const setPropertyQuery = async (
+    channelId: Guid,
+    predicate: (user: IRealtimeChannelUserWithData) => boolean,
+    action: (user: IRealtimeChannelUserWithData) => void
+  ) => {
+    const channel = realtimeChannelUsers.get(channelId);
+
+    if (!channel) {
+      logger.warn("Realtime channel not found", channelId);
+      return;
+    }
+
+    for (const user of channel.Users.values()) {
+      try {
+        if (predicate(user as any)) {
+          action(user as any);
+        }
+      } catch (err) {
+        logger.error("Error during predicate/action execution", err);
+      }
     }
   };
 
@@ -603,7 +630,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       reactive({
         Channel: channel,
         Users: users ?? new Map<Guid, IRealtimeChannelUserWithData>(),
-      })
+      }) as any
     );
     const exist = await db.channels.get(channel.channelId);
 
@@ -701,6 +728,7 @@ export const usePoolStore = defineStore("data-pool", () => {
           isMuted: ref(false) as any,
           isScreenShare: ref(false) as any,
           volume: ref([100]) as any,
+          isRecoding: ref(false) as any,
         });
       } else
         logger.error(
@@ -803,6 +831,41 @@ export const usePoolStore = defineStore("data-pool", () => {
     bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
       void trackArchetype(x.data);
     });
+
+    bus.onServerEvent<RecordStarted>("RecordStarted", (x) => {
+      if (realtimeChannelUsers.has(x.channelId)) {
+        const e = realtimeChannelUsers.get(x.channelId);
+
+        if (!e)
+          throw new Error("realtimeChannelUsers.get(x.channelId) return null");
+
+        e.isRecordingActive = true;
+
+        const us = e.Users.get(x.byUserId);
+
+        if (us) {
+          setProperty(x.channelId, x.byUserId, (x) => {
+            x.isRecoding.value = true;
+          });
+        }
+
+        logger.warn(`User '${x.byUserId}' has initiated recording`);
+      }
+    });
+
+    bus.onServerEvent<RecordEnded>("RecordEnded", (x) => {
+      if (realtimeChannelUsers.has(x.channelId)) {
+        const e = realtimeChannelUsers.get(x.channelId);
+
+        if (!e)
+          throw new Error("realtimeChannelUsers.get(x.channelId) return null");
+
+        setPropertyQuery(x.channelId, (user) => user.isRecoding as any, (user) => {
+          (user.isRecoding as any) = false;
+        });
+      }
+    });
+
     /*bus.onServerEvent<ArchetypeChanged>("ArchetypeChanged", (x) => {
       void trackArchetype(x.dto);
     });*/
@@ -814,13 +877,13 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   const init = async () => {
     await db.transaction("rw", db.users, async () => {
-    await db.users
-      .where("status")
-      .notEqual(UserStatus.Offline)
-      .modify(user => {
-        user.status = UserStatus.Offline;
-      });
-  });
+      await db.users
+        .where("status")
+        .notEqual(UserStatus.Offline)
+        .modify((user) => {
+          user.status = UserStatus.Offline;
+        });
+    });
 
     subscribeToEvents();
   };
@@ -913,6 +976,7 @@ export const usePoolStore = defineStore("data-pool", () => {
             isMuted: ref(false),
             isScreenShare: ref(false),
             volume: ref([100]),
+            isRecoding: ref(false),
           });
         }
         await trackChannel(c.channel, we);

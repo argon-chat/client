@@ -127,6 +127,11 @@ export interface RealtimeChannelUser {
 };
 
 
+export interface EgressId {
+  id: string;
+};
+
+
 export interface UserActivityPresence {
   kind: ActivityPresenceKind;
   startTimestampSeconds: u8;
@@ -256,41 +261,6 @@ export enum RedeemError
   EXPIRED = 2,
   LIMIT_REACHED = 3,
   ALREADY = 4,
-}
-
-
-export interface JoinMeetResponse {
-  voiceToken: string;
-  endpoint: RtcEndpoint;
-  meetInfo: MeetInfo;
-};
-
-
-export interface MeetInfo {
-  title: string;
-  startTime: u4;
-  roomId: string;
-};
-
-
-export interface RtcEndpoint {
-  endpoint: string;
-  ices: IonArray<IceEndpoint>;
-};
-
-
-export interface IceEndpoint {
-  endpoint: string;
-  username: string;
-  password: string;
-};
-
-
-export enum MeetJoinError
-{
-  OK = 0,
-  NO_LINK_EXIST = 1,
-  YOU_ARE_BANNED = 2,
 }
 
 
@@ -570,6 +540,19 @@ export enum LockdownSeverity
   Middle = 1,
   Critical = 2,
 }
+
+
+export interface RtcEndpoint {
+  endpoint: string;
+  ices: IonArray<IceEndpoint>;
+};
+
+
+export interface IceEndpoint {
+  endpoint: string;
+  username: string;
+  password: string;
+};
 
 
 
@@ -1010,6 +993,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isServerModified(): this is ServerModified {
     return this.UnionKey === "ServerModified";
   }
+  public isRecordStarted(): this is RecordStarted {
+    return this.UnionKey === "RecordStarted";
+  }
+  public isRecordEnded(): this is RecordEnded {
+    return this.UnionKey === "RecordEnded";
+  }
 
 }
 
@@ -1142,6 +1131,22 @@ export class ServerModified extends IArgonEvent
   UnionIndex: number = 15;
 }
 
+export class RecordStarted extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public byUserId: guid) { super(); }
+
+  UnionKey: string = "RecordStarted";
+  UnionIndex: number = 16;
+}
+
+export class RecordEnded extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid) { super(); }
+
+  UnionKey: string = "RecordEnded";
+  UnionIndex: number = 17;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -1184,6 +1189,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<MessageSent>("MessageSent").read(reader);
     else if (unionIndex == 15)
       value = IonFormatterStorage.get<ServerModified>("ServerModified").read(reader);
+    else if (unionIndex == 16)
+      value = IonFormatterStorage.get<RecordStarted>("RecordStarted").read(reader);
+    else if (unionIndex == 17)
+      value = IonFormatterStorage.get<RecordEnded>("RecordEnded").read(reader);
 
     else throw new Error();
   
@@ -1242,6 +1251,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 15) {
         IonFormatterStorage.get<ServerModified>("ServerModified").write(writer, value as ServerModified);
+    }
+    else if (value.UnionIndex == 16) {
+        IonFormatterStorage.get<RecordStarted>("RecordStarted").write(writer, value as RecordStarted);
+    }
+    else if (value.UnionIndex == 17) {
+        IonFormatterStorage.get<RecordEnded>("RecordEnded").write(writer, value as RecordEnded);
     }
   
     else throw new Error();
@@ -1518,6 +1533,40 @@ IonFormatterStorage.register("ServerModified", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.writeArray<string>(writer, value.bag, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("RecordStarted", {
+  read(reader: CborReader): RecordStarted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new RecordStarted(spaceId, channelId, byUserId);
+  },
+  write(writer: CborWriter, value: RecordStarted): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("RecordEnded", {
+  read(reader: CborReader): RecordEnded {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new RecordEnded(spaceId, channelId);
+  },
+  write(writer: CborWriter, value: RecordEnded): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     writer.writeEndArray();
   }
 });
@@ -2643,6 +2692,20 @@ IonFormatterStorage.register("RealtimeChannelUser", {
   }
 });
 
+IonFormatterStorage.register("EgressId", {
+  read(reader: CborReader): EgressId {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { id };
+  },
+  write(writer: CborWriter, value: EgressId): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ActivityPresenceKind", {
   read(reader: CborReader): ActivityPresenceKind {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -2815,87 +2878,6 @@ IonFormatterStorage.register("RedeemError", {
     return RedeemError[num] !== undefined ? num as RedeemError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: RedeemError): void {
-    const casted: u4 = value;
-    IonFormatterStorage.get<u4>('u4').write(writer, casted);
-  }
-});
-
-IonFormatterStorage.register("RtcEndpoint", {
-  read(reader: CborReader): RtcEndpoint {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
-    const ices = IonFormatterStorage.readArray<IceEndpoint>(reader, 'IceEndpoint');
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { endpoint, ices };
-  },
-  write(writer: CborWriter, value: RtcEndpoint): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
-    IonFormatterStorage.writeArray<IceEndpoint>(writer, value.ices, 'IceEndpoint');
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("MeetInfo", {
-  read(reader: CborReader): MeetInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const title = IonFormatterStorage.get<string>('string').read(reader);
-    const startTime = IonFormatterStorage.get<u4>('u4').read(reader);
-    const roomId = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return { title, startTime, roomId };
-  },
-  write(writer: CborWriter, value: MeetInfo): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<string>('string').write(writer, value.title);
-    IonFormatterStorage.get<u4>('u4').write(writer, value.startTime);
-    IonFormatterStorage.get<string>('string').write(writer, value.roomId);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("JoinMeetResponse", {
-  read(reader: CborReader): JoinMeetResponse {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const voiceToken = IonFormatterStorage.get<string>('string').read(reader);
-    const endpoint = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
-    const meetInfo = IonFormatterStorage.get<MeetInfo>('MeetInfo').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return { voiceToken, endpoint, meetInfo };
-  },
-  write(writer: CborWriter, value: JoinMeetResponse): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<string>('string').write(writer, value.voiceToken);
-    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.endpoint);
-    IonFormatterStorage.get<MeetInfo>('MeetInfo').write(writer, value.meetInfo);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("IceEndpoint", {
-  read(reader: CborReader): IceEndpoint {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
-    const username = IonFormatterStorage.get<string>('string').read(reader);
-    const password = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return { endpoint, username, password };
-  },
-  write(writer: CborWriter, value: IceEndpoint): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
-    IonFormatterStorage.get<string>('string').write(writer, value.username);
-    IonFormatterStorage.get<string>('string').write(writer, value.password);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("MeetJoinError", {
-  read(reader: CborReader): MeetJoinError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return MeetJoinError[num] !== undefined ? num as MeetJoinError : (() => {throw new Error('invalid enum type')})();
-  },
-  write(writer: CborWriter, value: MeetJoinError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -3369,6 +3351,40 @@ IonFormatterStorage.register("LockdownSeverity", {
   }
 });
 
+IonFormatterStorage.register("RtcEndpoint", {
+  read(reader: CborReader): RtcEndpoint {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
+    const ices = IonFormatterStorage.readArray<IceEndpoint>(reader, 'IceEndpoint');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { endpoint, ices };
+  },
+  write(writer: CborWriter, value: RtcEndpoint): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
+    IonFormatterStorage.writeArray<IceEndpoint>(writer, value.ices, 'IceEndpoint');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IceEndpoint", {
+  read(reader: CborReader): IceEndpoint {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const endpoint = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const password = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { endpoint, username, password };
+  },
+  write(writer: CborWriter, value: IceEndpoint): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.endpoint);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.get<string>('string').write(writer, value.password);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export interface IArchetypeInteraction extends IIonService
@@ -3394,6 +3410,8 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
+  BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
 }
 
 
@@ -3435,18 +3453,6 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
-}
-
-
-
-
-export interface IMeetingInteraction extends IIonService
-{
-  Join(inviteCode: string, username: string): Promise<void>;
-  CreateMeetingLink(): Promise<string>;
-  SetDefaultPermissions(roomId: string, permissions: i8): Promise<void>;
-  BeginRecordAsync(roomId: string): Promise<string>;
-  EndRecordAsync(roomId: string): Promise<void>;
 }
 
 
@@ -3535,6 +3541,8 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
+  BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
 }
 
 
@@ -3576,18 +3584,6 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
-}
-
-
-
-
-export interface IMeetingInteraction extends IIonService
-{
-  Join(inviteCode: string, username: string): Promise<void>;
-  CreateMeetingLink(): Promise<string>;
-  SetDefaultPermissions(roomId: string, permissions: i8): Promise<void>;
-  BeginRecordAsync(roomId: string): Promise<string>;
-  EndRecordAsync(roomId: string): Promise<void>;
 }
 
 
@@ -3886,6 +3882,34 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
+  async BeginRecord(spaceId: guid, channelId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "BeginRecord");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async StopRecord(spaceId: guid, channelId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "StopRecord");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
 
 }
 
@@ -4132,84 +4156,6 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
 }
 
 IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
-
-export class MeetingInteraction_Executor extends ServiceExecutor<IMeetingInteraction> implements IMeetingInteraction {
-  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
-      super();
-  }
-
-  
-  async Join(inviteCode: string, username: string): Promise<void> {
-    const req = new IonRequest(this.ctx, "IMeetingInteraction", "Join");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<string>('string').write(writer, inviteCode);
-    IonFormatterStorage.get<string>('string').write(writer, username);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
-  }
-  async CreateMeetingLink(): Promise<string> {
-    const req = new IonRequest(this.ctx, "IMeetingInteraction", "CreateMeetingLink");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(0);
-          
-    
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<string>("string", writer.data, this.signal);
-  }
-  async SetDefaultPermissions(roomId: string, permissions: i8): Promise<void> {
-    const req = new IonRequest(this.ctx, "IMeetingInteraction", "SetDefaultPermissions");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<string>('string').write(writer, roomId);
-    IonFormatterStorage.get<i8>('i8').write(writer, permissions);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
-  }
-  async BeginRecordAsync(roomId: string): Promise<string> {
-    const req = new IonRequest(this.ctx, "IMeetingInteraction", "BeginRecordAsync");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<string>('string').write(writer, roomId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<string>("string", writer.data, this.signal);
-  }
-  async EndRecordAsync(roomId: string): Promise<void> {
-    const req = new IonRequest(this.ctx, "IMeetingInteraction", "EndRecordAsync");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<string>('string').write(writer, roomId);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
-  }
-
-}
-
-IonFormatterStorage.registerClientExecutor<IMeetingInteraction>('MeetingInteraction', MeetingInteraction_Executor);
 
 export class ServerInteraction_Executor extends ServiceExecutor<IServerInteraction> implements IServerInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -4674,7 +4620,6 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
-        if (propKey === "MeetingInteraction") return IonFormatterStorage.createExecutor("MeetingInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
@@ -4691,7 +4636,6 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     FriendsInteraction: IFriendsInteraction;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
-    MeetingInteraction: IMeetingInteraction;
     ServerInteraction: IServerInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;

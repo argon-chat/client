@@ -615,6 +615,18 @@ export const useVoice = defineStore("voice", () => {
     }
   };
 
+  const startChannelRecord = async () => {
+   if (!connectedRoom.room) return;
+   if (!activeChannel.value) return;
+   await api.channelInteraction.BeginRecord(activeChannel.value.spaceId, activeChannel.value.channelId);
+  }
+
+  const stopChannelRecord = async () => {
+   if (!connectedRoom.room) return;
+   if (!activeChannel.value) return;
+   await api.channelInteraction.StopRecord(activeChannel.value.spaceId, activeChannel.value.channelId);
+  }
+
   const currentlyReconnect = ref(false);
   function onReconnectiong() {
     if (currentlyReconnect.value) return;
@@ -671,5 +683,7 @@ export const useVoice = defineStore("voice", () => {
     isOtherUserSharing,
     setUserVolume,
     getVolumeRef,
+    startChannelRecord,
+    stopChannelRecord
   };
 });
