@@ -73,6 +73,11 @@ export const useMe = defineStore("me", () => {
     else if (result.isGoodAuthStatus()) {
       useAuthStore().setAuthToken(result.token);
     }
+    else if (result.isLockedAuthStatus()) {
+      limitation.value = result;
+      logger.warn("Detected restriction on account", result);
+      return false;
+    }
 
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
 
@@ -80,12 +85,6 @@ export const useMe = defineStore("me", () => {
     WelcomeCommanderHasReceived.value = true;
 
     setUser({ id: me.value.userId, username: me.value.username });
-
-    if (result.isLockedAuthStatus()) {
-      limitation.value = result;
-      logger.warn("Detected restriction on account", result);
-      return false;
-    }
 
     return true;
   }
