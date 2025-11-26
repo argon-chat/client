@@ -63,6 +63,8 @@ export const useMe = defineStore("me", () => {
       authStore.getRefreshToken()
     );
 
+    logger.error("GetMyAuthorization", result);
+
     if (result.isBadAuthStatus()) {
       useAuthStore().logout();
       location.reload();
