@@ -70,6 +70,10 @@ export const useMe = defineStore("me", () => {
       location.reload();
       return false;
     }
+    if (result.isGoodAuthStatus()) {
+      useAuthStore().setAuthToken(result.token);
+      return true;
+    }
 
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
 
@@ -77,11 +81,6 @@ export const useMe = defineStore("me", () => {
     WelcomeCommanderHasReceived.value = true;
 
     setUser({ id: me.value.userId, username: me.value.username });
-
-    if (result.isGoodAuthStatus()) {
-      useAuthStore().setAuthToken(result.token);
-      return true;
-    }
 
     if (result.isLockedAuthStatus()) {
       limitation.value = result;
