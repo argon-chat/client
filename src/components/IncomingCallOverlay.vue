@@ -21,7 +21,7 @@
                     <PhPhoneIncoming class="h-6 w-6" />
                 </button>
 
-                <button @click="reject" :disabled="callStore.incomingCallInfo.callId == 'b7404c69-abf2-4d73-b7b0-f4f232c85815'" class="h-16 w-16 rounded-full flex items-center justify-center
+                <button @click="reject" :disabled="callStore.incomingCallInfo.fromUserId == 'b7404c69-abf2-4d73-b7b0-f4f232c85815'" class="h-16 w-16 rounded-full flex items-center justify-center
          transition-all duration-150 shadow-lg
          disabled:shadow-none
          disabled:bg-neutral-700 disabled:text-neutral-400
