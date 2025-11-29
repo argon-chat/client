@@ -108,7 +108,7 @@ export function useSound(
     isPlaying.value = true;
   };
 
-  const stop = (id?: number) => {
+  const stop = (id?: number | string) => {
     if (!sound.value) {
       return;
     }

@@ -127,11 +127,6 @@ export interface RealtimeChannelUser {
 };
 
 
-export interface EgressId {
-  id: string;
-};
-
-
 export interface UserActivityPresence {
   kind: ActivityPresenceKind;
   startTimestampSeconds: u8;
@@ -555,6 +550,13 @@ export interface IceEndpoint {
 };
 
 
+export enum CallFailedError
+{
+  None = 0,
+  CalleeOffline = 1,
+}
+
+
 
 export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
 {
@@ -941,8 +943,7 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   abstract UnionKey: string;
   abstract UnionIndex: number;
   
-    abstract spaceId: guid;
-
+  
   
   
   public isArchetypeChanged(): this is ArchetypeChanged {
@@ -998,6 +999,18 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   }
   public isRecordEnded(): this is RecordEnded {
     return this.UnionKey === "RecordEnded";
+  }
+  public isCallIncoming(): this is CallIncoming {
+    return this.UnionKey === "CallIncoming";
+  }
+  public isCallFinished(): this is CallFinished {
+    return this.UnionKey === "CallFinished";
+  }
+  public isCallAccepted(): this is CallAccepted {
+    return this.UnionKey === "CallAccepted";
+  }
+  public isCallRejected(): this is CallRejected {
+    return this.UnionKey === "CallRejected";
   }
 
 }
@@ -1147,6 +1160,38 @@ export class RecordEnded extends IArgonEvent
   UnionIndex: number = 17;
 }
 
+export class CallIncoming extends IArgonEvent
+{
+  constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
+
+  UnionKey: string = "CallIncoming";
+  UnionIndex: number = 18;
+}
+
+export class CallFinished extends IArgonEvent
+{
+  constructor(public userId: guid, public callId: guid) { super(); }
+
+  UnionKey: string = "CallFinished";
+  UnionIndex: number = 19;
+}
+
+export class CallAccepted extends IArgonEvent
+{
+  constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
+
+  UnionKey: string = "CallAccepted";
+  UnionIndex: number = 20;
+}
+
+export class CallRejected extends IArgonEvent
+{
+  constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
+
+  UnionKey: string = "CallRejected";
+  UnionIndex: number = 21;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -1193,6 +1238,14 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<RecordStarted>("RecordStarted").read(reader);
     else if (unionIndex == 17)
       value = IonFormatterStorage.get<RecordEnded>("RecordEnded").read(reader);
+    else if (unionIndex == 18)
+      value = IonFormatterStorage.get<CallIncoming>("CallIncoming").read(reader);
+    else if (unionIndex == 19)
+      value = IonFormatterStorage.get<CallFinished>("CallFinished").read(reader);
+    else if (unionIndex == 20)
+      value = IonFormatterStorage.get<CallAccepted>("CallAccepted").read(reader);
+    else if (unionIndex == 21)
+      value = IonFormatterStorage.get<CallRejected>("CallRejected").read(reader);
 
     else throw new Error();
   
@@ -1257,6 +1310,18 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 17) {
         IonFormatterStorage.get<RecordEnded>("RecordEnded").write(writer, value as RecordEnded);
+    }
+    else if (value.UnionIndex == 18) {
+        IonFormatterStorage.get<CallIncoming>("CallIncoming").write(writer, value as CallIncoming);
+    }
+    else if (value.UnionIndex == 19) {
+        IonFormatterStorage.get<CallFinished>("CallFinished").write(writer, value as CallFinished);
+    }
+    else if (value.UnionIndex == 20) {
+        IonFormatterStorage.get<CallAccepted>("CallAccepted").write(writer, value as CallAccepted);
+    }
+    else if (value.UnionIndex == 21) {
+        IonFormatterStorage.get<CallRejected>("CallRejected").write(writer, value as CallRejected);
     }
   
     else throw new Error();
@@ -1567,6 +1632,76 @@ IonFormatterStorage.register("RecordEnded", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CallIncoming", {
+  read(reader: CborReader): CallIncoming {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new CallIncoming(userId, callId, fromId);
+  },
+  write(writer: CborWriter, value: CallIncoming): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fromId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CallFinished", {
+  read(reader: CborReader): CallFinished {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new CallFinished(userId, callId);
+  },
+  write(writer: CborWriter, value: CallFinished): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CallAccepted", {
+  read(reader: CborReader): CallAccepted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new CallAccepted(userId, callId, fromId);
+  },
+  write(writer: CborWriter, value: CallAccepted): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fromId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CallRejected", {
+  read(reader: CborReader): CallRejected {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new CallRejected(userId, callId, fromId);
+  },
+  write(writer: CborWriter, value: CallRejected): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fromId);
     writer.writeEndArray();
   }
 });
@@ -2493,6 +2628,214 @@ IonFormatterStorage.register("FailedJoin", {
 
 
 
+export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDingDong(): this is SuccessDingDong {
+    return this.UnionKey === "SuccessDingDong";
+  }
+  public isFailedDingDong(): this is FailedDingDong {
+    return this.UnionKey === "FailedDingDong";
+  }
+
+}
+
+
+export class SuccessDingDong extends IBeginCallResult
+{
+  constructor(public token: string, public callId: guid) { super(); }
+
+  UnionKey: string = "SuccessDingDong";
+  UnionIndex: number = 0;
+}
+
+export class FailedDingDong extends IBeginCallResult
+{
+  constructor(public error: CallFailedError) { super(); }
+
+  UnionKey: string = "FailedDingDong";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginCallResult", {
+  read(reader: CborReader): IBeginCallResult {
+    reader.readStartArray();
+    let value: IBeginCallResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDingDong>("SuccessDingDong").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDingDong>("FailedDingDong").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginCallResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDingDong>("SuccessDingDong").write(writer, value as SuccessDingDong);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDingDong>("FailedDingDong").write(writer, value as FailedDingDong);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDingDong", {
+  read(reader: CborReader): SuccessDingDong {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessDingDong(token, callId);
+  },
+  write(writer: CborWriter, value: SuccessDingDong): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDingDong", {
+  read(reader: CborReader): FailedDingDong {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<CallFailedError>('CallFailedError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedDingDong(error);
+  },
+  write(writer: CborWriter, value: FailedDingDong): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CallFailedError>('CallFailedError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IPickUpCallResult implements IIonUnion<IPickUpCallResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPickUp(): this is SuccessPickUp {
+    return this.UnionKey === "SuccessPickUp";
+  }
+  public isFailedPickUp(): this is FailedPickUp {
+    return this.UnionKey === "FailedPickUp";
+  }
+
+}
+
+
+export class SuccessPickUp extends IPickUpCallResult
+{
+  constructor(public token: string, public callId: guid) { super(); }
+
+  UnionKey: string = "SuccessPickUp";
+  UnionIndex: number = 0;
+}
+
+export class FailedPickUp extends IPickUpCallResult
+{
+  constructor(public error: string) { super(); }
+
+  UnionKey: string = "FailedPickUp";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPickUpCallResult", {
+  read(reader: CborReader): IPickUpCallResult {
+    reader.readStartArray();
+    let value: IPickUpCallResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPickUp>("SuccessPickUp").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPickUp>("FailedPickUp").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IPickUpCallResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPickUp>("SuccessPickUp").write(writer, value as SuccessPickUp);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPickUp>("FailedPickUp").write(writer, value as FailedPickUp);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPickUp", {
+  read(reader: CborReader): SuccessPickUp {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessPickUp(token, callId);
+  },
+  write(writer: CborWriter, value: SuccessPickUp): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPickUp", {
+  read(reader: CborReader): FailedPickUp {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPickUp(error);
+  },
+  write(writer: CborWriter, value: FailedPickUp): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 IonFormatterStorage.register("ArgonEntitlement", {
   read(reader: CborReader): ArgonEntitlement {
     const num = (IonFormatterStorage.get<u8>('u8').read(reader))
@@ -2688,20 +3031,6 @@ IonFormatterStorage.register("RealtimeChannelUser", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').write(writer, value.state);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("EgressId", {
-  read(reader: CborReader): EgressId {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const id = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 1);
-    return { id };
-  },
-  write(writer: CborWriter, value: EgressId): void {
-    writer.writeStartArray(1);
-    IonFormatterStorage.get<string>('string').write(writer, value.id);
     writer.writeEndArray();
   }
 });
@@ -3385,6 +3714,157 @@ IonFormatterStorage.register("IceEndpoint", {
   }
 });
 
+IonFormatterStorage.register("CallFailedError", {
+  read(reader: CborReader): CallFailedError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return CallFailedError[num] !== undefined ? num as CallFailedError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: CallFailedError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+
+
+export interface IArchetypeInteraction extends IIonService
+{
+  GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
+  CreateArchetype(spaceId: guid, name: string): Promise<Archetype>;
+  UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
+  SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
+  GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
+  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
+}
+
+
+
+
+export interface IChannelInteraction extends IIonService
+{
+  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
+  DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
+  GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
+  QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
+  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
+  Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
+  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
+  BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
+}
+
+
+export interface IEventBus extends IIonService
+{
+  ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
+  Dispatch(ev: IArgonClientEvent): Promise<void>;
+  Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
+}
+
+
+
+
+export interface IFriendsInteraction extends IIonService
+{
+}
+
+
+
+
+export interface IIdentityInteraction extends IIonService
+{
+  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
+  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
+  BeginResetPassword(email: string): Promise<bool>;
+  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
+  GetAuthorizationScenario(): Promise<string>;
+  GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
+  GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
+}
+
+
+
+
+export interface IInventoryInteraction extends IIonService
+{
+  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
+  MarkSeen(itemIds: IonArray<guid>): Promise<void>;
+  GetNotifications(): Promise<IonArray<InventoryNotification>>;
+  RedeemCode(code: string): Promise<IRedeemResult>;
+  UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IServerInteraction extends IIonService
+{
+  GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
+  GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
+  GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
+  CreateInviteCode(spaceId: guid): Promise<InviteCode>;
+  PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
+  PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
+  GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
+  GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
+  GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
+  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
+  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
+  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+}
+
+
+
+
+
+
+export interface IUserInteraction extends IIonService
+{
+  GetMe(): Promise<ArgonUser>;
+  CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
+  GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
+  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
+  JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
+  BroadcastPresence(presence: UserActivityPresence): Promise<void>;
+  RemoveBroadcastPresence(): Promise<void>;
+  GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
+  GetMyProfile(): Promise<ArgonUserProfile>;
+  BeginUploadAvatar(): Promise<IUploadFileResult>;
+  CompleteUploadAvatar(blobId: guid): Promise<void>;
+  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
+  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
+}
+
+
+
+
+export interface IPreferenceInteraction extends IIonService
+{
+  SetPreference(scope: string, value: string): Promise<void>;
+  GetPreference(scope: string, value: string): Promise<void>;
+}
+
+
+
+
+export interface IVoiceInteraction extends IIonService
+{
+  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<bool>;
+  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<void>;
+}
+
+
+export interface ICallInteraction extends IIonService
+{
+  DingDongCreep(creepId: guid): Promise<IBeginCallResult>;
+  PickUpCall(callId: guid): Promise<IPickUpCallResult>;
+  RejectCall(callId: guid): Promise<void>;
+  HangupCall(callId: guid): Promise<void>;
+}
+
+
 
 
 export interface IArchetypeInteraction extends IIonService
@@ -3516,134 +3996,12 @@ export interface IVoiceInteraction extends IIonService
 }
 
 
-
-
-export interface IArchetypeInteraction extends IIonService
+export interface ICallInteraction extends IIonService
 {
-  GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
-  CreateArchetype(spaceId: guid, name: string): Promise<Archetype>;
-  UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
-  SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
-  GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
-}
-
-
-
-
-export interface IChannelInteraction extends IIonService
-{
-  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
-  DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
-  GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
-  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
-  Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
-  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
-  BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
-  StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
-}
-
-
-export interface IEventBus extends IIonService
-{
-  ForServer(spaceId: guid): AsyncIterable<IArgonEvent>;
-  Dispatch(ev: IArgonClientEvent): Promise<void>;
-  Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
-}
-
-
-
-
-export interface IFriendsInteraction extends IIonService
-{
-}
-
-
-
-
-export interface IIdentityInteraction extends IIonService
-{
-  Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
-  Registration(data: NewUserCredentialsInput): Promise<IRegistrationResult>;
-  BeginResetPassword(email: string): Promise<bool>;
-  ResetPassword(email: string, otpCode: string, newPassword: string): Promise<IAuthorizeResult>;
-  GetAuthorizationScenario(): Promise<string>;
-  GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
-  GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
-}
-
-
-
-
-export interface IInventoryInteraction extends IIonService
-{
-  GetMyInventoryItems(): Promise<IonArray<InventoryItem>>;
-  MarkSeen(itemIds: IonArray<guid>): Promise<void>;
-  GetNotifications(): Promise<IonArray<InventoryNotification>>;
-  RedeemCode(code: string): Promise<IRedeemResult>;
-  UseItem(itemId: guid): Promise<bool>;
-}
-
-
-
-
-export interface IServerInteraction extends IIonService
-{
-  GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
-  GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
-  GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
-  CreateInviteCode(spaceId: guid): Promise<InviteCode>;
-  PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
-  PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
-  GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
-  GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
-  GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
-  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
-  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
-  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
-}
-
-
-
-
-
-
-export interface IUserInteraction extends IIonService
-{
-  GetMe(): Promise<ArgonUser>;
-  CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
-  GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
-  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
-  JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
-  BroadcastPresence(presence: UserActivityPresence): Promise<void>;
-  RemoveBroadcastPresence(): Promise<void>;
-  GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
-  GetMyProfile(): Promise<ArgonUserProfile>;
-  BeginUploadAvatar(): Promise<IUploadFileResult>;
-  CompleteUploadAvatar(blobId: guid): Promise<void>;
-  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
-  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
-}
-
-
-
-
-export interface IPreferenceInteraction extends IIonService
-{
-  SetPreference(scope: string, value: string): Promise<void>;
-  GetPreference(scope: string, value: string): Promise<void>;
-}
-
-
-
-
-export interface IVoiceInteraction extends IIonService
-{
-  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<bool>;
-  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<void>;
+  DingDongCreep(creepId: guid): Promise<IBeginCallResult>;
+  PickUpCall(callId: guid): Promise<IPickUpCallResult>;
+  RejectCall(callId: guid): Promise<void>;
+  HangupCall(callId: guid): Promise<void>;
 }
 
 
@@ -4601,6 +4959,69 @@ export class VoiceInteraction_Executor extends ServiceExecutor<IVoiceInteraction
 
 IonFormatterStorage.registerClientExecutor<IVoiceInteraction>('VoiceInteraction', VoiceInteraction_Executor);
 
+export class CallInteraction_Executor extends ServiceExecutor<ICallInteraction> implements ICallInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async DingDongCreep(creepId: guid): Promise<IBeginCallResult> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "DingDongCreep");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, creepId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginCallResult>("IBeginCallResult", writer.data, this.signal);
+  }
+  async PickUpCall(callId: guid): Promise<IPickUpCallResult> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "PickUpCall");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, callId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPickUpCallResult>("IPickUpCallResult", writer.data, this.signal);
+  }
+  async RejectCall(callId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "RejectCall");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, callId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async HangupCall(callId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "HangupCall");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, callId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ICallInteraction>('CallInteraction', CallInteraction_Executor);
+
 
 export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
   const ctx = {
@@ -4624,6 +5045,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
         if (propKey === "VoiceInteraction") return IonFormatterStorage.createExecutor("VoiceInteraction", ctx, controller.signal);
+        if (propKey === "CallInteraction") return IonFormatterStorage.createExecutor("CallInteraction", ctx, controller.signal);
 
 
         throw new Error(`${propKey} service is not defined`);
@@ -4640,6 +5062,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;
     VoiceInteraction: IVoiceInteraction;
+    CallInteraction: ICallInteraction;
 
   };
 }

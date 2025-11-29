@@ -38,6 +38,8 @@ import {
   ArgonMessage,
   ArgonSpaceBase,
   ArgonUser,
+  CallFinished,
+  CallIncoming,
   ChannelCreated,
   ChannelModified,
   ChannelRemoved,
@@ -60,6 +62,7 @@ import {
 } from "@/lib/glue/argonChat";
 import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
 import { createCustomEqual } from "fast-equals";
+import { useCallStore } from "./callStore";
 
 const deepEqual = createCustomEqual({ strict: true });
 
@@ -935,6 +938,14 @@ export const usePoolStore = defineStore("data-pool", () => {
       void trackArchetype(x.dto);
     });*/
   };
+
+
+  bus.onServerEvent<CallIncoming>("CallIncoming", (x) => {
+      useCallStore().incomingCall(x.callId, x.fromId);
+  });
+  bus.onServerEvent<CallFinished>("CallFinished", (x) => {
+      useCallStore().incomingCallClosed(x.callId);
+  });
 
   const refershDatas = async () => {
     await loadServerDetails();

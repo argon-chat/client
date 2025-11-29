@@ -20,7 +20,7 @@ export const useTone = defineStore("tone", () => {
     isEnable_playRingSound,
   } = storeToRefs(prefs);
 
-  const { play } = useSound(normalizedAtlas, {
+  const { play, stop } = useSound(normalizedAtlas, {
     volume: _soundLevel as any,
     sprite: {
       playMuteAllSound: [0, 1006],
@@ -32,6 +32,21 @@ export const useTone = defineStore("tone", () => {
       playReconnectSound: [9879, 12046 - 9879],
     },
     audioContext: audio.getCurrentAudioContext(),
+  });
+
+  const { play: startRingSound, stop: stopRingSound } = useSound(normalizedAtlas, {
+    volume: _soundLevel as any,
+    sprite: {
+      playMuteAllSound: [0, 1006],
+      playUnmuteAllSound: [1022, 1876 - 1022],
+      playSoftEnterSound: [1876, 2923 - 1876],
+      playSoftLeaveSound: [2923, 4083 - 2923],
+      playNotificationSound: [4083, 5335 - 4083],
+      playRingSound: [5335, 8665 - 5335],
+      playReconnectSound: [9879, 12046 - 9879],
+    },
+    audioContext: audio.getCurrentAudioContext(),
+    loop: true
   });
 
   prefs.onSoundLevelChanged.subscribe((e) => {
@@ -66,8 +81,20 @@ export const useTone = defineStore("tone", () => {
 
   function play_id(id: string, isEnabled: Ref<boolean>) {
     if (!isEnabled.value) return;
+    if (id == "playRingSound") {
+      startRingSound({ id, forceSoundEnabled: true });
+      return;
+    }
+
     play({ id, forceSoundEnabled: true });
+    
   }
+
+  function stopPlayRingSound() {
+    stopRingSound("playRingSound");
+  }
+
+
 
   return {
     init,
@@ -78,6 +105,7 @@ export const useTone = defineStore("tone", () => {
     playUnmuteAllSound,
     playNotificationSound,
     playRingSound,
+    stopPlayRingSound
   };
 });
 

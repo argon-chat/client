@@ -9,6 +9,7 @@ import { usePreference } from "./store/preferenceStore";
 import Island from "./components/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
+import IncomingCallOverlay from "./components/IncomingCallOverlay.vue";
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
@@ -161,6 +162,7 @@ const themeOverrides = {
     <RouterView />
     <Toaster />
     <DevPanel />
+    <IncomingCallOverlay/>
     <Island class="select-none" v-if="sys.isRequestRetrying" :title="`Reconnecting`" />
 
     <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between" v-if="!nativeControlsActive">

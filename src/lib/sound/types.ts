@@ -33,7 +33,7 @@ export type PlayFunction = (options?: PlayOptions) => void;
 export interface ReturnedValue {
   play: PlayFunction;
   sound: Ref<Howl | null>;
-  stop: (id?: number) => void;
+  stop: (id?: number | string) => void;
   pause: (id?: number) => void;
   isPlaying: Ref<boolean>;
   duration: Ref<number | null>;
