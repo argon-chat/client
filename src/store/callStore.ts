@@ -23,7 +23,8 @@ export const useCallStore = defineStore("call", () => {
     incomingCallInfo.value = {
       callId,
       fromUserId,
-      fromUserUsername: (await usePoolStore().getUser(fromUserId))?.username ?? "unknown"
+      fromUserUsername:
+        (await usePoolStore().getUser(fromUserId))?.username ?? "unknown",
     };
     tone.playRingSound();
   };
@@ -40,11 +41,12 @@ export const useCallStore = defineStore("call", () => {
   const pickUp = async () => {
     if (!incomingCallInfo.value) return null;
 
-    const result = await api.callInteraction.PickUpCall(incomingCallInfo.value.callId);
+    const result = await api.callInteraction.PickUpCall(
+      incomingCallInfo.value.callId
+    );
     lastPickUpResult.value = result;
 
     if (result.isSuccessPickUp()) {
-
       activeCallToken.value = result.token;
 
       activePeerUserId.value = incomingCallInfo.value.fromUserId;
@@ -61,9 +63,16 @@ export const useCallStore = defineStore("call", () => {
     // На fail окно не закрываем
     return result;
   };
+
+  const rejectCall = async () => {
+    if (!incomingCallInfo.value) return null;
+    await api.callInteraction.RejectCall(incomingCallInfo.value.callId);
+  };
   return {
     incomingCallClosed,
     incomingCall,
-    incomingCallInfo
+    incomingCallInfo,
+    pickUp,
+    rejectCall,
   };
 });
