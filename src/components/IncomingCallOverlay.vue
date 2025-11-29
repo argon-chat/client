@@ -8,7 +8,7 @@
                 <div class="text-center">
                     <h2 class="text-xl font-bold">InCuming Call</h2>
                     <p class="text-neutral-500 text-sm">
-                        from Мамаша Юки
+                        from @{{ callStore.incomingCallInfo.fromUserUsername }}
                     </p>
                 </div>
             </div>
@@ -38,6 +38,10 @@ import { useCallStore } from '@/store/callStore';
 import SmartArgonAvatar from './SmartArgonAvatar.vue';
 import Button from './ui/button/Button.vue';
 import { PhPhoneIncoming, PhPhoneSlash } from "@phosphor-icons/vue"
+import { usePoolStore } from '@/store/poolStore';
+import { watch } from 'vue';
+
+const pool = usePoolStore();
 
 const callStore = useCallStore();
 

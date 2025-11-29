@@ -4,9 +4,11 @@ import { ref } from "vue";
 import { useApi } from "./apiStore";
 import { useTone } from "./toneStore";
 import { IPickUpCallResult, SuccessPickUp } from "@/lib/glue/argonChat";
+import { usePoolStore } from "./poolStore";
 export interface CallIncoming {
   callId: string;
   fromUserId: string;
+  fromUserUsername: string;
 }
 
 export const useCallStore = defineStore("call", () => {
@@ -17,10 +19,11 @@ export const useCallStore = defineStore("call", () => {
   const activePeerUserId = ref<Guid | null>(null);
   const lastPickUpResult = ref<IPickUpCallResult | null>(null);
 
-  const incomingCall = function (callId: Guid, fromUserId: Guid) {
+  const incomingCall = async function (callId: Guid, fromUserId: Guid) {
     incomingCallInfo.value = {
       callId,
       fromUserId,
+      fromUserUsername: (await usePoolStore().getUser(fromUserId))?.username ?? "unknown"
     };
     tone.playRingSound();
   };
