@@ -188,22 +188,48 @@ export enum ChannelMemberState
 }
 
 
-export interface FriendRequest {
-  requestId: guid;
-  fromUser: guid;
-  toUser: guid;
-  requestTime: datetime;
+export interface UserBlock {
+  userId: guid;
+  blockedId: guid;
+  blockedAt: datetime;
 };
 
 
-export enum FriendRequestStatus
+export interface FriendRequest {
+  requesterId: guid;
+  targetId: guid;
+  requestedAt: datetime;
+};
+
+
+export interface Friendship {
+  userId: guid;
+  friendId: guid;
+  friendAt: datetime;
+};
+
+
+export interface UserChat {
+  peerId: guid;
+  isPinned: bool;
+  userId: guid;
+  lastMsg: string | null;
+  lastMessageAt: datetime;
+  pinnedAt: datetime | null;
+  unreadCount: i4;
+};
+
+
+export enum SendFriendStatus
 {
-  Pending = 0,
-  Accepted = 1,
-  Declined = 2,
-  Cancelled = 3,
-  Expired = 4,
-  Blocked = 5,
+  TargetNotFound = 0,
+  CannotFriendYourself = 1,
+  Blocked = 2,
+  AlreadyFriends = 3,
+  AutoAccepted = 4,
+  AlreadySent = 5,
+  SuccessSent = 6,
+  FailedSent = 7,
 }
 
 
@@ -550,10 +576,30 @@ export interface IceEndpoint {
 };
 
 
+export interface ServiceUssdResult {
+  success: bool;
+  message: string;
+};
+
+
 export enum CallFailedError
 {
-  None = 0,
-  CalleeOffline = 1,
+  NONE = 0,
+  CALLEE_OFFLINE = 1,
+  INSUFFICIENT_BALANCE = 2,
+  VERIFICATION_FAILED = 3,
+  POOL_EMPTY_TRY_LATE = 4,
+}
+
+
+export enum DialCheckFailReason
+{
+  COUNTRY_NOT_SUPPORT = 0,
+  INVALID_NUMBER_COUNTRY = 1,
+  INSUFFICIENT_BALANCE = 2,
+  NUMBER_NOT_AVAILABLE = 3,
+  INSUFFICIENT_POOL = 4,
+  UNKNOWN_ERROR = 5,
 }
 
 
@@ -1012,6 +1058,42 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isCallRejected(): this is CallRejected {
     return this.UnionKey === "CallRejected";
   }
+  public isFriendRequestReceivedEvent(): this is FriendRequestReceivedEvent {
+    return this.UnionKey === "FriendRequestReceivedEvent";
+  }
+  public isFriendRequestSentEvent(): this is FriendRequestSentEvent {
+    return this.UnionKey === "FriendRequestSentEvent";
+  }
+  public isFriendRequestAcceptedEvent(): this is FriendRequestAcceptedEvent {
+    return this.UnionKey === "FriendRequestAcceptedEvent";
+  }
+  public isFriendRequestDeclinedEvent(): this is FriendRequestDeclinedEvent {
+    return this.UnionKey === "FriendRequestDeclinedEvent";
+  }
+  public isFriendRequestCanceledEvent(): this is FriendRequestCanceledEvent {
+    return this.UnionKey === "FriendRequestCanceledEvent";
+  }
+  public isFriendshipRemovedEvent(): this is FriendshipRemovedEvent {
+    return this.UnionKey === "FriendshipRemovedEvent";
+  }
+  public isUserBlockedEvent(): this is UserBlockedEvent {
+    return this.UnionKey === "UserBlockedEvent";
+  }
+  public isUserUnblockedEvent(): this is UserUnblockedEvent {
+    return this.UnionKey === "UserUnblockedEvent";
+  }
+  public isRecentChatUpdatedEvent(): this is RecentChatUpdatedEvent {
+    return this.UnionKey === "RecentChatUpdatedEvent";
+  }
+  public isChatPinnedEvent(): this is ChatPinnedEvent {
+    return this.UnionKey === "ChatPinnedEvent";
+  }
+  public isChatUnpinnedEvent(): this is ChatUnpinnedEvent {
+    return this.UnionKey === "ChatUnpinnedEvent";
+  }
+  public isChatReadEvent(): this is ChatReadEvent {
+    return this.UnionKey === "ChatReadEvent";
+  }
 
 }
 
@@ -1192,6 +1274,102 @@ export class CallRejected extends IArgonEvent
   UnionIndex: number = 21;
 }
 
+export class FriendRequestReceivedEvent extends IArgonEvent
+{
+  constructor(public requesterId: guid, public requestDate: datetime) { super(); }
+
+  UnionKey: string = "FriendRequestReceivedEvent";
+  UnionIndex: number = 22;
+}
+
+export class FriendRequestSentEvent extends IArgonEvent
+{
+  constructor(public targetId: guid, public requestDate: datetime) { super(); }
+
+  UnionKey: string = "FriendRequestSentEvent";
+  UnionIndex: number = 23;
+}
+
+export class FriendRequestAcceptedEvent extends IArgonEvent
+{
+  constructor(public userId: guid, public friendAt: datetime) { super(); }
+
+  UnionKey: string = "FriendRequestAcceptedEvent";
+  UnionIndex: number = 24;
+}
+
+export class FriendRequestDeclinedEvent extends IArgonEvent
+{
+  constructor(public targetId: guid) { super(); }
+
+  UnionKey: string = "FriendRequestDeclinedEvent";
+  UnionIndex: number = 25;
+}
+
+export class FriendRequestCanceledEvent extends IArgonEvent
+{
+  constructor(public requesterId: guid) { super(); }
+
+  UnionKey: string = "FriendRequestCanceledEvent";
+  UnionIndex: number = 26;
+}
+
+export class FriendshipRemovedEvent extends IArgonEvent
+{
+  constructor(public userId: guid) { super(); }
+
+  UnionKey: string = "FriendshipRemovedEvent";
+  UnionIndex: number = 27;
+}
+
+export class UserBlockedEvent extends IArgonEvent
+{
+  constructor(public blockId: guid) { super(); }
+
+  UnionKey: string = "UserBlockedEvent";
+  UnionIndex: number = 28;
+}
+
+export class UserUnblockedEvent extends IArgonEvent
+{
+  constructor(public blockId: guid) { super(); }
+
+  UnionKey: string = "UserUnblockedEvent";
+  UnionIndex: number = 29;
+}
+
+export class RecentChatUpdatedEvent extends IArgonEvent
+{
+  constructor(public peerId: guid, public userId: guid, public lastMessage: string | null, public lastMessageAt: datetime) { super(); }
+
+  UnionKey: string = "RecentChatUpdatedEvent";
+  UnionIndex: number = 30;
+}
+
+export class ChatPinnedEvent extends IArgonEvent
+{
+  constructor(public peerId: guid, public pinnedAt: datetime) { super(); }
+
+  UnionKey: string = "ChatPinnedEvent";
+  UnionIndex: number = 31;
+}
+
+export class ChatUnpinnedEvent extends IArgonEvent
+{
+  constructor(public peerId: guid) { super(); }
+
+  UnionKey: string = "ChatUnpinnedEvent";
+  UnionIndex: number = 32;
+}
+
+export class ChatReadEvent extends IArgonEvent
+{
+  constructor(public peerId: guid) { super(); }
+
+  UnionKey: string = "ChatReadEvent";
+  UnionIndex: number = 33;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -1246,6 +1424,30 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<CallAccepted>("CallAccepted").read(reader);
     else if (unionIndex == 21)
       value = IonFormatterStorage.get<CallRejected>("CallRejected").read(reader);
+    else if (unionIndex == 22)
+      value = IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").read(reader);
+    else if (unionIndex == 23)
+      value = IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").read(reader);
+    else if (unionIndex == 24)
+      value = IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").read(reader);
+    else if (unionIndex == 25)
+      value = IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").read(reader);
+    else if (unionIndex == 26)
+      value = IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").read(reader);
+    else if (unionIndex == 27)
+      value = IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").read(reader);
+    else if (unionIndex == 28)
+      value = IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").read(reader);
+    else if (unionIndex == 29)
+      value = IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").read(reader);
+    else if (unionIndex == 30)
+      value = IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").read(reader);
+    else if (unionIndex == 31)
+      value = IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").read(reader);
+    else if (unionIndex == 32)
+      value = IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").read(reader);
+    else if (unionIndex == 33)
+      value = IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").read(reader);
 
     else throw new Error();
   
@@ -1322,6 +1524,42 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 21) {
         IonFormatterStorage.get<CallRejected>("CallRejected").write(writer, value as CallRejected);
+    }
+    else if (value.UnionIndex == 22) {
+        IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").write(writer, value as FriendRequestReceivedEvent);
+    }
+    else if (value.UnionIndex == 23) {
+        IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").write(writer, value as FriendRequestSentEvent);
+    }
+    else if (value.UnionIndex == 24) {
+        IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").write(writer, value as FriendRequestAcceptedEvent);
+    }
+    else if (value.UnionIndex == 25) {
+        IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").write(writer, value as FriendRequestDeclinedEvent);
+    }
+    else if (value.UnionIndex == 26) {
+        IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").write(writer, value as FriendRequestCanceledEvent);
+    }
+    else if (value.UnionIndex == 27) {
+        IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").write(writer, value as FriendshipRemovedEvent);
+    }
+    else if (value.UnionIndex == 28) {
+        IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").write(writer, value as UserBlockedEvent);
+    }
+    else if (value.UnionIndex == 29) {
+        IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").write(writer, value as UserUnblockedEvent);
+    }
+    else if (value.UnionIndex == 30) {
+        IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").write(writer, value as RecentChatUpdatedEvent);
+    }
+    else if (value.UnionIndex == 31) {
+        IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").write(writer, value as ChatPinnedEvent);
+    }
+    else if (value.UnionIndex == 32) {
+        IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").write(writer, value as ChatUnpinnedEvent);
+    }
+    else if (value.UnionIndex == 33) {
+        IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").write(writer, value as ChatReadEvent);
     }
   
     else throw new Error();
@@ -1702,6 +1940,188 @@ IonFormatterStorage.register("CallRejected", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.fromId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestReceivedEvent", {
+  read(reader: CborReader): FriendRequestReceivedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const requestDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FriendRequestReceivedEvent(requesterId, requestDate);
+  },
+  write(writer: CborWriter, value: FriendRequestReceivedEvent): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.requesterId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.requestDate);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestSentEvent", {
+  read(reader: CborReader): FriendRequestSentEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const requestDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FriendRequestSentEvent(targetId, requestDate);
+  },
+  write(writer: CborWriter, value: FriendRequestSentEvent): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.requestDate);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestAcceptedEvent", {
+  read(reader: CborReader): FriendRequestAcceptedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const friendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FriendRequestAcceptedEvent(userId, friendAt);
+  },
+  write(writer: CborWriter, value: FriendRequestAcceptedEvent): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.friendAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestDeclinedEvent", {
+  read(reader: CborReader): FriendRequestDeclinedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FriendRequestDeclinedEvent(targetId);
+  },
+  write(writer: CborWriter, value: FriendRequestDeclinedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendRequestCanceledEvent", {
+  read(reader: CborReader): FriendRequestCanceledEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FriendRequestCanceledEvent(requesterId);
+  },
+  write(writer: CborWriter, value: FriendRequestCanceledEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.requesterId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FriendshipRemovedEvent", {
+  read(reader: CborReader): FriendshipRemovedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FriendshipRemovedEvent(userId);
+  },
+  write(writer: CborWriter, value: FriendshipRemovedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserBlockedEvent", {
+  read(reader: CborReader): UserBlockedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const blockId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new UserBlockedEvent(blockId);
+  },
+  write(writer: CborWriter, value: UserBlockedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.blockId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserUnblockedEvent", {
+  read(reader: CborReader): UserUnblockedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const blockId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new UserUnblockedEvent(blockId);
+  },
+  write(writer: CborWriter, value: UserUnblockedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.blockId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("RecentChatUpdatedEvent", {
+  read(reader: CborReader): RecentChatUpdatedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const lastMessage = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const lastMessageAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new RecentChatUpdatedEvent(peerId, userId, lastMessage, lastMessageAt);
+  },
+  write(writer: CborWriter, value: RecentChatUpdatedEvent): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<string>(writer, value.lastMessage, 'string');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastMessageAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChatPinnedEvent", {
+  read(reader: CborReader): ChatPinnedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const pinnedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ChatPinnedEvent(peerId, pinnedAt);
+  },
+  write(writer: CborWriter, value: ChatPinnedEvent): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.pinnedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChatUnpinnedEvent", {
+  read(reader: CborReader): ChatUnpinnedEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ChatUnpinnedEvent(peerId);
+  },
+  write(writer: CborWriter, value: ChatUnpinnedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChatReadEvent", {
+  read(reader: CborReader): ChatReadEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ChatReadEvent(peerId);
+  },
+  write(writer: CborWriter, value: ChatReadEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
     writer.writeEndArray();
   }
 });
@@ -2648,7 +3068,7 @@ export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
 
 export class SuccessDingDong extends IBeginCallResult
 {
-  constructor(public token: string, public callId: guid) { super(); }
+  constructor(public token: string, public callId: guid, public rtc: RtcEndpoint) { super(); }
 
   UnionKey: string = "SuccessDingDong";
   UnionIndex: number = 0;
@@ -2705,13 +3125,15 @@ IonFormatterStorage.register("SuccessDingDong", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return new SuccessDingDong(token, callId);
+    const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessDingDong(token, callId, rtc);
   },
   write(writer: CborWriter, value: SuccessDingDong): void {
-    writer.writeStartArray(2);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
     IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.rtc);
     writer.writeEndArray();
   }
 });
@@ -2752,7 +3174,7 @@ export abstract class IPickUpCallResult implements IIonUnion<IPickUpCallResult>
 
 export class SuccessPickUp extends IPickUpCallResult
 {
-  constructor(public token: string, public callId: guid) { super(); }
+  constructor(public token: string, public callId: guid, public rtc: RtcEndpoint) { super(); }
 
   UnionKey: string = "SuccessPickUp";
   UnionIndex: number = 0;
@@ -2809,13 +3231,15 @@ IonFormatterStorage.register("SuccessPickUp", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return new SuccessPickUp(token, callId);
+    const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessPickUp(token, callId, rtc);
   },
   write(writer: CborWriter, value: SuccessPickUp): void {
-    writer.writeStartArray(2);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<string>('string').write(writer, value.token);
     IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.rtc);
     writer.writeEndArray();
   }
 });
@@ -2830,6 +3254,114 @@ IonFormatterStorage.register("FailedPickUp", {
   write(writer: CborWriter, value: FailedPickUp): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<string>('string').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IDialCheckResult implements IIonUnion<IDialCheckResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDialCheck(): this is SuccessDialCheck {
+    return this.UnionKey === "SuccessDialCheck";
+  }
+  public isFailedDialCheck(): this is FailedDialCheck {
+    return this.UnionKey === "FailedDialCheck";
+  }
+
+}
+
+
+export class SuccessDialCheck extends IDialCheckResult
+{
+  constructor(public priceMin: i4, public corelId: guid, public corlId: guid) { super(); }
+
+  UnionKey: string = "SuccessDialCheck";
+  UnionIndex: number = 0;
+}
+
+export class FailedDialCheck extends IDialCheckResult
+{
+  constructor(public reason: DialCheckFailReason, public priceMin: i4) { super(); }
+
+  UnionKey: string = "FailedDialCheck";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IDialCheckResult", {
+  read(reader: CborReader): IDialCheckResult {
+    reader.readStartArray();
+    let value: IDialCheckResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDialCheck>("SuccessDialCheck").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IDialCheckResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDialCheck>("SuccessDialCheck").write(writer, value as SuccessDialCheck);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").write(writer, value as FailedDialCheck);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDialCheck", {
+  read(reader: CborReader): SuccessDialCheck {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
+    const corelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const corlId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessDialCheck(priceMin, corelId, corlId);
+  },
+  write(writer: CborWriter, value: SuccessDialCheck): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.priceMin);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.corelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.corlId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDialCheck", {
+  read(reader: CborReader): FailedDialCheck {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const reason = IonFormatterStorage.get<DialCheckFailReason>('DialCheckFailReason').read(reader);
+    const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FailedDialCheck(reason, priceMin);
+  },
+  write(writer: CborWriter, value: FailedDialCheck): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<DialCheckFailReason>('DialCheckFailReason').write(writer, value.reason);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.priceMin);
     writer.writeEndArray();
   }
 });
@@ -3086,32 +3618,92 @@ IonFormatterStorage.register("EntityType", {
   }
 });
 
-IonFormatterStorage.register("FriendRequest", {
-  read(reader: CborReader): FriendRequest {
+IonFormatterStorage.register("UserBlock", {
+  read(reader: CborReader): UserBlock {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const requestId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const fromUser = IonFormatterStorage.get<guid>('guid').read(reader);
-    const toUser = IonFormatterStorage.get<guid>('guid').read(reader);
-    const requestTime = IonFormatterStorage.get<datetime>('datetime').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { requestId, fromUser, toUser, requestTime };
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const blockedId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const blockedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { userId, blockedId, blockedAt };
   },
-  write(writer: CborWriter, value: FriendRequest): void {
-    writer.writeStartArray(4);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.requestId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.fromUser);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.toUser);
-    IonFormatterStorage.get<datetime>('datetime').write(writer, value.requestTime);
+  write(writer: CborWriter, value: UserBlock): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.blockedId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.blockedAt);
     writer.writeEndArray();
   }
 });
 
-IonFormatterStorage.register("FriendRequestStatus", {
-  read(reader: CborReader): FriendRequestStatus {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return FriendRequestStatus[num] !== undefined ? num as FriendRequestStatus : (() => {throw new Error('invalid enum type')})();
+IonFormatterStorage.register("FriendRequest", {
+  read(reader: CborReader): FriendRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const requestedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { requesterId, targetId, requestedAt };
   },
-  write(writer: CborWriter, value: FriendRequestStatus): void {
+  write(writer: CborWriter, value: FriendRequest): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.requesterId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.requestedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Friendship", {
+  read(reader: CborReader): Friendship {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const friendId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const friendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { userId, friendId, friendAt };
+  },
+  write(writer: CborWriter, value: Friendship): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.friendId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.friendAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserChat", {
+  read(reader: CborReader): UserChat {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const isPinned = IonFormatterStorage.get<bool>('bool').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const lastMsg = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const lastMessageAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const pinnedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const unreadCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { peerId, isPinned, userId, lastMsg, lastMessageAt, pinnedAt, unreadCount };
+  },
+  write(writer: CborWriter, value: UserChat): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isPinned);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<string>(writer, value.lastMsg, 'string');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastMessageAt);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.pinnedAt, 'datetime');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.unreadCount);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SendFriendStatus", {
+  read(reader: CborReader): SendFriendStatus {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return SendFriendStatus[num] !== undefined ? num as SendFriendStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SendFriendStatus): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -3714,12 +4306,39 @@ IonFormatterStorage.register("IceEndpoint", {
   }
 });
 
+IonFormatterStorage.register("ServiceUssdResult", {
+  read(reader: CborReader): ServiceUssdResult {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const success = IonFormatterStorage.get<bool>('bool').read(reader);
+    const message = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { success, message };
+  },
+  write(writer: CborWriter, value: ServiceUssdResult): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.success);
+    IonFormatterStorage.get<string>('string').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("CallFailedError", {
   read(reader: CborReader): CallFailedError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
     return CallFailedError[num] !== undefined ? num as CallFailedError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: CallFailedError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DialCheckFailReason", {
+  read(reader: CborReader): DialCheckFailReason {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return DialCheckFailReason[num] !== undefined ? num as DialCheckFailReason : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: DialCheckFailReason): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -3767,6 +4386,26 @@ export interface IEventBus extends IIonService
 
 export interface IFriendsInteraction extends IIonService
 {
+  GetBlockList(limit: i4, offset: i4): Promise<IonArray<UserBlock>>;
+  GetMyFriendPendingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>>;
+  GetMyFriendOutgoingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>>;
+  GetMyFriendships(limit: i4, offset: i4): Promise<IonArray<Friendship>>;
+  SendFriendRequest(username: string): Promise<SendFriendStatus>;
+  RemoveFriend(userId: guid): Promise<void>;
+  AcceptFriendRequest(fromUserId: guid): Promise<void>;
+  DeclineFriendRequest(fromUserId: guid): Promise<void>;
+  CancelFriendRequest(toUserId: guid): Promise<void>;
+  BlockUser(userId: guid): Promise<void>;
+  UnblockUser(userId: guid): Promise<void>;
+}
+
+
+export interface IUserChatInteractions extends IIonService
+{
+  GetRecentChats(limit: i4, offset: i4): Promise<IonArray<UserChat>>;
+  PinChat(peerId: guid): Promise<void>;
+  UnpinChat(peerId: guid): Promise<void>;
+  MarkChatRead(peerId: guid): Promise<void>;
 }
 
 
@@ -3862,6 +4501,9 @@ export interface ICallInteraction extends IIonService
   PickUpCall(callId: guid): Promise<IPickUpCallResult>;
   RejectCall(callId: guid): Promise<void>;
   HangupCall(callId: guid): Promise<void>;
+  UssdExecute(ussd: string, corlId: guid): Promise<ServiceUssdResult>;
+  BeginDialCheck(phoneId: guid): Promise<IDialCheckResult>;
+  DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult>;
 }
 
 
@@ -3907,6 +4549,26 @@ export interface IEventBus extends IIonService
 
 export interface IFriendsInteraction extends IIonService
 {
+  GetBlockList(limit: i4, offset: i4): Promise<IonArray<UserBlock>>;
+  GetMyFriendPendingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>>;
+  GetMyFriendOutgoingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>>;
+  GetMyFriendships(limit: i4, offset: i4): Promise<IonArray<Friendship>>;
+  SendFriendRequest(username: string): Promise<SendFriendStatus>;
+  RemoveFriend(userId: guid): Promise<void>;
+  AcceptFriendRequest(fromUserId: guid): Promise<void>;
+  DeclineFriendRequest(fromUserId: guid): Promise<void>;
+  CancelFriendRequest(toUserId: guid): Promise<void>;
+  BlockUser(userId: guid): Promise<void>;
+  UnblockUser(userId: guid): Promise<void>;
+}
+
+
+export interface IUserChatInteractions extends IIonService
+{
+  GetRecentChats(limit: i4, offset: i4): Promise<IonArray<UserChat>>;
+  PinChat(peerId: guid): Promise<void>;
+  UnpinChat(peerId: guid): Promise<void>;
+  MarkChatRead(peerId: guid): Promise<void>;
 }
 
 
@@ -4002,6 +4664,9 @@ export interface ICallInteraction extends IIonService
   PickUpCall(callId: guid): Promise<IPickUpCallResult>;
   RejectCall(callId: guid): Promise<void>;
   HangupCall(callId: guid): Promise<void>;
+  UssdExecute(ussd: string, corlId: guid): Promise<ServiceUssdResult>;
+  BeginDialCheck(phoneId: guid): Promise<IDialCheckResult>;
+  DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult>;
 }
 
 
@@ -4329,10 +4994,221 @@ export class FriendsInteraction_Executor extends ServiceExecutor<IFriendsInterac
   }
 
   
+  async GetBlockList(limit: i4, offset: i4): Promise<IonArray<UserBlock>> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "GetBlockList");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UserBlock>>("IonArray<UserBlock>", writer.data, this.signal);
+  }
+  async GetMyFriendPendingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "GetMyFriendPendingList");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<FriendRequest>>("IonArray<FriendRequest>", writer.data, this.signal);
+  }
+  async GetMyFriendOutgoingList(limit: i4, offset: i4): Promise<IonArray<FriendRequest>> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "GetMyFriendOutgoingList");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<FriendRequest>>("IonArray<FriendRequest>", writer.data, this.signal);
+  }
+  async GetMyFriendships(limit: i4, offset: i4): Promise<IonArray<Friendship>> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "GetMyFriendships");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<Friendship>>("IonArray<Friendship>", writer.data, this.signal);
+  }
+  async SendFriendRequest(username: string): Promise<SendFriendStatus> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "SendFriendRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, username);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SendFriendStatus>("SendFriendStatus", writer.data, this.signal);
+  }
+  async RemoveFriend(userId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "RemoveFriend");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async AcceptFriendRequest(fromUserId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "AcceptFriendRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, fromUserId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async DeclineFriendRequest(fromUserId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "DeclineFriendRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, fromUserId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async CancelFriendRequest(toUserId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "CancelFriendRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, toUserId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async BlockUser(userId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "BlockUser");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async UnblockUser(userId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "UnblockUser");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
 
 }
 
 IonFormatterStorage.registerClientExecutor<IFriendsInteraction>('FriendsInteraction', FriendsInteraction_Executor);
+
+export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInteractions> implements IUserChatInteractions {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetRecentChats(limit: i4, offset: i4): Promise<IonArray<UserChat>> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "GetRecentChats");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UserChat>>("IonArray<UserChat>", writer.data, this.signal);
+  }
+  async PinChat(peerId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "PinChat");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async UnpinChat(peerId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "UnpinChat");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async MarkChatRead(peerId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "MarkChatRead");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IUserChatInteractions>('UserChatInteractions', UserChatInteractions_Executor);
 
 export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInteraction> implements IIdentityInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -5017,6 +5893,47 @@ export class CallInteraction_Executor extends ServiceExecutor<ICallInteraction> 
           
     await req.callAsync(writer.data, this.signal);
   }
+  async UssdExecute(ussd: string, corlId: guid): Promise<ServiceUssdResult> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "UssdExecute");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, ussd);
+    IonFormatterStorage.get<guid>('guid').write(writer, corlId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ServiceUssdResult>("ServiceUssdResult", writer.data, this.signal);
+  }
+  async BeginDialCheck(phoneId: guid): Promise<IDialCheckResult> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "BeginDialCheck");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, phoneId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IDialCheckResult>("IDialCheckResult", writer.data, this.signal);
+  }
+  async DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult> {
+    const req = new IonRequest(this.ctx, "ICallInteraction", "DialUp");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, phoneId);
+    IonFormatterStorage.get<guid>('guid').write(writer, corlId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginCallResult>("IBeginCallResult", writer.data, this.signal);
+  }
 
 }
 
@@ -5039,6 +5956,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
+        if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
@@ -5056,6 +5974,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
     FriendsInteraction: IFriendsInteraction;
+    UserChatInteractions: IUserChatInteractions;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
     ServerInteraction: IServerInteraction;
