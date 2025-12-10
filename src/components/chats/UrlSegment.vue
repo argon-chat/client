@@ -6,6 +6,7 @@
 import { MessageEntityUrl } from "@/lib/glue/argonChat";
 import { useToast } from "../ui/toast";
 import { useLocale } from "@/store/localeStore";
+import { native } from "@/lib/glue/nativeGlue";
 const { t } = useLocale();
 
 const props = defineProps<{
@@ -20,7 +21,7 @@ const onClickUrl = () => {
   const fullyUrl = `https://${props.entity.domain}${props.entity.path}`;
   if (isArgonDomain(props.entity.domain)) {
     if (argon.isArgonHost) window.open(fullyUrl, "_blank", "noopener");
-    else native.openUrl(fullyUrl);
+    else native.hostProc.openUrl(fullyUrl);
     return;
   }
   toast({

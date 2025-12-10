@@ -71,6 +71,7 @@ import { Subscription } from "rxjs";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
 import { v7 } from "uuid";
 import { useLocale } from "@/store/localeStore";
+import { native } from "@/lib/glue/nativeGlue";
 const { t } = useLocale();
 
 const editorRef = ref<HTMLElement | null>(null);
@@ -91,9 +92,9 @@ const debouncedQuery = useDebounce(rawQuery, 150);
 const onContextMenu = (e: MouseEvent) => {
   logger.error("try open context menu", e);
 
-  if (!native.openContextMenu(e.clientX, e.clientY, items)) {
+  /*if (!native.openContextMenu(e.clientX, e.clientY, items)) {
     logger.error("failed to open context menu", e);
-  }
+  }*/
 };
 
 const redo = () => {
@@ -108,7 +109,7 @@ async function cut() {
   if (!selection || selection.isCollapsed) return;
 
   const text = selection.toString();
-  if (argon.isArgonHost) native.clipboardWrite(text);
+  if (argon.isArgonHost) native.hostProc.clipboardWrite(text);
   else await navigator.clipboard.writeText(text);
   selection.deleteFromDocument();
 }
@@ -118,13 +119,13 @@ async function copy() {
   if (!selection || selection.isCollapsed) return;
 
   const text = selection.toString();
-  if (argon.isArgonHost) native.clipboardWrite(text);
+  if (argon.isArgonHost) native.hostProc.clipboardWrite(text);
   else await navigator.clipboard.writeText(text);
 }
 
 async function paste() {
   const text = argon.isArgonHost
-    ? native.clipboardRead()
+    ? await native.hostProc.clipboardRead()
     : await navigator.clipboard.readText();
 
   const selection = window.getSelection();
@@ -145,7 +146,7 @@ function deleteSelection() {
   }
 }
 
-const items: IContextMenuItem[] = [
+const items: any[] = [
   { CommandId: 1, Label: "Undo", KeyCode: "Ctrl+Z", Action: undo },
   { CommandId: 2, Label: "Redo", KeyCode: "Ctrl+Y", Action: redo },
   { IsSeparator: true },
@@ -559,12 +560,12 @@ const subs = new Subscription();
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
-  subs.add(
+ /* subs.add(
     bus.subscribeToEvent<{ commandId: number }>(
       "native.host.context.menu.call",
       onCallContext,
     ),
-  );
+  );*/
 });
 
 onUnmounted(() => {
@@ -675,7 +676,7 @@ const handleSend = async () => {
 
   console.log("Sending message:", plainText);
   console.log("totalEntities:", entities);
-
+  // @ts-ignore
   await api.channelInteraction.SendMessage(v7(),
     pool.selectedTextChannel, 
     plainText,

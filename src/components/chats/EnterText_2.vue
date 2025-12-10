@@ -46,11 +46,6 @@
 <script setup lang="ts">
 import {
   LexicalComposer,
-  LexicalContentEditable,
-  LexicalRichTextPlugin,
-  LexicalHistoryPlugin,
-  LexicalOnChangePlugin,
-  LexicalPlainTextPlugin,
 } from "lexical-vue";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
 import { Button } from "@/components/ui/button";
