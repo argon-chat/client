@@ -64,6 +64,7 @@ import { useToast } from "@/components/ui/toast/";
 import UsageStatus from "./UsageStatus.vue";
 import { onMounted, ref } from "vue";
 import { getStorageUsageReport, StorageUsageReport, pruneCache, pruneIndexDb, pruneAll } from "@/store/fileStorage";
+import { native } from "@/lib/glue/nativeGlue";
 const { t } = useLocale();
 const toast = useToast();
 
@@ -74,7 +75,7 @@ onMounted(async () => {
     usageReport.value = await getStorageUsageReport();
 
     if (argon.isArgonHost) {
-        const space = native.getStorageSpace();
+        const space = await native.hostProc.getStorageSpace();
         usageReport.value.quotaBytes = +space.totalSize;
         usageReport.value.storageUsedBytes = Math.abs(+space.availableFreeSpace - +space.totalSize);
     }

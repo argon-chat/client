@@ -134,6 +134,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast/";
 import { useAuthStore } from "@/store/authStore";
+import { native } from "@/lib/glue/nativeGlue";
+import { Channel } from "@/lib/glue/argon.ipc";
 const { t } = useLocale();
 const toast = useToast();
 
@@ -149,7 +151,7 @@ const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
 const isArgonHost = ref(argon.isArgonHost);
 
 const toggleDevTools = () => {
-  native.toggleDevTools();
+  native.hostProc.toggleDevTools();
 };
 
 const copyMyUserId = () => {
@@ -160,7 +162,7 @@ const copyMyUserId = () => {
 };
 
 watch(selected_channel, (e) => {
-  native.setChannel(e);
+    native.hostProc.setCurrentChannel(Channel[e]);
 });
 
 watch(selected_api_endpoint, async (e) => {
@@ -172,11 +174,11 @@ watch(selected_api_endpoint, async (e) => {
   await pruneDatabases(false);
 });
 
-onMounted(() => {
+onMounted(async () => {
   if (!argon.isArgonHost) {
     disable_channel_select.value = true;
   } else {
-    selected_channel.value = native.getCurrentChannel();
+    selected_channel.value = Channel[await native.hostProc.getCurrentChannel()] as any;
   }
 
   const currentApiEndpoint = localStorage.getItem("api_endpoint");
