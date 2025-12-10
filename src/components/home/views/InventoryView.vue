@@ -1,5 +1,5 @@
 <template>
-    <section class="w-full space-y-4" v-bind="$attrs">
+    <section class="flex flex-col h-full space-y-4" v-bind="$attrs">
         <div class="flex items-center justify-between">
             <Alert class="flex justify-between items-center h-auto">
                 <AlertTitle class="flex items-center gap-2 text-lg font-semibold">
