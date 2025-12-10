@@ -396,5 +396,37 @@
   "attachments": "Կցված ֆայլեր",
   "drag_or_click_to_upload": "Քաշիր այստեղ կամ սեղմիր ներբեռնելու համար",
   "send_feedback": "Ուղարկել",
-  "feedback_attachments_limit": "PNG / JPG մինչև 2 ՄԲ (առավելագույնը 3 ֆայլ)"
+  "feedback_attachments_limit": "PNG / JPG մինչև 2 ՄԲ (առավելագույնը 3 ֆայլ)",
+
+  "add_friend": "Ավելացնել ընկեր",
+  "unfriend": "Հեռացնել ընկերներից",
+  "add_friend_description": "Ուղարկեք հարցում՝ ընկերանալու համար։",
+  "search_placeholder": "Փնտրել",
+  "friends_list": "Ընկերների ցանկ",
+  "incoming_requests": "Ստացվող հարցումներ",
+  "outgoing_requests": "Ուղարկված հարցումներ",
+  "blocked_users": "Արգելափակված օգտատերեր",
+  "empty_section": "Դատարկ է",
+
+  "username_placeholder": "օրինակ՝ john_doe",
+  "send_request": "Ուղարկել հարցում",
+  "empty_username": "Մուտքագրեք օգտանունը։",
+  "request_sent": "Ընկերանալու հարցումը ուղարկված է։",
+  "auto_accepted": "Հարցումը ավտոմատ ընդունվել է։",
+  "already_friends": "Արդեն ընկերներ եք։",
+  "already_sent": "Հարցումն արդեն ուղարկված է։",
+  "blocked": "Չեք կարող ուղարկել հարցում՝ արգելափակման պատճառով։",
+  "cannot_self": "Չեք կարող ինքներդ ձեզ ավելացնել։",
+  "user_not_found": "Օգտատերը գտնված չէ։",
+  "failed_sent": "Չհաջողվեց ուղարկել հարցումը։",
+
+  "event_friend_request_received": "Ստացվել է ընկերանալու նոր հարցում։",
+  "event_friend_request_sent": "Ընկերանալու հարցումը ուղարկվել է։",
+  "event_friend_request_accepted": "Ձեր հարցումը ընդունվել է։",
+  "event_friend_request_declined": "Ձեր հարցումը մերժվել է։",
+  "event_friend_request_canceled": "Հարցումը չեղարկվել է։",
+  "event_friendship_removed": "Ձեզ հեռացրել են ընկերներից։",
+  "event_user_blocked": "Օգտատերը արգելափակվել է։",
+  "event_user_unblocked": "Օգտատերը ապայգելափակվել է։"
+
 }

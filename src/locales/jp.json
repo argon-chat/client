@@ -394,5 +394,37 @@
   "attachments": "添付ファイル",
   "drag_or_click_to_upload": "ここにドラッグするかクリックしてアップロード",
   "send_feedback": "送信",
-  "feedback_attachments_limit": "PNG / JPG 2MBまで（最大3ファイル）"
+  "feedback_attachments_limit": "PNG / JPG 2MBまで（最大3ファイル）",
+
+  "add_friend": "フレンド追加",
+  "unfriend": "フレンド解除",
+  "add_friend_description": "相手にフレンド申請を送ります。",
+  "search_placeholder": "検索",
+  "friends_list": "フレンド一覧",
+  "incoming_requests": "受信した申請",
+  "outgoing_requests": "送信した申請",
+  "blocked_users": "ブロック中のユーザー",
+  "empty_section": "まだ何もありません",
+
+  "username_placeholder": "例: john_doe",
+  "send_request": "申請を送る",
+  "empty_username": "ユーザー名を入力してください。",
+  "request_sent": "フレンド申請を送信しました。",
+  "auto_accepted": "申請は自動承認されました。",
+  "already_friends": "すでにフレンドです。",
+  "already_sent": "申請はすでに送信されています。",
+  "blocked": "ブロックされているため申請できません。",
+  "cannot_self": "自分自身を追加することはできません。",
+  "user_not_found": "ユーザーが見つかりません。",
+  "failed_sent": "申請の送信に失敗しました。",
+
+  "event_friend_request_received": "新しいフレンド申請が届きました。",
+  "event_friend_request_sent": "フレンド申請を送信しました。",
+  "event_friend_request_accepted": "フレンド申請が承認されました。",
+  "event_friend_request_declined": "フレンド申請が拒否されました。",
+  "event_friend_request_canceled": "フレンド申請が取り消されました。",
+  "event_friendship_removed": "フレンドから外されました。",
+  "event_user_blocked": "ユーザーをブロックしました。",
+  "event_user_unblocked": "ユーザーのブロックを解除しました。"
+
 }

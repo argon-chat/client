@@ -407,5 +407,36 @@
   "attachments": "Attachments",
   "drag_or_click_to_upload": "Drag files here or click to upload",
   "send_feedback": "Send Feedback",
-  "feedback_attachments_limit": "PNG / JPG up to 2 MB (max 3 files)"
+  "feedback_attachments_limit": "PNG / JPG up to 2 MB (max 3 files)",
+
+  "add_friend": "Add Friend",
+  "unfriend": "Remove Friend",
+  "add_friend_description": "Send a friend request to connect with people.",
+  "search_placeholder": "Search",
+  "friends_list": "Friends",
+  "incoming_requests": "Incoming Requests",
+  "outgoing_requests": "Outgoing Requests",
+  "blocked_users": "Blocked Users",
+  "empty_section": "Nothing here yet",
+
+  "username_placeholder": "e.g., john_doe",
+  "send_request": "Send Request",
+  "empty_username": "Please enter a username.",
+  "request_sent": "Friend request sent.",
+  "auto_accepted": "Friend request instantly accepted.",
+  "already_friends": "You are already friends.",
+  "already_sent": "Friend request already sent.",
+  "blocked": "You cannot send a request due to a block.",
+  "cannot_self": "You cannot add yourself.",
+  "user_not_found": "User not found.",
+  "failed_sent": "Failed to send friend request.",
+
+  "event_friend_request_received": "New friend request received.",
+  "event_friend_request_sent": "Friend request sent.",
+  "event_friend_request_accepted": "Friend request accepted.",
+  "event_friend_request_declined": "Your friend request was declined.",
+  "event_friend_request_canceled": "Friend request was canceled.",
+  "event_friendship_removed": "You were removed from friends.",
+  "event_user_blocked": "User was blocked.",
+  "event_user_unblocked": "User was unblocked."
 }

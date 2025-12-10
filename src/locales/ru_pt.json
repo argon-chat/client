@@ -396,5 +396,37 @@
   "attachments": "Карта сокровищ (файлы)",
   "drag_or_click_to_upload": "Швыряй сюда али жми, чтоб подгрузить",
   "send_feedback": "Пустить в бутылку",
-  "feedback_attachments_limit": "PNG / JPG не тяжелее 2 мегов (не больше 3 трофеев)"
+  "feedback_attachments_limit": "PNG / JPG не тяжелее 2 мегов (не больше 3 трофеев)",
+
+  "add_friend": "Принять в команду",
+  "unfriend": "Выбросить за борт",
+  "add_friend_description": "Отправь послание — может, этот моряк станет твоим товарищем.",
+  "search_placeholder": "Искать",
+  "friends_list": "Команда",
+  "incoming_requests": "Письма в бутылке",
+  "outgoing_requests": "Отправленные послания",
+  "blocked_users": "Проклятые морские души",
+  "empty_section": "Пусто, как трюм после шторма",
+
+  "username_placeholder": "пример: john_doe",
+  "send_request": "Отправить послание",
+  "empty_username": "Скажи имя, моряк!",
+  "request_sent": "Послание отправлено по волнам!",
+  "auto_accepted": "Моряк принял тебя без раздумий!",
+  "already_friends": "Вы уже пьёте ром вместе.",
+  "already_sent": "Ты уже слал этому моряку весточку.",
+  "blocked": "Этот моряк занесён в чёрную книгу!",
+  "cannot_self": "Нельзя добавить самого себя в команду, шутишь?",
+  "user_not_found": "Такого моряка нет ни в одном порту.",
+  "failed_sent": "Послание утонуло в море...",
+
+  "event_friend_request_received": "Новая весточка в бутылке!",
+  "event_friend_request_sent": "Ты отправил послание по волнам.",
+  "event_friend_request_accepted": "Моряк принял твоё предложение!",
+  "event_friend_request_declined": "Твой зов был отвергнут.",
+  "event_friend_request_canceled": "Послание было отозвано.",
+  "event_friendship_removed": "Тебя выкинули из команды!",
+  "event_user_blocked": "Моряк отправлен в бездну!",
+  "event_user_unblocked": "Моряку позволено вернуться на палубу!"
+
 }
