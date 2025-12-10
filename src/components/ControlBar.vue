@@ -2,26 +2,26 @@
     <div class="relative" style="z-index: 1;" v-if="me.me">
         <div class="control-bar">
             <div class="controls">
-                <button :disabled="!voice.isConnected" @click="voice.disconnectFromChannel()" class="active">
+                <button :disabled="!isConnected" @click="endActiveCall" class="active">
                     <PhoneOffIcon class="w-5 h-5" />
                 </button>
-                <button @click="sys.toggleMicrophoneMute" :class="{ active: sys.microphoneMuted }">
-                    <MicOff v-if="sys.microphoneMuted" class="w-5 h-5" />
+
+                <button @click="toggleMic" :class="{ active: isMicMuted }">
+                    <MicOff v-if="isMicMuted" class="w-5 h-5" />
                     <Mic v-else class="w-5 h-5" />
                 </button>
+
                 <button @click="sys.toggleHeadphoneMute" :class="{ active: sys.headphoneMuted }">
                     <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
                     <Headphones v-else class="w-5 h-5" />
                 </button>
 
-                <button @click="toggleScreenCast" :class="{ active: voice.isSharing }"
-                    :disabled="!voice.isConnected || voice.currentlyReconnect">
+                <button @click="toggleScreenCast" :class="{ active: voice.isSharing }" :disabled="!isConnected">
                     <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
                     <ScreenShare v-else class="w-5 h-5" />
                 </button>
 
                 <Dialog style="min-width: 620px !important" v-model:open="openShareSettings">
-
                     <DialogContent class="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>{{ t("screencast") }}</DialogTitle>
@@ -31,20 +31,26 @@
                         </DialogHeader>
                         <Tabs default-value="monitors">
                             <TabsList class="w-full flex">
-                                <TabsTrigger value="monitors" class="flex-1">{{ t("monitors") }}</TabsTrigger>
-                                <TabsTrigger value="windows" disabled class="flex-1">{{ t("windows") }}</TabsTrigger>
+                                <TabsTrigger value="monitors" class="flex-1">
+                                    {{ t("monitors") }}
+                                </TabsTrigger>
+                                <TabsTrigger value="windows" disabled class="flex-1">
+                                    {{ t("windows") }}
+                                </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="monitors" class="mt-4">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div v-for="size in displays" :key="size.DisplayIndex"
+                                    <div v-for="size in displays" :key="size.displayIndex"
                                         class="flex flex-col items-center" @click="setSelected(size)">
                                         <video autoplay :srcObject="size.preview" class="rounded-lg preview"
                                             :class="{ previewSelected: size.selected }"></video>
-                                        <span class="text-sm mt-2">{{ t('monitor_index', { idx: size.DisplayIndex })
-                                        }}</span>
+                                        <span class="text-sm mt-2">
+                                            {{ t("monitor_index", { idx: size.displayIndex }) }}
+                                        </span>
                                     </div>
                                 </div>
+
                                 <div class="mt-4">
                                     <Label class="text-sm">{{ t("quality") }}</Label>
                                     <Select v-model="quality" :default-value="allSizes.at(0)?.title">
@@ -58,6 +64,7 @@
                                         </SelectContent>
                                     </Select>
                                 </div>
+
                                 <div class="mt-4">
                                     <Label class="text-sm">{{ t("fps") }}</Label>
                                     <Select v-model="fps">
@@ -71,6 +78,7 @@
                                         </SelectContent>
                                     </Select>
                                 </div>
+
                                 <div class="mt-4 flex items-center gap-2">
                                     <Switch v-model="includeAudio" />
                                     <Label>{{ t("enable_system_sound") }}</Label>
@@ -79,7 +87,9 @@
 
                             <TabsContent value="windows" class="mt-4">
                                 <div class="h-40 flex items-center justify-center bg-gray-200 rounded-lg">
-                                    <span class="text-gray-500"> {{ t("window_preview") }}</span>
+                                    <span class="text-gray-500">
+                                        {{ t("window_preview") }}
+                                    </span>
                                 </div>
                                 <div class="mt-4 flex items-center gap-2">
                                     <Switch v-model="includeAudio" />
@@ -88,96 +98,135 @@
                             </TabsContent>
                         </Tabs>
                         <DialogFooter class="sm:justify-start">
-                            <Button type="button" variant="default" @click="goShare()" style="width: 100%;">
+                            <Button type="button" variant="default" @click="goShare" style="width: 100%;">
                                 {{ t("start") }}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
                 <button :disabled="true">
                     <CameraIcon class="w-5 h-5" />
                 </button>
-                <!--<button @click="toggleRecord">
-                    <VideotapeIcon class="w-5 h-5" />
-                </button> -->
+
                 <button @click="toggleDoNotDistrurb">
                     <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
                     <OctagonMinusIcon v-else class="w-5 h-5" />
                 </button>
             </div>
         </div>
+
         <div>
-            <div v-show="voice.isConnected || voice.isBeginConnect" v-motion-slide-visible-bottom
-                class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1] "
+            <div v-show="isConnected || isConnecting" v-motion-slide-visible-bottom
+                class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
                 style="bottom: 100%; margin-bottom: -5px;">
                 <div class="flex items-center space-x-2">
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger as-child>
                                 <div>
-                                    <Signal class="w-4 h-4 text-green-500" v-if="voice.qualityConnection == 'GREEN'" />
+                                    <Signal class="w-4 h-4 text-green-500" v-if="qualityConnection === 'GREEN'" />
                                     <Signal class="w-4 h-4 text-orange-500"
-                                        v-else-if="voice.qualityConnection == 'ORANGE'" />
-                                    <Signal class="w-4 h-4 text-red-500" v-else-if="voice.qualityConnection == 'RED'" />
+                                        v-else-if="qualityConnection === 'ORANGE'" />
+                                    <Signal class="w-4 h-4 text-red-500" v-else-if="qualityConnection === 'RED'" />
                                     <Signal class="w-4 h-4 text-gray-500" v-else />
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p v-if="voice.isConnected">{{ voice.ping }}</p>
-                                <p v-if="voice.isBeginConnect">??? ms</p>
+                                <p v-if="isConnected">{{ voice.ping }}</p>
+                                <p v-else-if="isConnecting">??? ms</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <span class="font-semibold marquee">{{ voice.activeChannel?.name }}</span>
+
+                    <span class="font-semibold marquee">
+                        {{ callTitle }}
+                    </span>
                 </div>
-                <span v-if="voice.isConnected" class="text-timer text-[#a2a6a8]">{{ sessionTimerStore.sessionTimer
-                    }}</span>
-                <span class="text-xs text-lime-400 mt-1" v-if="voice.isConnected && !voice.currentlyReconnect">{{
-                    t("connected") }}</span>
-                <span class="text-xs text-orange-400 mt-1" v-if="voice.isBeginConnect && !voice.currentlyReconnect">{{
-                    t("connecting") }}...</span>
-                <span class="text-xs text-orange-400 mt-1" v-if="voice.currentlyReconnect">{{ t("reconnect")
-                    }}...</span>
+
+                <span v-if="isConnected" class="text-timer text-[#a2a6a8]">
+                    <Counter v-if="voice.interval.day != 0" :value="voice.interval.day" :gap="2" :places="[10, 1]"
+                        :font-size="11" :textColor="'#999'" />
+                    <Counter :value="voice.interval.hor" :gap="1" :places="[10, 1]" :font-size="11"
+                        :textColor="'#999'" />
+                    <Counter :value="voice.interval.min" :gap="1" :places="[10, 1]" :font-size="11"
+                        :textColor="'#999'" />
+                    <Counter :value="voice.interval.sec" :gap="1" :places="[10, 1]" :font-size="11"
+                        :textColor="'#999'" />
+                </span>
+
+                <span class="text-xs text-lime-400 mt-1" v-if="isConnected && !isReconnecting">
+                    {{ t("connected") }}
+                </span>
+                <span class="text-xs text-orange-400 mt-1" v-else-if="isConnecting && !isReconnecting">
+                    {{ t("connecting") }}...
+                </span>
+                <span class="text-xs text-orange-400 mt-1" v-else-if="isReconnecting">
+                    {{ t("reconnect") }}...
+                </span>
             </div>
         </div>
-
-
     </div>
 </template>
+
 <script setup lang="ts">
 import {
-    TooltipProvider, Tooltip, TooltipTrigger, TooltipContent,
+    TooltipProvider,
+    Tooltip,
+    TooltipTrigger,
+    TooltipContent,
 } from "@/components/ui/tooltip";
 import {
-    Mic, MicOff, HeadphoneOff, Headphones, Signal, PhoneOffIcon,
-    ScreenShareOff, ScreenShare, TicketPercent, CameraIcon, OctagonMinusIcon,
-    Videotape,
-    VideotapeIcon,
+    Mic,
+    MicOff,
+    HeadphoneOff,
+    Headphones,
+    Signal,
+    PhoneOffIcon,
+    ScreenShareOff,
+    ScreenShare,
+    CameraIcon,
+    OctagonMinusIcon,
 } from "lucide-vue-next";
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
-import { useVoice } from "@/store/voiceStore";
-import { useSessionTimer } from "@/store/sessionTimer";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-    Dialog, DialogContent, DialogFooter, DialogTitle,
-    DialogDescription, DialogHeader,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogTitle,
+    DialogDescription,
+    DialogHeader,
 } from "@/components/ui/dialog";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useLocale } from "@/store/localeStore";
 import { UserStatus } from "@/lib/glue/argonChat";
+import { useUnifiedCall } from "@/store/unifiedCallStore";
+import { useApi } from "@/store/apiStore";
+import { usePoolStore } from "@/store/poolStore";
+import { computedAsync } from "@vueuse/core";
+import Counter from "./motionCounter/Counter.vue";
+import { Screen } from "@/lib/glue/argon.ipc";
+import { native } from "@/lib/glue/nativeGlue";
+
+const voice = useUnifiedCall();
+const api = useApi();
+const pool = usePoolStore();
 
 const { t } = useLocale();
 const me = useMe();
 const sys = useSystemStore();
-const voice = useVoice();
-const sessionTimerStore = useSessionTimer();
 
 const status = ref(me.me?.currentStatus);
 watch(status, (newStatus) => me.changeStatusTo(newStatus!));
@@ -190,24 +239,10 @@ const toggleDoNotDistrurb = () => {
 };
 
 const allSizes = [
-    //{ title: "SVGA (600p)", h: 600, w: 800 },
-    //{ title: "XGA (768p)", h: 768, w: 1024 },
     { title: "WXGA (720p)", h: 720, w: 1280, preset: "720p" },
-    // { title: "WXGA+ (900p)", h: 900, w: 1440 },
-    //{ title: "HD+ (900p)", h: 900, w: 1600 },
     { title: "Full HD (1080p)", h: 1080, w: 1920, preset: "1080p" },
-    // { title: "WUXGA (1200p)", h: 1200, w: 1920 },
     { title: "QHD (1440p)", h: 1440, w: 2560, preset: "1440p" },
-    // { title: "WQXGA (1600p)", h: 1600, w: 2560 },
     { title: "4K UHD (2160p)", h: 2160, w: 3840, preset: "2160p" },
-    // { title: "5K (2880p)", h: 2880, w: 5120 },
-    // { title: "8K UHD (4320p)", h: 4320, w: 7680 },
-    // { title: "UWHD (1080p)", h: 1080, w: 2560 },
-    //{ title: "UWQHD (1440p)", h: 1440, w: 3440 },
-    // { title: "UWQHD+ (1600p)", h: 1600, w: 3840 },
-    //{ title: "5K2K (2160p)", h: 2160, w: 5120 },
-    // { title: "DFHD (1080p x2)", h: 1080, w: 3840 },
-    // { title: "DQHD (1440p x2)", h: 1440, w: 5120 }
 ];
 
 const allFps = [
@@ -225,7 +260,7 @@ const includeAudio = ref(false);
 const quality = ref(allSizes.at(0)?.title);
 const fps = ref("30");
 
-interface IScreenWithPreview extends IScreen {
+interface IScreenWithPreview extends Screen {
     preview: MediaStream | null;
     selected: boolean;
 }
@@ -233,16 +268,16 @@ interface IScreenWithPreview extends IScreen {
 const displays = ref<IScreenWithPreview[]>([]);
 
 const setSelected = (screen: IScreenWithPreview) => {
-    for (const d of displays.value) d.selected = d.DisplayIndex === screen.DisplayIndex;
+    for (const d of displays.value) d.selected = d.displayIndex === screen.displayIndex;
 };
 
-async function getPreviewForScreen(display: IScreen): Promise<MediaStream> {
+async function getPreviewForScreen(display: Screen): Promise<MediaStream> {
     if (!argon.isArgonHost) return new MediaStream();
     return await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
             mandatory: {
-                chromeMediaSourceId: `screen:${display.DisplayIndex}:0`,
+                chromeMediaSourceId: `screen:${display.displayIndex}:0`,
                 chromeMediaSource: "screen",
                 maxWidth: 220,
                 maxHeight: 110,
@@ -256,36 +291,22 @@ function stopPreview(stream: MediaStream | null) {
     for (const track of stream.getTracks()) track.stop();
 }
 
-const isRecording = ref(false);
-
-async function toggleRecord() {
-    if (!isRecording.value) {
-        if (await voice.startChannelRecord()) {
-            isRecording.value = true;
-        }
-    } else {
-        if (await voice.stopChannelRecord()) {
-            isRecording.value = false;
-        }
-    }
-}
-
 watch(openShareSettings, async (isOpen) => {
     if (isOpen) {
-        let screens: IScreen[] = [];
+        let screens: Screen[] = [];
 
         if (argon.isArgonHost) {
-            screens = native.getDisplays();
+            screens = await native.hostProc.getDisplays();
         } else {
             screens = [
                 {
-                    DisplayIndex: "0",
-                    Freq: 165,
-                    Height: 1440,
-                    IsPrimary: true,
-                    Left: 0,
-                    Top: 0,
-                    Width: 2560,
+                    displayIndex: 0,
+                    freq: 165,
+                    height: 1440,
+                    isPrimary: true,
+                    left: 0,
+                    top: 0,
+                    width: 2560,
                 },
             ];
         }
@@ -306,8 +327,53 @@ watch(openShareSettings, async (isOpen) => {
     }
 });
 
+const isConnected = computed(() => voice.isConnected);
+const isConnecting = computed(() => voice.isConnecting);
+const isReconnecting = computed(() => voice.isReconnecting);
+
+const qualityConnection = computed<"NONE" | "GREEN" | "ORANGE" | "RED">(() => {
+    if (!isConnected.value) return "NONE";
+    const ms = parseInt(String(voice.ping).replace("ms", "").trim(), 10);
+    if (!ms || ms <= 0) return "NONE";
+    if (ms < 50) return "GREEN";
+    if (ms < 100) return "ORANGE";
+    return "RED";
+});
+
+const callTitle = computedAsync(async () => {
+    if (!isConnected.value && !isConnecting.value) return "";
+    if (voice.mode === "dm" && voice.targetId) {
+        const u = await pool.getUser(voice.targetId);
+        return u?.displayName ?? "Direct call";
+    }
+    if (voice.mode === "channel" && voice.targetId) {
+        const c = await pool.getChannel(voice.targetId);
+        return c?.name ?? "Unknown Channel";
+    }
+    return "";
+});
+
+const isMicMuted = computed(() => {
+    return sys.microphoneMuted;
+});
+
+function toggleMic() {
+    sys.toggleMicrophoneMute();
+}
+
+async function endActiveCall() {
+    if (voice.mode === "dm" && voice.callId) {
+        try {
+            await api.callInteraction.HangupCall(voice.callId);
+        } catch (e) {
+            console.warn("HangupCall failed", e);
+        }
+    }
+    await voice.leave();
+}
+
 const toggleScreenCast = () => {
-    if (!voice.isConnected || voice.isOtherUserSharing) return;
+    if (!isConnected.value) return;
 
     if (voice.isSharing) {
         voice.stopScreenShare();
@@ -318,26 +384,24 @@ const toggleScreenCast = () => {
 
 async function goShare() {
     openShareSettings.value = false;
-    if (!voice.isConnected || voice.isOtherUserSharing) return;
+    if (!isConnected.value) return;
 
     if (voice.isSharing) {
-        voice.stopScreenShare();
+        await voice.stopScreenShare();
     } else {
         const dev = displays.value.find((x) => x.selected);
         for (const d of displays.value) stopPreview(d.preview);
         displays.value = [];
 
+        if (!dev) return;
+
         await voice.startScreenShare({
-            fps: Number(fps.value ?? "30"),
+            deviceId: `screen:${dev.displayIndex}:0`,
             systemAudio: includeAudio.value ? "include" : "exclude",
-            preset: quality.value as any,
-            deviceId: `screen:${dev?.DisplayIndex}:0`,
-            deviceKind: "screen",
         });
     }
 }
 </script>
-
 
 <style scoped>
 .control-bar {
@@ -349,46 +413,6 @@ async function goShare() {
     justify-content: space-between;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     position: relative;
-}
-
-.bad {
-    color: #f04747;
-}
-
-.moderate {
-    color: #f0d747
-}
-
-.good {
-    color: #43b581;
-}
-
-.online {
-    color: #43b581;
-}
-
-.away {
-    color: #276e9e;
-}
-
-.ingame {
-    color: #279e3b;
-}
-
-.offline {
-    color: #635d5d;
-}
-
-.donotdisturb {
-    color: #f04747;
-}
-
-.listen {
-    color: #279e3b;
-}
-
-.touchgrass {
-    color: #90279e;
 }
 
 .controls button {
@@ -440,20 +464,8 @@ async function goShare() {
     border: 2px solid #00ffae00;
 }
 
-
 .marquee {
     white-space: nowrap;
     display: inline-block;
-}
-
-@keyframes marquee {
-    0% {
-        left: 0;
-    }
-
-    100% {
-        left: 100%;
-        transform: translateX(-100%);
-    }
 }
 </style>

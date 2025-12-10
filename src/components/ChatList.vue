@@ -39,7 +39,7 @@
             class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
             <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()"
               :key="user.userId">
-              <ContextMenuTrigger :disabled="!voice.activeChannel">
+              <ContextMenuTrigger :disabled="!voice.isConnected">
                 <li class="flex items-center mt-1 text-gray-400 hover:text-white">
                   <ArgonAvatar :fallback="user.User.displayName" :fileId="user.User.avatarFileId" :userId="user.userId"
                     :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
@@ -102,7 +102,6 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { logger } from "@/lib/logger";
 import { usePoolStore } from "@/store/poolStore";
-import { useVoice } from "@/store/voiceStore";
 import { useLocale } from "@/store/localeStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
@@ -111,10 +110,11 @@ import { useApi } from "@/store/apiStore";
 import { ChannelType } from "@/lib/glue/argonChat";
 import VolumeSlider from "./VolumeSlider.vue";
 import { watch } from "vue";
+import { useUnifiedCall } from "@/store/unifiedCallStore";
 
 const servers = useSpaceStore();
 const pool = usePoolStore();
-const voice = useVoice();
+const voice = useUnifiedCall();
 const me = useMe();
 const pex = usePexStore();
 const api = useApi();
@@ -141,7 +141,7 @@ async function channelSelect(channelId: string) {
   selectedChannelId.value = channelId;
   logger.info(`Do action for channel`, channel);
 
-  if (voice.activeChannel) {
+  if (voice.isConnected) {
     return;
   }
 
@@ -150,7 +150,7 @@ async function channelSelect(channelId: string) {
     return;
   }
   if (channel.type === ChannelType.Voice) {
-    await voice.connectToChannel(channelId);
+    await voice.joinVoiceChannel(channelId);
   }
   /*const channel = servers.getDetailsOfChannel(channelId);
 

@@ -33,7 +33,7 @@ watch(selectedChannelId, async (id) => {
     return;
 
   if (channelData.value.type == ChannelType.Voice)
-    channelComponent.value = MediaChannelView;
+    channelComponent.value = MediaChannelView as any;
 });
 
 

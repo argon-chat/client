@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Input } from "@/components/ui/input";
-import { ExclamationTriangleIcon } from "@radix-icons/vue";
+import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-icons/vue";
 import { useVModel } from "@vueuse/core";
 import { ref, watch } from "vue";
 
@@ -10,6 +10,7 @@ const props = defineProps<{
   type?: string;
   disabled?: boolean;
   error?: string | null;
+  success?: string | null;
   id?: string | null
 }>();
 
@@ -58,7 +59,20 @@ function handleInput() {
           <ExclamationTriangleIcon class="w-4 h-4 shrink-0 text-red-500" />
           <span>{{ error }}</span>
         </div>
+
       </transition>
+      <transition name="slide-fade">
+        <div v-if="success" class="absolute top-[-6px] right-[-8px] px-2 py-0.5
+             bg-black/70 border border-green-500
+             text-green-400 text-[12px] font-mono tracking-wider
+             rounded-md shadow-[0_0_8px_rgba(255,0,80,0.6)]
+             flex items-center gap-1 overflow-hidden
+             translate-x-2 -translate-y-1" :class="{ 'animate-glitch': glitching }">
+          <CheckCircledIcon class="w-4 h-4 shrink-0 text-green-500" />
+          <span>{{ success }}</span>
+        </div>
+      </transition>
+
     </div>
 
     <Input v-model="val" :placeholder="placeholder" :type="type || 'text'" :disabled="disabled" class="h-11 rounded-xl bg-black/50 border  z-10

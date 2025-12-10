@@ -1,5 +1,5 @@
 <template>
-  <div ref="scroller" class="chat-scroll messages" :style="{ '--chat-width': chatWidth + 'px' }">
+  <div ref="scroller" :class="cn('chat-scroll messages', classes)" :style="{ '--chat-width': chatWidth + 'px' }">
     <button v-if="isScrolledUp" @click="scrollToBottom" class="scroll-to-bottom-btn">
       <CircleArrowDown class="arrow-icon" />
       <div v-if="newMessagesCount > 0" class="new-messages-count">
@@ -23,6 +23,7 @@ import {
   onUnmounted,
   nextTick,
   watch,
+  computed,
 } from "vue";
 import { useInfiniteScroll } from "@vueuse/core";
 import { CircleArrowDown } from "lucide-vue-next";
@@ -36,13 +37,15 @@ import { useTone } from "@/store/toneStore";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@/lib/glue/argonChat";
 import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
 import { v7 } from "uuid";
+import { cn } from "@/lib/utils";
 
 const api = useApi();
 const pool = usePoolStore();
 const props = defineProps<{
   channelId: Guid;
+  class?: string;
 }>();
-
+const classes = computed(() => props.class);
 const scroller = useTemplateRef<HTMLElement>("scroller");
 const messages = ref([] as ArgonMessage[]);
 const hasEnded = ref(false);

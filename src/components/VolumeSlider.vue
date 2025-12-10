@@ -1,16 +1,17 @@
 <template>
+    <!-- @vue-ignore -->
     <Slider :max="200" :step="1" v-model="user.volume" :range-class="volumeRangeClass" :thumb-class="volumeThumbClass"
         @update:model-value="onVolumeChange" @dblclick="resetVolume" />
 </template>
 
 <script setup lang="ts">
 import { IRealtimeChannelUserWithData } from "@/store/poolStore";
-import { useVoice } from "@/store/voiceStore";
 import { computed } from "vue";
 import Slider from "./ui/slider/Slider.vue";
+import { useUnifiedCall } from "@/store/unifiedCallStore";
 
 const props = defineProps<{ user: IRealtimeChannelUserWithData }>();
-const voice = useVoice();
+const voice = useUnifiedCall();
 const volumeRangeClass = computed(() => {
     // @ts-ignore
     const vol = props.user.volume[0];
@@ -28,10 +29,10 @@ const volumeThumbClass = computed(() => {
 });
 
 function onVolumeChange(val: number[]) {
-    voice.setUserVolume(props.user.userId, val[0]);
+    voice.setVolume(props.user.userId, val[0]);
 }
 
 function resetVolume() {
-    voice.setUserVolume(props.user.userId, 100);
+    voice.setVolume(props.user.userId, 100);
 }
 </script>

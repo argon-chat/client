@@ -7,14 +7,12 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useVoice } from "@/store/voiceStore";
 import { useLocale } from "@/store/localeStore";
 import type { RemoteVideoTrack } from "livekit-client";
 import type { Subscription } from "rxjs";
 import { logger } from "@/lib/logger";
 import { Guid } from "@argon-chat/ion.webcore";
 const { t } = useLocale();
-const voice = useVoice();
 
 const posX = ref(20);
 const posY = ref(20);

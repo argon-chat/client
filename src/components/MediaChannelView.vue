@@ -123,13 +123,13 @@ import { IRealtimeChannelUserWithData, usePoolStore } from "@/store/poolStore";
 import type { Guid } from "@argon-chat/ion.webcore";
 import SmartArgonAvatar from "./SmartArgonAvatar.vue";
 import FloatingMiniVideo from "./FloatingMiniVideo.vue";
-import { useVoice } from "@/store/voiceStore";
 import type { Track } from "livekit-client";
 import { logger } from "@/lib/logger";
 import { MicOffIcon, ScreenShare } from "lucide-vue-next";
+import { useUnifiedCall } from "@/store/unifiedCallStore";
 
 const pool = usePoolStore();
-const voice = useVoice();
+const voice = useUnifiedCall();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
@@ -191,7 +191,7 @@ async function togglePiP() {
 }
 
 onMounted(() => {
-    voice.onVideoCreated.subscribe(({ track, userId }) => {
+    /*voice.onVideoCreated.subscribe(({ track, userId }) => {
         activeVideos.value.set(userId, track);
         const el = videoRefs.value.get(userId);
         if (el) track.attach(el);
@@ -208,7 +208,7 @@ onMounted(() => {
         if (lastActiveStream.value?.userId === userId) {
             lastActiveStream.value = null;
         }
-    });
+    });*/
 });
 
 onUnmounted(() => {

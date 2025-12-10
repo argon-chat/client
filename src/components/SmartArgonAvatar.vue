@@ -68,7 +68,6 @@ watch(
     loaded.value = false;
 
     if (!fileId) {
-      logger.warn("User has no avatar fileId");
       blobSrc.value = fileStorage.FAILED_ADDRESS;
       fallbackLetter.value =
         user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
