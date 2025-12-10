@@ -18,7 +18,6 @@ const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 const { email, password, isLoading, goToResetPass, onSubmit, authError } = props.auth;
 const api = useApi();
-const isMobileDevice = computed(() => argon.isMobileHost);
 
 const titles = [
   { title:t("greetings.good_to_see_you.title"), desc:t("greetings.good_to_see_you.desc")},
@@ -139,7 +138,7 @@ watch(email, (newVal, oldVal) => {
 
       <div class="w-px bg-white/10"></div>
 
-      <div class="flex flex-col justify-center items-center p-6 w-[250px] text-center space-y-4" v-if="!isMobileDevice">
+      <div class="flex flex-col justify-center items-center p-6 w-[250px] text-center space-y-4">
         <p class="text-gray-300 text-sm">{{t("qr_code_login")}}</p>
         <QRStyled :value="qrLoginUrl" :size="160" level="M" class="rounded-md shadow-lg" />
         <p class="text-xs text-gray-500">{{t("scan_with_app")}}</p>
