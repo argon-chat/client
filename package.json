@@ -9,11 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "glue-proto:windows": "protoc --plugin=\"protoc-gen-ts=./node_modules/.bin/protoc-gen-ts.exe\" --proto_path=\"../src/Thridparty/ArgonServer/src/Argon.Contracts/Protos\" --ts_out=\"./src/lib/proto\" \"transport.proto\"",
-    "glue-proto:linux": "protoc --plugin=\"protoc-gen-ts=./node_modules/.bin/protoc-gen-ts\" --proto_path=\"../src/Thridparty/ArgonServer/src/Argon.Contracts/Protos\" --ts_out=\"./src/lib/proto\" \"transport.proto\"",
-    "format": "biome format . --write",
-    "lint": "biome lint . --write --unsafe"
+    "validate": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
     "@argon-chat/infer": "^1.0.4",
@@ -33,7 +29,7 @@
     "@tabler/icons-vue": "^3.33.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/vue-query": "^5.71.10",
-    "@tanstack/vue-virtual": "^3.13.6",
+    "@tanstack/vue-virtual": "^3.13.12",
     "@tensorflow/tfjs": "^4.22.0",
     "@vee-validate/zod": "^4.15.0",
     "@vueuse/core": "^14.0.0",
@@ -50,9 +46,9 @@
     "emoji-regex": "^10.4.0",
     "epic-spinners": "^2.0.0",
     "fast-equals": "^5.3.0",
-    "firebase": "^11.0.2",
     "howler": "^2.2.4",
     "idb": "^8.0.1",
+    "jsbarcode": "^3.12.1",
     "lexical-vue": "^0.13.1",
     "livekit-client": "^2.13.8",
     "lottie-web": "^5.12.2",
@@ -61,7 +57,7 @@
     "markdown-it": "^14.1.0",
     "marked": "^15.0.7",
     "maska": "^3.2.0",
-    "motion-v": "^1.1.0-alpha.0",
+    "motion-v": "^1.7.4",
     "naive-ui": "^2.42.0",
     "nsfwjs": "^4.2.1",
     "pinia": "^3.0.2",
