@@ -39,6 +39,8 @@ export const useMe = defineStore("me", () => {
     { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true }
   );
 
+  preferredStatus.value = UserStatus.Online;
+
   const WelcomeCommanderHasReceived = ref(false);
 
   async function getMe() {

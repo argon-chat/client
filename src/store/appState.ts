@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { logger } from "@/lib/logger";
-import { useFirebase } from "./firebase";
 import { useOnline } from "@vueuse/core";
 import delay from "@/lib/delay";
 import { ref } from "vue";
@@ -9,7 +8,6 @@ import { useAuthStore } from "./authStore";
 import { useFileStorage } from "./fileStorage";
 import { useMe } from "./meStore";
 import { usePoolStore } from "./poolStore";
-import { useFfmpeg } from "./ffmpegStore";
 import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
@@ -27,10 +25,6 @@ export const useAppState = defineStore("app", () => {
       await delay(1000);
     }
 
-    logger.info("Begin initialization firebase runtime...");
-
-    await useFirebase().initCfg();
-
     logger.info("Begin init tone audio engine...");
 
     useTone().init();
@@ -39,12 +33,6 @@ export const useAppState = defineStore("app", () => {
 
     const auth = await useAuthStore();
     auth.restoreSession();
-
-    logger.info("Load wasm render...");
-
-    const ffmpeg = useFfmpeg();
-
-    await ffmpeg.init();
 
     logger.info("Load wasm predictor...");
 

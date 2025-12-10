@@ -62,7 +62,6 @@ import {
 } from "@/lib/glue/argonChat";
 import { Guid, IonMaybe } from "@argon-chat/ion.webcore";
 import { createCustomEqual } from "fast-equals";
-import { useCallStore } from "./callStore";
 
 const deepEqual = createCustomEqual({ strict: true });
 
@@ -111,8 +110,26 @@ export const usePoolStore = defineStore("data-pool", () => {
   const getServer = async (serverId: Guid) =>
     await db.servers.where("spaceId").equals(serverId).first();
 
-  const getUser = async (userId: Guid) =>
-    await db.users.where("userId").equals(userId).first();
+  const getUser = async (userId: Guid) => {
+    const result = await db.users.where("userId").equals(userId).first();
+    if (result) {
+      return result;
+    }
+
+    // echo
+    if (userId === "44444444-2222-1111-2222-444444444444") {
+      await trackUser({
+        avatarFileId: "echo-avatar.png",
+        displayName: "Echo",
+        userId: userId,
+        username: "echo"
+      });
+    }
+    return await db.users.where("userId").equals(userId).first();
+  };
+
+  const debug_getAllUser = async (offset: number, limit: number) =>
+    await db.users.offset(offset).limit(limit).toArray();
 
   const getUsersByServerMemberIds = (serverId: Guid, memberIds: Guid[]) => {
     return liveQuery(async () => {
@@ -938,15 +955,6 @@ export const usePoolStore = defineStore("data-pool", () => {
       void trackArchetype(x.dto);
     });*/
   };
-
-
-  bus.onServerEvent<CallIncoming>("CallIncoming", (x) => {
-      useCallStore().incomingCall(x.callId, x.fromId);
-  });
-  bus.onServerEvent<CallFinished>("CallFinished", (x) => {
-      useCallStore().incomingCallClosed(x.callId);
-  });
-
   const refershDatas = async () => {
     await loadServerDetails();
   };
@@ -1113,6 +1121,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     getMemberIdsByUserIds,
     init,
     sipUserJoinedToChannel,
-    sipUserLeavedFromChannel
+    sipUserLeavedFromChannel,
+    debug_getAllUser,
   };
 });

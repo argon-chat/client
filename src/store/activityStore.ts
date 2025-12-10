@@ -13,7 +13,7 @@ export interface IMusicEvent {
 }
 
 export const useActivity = defineStore("activity", () => {
-  const api = useApi();
+  /*const api = useApi();
   const activeActivity = ref(null as null | number);
   const gameSessions: Map<number, IProcessEntity> = new Map();
   const musicSessions: Map<string, IMusicEvent> = new Map();
@@ -24,10 +24,10 @@ export const useActivity = defineStore("activity", () => {
     switchMap((lastEvent) => {
       return [lastEvent];
     }),
-  );
+  );*/
 
   async function init() {
-    if (!argon.isArgonHost) return;
+    /*if (!argon.isArgonHost) return;
     const populatePinnedFn = native.createPinnedObject(
       onActivityDetected, //useDebounceFn(, 1000)
     );
@@ -51,9 +51,9 @@ export const useActivity = defineStore("activity", () => {
       )
       .subscribe();
     argon.listenActivity();
-    argon.listenSessionMusic();
+    argon.listenSessionMusic();*/
   }
-
+  /*
   function onMusicStop(sessionId: string, state: boolean, data: string) {
     const audioEntity = JSON.parse(data) as IAudioEntity;
     musicSessions.set(sessionId, {
@@ -133,6 +133,7 @@ export const useActivity = defineStore("activity", () => {
       ? sessionsArray[sessionsArray.length - 1]
       : null;
   }
+*/
 
   return {
     init,

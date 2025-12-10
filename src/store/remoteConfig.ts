@@ -1,14 +1,15 @@
 import { defineStore } from "pinia";
-import { useFirebase } from "./firebase";
 import { ref, computed } from "vue";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
 
 export const useConfig = defineStore("config", () => {
-  const fb = useFirebase();
 
   const overrides = ref<{ [key: string]: string | boolean | number }>({
    // apiEndpoint: 'https://localhost:5001'
+   apiEndpoint: "https://api.argon.gl",
+   apiDevEndpoint: "https://dev.api.argon.gl",
+   apiLocalEndpoint: "https://localhost:5001"
   });
 
   function setOverride(key: string, value: string | boolean | number) {
@@ -28,13 +29,13 @@ export const useConfig = defineStore("config", () => {
     if (key in overrides.value) {
       return overrides.value[key] === true;
     }
-    return fb.getBooleanSwitch(key);
+    return false;
   }
   function stringVal(key: string) {
     if (key in overrides.value) {
       return String(overrides.value[key]);
     }
-    return fb.getStringKeyValue(key);
+    throw new Error(key);
   }
 
   const isGenderEnabled = computed(() => boolVal("enabled_sex_field"));

@@ -75,6 +75,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
   const dictActions = new Map<string, number>();
   const hotkeyExecuted = new Subject<ActionKey>();
   const isPaused = ref(false);
+  const isAllowNativeCall = false; // argon.isArgonHost (or isWindows\MacOs)
 
   const allHotKeys = persistedValue<Map<string, HotKeyAction>>(
     "HotKeyAction_all",
@@ -118,9 +119,9 @@ export const useHotkeys = defineStore("hotkeys", () => {
     }
   }
 
-  const pinnedHotKeyCallback = argon.isArgonHost
+  /*const pinnedHotKeyCallback = isAllowNativeCall
     ? native.createPinnedObject(onHotKeyCalled)
-    : ({} as any);
+    : ({} as any);*/
 
   enum HotkeyModification {
     NONE = 0,
@@ -140,7 +141,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
   }
 
   async function doVerifyHotkeys() {
-    if (argon.isArgonHost) native.clearAllKeybinds();
+    //if (isAllowNativeCall) native.clearAllKeybinds();
     dictActions.clear();
 
     for (const i of allHotKeys.values()) {
@@ -183,7 +184,8 @@ export const useHotkeys = defineStore("hotkeys", () => {
     isRadioMode: boolean,
     mod: HotKeyMod | null,
   ) {
-    const i = await native.createKeybind(
+    return false;
+    /* const i = await native.createKeybind(
       {
         keyCode: keycode,
         keyMod: mod ? encodeHotkeyModification(mod) : 0,
@@ -194,7 +196,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
     dictHandlers.set(i, action);
     dictActions.set(action, i);
-    return true;
+    return true;*/
   }
 
   function onAction(key: ActionKey, func: () => void): Subscription {

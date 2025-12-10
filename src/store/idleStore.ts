@@ -4,6 +4,7 @@ import { interval, switchMap } from "rxjs";
 import { useMe } from "./meStore";
 import { ref } from "vue";
 import { UserStatus } from "@/lib/glue/argonChat";
+import { native } from "@/lib/glue/nativeGlue";
 export const useIdleStore = defineStore("idle", () => {
   const savedStatus = ref(UserStatus.Online);
 
@@ -14,8 +15,8 @@ export const useIdleStore = defineStore("idle", () => {
     if (argon.isArgonHost) {
       interval(2000)
         .pipe(
-          switchMap(() => {
-            const inactiveSeconds = native.getIdleTimeSeconds();
+          switchMap(async () => {
+            const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
             if (
               me.me?.currentStatus !== UserStatus.Away &&
               inactiveSeconds > idleTimeValue

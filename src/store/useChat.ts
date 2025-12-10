@@ -40,6 +40,7 @@ export function useChat(serverId: Guid, channelId: Guid) {
     const before = lastLoadedMessageId.value;
 
     try {
+      /* @ts-ignore */
       const data = await api.channelInteraction.GetMessages(
         serverId,
         channelId,

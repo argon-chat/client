@@ -10,6 +10,7 @@ export const useLocale = defineStore("locale", () => {
   const { t, locale } = useI18n<[LocaleSchema], Locale>({
     locale: "en",
     fallbackLocale: "en",
+    /* @ts-ignore */
     messages: locales,
   });
 

@@ -134,20 +134,15 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const getRefreshToken = (): string | null => {
-    if (argon.isArgonHost)
-      return native.protectedStore.getValue("rft") as string | null;
-    else return localStorage.getItem("rft");
+    return localStorage.getItem("rft");
   };
 
   const setRefreshToken = (refreshToken: string) => {
-    if (argon.isArgonHost)
-      return native.protectedStore.setValue("rft", refreshToken);
-    else return localStorage.setItem("rft", refreshToken);
+    return localStorage.setItem("rft", refreshToken);
   };
 
   const setAuthToken = (t: string) => {
-    if (argon.isArgonHost) native.protectedStore.setValue("token", t);
-    else localStorage.setItem("token", t);
+    localStorage.setItem("token", t);
     _token.value = t;
   };
 
@@ -155,14 +150,11 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     _token.value = null;
     isAuthenticated.value = false;
-    if (argon.isArgonHost) native.protectedStore.setValue("token", "");
-    else localStorage.removeItem("token");
+    localStorage.removeItem("token");
   };
 
   const restoreSession = async (): Promise<void> => {
-    const savedToken = argon.isArgonHost
-      ? native.protectedStore.getValue("token")
-      : localStorage.getItem("token");
+    const savedToken = localStorage.getItem("token");
     logger.info(`restored session, ${savedToken}`);
     if (savedToken) {
       _token.value = savedToken as string;
@@ -232,8 +224,7 @@ export const useAuthStore = defineStore("auth", () => {
       isRequiredOtp.value = false;
       isRequiredFormResetPass.value = false;
       isAuthenticated.value = true;
-      if (argon.isArgonHost) native.protectedStore.setValue("token", r.token);
-      else localStorage.setItem("token", r.token);
+      localStorage.setItem("token", r.token);
     }
   };
 

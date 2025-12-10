@@ -15,6 +15,7 @@ export const useSystemStore = defineStore("system", () => {
   const hotkeys = useHotkeys();
 
   const muteEvent = new Subject<boolean>();
+  const muteHeadphoneEvent = new Subject<boolean>();
   const preferUseWs = ref(false);
 
   // network
@@ -65,8 +66,6 @@ export const useSystemStore = defineStore("system", () => {
     }),
   );
 
-  // -----------------------
-
   preferUseWs.value = true; // TODO
 
   async function toggleMicrophoneMute() {
@@ -77,6 +76,7 @@ export const useSystemStore = defineStore("system", () => {
     else tone.playUnmuteAllSound();
 
     muteEvent.next(microphoneMuted.value);
+    muteHeadphoneEvent.next(headphoneMuted.value);
   }
 
   async function toggleHeadphoneMute() {
@@ -89,6 +89,9 @@ export const useSystemStore = defineStore("system", () => {
 
     if (headphoneMuted.value) tone.playMuteAllSound();
     else tone.playUnmuteAllSound();
+
+    muteHeadphoneEvent.next(headphoneMuted.value);
+    muteEvent.next(microphoneMuted.value);
   }
 
 
@@ -111,6 +114,7 @@ export const useSystemStore = defineStore("system", () => {
     toggleMicrophoneMute,
 
     muteEvent,
+    muteHeadphoneEvent,
 
     preferUseWs,
     activeRetries,
