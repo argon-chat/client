@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createMemoryHistory } from "vue-router";
 import { useAuthStore } from "../store/authStore";
 import LoginPage from "../views/AuthPage.vue";
 import MasterView from "../views/MasterView.vue";
@@ -20,17 +20,60 @@ const routes = [
     path: "/master.pg",
     name: "MasterView",
     component: MasterView,
+    redirect: "/master.pg/home",
     meta: { requiresAuth: true },
+    children: [
+      {
+        path: "home",
+        name: "HomeShellView",
+        component: () => import("@/components/home/HomeShell.vue"),
+        redirect: "/master.pg/home/profile",
+        children: [
+          {
+            path: "profile",
+            name: "HomeProfile",
+            component: () => import("@/components/home/views/ProfileShell.vue"),
+          },
+          {
+            path: "friends",
+            name: "HomeFriends",
+            component: () => import("@/components/home/views/FriendsShell.vue"),
+          },
+          {
+            path: "inventory",
+            name: "HomeInventory",
+            component: () =>
+              import("@/components/home/views/InventoryShell.vue"),
+          },
+          {
+            path: "notifications",
+            name: "HomeNotifications",
+            component: () =>
+              import("@/components/home/views/NotificationShell.vue"),
+          },
+          {
+            path: "chat/:userId",
+            name: "HomeChat",
+            component: () => import("@/components/home/views/ChatShell.vue"),
+          },
+        ],
+      },
+      {
+        path: "space/:id",
+        name: "SpaceShellView",
+        component: () => import("@/components/SpaceShell.vue"),
+      },
+    ],
   },
   {
     path: "/blocked.pg",
     name: "LockdownView",
-    component: LockdownView
-  }
+    component: LockdownView,
+  },
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createMemoryHistory(),
   routes,
 });
 

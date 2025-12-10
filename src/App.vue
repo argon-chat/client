@@ -10,6 +10,7 @@ import Island from "./components/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
 import IncomingCallOverlay from "./components/IncomingCallOverlay.vue";
+import { native } from "./lib/glue/nativeGlue";
 const sys = useSystemStore();
 const preferences = usePreference();
 const keys = useMagicKeys();
@@ -33,15 +34,15 @@ const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 const nativeControlsActive = ref(true);
 
 watch(shiftCtrlA, (_) => {
-  native.toggleDevTools();
+  native.hostProc.toggleDevTools();
 });
 
 const beginMove = () => {
-  native.beginMoveWindow();
+  //native.hostProc.beginMoveWindow();
 };
 
 const pressSystemKey = (key: number) => {
-  native.pressSystemKey(key);
+  //native.hostProc.pressSystemKey(key);
 };
 
 const pressMaximize = () => {
@@ -55,7 +56,7 @@ const pressMaximize = () => {
 };
 
 const endMove = () => {
-  native.endMoveWindow();
+  //native.endMoveWindow();
 };
 
 const closeWindow = () => {

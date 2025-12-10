@@ -2,8 +2,9 @@
   <div class="app-container flex h-screen gap-4 pt-7 pb-7 pr-4 pl-4" style="width: 100svw; height: 100svh;">
     <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
       :spaces="spaces" />
-    <SpaceShell v-show="dataPool.selectedServer" :selected-space="dataPool.selectedServer" />
-    <HomeShell v-show="!dataPool.selectedServer" />
+
+    <RouterView />
+
     <SettingsWindow />
     <ServerSettingsWindow />
     <FloatingMiniVideo />
@@ -16,21 +17,20 @@ import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
 import { usePoolStore } from "@/store/poolStore";
 import FloatingMiniVideo from "@/components/FloatingMiniVideo.vue";
 import ServerSelector from "@/components/ServerSelector.vue";
-import SpaceShell from "@/components/SpaceShell.vue";
 import { Guid } from "@argon-chat/ion.webcore";
-import HomeShell from "@/components/home/HomeShell.vue";
+import router from "@/router";
 
 const dataPool = usePoolStore();
 
 const spaces = dataPool.useAllServers();
 
 function selectServer(id: Guid) {
-  console.log("Selected server:", id)
-  dataPool.selectedServer = id;
+  router.push({ name: "SpaceShellView", params: { id } });
 }
 
 function selectHome() {
   dataPool.selectedServer = null;
+  router.push({ name: "HomeShellView" });
 }
 
 </script>

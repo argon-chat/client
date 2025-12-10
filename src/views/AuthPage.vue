@@ -7,7 +7,6 @@ import { useConfig } from "@/store/remoteConfig";
 import AuthTabs from "@/components/login/AuthTabs.vue";
 import IconSw from "@/assets/icons/icon_cat.svg"
 
-const isMobile = computed(() => argon.isMobileHost);
 const cfg = useConfig();
 const authStore = useAuthStore();
 onMounted(() => {
@@ -29,7 +28,7 @@ const changeEndpoint = () => {
 </script>
 
 <template>
-  <div v-motion-slide-visible-once-top :duration="200" style="overflow: hidden;" v-if="!isMobile"
+  <div v-motion-slide-visible-once-top :duration="200" style="overflow: hidden;"
     class="container relative hidden h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-1 lg:px-0">
     <div class="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
 
@@ -38,16 +37,6 @@ const changeEndpoint = () => {
         <IconSw class="w-12 h-12 pr-2 fill-blue-500" />
         Argon Chat {{ cfg.isDev ? '[DEVELOPMENT]' : '' }}
       </div>
-      <AuthTabs />
-    </div>
-  </div>
-
-  <div class="md:hidden relative h-screen w-full overflow-hidden flex flex-col items-center justify-center" v-else>
-    <div class="absolute top-4 left-4 z-20 flex items-center text-base font-medium" @dblclick="changeEndpoint">
-      <IconSw class="w-8 h-8 pr-2 fill-blue-500" />
-      Argon Chat {{ cfg.isDev ? '[DEVELOPMENT]' : '' }}
-    </div>
-    <div class="relative z-10 w-full max-w-sm px-4">
       <AuthTabs />
     </div>
   </div>
