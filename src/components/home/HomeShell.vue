@@ -1,28 +1,20 @@
 <script setup lang="ts">
-import { usePoolStore } from '@/store/poolStore';
 import HomeSideShell from './HomeSideShell.vue';
-import { ref } from 'vue';
-import ChannelChat from '../ChannelChat.vue';
-import ProfileShell from './views/ProfileShell.vue';
-import FriendsShell from './views/FriendsShell.vue';
-import InventoryShell from './views/InventoryShell.vue';
-import NotificationShell from './views/NotificationShell.vue';
-const dataPool = usePoolStore();
-const currentTab = ref("profile" as "profile" | "friends" | "notifications" | "inventory");
+import { computed, ref } from 'vue';
+import router from '@/router';
 
 function select(tab: "profile" | "friends" | "notifications" | "inventory") {
-    currentTab.value = tab;
+  router.push({ path: `/master.pg/home/${tab}` });
+  tabRef.value = tab;
 }
+const tabRef = ref("profile" as "profile" | "friends" | "notifications" | "inventory");
 
 </script>
 
 <template>
     <div class="home-workspace flex flex-1 gap-4">
-        <HomeSideShell @select="select" v-model:tab="currentTab" />
-        <ProfileShell v-if="currentTab == 'profile'" class="shell-container flex-1 flex-col justify-between" />
-        <FriendsShell v-if="currentTab == 'friends'" class="shell-container flex-1 flex-col justify-between" />
-        <InventoryShell v-if="currentTab == 'inventory'" class="shell-container flex-1 flex-col justify-between" />
-        <NotificationShell v-if="currentTab == 'notifications'" class="shell-container flex-1 flex-col justify-between" />
+        <HomeSideShell @select="select" v-model:tab="tabRef" />
+        <RouterView class="shell-container flex-1 flex flex-row"/>
     </div>
 </template>
 

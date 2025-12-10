@@ -1,93 +1,170 @@
 <script setup lang="ts">
-import { ShrimpIcon, MessageSquareTextIcon } from 'lucide-vue-next';
 import Button from '../ui/button/Button.vue';
 import ControlBar from './../ControlBar.vue';
 import UserBar from './../UserBar.vue';
-import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification } from "@tabler/icons-vue"
-import { onMounted, PropType, ref } from 'vue';
-import { usePoolStore } from '@/store/poolStore';
-import { useMe } from '@/store/meStore';
+import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification, IconDialpad } from "@tabler/icons-vue"
+import { computed, onMounted, PropType, ref, onUnmounted } from 'vue';
 import { useLocale } from "@/store/localeStore";
-import { RealtimeUser } from '@/store/db/dexie';
+import Separator from '../ui/separator/Separator.vue';
+import RecentUserItem from './views/RecentUserItem.vue';
+import router from '@/router';
+import { useRecentChatsStore } from '@/store/useRecentChatsStore';
+import { useApi } from "@/store/apiStore";
+import type {
+    RecentChatUpdatedEvent,
+    ChatPinnedEvent,
+    ChatUnpinnedEvent,
+    ChatReadEvent,
+} from "@/lib/glue/argonChat";
+import { useBus } from '@/store/busStore';
+import { DisposableBag } from '@/lib/disposables';
 import { NBadge } from 'naive-ui';
-const { t } = useLocale();
-const pool = usePoolStore();
-const me = useMe();
-const user = ref(null as RealtimeUser | null);
+import { useMe } from '@/store/meStore';
+import SoftphoneModal from '../modals/SoftphoneModal.vue';
 
-onMounted(async () => {
-    user.value = await pool.getUser(me.me?.userId!) ?? null;
-});
+const { t } = useLocale();
 
 const tab = defineModel<'profile' | 'friends' | 'notifications' | 'inventory'>('tab', {
-    type: String as PropType<'profile' | 'friends' | 'notifications' | 'inventory'>, default: 'profile'
-})
+    default: 'profile'
+});
+const recentStore = useRecentChatsStore();
+const api = useApi();
+const client = api.userChatInteractions;
+const bus = useBus();
+const me = useMe();
+const recentUsers = computed(() => recentStore.recent);
+const softphoneOpened = ref(false);
 
 const emit = defineEmits<{
     (e: 'select', tab: 'profile' | 'friends' | 'notifications' | 'inventory'): void
 }>();
 
+async function loadChats() {
+    const res = await client.GetRecentChats(50, 0);
+    recentStore.setChats(res);
+}
+
+onMounted(() => {
+    loadChats();
+    subscribeEvents();
+});
+
+// --------------------------
+// OPEN CHAT
+// --------------------------
+function openChat(peerId: string) {
+    router.push({
+        name: "HomeChat",
+        params: { userId: peerId }
+    });
+}
+
+// --------------------------
+// EVENTBUS
+// --------------------------
+const subs = new DisposableBag();
+
+function subscribeEvents() {
+    subs.addSubscription(
+        bus.onServerEvent<RecentChatUpdatedEvent>("RecentChatUpdatedEvent", (e) => {
+            recentStore.upsert({
+                peerId: e.peerId,
+                lastMsg: e.lastMessage,
+                lastMessageAt: e.lastMessageAt,
+                isPinned: recentStore.recent.find(x => x.peerId === e.peerId)?.isPinned ?? false,
+                pinnedAt: recentStore.recent.find(x => x.peerId === e.peerId)?.pinnedAt ?? null,
+                unreadCount: 0,
+                userId: me.me!.userId
+            });
+        })
+    );
+
+    subs.addSubscription(
+        bus.onServerEvent<ChatPinnedEvent>("ChatPinnedEvent", (e) => {
+            recentStore.markPinned(e.peerId, true, e.pinnedAt);
+        })
+    );
+
+    subs.addSubscription(
+        bus.onServerEvent<ChatUnpinnedEvent>("ChatUnpinnedEvent", (e) => {
+            recentStore.markPinned(e.peerId, false, null);
+        })
+    );
+
+    subs.addSubscription(
+        bus.onServerEvent<ChatReadEvent>("ChatReadEvent", (e) => {
+            recentStore.markRead(e.peerId);
+        })
+    );
+}
+
+onUnmounted(() => {
+    subs.dispose();
+});
 </script>
 
+
 <template>
-    <div class="channel-container flex flex-col justify-end rounded-xl space-y-3 w-55 min-w-60">
-        <!-- <div class="header-list overflow-hidden h-20 justify-center font-bold text-4xl text-blue-500 text-center rounded-xl" style="border-radius: 15px;">
-            Argon Chat
-        </div> -->
+    <div class="channel-container flex flex-col justify-end rounded-xl space-y-3 min-w-0 max-w-60">
         <div class="item-slot flex flex-1 justify-start items-stretch flex-col overflow-hidden gap-1 h-full rounded-xl"
             style="border-radius: 15px;">
             <Button @click="emit('select', 'profile')" :variant="tab == 'profile' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconUserScan class="w-6 h-6 mr-2" />
-                {{t("profile")}}
+                {{ t("profile") }}
             </Button>
             <Button @click="emit('select', 'friends')" :variant="tab == 'friends' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconCookieManFilled class="w-6 h-6 mr-2" />
-                {{t("friends")}}
-                <n-badge :value="0" :max="50" :offset="[10, -8]" />
+                {{ t("friends") }}
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <!-- <Button variant="ghost" class="justify-start">
-                <IconMessageChatbotFilled class="w-6 h-6 mr-2" />
-                Direct
-            </Button> -->
             <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
-                {{t("inventory")}}
-                <n-badge :value="0" :max="50" :offset="[10, -8]" />
+                {{ t("inventory") }}
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
                 class="justify-start">
 
-                
+
                 <IconNotification class="w-6 h-6 mr-2" />
-                {{t("notifications")}}
-                <n-badge :value="0" :max="50" :offset="[10, -8]" />
+                {{ t("notifications") }}
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
+            <Separator class="space-y-4" />
+            <div class="quick-actions flex flex-row justify-between gap-2 py-1">
+                <Button @click="softphoneOpened = !softphoneOpened" variant="ghost"
+                    class="h-10 w-10 p-0 flex items-center justify-center rounded-lg">
+                    <IconDialpad class="w-6 h-6" />
+                </Button>
 
+                <Button variant="ghost" class="h-8 w-8 p-0 flex items-center justify-center rounded-lg">
+                    <IconCookieManFilled class="w-4 h-4" />
+                </Button>
 
-            <!-- <Separator />
-            <p class="text-sm text-muted-foreground text-center">
-                Direct Messages
-            </p>
-            <ul class="text-gray-400 space-y-2 pl-2 pr-2">
-                <li
-                    class="flex items-center space-x-3 hover:text-white user-item">
-                    <UserInListSideElement v-if="user" :user="user" />
-                </li>
-                <li
-                    class="flex items-center space-x-3 hover:text-white user-item">
-                    <UserInListSideElement v-if="user" :user="user" />
-                </li>
-                <li
-                    class="flex items-center space-x-3 hover:text-white user-item">
-                    <UserInListSideElement v-if="user" :user="user" />
-                </li>
-            </ul> -->
+                <Button variant="ghost" class="h-8 w-8 p-0 flex items-center justify-center rounded-lg">
+                    <IconTriangleInvertedFilled class="w-4 h-4" />
+                </Button>
+
+                <Button variant="ghost" class="h-8 w-8 p-0 flex items-center justify-center rounded-lg">
+                    <IconNotification class="w-4 h-4" />
+                </Button>
+            </div>
+            <Separator />
+            <div ref="listEl"
+                class="recent-users-list flex flex-col gap-1 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                <RecentUserItem v-for="u in recentUsers" :key="u.peerId" :user-id="u.peerId"
+                    :display-name="u.displayName" :last-message="u.lastMsg" @open="openChat" />
+                <div v-if="false" class="text-gray-400 text-xs py-2 text-center">
+                    ...
+                </div>
+            </div>
         </div>
         <ControlBar />
         <UserBar />
+        <SoftphoneModal v-model:open="softphoneOpened" />
     </div>
 </template>
 
@@ -98,5 +175,34 @@ const emit = defineEmits<{
     padding: 10px;
     display: flex;
     position: relative;
+}
+
+.recent-users-list {
+    overflow-y: auto;
+}
+
+/* Chrome, Edge, Safari */
+.recent-users-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recent-users-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.recent-users-list::-webkit-scrollbar-thumb {
+    background: #3d3d3d;
+    /* темно-серый */
+    border-radius: 8px;
+}
+
+.recent-users-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Firefox */
+.recent-users-list {
+    scrollbar-width: thin;
+    scrollbar-color: #3d3d3d transparent;
 }
 </style>
