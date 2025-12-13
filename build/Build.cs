@@ -148,9 +148,9 @@ class Build : NukeBuild
 
           Log.Information(
               "S3 upload started. Bucket={Bucket}, Endpoint={Endpoint}, Region={Region}",
-              S3Bucket,
-              S3Endpoint,
-              S3Region
+              S3Bucket.Reverse(),
+              S3Endpoint.Reverse(),
+              S3Region.Reverse()
           );
 
           Log.Information("Uploading UI bundle to S3. Key={Key}, Path={Path}", runtimeKey, HiveBundle);
@@ -196,6 +196,14 @@ class Build : NukeBuild
               manifestInfo.Exists,
               manifestInfo.Exists ? manifestInfo.Length : 0
           );
+          try
+          {
+              await s3.GetObjectAsync("__definitely_not_existing__", "x");
+          }
+          catch (Exception ex)
+          {
+              Log.Warning("S3 probe exception type={Type}, Message={Msg}", ex.GetType().Name, ex.Message);
+          }
 
           await using (var fs = File.OpenRead(HiveBundleManifest))
           {
