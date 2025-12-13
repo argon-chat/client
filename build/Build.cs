@@ -145,14 +145,6 @@ class Build : NukeBuild
           var runtimeKey = $"runtime/ui/{GitVersion.AssemblySemFileVer}/argon.ui.hb";
           var manifestKey = $"manifests/ui.{Channel}.json";
 
-
-          Log.Information(
-              "S3 upload started. Bucket={Bucket}, Endpoint={Endpoint}, Region={Region}",
-              S3Bucket.Reverse(),
-              S3Endpoint.Reverse(),
-              S3Region.Reverse()
-          );
-
           Log.Information("Uploading UI bundle to S3. Key={Key}, Path={Path}", runtimeKey, HiveBundle);
 
           var bundleInfo = new FileInfo(HiveBundle);
