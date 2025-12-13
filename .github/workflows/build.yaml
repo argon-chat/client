@@ -25,7 +25,12 @@ jobs:
 
       - name: Make build.sh executable
         run: chmod +x ./build.sh
-
+        
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+ 
       - name: Run Nuke
         run: ./build.sh CI --Channel=${{ steps.channel.outputs.channel }}
         env:
