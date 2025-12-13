@@ -23,6 +23,9 @@ jobs:
           else echo "channel=beta" >> "$GITHUB_OUTPUT"; fi
         shell: bash
 
+      - name: Make build.sh executable
+        run: chmod +x ./build.sh
+
       - name: Run Nuke
         run: ./build.sh CI --Channel=${{ steps.channel.outputs.channel }}
         env:
