@@ -1,3 +1,8 @@
 {
-  "$schema": "build.schema.json"
+  "$schema": "build.schema.json",
+  "S3AccessKey": "v1:mTA7s9ZdsxXOkRHxOz9ILPDxyKBjhKJS6UBXpjvUWqI=",
+  "S3Bucket": "v1:+dVOR+dmuDXQtLFdN5+hEbHK+QT8FUTKNWywPqnS/1A=",
+  "S3Endpoint": "v1:LJy7/DzlPvuynRyiwzik4bfsUeexku/UqV5M/26Hmro=",
+  "S3Region": "v1:5xyvjY43GB3mhtXo0kJvaw==",
+  "S3SecretKey": "v1:3l9mnnSDy1GxpJFazCBOsGUm+AokBqh2GHI1BSZvrFGfzHYGu1hzKveZDChVvB5B"
 }

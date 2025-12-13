@@ -22,8 +22,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using static Nuke.Common.EnvironmentInfo;
 using static Nuke.Common.IO.PathConstruction;
@@ -35,12 +38,12 @@ class Build : NukeBuild
 
     [GitVersion] readonly GitVersion GitVersion;
 
-    public static int Main() => Execute<Build>(x => x.FrontendBuild);
+    public static int Main() => Execute<Build>(x => x.UploadWebViewToS3);
 
     AbsolutePath FrontendDir => RootDirectory;
     AbsolutePath FrontendDist => RootDirectory / "dist";
     AbsolutePath OutputDir => RootDirectory / "publish";
-    AbsolutePath HiveBundle => RootDirectory / "publish" / "argon.ui.hb";
+    AbsolutePath HiveBundle => OutputDir / "argon.ui.hb";
     AbsolutePath TempDir => RootDirectory / ".temp";
     AbsolutePath HiveBundleManifest =>
         TempDir / $"ui.{Channel}.json";
@@ -83,7 +86,15 @@ class Build : NukeBuild
 
             await HiveDataBank.CreateAsync(packSettings, builder => {
                 builder.AddFolder(new DirectoryInfo(manifest.Root));
-            });
+            }, new CommandProgress());
+
+            using var sha = SHA256.Create();
+            await using var zip = File.OpenRead(HiveBundle);
+            HiveBundleSha256 = Convert.ToHexString(
+                sha.ComputeHash(zip)
+            ).ToLowerInvariant();
+            Log.Information("Bundle UI generated: {Path}", HiveBundle);
+            Log.Information("Bundle UI SHA256: {Hash}", HiveBundleSha256);
         });
 
     static ExecOs EmptyExecOs() => new(
@@ -94,6 +105,7 @@ class Build : NukeBuild
         .DependsOn(PackResult)
         .Executes(() => {
             HiveBundleSha256.NotNullOrEmpty(nameof(HiveBundleSha256));
+            TempDir.CreateOrCleanDirectory();
 
             var manifest = new UpdateManifest(
                 Component: ArgonComponentKind.webview,
@@ -183,7 +195,21 @@ class Build : NukeBuild
     }
 }
 
+public class CommandProgress : IHiveProgress
+{
+    public ulong Total { get; set; }
+    public long Progress { get; set; }
+    public void IncAndReport()
+    {
+        Progress++;
+        if (Total == 0)
+            return;
 
+        var percent = Progress * 100 / (long)Total;
+
+        Log.Logger.Information("Bundle UI Progress: {Progress}/{Total} ({Percent}%)", Progress, Total, percent);
+    }
+}
 
 public record DeHiveManifest
 {
