@@ -138,36 +138,87 @@ class Build : NukeBuild
         });
 
     Target UploadWebViewToS3 => _ => _
-        .DependsOn(GenerateHiveBundleManifest)
-        .Executes(async () => {
-            var s3 = CreateS3();
+      .DependsOn(GenerateHiveBundleManifest)
+      .Executes(async () => {
+          var s3 = CreateS3();
 
-            var runtimeKey = $"runtime/ui/{GitVersion.AssemblySemFileVer}/argon.ui.hb";
-            var manifestKey = $"manifests/ui.{Channel}.json";
+          var runtimeKey = $"runtime/ui/{GitVersion.AssemblySemFileVer}/argon.ui.hb";
+          var manifestKey = $"manifests/ui.{Channel}.json";
 
-            Log.Information("Uploading UI bank to S3: {Key}", runtimeKey);
+          Log.Information(
+              "S3 upload started. Bucket={Bucket}, Endpoint={Endpoint}, Region={Region}",
+              S3Bucket,
+              S3Endpoint,
+              S3Region
+          );
 
-            await using (var fs = File.OpenRead(HiveBundle))
-            {
-                await s3.PutObjectAsync(
-                    bucketName: S3Bucket,
-                    objectKey: runtimeKey,
-                    fs
-                );
-            }
+          Log.Information("Uploading UI bundle to S3. Key={Key}, Path={Path}", runtimeKey, HiveBundle);
 
-            Log.Information("Uploading UI manifest to S3: {Key}", manifestKey);
+          var bundleInfo = new FileInfo(HiveBundle);
+          Log.Information(
+              "UI bundle file info: Exists={Exists}, Size={Size} bytes",
+              bundleInfo.Exists,
+              bundleInfo.Exists ? bundleInfo.Length : 0
+          );
 
-            await using (var fs = File.OpenRead(HiveBundleManifest))
-            {
-                await s3.PutObjectAsync(
-                    bucketName: S3Bucket,
-                    objectKey: manifestKey,
-                    fs, request => request.ContentType.Set("application/json"));
-            }
+          await using (var fs = File.OpenRead(HiveBundle))
+          {
+              var putResp = await s3.PutObjectAsync(
+                  bucketName: S3Bucket,
+                  objectKey: runtimeKey,
+                  fs
+              );
 
-            Log.Information("WebView artifacts uploaded successfully");
-        });
+              Log.Information(
+                  "UI bundle uploaded. HttpStatus={Status}, ETag={ETag}, RequestId={RequestId}",
+                  putResp.StatusCode,
+                  putResp.ETag,
+                  putResp.RequestId
+              );
+          }
+
+          var headBundle = await s3.GetObjectAsync(S3Bucket, runtimeKey);
+          Log.Information(
+              "UI bundle verified via HEAD. ContentLength={Length}, ETag={ETag}",
+              headBundle.ContentLength,
+              headBundle.ETag
+          );
+
+          Log.Information("Uploading UI manifest to S3. Key={Key}, Path={Path}", manifestKey, HiveBundleManifest);
+
+          var manifestInfo = new FileInfo(HiveBundleManifest);
+          Log.Information(
+              "Manifest file info: Exists={Exists}, Size={Size} bytes",
+              manifestInfo.Exists,
+              manifestInfo.Exists ? manifestInfo.Length : 0
+          );
+
+          await using (var fs = File.OpenRead(HiveBundleManifest))
+          {
+              var putResp = await s3.PutObjectAsync(
+                  bucketName: S3Bucket,
+                  objectKey: manifestKey,
+                  fs,
+                  request => request.ContentType.Set("application/json")
+              );
+
+              Log.Information(
+                  "Manifest uploaded. HttpStatus={Status}, ETag={ETag}, RequestId={RequestId}",
+                  putResp.StatusCode,
+                  putResp.ETag,
+                  putResp.RequestId
+              );
+          }
+
+          var headManifest = await s3.GetObjectAsync(S3Bucket, manifestKey);
+          Log.Information(
+              "Manifest verified via HEAD. ContentLength={Length}, ETag={ETag}",
+              headManifest.ContentLength,
+              headManifest.ETag
+          );
+
+          Log.Information("UI bundle artifacts upload finished successfully");
+      });
 
 
     [Parameter][Secret] readonly string S3Endpoint;
