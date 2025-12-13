@@ -30,3 +30,9 @@ dist-ssr
 .env
 
 *.tsbuildinfo
+
+.vs/
+
+build/bin/
+
+build/obj/

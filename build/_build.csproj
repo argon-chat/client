@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<RootNamespace></RootNamespace>
+		<NoWarn>CS0649;CS0169;CA1050;CA1822;CA2211;IDE1006</NoWarn>
+		<NukeRootDirectory>..</NukeRootDirectory>
+		<NukeScriptDirectory>..</NukeScriptDirectory>
+		<NukeTelemetryVersion>1</NukeTelemetryVersion>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DeHive" Version="1.886.2" />
+		<PackageReference Include="Flurl.Http" Version="4.0.2" />
+		<PackageReference Include="Nuke.Build" Version="10.1.0" />
+		<PackageReference Include="Nuke.Build.Shared" Version="10.1.0" />
+		<PackageReference Include="Nuke.Common" Version="10.1.0" />
+		<PackageReference Include="Nuke.Components" Version="10.1.0" />
+		<PackageReference Include="Nuke.ProjectModel" Version="10.1.0" />
+		<PackageReference Include="Nuke.SolutionModel" Version="10.1.0" />
+		<PackageReference Include="Nuke.Tooling" Version="10.1.0" />
+		<PackageReference Include="Nuke.Utilities" Version="10.1.0" />
+		<PackageReference Include="Nuke.Utilities.IO.Compression" Version="10.1.0" />
+		<PackageReference Include="Nuke.Utilities.IO.Globbing" Version="10.1.0" />
+		<PackageReference Include="Nuke.Utilities.Net" Version="10.1.0" />
+		<PackageReference Include="SharpCompress" Version="0.42.1" />
+		<PackageReference Include="Genbox.SimpleS3.Core" Version="3.2.12" />
+		<PackageReference Include="Genbox.SimpleS3.Extensions.GenericS3" Version="3.2.12" />
+		<PackageReference Include="Genbox.SimpleS3.Extensions.HttpClient" Version="3.2.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageDownload Include="GitVersion.Tool" Version="[5.12]" />
+	</ItemGroup>
+
+
+</Project>
