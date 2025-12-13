@@ -145,6 +145,7 @@ class Build : NukeBuild
           var runtimeKey = $"runtime/ui/{GitVersion.AssemblySemFileVer}/argon.ui.hb";
           var manifestKey = $"manifests/ui.{Channel}.json";
 
+
           Log.Information(
               "S3 upload started. Bucket={Bucket}, Endpoint={Endpoint}, Region={Region}",
               S3Bucket,
@@ -175,6 +176,9 @@ class Build : NukeBuild
                   putResp.ETag,
                   putResp.RequestId
               );
+
+              if (putResp.StatusCode != 200)
+                  throw new InvalidOperationException("");
           }
 
           var headBundle = await s3.GetObjectAsync(S3Bucket, runtimeKey);
@@ -208,6 +212,8 @@ class Build : NukeBuild
                   putResp.ETag,
                   putResp.RequestId
               );
+              if (putResp.StatusCode != 200)
+                  throw new InvalidOperationException("");
           }
 
           var headManifest = await s3.GetObjectAsync(S3Bucket, manifestKey);
