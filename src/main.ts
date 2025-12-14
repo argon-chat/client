@@ -65,3 +65,4 @@ app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
 app.mount("#app");
+
