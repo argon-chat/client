@@ -5,8 +5,18 @@ import { logger } from "@/lib/logger";
 import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { ActivityPresenceKind } from "@/lib/glue/argonChat";
-import { AudioPlaying, AudioPlayingEnd, ProcessEnd, ProcessPlaying } from "@/lib/glue/argon.ipc";
+import {
+  AudioPlaying,
+  AudioPlayingEnd,
+  ProcessEnd,
+  ProcessPlaying,
+} from "@/lib/glue/argon.ipc";
 import { native } from "@/lib/glue/nativeGlue";
+
+type Presence = {
+  kind: ActivityPresenceKind;
+  titleName: string;
+} | null;
 
 export interface IMusicEvent {
   title: string;
@@ -20,13 +30,9 @@ export const useActivity = defineStore("activity", () => {
   const gameSessions: Map<number, ProcessPlaying> = new Map();
   const musicSessions: Map<string, IMusicEvent> = new Map();
   const onActivityChanged = new Subject();
+  const lastPublishedPresence = ref<Presence>(null);
 
-  const debouncedActivitySubject = onActivityChanged.pipe(
-    debounceTime(1000),
-    switchMap((lastEvent) => {
-      return [lastEvent];
-    })
-  );
+  const debouncedActivitySubject = onActivityChanged.pipe(debounceTime(1000));
 
   async function init() {
     if (!argon.isArgonHost) return;
@@ -48,10 +54,12 @@ export const useActivity = defineStore("activity", () => {
     )
       logger.error("failed to bind activity manager 4");
 
-
-       const onMusicStop_pin = argon.on<AudioPlayingEnd>("AudioPlayingEnd", (x) => {
-      onMusicStop(x);
-    });
+    const onMusicStop_pin = argon.on<AudioPlayingEnd>(
+      "AudioPlayingEnd",
+      (x) => {
+        onMusicStop(x);
+      }
+    );
     if (
       !(await native.hostProc.onMusicSessionStopStateChanged(onMusicStop_pin))
     )
@@ -98,42 +106,71 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function onActivityTerminated(end: ProcessEnd) {
-    const pid = end.pid;
-    logger.info("onActivityTerminated", pid);
-    if (activeActivity.value === pid) {
-      api.userInteraction.RemoveBroadcastPresence();
+    logger.info("onActivityTerminated", end.pid);
+
+    gameSessions.delete(end.pid);
+
+    if (activeActivity.value === end.pid) {
       activeActivity.value = null;
     }
-    gameSessions.delete(pid);
-    onActivityChanged.next(0);
+
+    onActivityChanged.next(undefined);
+  }
+
+  function isSamePresence(a: Presence, b: Presence): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.kind === b.kind && a.titleName === b.titleName;
+  }
+
+  function computePresence(): Presence {
+    const music = getLastMusicSession();
+    if (music?.isPlaying) {
+      return {
+        kind: ActivityPresenceKind.LISTEN,
+        titleName: `${music.title} - ${music.author}`,
+      };
+    }
+
+    const game = getLastGameSession();
+    if (game) {
+      return {
+        kind: ActivityPresenceKind.GAME,
+        titleName: game.name,
+      };
+    }
+
+    const software = getLastSoftwareSession();
+    if (software) {
+      return {
+        kind: ActivityPresenceKind.SOFTWARE,
+        titleName: software.name,
+      };
+    }
+
+    return null;
   }
 
   function publishLatestActivity() {
-    const latestMusic = getLastMusicSession();
-    const latestGame = getLastGameSession();
-    const lastSoftware = getLastSoftwareSession();
+    const next = computePresence();
+    const prev = lastPublishedPresence.value;
 
-    logger.info("publishLatestActivity, ", latestGame, latestMusic);
+    if (isSamePresence(prev, next)) {
+      return;
+    }
 
-    if (latestMusic?.isPlaying) {
-      api.userInteraction.BroadcastPresence({
-        kind: ActivityPresenceKind.LISTEN,
-        startTimestampSeconds: 0n,
-        titleName: `${latestMusic.title} - ${latestMusic.author}`,
-      });
-    } else if (latestGame) {
-      api.userInteraction.BroadcastPresence({
-        kind: ActivityPresenceKind.GAME,
-        startTimestampSeconds: 0n,
-        titleName: latestGame.name,
-      });
-    } else if (lastSoftware) {
-      api.userInteraction.BroadcastPresence({
-        kind: ActivityPresenceKind.SOFTWARE,
-        startTimestampSeconds: 0n,
-        titleName: lastSoftware.name,
-      });
-    } else api.userInteraction.RemoveBroadcastPresence();
+    lastPublishedPresence.value = next;
+
+    if (!next) {
+      api.userInteraction.RemoveBroadcastPresence();
+      return;
+    }
+
+    api.userInteraction.BroadcastPresence({
+      kind: next.kind,
+      titleName: next.titleName,
+      startTimestampSeconds: 0n,
+    });
   }
 
   function getLastMusicSession(): IMusicEvent | null {
