@@ -58,6 +58,14 @@ declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
 
+export interface ActivityLogEntity {
+  logLevel: ActivityLogLevel;
+  template: string;
+  args: IonArray<string>;
+  time: datetime;
+};
+
+
 export interface StorageInfo {
   totalSize: string;
   availableFreeSpace: string;
@@ -86,6 +94,67 @@ export interface PinnedFn {
 };
 
 
+export interface ConfigKeyMetadata {
+  key: string;
+  type: ConfigPrimitiveType;
+  requiredToRestartApp: bool;
+  onlyForDevMode: bool;
+};
+
+
+export interface ConfigSectionMetadata {
+  section: string;
+  keys: IonArray<ConfigKeyMetadata>;
+};
+
+
+export interface SetRequest {
+  key: string;
+  section: string;
+  valueB: bool | null;
+  valueStr: string | null;
+  valueNum: i8 | null;
+  valueEnum: string | null;
+};
+
+
+export interface ConfigSectionMetadata_Value {
+  section: string;
+  keys: IonArray<ConfigKeyMetadata_Value>;
+};
+
+
+export interface ConfigKeyMetadata_Value {
+  key: string;
+  type: ConfigPrimitiveType;
+  requiredToRestartApp: bool;
+  onlyForDevMode: bool;
+  valueB: bool | null;
+  valueStr: string | null;
+  valueNum: i8 | null;
+  valueEnum: string | null;
+  valueEnumVariants: IonArray<string>;
+};
+
+
+export enum ActivityKind
+{
+  GameActivity = 0,
+  MusicActivity = 1,
+  HotKeysActivity = 2,
+  SystemActivity = 3,
+  NetworkActivity = 4,
+}
+
+
+export enum ActivityLogLevel
+{
+  Info = 0,
+  Warn = 1,
+  Error = 2,
+}
+
+
 export enum Channel
 {
   live = 0,
@@ -101,6 +170,256 @@ export enum HostKind
 }
 
 
+export enum ConfigPrimitiveType
+{
+  Boolean = 0,
+  Number = 1,
+  String = 2,
+  Enum = 3,
+}
+
+
+
+export abstract class INativeEvent implements IIonUnion<INativeEvent>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isAudioPlaying(): this is AudioPlaying {
+    return this.UnionKey === "AudioPlaying";
+  }
+  public isAudioPlayingEnd(): this is AudioPlayingEnd {
+    return this.UnionKey === "AudioPlayingEnd";
+  }
+  public isProcessPlaying(): this is ProcessPlaying {
+    return this.UnionKey === "ProcessPlaying";
+  }
+  public isProcessEnd(): this is ProcessEnd {
+    return this.UnionKey === "ProcessEnd";
+  }
+  public isActivityLog(): this is ActivityLog {
+    return this.UnionKey === "ActivityLog";
+  }
+
+}
+
+
+export class AudioPlaying extends INativeEvent
+{
+  constructor(public sessionId: string, public titleName: string, public author: string) { super(); }
+
+  UnionKey: string = "AudioPlaying";
+  UnionIndex: number = 0;
+}
+
+export class AudioPlayingEnd extends INativeEvent
+{
+  constructor(public sessionId: string) { super(); }
+
+  UnionKey: string = "AudioPlayingEnd";
+  UnionIndex: number = 1;
+}
+
+export class ProcessPlaying extends INativeEvent
+{
+  constructor(public appIcon: string, public name: string, public pid: i4, public hash: string, public kind: i4) { super(); }
+
+  UnionKey: string = "ProcessPlaying";
+  UnionIndex: number = 2;
+}
+
+export class ProcessEnd extends INativeEvent
+{
+  constructor(public pid: i4) { super(); }
+
+  UnionKey: string = "ProcessEnd";
+  UnionIndex: number = 3;
+}
+
+export class ActivityLog extends INativeEvent
+{
+  constructor(public logLevel: i4, public text: string, public args: IonArray<string>, public time: datetime) { super(); }
+
+  UnionKey: string = "ActivityLog";
+  UnionIndex: number = 4;
+}
+
+
+
+IonFormatterStorage.register("INativeEvent", {
+  read(reader: CborReader): INativeEvent {
+    reader.readStartArray();
+    let value: INativeEvent = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<AudioPlaying>("AudioPlaying").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<AudioPlayingEnd>("AudioPlayingEnd").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<ProcessPlaying>("ProcessPlaying").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<ProcessEnd>("ProcessEnd").read(reader);
+    else if (unionIndex == 4)
+      value = IonFormatterStorage.get<ActivityLog>("ActivityLog").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: INativeEvent): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<AudioPlaying>("AudioPlaying").write(writer, value as AudioPlaying);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<AudioPlayingEnd>("AudioPlayingEnd").write(writer, value as AudioPlayingEnd);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<ProcessPlaying>("ProcessPlaying").write(writer, value as ProcessPlaying);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<ProcessEnd>("ProcessEnd").write(writer, value as ProcessEnd);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<ActivityLog>("ActivityLog").write(writer, value as ActivityLog);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("AudioPlaying", {
+  read(reader: CborReader): AudioPlaying {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const titleName = IonFormatterStorage.get<string>('string').read(reader);
+    const author = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new AudioPlaying(sessionId, titleName, author);
+  },
+  write(writer: CborWriter, value: AudioPlaying): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<string>('string').write(writer, value.titleName);
+    IonFormatterStorage.get<string>('string').write(writer, value.author);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AudioPlayingEnd", {
+  read(reader: CborReader): AudioPlayingEnd {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new AudioPlayingEnd(sessionId);
+  },
+  write(writer: CborWriter, value: AudioPlayingEnd): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ProcessPlaying", {
+  read(reader: CborReader): ProcessPlaying {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const appIcon = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const pid = IonFormatterStorage.get<i4>('i4').read(reader);
+    const hash = IonFormatterStorage.get<string>('string').read(reader);
+    const kind = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return new ProcessPlaying(appIcon, name, pid, hash, kind);
+  },
+  write(writer: CborWriter, value: ProcessPlaying): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<string>('string').write(writer, value.appIcon);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.pid);
+    IonFormatterStorage.get<string>('string').write(writer, value.hash);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.kind);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ProcessEnd", {
+  read(reader: CborReader): ProcessEnd {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const pid = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ProcessEnd(pid);
+  },
+  write(writer: CborWriter, value: ProcessEnd): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.pid);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ActivityLog", {
+  read(reader: CborReader): ActivityLog {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const logLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const text = IonFormatterStorage.get<string>('string').read(reader);
+    const args = IonFormatterStorage.readArray<string>(reader, 'string');
+    const time = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new ActivityLog(logLevel, text, args, time);
+  },
+  write(writer: CborWriter, value: ActivityLog): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.logLevel);
+    IonFormatterStorage.get<string>('string').write(writer, value.text);
+    IonFormatterStorage.writeArray<string>(writer, value.args, 'string');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.time);
+    writer.writeEndArray();
+  }
+});
+
+
+
+IonFormatterStorage.register("ActivityLogLevel", {
+  read(reader: CborReader): ActivityLogLevel {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ActivityLogLevel[num] !== undefined ? num as ActivityLogLevel : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ActivityLogLevel): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ActivityLogEntity", {
+  read(reader: CborReader): ActivityLogEntity {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const logLevel = IonFormatterStorage.get<ActivityLogLevel>('ActivityLogLevel').read(reader);
+    const template = IonFormatterStorage.get<string>('string').read(reader);
+    const args = IonFormatterStorage.readArray<string>(reader, 'string');
+    const time = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { logLevel, template, args, time };
+  },
+  write(writer: CborWriter, value: ActivityLogEntity): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<ActivityLogLevel>('ActivityLogLevel').write(writer, value.logLevel);
+    IonFormatterStorage.get<string>('string').write(writer, value.template);
+    IonFormatterStorage.writeArray<string>(writer, value.args, 'string');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.time);
+    writer.writeEndArray();
+  }
+});
 
 IonFormatterStorage.register("StorageInfo", {
   read(reader: CborReader): StorageInfo {
@@ -174,6 +493,134 @@ IonFormatterStorage.register("PinnedFn", {
   }
 });
 
+IonFormatterStorage.register("ConfigPrimitiveType", {
+  read(reader: CborReader): ConfigPrimitiveType {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ConfigPrimitiveType[num] !== undefined ? num as ConfigPrimitiveType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ConfigPrimitiveType): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConfigKeyMetadata", {
+  read(reader: CborReader): ConfigKeyMetadata {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const type = IonFormatterStorage.get<ConfigPrimitiveType>('ConfigPrimitiveType').read(reader);
+    const requiredToRestartApp = IonFormatterStorage.get<bool>('bool').read(reader);
+    const onlyForDevMode = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { key, type, requiredToRestartApp, onlyForDevMode };
+  },
+  write(writer: CborWriter, value: ConfigKeyMetadata): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<ConfigPrimitiveType>('ConfigPrimitiveType').write(writer, value.type);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.requiredToRestartApp);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.onlyForDevMode);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConfigSectionMetadata", {
+  read(reader: CborReader): ConfigSectionMetadata {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const section = IonFormatterStorage.get<string>('string').read(reader);
+    const keys = IonFormatterStorage.readArray<ConfigKeyMetadata>(reader, 'ConfigKeyMetadata');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { section, keys };
+  },
+  write(writer: CborWriter, value: ConfigSectionMetadata): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.section);
+    IonFormatterStorage.writeArray<ConfigKeyMetadata>(writer, value.keys, 'ConfigKeyMetadata');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SetRequest", {
+  read(reader: CborReader): SetRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const section = IonFormatterStorage.get<string>('string').read(reader);
+    const valueB = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const valueStr = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const valueNum = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    const valueEnum = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { key, section, valueB, valueStr, valueNum, valueEnum };
+  },
+  write(writer: CborWriter, value: SetRequest): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<string>('string').write(writer, value.section);
+    IonFormatterStorage.writeNullable<bool>(writer, value.valueB, 'bool');
+    IonFormatterStorage.writeNullable<string>(writer, value.valueStr, 'string');
+    IonFormatterStorage.writeNullable<i8>(writer, value.valueNum, 'i8');
+    IonFormatterStorage.writeNullable<string>(writer, value.valueEnum, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConfigSectionMetadata_Value", {
+  read(reader: CborReader): ConfigSectionMetadata_Value {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const section = IonFormatterStorage.get<string>('string').read(reader);
+    const keys = IonFormatterStorage.readArray<ConfigKeyMetadata_Value>(reader, 'ConfigKeyMetadata_Value');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { section, keys };
+  },
+  write(writer: CborWriter, value: ConfigSectionMetadata_Value): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.section);
+    IonFormatterStorage.writeArray<ConfigKeyMetadata_Value>(writer, value.keys, 'ConfigKeyMetadata_Value');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConfigKeyMetadata_Value", {
+  read(reader: CborReader): ConfigKeyMetadata_Value {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const type = IonFormatterStorage.get<ConfigPrimitiveType>('ConfigPrimitiveType').read(reader);
+    const requiredToRestartApp = IonFormatterStorage.get<bool>('bool').read(reader);
+    const onlyForDevMode = IonFormatterStorage.get<bool>('bool').read(reader);
+    const valueB = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const valueStr = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const valueNum = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    const valueEnum = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const valueEnumVariants = IonFormatterStorage.readArray<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { key, type, requiredToRestartApp, onlyForDevMode, valueB, valueStr, valueNum, valueEnum, valueEnumVariants };
+  },
+  write(writer: CborWriter, value: ConfigKeyMetadata_Value): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<ConfigPrimitiveType>('ConfigPrimitiveType').write(writer, value.type);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.requiredToRestartApp);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.onlyForDevMode);
+    IonFormatterStorage.writeNullable<bool>(writer, value.valueB, 'bool');
+    IonFormatterStorage.writeNullable<string>(writer, value.valueStr, 'string');
+    IonFormatterStorage.writeNullable<i8>(writer, value.valueNum, 'i8');
+    IonFormatterStorage.writeNullable<string>(writer, value.valueEnum, 'string');
+    IonFormatterStorage.writeArray<string>(writer, value.valueEnumVariants, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ActivityKind", {
+  read(reader: CborReader): ActivityKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ActivityKind[num] !== undefined ? num as ActivityKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ActivityKind): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("Channel", {
   read(reader: CborReader): Channel {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -206,6 +653,7 @@ export interface IHostProc extends IIonService
   onGameActivityDetected(fn: PinnedFn): Promise<bool>;
   onGameActivityTerminated(fn: PinnedFn): Promise<bool>;
   onMusicSessionPlayStateChanged(fn: PinnedFn): Promise<bool>;
+  onMusicSessionStopStateChanged(fn: PinnedFn): Promise<bool>;
   dsn(): Promise<string>;
   getHostKind(): Promise<HostKind>;
   getDisplays(): Promise<IonArray<Screen>>;
@@ -220,6 +668,9 @@ export interface IHostProc extends IIonService
   clipboardWrite(val: string): Promise<bool>;
   renderDiagnostic(i: i4): Promise<bool>;
   getStorageSpace(): Promise<StorageInfo>;
+  getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
+  getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
+  setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null>;
 }
 
 
@@ -233,6 +684,7 @@ export interface IHostProc extends IIonService
   onGameActivityDetected(fn: PinnedFn): Promise<bool>;
   onGameActivityTerminated(fn: PinnedFn): Promise<bool>;
   onMusicSessionPlayStateChanged(fn: PinnedFn): Promise<bool>;
+  onMusicSessionStopStateChanged(fn: PinnedFn): Promise<bool>;
   dsn(): Promise<string>;
   getHostKind(): Promise<HostKind>;
   getDisplays(): Promise<IonArray<Screen>>;
@@ -247,6 +699,9 @@ export interface IHostProc extends IIonService
   clipboardWrite(val: string): Promise<bool>;
   renderDiagnostic(i: i4): Promise<bool>;
   getStorageSpace(): Promise<StorageInfo>;
+  getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
+  getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
+  setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null>;
 }
 
 
@@ -334,6 +789,19 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
   }
   async onMusicSessionPlayStateChanged(fn: PinnedFn): Promise<bool> {
     const req = new IonRequest(this.ctx, "IHostProc", "onMusicSessionPlayStateChanged");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<PinnedFn>('PinnedFn').write(writer, fn);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async onMusicSessionStopStateChanged(fn: PinnedFn): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "onMusicSessionStopStateChanged");
           
     const writer = new CborWriter();
       
@@ -526,6 +994,48 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeEndArray();
           
     return await req.callAsyncT<StorageInfo>("StorageInfo", writer.data, this.signal);
+  }
+  async getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>> {
+    const req = new IonRequest(this.ctx, "IHostProc", "getActivityDiagnostic");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<ActivityKind>('ActivityKind').write(writer, activityKind);
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+    IonFormatterStorage.writeNullable<string>(writer, search, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ActivityLogEntity>>("IonArray<ActivityLogEntity>", writer.data, this.signal);
+  }
+  async getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>> {
+    const req = new IonRequest(this.ctx, "IHostProc", "getConfig");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ConfigSectionMetadata_Value>>("IonArray<ConfigSectionMetadata_Value>", writer.data, this.signal);
+  }
+  async setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null> {
+    const req = new IonRequest(this.ctx, "IHostProc", "setConfigValue");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<SetRequest>('SetRequest').write(writer, set);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ConfigKeyMetadata_Value | null>("ConfigKeyMetadata_Value | null", writer.data, this.signal);
   }
 
 }
