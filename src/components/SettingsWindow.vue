@@ -52,6 +52,7 @@ import LanguageSettings from "./settings/LanguageSettings.vue";
 import SoundSettings from "./settings/SoundSettings.vue";
 import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
+import ActivityLog from "./settings/ActivityLog.vue";
 const { t } = useLocale();
 const windows = useWindow();
 
@@ -66,7 +67,8 @@ const categories = ref([
   { id: "hotkeys" },
   { id: "languages" },
   { id: "sounds" },
-  { id: "storages" }
+  { id: "storages" },
+  { id: "activity" }
 ]);
 
 const selectedCategory = ref("account");
@@ -79,7 +81,8 @@ const categoryComponents = {
   hotkeys: HotKeySettings,
   languages: LanguageSettings,
   sounds: SoundSettings,
-  storages: StorageSettings
+  storages: StorageSettings,
+  activity: ActivityLog
 };
 
 const selectedCategoryComponent = computed(

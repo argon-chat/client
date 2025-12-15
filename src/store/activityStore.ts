@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { ActivityPresenceKind } from "@/lib/glue/argonChat";
+import { AudioPlaying, ProcessEnd, ProcessPlaying } from "@/lib/glue/argon.ipc";
+import { native } from "@/lib/glue/nativeGlue";
 
 export interface IMusicEvent {
   title: string;
@@ -13,9 +15,9 @@ export interface IMusicEvent {
 }
 
 export const useActivity = defineStore("activity", () => {
-  /*const api = useApi();
+  const api = useApi();
   const activeActivity = ref(null as null | number);
-  const gameSessions: Map<number, IProcessEntity> = new Map();
+  const gameSessions: Map<number, ProcessPlaying> = new Map();
   const musicSessions: Map<string, IMusicEvent> = new Map();
   const onActivityChanged = new Subject();
 
@@ -24,54 +26,67 @@ export const useActivity = defineStore("activity", () => {
     switchMap((lastEvent) => {
       return [lastEvent];
     }),
-  );*/
+  );
 
   async function init() {
-    /*if (!argon.isArgonHost) return;
-    const populatePinnedFn = native.createPinnedObject(
-      onActivityDetected, //useDebounceFn(, 1000)
-    );
-    if (!argon.onGameActivityDetected(populatePinnedFn))
+    if (!argon.isArgonHost) return;
+    const populatePinnedFn = argon.on<ProcessPlaying>("ProcessPlaying", (x) => {
+      onActivityDetected(x)
+    })
+    if (!await native.hostProc.onGameActivityDetected(populatePinnedFn))
       logger.error("failed to bind activity manager 1");
-    const terminatedPinnedFn = native.createPinnedObject(
-      onActivityTerminated, //useDebounceFn(, 1000)
-    );
-    if (!argon.onGameActivityTerminated(terminatedPinnedFn))
+    const terminatedPinnedFn = argon.on<ProcessEnd>("ProcessEnd", (x) => {
+      onActivityTerminated(x)
+    })
+    if (!await native.hostProc.onGameActivityTerminated(terminatedPinnedFn))
       logger.error("failed to bind activity manager 2");
-    const onMusicEnd = native.createPinnedObject(onMusicStop);
-    if (!argon.onMusicSessionPlayStateChanged(onMusicEnd))
+    const onMusicPlay_pin = argon.on<AudioPlaying>("AudioPlaying", (x) => {
+      onMusicPlay(x)
+    })
+    if (!await native.hostProc.onMusicSessionPlayStateChanged(onMusicPlay_pin))
       logger.error("failed to bind activity manager 4");
 
     debouncedActivitySubject.subscribe(publishLatestActivity);
     interval(2 * 60 * 1000)
       .pipe(
         switchMap(() => {
+
           return Promise.resolve(publishLatestActivity());
         }),
       )
       .subscribe();
-    argon.listenActivity();
-    argon.listenSessionMusic();*/
+    native.hostProc.listenActivity();
+    native.hostProc.listenSessionMusic();
   }
-  /*
-  function onMusicStop(sessionId: string, state: boolean, data: string) {
-    const audioEntity = JSON.parse(data) as IAudioEntity;
-    musicSessions.set(sessionId, {
-      author: audioEntity.Author,
-      isPlaying: state,
-      title: audioEntity.TitleName,
+  function onMusicStop(ev: AudioPlaying) {
+    const audioEntity = ev;
+    musicSessions.set(audioEntity.sessionId, {
+      author: audioEntity.author,
+      isPlaying: false,
+      title: audioEntity.titleName,
     });
     onActivityChanged.next(0);
   }
 
-  function onActivityDetected(proc: IProcessEntity) {
+  function onMusicPlay(ev: AudioPlaying) {
+    const audioEntity = ev;
+    musicSessions.set(audioEntity.sessionId, {
+      author: audioEntity.author,
+      isPlaying: true,
+      title: audioEntity.titleName,
+    });
+    onActivityChanged.next(0);
+  }
+
+  function onActivityDetected(proc: ProcessPlaying) {
     logger.info("onActivityDetected", proc);
     gameSessions.set(proc.pid, proc);
     activeActivity.value = proc.pid;
     onActivityChanged.next(0);
   }
 
-  function onActivityTerminated(pid: number) {
+  function onActivityTerminated(end: ProcessEnd) {
+    const pid = end.pid;
     logger.info("onActivityTerminated", pid);
     if (activeActivity.value === pid) {
       api.userInteraction.RemoveBroadcastPresence();
@@ -116,7 +131,7 @@ export const useActivity = defineStore("activity", () => {
       : null;
   }
 
-  function getLastGameSession(): IProcessEntity | null {
+  function getLastGameSession(): ProcessPlaying | null {
     const sessionsArray = Array.from(
       gameSessions.values().filter((x) => x.kind === 0),
     );
@@ -125,7 +140,7 @@ export const useActivity = defineStore("activity", () => {
       : null;
   }
 
-  function getLastSoftwareSession(): IProcessEntity | null {
+  function getLastSoftwareSession(): ProcessPlaying | null {
     const sessionsArray = Array.from(
       gameSessions.values().filter((x) => x.kind === 1),
     );
@@ -133,7 +148,6 @@ export const useActivity = defineStore("activity", () => {
       ? sessionsArray[sessionsArray.length - 1]
       : null;
   }
-*/
 
   return {
     init,
