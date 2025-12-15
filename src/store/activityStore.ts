@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { ActivityPresenceKind } from "@/lib/glue/argonChat";
-import { AudioPlaying, ProcessEnd, ProcessPlaying } from "@/lib/glue/argon.ipc";
+import { AudioPlaying, AudioPlayingEnd, ProcessEnd, ProcessPlaying } from "@/lib/glue/argon.ipc";
 import { native } from "@/lib/glue/nativeGlue";
 
 export interface IMusicEvent {
@@ -25,46 +25,58 @@ export const useActivity = defineStore("activity", () => {
     debounceTime(1000),
     switchMap((lastEvent) => {
       return [lastEvent];
-    }),
+    })
   );
 
   async function init() {
     if (!argon.isArgonHost) return;
     const populatePinnedFn = argon.on<ProcessPlaying>("ProcessPlaying", (x) => {
-      onActivityDetected(x)
-    })
-    if (!await native.hostProc.onGameActivityDetected(populatePinnedFn))
+      onActivityDetected(x);
+    });
+    if (!(await native.hostProc.onGameActivityDetected(populatePinnedFn)))
       logger.error("failed to bind activity manager 1");
     const terminatedPinnedFn = argon.on<ProcessEnd>("ProcessEnd", (x) => {
-      onActivityTerminated(x)
-    })
-    if (!await native.hostProc.onGameActivityTerminated(terminatedPinnedFn))
+      onActivityTerminated(x);
+    });
+    if (!(await native.hostProc.onGameActivityTerminated(terminatedPinnedFn)))
       logger.error("failed to bind activity manager 2");
     const onMusicPlay_pin = argon.on<AudioPlaying>("AudioPlaying", (x) => {
-      onMusicPlay(x)
-    })
-    if (!await native.hostProc.onMusicSessionPlayStateChanged(onMusicPlay_pin))
+      onMusicPlay(x);
+    });
+    if (
+      !(await native.hostProc.onMusicSessionPlayStateChanged(onMusicPlay_pin))
+    )
       logger.error("failed to bind activity manager 4");
+
+
+       const onMusicStop_pin = argon.on<AudioPlayingEnd>("AudioPlayingEnd", (x) => {
+      onMusicStop(x);
+    });
+    if (
+      !(await native.hostProc.onMusicSessionStopStateChanged(onMusicStop_pin))
+    )
+      logger.error("failed to bind activity manager 5");
 
     debouncedActivitySubject.subscribe(publishLatestActivity);
     interval(2 * 60 * 1000)
       .pipe(
         switchMap(() => {
-
           return Promise.resolve(publishLatestActivity());
-        }),
+        })
       )
       .subscribe();
     native.hostProc.listenActivity();
     native.hostProc.listenSessionMusic();
   }
-  function onMusicStop(ev: AudioPlaying) {
+  function onMusicStop(ev: AudioPlayingEnd) {
     const audioEntity = ev;
-    musicSessions.set(audioEntity.sessionId, {
-      author: audioEntity.author,
-      isPlaying: false,
-      title: audioEntity.titleName,
-    });
+    const vl = musicSessions.get(audioEntity.sessionId);
+
+    if (!vl) return;
+
+    vl.isPlaying = false;
+
+    musicSessions.set(audioEntity.sessionId, vl);
     onActivityChanged.next(0);
   }
 
@@ -133,7 +145,7 @@ export const useActivity = defineStore("activity", () => {
 
   function getLastGameSession(): ProcessPlaying | null {
     const sessionsArray = Array.from(
-      gameSessions.values().filter((x) => x.kind === 0),
+      gameSessions.values().filter((x) => x.kind === 0)
     );
     return sessionsArray.length > 0
       ? sessionsArray[sessionsArray.length - 1]
@@ -142,7 +154,7 @@ export const useActivity = defineStore("activity", () => {
 
   function getLastSoftwareSession(): ProcessPlaying | null {
     const sessionsArray = Array.from(
-      gameSessions.values().filter((x) => x.kind === 1),
+      gameSessions.values().filter((x) => x.kind === 1)
     );
     return sessionsArray.length > 0
       ? sessionsArray[sessionsArray.length - 1]
