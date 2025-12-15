@@ -260,7 +260,7 @@ export const useFileStorage = defineStore("files", () => {
       fileId,
       cache: imagesCache.value,
       fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/${x}`,
+        `https://cdn.argon.gl/${x}`,
       allowFallback: false,
     });
   }
@@ -270,7 +270,7 @@ export const useFileStorage = defineStore("files", () => {
       fileId,
       cache: imagesCache.value,
       fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/${x}`,
+        `https://cdn.argon.gl/${x}`,
       allowFallback: false,
     });
   }
