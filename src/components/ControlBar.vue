@@ -43,8 +43,13 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <div v-for="size in displays" :key="size.displayIndex"
                                         class="flex flex-col items-center" @click="setSelected(size)">
-                                        <video autoplay :srcObject="size.preview" class="rounded-lg preview"
+                                        <!--  <video autoplay :srcObject="size.preview" class="rounded-lg preview"
                                             :class="{ previewSelected: size.selected }"></video>
+                                            <div class="grid">
+                                            <img :src="`screen://preview?id=${size.displayIndex}`" />
+                                        </div> -->
+
+                                        
                                         <span class="text-sm mt-2">
                                             {{ t("monitor_index", { idx: size.displayIndex }) }}
                                         </span>
@@ -293,6 +298,9 @@ function stopPreview(stream: MediaStream | null) {
 
 watch(openShareSettings, async (isOpen) => {
     if (isOpen) {
+
+        goShare();
+        return;
         let screens: Screen[] = [];
 
         if (argon.isArgonHost) {
@@ -389,14 +397,15 @@ async function goShare() {
     if (voice.isSharing) {
         await voice.stopScreenShare();
     } else {
-        const dev = displays.value.find((x) => x.selected);
-        for (const d of displays.value) stopPreview(d.preview);
-        displays.value = [];
+        //const dev = displays.value.find((x) => x.selected);
+        //for (const d of displays.value) stopPreview(d.preview);
+        //displays.value = [];
 
-        if (!dev) return;
+        //if (!dev) return;
 
         await voice.startScreenShare({
-            deviceId: `screen:${dev.displayIndex}:0`,
+            deviceId: null,
+            //deviceId: `screen:${dev.displayIndex}:0`,
             systemAudio: includeAudio.value ? "include" : "exclude",
         });
     }

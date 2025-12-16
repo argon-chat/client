@@ -58,6 +58,11 @@ declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
 
+export interface SetResult {
+  value: ConfigKeyMetadata_Value | null;
+};
+
+
 export interface ActivityLogEntity {
   logLevel: ActivityLogLevel;
   template: string;
@@ -390,6 +395,20 @@ IonFormatterStorage.register("ActivityLog", {
 
 
 
+IonFormatterStorage.register("SetResult", {
+  read(reader: CborReader): SetResult {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const value = IonFormatterStorage.readNullable<ConfigKeyMetadata_Value>(reader, 'ConfigKeyMetadata_Value');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { value };
+  },
+  write(writer: CborWriter, value: SetResult): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeNullable<ConfigKeyMetadata_Value>(writer, value.value, 'ConfigKeyMetadata_Value');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ActivityLogLevel", {
   read(reader: CborReader): ActivityLogLevel {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -670,7 +689,7 @@ export interface IHostProc extends IIonService
   getStorageSpace(): Promise<StorageInfo>;
   getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
   getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
-  setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null>;
+  setConfigValue(set: SetRequest): Promise<SetResult>;
 }
 
 
@@ -701,7 +720,7 @@ export interface IHostProc extends IIonService
   getStorageSpace(): Promise<StorageInfo>;
   getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
   getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
-  setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null>;
+  setConfigValue(set: SetRequest): Promise<SetResult>;
 }
 
 
@@ -1024,7 +1043,7 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
           
     return await req.callAsyncT<IonArray<ConfigSectionMetadata_Value>>("IonArray<ConfigSectionMetadata_Value>", writer.data, this.signal);
   }
-  async setConfigValue(set: SetRequest): Promise<ConfigKeyMetadata_Value | null> {
+  async setConfigValue(set: SetRequest): Promise<SetResult> {
     const req = new IonRequest(this.ctx, "IHostProc", "setConfigValue");
           
     const writer = new CborWriter();
@@ -1035,7 +1054,7 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ConfigKeyMetadata_Value | null>("ConfigKeyMetadata_Value | null", writer.data, this.signal);
+    return await req.callAsyncT<SetResult>("SetResult", writer.data, this.signal);
   }
 
 }

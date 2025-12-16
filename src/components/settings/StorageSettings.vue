@@ -1,6 +1,6 @@
 <template>
     <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
-        <h2 class="text-2xl font-bold">{{ t("storage") }}</h2>
+        <h2 class="text-2xl font-bold">{{ t("storage.key") }}</h2>
         <div>
             <div>
                 <UsageStatus v-if="usageReport" :groups="usageReport.groups" :quota-bytes="usageReport.quotaBytes"

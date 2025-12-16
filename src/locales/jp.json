@@ -425,6 +425,24 @@
   "event_friend_request_canceled": "フレンド申請が取り消されました。",
   "event_friendship_removed": "フレンドから外されました。",
   "event_user_blocked": "ユーザーをブロックしました。",
-  "event_user_unblocked": "ユーザーのブロックを解除しました。"
+  "event_user_unblocked": "ユーザーのブロックを解除しました。",
+
+  "hideapptotray": "トレイに最小化",
+  "hideapptotray_desc": "アプリを終了せず、システムトレイに最小化します。",
+
+  "lowrammode": "低メモリモード",
+  "lowrammode_desc": "不要な機能を無効化してメモリ使用量を削減します。",
+
+  "lowcpumode": "低CPU使用モード",
+  "lowcpumode_desc": "バックグラウンド処理やアニメーションを制限してCPU負荷を下げます。",
+
+  "ignoresystemproxy": "システムプロキシを無視",
+  "ignoresystemproxy_desc": "システムのプロキシ設定を使用せず、直接接続します。",
+
+  "devmode": "開発者モード",
+  "devmode_desc": "開発者向け機能、診断、実験的な設定を有効にします。",
+
+  "restart_required": "再起動が必要です",
+  "restart_required_global": "変更を適用するには再起動が必要です"
 
 }

@@ -399,7 +399,8 @@
     "other": "Other",
     "free": "Free",
     "total": "Total",
-    "space": "Storage Space"
+    "space": "Storage Space",
+    "key": "Storage"
   },
   "storages": "Storage",
   "feedback_title": "Feedback",
@@ -438,5 +439,45 @@
   "event_friend_request_canceled": "Friend request was canceled.",
   "event_friendship_removed": "You were removed from friends.",
   "event_user_blocked": "User was blocked.",
-  "event_user_unblocked": "User was unblocked."
+  "event_user_unblocked": "User was unblocked.",
+
+
+  "hideapptotray": "Hide app to system tray",
+  "hideapptotray_desc": "Minimizes the application to the system tray instead of closing it.",
+
+  "lowrammode": "Low RAM mode",
+  "lowrammode_desc": "Reduces memory usage by disabling non-essential features.",
+
+  "lowcpumode": "Low CPU mode",
+  "lowcpumode_desc": "Lowers CPU usage by limiting background activity and animations.",
+
+  "ignoresystemproxy": "Ignore system proxy",
+  "ignoresystemproxy_desc": "Uses a direct network connection instead of system proxy settings.",
+
+  "devmode": "Developer mode",
+  "devmode_desc": "Enables developer features, diagnostics, and experimental options.",
+
+
+  "sentrydebug": "Sentry Debug",
+  "sentrydebug_desc": "",
+
+  "extendscontentintotitlebar": "ExtendsContentinToTitleBar",
+  "extendscontentintotitlebar_desc": "",
+
+  "systembackdrop": "Backdrop",
+  "systembackdrop_desc": "",
+
+  "astlargs": "ASTL Args",
+  "astlargs_desc": "",
+
+  "exclusiveuserdatafolderaccess": "ExclusiveUserDataFolderAccess",
+  "exclusiveuserdatafolderaccess_desc": "",
+
+  "lktracemode": "LK TraceMode",
+  "lktracemode_desc": "",
+
+  "appDev": "Development Settings",
+
+  "restart_required": "Restart required",
+  "restart_required_global": "Restart required to apply changes"
 }

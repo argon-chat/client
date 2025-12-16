@@ -17,6 +17,7 @@
                         :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
                         @click="selectedCategory = category.id"
                         :style="{ willChange: 'transform' }"
+                        :disabled="category.disabled"
                         class="nav-item px-4 py-2 rounded-md w-full transition-none">
                         {{ t(category.id) }}
                     </Button>
@@ -64,7 +65,7 @@ const categories = ref([
   //{ id: 'privacy', name: 'Privacy' },
   //{ id: 'devices', name: 'Devices' },
   { id: "voice_video" },
-  { id: "hotkeys" },
+  { id: "hotkeys", disabled: true },
   { id: "languages" },
   { id: "sounds" },
   { id: "storages" },

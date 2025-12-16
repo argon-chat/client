@@ -734,23 +734,31 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   }
 
   async function startScreenShare(opts: {
-    deviceId: string;
+    deviceId: string | null;
     systemAudio: "include" | "exclude";
   }) {
     if (!room.value) return;
 
-    const capture: ScreenShareCaptureOptions = {
-      video: {
+    let oo = {};
+
+    if (opts.deviceId) {
+      oo = {
         mandatory: {
           chromeMediaSource: "desktop",
           chromeMediaSourceId: opts.deviceId,
         },
-      } as any,
+      } as any
+    } else {
+      oo = true;
+    }
+
+    const capture: ScreenShareCaptureOptions = {
+      video: oo as any,
       audio: false,
       systemAudio: opts.systemAudio,
     };
 
-    const stream = await navigator.mediaDevices.getUserMedia(capture);
+    const stream = await navigator.mediaDevices.getDisplayMedia(capture);
 
     const vid = new LocalVideoTrack(stream.getTracks()[0]);
     vid.source = Track.Source.ScreenShare;

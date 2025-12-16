@@ -13,6 +13,7 @@ import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
 import { worklets } from "@/lib/audio/WorkletBase";
 import router from "@/router";
+import { useConfigStore } from "./configStore";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
@@ -46,6 +47,10 @@ export const useAppState = defineStore("app", () => {
 
     logger.info("Create buckets...");
     await useFileStorage().initStorages();
+
+
+    logger.info("Load configurations...")
+    await useConfigStore().load();
 
     logger.info("Fetch data...");
 
