@@ -334,21 +334,6 @@ const replacement = new Map<string, string>([
 ]);
 
 function normalizeKeyName(name: string): string {
-  // D0..D9 → 0..9
-  if (/^D[0-9]$/.test(name)) {
-    return name.substring(1);
-  }
-
-  // NumPadX → Num X
-  if (name.startsWith("NumPad")) {
-    return `Num ${name.substring(6)}`;
-  }
-
-  // Function keys
-  if (/^F[0-9]{1,2}$/.test(name)) {
-    return name;
-  }
-
   return name;
 }
 

@@ -490,5 +490,11 @@
   "hotkey.hold": "Hold",
   "hotkey.toggle": "Toggle",
   "change_hotkey": "Change hotkey",
-  "record_hotkey": "Record hotkey"
+  "record_hotkey": "Record hotkey",
+
+  "usegetkeyboardstate": "Use KeyboardState",
+  "usegetkeyboardstate_desc": "Uses User32.GetKeyboardState instead User32.GetKeyState for hotkeys",
+
+  "displayfps": "Display Fps",
+  "displayfps_desc": "Enable widget with detailed fps info"
 }
