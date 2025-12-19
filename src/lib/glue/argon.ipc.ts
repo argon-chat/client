@@ -142,6 +142,33 @@ export interface ConfigKeyMetadata_Value {
 };
 
 
+export interface HotkeyButton {
+  device: HotkeyDevice;
+  code: i4;
+};
+
+
+export interface HotkeyChord {
+  buttons: IonArray<HotkeyButton>;
+};
+
+
+export interface HotkeyDescriptor {
+  id: string;
+  chord: HotkeyChord;
+  action: HotkeyActionType;
+  suppress: bool;
+  triggerCooldownMs: i4;
+};
+
+
+export interface HotkeyEvent {
+  hotkeyId: string;
+  phase: HotkeyPhase;
+  timestamp: datetime;
+};
+
+
 export enum ActivityKind
 {
   GameActivity = 0,
@@ -184,6 +211,29 @@ export enum ConfigPrimitiveType
 }
 
 
+export enum HotkeyDevice
+{
+  Keyboard = 0,
+  Mouse = 1,
+}
+
+
+export enum HotkeyActionType
+{
+  Trigger = 0,
+  Hold = 1,
+  Toggle = 2,
+}
+
+
+export enum HotkeyPhase
+{
+  Started = 0,
+  Triggered = 1,
+  Ended = 2,
+}
+
+
 
 export abstract class INativeEvent implements IIonUnion<INativeEvent>
 {
@@ -207,6 +257,9 @@ export abstract class INativeEvent implements IIonUnion<INativeEvent>
   }
   public isActivityLog(): this is ActivityLog {
     return this.UnionKey === "ActivityLog";
+  }
+  public isHotKeyTriggered(): this is HotKeyTriggered {
+    return this.UnionKey === "HotKeyTriggered";
   }
 
 }
@@ -252,6 +305,14 @@ export class ActivityLog extends INativeEvent
   UnionIndex: number = 4;
 }
 
+export class HotKeyTriggered extends INativeEvent
+{
+  constructor(public hotkeyId: string, public phase: HotkeyPhase) { super(); }
+
+  UnionKey: string = "HotKeyTriggered";
+  UnionIndex: number = 5;
+}
+
 
 
 IonFormatterStorage.register("INativeEvent", {
@@ -272,6 +333,8 @@ IonFormatterStorage.register("INativeEvent", {
       value = IonFormatterStorage.get<ProcessEnd>("ProcessEnd").read(reader);
     else if (unionIndex == 4)
       value = IonFormatterStorage.get<ActivityLog>("ActivityLog").read(reader);
+    else if (unionIndex == 5)
+      value = IonFormatterStorage.get<HotKeyTriggered>("HotKeyTriggered").read(reader);
 
     else throw new Error();
   
@@ -297,6 +360,9 @@ IonFormatterStorage.register("INativeEvent", {
     }
     else if (value.UnionIndex == 4) {
         IonFormatterStorage.get<ActivityLog>("ActivityLog").write(writer, value as ActivityLog);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<HotKeyTriggered>("HotKeyTriggered").write(writer, value as HotKeyTriggered);
     }
   
     else throw new Error();
@@ -389,6 +455,22 @@ IonFormatterStorage.register("ActivityLog", {
     IonFormatterStorage.get<string>('string').write(writer, value.text);
     IonFormatterStorage.writeArray<string>(writer, value.args, 'string');
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.time);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("HotKeyTriggered", {
+  read(reader: CborReader): HotKeyTriggered {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const hotkeyId = IonFormatterStorage.get<string>('string').read(reader);
+    const phase = IonFormatterStorage.get<HotkeyPhase>('HotkeyPhase').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new HotKeyTriggered(hotkeyId, phase);
+  },
+  write(writer: CborWriter, value: HotKeyTriggered): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.hotkeyId);
+    IonFormatterStorage.get<HotkeyPhase>('HotkeyPhase').write(writer, value.phase);
     writer.writeEndArray();
   }
 });
@@ -629,6 +711,109 @@ IonFormatterStorage.register("ConfigKeyMetadata_Value", {
   }
 });
 
+IonFormatterStorage.register("HotkeyDevice", {
+  read(reader: CborReader): HotkeyDevice {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return HotkeyDevice[num] !== undefined ? num as HotkeyDevice : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: HotkeyDevice): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("HotkeyButton", {
+  read(reader: CborReader): HotkeyButton {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const device = IonFormatterStorage.get<HotkeyDevice>('HotkeyDevice').read(reader);
+    const code = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { device, code };
+  },
+  write(writer: CborWriter, value: HotkeyButton): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<HotkeyDevice>('HotkeyDevice').write(writer, value.device);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.code);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("HotkeyChord", {
+  read(reader: CborReader): HotkeyChord {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const buttons = IonFormatterStorage.readArray<HotkeyButton>(reader, 'HotkeyButton');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { buttons };
+  },
+  write(writer: CborWriter, value: HotkeyChord): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<HotkeyButton>(writer, value.buttons, 'HotkeyButton');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("HotkeyActionType", {
+  read(reader: CborReader): HotkeyActionType {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return HotkeyActionType[num] !== undefined ? num as HotkeyActionType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: HotkeyActionType): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("HotkeyDescriptor", {
+  read(reader: CborReader): HotkeyDescriptor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const chord = IonFormatterStorage.get<HotkeyChord>('HotkeyChord').read(reader);
+    const action = IonFormatterStorage.get<HotkeyActionType>('HotkeyActionType').read(reader);
+    const suppress = IonFormatterStorage.get<bool>('bool').read(reader);
+    const triggerCooldownMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { id, chord, action, suppress, triggerCooldownMs };
+  },
+  write(writer: CborWriter, value: HotkeyDescriptor): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<HotkeyChord>('HotkeyChord').write(writer, value.chord);
+    IonFormatterStorage.get<HotkeyActionType>('HotkeyActionType').write(writer, value.action);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.suppress);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.triggerCooldownMs);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("HotkeyPhase", {
+  read(reader: CborReader): HotkeyPhase {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return HotkeyPhase[num] !== undefined ? num as HotkeyPhase : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: HotkeyPhase): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("HotkeyEvent", {
+  read(reader: CborReader): HotkeyEvent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const hotkeyId = IonFormatterStorage.get<string>('string').read(reader);
+    const phase = IonFormatterStorage.get<HotkeyPhase>('HotkeyPhase').read(reader);
+    const timestamp = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { hotkeyId, phase, timestamp };
+  },
+  write(writer: CborWriter, value: HotkeyEvent): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.hotkeyId);
+    IonFormatterStorage.get<HotkeyPhase>('HotkeyPhase').write(writer, value.phase);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.timestamp);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ActivityKind", {
   read(reader: CborReader): ActivityKind {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -690,6 +875,12 @@ export interface IHostProc extends IIonService
   getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
   getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
   setConfigValue(set: SetRequest): Promise<SetResult>;
+  hotkeyRegister(desc: HotkeyDescriptor): Promise<void>;
+  hotkeyUnregister(id: string): Promise<void>;
+  hotkeyCaptureOnce(): Promise<HotkeyChord>;
+  hotkeyPause(): Promise<void>;
+  hotkeyResume(): Promise<void>;
+  hotkeyFired(fn: PinnedFn): Promise<bool>;
 }
 
 
@@ -721,6 +912,12 @@ export interface IHostProc extends IIonService
   getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string | null): Promise<IonArray<ActivityLogEntity>>;
   getConfig(): Promise<IonArray<ConfigSectionMetadata_Value>>;
   setConfigValue(set: SetRequest): Promise<SetResult>;
+  hotkeyRegister(desc: HotkeyDescriptor): Promise<void>;
+  hotkeyUnregister(id: string): Promise<void>;
+  hotkeyCaptureOnce(): Promise<HotkeyChord>;
+  hotkeyPause(): Promise<void>;
+  hotkeyResume(): Promise<void>;
+  hotkeyFired(fn: PinnedFn): Promise<bool>;
 }
 
 
@@ -1055,6 +1252,84 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeEndArray();
           
     return await req.callAsyncT<SetResult>("SetResult", writer.data, this.signal);
+  }
+  async hotkeyRegister(desc: HotkeyDescriptor): Promise<void> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyRegister");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<HotkeyDescriptor>('HotkeyDescriptor').write(writer, desc);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async hotkeyUnregister(id: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyUnregister");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, id);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async hotkeyCaptureOnce(): Promise<HotkeyChord> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyCaptureOnce");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<HotkeyChord>("HotkeyChord", writer.data, this.signal);
+  }
+  async hotkeyPause(): Promise<void> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyPause");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async hotkeyResume(): Promise<void> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyResume");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async hotkeyFired(fn: PinnedFn): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "hotkeyFired");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<PinnedFn>('PinnedFn').write(writer, fn);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
 
 }

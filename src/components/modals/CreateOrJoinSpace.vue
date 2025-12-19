@@ -1,13 +1,13 @@
 <template>
     <Dialog v-model:open="open">
         <DialogContent
-            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8">
+            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8">
 
             <div
                 class="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none">
             </div>
 
-            <div class="relative text-center space-y-2">
+            <div class="relative text-center space-y-8 p-4">
                 <h2 class="text-3xl font-extrabold text-white tracking-wide">
                     {{ t('join_or_create_server') }}
                 </h2>
@@ -16,7 +16,7 @@
                 </p>
             </div>
 
-            <div class="relative space-y-3">
+            <div class="relative space-y-8">
 
                 <InputWithError v-model="spaceName" placeholder="e.g., Cool Space" :error="createError"
                     @clear-error="createError = ''">
@@ -40,7 +40,7 @@
                 <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
             </div>
 
-            <div class="relative space-y-3">
+            <div class="relative space-y-8">
 
                 <InputWithError id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" :error="joinError"
                     @clear-error="joinError = ''">

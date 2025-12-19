@@ -1,11 +1,12 @@
 <template>
     <Drawer :open="windows.serverSettingsOpen" :dismissible="false">
         <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40" :trap-focus="false" :auto-focus="false">
-            <DrawerHeader class="flex items-center justify-between">
+            <DrawerHeader class="grid grid-cols-[1fr_auto] items-start gap-4">
                 <div>
-                    <DrawerTitle>{{t("settings")}}</DrawerTitle>
-                    <DrawerDescription>{{t("manage_settings")}}</DrawerDescription>
+                    <DrawerTitle>{{ t("settings") }}</DrawerTitle>
+                    <DrawerDescription>{{ t("manage_settings") }}</DrawerDescription>
                 </div>
+
                 <button @click="windows.serverSettingsOpen = false" class="close-button">
                     <CircleXIcon class="w-10 h-10" />
                 </button>
@@ -31,11 +32,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerDescription,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { useWindow } from "@/store/windowStore";
@@ -49,35 +50,35 @@ const windows = useWindow();
 const { t } = useLocale();
 
 const categories = ref([
-  { id: "server", name: "Server" },
-  { id: "archetypes", name: "Archetypes" },
-  { id: "invites", name: "Invites" },
+    { id: "server", name: "Server" },
+    { id: "archetypes", name: "Archetypes" },
+    { id: "invites", name: "Invites" },
 ]);
 
 const selectedCategory = ref("account");
 
 const categoryComponents = {
-  server: Invites,
-  invites: Invites,
-  archetypes: RolesSettings,
+    server: Invites,
+    invites: Invites,
+    archetypes: RolesSettings,
 };
 
 const selectedCategoryComponent = computed(
-  () => (categoryComponents as any)[selectedCategory.value],
+    () => (categoryComponents as any)[selectedCategory.value],
 );
 
 const handleEscape = (event: KeyboardEvent) => {
-  if (event.key === "Escape" && windows.serverSettingsOpen) {
-    windows.serverSettingsOpen = false;
-  }
+    if (event.key === "Escape" && windows.serverSettingsOpen) {
+        windows.serverSettingsOpen = false;
+    }
 };
 
 onMounted(() => {
-  window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleEscape);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleEscape);
+    window.removeEventListener("keydown", handleEscape);
 });
 </script>
 

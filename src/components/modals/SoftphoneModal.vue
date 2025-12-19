@@ -2,7 +2,7 @@
 
     <Dialog v-model:open="open">
         <DialogContent
-            class="sm:max-w-[420px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8">
+            class="sm:max-w-[420px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 pt-12">
             <div class="w-full text-center py-3 mb-3 select-none
          text-red-500 font-mono tracking-widest text-sm text-xl
          warning-cyber absolute -top-20">

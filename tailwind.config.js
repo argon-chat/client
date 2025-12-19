@@ -40,13 +40,6 @@ export default {
       fontFamily: {
         mono: ['Fira Code', 'monospace'],
       },
-      animation: {
-        pulse: 'pulse 0.1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "collapsible-down": "collapsible-down 0.2s ease-in-out",
-        "collapsible-up": "collapsible-up 0.2s ease-in-out",
-      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

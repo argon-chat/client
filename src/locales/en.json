@@ -479,5 +479,16 @@
   "appDev": "Development Settings",
 
   "restart_required": "Restart required",
-  "restart_required_global": "Restart required to apply changes"
+  "restart_required_global": "Restart required to apply changes",
+
+
+  "hotkey_admin_warning": "Hotkeys do not work in the background while an administrator-level application is active.",
+  "add_hotkey": "Add HotKey",
+  "hotkey_action": "Action",
+  "hotkey_mode": "HotKey Mode",
+  "hotkey.trigger": "Trigger",
+  "hotkey.hold": "Hold",
+  "hotkey.toggle": "Toggle",
+  "change_hotkey": "Change hotkey",
+  "record_hotkey": "Record hotkey"
 }

@@ -1,24 +1,23 @@
 <template>
     <Drawer :open="windows.settingsOpen" :dismissible="false">
         <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40">
-            <DrawerHeader class="flex items-center justify-between">
+            <DrawerHeader class="grid grid-cols-[1fr_auto] items-start gap-4">
                 <div>
                     <DrawerTitle>{{ t("settings") }}</DrawerTitle>
                     <DrawerDescription>{{ t("manage_settings") }}</DrawerDescription>
                 </div>
-                <button @click="windows.settingsOpen = false" class="close-button">
+
+                <a @click="windows.settingsOpen = false" class="close-button">
                     <CircleXIcon class="w-10 h-10" />
-                </button>
+                </a>
             </DrawerHeader>
 
             <div class="settings-layout justify-center flex min-h-full space-x-4">
                 <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
                     <Button v-for="category in categories" :key="category.id"
                         :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id"
-                        :style="{ willChange: 'transform' }"
-                        :disabled="category.disabled"
-                        class="nav-item px-4 py-2 rounded-md w-full transition-none">
+                        @click="selectedCategory = category.id" :style="{ willChange: 'transform' }"
+                        :disabled="category.disabled" class="nav-item px-4 py-2 rounded-md w-full transition-none">
                         {{ t(category.id) }}
                     </Button>
                 </nav>
@@ -35,11 +34,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerDescription,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { useWindow } from "@/store/windowStore";
@@ -54,54 +53,55 @@ import SoundSettings from "./settings/SoundSettings.vue";
 import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
+import DrawerClose from "./ui/drawer/DrawerClose.vue";
 const { t } = useLocale();
 const windows = useWindow();
 
 const categories = ref([
-  { id: "account" },
-  //{ id: 'appearance', name: 'Appearance' },
-  { id: "application" },
-  //{ id: 'notifications', name: 'Notifications' },
-  //{ id: 'privacy', name: 'Privacy' },
-  //{ id: 'devices', name: 'Devices' },
-  { id: "voice_video" },
-  { id: "hotkeys", disabled: true },
-  { id: "languages" },
-  { id: "sounds" },
-  { id: "storages" },
-  { id: "activity" }
+    { id: "account" },
+    //{ id: 'appearance', name: 'Appearance' },
+    { id: "application" },
+    //{ id: 'notifications', name: 'Notifications' },
+    //{ id: 'privacy', name: 'Privacy' },
+    //{ id: 'devices', name: 'Devices' },
+    { id: "voice_video" },
+    { id: "hotkeys" },
+    { id: "languages" },
+    { id: "sounds" },
+    { id: "storages" },
+    { id: "activity", disabled: false }
 ]);
 
 const selectedCategory = ref("account");
 
 const categoryComponents = {
-  account: ProfileSettings,
-  devices: ConnectedDevices,
-  voice_video: VoiceVideoSettings,
-  application: ApplicationSettings,
-  hotkeys: HotKeySettings,
-  languages: LanguageSettings,
-  sounds: SoundSettings,
-  storages: StorageSettings,
-  activity: ActivityLog
+    account: ProfileSettings,
+    devices: ConnectedDevices,
+    voice_video: VoiceVideoSettings,
+    application: ApplicationSettings,
+    hotkeys: HotKeySettings,
+    languages: LanguageSettings,
+    sounds: SoundSettings,
+    storages: StorageSettings,
+    activity: ActivityLog
 };
 
 const selectedCategoryComponent = computed(
-  () => (categoryComponents as any)[selectedCategory.value],
+    () => (categoryComponents as any)[selectedCategory.value],
 );
 
 const handleEscape = (event: KeyboardEvent) => {
-  if (event.key === "Escape" && windows.settingsOpen) {
-    windows.settingsOpen = false;
-  }
+    if (event.key === "Escape" && windows.settingsOpen) {
+        windows.settingsOpen = false;
+    }
 };
 
 onMounted(() => {
-  window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleEscape);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleEscape);
+    window.removeEventListener("keydown", handleEscape);
 });
 </script>
 

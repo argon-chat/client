@@ -1,3 +1,11 @@
+import {
+  HotkeyActionType,
+  HotkeyChord,
+  HotkeyDescriptor,
+  HotkeyPhase,
+  HotKeyTriggered,
+} from "@/lib/glue/argon.ipc";
+import { native } from "@/lib/glue/nativeGlue";
 import { logger } from "@/lib/logger";
 import { persistedValue } from "@/lib/persistedValue";
 import { defineStore } from "pinia";
@@ -28,6 +36,12 @@ export type HotKeyAction = {
   disabled: boolean;
   isRadioMode: boolean;
 };
+
+function createDefaultHotkeys() {
+  const map = new Map<string, ExtendedHotkeyDescriptor>();
+
+  return map;
+}
 
 export const availableActions = [
   {
@@ -70,149 +84,122 @@ export const availableActions = [
 
 export type ActionKey = (typeof availableActions)[number]["actionKey"];
 
+export type ExtendedHotkeyDescriptor = {
+  errText: string | null;
+} & HotkeyDescriptor;
+
+type NativeHotkeyEvent = {
+  type: "hotkey";
+  id: string;
+  phase: HotkeyPhase;
+  ts: number;
+};
+
 export const useHotkeys = defineStore("hotkeys", () => {
-  const dictHandlers = new Map<number, string>();
-  const dictActions = new Map<string, number>();
-  const hotkeyExecuted = new Subject<ActionKey>();
-  const isPaused = ref(false);
-  const isAllowNativeCall = false; // argon.isArgonHost (or isWindows\MacOs)
-
-  const allHotKeys = persistedValue<Map<string, HotKeyAction>>(
-    "HotKeyAction_all",
-    new Map(),
+  const allHotKeys = persistedValue<Map<string, ExtendedHotkeyDescriptor>>(
+    "HotKeyAction_v2",
+    createDefaultHotkeys()
   );
+  const hotkeyExecuted$ = new Subject<{keyId: string, phase: HotkeyPhase}>();
+  const isPaused = ref(false);
 
-  for (const i of availableActions) {
-    if (!allHotKeys.has(i.actionKey)) {
-      allHotKeys.set(i.actionKey, {
-        actionKey: i.actionKey,
-        isGlobal: true,
-        keyCode: 0,
-        mod: null,
-        group: i.group,
-        disabled: i.disabled,
-        isRadioMode: i.isRadioMode,
-      });
-    } else {
-      const hte = allHotKeys.get(i.actionKey);
+  async function register(desc: HotkeyDescriptor) {
+    logger.log("hotkeyRegister", desc);
+    if (argon.isArgonHost) await native.hostProc.hotkeyRegister(desc);
+  }
+  async function unregister(id: string) {
+    logger.log("hotkeyUnregister", id);
+    if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(id);
+  }
 
-      if (hte) hte.errText = undefined;
+  async function syncHotkey(hk: ExtendedHotkeyDescriptor) {
+    console.log("[HOTKEY-STORE] syncHotkey", hk.id, hk);
+
+    try {
+      if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hk.id);
+      console.log("[HOTKEY-STORE] unregistered", hk.id);
+    } catch (e) {
+      console.log("[HOTKEY-STORE] unregister error", e);
+    }
+
+    if (!hk.chord || hk.chord.buttons.length === 0) {
+      console.log("[HOTKEY-STORE] skip register: empty chord");
+      return;
+    }
+
+    /*if (hk.disabled) {
+    console.log("[HOTKEY-STORE] skip register: disabled");
+    return;
+  }*/
+
+    try {
+      console.log("[HOTKEY-STORE] register start");
+      if (argon.isArgonHost) await native.hostProc.hotkeyRegister(hk);
+      console.log("[HOTKEY-STORE] register OK");
+      console.log("[HOTKEY-STORE] enable OK");
+    } catch (e) {
+      console.log("[HOTKEY-STORE] register/enable ERROR", e);
+      hk.errText = String(e);
     }
   }
 
-  function onHotKeyCalled(key: number, isDown: boolean) {
-    logger.log(
-      `onHotKeyCalled: ${key} ${isDown}`,
-      dictHandlers,
-      dictActions,
-      isPaused,
-    );
-    //if (isPaused) return;
-    logger.log(`onHotKeyCalled (no paused): ${key}`);
-    if (dictHandlers.has(key)) {
-      const handler = dictHandlers.get(key);
-      if (handler) {
-        const eta = handler as any;
-        logger.log(`onHotKeyCalled (no paused): ${key}, eta: ${eta}`);
-        hotkeyExecuted.next(eta);
-      }
-    }
-  }
+  async function syncAll() {
+    for (const hk of allHotKeys.values()) {
+      if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hk.id);
 
-  /*const pinnedHotKeyCallback = isAllowNativeCall
-    ? native.createPinnedObject(onHotKeyCalled)
-    : ({} as any);*/
-
-  enum HotkeyModification {
-    NONE = 0,
-    HAS_ALT = 1,
-    HAS_CTRL = 1 << 1,
-    HAS_SHIFT = 1 << 2,
-    HAS_WIN = 1 << 3,
-  }
-
-  function encodeHotkeyModification(mods: HotKeyMod): number {
-    return (
-      (mods.hasAlt ? HotkeyModification.HAS_ALT : 0) |
-      (mods.hasCtrl ? HotkeyModification.HAS_CTRL : 0) |
-      (mods.hasShift ? HotkeyModification.HAS_SHIFT : 0) |
-      (mods.hasWin ? HotkeyModification.HAS_WIN : 0)
-    );
-  }
-
-  async function doVerifyHotkeys() {
-    //if (isAllowNativeCall) native.clearAllKeybinds();
-    dictActions.clear();
-
-    for (const i of allHotKeys.values()) {
-      if (i.keyCode === 0) {
-        if (i.errText) i.errText = undefined;
-        continue;
-      }
-
-      if (dictActions.has(i.actionKey)) {
-        if (i.errText) i.errText = undefined;
-        continue; // TODO verify combination
-      }
-
-      logger.log(
-        `DoVerify, call bind ${i.actionKey} ->> ${i.keyCode}+${i.mod}`,
-      );
-
-      try {
-        const result = await createHotKey(
-          i.keyCode,
-          i.actionKey,
-          i.isRadioMode,
-          i.mod,
-        );
-
-        if (!result) {
-          const hotKey = allHotKeys.get(i.actionKey);
-          if (hotKey) hotKey.errText = "unknown error";
+      if (hk.chord.buttons.length != 0 /*&& !hk.disabled*/) {
+        if (argon.isArgonHost) {
+          await native.hostProc.hotkeyRegister(hk);
         }
-      } catch (e) {
-        const hotKey = allHotKeys.get(i.actionKey);
-        if (hotKey) hotKey.errText = `${e}`;
       }
     }
   }
 
-  async function createHotKey(
-    keycode: number,
-    action: string,
-    isRadioMode: boolean,
-    mod: HotKeyMod | null,
-  ) {
-    return false;
-    /* const i = await native.createKeybind(
-      {
-        keyCode: keycode,
-        keyMod: mod ? encodeHotkeyModification(mod) : 0,
-        allowTrackUpDown: isRadioMode,
-      },
-      pinnedHotKeyCallback,
+  async function remove(hotkeyId: string) {
+    if (allHotKeys.delete(hotkeyId))
+      if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hotkeyId);
+  }
+
+  async function captureOnce(): Promise<HotkeyChord> {
+    if (!argon.isArgonHost) {
+      throw new Error("Hotkey capture available only in desktop app");
+    }
+
+    await native.hostProc.hotkeyPause();
+    try {
+      return await native.hostProc.hotkeyCaptureOnce();
+    } finally {
+      await native.hostProc.hotkeyResume();
+    }
+  }
+
+  function onAction(actionKey: string, fn: (v: { keyId: string, phase: HotkeyPhase }) => void) {
+    return hotkeyExecuted$.pipe(filter((k) => k.keyId === actionKey)).subscribe(fn);
+  }
+
+  if (argon.isArgonHost) {
+    const populatePinnedFn = argon.on<HotKeyTriggered>(
+      "HotKeyTriggered",
+      (x) => {
+        hotkeyExecuted$.next({ keyId: x.hotkeyId, phase: x.phase });
+        logger.warn("Hotkey triggered", x);
+      }
     );
-
-    dictHandlers.set(i, action);
-    dictActions.set(action, i);
-    return true;*/
+    
+    native.hostProc.hotkeyFired(populatePinnedFn);
   }
 
-  function onAction(key: ActionKey, func: () => void): Subscription {
-    return hotkeyExecuted
-      .pipe(filter((event) => event === key))
-      .subscribe(func);
-  }
-
-  doVerifyHotkeys();
+  syncAll().catch(console.error);
 
   return {
-    createHotKey,
-    hotkeyExecuted,
-    isPaused,
     allHotKeys,
-    doVerifyHotkeys,
+    register,
+    remove,
+    unregister,
+    syncAll,
     onAction,
+    isPaused,
+    syncHotkey,
+    captureOnce,
   };
 });

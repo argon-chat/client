@@ -4,6 +4,7 @@ import { useTone } from "@/store/toneStore";
 import { Subject, Subscription } from "rxjs";
 import { useHotkeys } from "./hotKeyStore";
 import { IonWsClient } from "@argon-chat/ion.webcore";
+import { HotkeyPhase } from "@/lib/glue/argon.ipc";
 
 export const useSystemStore = defineStore("system", () => {
   // voice
@@ -34,7 +35,7 @@ export const useSystemStore = defineStore("system", () => {
 
   function stopRequestRetry(
     serviceName: string,
-    methodName: string,
+    methodName: string
   ): number | null {
     const key = `${serviceName}.${methodName}`;
     const startTime = activeRetries.value.get(key);
@@ -51,49 +52,62 @@ export const useSystemStore = defineStore("system", () => {
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);
 
   mainSub.add(
-    hotkeys.onAction("key.microphone.toggle", () => {
-      toggleMicrophoneMute();
-    }),
+    hotkeys.onAction("key.microphone.toggle", (x) => {
+      if (x.phase == HotkeyPhase.Started) setMicrophoneMuted(false);
+      else if (x.phase == HotkeyPhase.Ended) setMicrophoneMuted(true);
+    })
   );
   mainSub.add(
     hotkeys.onAction("key.microphone.on", () => {
       if (microphoneMuted.value) toggleMicrophoneMute();
-    }),
+    })
   );
   mainSub.add(
     hotkeys.onAction("key.microphone.off", () => {
       if (!microphoneMuted.value) toggleMicrophoneMute();
-    }),
+    })
   );
 
   preferUseWs.value = true; // TODO
 
-  async function toggleMicrophoneMute() {
-    microphoneMuted.value = !microphoneMuted.value;
-    if (!microphoneMuted.value && headphoneMuted.value)
-      headphoneMuted.value = false;
-    if (microphoneMuted.value) tone.playMuteAllSound();
+  async function setMicrophoneMuted(muted: boolean) {
+    if (microphoneMuted.value === muted) return;
+
+    microphoneMuted.value = muted;
+
+    if (!muted && headphoneMuted.value) headphoneMuted.value = false;
+
+    if (muted) tone.playMuteAllSound();
     else tone.playUnmuteAllSound();
 
     muteEvent.next(microphoneMuted.value);
     muteHeadphoneEvent.next(headphoneMuted.value);
+  }
+
+  async function setHeadphoneMuted(muted: boolean) {
+    if (headphoneMuted.value === muted) return;
+
+    if (!headphoneMuted.value) lastMicMuted = microphoneMuted.value;
+
+    headphoneMuted.value = muted;
+
+    if (muted) microphoneMuted.value = true;
+    else if (!lastMicMuted) microphoneMuted.value = false;
+
+    if (muted) tone.playMuteAllSound();
+    else tone.playUnmuteAllSound();
+
+    muteHeadphoneEvent.next(headphoneMuted.value);
+    muteEvent.next(microphoneMuted.value);
+  }
+
+  async function toggleMicrophoneMute() {
+    await setMicrophoneMuted(!microphoneMuted.value);
   }
 
   async function toggleHeadphoneMute() {
-    if (!headphoneMuted.value) lastMicMuted = microphoneMuted.value;
-
-    headphoneMuted.value = !headphoneMuted.value;
-
-    if (headphoneMuted.value) microphoneMuted.value = true;
-    else if (!lastMicMuted) microphoneMuted.value = false;
-
-    if (headphoneMuted.value) tone.playMuteAllSound();
-    else tone.playUnmuteAllSound();
-
-    muteHeadphoneEvent.next(headphoneMuted.value);
-    muteEvent.next(microphoneMuted.value);
+    await setHeadphoneMuted(!headphoneMuted.value);
   }
-
 
   IonWsClient.on("reconnecting", (x, t) => {
     if (!hasRequestRetry("ws", "ws")) {

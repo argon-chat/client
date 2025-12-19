@@ -35,6 +35,7 @@ export const useActivity = defineStore("activity", () => {
   const debouncedActivitySubject = onActivityChanged.pipe(debounceTime(1000));
 
   async function init() {
+    return;
     if (!argon.isArgonHost) return;
     const populatePinnedFn = argon.on<ProcessPlaying>("ProcessPlaying", (x) => {
       onActivityDetected(x);
