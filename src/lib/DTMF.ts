@@ -20,24 +20,47 @@ export const playDTMF = (key: string) => {
   if (!freqs) return;
 
   const audioCtx = audio.getCurrentAudioContext();
+  const now = audioCtx.currentTime;
 
   const duration = 0.12;
+  const attack = 0.008;
+  const release = 0.02;
 
-  const osc1 = audioCtx.createOscillator();
-  const osc2 = audioCtx.createOscillator();
+  const oscLow = audioCtx.createOscillator();
+  const oscHigh = audioCtx.createOscillator();
+
+  const panLow = audioCtx.createStereoPanner();
+  const panHigh = audioCtx.createStereoPanner();
+
   const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
 
-  osc1.frequency.value = freqs[0];
-  osc2.frequency.value = freqs[1];
+  oscLow.type = "sine";
+  oscHigh.type = "sine";
 
-  gain.gain.value = 0.25;
+  oscLow.frequency.value = freqs[0];
+  oscHigh.frequency.value = freqs[1];
 
-  osc1.connect(gain);
-  osc2.connect(gain);
-  gain.connect(audioCtx.destination);
+  panLow.pan.value = -0.12;
+  panHigh.pan.value = 0.12;
 
-  osc1.start();
-  osc2.start();
-  osc1.stop(audioCtx.currentTime + duration);
-  osc2.stop(audioCtx.currentTime + duration);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.075, now + attack);
+  gain.gain.setValueAtTime(0.075, now + duration - release);
+  gain.gain.linearRampToValueAtTime(0, now + duration);
+
+  filter.type = "lowpass";
+  filter.frequency.value = 3000;
+  filter.Q.value = 0.7;
+
+  oscLow.connect(panLow).connect(gain);
+  oscHigh.connect(panHigh).connect(gain);
+
+  gain.connect(filter);
+  filter.connect(audioCtx.destination);
+
+  oscLow.start(now);
+  oscHigh.start(now);
+  oscLow.stop(now + duration);
+  oscHigh.stop(now + duration);
 };

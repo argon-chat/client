@@ -96,10 +96,8 @@ const dialError = ref<string | null>(null);
 
 watch(number, (newVal, oldVal) => {
     if (newVal !== oldVal && dialState.value == "idle" && newVal) {
-        logger.warn("FUCKING", newVal, oldVal, dialState.value, ussdLoading.value);
         ussdResult.value = null;
     }
-
     if (dialState.value !== "idle" || dialError.value) {
         resetDial();
     }

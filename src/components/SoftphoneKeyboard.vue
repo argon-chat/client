@@ -56,9 +56,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import { PhoneIcon, DeleteIcon, PhoneMissedIcon } from "lucide-vue-next";
 import { playDTMF } from "@/lib/DTMF";
+import { ref } from "vue";
+import { useEventListener } from "@vueuse/core";
+import { logger } from "@/lib/logger";
+
+const isActive = ref(false);
+
+
+onMounted(() => {
+    isActive.value = true;
+})
+onUnmounted(() => {
+    isActive.value = false;
+})
 
 const emit = defineEmits<{
     (e: "press", key: string): void;
@@ -66,6 +79,62 @@ const emit = defineEmits<{
     (e: "backspace"): void;
     (e: "backspace-all"): void;
 }>();
+
+
+const numpadMap: Record<string, string> = {
+    Numpad0: "0",
+    Numpad1: "1",
+    Numpad2: "2",
+    Numpad3: "3",
+    Numpad4: "4",
+    Numpad5: "5",
+    Numpad6: "6",
+    Numpad7: "7",
+    Numpad8: "8",
+    Numpad9: "9",
+    NumpadMultiply: "*",
+    NumpadDivide: "#",
+    NumpadDecimal: "#",
+};
+
+function mapCodeToDialKey(code: string): string | null {
+    if (code.startsWith("Digit") && code.length === 6) {
+        const d = code.slice(5);
+        if (d >= "0" && d <= "9") return d;
+    }
+    if (code.startsWith("Numpad")) {
+        const tail = code.slice("Numpad".length);
+
+        if (tail.length === 1 && tail >= "0" && tail <= "9") return tail;
+        if (code === "NumpadMultiply") return "*";
+        if (code === "NumpadDivide") return "#";
+        if (code === "NumpadDecimal") return "#";
+    }
+    return null;
+}
+useEventListener(window, "keydown", (e: KeyboardEvent) => {
+  if (!isActive.value) return;
+
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  if (e.code === "Backspace") {
+    e.preventDefault();
+    emit("backspace");
+    return;
+  }
+
+  if (e.code === "Enter" || e.code === "NumpadEnter") {
+    e.preventDefault();
+    emit("call");
+    return;
+  }
+
+  const k = mapCodeToDialKey(e.code);
+  if (k) {
+    e.preventDefault();
+    handlePress(k);
+  }
+});
 
 const props = withDefaults(
     defineProps<{
@@ -174,13 +243,13 @@ const keys = [
 }
 
 .call-btn.ussd-preview {
-  background: #2563eb;
-  box-shadow: 0 0 28px rgba(37,99,235,.45);
+    background: #2563eb;
+    box-shadow: 0 0 28px rgba(37, 99, 235, .45);
 }
 
 .call-btn.ussd-running {
-  background: #1e40af;
-  cursor: not-allowed;
+    background: #1e40af;
+    cursor: not-allowed;
 }
 
 .confirm {
