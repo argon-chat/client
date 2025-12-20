@@ -147,7 +147,6 @@ const callOrUssd = async () => {
         }
     } catch {
         showDialError("UNKNOWN");
-        resetDial();
     }
 };
 
