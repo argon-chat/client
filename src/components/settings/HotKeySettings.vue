@@ -54,7 +54,7 @@ const MODIFIER_ORDER = ["Ctrl", "Alt", "Shift", "Win"];
 
 function hotkeyLabels(chord: HotkeyChord): string[] {
   return chord.buttons
-    .map(b => keyCodeToFormatterSymbolsOrNames(b.code)[0] ?? `VK_${b.code}`)
+    .map(b => keyCodeToFormatterSymbolsOrNames(b.code) ?? `VK_${b.code}`)
     .sort((a, b) => {
       const ia = MODIFIER_ORDER.indexOf(a);
       const ib = MODIFIER_ORDER.indexOf(b);

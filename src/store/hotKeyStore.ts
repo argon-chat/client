@@ -182,7 +182,6 @@ export const useHotkeys = defineStore("hotkeys", () => {
       "HotKeyTriggered",
       (x) => {
         hotkeyExecuted$.next({ keyId: x.hotkeyId, phase: x.phase });
-        logger.warn("Hotkey triggered", x);
       }
     );
     

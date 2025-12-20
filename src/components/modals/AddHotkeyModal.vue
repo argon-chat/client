@@ -45,7 +45,7 @@ const isCapturing = ref(false);
 const recordedKeys = computed(() => {
     if (!recordedChord.value) return [];
     return recordedChord.value
-        .map(b => keyCodeToFormatterSymbolsOrNames(b.code)?.[0])
+        .map(b => keyCodeToFormatterSymbolsOrNames(b.code))
         .filter(Boolean);
 });
 
