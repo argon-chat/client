@@ -1,25 +1,54 @@
 <template>
     <div class="flex flex-col items-center gap-4">
         <div class="grid grid-cols-3 gap-4">
-            <div v-for="item in keys" :key="item.key" @click="handlePress(item.key)" class="w-20 h-20 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 
-                 flex flex-col items-center justify-center cursor-pointer transition select-none">
+            <div v-for="item in keys" :key="item.key" @click="handlePress(item.key)" class="w-20 h-20 rounded-full bg-white/10 hover:bg-white/20
+               backdrop-blur-md border border-white/10
+               flex flex-col items-center justify-center
+               cursor-pointer transition select-none">
 
-                <span class="text-3xl font-semibold text-white leading-none">{{ item.key }}</span>
-                <span v-if="item.label" class="text-xs text-gray-300 mt-1 tracking-wider">{{ item.label }}</span>
+                <span class="text-3xl font-semibold text-white leading-none">
+                    {{ item.key }}
+                </span>
+                <span v-if="item.label" class="text-xs text-gray-300 mt-1 tracking-wider">
+                    {{ item.label }}
+                </span>
             </div>
         </div>
 
-        <div class="flex items-center gap-8 mt-2">
-            <!-- todo -->
-            <button class="w-16 h-16 rounded-full bg-transparent flex items-center justify-center text-white text-3xl">
+        <div class="relative w-full h-24 mt-2 flex items-center justify-center">
+            <div class="absolute left-0 w-16 h-16"></div>
+
+            <button class="call-btn" :class="dialState" :disabled="dialState === 'checking' || dialState === 'error'"
+                @click="$emit('call')">
+                <Transition name="fade" mode="out-in">
+                    <PhoneIcon v-if="dialState === 'idle'" key="idle" class="w-10 h-10" />
+
+                    <div v-else-if="dialState === 'checking'" key="checking" class="checking">
+                        <div class="dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+
+                    <PhoneMissedIcon v-else-if="dialState === 'error'" key="error" class="w-10 h-10" />
+
+                    <div v-else-if="dialState === 'ussd-running'" key="ussd-running" class="checking">
+                        <div class="dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+
+                    <div v-else key="ready" class="confirm">
+                        <span class="price">{{ price }}</span>
+                        <span class="confirm-text">CONFIRM</span>
+                    </div>
+                </Transition>
             </button>
 
-            <button @click="$emit('call')" class="w-24 h-24 rounded-full bg-green-600 hover:bg-green-500 flex items-center justify-center 
-                text-white text-4xl transition shadow-lg shadow-green-700/30">
-                <PhoneIcon />
-            </button>
-            <button @pointerdown="startHold" @pointerup="stopHold" @pointerleave="stopHold"
-                class="w-16 h-16 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-3xl">
+            <button class="absolute right-0 w-16 h-16 rounded-full
+               bg-white/10 hover:bg-white/20
+               flex items-center justify-center
+               text-white text-3xl select-none" @pointerdown="startHold" @pointerup="stopHold"
+                @pointerleave="stopHold">
                 <DeleteIcon />
             </button>
         </div>
@@ -27,8 +56,9 @@
 </template>
 
 <script setup lang="ts">
-import { PhoneIcon, DeleteIcon } from "lucide-vue-next";
-import { onMounted } from "vue";
+import { computed } from "vue";
+import { PhoneIcon, DeleteIcon, PhoneMissedIcon } from "lucide-vue-next";
+import { playDTMF } from "@/lib/DTMF";
 
 const emit = defineEmits<{
     (e: "press", key: string): void;
@@ -37,18 +67,23 @@ const emit = defineEmits<{
     (e: "backspace-all"): void;
 }>();
 
-let audioCtx: AudioContext;
+const props = withDefaults(
+    defineProps<{
+        dialState?: "idle" | "checking" | "ready" | "error" | "ussd-running";
+        priceMin?: number | null;
+    }>(),
+    { dialState: "idle" }
+);
 
-onMounted(() => {
-    audioCtx = new AudioContext();
-});
+const price = computed(() =>
+    props.priceMin == null ? "" : `$${(props.priceMin / 100).toFixed(2)}/min`
+);
 
 let holdTimer: number | null = null;
 let isHolding = false;
 
 const startHold = () => {
     isHolding = true;
-
     holdTimer = window.setTimeout(() => {
         if (isHolding) emit("backspace-all");
     }, 500);
@@ -59,51 +94,8 @@ const stopHold = () => {
         clearTimeout(holdTimer);
         holdTimer = null;
     }
-    if (isHolding) {
-        emit("backspace");
-    }
-
+    if (isHolding) emit("backspace");
     isHolding = false;
-};
-
-const dtmfMap: Record<string, [number, number]> = {
-    "1": [697, 1209],
-    "2": [697, 1336],
-    "3": [697, 1477],
-    "4": [770, 1209],
-    "5": [770, 1336],
-    "6": [770, 1477],
-    "7": [852, 1209],
-    "8": [852, 1336],
-    "9": [852, 1477],
-    "*": [941, 1209],
-    "0": [941, 1336],
-    "#": [941, 1477],
-};
-
-const playDTMF = (key: string) => {
-    const freqs = dtmfMap[key];
-    if (!freqs) return;
-
-    const duration = 0.12;
-
-    const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc1.frequency.value = freqs[0];
-    osc2.frequency.value = freqs[1];
-
-    gain.gain.value = 0.25;
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(audioCtx.currentTime + duration);
-    osc2.stop(audioCtx.currentTime + duration);
 };
 
 const handlePress = (k: string) => {
@@ -126,3 +118,133 @@ const keys = [
     { key: "#", label: "" },
 ];
 </script>
+
+<style scoped>
+.call-btn {
+    width: 88px;
+    height: 88px;
+    border-radius: 9999px;
+    background: #16a34a;
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transition:
+        width .25s ease,
+        border-radius .25s ease,
+        background-color .2s ease,
+        box-shadow .2s ease;
+}
+
+.call-btn.ready {
+    width: 120px;
+    height: 84px;
+    border-radius: 45px;
+}
+
+.checking {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+
+    opacity: 0.9;
+}
+
+.checking-label {
+    letter-spacing: 0.02em;
+}
+
+.call-btn.checking {
+    background: #ca8a04;
+    box-shadow: 0 0 28px rgba(234, 179, 8, .45);
+    cursor: not-allowed;
+}
+
+.call-btn.error {
+    background: #68150f;
+    box-shadow: 0 0 28px rgba(234, 8, 8, 0.45);
+    color: #a7a7a7;
+    cursor: not-allowed;
+}
+
+.call-btn.ussd-preview {
+  background: #2563eb;
+  box-shadow: 0 0 28px rgba(37,99,235,.45);
+}
+
+.call-btn.ussd-running {
+  background: #1e40af;
+  cursor: not-allowed;
+}
+
+.confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+    gap: 4px;
+
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.price {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.confirm-text {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: all .15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.dots span {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: blink 1.2s infinite both;
+}
+
+.dots span:nth-child(2) {
+    animation-delay: .2s
+}
+
+.dots span:nth-child(3) {
+    animation-delay: .4s
+}
+
+@keyframes blink {
+    0% {
+        opacity: .2
+    }
+
+    20% {
+        opacity: 1
+    }
+
+    100% {
+        opacity: .2
+    }
+}
+</style>

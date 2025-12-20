@@ -32,6 +32,8 @@ const defaultCommands: IUssdCommand[] = [
         displayValue: true,
       });
 
+      el.setAttribute("width", "");
+      el.setAttribute("height", "");
       return {
         success: true,
         output: `${new XMLSerializer().serializeToString(el)}`,
@@ -73,46 +75,6 @@ const defaultCommands: IUssdCommand[] = [
       return {
         success: true,
         output: ``,
-      };
-    },
-  },
-  {
-    pattern: "*#",
-    handle: async () => {
-      return {
-        success: true,
-        output: `Го`,
-      };
-    },
-  },
-  {
-    pattern: "*999#",
-    handle: async () => {
-      const result = await useApi().callInteraction.BeginDialCheck("4cb2be31-34c9-f3c9-7916-7137173fffff");
-
-      if (result.isFailedDialCheck()) {
-        return {
-          success: false,
-          output: `${result.reason} ${result.priceMin}`
-        }
-      } else if (result.isSuccessDialCheck()) {
-        return {
-        success: true,
-        output: `${result.priceMin}/min ${result.corelId} ${result.corlId}`,
-      };
-      }
-      return {
-        success: true,
-        output: `Го`,
-      };
-    },
-  },
-  {
-    pattern: "*#228*#",
-    handle: async () => {
-      return {
-        success: true,
-        output: `Че умный дохуя?\nПедофила блять спросить забыли\nПиздак закрой`,
       };
     },
   },
