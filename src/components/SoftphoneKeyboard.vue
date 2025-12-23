@@ -1,11 +1,12 @@
 <template>
     <div class="flex flex-col items-center gap-4">
         <div class="grid grid-cols-3 gap-4">
-            <div v-for="item in keys" :key="item.key" @click="handlePress(item.key)" class="w-20 h-20 rounded-full bg-white/10 hover:bg-white/20
-               backdrop-blur-md border border-white/10
-               flex flex-col items-center justify-center
-               cursor-pointer transition select-none">
-
+            <div v-for="item in keys" :key="item.key" class="dial-key w-20 h-20 rounded-full bg-white/10 hover:bg-white/20
+         backdrop-blur-md border border-white/10
+         flex flex-col items-center justify-center
+         cursor-pointer transition select-none" :class="{ 'is-pressed': pressed.has(item.key) }"
+                @pointerdown.prevent="onPointerDown(item.key)" @pointerup.prevent="onPointerUp(item.key)"
+                @pointercancel.prevent="onPointerUp(item.key)" @pointerleave="onPointerUp(item.key)">
                 <span class="text-3xl font-semibold text-white leading-none">
                     {{ item.key }}
                 </span>
@@ -15,42 +16,39 @@
             </div>
         </div>
 
-        <div class="relative w-full h-24 mt-2 flex items-center justify-center">
-            <div class="absolute left-0 w-16 h-16"></div>
+        <div class="w-full h-24 mt-2 grid grid-cols-3 items-center">
+            <div class="flex justify-center">
+            </div>
 
-            <button class="call-btn" :class="dialState" :disabled="dialState === 'checking' || dialState === 'error'"
-                @click="$emit('call')">
-                <Transition name="fade" mode="out-in">
-                    <PhoneIcon v-if="dialState === 'idle'" key="idle" class="w-10 h-10" />
-
-                    <div v-else-if="dialState === 'checking'" key="checking" class="checking">
-                        <div class="dots">
-                            <span></span><span></span><span></span>
+            <div class="flex justify-center">
+                <button class="call-btn" :class="dialState"
+                    :disabled="dialState === 'checking' || dialState === 'error'" @click="$emit('call')">
+                    <Transition name="fade" mode="out-in">
+                        <PhoneIcon v-if="dialState === 'idle'" key="idle" class="w-10 h-10" />
+                        <div v-else-if="dialState === 'checking'" key="checking" class="checking">
+                            <div class="dots"><span></span><span></span><span></span></div>
                         </div>
-                    </div>
-
-                    <PhoneMissedIcon v-else-if="dialState === 'error'" key="error" class="w-10 h-10" />
-
-                    <div v-else-if="dialState === 'ussd-running'" key="ussd-running" class="checking">
-                        <div class="dots">
-                            <span></span><span></span><span></span>
+                        <PhoneMissedIcon v-else-if="dialState === 'error'" key="error" class="w-10 h-10" />
+                        <div v-else-if="dialState === 'ussd-running'" key="ussd-running" class="checking">
+                            <div class="dots"><span></span><span></span><span></span></div>
                         </div>
-                    </div>
+                        <div v-else key="ready" class="confirm">
+                            <span class="price">{{ price }}</span>
+                            <span class="confirm-text">CONFIRM</span>
+                        </div>
+                    </Transition>
+                </button>
+            </div>
 
-                    <div v-else key="ready" class="confirm">
-                        <span class="price">{{ price }}</span>
-                        <span class="confirm-text">CONFIRM</span>
-                    </div>
-                </Transition>
-            </button>
-
-            <button class="absolute right-0 w-16 h-16 rounded-full
-               bg-white/10 hover:bg-white/20
-               flex items-center justify-center
-               text-white text-3xl select-none" @pointerdown="startHold" @pointerup="stopHold"
-                @pointerleave="stopHold">
-                <DeleteIcon />
-            </button>
+            <div class="flex justify-center">
+                <button class="w-16 h-16 rounded-full
+                   bg-white/10 hover:bg-white/20
+                   flex items-center justify-center
+                   text-white text-3xl select-none" @pointerdown="startHold" @pointerup="stopHold"
+                    @pointerleave="stopHold">
+                    <DeleteIcon />
+                </button>
+            </div>
         </div>
     </div>
 </template>
@@ -64,6 +62,7 @@ import { useEventListener } from "@vueuse/core";
 import { logger } from "@/lib/logger";
 
 const isActive = ref(false);
+const pressed = ref(new Set<string>());
 
 
 onMounted(() => {
@@ -113,27 +112,48 @@ function mapCodeToDialKey(code: string): string | null {
     return null;
 }
 useEventListener(window, "keydown", (e: KeyboardEvent) => {
-  if (!isActive.value) return;
+    if (!isActive.value) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
+    // важно: автоповтор при удержании (repeat) — не нажимаем заново, только держим анимацию
+    // (анимация уже будет зажата, т.к. pressed.has(k) true)
+    if (e.code === "Backspace") {
+        e.preventDefault();
+        emit("backspace");
+        return;
+    }
 
-  if (e.code === "Backspace") {
+    if (e.code === "Enter" || e.code === "NumpadEnter") {
+        e.preventDefault();
+        emit("call");
+        return;
+    }
+
+    const k = mapCodeToDialKey(e.code);
+    if (!k) return;
+
     e.preventDefault();
-    emit("backspace");
-    return;
-  }
 
-  if (e.code === "Enter" || e.code === "NumpadEnter") {
-    e.preventDefault();
-    emit("call");
-    return;
-  }
+    // Если это повтор (удержание), pressKey сам ничего не сделает, т.к. уже pressed
+    if (!e.repeat) pressKey(k);
+    else setPressed(k, true); // на всякий случай удерживаем визуально (обычно и так уже true)
+});
 
-  const k = mapCodeToDialKey(e.code);
-  if (k) {
+useEventListener(window, "keyup", (e: KeyboardEvent) => {
+    if (!isActive.value) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const k = mapCodeToDialKey(e.code);
+    if (!k) return;
+
     e.preventDefault();
-    handlePress(k);
-  }
+    releaseKey(k);
+});
+
+// если окно потеряло фокус — отпускаем всё (иначе “залипнет”)
+useEventListener(window, "blur", () => clearAllPressed());
+useEventListener(document, "visibilitychange", () => {
+    if (document.hidden) clearAllPressed();
 });
 
 const props = withDefaults(
@@ -186,6 +206,45 @@ const keys = [
     { key: "0", label: "+" },
     { key: "#", label: "" },
 ];
+
+
+function setPressed(k: string, value: boolean) {
+    const next = new Set(pressed.value);
+    if (value) next.add(k);
+    else next.delete(k);
+    pressed.value = next;
+}
+
+function pressKey(k: string) {
+    // защита от повторного "keydown" (repeat) и двойных событий
+    if (pressed.value.has(k)) return;
+
+    setPressed(k, true);
+    handlePress(k);
+}
+
+function releaseKey(k: string) {
+    if (!pressed.value.has(k)) return;
+    setPressed(k, false);
+}
+
+function clearAllPressed() {
+    if (pressed.value.size === 0) return;
+    pressed.value = new Set();
+}
+
+function onPointerDown(k: string) {
+    pressKey(k);
+
+    // чтобы pointerup гарантированно пришёл именно сюда (особенно на таче)
+    // @ts-ignore - у PointerEvent есть currentTarget как EventTarget
+    // но типы DOM иногда мешают, поэтому можно без строгой типизации:
+    // (e.currentTarget as Element)?.setPointerCapture?.(e.pointerId)
+}
+
+function onPointerUp(k: string) {
+    releaseKey(k);
+}
 </script>
 
 <style scoped>
@@ -211,6 +270,18 @@ const keys = [
     width: 120px;
     height: 84px;
     border-radius: 45px;
+}
+
+.dial-key {
+    transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+.dial-key.is-pressed {
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
 }
 
 .checking {

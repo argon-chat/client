@@ -6,6 +6,7 @@ import { HybridUssdTransport } from "./HybridUssdTransport";
 import { ServerUssdTransport } from "./ServerUssdTransport";
 import JsBarcode from "jsbarcode";
 import { useApi } from "@/store/apiStore";
+import { useConfigStore } from "@/store/configStore";
 
 async function getBatteryLevel() {
   if ("getBattery" in navigator) {
@@ -61,7 +62,7 @@ const defaultCommands: IUssdCommand[] = [
   {
     pattern: "*228#",
     handle: async () => {
-      // todo toggle dev mode
+      await useConfigStore().enableDevMode();
       return {
         success: true,
         output: `Dev Mode Activated`,

@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import SoftphoneKeyboard from "../SoftphoneKeyboard.vue";
 import UssdModal from "./UssdModal.vue";
@@ -52,7 +52,7 @@ import { ussdClient } from "@/lib/ussd";
 import delay from "@/lib/delay";
 import { useApi } from "@/store/apiStore";
 import { DialCheckFailReason } from "@/lib/glue/argonChat";
-import { playDTMF } from "@/lib/DTMF";
+import { playBusyTone, playDTMF } from "@/lib/DTMF";
 import { encodePhoneToGuid } from "@/lib/bcd";
 import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@/lib/logger";
@@ -77,7 +77,16 @@ const backspaceAll = () => {
     return (number.value = "");
 };
 
-const ussdOpen = ref(false);
+
+watch(open, (v, oldV) => {
+    if (!v) {
+        resetDial();
+        ussdLoading.value = false;
+        backspaceAll();
+    }
+});
+
+
 const ussdLoading = ref(false);
 const ussdResult = ref("" as string | null);
 
@@ -107,10 +116,37 @@ const isUssd = (n: string) => n.startsWith("*") || n.startsWith("#");
 
 const playNumberDTMF = async (num: string) => {
     for (const ch of num) {
+        if (ch === " ") {
+            delay(130);
+            continue;
+        }
         playDTMF(ch);
         await delay(130);
     }
 };
+
+
+const dtmf_track = [
+    "1 1 1 1 3 1 1 1",
+    "1 1 1 1 6 1 1 1 1 1 3 1 1 6 1 1",
+    "1 1 3 1 1 6 1 1 1 3 1 6 1 3 1 6",
+    "1 3 1 6 1 3 1 6",
+    "1 3 1 6 1 3 1 6",
+    "1 3 1 6 1 3 1 6",
+    "1 1 1 3 1 1 1 6",
+    "1 1 1 3 1 1 1 6",
+    "1 3 1 6 1 3 1 6",
+    "1 1 3 1 1 6 1 1",
+    "3 3 3 6",
+    "3 3 3 6",
+    "1 1 1 3",
+    "1 1 1 6",
+    "1 3 1 6 1 3 1 6",
+    "1 1 3 1 1 6 1 1",
+    "1 3 1 6 1 3 1 6",
+    "1 1 1 3 1 1 1 6"
+]
+
 
 const callOrUssd = async () => {
     const num = number.value;
@@ -129,6 +165,21 @@ const callOrUssd = async () => {
     dialState.value = "checking";
     dialPriceMin.value = null;
     dialCorlId.value = null;
+
+    if (num == "000000") {
+        await playNumberDTMF("#3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5#4 2  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5#4 2  5 5#6 5#4#3 5 5#6 5#4#3 5 5#6 5#4#3 3#4 5#6#7  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5  #4#4#7#6#5  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5  #4#4#7#6#5");
+        await delay(1000);
+        showDialError(DialCheckFailReason.UNKNOWN_ERROR);
+        return;
+    }
+
+    if (num.length < 5) { // in 99% cases special numbers e.g 991
+        await playNumberDTMF(num);
+        await delay(1000);
+        await playNumberDTMF(num.split('').reverse().join(''));
+        showDialError(DialCheckFailReason.NUMBER_NOT_AVAILABLE);
+        return;
+    }
 
     await playNumberDTMF(num);
 

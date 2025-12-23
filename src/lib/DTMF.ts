@@ -64,3 +64,49 @@ export const playDTMF = (key: string) => {
   oscLow.stop(now + duration);
   oscHigh.stop(now + duration);
 };
+
+export const playBusyTone = async (len: number) => {
+  const audioCtx = audio.getCurrentAudioContext();
+
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc1.type = "sine";
+  osc2.type = "sine";
+
+  osc1.frequency.value = 480;
+  osc2.frequency.value = 620;
+
+  gain.gain.value = 0;
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc1.start();
+  osc2.start();
+
+  const attack = 0.01;
+  const release = 0.03;
+  const onTime = 0.5;
+  const offTime = 0.5;
+
+  let running = true;
+
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+  let i = len;
+  while (i) {
+    --i;
+    const now = audioCtx.currentTime;
+
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + attack);
+    gain.gain.setValueAtTime(0.08, now + onTime - release);
+    gain.gain.linearRampToValueAtTime(0, now + onTime);
+
+    await sleep((onTime + offTime) * 1000);
+  }
+};

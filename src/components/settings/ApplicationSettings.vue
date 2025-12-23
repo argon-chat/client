@@ -54,7 +54,7 @@
                     </Select>
                 </div>
             </div>
-            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div  v-if="configStore.devModeEnabled" class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
                         {{ t("channel") }}
@@ -82,7 +82,7 @@
                     </SelectContent>
                 </Select>
             </div>
-            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div  v-if="configStore.devModeEnabled" class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
                         {{ t("api_endpoint") }}
@@ -111,7 +111,7 @@
                 </Select>
 
             </div>
-            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div v-if="configStore.devModeEnabled" class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <label class="block font-semibold mb-1">{{ t("dev_tools") }}</label>
                 <button @click="toggleDevTools"
                     class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
@@ -180,6 +180,7 @@ const copyMyUserId = () => {
     toast.toast({
         title: t("usedid_copied"),
     });
+    
     navigator.clipboard.writeText(me.me?.userId ?? "error");
 };
 

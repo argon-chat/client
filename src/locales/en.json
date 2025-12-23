@@ -496,5 +496,7 @@
   "usegetkeyboardstate_desc": "Uses User32.GetKeyboardState instead User32.GetKeyState for hotkeys",
 
   "displayfps": "Display Fps",
-  "displayfps_desc": "Enable widget with detailed fps info"
+  "displayfps_desc": "Enable widget with detailed fps info",
+  "autolaunchdevtools": "Auto Launch DevTools",
+  "autolaunchdevtools_desc": ""
 }

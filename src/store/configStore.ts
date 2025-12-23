@@ -27,6 +27,12 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   const getKey = (section: string, key: string) =>
     flatKeys.value.get(`${section}:${key}`);
 
+
+  const enableDevMode = async () => {
+    await setValue_raw({ key: "DevMode", section: "app", valueB: true, valueEnum: null, valueNum: null, valueStr: null });
+    await load();
+  }
+
   const load = async () => {
     if (!argon.isArgonHost) {
       loaded.value = true;
@@ -56,6 +62,15 @@ export const useConfigStore = defineStore("nativeConfig", () => {
 
     loaded.value = true;
   };
+
+  const setValue_raw = async (req: SetRequest) => {
+    const updated = await native.hostProc.setConfigValue(req);
+    if (!updated?.value) {
+      throw new Error("Config update failed");
+    }
+
+    return updated.value;
+  }
 
   const setValue = async (
     section: string,
@@ -109,7 +124,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     requiresRestart,
     devModeEnabled,
     loaded,
-
+    enableDevMode,
     load,
     setValue,
     getKey,
