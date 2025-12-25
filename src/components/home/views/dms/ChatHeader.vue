@@ -3,7 +3,7 @@ import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
 import { RealtimeUser } from "@/store/db/dexie";
 import { usePoolStore } from "@/store/poolStore";
 import { IconPhone, IconVideo, IconUser } from "@tabler/icons-vue";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 const pool = usePoolStore();
 
@@ -19,9 +19,20 @@ const emit = defineEmits<{
     (e: "toggleProfile"): void;
 }>();
 
-onMounted(async () => {
-    user.value = (await pool.getUser(props.userId)) ?? null;
-})
+watch(
+    () => props.userId,
+    async (newUserId, oldUserId) => {
+        if (!newUserId) {
+            user.value = null;
+            return;
+        }
+
+        if (newUserId === oldUserId) return;
+
+        user.value = (await pool.getUser(newUserId)) ?? null;
+    },
+    { immediate: true }
+);
 
 </script>
 

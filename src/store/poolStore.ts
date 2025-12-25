@@ -8,10 +8,12 @@ import { useObservable } from "@vueuse/rxjs";
 import { liveQuery, Subscription } from "dexie";
 import { defineStore } from "pinia";
 import {
+  BehaviorSubject,
   Subject,
   distinctUntilChanged,
   firstValueFrom,
   from,
+  of,
   switchMap,
 } from "rxjs";
 import {
@@ -122,7 +124,7 @@ export const usePoolStore = defineStore("data-pool", () => {
         avatarFileId: "echo-avatar.png",
         displayName: "Echo",
         userId: userId,
-        username: "echo"
+        username: "echo",
       });
     }
     return await db.users.where("userId").equals(userId).first();
@@ -161,12 +163,22 @@ export const usePoolStore = defineStore("data-pool", () => {
     return members.map((m) => m.memberId);
   };
 
-  const getUserReactive = (userId: Guid) => {
-    const observable = liveQuery(
-      async () => await db.users.where("userId").equals(userId).first()
+  function getUserReactive(userId: Ref<string | undefined>) {
+    const userId$ = new BehaviorSubject<string | undefined>(userId.value);
+
+    watch(userId, (id) => {
+      userId$.next(id);
+    });
+
+    const user$ = userId$.pipe(
+      switchMap((id) => {
+        if (!id) return of(null);
+        return liveQuery(() => db.users.where("userId").equals(id).first());
+      })
     );
-    return useObservable(from(observable));
-  };
+
+    return useObservable(user$);
+  }
 
   async function searchMentions(query: string): Promise<MentionUser[]> {
     const normalized = query.toLowerCase();

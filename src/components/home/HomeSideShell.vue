@@ -21,6 +21,7 @@ import { DisposableBag } from '@/lib/disposables';
 import { NBadge } from 'naive-ui';
 import { useMe } from '@/store/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
+import { logger } from '@/lib/logger';
 
 const { t } = useLocale();
 
@@ -53,6 +54,7 @@ onMounted(() => {
 // OPEN CHAT
 // --------------------------
 function openChat(peerId: string) {
+    logger.warn("openChat called, peerId:", peerId);
     router.push({
         name: "HomeChat",
         params: { userId: peerId }

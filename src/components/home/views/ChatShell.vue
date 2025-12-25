@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCallManager } from "@/store/callManagerStore";
 import DmChatView from "./dms/DmChatView.vue";
@@ -16,6 +16,20 @@ const dmCall = useUnifiedCall();
 const calls = useCallManager();
 
 const userId = computed(() => route.params.userId as string | undefined);
+
+watch(
+  userId,
+  async (newUserId, oldUserId) => {
+    if (!newUserId) return;
+    if (newUserId === oldUserId) return;
+
+    console.warn("Switch DM:", oldUserId, "→", newUserId);
+
+    isProfileOpen.value = false;
+  },
+  { immediate: true }
+);
+
 const isProfileOpen = ref(false);
 
 async function onCall() {

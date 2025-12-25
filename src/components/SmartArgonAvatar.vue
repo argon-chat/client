@@ -1,25 +1,23 @@
 <template>
-  <keep-alive :max="10" :key="props.userId">
-    <Avatar :class="props.class" :style="{
-      width: size,
-      height: size,
-      ...avatarRootStyle
-    }">
-      <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
+  <Avatar :class="props.class" :style="{
+    width: size,
+    height: size,
+    ...avatarRootStyle
+  }">
+    <Skeleton v-if="loading" style="height: 100%; width: 100%; background-color: #494949;" :class="props.class" />
 
-      <video v-else-if="!loading && loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc"
-        disablePictureInPicture controlslist="nodownload nofullscreen noremoteplayback" />
+    <video v-else-if="!loading && loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc"
+      disablePictureInPicture controlslist="nodownload nofullscreen noremoteplayback" />
 
-      <AvatarFallback v-else>
-        {{ fallbackLetter }}
-      </AvatarFallback>
-    </Avatar>
-  </keep-alive>
+    <AvatarFallback v-else>
+      {{ fallbackLetter }}
+    </AvatarFallback>
+  </Avatar>
 </template>
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { computed, ref, watch, type HTMLAttributes } from "vue";
+import { computed, ref, toRef, watch, type HTMLAttributes } from "vue";
 import { useFileStorage } from "@/store/fileStorage";
 import { usePoolStore } from "@/store/poolStore";
 import { logger } from "@/lib/logger";
@@ -47,7 +45,8 @@ const size = computed(() =>
   props.overridedSize ? (props.overridedSize == 'auto' ? 'auto' : `${props.overridedSize}px`) : null,
 );
 
-const user = pool.getUserReactive(props.userId);
+const user = pool.getUserReactive(toRef(props, "userId"));
+
 
 const isCallUser = computed(() =>
   props.userId.toLocaleUpperCase().startsWith("CFFFFFFF")
