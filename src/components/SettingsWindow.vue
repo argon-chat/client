@@ -14,12 +14,14 @@
 
             <div class="settings-layout justify-center flex min-h-full space-x-4">
                 <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
-                    <Button v-for="category in categories" :key="category.id"
-                        :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id" :style="{ willChange: 'transform' }"
-                        :disabled="category.disabled" class="nav-item px-4 py-2 rounded-md w-full transition-none">
-                        {{ t(category.id) }}
-                    </Button>
+                    <template v-for="category in categories" :key="category.id">
+                        <Button v-if="!category.hidden"
+                            :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
+                            @click="selectedCategory = category.id" :disabled="category.disabled"
+                            class="nav-item px-4 py-2 rounded-md w-full transition-none">
+                            {{ t(category.id) }}
+                        </Button>
+                    </template>
                 </nav>
                 <div
                     class="settings-content w-1/2 p-6 text-white overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
@@ -54,24 +56,27 @@ import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
 import DrawerClose from "./ui/drawer/DrawerClose.vue";
+import { useConfigStore } from "@/store/configStore";
 const { t } = useLocale();
 const windows = useWindow();
 
-const categories = ref([
+const configStore = useConfigStore();
+
+const categories = computed(() => [
     { id: "account" },
-    //{ id: 'appearance', name: 'Appearance' },
     { id: "application" },
-    //{ id: 'notifications', name: 'Notifications' },
-    //{ id: 'privacy', name: 'Privacy' },
-    //{ id: 'devices', name: 'Devices' },
     { id: "voice_video" },
     { id: "hotkeys" },
     { id: "languages" },
     { id: "sounds" },
     { id: "storages" },
-    { id: "activity", disabled: false }
-]);
 
+    {
+        id: "activity",
+        disabled: false,
+        hidden: !configStore.devModeEnabled
+    }
+]);
 const selectedCategory = ref("account");
 
 const categoryComponents = {

@@ -127,21 +127,25 @@ onUnmounted(() => {
             </Button>
             <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
                 class="justify-start">
-
-
                 <IconNotification class="w-6 h-6 mr-2" />
                 {{ t("notifications") }}
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Separator class="space-y-4" />
-            <div class="quick-actions flex flex-row justify-between gap-2 py-1">
+            <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"
+                class="justify-start">
+                <IconDialpad class="w-6 h-6 mr-2" />
+                {{ t("dial_pad") }}
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+            </Button>
+            <Separator class="space-y-4" v-if="false"/>
+            <div class="quick-actions flex flex-row justify-between gap-2 py-1" v-if="false">
                 <Button @click="softphoneOpened = !softphoneOpened" variant="ghost"
                     class="h-10 w-10 p-0 flex items-center justify-center rounded-lg">
                     <IconDialpad class="w-6 h-6" />
                 </Button>
 
-                <Button variant="ghost" class="h-8 w-8 p-0 flex items-center justify-center rounded-lg">
-                    <IconCookieManFilled class="w-4 h-4" />
+                <Button variant="ghost" class="h-10 w-10 p-0 flex items-center justify-center rounded-lg">
+                    <IconCookieManFilled class="w-6 h-6" />
                 </Button>
 
                 <Button variant="ghost" class="h-8 w-8 p-0 flex items-center justify-center rounded-lg">

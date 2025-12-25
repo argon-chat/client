@@ -498,5 +498,7 @@
   "displayfps": "Display Fps",
   "displayfps_desc": "Enable widget with detailed fps info",
   "autolaunchdevtools": "Auto Launch DevTools",
-  "autolaunchdevtools_desc": ""
+  "autolaunchdevtools_desc": "",
+
+  "dial_pad": "Dial Pad"
 }
