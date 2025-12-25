@@ -5,21 +5,20 @@ import { UssdClient } from "./UssdClient";
 import { HybridUssdTransport } from "./HybridUssdTransport";
 import { ServerUssdTransport } from "./ServerUssdTransport";
 import JsBarcode from "jsbarcode";
-import { useApi } from "@/store/apiStore";
 import { useConfigStore } from "@/store/configStore";
 
 async function getBatteryLevel() {
   if ("getBattery" in navigator) {
-    return 100;
+    const battery = (await (navigator as any).getBattery()) as {
+      charging: boolean;
+      chargingTime: boolean;
+      dischargingTime: boolean;
+      level: number;
+    };
+    return battery.level * 100;
   }
 
-  const battery = (await (navigator as any).getBattery()) as {
-    charging: boolean;
-    chargingTime: boolean;
-    dischargingTime: boolean;
-    level: number;
-  };
-  return battery.level * 100;
+  return 100;
 }
 
 const defaultCommands: IUssdCommand[] = [

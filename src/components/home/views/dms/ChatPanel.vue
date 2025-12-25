@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, toRef } from "vue";
 import { usePoolStore } from "@/store/poolStore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
-import { PhMicrophoneSlash, PhPhoneDisconnect } from "@phosphor-icons/vue";
+import { PhPhoneDisconnect } from "@phosphor-icons/vue";
 import { HeadphoneOffIcon, MicOffIcon } from "lucide-vue-next";
 import { useSystemStore } from "@/store/systemStore";
 
 const emit = defineEmits<{ (e: "end"): void }>();
-const diagnosticsEnabled = ref(false);
 
 const dm = useUnifiedCall();
 const pool = usePoolStore();
@@ -37,7 +36,7 @@ const participants = computed(() => {
     const r = dm.room;
     if (r && r.localParticipant) {
         const uid = r.localParticipant.identity;
-        const u = pool.getUserReactive(uid);
+        const u = pool.getUserReactive(toRef(uid));
 
         arr.push({
             userId: uid,
@@ -49,7 +48,7 @@ const participants = computed(() => {
     }
 
     for (const [uid, data] of dm.participants) {
-        const u = pool.getUserReactive(uid);
+        const u = pool.getUserReactive(toRef(uid));
 
         arr.push({
             userId: uid,
@@ -127,40 +126,10 @@ onUnmounted(() => {
                     <HeadphoneOffIcon v-if="p.mutedAll" width="24" height="24"
                         class="text-red-400 drop-shadow-[0_0_4px_rgba(255,0,0,0.6)]" />
                 </div>
-                <div v-if="diagnosticsEnabled"
-                    class="absolute top-0 left-0 right-0 text-left bg-black/60 p-1 leading-tight pointer-events-none" style="font-size: 9px;">
-                    <div>User ID: {{ p.userId }}</div>
-                    <div>Speaking: {{ isSpeaking(p.userId) }}</div>
-                    <div>Muted: {{ p.muted }}</div>
-                    <div>MutedAll: {{ p.mutedAll }}</div>
-                    <div>Video: {{ hasVideo(p.userId) }}</div>
-                    <div>Volume: {{ dm.participants.get(p.userId)?.volume ?? 100 }}</div>
-                    <template v-if="dm.diagnostics.has(p.userId)">
-                        <div>Codec: {{ dm.diagnostics.get(p.userId).codec }}</div>
-                        <div>RTT: {{ dm.diagnostics.get(p.userId).rtt }}</div>
-                        <div>Bitrate: {{ dm.diagnostics.get(p.userId).bitrateKbps }} kbps</div>
-                        <div>Packets Lost: {{ dm.diagnostics.get(p.userId).audioPacketsLost }}</div>
-                        <div>Jitter: {{ dm.diagnostics.get(p.userId).audioJitter }}</div>
-                        <div>Audio Level: {{ dm.diagnostics.get(p.userId).audioLevel }}</div>
-
-                        <template v-if="dm.diagnostics.get(p.userId).width">
-                            <div>Resolution: {{ dm.diagnostics.get(p.userId).width }}×{{
-                                dm.diagnostics.get(p.userId).height }}</div>
-                        </template>
-
-                        <div>Recv: {{ dm.diagnostics.get(p.userId).transportPacketsReceived }}</div>
-                        <div>Sent: {{ dm.diagnostics.get(p.userId).transportPacketsSent }}</div>
-                    </template>
-                </div>
             </div>
         </div>
 
         <div class="flex justify-center mt-3 gap-3">
-            <button @click="diagnosticsEnabled = !diagnosticsEnabled"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold shadow-lg">
-                {{ diagnosticsEnabled ? "Disable diag" : "Enable diag" }}
-            </button>
-
             <button @click="$emit('end')"
                 class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold shadow-lg">
                 <PhPhoneDisconnect width="24" height="24" />
