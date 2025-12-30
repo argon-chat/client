@@ -16,6 +16,7 @@ const forwarded = useForwardPropsEmits(props, emits)
 </script>
 
 <template>
+  <!-- @vue-ignore  -->
   <DrawerRoot
     v-slot="slotProps"
     data-slot="drawer"

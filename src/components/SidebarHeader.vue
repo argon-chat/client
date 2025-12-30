@@ -14,9 +14,9 @@
 
 <script lang="ts" setup>
 import { computed, onMounted } from "vue";
-import { usePoolStore } from "@/store/poolStore";
 import delay from "@/lib/delay";
 import { computedAsync } from "@vueuse/core";
+import { usePoolStore } from "@/store/poolStore";
 
 const pool = usePoolStore();
 

@@ -47,7 +47,7 @@
                   <span>{{ user.User.displayName }}</span>
                   <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;" />
                   <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;" />
-                  <RadiusIcon v-if="user.isRecoding" width="20" height="20" style="margin-left: auto; color: red;" />
+                  <RadiusIcon v-if="user.isRecording" width="20" height="20" style="margin-left: auto; color: red;" />
                 </li>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">

@@ -7,13 +7,13 @@ import { useTone } from "./toneStore";
 import { useAuthStore } from "./authStore";
 import { useFileStorage } from "./fileStorage";
 import { useMe } from "./meStore";
-import { usePoolStore } from "./poolStore";
 import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
 import { worklets } from "@/lib/audio/WorkletBase";
 import router from "@/router";
 import { useConfigStore } from "./configStore";
+import { usePoolStore } from "./poolStore";
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();

@@ -108,7 +108,7 @@ const isRequiredUpperVersionMessage = ref(false);
 const bubble = ref<HTMLElement | null>(null);
 const backgroundOffset = ref(0);
 const pool = usePoolStore();
-const user = pool.getUserReactive(props.message.sender);
+const user = pool.getUserReactive(ref(props.message.sender));
 const me = useMe();
 const userColors = useUserColors();
 
@@ -165,7 +165,7 @@ const replyMessage = computed(() => {
 
 const replyUser = computed(() => {
   if (!replyMessage.value) return null;
-  return pool.getUserReactive(replyMessage.value.sender);
+  return pool.getUserReactive(ref(replyMessage.value.sender));
 });
 
 const updateBackground = () => {
