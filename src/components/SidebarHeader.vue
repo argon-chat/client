@@ -17,6 +17,7 @@ import { computed, onMounted } from "vue";
 import delay from "@/lib/delay";
 import { computedAsync } from "@vueuse/core";
 import { usePoolStore } from "@/store/poolStore";
+import img0 from "@/assets/image0.jpg";
 
 const pool = usePoolStore();
 
@@ -28,7 +29,7 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 
 const backgroundImage = computed(() => {
     if (selectedSpaceId.value === "11111111-0000-1111-1111-111111111112")
-        return 'url(https://i.ppy.sh/f3bd9efc54c8464c7cfba57e7a8b8b6953444175/68747470733a2f2f612d7374617469632e62657374686477616c6c70617065722e636f6d2f6461726c696e672d64616e732d6c652d6672616e78782d7a65726f2d74776f2d666f6e642d642d656372616e2d32353630783936302d33333638395f38372e6a7067)';
+        return `url(${img0})`;
     return '';
 
 })
