@@ -30,7 +30,6 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   const pool = usePoolStore();
 
   async function mergeUserInfo(chat: UserChat): Promise<RecentChatVm> {
-    logger.warn("called merge userInfo", chat);
     const user: RealtimeUser | undefined = await pool.getUser(chat.peerId);
 
     return {

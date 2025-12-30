@@ -1220,6 +1220,21 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChatReadEvent(): this is ChatReadEvent {
     return this.UnionKey === "ChatReadEvent";
   }
+  public isChannelGroupCreated(): this is ChannelGroupCreated {
+    return this.UnionKey === "ChannelGroupCreated";
+  }
+  public isChannelGroupModified(): this is ChannelGroupModified {
+    return this.UnionKey === "ChannelGroupModified";
+  }
+  public isChannelGroupRemoved(): this is ChannelGroupRemoved {
+    return this.UnionKey === "ChannelGroupRemoved";
+  }
+  public isChannelGroupReordered(): this is ChannelGroupReordered {
+    return this.UnionKey === "ChannelGroupReordered";
+  }
+  public isChannelReordered(): this is ChannelReordered {
+    return this.UnionKey === "ChannelReordered";
+  }
 
 }
 
@@ -1496,6 +1511,46 @@ export class ChatReadEvent extends IArgonEvent
   UnionIndex: number = 33;
 }
 
+export class ChannelGroupCreated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public data: ChannelGroup) { super(); }
+
+  UnionKey: string = "ChannelGroupCreated";
+  UnionIndex: number = 34;
+}
+
+export class ChannelGroupModified extends IArgonEvent
+{
+  constructor(public spaceId: guid, public groupId: guid, public bag: IonArray<string>) { super(); }
+
+  UnionKey: string = "ChannelGroupModified";
+  UnionIndex: number = 35;
+}
+
+export class ChannelGroupRemoved extends IArgonEvent
+{
+  constructor(public spaceId: guid, public groupId: guid) { super(); }
+
+  UnionKey: string = "ChannelGroupRemoved";
+  UnionIndex: number = 36;
+}
+
+export class ChannelGroupReordered extends IArgonEvent
+{
+  constructor(public spaceId: guid, public groupId: guid, public fractionalIndex: string) { super(); }
+
+  UnionKey: string = "ChannelGroupReordered";
+  UnionIndex: number = 37;
+}
+
+export class ChannelReordered extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public targetGroupId: guid | null, public fractionalIndex: string) { super(); }
+
+  UnionKey: string = "ChannelReordered";
+  UnionIndex: number = 38;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -1574,6 +1629,16 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").read(reader);
     else if (unionIndex == 33)
       value = IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").read(reader);
+    else if (unionIndex == 34)
+      value = IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").read(reader);
+    else if (unionIndex == 35)
+      value = IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").read(reader);
+    else if (unionIndex == 36)
+      value = IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").read(reader);
+    else if (unionIndex == 37)
+      value = IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").read(reader);
+    else if (unionIndex == 38)
+      value = IonFormatterStorage.get<ChannelReordered>("ChannelReordered").read(reader);
 
     else throw new Error();
   
@@ -1686,6 +1751,21 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 33) {
         IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").write(writer, value as ChatReadEvent);
+    }
+    else if (value.UnionIndex == 34) {
+        IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").write(writer, value as ChannelGroupCreated);
+    }
+    else if (value.UnionIndex == 35) {
+        IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").write(writer, value as ChannelGroupModified);
+    }
+    else if (value.UnionIndex == 36) {
+        IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").write(writer, value as ChannelGroupRemoved);
+    }
+    else if (value.UnionIndex == 37) {
+        IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").write(writer, value as ChannelGroupReordered);
+    }
+    else if (value.UnionIndex == 38) {
+        IonFormatterStorage.get<ChannelReordered>("ChannelReordered").write(writer, value as ChannelReordered);
     }
   
     else throw new Error();
@@ -2248,6 +2328,94 @@ IonFormatterStorage.register("ChatReadEvent", {
   write(writer: CborWriter, value: ChatReadEvent): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelGroupCreated", {
+  read(reader: CborReader): ChannelGroupCreated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const data = IonFormatterStorage.get<ChannelGroup>('ChannelGroup').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ChannelGroupCreated(spaceId, data);
+  },
+  write(writer: CborWriter, value: ChannelGroupCreated): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ChannelGroup>('ChannelGroup').write(writer, value.data);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelGroupModified", {
+  read(reader: CborReader): ChannelGroupModified {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const bag = IonFormatterStorage.readArray<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ChannelGroupModified(spaceId, groupId, bag);
+  },
+  write(writer: CborWriter, value: ChannelGroupModified): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.groupId);
+    IonFormatterStorage.writeArray<string>(writer, value.bag, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelGroupRemoved", {
+  read(reader: CborReader): ChannelGroupRemoved {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ChannelGroupRemoved(spaceId, groupId);
+  },
+  write(writer: CborWriter, value: ChannelGroupRemoved): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.groupId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelGroupReordered", {
+  read(reader: CborReader): ChannelGroupReordered {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fractionalIndex = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ChannelGroupReordered(spaceId, groupId, fractionalIndex);
+  },
+  write(writer: CborWriter, value: ChannelGroupReordered): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.groupId);
+    IonFormatterStorage.get<string>('string').write(writer, value.fractionalIndex);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelReordered", {
+  read(reader: CborReader): ChannelReordered {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const targetGroupId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const fractionalIndex = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new ChannelReordered(spaceId, channelId, targetGroupId, fractionalIndex);
+  },
+  write(writer: CborWriter, value: ChannelReordered): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.targetGroupId, 'guid');
+    IonFormatterStorage.get<string>('string').write(writer, value.fractionalIndex);
     writer.writeEndArray();
   }
 });

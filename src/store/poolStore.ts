@@ -93,6 +93,14 @@ export const usePoolStore = defineStore("data-pool", () => {
       // Load channels
       const channels = await api.serverInteraction.GetChannels(server.spaceId);
       logger.log(`Loaded '${channels.length}' channels`, channels);
+
+      const groups = await api.serverInteraction.GetChannelGroups(server.spaceId);
+      logger.log(`Loaded '${groups.length}' channel groups`, groups);
+      
+      // Save channel groups to DB
+      for (const group of groups) {
+        await db.channelGroups.put(group, group.groupId);
+      }
       
       const trackedIds: Guid[] = [];
 

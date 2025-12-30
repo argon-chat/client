@@ -64,6 +64,7 @@ export const useSpaceStore = defineStore("spaces", () => {
       desc: "",
       kind: channelKind,
       spaceId: spaceId,
+      groupId: null
     });
   }
 

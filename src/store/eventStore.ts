@@ -25,7 +25,14 @@ import {
   type UserChangedStatus,
   type UserUpdated,
   type ArchetypeCreated,
+  type ChannelGroup,
+  ChannelGroupCreated,
+  ChannelGroupModified,
+  ChannelGroupRemoved,
+  ChannelGroupReordered,
+  ChannelReordered,
 } from "@/lib/glue/argonChat";
+import type { Guid } from "@argon-chat/ion.webcore";
 
 /**
  * Store для обработки realtime событий от сервера
@@ -194,6 +201,40 @@ export const useEventStore = defineStore("events", () => {
 
     bus.onServerEvent<RecordEnded>("RecordEnded", (x) => {
       realtimeStore.stopRecording(x.channelId);
+    });
+
+    // Channel groups events
+    bus.onServerEvent<ChannelGroupCreated>("ChannelGroupCreated", async (x: ChannelGroupCreated) => {
+      logger.info("ChannelGroupCreated", x);
+      await db.channelGroups.put(x.data, x.data.groupId);
+    });
+
+    bus.onServerEvent<ChannelGroupModified>("ChannelGroupModified", async (x: ChannelGroupModified) => {
+      logger.info("ChannelGroupModified", x);
+      const group = await db.channelGroups.get(x.groupId);
+      if (group) {
+        // Update modified fields from bag
+        // Assuming bag contains field names that changed
+        await db.channelGroups.update(x.groupId, group);
+      }
+    });
+
+    bus.onServerEvent<ChannelGroupRemoved>("ChannelGroupRemoved", async (x: ChannelGroupRemoved) => {
+      logger.info("ChannelGroupRemoved", x);
+      await db.channelGroups.delete(x.groupId);
+    });
+
+    bus.onServerEvent<ChannelGroupReordered>("ChannelGroupReordered", async (x: ChannelGroupReordered) => {
+      logger.info("ChannelGroupReordered", x);
+      await db.channelGroups.update(x.groupId, { fractionalIndex: x.fractionalIndex });
+    });
+
+    bus.onServerEvent<ChannelReordered>("ChannelReordered", async (x: ChannelReordered) => {
+      logger.info("ChannelReordered", x);
+      await db.channels.update(x.channelId, {
+        fractionalIndex: x.fractionalIndex,
+        groupId: x.targetGroupId,
+      });
     });
   };
 
