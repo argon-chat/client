@@ -6,6 +6,8 @@ import { useHotkeys } from "./hotKeyStore";
 import { IonWsClient } from "@argon-chat/ion.webcore";
 import { HotkeyPhase } from "@/lib/glue/argon.ipc";
 
+const LONG_RECONNECT_TIMEOUT = 5000; // 5 seconds
+
 export const useSystemStore = defineStore("system", () => {
   // voice
   const mainSub = new Subscription();
@@ -14,6 +16,10 @@ export const useSystemStore = defineStore("system", () => {
   const headphoneMuted = ref(false);
   const tone = useTone();
   const hotkeys = useHotkeys();
+
+  // reconnection
+  const isLongReconnecting = ref(false);
+  let reconnectTimer: NodeJS.Timeout | null = null;
 
   const muteEvent = new Subject<boolean>();
   const muteHeadphoneEvent = new Subject<boolean>();
@@ -113,11 +119,37 @@ export const useSystemStore = defineStore("system", () => {
     if (!hasRequestRetry("ws", "ws")) {
       startRequestRetry("ws", "ws");
     }
+
+    // Start timer for long reconnect
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(() => {
+        isLongReconnecting.value = true;
+      }, LONG_RECONNECT_TIMEOUT);
+    }
   });
 
-  IonWsClient.on("reconnected", () => {
+  IonWsClient.on("reconnected", async () => {
+    // Clear timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
     if (hasRequestRetry("ws", "ws")) {
       stopRequestRetry("ws", "ws");
+    }
+
+    // If it was a long reconnect, reload server data
+    if (isLongReconnecting.value) {
+      try {
+        const { usePoolStore } = await import("./poolStore");
+        const poolStore = usePoolStore();
+        await poolStore.loadServerDetails();
+      } catch (e) {
+        console.error("Failed to reload server details after reconnect:", e);
+      } finally {
+        isLongReconnecting.value = false;
+      }
     }
   });
 
@@ -134,6 +166,7 @@ export const useSystemStore = defineStore("system", () => {
     activeRetries,
 
     isRequestRetrying,
+    isLongReconnecting,
     startRequestRetry,
     stopRequestRetry,
     hasRequestRetry,

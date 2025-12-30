@@ -19,6 +19,8 @@ import { useTone } from "./toneStore";
 import { logger } from "@/lib/logger";
 import { useMe } from "./meStore";
 import { useBus } from "./busStore";
+import { useUserVolumeStore } from "./userVolumeStore";
+import { useRealtimeStore } from "./realtimeStore";
 
 import { CallIncoming, CallFinished, CallAccepted } from "@/lib/glue/argonChat";
 import { startTimer } from "@/lib/intervalTimer";
@@ -33,6 +35,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   const me = useMe();
   const bus = useBus();
   const sys = useSystemStore();
+  const userVolume = useUserVolumeStore();
+  const realtimeStore = useRealtimeStore();
 
   const mode = ref<"none" | "dm" | "channel">("none");
 
@@ -67,7 +71,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         muted: boolean;
         mutedAll: boolean;
         screencast: boolean;
-        volume: number;
+        volume: number[];
         gain: GainNode | null;
       }
     >()
@@ -394,11 +398,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       const uid = p.identity;
       const info = await pool.getUser(uid);
 
+      const savedVolume = userVolume.getUserVolume(uid);
+
       participants.set(uid, {
         userId: uid,
         displayName: info?.displayName ?? "Unknown User",
         muted: false,
-        volume: 100,
+        volume: [savedVolume],
         gain: null,
         mutedAll: false,
         screencast: false,
@@ -408,6 +414,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
       if (isMutedAll) {
         setVolume(uid, 0);
+      } else {
+        setVolume(uid, savedVolume);
       }
 
       p.on("trackMuted", (pub) => {
@@ -614,11 +622,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     const uid = participant.identity;
     if (!participants.has(uid)) {
       const info = await pool.getUser(uid);
+      const savedVolume = userVolume.getUserVolume(uid);
       participants.set(uid, {
         userId: uid,
         displayName: info?.displayName ?? "User",
         muted: pub.isMuted,
-        volume: 100,
+        volume: [savedVolume],
         gain: null,
         mutedAll: false,
         screencast: false,
@@ -684,7 +693,28 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     src.connect(analyser).connect(gain).connect(audioCtx.destination);
 
     const pdata = participants.get(userId);
-    if (pdata) pdata.gain = gain;
+    if (pdata) {
+      pdata.gain = gain;
+      
+      // Apply saved volume from localStorage
+      const savedVolume = userVolume.getUserVolume(userId);
+      const isMutedAll = sys.headphoneMuted;
+      
+      if (isMutedAll) {
+        gain.gain.setValueAtTime(0, gain.context.currentTime);
+      } else {
+        const g = Math.max(0, Math.min(savedVolume / 100, 2.0));
+        gain.gain.setValueAtTime(g, gain.context.currentTime);
+        pdata.volume = [savedVolume];
+        
+        // Update volume in realtimeStore for UI sync
+        if (targetId.value) {
+          realtimeStore.setUserProperty(targetId.value, userId, (user) => {
+            user.volume = [savedVolume];
+          });
+        }
+      }
+    }
 
     let speakingState = false;
     let stopped = false;
@@ -730,7 +760,16 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     const g = Math.max(0, Math.min(vol / 100, 2.0));
     u.gain.gain.setValueAtTime(g, u.gain.context.currentTime);
-    u.volume = vol;
+    u.volume = [vol];
+    
+    userVolume.setUserVolume(userId, vol);
+    
+    // Update volume in realtimeStore for UI sync
+    if (targetId.value) {
+      realtimeStore.setUserProperty(targetId.value, userId, (user) => {
+        user.volume = [vol];
+      });
+    }
   }
 
   async function startScreenShare(opts: {

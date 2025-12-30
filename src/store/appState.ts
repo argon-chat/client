@@ -19,79 +19,117 @@ export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();
   const isFailedLoad = ref(false);
   const isLoaded = ref(false);
+  const isInitializing = ref(false);
+  const loadingStep = ref("");
+  const loadingProgress = ref(0);
+  const totalSteps = 10;
 
   async function initializeArgonApp(): Promise<boolean> {
+    loadingStep.value = "Checking network...";
+    loadingProgress.value = 0;
+
     while (!isOnline.value) {
       logger.info("Waiting network online...");
       await delay(1000);
     }
 
+    loadingStep.value = "Initializing audio engine...";
+    loadingProgress.value = 1;
     logger.info("Begin init tone audio engine...");
-
     useTone().init();
+    await delay(100);
 
+    loadingStep.value = "Restoring session...";
+    loadingProgress.value = 2;
     logger.info("Restoring session...");
-
     const auth = await useAuthStore();
     auth.restoreSession();
+    await delay(100);
 
+    loadingStep.value = "Loading AI predictor...";
+    loadingProgress.value = 3;
     logger.info("Load wasm predictor...");
-
     const predictor = usePredictor();
-
     await predictor.init();
+    await delay(100);
 
+    loadingStep.value = "Initializing audio worklets...";
+    loadingProgress.value = 4;
     logger.info("Load audio manager...");
-
     await worklets.init();
+    await delay(100);
 
+    loadingStep.value = "Creating file storage...";
+    loadingProgress.value = 5;
     logger.info("Create buckets...");
     await useFileStorage().initStorages();
+    await delay(100);
 
-
-    logger.info("Load configurations...")
+    loadingStep.value = "Loading configurations...";
+    loadingProgress.value = 6;
+    logger.info("Load configurations...");
     await useConfigStore().load();
+    await delay(100);
 
+    loadingStep.value = "Initializing data store...";
+    loadingProgress.value = 7;
     logger.info("Fetch data...");
-
     const poolStore = usePoolStore();
-
     await poolStore.init();
+    await delay(100);
 
     if (auth.isAuthenticated) {
+      loadingStep.value = "Loading user profile...";
+      loadingProgress.value = 8;
       const me = useMe();
-
       const continueNext = await me.init();
+      await delay(100);
 
       if (!continueNext) {
         router.push({ path: "/blocked.pg" });
         return false;
       }
 
-      poolStore.loadServerDetails();
+      loadingStep.value = "Loading spaces and channels...";
+      loadingProgress.value = 9;
+      await poolStore.loadServerDetails();
+      await delay(100);
 
       await me.completeInit();
-      
+
       await useIdleStore().init();
       await useActivity().init();
     }
+
+    loadingStep.value = "Finalizing...";
+    loadingProgress.value = 10;
 
     return true;
   }
 
   async function initApp() {
     logger.info("Begin initialization argon application");
+    isInitializing.value = true;
     try {
       const success = await initializeArgonApp();
       isLoaded.value = true;
-      if (success)
-        router.push({ path: "/master.pg" });
+      if (success) router.push({ path: "/master.pg" });
       logger.success("Complete initialization");
     } catch (e) {
       isFailedLoad.value = true;
       logger.error("Failed init argon app", e);
+    } finally {
+      isInitializing.value = false;
     }
   }
 
-  return { initApp, isFailedLoad, isLoaded };
+  return {
+    initApp,
+    isFailedLoad,
+    isLoaded,
+    isInitializing,
+    loadingStep,
+    loadingProgress,
+    totalSteps,
+  };
 });

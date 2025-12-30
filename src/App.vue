@@ -11,7 +11,9 @@ import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
 import IncomingCallOverlay from "./components/IncomingCallOverlay.vue";
 import { native } from "./lib/glue/nativeGlue";
+import { useAppState } from "./store/appState";
 const sys = useSystemStore();
+const appState = useAppState();
 const preferences = usePreference();
 const keys = useMagicKeys();
 const isRestored = ref(false);
@@ -164,7 +166,29 @@ const themeOverrides = {
     <Toaster />
     <DevPanel />
     <IncomingCallOverlay/>
-    <Island class="select-none" v-if="sys.isRequestRetrying" :title="`Reconnecting`" />
+    <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
+    
+    <!-- Long reconnect overlay -->
+    <div v-if="sys.isLongReconnecting" class="reconnect-overlay">
+      <div class="reconnect-content">
+        <div class="reconnect-spinner"></div>
+        <h2 class="reconnect-title">Connection Lost</h2>
+        <p class="reconnect-message">Reconnecting to Argon...</p>
+      </div>
+    </div>
+    
+    <!-- Loading overlay -->
+    <div v-if="appState.isInitializing" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2 class="loading-title">Initializing Argon</h2>
+        <p class="loading-step">{{ appState.loadingStep }}</p>
+        <div class="loading-bar">
+          <div class="loading-progress" :style="{ width: `${(appState.loadingProgress / appState.totalSteps) * 100}%` }"></div>
+        </div>
+        <p class="loading-percent">{{ Math.round((appState.loadingProgress / appState.totalSteps) * 100) }}%</p>
+      </div>
+    </div>
 
     <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between" v-if="!nativeControlsActive">
       <div class="sys-keyholder">
@@ -224,5 +248,125 @@ const themeOverrides = {
   display: flex;
   gap: 10px;
   flex: auto;
+}
+
+/* Loading overlay styles */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(99, 102, 241, 0.1);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fafafa;
+  margin: 0;
+}
+
+.loading-step {
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  margin: 0;
+  text-align: center;
+  min-height: 1.5rem;
+}
+
+.loading-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.loading-percent {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Reconnect overlay styles */
+.reconnect-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+}
+
+.reconnect-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.reconnect-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(239, 68, 68, 0.1);
+  border-top-color: #ef4444;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.reconnect-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fafafa;
+  margin: 0;
+}
+
+.reconnect-message {
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  margin: 0;
+  text-align: center;
 }
 </style>
