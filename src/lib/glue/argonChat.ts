@@ -90,6 +90,7 @@ export interface CreateChannelRequest {
   name: string;
   kind: ChannelType;
   desc: string;
+  groupId: guid | null;
 };
 
 
@@ -105,7 +106,8 @@ export interface ArgonChannel {
   channelId: guid;
   name: string;
   description: string | null;
-  categoryId: guid;
+  groupId: guid | null;
+  fractionalIndex: string | null;
 };
 
 
@@ -131,6 +133,16 @@ export interface UserActivityPresence {
   kind: ActivityPresenceKind;
   startTimestampSeconds: u8;
   titleName: string;
+};
+
+
+export interface ChannelGroup {
+  spaceId: guid;
+  groupId: guid;
+  name: string;
+  desc: string | null;
+  isCollapsed: bool;
+  fractionalIndex: string | null;
 };
 
 
@@ -165,6 +177,14 @@ export enum EntityType
   Fraction = 11,
   Ordinal = 12,
   Capitalized = 13,
+}
+
+
+export enum StartStreamError
+{
+  NONE = 0,
+  BAD_PARAMS = 1,
+  INTERNAL_ERROR = 2,
 }
 
 
@@ -978,6 +998,112 @@ IonFormatterStorage.register("FailedJoinVoice", {
   write(writer: CborWriter, value: FailedJoinVoice): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<JoinToChannelError>('JoinToChannelError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IInterlinkStreamResult implements IIonUnion<IInterlinkStreamResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessStartStream(): this is SuccessStartStream {
+    return this.UnionKey === "SuccessStartStream";
+  }
+  public isFailedStartStream(): this is FailedStartStream {
+    return this.UnionKey === "FailedStartStream";
+  }
+
+}
+
+
+export class SuccessStartStream extends IInterlinkStreamResult
+{
+  constructor(public rtc: RtcEndpoint, public token: string, public whipEndpoint: string) { super(); }
+
+  UnionKey: string = "SuccessStartStream";
+  UnionIndex: number = 0;
+}
+
+export class FailedStartStream extends IInterlinkStreamResult
+{
+  constructor(public error: StartStreamError) { super(); }
+
+  UnionKey: string = "FailedStartStream";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IInterlinkStreamResult", {
+  read(reader: CborReader): IInterlinkStreamResult {
+    reader.readStartArray();
+    let value: IInterlinkStreamResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessStartStream>("SuccessStartStream").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedStartStream>("FailedStartStream").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IInterlinkStreamResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessStartStream>("SuccessStartStream").write(writer, value as SuccessStartStream);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedStartStream>("FailedStartStream").write(writer, value as FailedStartStream);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessStartStream", {
+  read(reader: CborReader): SuccessStartStream {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const whipEndpoint = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessStartStream(rtc, token, whipEndpoint);
+  },
+  write(writer: CborWriter, value: SuccessStartStream): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.rtc);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<string>('string').write(writer, value.whipEndpoint);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedStartStream", {
+  read(reader: CborReader): FailedStartStream {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<StartStreamError>('StartStreamError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedStartStream(error);
+  },
+  write(writer: CborWriter, value: FailedStartStream): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<StartStreamError>('StartStreamError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -3459,15 +3585,17 @@ IonFormatterStorage.register("CreateChannelRequest", {
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const kind = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
     const desc = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { spaceId, name, kind, desc };
+    const groupId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { spaceId, name, kind, desc, groupId };
   },
   write(writer: CborWriter, value: CreateChannelRequest): void {
-    writer.writeStartArray(4);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.kind);
     IonFormatterStorage.get<string>('string').write(writer, value.desc);
+    IonFormatterStorage.writeNullable<guid>(writer, value.groupId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -3480,18 +3608,20 @@ IonFormatterStorage.register("ArgonChannel", {
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.readNullable<string>(reader, 'string');
-    const categoryId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 6);
-    return { type, spaceId, channelId, name, description, categoryId };
+    const groupId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const fractionalIndex = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { type, spaceId, channelId, name, description, groupId, fractionalIndex };
   },
   write(writer: CborWriter, value: ArgonChannel): void {
-    writer.writeStartArray(6);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
-    IonFormatterStorage.get<guid>('guid').write(writer, value.categoryId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.groupId, 'guid');
+    IonFormatterStorage.writeNullable<string>(writer, value.fractionalIndex, 'string');
     writer.writeEndArray();
   }
 });
@@ -3596,6 +3726,30 @@ IonFormatterStorage.register("UserActivityPresence", {
   }
 });
 
+IonFormatterStorage.register("ChannelGroup", {
+  read(reader: CborReader): ChannelGroup {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const desc = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isCollapsed = IonFormatterStorage.get<bool>('bool').read(reader);
+    const fractionalIndex = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { spaceId, groupId, name, desc, isCollapsed, fractionalIndex };
+  },
+  write(writer: CborWriter, value: ChannelGroup): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.groupId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.desc, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isCollapsed);
+    IonFormatterStorage.writeNullable<string>(writer, value.fractionalIndex, 'string');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("JoinToChannelError", {
   read(reader: CborReader): JoinToChannelError {
     const num = (IonFormatterStorage.get<u2>('u2').read(reader))
@@ -3613,6 +3767,17 @@ IonFormatterStorage.register("EntityType", {
     return EntityType[num] !== undefined ? num as EntityType : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: EntityType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("StartStreamError", {
+  read(reader: CborReader): StartStreamError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return StartStreamError[num] !== undefined ? num as StartStreamError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: StartStreamError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -4362,12 +4527,17 @@ export interface IArchetypeInteraction extends IIonService
 export interface IChannelInteraction extends IIonService
 {
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
+  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void>;
+  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void>;
+  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void>;
+  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
+  InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
@@ -4452,6 +4622,7 @@ export interface IServerInteraction extends IIonService
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
 
 
@@ -4525,12 +4696,17 @@ export interface IArchetypeInteraction extends IIonService
 export interface IChannelInteraction extends IIonService
 {
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
+  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void>;
+  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void>;
+  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void>;
+  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
+  InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
@@ -4615,6 +4791,7 @@ export interface IServerInteraction extends IIonService
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
 
 
@@ -4800,6 +4977,71 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     await req.callAsync(writer.data, this.signal);
   }
+  async MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "MoveChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.writeNullable<guid>(writer, targetGroupId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, afterChannelId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, beforeChannelId, 'guid');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteChannelGroup");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, groupId);
+    IonFormatterStorage.get<bool>('bool').write(writer, deleteChannels);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateChannelGroup");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, name);
+    IonFormatterStorage.writeNullable<string>(writer, desk, 'string');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "MoveChannelGroup");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.writeNullable<guid>(writer, afterGroupId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, beforeGroupId, 'guid');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
   async DeleteChannel(spaceId: guid, channelId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteChannel");
           
@@ -4889,6 +5131,21 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IInterlinkResult>("IInterlinkResult", writer.data, this.signal);
+  }
+  async InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "InterlinkStream");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i4>('i4').write(writer, density);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IInterlinkStreamResult>("IInterlinkStreamResult", writer.data, this.signal);
   }
   async KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "KickMemberFromChannel");
@@ -5570,6 +5827,19 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  async GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetChannelGroups");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ChannelGroup>>("IonArray<ChannelGroup>", writer.data, this.signal);
   }
 
 }
