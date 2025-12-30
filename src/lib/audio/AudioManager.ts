@@ -52,7 +52,7 @@ export interface IAudioManagement {
 }
 
 export class AudioManagement implements IAudioManagement {
-  private audioCtx: AudioContext = new AudioContext();
+  private audioCtx: AudioContext = new AudioContext({ sampleRate: 48000 });
   private worklets = new Map<string, AudioWorkletNode>();
   private workletPaths = new Map<WorkletId, WorkledPath>();
   private mediaElements = new Set<HTMLMediaElement>();
