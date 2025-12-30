@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
 import { defineStore } from "pinia";
-import { type Reactive, reactive, ref } from "vue";
+import { type Reactive, reactive, ref, shallowReactive } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { ArgonChannel, RealtimeChannelUser } from "@/lib/glue/argonChat";
 import type { RealtimeUser } from "./db/dexie";
@@ -30,7 +30,10 @@ export interface IRealtimeChannel {
  * Store for managing realtime channel states
  */
 export const useRealtimeStore = defineStore("realtime", () => {
-  const realtimeChannels = reactive(
+  // Используем shallowReactive для Map чтобы избежать глубокой реактивности
+  // Это означает что Vue будет отслеживать только добавление/удаление каналов
+  // но не изменения внутри каждого канала (для этого канал сам reactive)
+  const realtimeChannels = shallowReactive(
     new Map<Guid, Reactive<IRealtimeChannel>>()
   );
 

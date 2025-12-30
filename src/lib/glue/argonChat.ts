@@ -1521,7 +1521,7 @@ export class ChannelGroupCreated extends IArgonEvent
 
 export class ChannelGroupModified extends IArgonEvent
 {
-  constructor(public spaceId: guid, public groupId: guid, public bag: IonArray<string>) { super(); }
+  constructor(public spaceId: guid, public groupId: guid, public data: ChannelGroup) { super(); }
 
   UnionKey: string = "ChannelGroupModified";
   UnionIndex: number = 35;
@@ -2353,15 +2353,15 @@ IonFormatterStorage.register("ChannelGroupModified", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const bag = IonFormatterStorage.readArray<string>(reader, 'string');
+    const data = IonFormatterStorage.get<ChannelGroup>('ChannelGroup').read(reader);
     reader.readEndArrayAndSkip(arraySize - 3);
-    return new ChannelGroupModified(spaceId, groupId, bag);
+    return new ChannelGroupModified(spaceId, groupId, data);
   },
   write(writer: CborWriter, value: ChannelGroupModified): void {
     writer.writeStartArray(3);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.groupId);
-    IonFormatterStorage.writeArray<string>(writer, value.bag, 'string');
+    IonFormatterStorage.get<ChannelGroup>('ChannelGroup').write(writer, value.data);
     writer.writeEndArray();
   }
 });
@@ -4701,6 +4701,7 @@ export interface IChannelInteraction extends IIonService
   MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
+  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
@@ -4870,6 +4871,7 @@ export interface IChannelInteraction extends IIonService
   MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
+  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
@@ -5237,6 +5239,23 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<RealtimeChannel>>("IonArray<RealtimeChannel>", writer.data, this.signal);
+  }
+  async UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateChannelGroup");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, groupId);
+    IonFormatterStorage.writeNullable<string>(writer, name, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, description, 'string');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
   }
   async QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "QueryMessages");

@@ -8,6 +8,9 @@
                 <button @click="addChannelOpened = true">
                     <CirclePlusIcon class="w-5 h-5" />
                 </button>
+                <button @click="addGroupOpened = true">
+                    <FolderPlusIcon class="w-5 h-5" />
+                </button>
                 <button disabled>
                     <NotebookTabsIcon class="w-5 h-5" />
                 </button>
@@ -26,6 +29,12 @@
       :selected-space="selectedSpaceId"
       @close="addChannelOpened = false"
     />
+
+    <AddChannelGroup
+      v-model:open="addGroupOpened"
+      :selected-space="selectedSpaceId"
+      @close="addGroupOpened = false"
+    />
 </template>
 
 <script setup lang="ts">
@@ -35,6 +44,7 @@ import {
     ShieldCheck,
     NotebookTabsIcon,
     UsersIcon,
+    FolderPlusIcon,
 } from "lucide-vue-next";
 
 
@@ -45,6 +55,7 @@ import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
 import { ref } from "vue";
 import AddChannel from "./modals/AddChannel.vue";
+import AddChannelGroup from "./modals/AddChannelGroup.vue";
 
 const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
@@ -54,6 +65,7 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 const me = useMe();
 const windows = useWindow();
 const addChannelOpened = ref(false);
+const addGroupOpened = ref(false);
 const pex = usePexStore();
 async function openServerSettings() {
     windows.serverSettingsOpen = true;

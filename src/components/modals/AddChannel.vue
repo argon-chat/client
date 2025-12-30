@@ -93,6 +93,11 @@ const selectedSpaceId = defineModel<string>("selectedSpace", {
   required: true,
 });
 
+const groupId = defineModel<string | null>("groupId", {
+  type: String,
+  default: null,
+});
+
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
@@ -112,24 +117,34 @@ const addChannel = async () => {
       await servers.addChannelToServer(
         selectedSpaceId.value,
         channelName.value,
-        ChannelType.Text
+        ChannelType.Text,
+        groupId.value
       );
     else if (channelType.value === "Voice")
       await servers.addChannelToServer(
         selectedSpaceId.value,
         channelName.value,
-        ChannelType.Voice
+        ChannelType.Voice,
+        groupId.value
       );
     else if (channelType.value === "Announcement")
       await servers.addChannelToServer(
         selectedSpaceId.value,
         channelName.value,
-        ChannelType.Announcement
+        ChannelType.Announcement,
+        groupId.value
       );
 
     channelName.value = ""
     addChannelError.value = ""
-    emit("close");
+    
+    // Сначала закрываем диалог, чтобы убрать overlay
+    open.value = false;
+    
+    // Затем эмитим событие закрытия через небольшую задержку
+    setTimeout(() => {
+      emit("close");
+    }, 50);
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
   } finally {

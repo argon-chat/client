@@ -57,14 +57,15 @@ export const useSpaceStore = defineStore("spaces", () => {
   async function addChannelToServer(
     spaceId: Guid,
     channelName: string,
-    channelKind: ChannelType
+    channelKind: ChannelType,
+    groupId: Guid | null = null
   ) {
     await api.channelInteraction.CreateChannel(spaceId, v7(), {
       name: channelName,
       desc: "",
       kind: channelKind,
       spaceId: spaceId,
-      groupId: null
+      groupId: groupId
     });
   }
 

@@ -1,7 +1,7 @@
 <template>
   <div class="chat-list rounded-xl scroll-smooth">
     <div class="flex flex-col">
-      <div class="flex-1 overflow-y-auto py-4 overflow-x-hidden" style="text-overflow: ellipsis;">
+      <div class="flex-1 overflow-y-auto py-2 overflow-x-hidden" style="text-overflow: ellipsis;">
         <!-- Channels without group -->
         <div v-for="(channel, index) in sortedUngroupedChannels" :key="channel.channelId"
           draggable="true"
@@ -9,18 +9,17 @@
           @dragover.prevent="onDragOver(channel, null, index, $event)"
           @drop="onDrop(channel, null, index, $event)"
           @dragend="onDragEnd"
-          :class="{ 'drag-over': dragOverChannel === channel.channelId }">
-          <div class="px-4 py-2 hover:bg-gray-700/50 cursor-move flex flex-col"
+          :class="{ 'drag-over': dragOverChannel === channel.channelId, 'channel-active': selectedChannelId === channel.channelId }"
+          class="channel-item">
+          <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-move rounded-md transition-all duration-150"
             v-on:click="channelSelect(channel.channelId)">
             <ContextMenu>
               <ContextMenuTrigger>
-                <div class="flex items-center justify-between group">
-                  <div class="flex items-center space-x-2">
-                    <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400" />
-                    <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400" />
-                    <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400" />
-                    <span>{{ channel?.name }}</span>
-                  </div>
+                <div class="flex items-center space-x-2">
+                  <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <span class="text-gray-300 font-medium truncate">{{ channel?.name }}</span>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
@@ -42,9 +41,9 @@
             </ContextMenu>
           </div>
           <ul
-            v-if="channel.type === ChannelType.Voice && pool.realtimeChannelUsers.has(channel.channelId) && pool.realtimeChannelUsers.get(channel.channelId)?.Users.size != 0"
-            class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
-            <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()"
+            v-if="channel.type === ChannelType.Voice && voiceChannelUsers.has(channel.channelId)"
+            class="ml-3  space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
+            <ContextMenu v-for="user in voiceChannelUsers.get(channel.channelId)!.Users.values()"
               :key="user.userId">
               <ContextMenuTrigger :disabled="!voice.isConnected">
                 <li class="flex items-center mt-1 text-gray-400 hover:text-white">
@@ -82,11 +81,29 @@
         </div>
 
         <!-- Channel groups with channels -->
-        <div v-for="group in sortedGroups" :key="group.groupId" class="mb-2">
-          <div class="px-4 py-1 text-xs font-semibold text-gray-400 uppercase cursor-pointer hover:text-gray-300"
-            @click="toggleGroup(group.groupId)">
-            <span>{{ group.isCollapsed ? '▶' : '▼' }} {{ group.name }}</span>
-          </div>
+        <div v-for="group in sortedGroups" :key="group.groupId">
+          <ContextMenu>
+            <ContextMenuTrigger>
+              <div class="relative px-2 py-1 cursor-pointer group">
+                <!-- Divider line -->
+                <div class="absolute left-0 right-0 top-1/2 h-px bg-gray-700/50"></div>
+                
+                <!-- Text and icon on top of divider -->
+                <div class="relative inline-flex items-center gap-1.5 px-2 bg-[#161616f5] text-xs font-semibold text-gray-500 uppercase hover:text-gray-300 transition-colors duration-150"
+                  @click="toggleGroup(group.groupId)">
+                  <ChevronRightIcon v-if="group.isCollapsed" class="w-3 h-3 transition-transform duration-150" />
+                  <ChevronDownIcon v-else class="w-3 h-3 transition-transform duration-150" />
+                  <span class="tracking-wide">{{ group.name }}</span>
+                </div>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent class="w-64">
+              <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="openAddChannelForGroup(group.groupId)">
+                {{ t("add_channel") }}
+                <ContextMenuShortcut>⌘+</ContextMenuShortcut>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
           <div v-if="!group.isCollapsed">
             <div v-for="(channel, index) in getGroupChannels(group.groupId)" :key="channel.channelId"
               draggable="true"
@@ -94,18 +111,17 @@
               @dragover.prevent="onDragOver(channel, group.groupId, index, $event)"
               @drop="onDrop(channel, group.groupId, index, $event)"
               @dragend="onDragEnd"
-              :class="{ 'drag-over': dragOverChannel === channel.channelId }">
-              <div class="px-4 py-2 hover:bg-gray-700/50 cursor-move flex flex-col"
+              :class="{ 'drag-over': dragOverChannel === channel.channelId, 'channel-active': selectedChannelId === channel.channelId }"
+              class="channel-item">
+              <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-move rounded-md transition-all duration-150"
                 v-on:click="channelSelect(channel.channelId)">
                 <ContextMenu>
                   <ContextMenuTrigger>
-                    <div class="flex items-center justify-between group">
-                      <div class="flex items-center space-x-2">
-                        <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400" />
-                        <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400" />
-                        <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400" />
-                        <span>{{ channel?.name }}</span>
-                      </div>
+                    <div class="flex items-center space-x-2">
+                      <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <span class="text-gray-300 font-medium truncate">{{ channel?.name }}</span>
                     </div>
                   </ContextMenuTrigger>
                   <ContextMenuContent class="w-64">
@@ -127,9 +143,9 @@
                 </ContextMenu>
               </div>
               <ul
-                v-if="channel.type === ChannelType.Voice && pool.realtimeChannelUsers.has(channel.channelId) && pool.realtimeChannelUsers.get(channel.channelId)?.Users.size != 0"
+                v-if="channel.type === ChannelType.Voice && voiceChannelUsers.has(channel.channelId)"
                 class="ml-3 space-y-2 px-4 pb-2 cursor-pointer flex flex-col">
-                <ContextMenu v-for="user in pool.realtimeChannelUsers.get(channel.channelId)!.Users.values()"
+                <ContextMenu v-for="user in voiceChannelUsers.get(channel.channelId)!.Users.values()"
                   :key="user.userId">
                   <ContextMenuTrigger :disabled="!voice.isConnected">
                     <li class="flex items-center mt-1 text-gray-400 hover:text-white">
@@ -170,6 +186,13 @@
       </div>
     </div>
   </div>
+
+  <AddChannel
+    v-model:open="addChannelInGroupOpened"
+    v-model:group-id="selectedGroupId"
+    :selected-space="selectedSpaceId"
+    @close="addChannelInGroupOpened = false; selectedGroupId = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -182,6 +205,10 @@ import {
   HeadphoneOffIcon,
   ScreenShare,
   RadiusIcon,
+  FolderIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronDown,
 } from "lucide-vue-next";
 import {
   ContextMenu,
@@ -203,7 +230,8 @@ import { usePexStore } from "@/store/permissionStore";
 import { useApi } from "@/store/apiStore";
 import { ChannelType, type ChannelGroup } from "@/lib/glue/argonChat";
 import VolumeSlider from "./VolumeSlider.vue";
-import { watch, computed, ref as vueRef } from "vue";
+import AddChannel from "./modals/AddChannel.vue";
+import { watch, computed, ref as vueRef, onUnmounted } from "vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useSystemStore } from "@/store/systemStore";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -245,25 +273,54 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
 
 const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
+// Computed для кеширования информации о голосовых каналах
+const voiceChannelUsers = computed(() => {
+  const result = new Map();
+  for (const channel of channelLists.value) {
+    if (channel.type === ChannelType.Voice) {
+      const realtimeChannel = pool.realtimeChannelUsers.get(channel.channelId);
+      if (realtimeChannel && realtimeChannel.Users.size > 0) {
+        result.set(channel.channelId, realtimeChannel);
+      }
+    }
+  }
+  return result;
+});
+
 // Load channel groups reactively
 const channelGroups = vueRef<ChannelGroup[]>([]);
 
-watch(selectedSpaceId, (spaceId) => {
-  if (!spaceId) {
+// Watch for changes in channelGroups table
+const updateGroups = async () => {
+  if (!selectedSpaceId.value) {
     channelGroups.value = [];
     return;
   }
-  pool.db.channelGroups
+  const groups = await pool.db.channelGroups
     .where("spaceId")
-    .equals(spaceId)
-    .toArray()
-    .then(groups => {
-      channelGroups.value = groups;
-    });
-}, { immediate: true });
+    .equals(selectedSpaceId.value)
+    .toArray();
+  channelGroups.value = groups;
+};
+
+watch(selectedSpaceId, updateGroups, { immediate: true });
+
+// Watch for channel list changes which might indicate group updates
+watch(channelLists, () => {
+  updateGroups();
+}, { deep: true });
 
 // Track collapsed state of groups
 const collapsedGroups = vueRef<Set<Guid>>(new Set());
+
+// Add channel to group state
+const addChannelInGroupOpened = vueRef(false);
+const selectedGroupId = vueRef<Guid | null>(null);
+
+const openAddChannelForGroup = (groupId: Guid) => {
+  selectedGroupId.value = groupId;
+  addChannelInGroupOpened.value = true;
+};
 
 // Sort by fractional index
 const sortByFractionalIndex = <T extends { fractionalIndex: string | null }>(items: T[]): T[] => {
@@ -465,9 +522,29 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
   border-radius: 5px;
 }
 
+.channel-item {
+  position: relative;
+  margin-bottom: 1px;
+}
+
+.channel-active > div {
+  background-color: rgba(88, 101, 242, 0.1) !important;
+  color: white;
+}
+
 .drag-over {
-  border-top: 2px solid #4f46e5;
-  opacity: 0.7;
+  position: relative;
+}
+
+.drag-over::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: #5865f2;
+  border-radius: 1px;
 }
 
 .cursor-move {
@@ -479,6 +556,6 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 }
 
 [draggable="true"]:active {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 </style>
