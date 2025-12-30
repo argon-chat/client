@@ -1,117 +1,108 @@
 <template>
-    <div class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-6">
-        <template v-if="mainStreamer">
-            <div class="main-streamer relative flex-1 flex items-center justify-center mb-4">
-                <div class="user-wrapper w-full h-full flex items-center justify-center relative">
-                    <div ref="mainVideoContainer"
-                        class="user-tile group rounded-2xl relative overflow-hidden shadow-[0_0_16px_rgba(0,0,0,0.45)] transition-all duration-200 z-0"
-                        :class="{
-                            'ring-2 ring-lime-400/80 shadow-[0_0_25px_rgba(132,255,90,0.3)] scale-[1.03]': mainStreamer.isSpeaking,
-                        }">
-                        <video v-if="mainUserId && activeVideos.has(mainUserId)"
-                            :ref="(el) => mainUserId && setVideoRef(el, mainUserId)" autoplay playsinline muted
-                            class="w-full h-full object-cover rounded-2xl" />
-                        <SmartArgonAvatar v-else :user-id="mainStreamer?.User?.userId" :overrided-size="180"
-                            class="transition-transform duration-300 group-hover:scale-110" />
+    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-6 transition-all duration-300">
+        <Transition name="stream-layout" mode="out-in">
+            <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0 items-center justify-center">
+                <div class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300" 
+                    :style="{ maxHeight: isFullscreen ? '100%' : '31rem', maxWidth: '100%', width: '100%', flex: isFullscreen ? '1' : 'none' }">
+                    <video v-if="mainUserId && hasVideo(mainUserId)" 
+                        :ref="(el) => mainUserId && setVideoRef(el, mainUserId)"
+                        autoplay playsinline muted class="w-full h-full object-contain" />
 
-                        <div class="absolute top-3 right-3 z-10 flex gap-2">
-                           <!--  <button @click="togglePiP"
-                                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
-                                title="">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <rect x="3" y="3" width="18" height="14" rx="2" ry="2" stroke-width="2" />
-                                    <rect x="12" y="10" width="8" height="6" rx="1" ry="1" fill="currentColor" />
-                                </svg>
-                            </button> -->
+                    <SmartArgonAvatar v-else-if="mainStreamer" :user-id="mainStreamer.User.userId" :overrided-size="180"
+                        class="transition-transform duration-200 group-hover:scale-110" />
 
-                            <button @click="toggleFullscreen"
-                                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition"
-                                title="Развернуть в полный экран">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 3H5a2 2 0 00-2 2v3m0 8v3a2 2 0 002 2h3m8-18h3a2 2 0 012 2v3m0 8v3a2 2 0 01-2 2h-3" />
-                                </svg>
-                            </button>
-                        </div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-2 px-3">
+                        <span class="text-white font-semibold">
+                            {{ mainStreamer.User.displayName }}
+                            <span v-if="mainStreamer.isScreenShare" class="text-xs text-lime-400 ml-2">📺 Sharing screen</span>
+                        </span>
+                    </div>
 
-                        <div
-                            class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-lg font-semibold py-3 text-center">
-                            {{ mainStreamer?.User?.displayName }}
-                        </div>
+                    <div class="absolute top-2 left-2 flex gap-2">
+                        <MicOffIcon v-if="mainStreamer.isMuted" :width="24" :height="24" :class="mutedIconClass" />
                     </div>
                 </div>
-            </div>
 
-            <div class="other-users grid gap-3" :style="miniGridStyle">
-                <div v-for="[userId, user] in otherUsers" :key="userId"
-                    class="user-wrapper flex items-center justify-center">
-                    <div class="user-tile relative rounded-xl overflow-hidden bg-black/60 transition-transform duration-200 hover:scale-105 flex items-center justify-center aspect-video w-full"
-                        :class="{
-                            'ring-2 ring-lime-400/80 shadow-[0_0_25px_rgba(132,255,90,0.3)] scale-[1.03]': user.isSpeaking,
-                        }">
-                        <video v-if="activeVideos.has(user.User.userId)"
-                            :ref="(el) => setVideoRef(el, user.User.userId)" autoplay playsinline muted
+                <div class="flex flex-row gap-3 overflow-x-auto w-full" style="max-height: 10rem;">
+                    <div v-for="[userId, user] in otherUsers" :key="userId"
+                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer flex-shrink-0"
+                        style="width: 15rem; height: 8.5rem;"
+                        :class="{ [speakingRingClass]: isSpeaking(userId) }" 
+                        @click="toggleFocus(userId)">
+                        <video v-if="hasVideo(userId)" 
+                            :ref="el => setVideoRef(el, userId)" 
+                            autoplay playsinline muted
                             class="w-full h-full object-cover" />
-                        <SmartArgonAvatar v-else :user-id="user.User.userId" :overrided-size="80"
-                            class="transition-transform duration-300 group-hover:scale-110 rounded-full" />
 
-                        <div
-                            class="absolute bottom-1 left-0 right-0 text-center text-xs text-white/80 bg-gradient-to-t from-black/50 to-transparent py-0.5">
-                            {{ user.User.displayName }}
+                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="90"
+                            class="transition-transform duration-200 group-hover:scale-110" />
+
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-1 px-2">
+                            <span class="text-white font-semibold text-xs truncate block">{{ user.User.displayName }}</span>
                         </div>
 
-                        <div class="absolute top-2 right-2 flex gap-1.5 z-10">
-                            <MicOffIcon v-if="user.isMuted" width="18" height="18"
-                                class="text-red-400/90 drop-shadow-[0_0_4px_rgba(255,80,80,0.5)]" />
-                            <ScreenShare v-if="activeVideos.has(user.User.userId)" width="18" height="18"
-                                class="text-sky-400/90 drop-shadow-[0_0_4px_rgba(80,180,255,0.5)]" />
-                        </div>
-
-                        <div v-if="user.isSpeaking"
-                            class="absolute inset-0 -m-[3px] rounded-xl ring-4 ring-lime-400/30 animate-pulse-speak pointer-events-none z-0">
+                        <div class="absolute top-1 right-1 flex gap-1">
+                            <MicOffIcon v-if="user.isMuted" :width="18" :height="18" :class="mutedIconClass" />
                         </div>
                     </div>
                 </div>
             </div>
-        </template>
 
-        <template v-else>
-            <div class="media-grid flex-1 grid gap-5 w-full h-full place-items-center" :style="gridStyle">
-                <div v-for="[userId, user] in allUsers" :key="userId"
-                    class="user-wrapper relative flex items-center justify-center w-full">
-                    <div v-if="user.isSpeaking"
-                        class="absolute inset-0 -m-[4px] rounded-2xl ring-4 ring-lime-400/30 animate-pulse-speak pointer-events-none z-[1]">
+            <div v-else key="grid-mode" class="flex-1 flex items-center justify-center">
+                <div v-if="allUsers.length === 2" class="flex gap-6 items-center justify-center" style="flex-direction: column;">
+                    <div v-for="[userId, user] in allUsers" :key="userId"
+                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer flex-shrink-0"
+                        style="width: 40rem; min-width: 40rem; aspect-ratio: 16/9;"
+                        :class="{ 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)]': isSpeaking(userId) }" 
+                        @click="toggleFocus(userId)">
+                        <video v-if="hasVideo(userId)" 
+                            :ref="el => setVideoRef(el, userId)" 
+                            autoplay playsinline muted
+                            class="w-full h-full object-cover" />
+
+                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="120"
+                            class="transition-transform duration-200 group-hover:scale-110" />
+
+                        <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-black/70 to-transparent py-1">
+                            <span class="text-white font-semibold text-sm">{{ user.User.displayName }}</span>
+                        </div>
+
+                        <div class="absolute top-2 right-2 flex gap-2">
+                            <MicOffIcon v-if="user.isMuted" :width="24" :height="24" :class="mutedIconClass" />
+                        </div>
                     </div>
+                </div>
 
-                    <div class="user-tile group rounded-2xl relative overflow-hidden shadow-[0_0_16px_rgba(0,0,0,0.45)] transition-all duration-200 z-0"
-                        :class="{
-                            'ring-2 ring-lime-400/80 shadow-[0_0_25px_rgba(132,255,90,0.3)] scale-[1.03]': user.isSpeaking,
-                        }">
-                        <div class="aspect-video w-full flex items-center justify-center bg-black">
-                            <video v-if="activeVideos.has(user.User.userId)"
-                                :ref="(el) => setVideoRef(el, user.User.userId)" autoplay playsinline muted
-                                class="w-full h-full object-cover rounded-md" />
-                            <SmartArgonAvatar v-else :user-id="user.User.userId" :overrided-size="150"
-                                class="transition-transform duration-300 group-hover:scale-110" />
+                <div v-else class="grid gap-4 place-items-center place-content-center" style="grid-auto-rows: minmax(min-content, max-content);"
+                    :class="{
+                        'grid-cols-1': allUsers.length === 1,
+                        'grid-cols-2': allUsers.length >= 3 && allUsers.length <= 4,
+                        'grid-cols-3': allUsers.length > 4
+                    }">
+                    <div v-for="[userId, user] in allUsers" :key="userId"
+                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer w-full"
+                        :style="{ aspectRatio: '16/9', maxHeight: allUsers.length === 1 ? '25rem' : '19rem', minWidth: allUsers.length === 1 ? '28rem' : '20rem', minHeight: allUsers.length === 1 ? '15.75rem' : '11.25rem' }"
+                        :class="{ 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)]': isSpeaking(userId) }" 
+                        @click="toggleFocus(userId)">
+                        <video v-if="hasVideo(userId)" 
+                            :ref="el => setVideoRef(el, userId)" 
+                            autoplay playsinline muted
+                            class="w-full h-full object-cover" />
+
+                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="120"
+                            class="transition-transform duration-200 group-hover:scale-110" />
+
+                        <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-black/70 to-transparent py-1">
+                            <span class="text-white font-semibold text-sm">{{ user.User.displayName }}</span>
                         </div>
 
-                        <div
-                            class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-sm font-semibold py-2 text-center">
-                            {{ user.User.displayName }}
-                        </div>
-
-                        <div class="absolute top-3 right-3 flex gap-1.5">
-                            <MicOffIcon v-if="user.isMuted" width="22" height="22"
-                                class="text-red-400/90 drop-shadow-[0_0_4px_rgba(255,80,80,0.5)]" />
-                            <ScreenShare v-if="activeVideos.has(user.User.userId)" width="22" height="22"
-                                class="text-sky-400/90 drop-shadow-[0_0_4px_rgba(80,180,255,0.5)]" />
+                        <div class="absolute top-2 right-2 flex gap-2">
+                            <MicOffIcon v-if="user.isMuted" :width="24" :height="24" :class="mutedIconClass" />
                         </div>
                     </div>
                 </div>
             </div>
-        </template>
+        </Transition>
 
         <FloatingMiniVideo v-if="shouldShowMiniVideo" />
     </div>
@@ -139,18 +130,20 @@ const users = computed(() => {
 });
 
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
-const activeVideos = ref<Map<Guid, Track<Track.Kind>>>(new Map());
 const lastActiveStream = ref<{ userId: Guid; channelId: string } | null>(null);
+const focusedUserId = ref<Guid | null>(null);
+const isFullscreen = ref(true);
+const mediaChannelContainer = ref<HTMLElement | null>(null);
 
 function setVideoRef(el: Element | null | any, userId: Guid) {
     if (el instanceof HTMLVideoElement) {
         videoRefs.value.set(userId, el);
-        const track = activeVideos.value.get(userId);
+        const track = voice.videoTracks.get(userId);
         if (track) track.attach(el);
     } else if (el === null) {
         const oldEl = videoRefs.value.get(userId);
         if (oldEl) {
-            const track = activeVideos.value.get(userId);
+            const track = voice.videoTracks.get(userId);
             if (track) track.detach(oldEl);
         }
         videoRefs.value.delete(userId);
@@ -158,20 +151,26 @@ function setVideoRef(el: Element | null | any, userId: Guid) {
 }
 const mainVideoContainer = ref<HTMLElement | null>(null);
 
-function toggleFullscreen() {
-    const el = mainVideoContainer.value;
-    if (!el) return;
+function isSpeaking(uid: Guid) {
+    return voice.speaking.has(uid);
+}
 
-    if (!document.fullscreenElement) {
-        el.requestFullscreen().catch(err => {
-            console.warn("failed enter to fullscreen:", err);
-        });
+function hasVideo(uid: Guid) {
+    return voice.videoTracks.has(uid);
+}
+
+function toggleFocus(userId: Guid) {
+    if (focusedUserId.value === userId) {
+        focusedUserId.value = null;
     } else {
-        document.exitFullscreen().catch(err => {
-            console.warn("failed exit from fullscreen:", err);
-        });
+        focusedUserId.value = userId;
     }
 }
+
+function toggleFullscreen() {
+    isFullscreen.value = !isFullscreen.value;
+}
+
 async function togglePiP() {
     const userId = mainUserId.value;
     if (!userId) return;
@@ -190,39 +189,17 @@ async function togglePiP() {
     }
 }
 
-onMounted(() => {
-    /*voice.onVideoCreated.subscribe(({ track, userId }) => {
-        activeVideos.value.set(userId, track);
-        const el = videoRefs.value.get(userId);
-        if (el) track.attach(el);
-        if (selectedChannelId.value) {
-            lastActiveStream.value = { userId, channelId: selectedChannelId.value };
-        }
-    });
-
-    voice.onVideoDestroyed.subscribe(({ userId }: { userId: Guid }) => {
-        const track = activeVideos.value.get(userId);
-        const el = videoRefs.value.get(userId);
-        if (track && el) track.detach(el);
-        activeVideos.value.delete(userId);
-        if (lastActiveStream.value?.userId === userId) {
-            lastActiveStream.value = null;
-        }
-    });*/
-});
-
 onUnmounted(() => {
-    activeVideos.value.forEach((track, userId) => {
+    voice.videoTracks.forEach((track, userId) => {
         const el = videoRefs.value.get(userId);
         if (track && el) track.detach(el);
     });
-    activeVideos.value.clear();
     videoRefs.value.clear();
 });
 
 const shouldShowMiniVideo = computed(() => {
     const s = lastActiveStream.value;
-    return s !== null && activeVideos.value.has(s.userId) && selectedChannelId.value !== s.channelId;
+    return s !== null && voice.videoTracks.has(s.userId) && selectedChannelId.value !== s.channelId;
 });
 
 const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
@@ -230,11 +207,25 @@ const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
 );
 
 const mainStreamer = computed<IRealtimeChannelUserWithData | null>(() => {
-    if (!lastActiveStream.value) return null;
-    const { userId } = lastActiveStream.value;
-    if (activeVideos.value.has(userId)) {
-        return (users.value.get(userId) ?? null) as IRealtimeChannelUserWithData | null;
+    // Приоритет: focusedUserId, потом screencast, потом activeVideos
+    if (focusedUserId.value) {
+        const user = users.value.get(focusedUserId.value);
+        if (user) return user as IRealtimeChannelUserWithData;
     }
+    
+    // Ищем screencast
+    for (const [userId, user] of users.value) {
+        if (user.isScreenShare) {
+            return user as IRealtimeChannelUserWithData;
+        }
+    }
+    
+    // Или первый с видео
+    for (const [userId] of voice.videoTracks) {
+        const user = users.value.get(userId);
+        if (user) return user as IRealtimeChannelUserWithData;
+    }
+    
     return null;
 });
 
@@ -242,9 +233,13 @@ const mainUserId = computed(() => mainStreamer.value?.User.userId ?? null);
 
 const otherUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() => {
     if (!mainStreamer.value) return allUsers.value;
-    const mainId = lastActiveStream.value?.userId;
+    const mainId = mainStreamer.value.User.userId;
     return allUsers.value.filter(([id]) => id !== mainId);
 });
+
+const hasActiveStream = computed(() => !!mainStreamer.value);
+const speakingRingClass = 'ring-2 ring-lime-400/80 shadow-[0_0_15px_rgba(132,255,90,0.3)]';
+const mutedIconClass = 'text-red-400 drop-shadow-[0_0_4px_rgba(255,0,0,0.6)]';
 
 const gridStyle = computed(() => {
     const n = users.value.size;
@@ -333,5 +328,27 @@ const miniGridStyle = computed(() => {
 .animate-pulse-speak {
     animation: pulseSpeak 1.6s ease-in-out infinite !important;
     will-change: transform, box-shadow, opacity;
+}
+
+/* Transition animations */
+.stream-layout-enter-active,
+.stream-layout-leave-active {
+    transition: all 0.25s ease-in-out;
+}
+
+.stream-layout-enter-from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+}
+
+.stream-layout-leave-to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+}
+
+.stream-layout-enter-to,
+.stream-layout-leave-from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }
 </style>

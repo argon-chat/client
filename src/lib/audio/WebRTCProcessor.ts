@@ -13,21 +13,28 @@ export class WebRTCProcessor
   implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>
 {
   private bag: DisposableBag = new DisposableBag();
-  private worklets: AudioWorkletNode[];
+  private workletNodes: AudioWorkletNode[] = [];
   private audio: IAudioManagement;
+  private sourceNode?: MediaStreamAudioSourceNode;
+  private destinationNode?: MediaStreamAudioDestinationNode;
+
   constructor(audio: IAudioManagement) {
-    this.worklets = [];
     this.audio = audio;
   }
 
   name = "audio-processor";
+
   async init(opts: AudioProcessorOptions): Promise<void> {
     const { track } = opts;
+
+    if (!track) {
+      throw new Error("[WebRTCProcessor] Track is required for initialization");
+    }
 
     const prefs = usePreference();
 
     const sub = prefs.onforceToMonoChanged.subscribe((x) => {
-      for (const element of this.worklets) {
+      for (const element of this.workletNodes) {
         if (element.parameters.has("enabled")) {
           worklets.setEnabledVUNode(element, x);
         }
@@ -42,30 +49,36 @@ export class WebRTCProcessor
 
     worklets.setEnabledVUNode(w1, prefs.forceToMono);
 
-    this.worklets = [w1];
+    this.workletNodes = [w1];
+
+    await this.setupAudioPipeline(track);
+  }
+
+  private async setupAudioPipeline(track: MediaStreamTrack): Promise<void> {
+    const ctx = this.audio.getCurrentAudioContext();
 
     const inputStream = new MediaStream([track]);
-    const sourceNode = new MediaStreamAudioSourceNode(
-      this.audio.getCurrentAudioContext(),
-      {
-        mediaStream: inputStream,
-      },
-    );
-    sourceNode.connect(this.worklets[0]);
+    this.sourceNode = new MediaStreamAudioSourceNode(ctx, {
+      mediaStream: inputStream,
+    });
 
-    for (let i = 0; i < this.worklets.length - 1; i++) {
-      this.worklets[i].connect(this.worklets[i + 1]);
+    this.destinationNode = new MediaStreamAudioDestinationNode(ctx, {
+      channelCount: 2,
+    });
+
+    // Connect source to first worklet
+    this.sourceNode.connect(this.workletNodes[0]);
+
+    // Connect worklets in chain using AudioManager's method
+    this.audio.workletBranchByOrderConnect(this.workletNodes);
+
+    // Connect last worklet to destination
+    this.workletNodes[this.workletNodes.length - 1].connect(this.destinationNode);
+
+    const trackOut = this.destinationNode.stream.getAudioTracks()[0];
+    if (!trackOut) {
+      throw new Error("[WebRTCProcessor] Failed to create output track");
     }
-
-    const destinationNode = new MediaStreamAudioDestinationNode(
-      this.audio.getCurrentAudioContext(),
-      {
-        channelCount: 2,
-      },
-    );
-
-    this.worklets[this.worklets.length - 1].connect(destinationNode);
-    const trackOut = destinationNode.stream.getAudioTracks()[0];
 
     this.processedTrack = trackOut;
   }
@@ -73,12 +86,26 @@ export class WebRTCProcessor
     await this.destroy();
     await this.init(opts);
   }
+
   async destroy(): Promise<void> {
     await this.bag.asyncDispose();
+
     if (this.processedTrack) {
       this.processedTrack.stop();
       this.processedTrack = undefined;
     }
+
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+      this.sourceNode = undefined;
+    }
+
+    if (this.destinationNode) {
+      this.destinationNode.disconnect();
+      this.destinationNode = undefined;
+    }
+
+    this.workletNodes = [];
   }
 
   processedTrack?: MediaStreamTrack | undefined;

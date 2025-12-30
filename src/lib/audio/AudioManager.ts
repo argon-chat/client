@@ -1,6 +1,6 @@
 import { Subject, type Subscription } from "rxjs";
 import { v4 } from "uuid";
-import { ref, type Ref, watch } from "vue";
+import { ref, type Ref } from "vue";
 import { logger } from "../logger";
 import { Disposable } from "../disposables";
 import { WebRTCProcessor } from "./WebRTCProcessor";
@@ -8,6 +8,11 @@ import { WebRTCProcessor } from "./WebRTCProcessor";
 export type DeviceId = string;
 export type WorkledPath = string;
 export type WorkletId = string;
+
+const STORAGE_KEYS = {
+  INPUT_DEVICE: "inputDeviceId",
+  OUTPUT_DEVICE: "outputDeviceId",
+} as const;
 
 export interface IAudioManagement {
   createAudioElement(
@@ -42,11 +47,13 @@ export interface IAudioManagement {
   enumerateDevicesByKind(
     kind: "audioinput" | "videoinput" | "audiooutput",
   ): Promise<MediaDeviceInfo[]>;
+
+  dispose(): void;
 }
 
 export class AudioManagement implements IAudioManagement {
   private audioCtx: AudioContext = new AudioContext();
-  private worklets = new Map<WorkletId, AudioWorkletNode>();
+  private worklets = new Map<string, AudioWorkletNode>();
   private workletPaths = new Map<WorkletId, WorkledPath>();
   private mediaElements = new Set<HTMLMediaElement>();
 
@@ -60,23 +67,29 @@ export class AudioManagement implements IAudioManagement {
     this.loadSavedDevices();
   }
 
+  dispose(): void {
+    this.inputDevice$.complete();
+    this.outputDevice$.complete();
+    for (const worklet of this.worklets.values()) {
+      worklet.disconnect();
+    }
+    this.worklets.clear();
+    if (this.audioCtx.state !== "closed") {
+      this.audioCtx.close();
+    }
+  }
+
   private loadSavedDevices() {
-    const input = localStorage.getItem("inputDeviceId");
-    const output = localStorage.getItem("outputDeviceId");
+    const input = localStorage.getItem(STORAGE_KEYS.INPUT_DEVICE);
+    const output = localStorage.getItem(STORAGE_KEYS.OUTPUT_DEVICE);
 
-    logger.warn("inputDeviceId", input);
-    logger.warn("outputDeviceId", output);
-    if (input) this.setInputDevice(input);
-    if (output) this.setOutputDevice(output);
-
-    watch(this.inputDeviceId, (x, y) => {
-      logger.warn("changed input device, ", x, y);
-      this.setInputDevice(x);
-    });
-    watch(this.outputDeviceId, (x, y) => {
-      logger.warn("changed output device, ", x, y);
-      this.setOutputDevice(x);
-    });
+    logger.info("Loading saved devices:", { input, output });
+    if (input) {
+      this.inputDeviceId.value = input;
+    }
+    if (output) {
+      this.outputDeviceId.value = output;
+    }
   }
 
   async enumerateDevicesByKind(
@@ -92,7 +105,7 @@ export class AudioManagement implements IAudioManagement {
     logger.info("setInputDevice", deviceId);
     this.inputDeviceId.value = deviceId;
     this.inputDevice$.next(deviceId);
-    localStorage.setItem("inputDeviceId", deviceId);
+    localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, deviceId);
   }
 
   getOutputDevice(): Ref<DeviceId> {
@@ -112,21 +125,27 @@ export class AudioManagement implements IAudioManagement {
   }
 
   async createRawInputMediaStream(): Promise<MediaStream> {
-    return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 2,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        deviceId: this.getInputDevice().value,
-      },
-    });
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 2,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          deviceId: this.getInputDevice().value,
+        },
+      });
+    } catch (err) {
+      logger.error("[AudioManagement] Failed to get user media:", err);
+      throw err;
+    }
   }
 
   private setOutputDevice(deviceId: DeviceId) {
+    logger.info("setOutputDevice", deviceId);
     this.outputDeviceId.value = deviceId;
     this.outputDevice$.next(deviceId);
-    localStorage.setItem("outputDeviceId", deviceId);
+    localStorage.setItem(STORAGE_KEYS.OUTPUT_DEVICE, deviceId);
     for (const el of this.mediaElements) {
       this.applySinkIdToElement(el);
     }
@@ -137,8 +156,9 @@ export class AudioManagement implements IAudioManagement {
     if (deviceId && typeof el.setSinkId === "function") {
       try {
         await el.setSinkId(deviceId);
+        logger.debug("[AudioManagement] Applied sinkId:", deviceId);
       } catch (err) {
-        console.warn("[AudioManagement] Failed to apply sinkId:", err);
+        logger.warn("[AudioManagement] Failed to apply sinkId:", err);
       }
     }
   }
@@ -235,11 +255,12 @@ export class AudioManagement implements IAudioManagement {
     }
 
     const node = new AudioWorkletNode(ctx, name, options);
-    this.worklets.set(name, node);
+    const uniqueId = `${name}-${v4()}`;
+    this.worklets.set(uniqueId, node);
 
     const disposable = new Disposable<AudioWorkletNode>(node, async (node) => {
       node.disconnect();
-      this.worklets.delete(name);
+      this.worklets.delete(uniqueId);
     });
     return disposable;
   }
