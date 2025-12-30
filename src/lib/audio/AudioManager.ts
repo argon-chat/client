@@ -133,6 +133,7 @@ export class AudioManagement implements IAudioManagement {
           noiseSuppression: false,
           autoGainControl: false,
           deviceId: this.getInputDevice().value,
+          sampleRate: 48000,
         },
       });
     } catch (err) {
