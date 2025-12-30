@@ -1,105 +1,80 @@
 <template>
     <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-6 transition-all duration-300">
         <Transition name="stream-layout" mode="out-in">
+            <!-- Stream Mode: Main video + horizontal thumbnails -->
             <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0 items-center justify-center">
-                <div class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300" 
-                    :style="{ maxHeight: isFullscreen ? '100%' : '31rem', maxWidth: '100%', width: '100%', flex: isFullscreen ? '1' : 'none' }">
-                    <video v-if="mainUserId && hasVideo(mainUserId)" 
-                        :ref="(el) => mainUserId && setVideoRef(el, mainUserId)"
-                        autoplay playsinline muted class="w-full h-full object-contain" />
-
-                    <SmartArgonAvatar v-else-if="mainStreamer" :user-id="mainStreamer.User.userId" :overrided-size="180"
-                        class="transition-transform duration-200 group-hover:scale-110" />
-
-                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-2 px-3">
-                        <span class="text-white font-semibold">
-                            {{ mainStreamer.User.displayName }}
-                            <span v-if="mainStreamer.isScreenShare" class="text-xs text-lime-400 ml-2">📺 Sharing screen</span>
-                        </span>
-                    </div>
-
-                    <div class="absolute top-2 left-2 flex gap-2">
-                        <MicOffIcon v-if="mainStreamer.isMuted" :width="24" :height="24" :class="mutedIconClass" />
-                    </div>
-                </div>
+                <ParticipantCard
+                    :user-id="mainStreamer.User.userId"
+                    :display-name="mainStreamer.User.displayName"
+                    :is-muted="isMuted(mainStreamer.User.userId)"
+                    :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
+                    :is-screen-sharing="mainStreamer.isScreenShare"
+                    :has-video="hasVideo(mainStreamer.User.userId)"
+                    :avatar-size="180"
+                    class="flex-1 min-h-0"
+                    :custom-style="{ maxWidth: '100%', width: '100%' }"
+                    name-class="text-base"
+                    :centered="false"
+                    icon-position="top-2 left-2"
+                    @video-ref="setVideoRef" />
 
                 <div class="flex flex-row gap-3 overflow-x-auto w-full" style="max-height: 10rem;">
-                    <div v-for="[userId, user] in otherUsers" :key="userId"
-                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer flex-shrink-0"
-                        style="width: 15rem; height: 8.5rem;"
-                        :class="{ [speakingRingClass]: isSpeaking(userId) }" 
-                        @click="toggleFocus(userId)">
-                        <video v-if="hasVideo(userId)" 
-                            :ref="el => setVideoRef(el, userId)" 
-                            autoplay playsinline muted
-                            class="w-full h-full object-cover" />
-
-                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="90"
-                            class="transition-transform duration-200 group-hover:scale-110" />
-
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-1 px-2">
-                            <span class="text-white font-semibold text-xs truncate block">{{ user.User.displayName }}</span>
-                        </div>
-
-                        <div class="absolute top-1 right-1 flex gap-1">
-                            <MicOffIcon v-if="user.isMuted" :width="18" :height="18" :class="mutedIconClass" />
-                        </div>
-                    </div>
+                    <ParticipantCard
+                        v-for="[userId, user] in otherUsers"
+                        :key="userId"
+                        :user-id="userId"
+                        :display-name="user.User.displayName"
+                        :is-speaking="isSpeaking(userId)"
+                        :is-muted="isMuted(userId)"
+                        :is-headphone-muted="isHeadphoneMuted(userId)"
+                        :has-video="hasVideo(userId)"
+                        :avatar-size="90"
+                        :icon-size="18"
+                        class-name="flex-shrink-0"
+                        :custom-style="{ width: '15rem', height: '8.5rem' }"
+                        name-class="text-xs"
+                        icon-position="top-1 right-1"
+                        @click="toggleFocus"
+                        @video-ref="setVideoRef" />
                 </div>
             </div>
 
+            <!-- Grid Mode: All users in grid or vertical layout -->
             <div v-else key="grid-mode" class="flex-1 flex items-center justify-center">
+                <!-- 2 Users: Vertical Stack -->
                 <div v-if="allUsers.length === 2" class="flex gap-6 items-center justify-center" style="flex-direction: column;">
-                    <div v-for="[userId, user] in allUsers" :key="userId"
-                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer flex-shrink-0"
-                        style="width: 40rem; min-width: 40rem; aspect-ratio: 16/9;"
-                        :class="{ 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)]': isSpeaking(userId) }" 
-                        @click="toggleFocus(userId)">
-                        <video v-if="hasVideo(userId)" 
-                            :ref="el => setVideoRef(el, userId)" 
-                            autoplay playsinline muted
-                            class="w-full h-full object-cover" />
-
-                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="120"
-                            class="transition-transform duration-200 group-hover:scale-110" />
-
-                        <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-black/70 to-transparent py-1">
-                            <span class="text-white font-semibold text-sm">{{ user.User.displayName }}</span>
-                        </div>
-
-                        <div class="absolute top-2 right-2 flex gap-2">
-                            <MicOffIcon v-if="user.isMuted" :width="24" :height="24" :class="mutedIconClass" />
-                        </div>
-                    </div>
+                    <ParticipantCard
+                        v-for="[userId, user] in allUsers"
+                        :key="userId"
+                        :user-id="userId"
+                        :display-name="user.User.displayName"
+                        :is-speaking="isSpeaking(userId)"
+                        :is-muted="isMuted(userId)"
+                        :is-headphone-muted="isHeadphoneMuted(userId)"
+                        :has-video="hasVideo(userId)"
+                        class-name="flex-shrink-0"
+                        :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }"
+                        @click="toggleFocus"
+                        @video-ref="setVideoRef" />
                 </div>
 
-                <div v-else class="grid gap-4 place-items-center place-content-center" style="grid-auto-rows: minmax(min-content, max-content);"
-                    :class="{
-                        'grid-cols-1': allUsers.length === 1,
-                        'grid-cols-2': allUsers.length >= 3 && allUsers.length <= 4,
-                        'grid-cols-3': allUsers.length > 4
-                    }">
-                    <div v-for="[userId, user] in allUsers" :key="userId"
-                        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer w-full"
-                        :style="{ aspectRatio: '16/9', maxHeight: allUsers.length === 1 ? '25rem' : '19rem', minWidth: allUsers.length === 1 ? '28rem' : '20rem', minHeight: allUsers.length === 1 ? '15.75rem' : '11.25rem' }"
-                        :class="{ 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)]': isSpeaking(userId) }" 
-                        @click="toggleFocus(userId)">
-                        <video v-if="hasVideo(userId)" 
-                            :ref="el => setVideoRef(el, userId)" 
-                            autoplay playsinline muted
-                            class="w-full h-full object-cover" />
-
-                        <SmartArgonAvatar v-else :user-id="userId" :overrided-size="120"
-                            class="transition-transform duration-200 group-hover:scale-110" />
-
-                        <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-black/70 to-transparent py-1">
-                            <span class="text-white font-semibold text-sm">{{ user.User.displayName }}</span>
-                        </div>
-
-                        <div class="absolute top-2 right-2 flex gap-2">
-                            <MicOffIcon v-if="user.isMuted" :width="24" :height="24" :class="mutedIconClass" />
-                        </div>
-                    </div>
+                <!-- Other: Grid Layout -->
+                <div v-else class="grid gap-4 place-items-center place-content-center" 
+                    style="grid-auto-rows: minmax(min-content, max-content);"
+                    :class="gridClasses">
+                    <ParticipantCard
+                        v-for="[userId, user] in allUsers"
+                        :key="userId"
+                        :user-id="userId"
+                        :display-name="user.User.displayName"
+                        :is-speaking="isSpeaking(userId)"
+                        :is-muted="isMuted(userId)"
+                        :is-headphone-muted="isHeadphoneMuted(userId)"
+                        :has-video="hasVideo(userId)"
+                        class-name="w-full"
+                        :custom-style="gridCardStyle(allUsers.length)"
+                        @click="toggleFocus"
+                        @video-ref="setVideoRef" />
                 </div>
             </div>
         </Transition>
@@ -109,33 +84,125 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 import { IRealtimeChannelUserWithData, usePoolStore } from "@/store/poolStore";
 import type { Guid } from "@argon-chat/ion.webcore";
-import SmartArgonAvatar from "./SmartArgonAvatar.vue";
 import FloatingMiniVideo from "./FloatingMiniVideo.vue";
-import type { Track } from "livekit-client";
-import { logger } from "@/lib/logger";
-import { MicOffIcon, ScreenShare } from "lucide-vue-next";
+import ParticipantCard from "./home/views/ParticipantCard.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
+import { useSystemStore } from "@/store/systemStore";
 
 const pool = usePoolStore();
 const voice = useUnifiedCall();
+const sys = useSystemStore();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
+const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
+const focusedUserId = ref<Guid | null>(null);
+const mediaChannelContainer = ref<HTMLElement | null>(null);
+
+// Computed properties
 const users = computed(() => {
     const ch = selectedChannelId.value ? pool.realtimeChannelUsers.get(selectedChannelId.value) : null;
     return ch?.Users ?? new Map<Guid, IRealtimeChannelUserWithData>();
 });
 
-const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
-const lastActiveStream = ref<{ userId: Guid; channelId: string } | null>(null);
-const focusedUserId = ref<Guid | null>(null);
-const isFullscreen = ref(true);
-const mediaChannelContainer = ref<HTMLElement | null>(null);
+const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
+    Array.from(users.value as Map<Guid, IRealtimeChannelUserWithData>)
+);
 
-function setVideoRef(el: Element | null | any, userId: Guid) {
+const mainStreamer = computed<IRealtimeChannelUserWithData | null>(() => {
+    // Priority: focusedUserId -> screencast -> first video
+    if (focusedUserId.value) {
+        const user = users.value.get(focusedUserId.value);
+        if (user) return user as IRealtimeChannelUserWithData;
+    }
+    
+    for (const [userId, user] of users.value) {
+        if (user.isScreenShare) return user as IRealtimeChannelUserWithData;
+    }
+    
+    for (const [userId] of voice.videoTracks) {
+        const user = users.value.get(userId);
+        if (user) return user as IRealtimeChannelUserWithData;
+    }
+    
+    return null;
+});
+
+const otherUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() => {
+    if (!mainStreamer.value) return allUsers.value;
+    const mainId = mainStreamer.value.User.userId;
+    return allUsers.value.filter(([id]) => id !== mainId);
+});
+
+const hasActiveStream = computed(() => !!mainStreamer.value);
+
+const gridClasses = computed(() => ({
+    'grid-cols-1': allUsers.value.length === 1,
+    'grid-cols-2': allUsers.value.length >= 3 && allUsers.value.length <= 4,
+    'grid-cols-3': allUsers.value.length > 4
+}));
+
+const gridCardStyle = (userCount: number) => ({
+    aspectRatio: '16/9',
+    maxHeight: userCount === 1 ? '25rem' : '19rem',
+    minWidth: userCount === 1 ? '28rem' : '20rem',
+    minHeight: userCount === 1 ? '15.75rem' : '11.25rem'
+});
+
+const shouldShowMiniVideo = computed(() => false); // Placeholder for future implementation
+
+const localUserId = computed<Guid | null>(() => {
+    const r = voice.room;
+    return r?.localParticipant?.identity ?? null;
+});
+
+// Helper functions - reactive computed maps for mute states
+const muteStates = computed(() => {
+    const states = new Map<Guid, { muted: boolean; headphoneMuted: boolean }>();
+    
+    // Remote participants from voice.participants first
+    for (const [uid, participant] of voice.participants) {
+        states.set(uid, {
+            muted: participant.muted,
+            headphoneMuted: participant.mutedAll
+        });
+    }
+    
+    // Local user overwrites (priority)
+    const localId = localUserId.value;
+    if (localId) {
+        states.set(localId, {
+            muted: sys.microphoneMuted,
+            headphoneMuted: sys.headphoneMuted
+        });
+    }
+    
+    return states;
+});
+
+const isSpeaking = (uid: Guid) => voice.speaking.has(uid);
+const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
+
+const isMuted = (uid: Guid) => {
+    const localId = localUserId.value;
+    if (localId && uid === localId) return sys.microphoneMuted;
+    return muteStates.value.get(uid)?.muted ?? false;
+};
+
+const isHeadphoneMuted = (uid: Guid) => {
+    const localId = localUserId.value;
+    if (localId && uid === localId) return sys.headphoneMuted;
+    return muteStates.value.get(uid)?.headphoneMuted ?? false;
+};
+
+const toggleFocus = (userId: Guid) => {
+    focusedUserId.value = focusedUserId.value === userId ? null : userId;
+};
+
+const setVideoRef = (el: Element | null | any, userId: Guid) => {
     if (el instanceof HTMLVideoElement) {
         videoRefs.value.set(userId, el);
         const track = voice.videoTracks.get(userId);
@@ -148,47 +215,9 @@ function setVideoRef(el: Element | null | any, userId: Guid) {
         }
         videoRefs.value.delete(userId);
     }
-}
-const mainVideoContainer = ref<HTMLElement | null>(null);
+};
 
-function isSpeaking(uid: Guid) {
-    return voice.speaking.has(uid);
-}
-
-function hasVideo(uid: Guid) {
-    return voice.videoTracks.has(uid);
-}
-
-function toggleFocus(userId: Guid) {
-    if (focusedUserId.value === userId) {
-        focusedUserId.value = null;
-    } else {
-        focusedUserId.value = userId;
-    }
-}
-
-function toggleFullscreen() {
-    isFullscreen.value = !isFullscreen.value;
-}
-
-async function togglePiP() {
-    const userId = mainUserId.value;
-    if (!userId) return;
-
-    const video = videoRefs.value.get(userId);
-    if (!video) return;
-
-    try {
-        if (document.pictureInPictureElement) {
-            await document.exitPictureInPicture();
-        } else {
-            await video.requestPictureInPicture();
-        }
-    } catch (err) {
-        console.warn("failed to toggle PiP:", err);
-    }
-}
-
+// Cleanup
 onUnmounted(() => {
     voice.videoTracks.forEach((track, userId) => {
         const el = videoRefs.value.get(userId);
@@ -196,140 +225,9 @@ onUnmounted(() => {
     });
     videoRefs.value.clear();
 });
-
-const shouldShowMiniVideo = computed(() => {
-    const s = lastActiveStream.value;
-    return s !== null && voice.videoTracks.has(s.userId) && selectedChannelId.value !== s.channelId;
-});
-
-const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
-    Array.from(users.value as Map<Guid, IRealtimeChannelUserWithData>)
-);
-
-const mainStreamer = computed<IRealtimeChannelUserWithData | null>(() => {
-    // Приоритет: focusedUserId, потом screencast, потом activeVideos
-    if (focusedUserId.value) {
-        const user = users.value.get(focusedUserId.value);
-        if (user) return user as IRealtimeChannelUserWithData;
-    }
-    
-    // Ищем screencast
-    for (const [userId, user] of users.value) {
-        if (user.isScreenShare) {
-            return user as IRealtimeChannelUserWithData;
-        }
-    }
-    
-    // Или первый с видео
-    for (const [userId] of voice.videoTracks) {
-        const user = users.value.get(userId);
-        if (user) return user as IRealtimeChannelUserWithData;
-    }
-    
-    return null;
-});
-
-const mainUserId = computed(() => mainStreamer.value?.User.userId ?? null);
-
-const otherUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() => {
-    if (!mainStreamer.value) return allUsers.value;
-    const mainId = mainStreamer.value.User.userId;
-    return allUsers.value.filter(([id]) => id !== mainId);
-});
-
-const hasActiveStream = computed(() => !!mainStreamer.value);
-const speakingRingClass = 'ring-2 ring-lime-400/80 shadow-[0_0_15px_rgba(132,255,90,0.3)]';
-const mutedIconClass = 'text-red-400 drop-shadow-[0_0_4px_rgba(255,0,0,0.6)]';
-
-const gridStyle = computed(() => {
-    const n = users.value.size;
-    if (n === 0) return "";
-    const cols = Math.ceil(Math.sqrt(n));
-    const rows = Math.ceil(n / cols);
-    return `
-    grid-template-columns: repeat(${cols}, minmax(0, 1fr));
-    grid-template-rows: repeat(${rows}, minmax(0, auto));
-  `;
-});
-
-const miniGridStyle = computed(() => {
-    const n = otherUsers.value.length;
-    const cols = Math.min(n, 4);
-    return `
-    grid-template-columns: repeat(${cols}, minmax(0, 1fr));
-    height: 120px;
-  `;
-});
 </script>
 
 <style scoped>
-.media-grid {
-    width: 100%;
-    height: 100%;
-}
-
-.user-wrapper {
-    position: relative;
-    width: 100%;
-}
-
-.user-tile {
-    width: 100%;
-    height: auto;
-    backdrop-filter: blur(8px);
-    transform-origin: center;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.user-tile:hover {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-}
-
-.aspect-video {
-    aspect-ratio: 16 / 9;
-    width: 100%;
-}
-
-.main-streamer video {
-    object-fit: contain;
-    background: black;
-}
-
-.other-users {
-    width: 100%;
-    justify-items: center;
-    align-items: center;
-}
-
-.other-users .user-tile {
-    aspect-ratio: 16/9;
-    width: 100%;
-    max-width: 220px;
-    height: auto;
-}
-
-@keyframes pulseSpeak {
-
-    0%,
-    100% {
-        opacity: 0.5;
-        transform: scale(1);
-        box-shadow: 0 0 8px 4px rgba(132, 255, 90, 0.25);
-    }
-
-    50% {
-        opacity: 1;
-        transform: scale(1.01);
-        box-shadow: 0 0 10px 6px rgba(132, 255, 90, 0.5);
-    }
-}
-
-.animate-pulse-speak {
-    animation: pulseSpeak 1.6s ease-in-out infinite !important;
-    will-change: transform, box-shadow, opacity;
-}
-
 /* Transition animations */
 .stream-layout-enter-active,
 .stream-layout-leave-active {
@@ -352,3 +250,4 @@ const miniGridStyle = computed(() => {
     transform: translateY(0) scale(1);
 }
 </style>
+

@@ -45,9 +45,12 @@
                     :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
                     class="w-7 h-7 rounded-full mr-3 transition" />
                   <span>{{ user.User.displayName }}</span>
-                  <MicOffIcon v-if="user.isMuted" width="20" height="20" style="margin-left: auto;" />
-                  <ScreenShare v-if="user.isScreenShare" width="20" height="20" style="margin-left: auto;" />
-                  <RadiusIcon v-if="user.isRecording" width="20" height="20" style="margin-left: auto; color: red;" />
+                  <div class="flex items-center gap-1" style="margin-left: auto;">
+                    <MicOffIcon v-if="isMuted(user.userId)" width="16" height="16" />
+                    <HeadphoneOffIcon v-if="isHeadphoneMuted(user.userId)" width="16" height="16" />
+                    <ScreenShare v-if="user.isScreenShare" width="16" height="16" />
+                    <RadiusIcon v-if="user.isRecording" width="16" height="16" style="color: red;" />
+                  </div>
                 </li>
               </ContextMenuTrigger>
               <ContextMenuContent class="w-64">
@@ -86,6 +89,7 @@ import {
   Volume2Icon,
   AntennaIcon,
   MicOffIcon,
+  HeadphoneOffIcon,
   ScreenShare,
   RadiusIcon,
 } from "lucide-vue-next";
@@ -109,16 +113,38 @@ import { usePexStore } from "@/store/permissionStore";
 import { useApi } from "@/store/apiStore";
 import { ChannelType } from "@/lib/glue/argonChat";
 import VolumeSlider from "./VolumeSlider.vue";
-import { watch } from "vue";
+import { watch, computed } from "vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
+import { useSystemStore } from "@/store/systemStore";
+import type { Guid } from "@argon-chat/ion.webcore";
 
 const servers = useSpaceStore();
 const pool = usePoolStore();
 const voice = useUnifiedCall();
+const sys = useSystemStore();
 const me = useMe();
 const pex = usePexStore();
 const api = useApi();
 const { t } = useLocale();
+
+const localUserId = computed<Guid | null>(() => {
+  const r = voice.room;
+  return r?.localParticipant?.identity ?? null;
+});
+
+const isMuted = (uid: Guid) => {
+  const localId = localUserId.value;
+  if (localId && uid === localId) return sys.microphoneMuted;
+  const participant = voice.participants.get(uid);
+  return participant?.muted ?? false;
+};
+
+const isHeadphoneMuted = (uid: Guid) => {
+  const localId = localUserId.value;
+  if (localId && uid === localId) return sys.headphoneMuted;
+  const participant = voice.participants.get(uid);
+  return participant?.mutedAll ?? false;
+};
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
