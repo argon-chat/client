@@ -141,7 +141,6 @@ export class AudioManagement implements IAudioManagement {
       throw err;
     }
   }
-
   private setOutputDevice(deviceId: DeviceId) {
     logger.info("setOutputDevice", deviceId);
     this.outputDeviceId.value = deviceId;
