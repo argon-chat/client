@@ -427,6 +427,16 @@
   "event_user_blocked": "ユーザーをブロックしました。",
   "event_user_unblocked": "ユーザーのブロックを解除しました。",
 
+  "choose_server_type": "サーバータイプを選択",
+  "enterprise_only": "エンタープライズのみ",
+  "choose": "選択",
+  "message": "メッセージ",
+  "dial_pad": "ダイヤルパッド",
+  "decline": "拒否",
+  "and": "と",
+  "recording": "録音中",
+  "save": "保存",
+
   "hideapptotray": "トレイに最小化",
   "hideapptotray_desc": "アプリを終了せず、システムトレイに最小化します。",
 
@@ -442,7 +452,45 @@
   "devmode": "開発者モード",
   "devmode_desc": "開発者向け機能、診断、実験的な設定を有効にします。",
 
+  "sentrydebug": "Sentryデバッグ",
+  "sentrydebug_desc": "",
+
+  "extendscontentintotitlebar": "タイトルバーにコンテンツを拡張",
+  "extendscontentintotitlebar_desc": "",
+
+  "systembackdrop": "背景効果",
+  "systembackdrop_desc": "",
+
+  "astlargs": "ASTL Args",
+  "astlargs_desc": "",
+
+  "exclusiveuserdatafolderaccess": "ユーザーデータフォルダー排他アクセス",
+  "exclusiveuserdatafolderaccess_desc": "",
+
+  "lktracemode": "LKトレースモード",
+  "lktracemode_desc": "",
+
+  "appDev": "開発設定",
+
   "restart_required": "再起動が必要です",
-  "restart_required_global": "変更を適用するには再起動が必要です"
+  "restart_required_global": "変更を適用するには再起動が必要です",
+
+  "hotkey_admin_warning": "管理者レベルのアプリケーションがアクティブな場合、ホットキーはバックグラウンドで動作しません。",
+  "add_hotkey": "ホットキーを追加",
+  "hotkey_action": "アクション",
+  "hotkey_mode": "ホットキーモード",
+  "hotkey.trigger": "トリガー",
+  "hotkey.hold": "長押し",
+  "hotkey.toggle": "切り替え",
+  "change_hotkey": "ホットキーを変更",
+  "record_hotkey": "ホットキーを記録",
+
+  "usegetkeyboardstate": "KeyboardStateを使用",
+  "usegetkeyboardstate_desc": "ホットキーに User32.GetKeyState の代わりに User32.GetKeyboardState を使用します",
+
+  "displayfps": "FPSを表示",
+  "displayfps_desc": "詳細なFPS情報を含むウィジェットを有効にする",
+  "autolaunchdevtools": "DevToolsを自動起動",
+  "autolaunchdevtools_desc": ""
 
 }

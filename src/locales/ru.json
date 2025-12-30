@@ -427,6 +427,16 @@
   "event_user_blocked": "Пользователь заблокирован.",
   "event_user_unblocked": "Пользователь разблокирован.",
 
+  "choose_server_type": "Выберите тип сервера",
+  "enterprise_only": "Только для предприятий",
+  "choose": "Выбрать",
+  "message": "Сообщение",
+  "dial_pad": "Цифровая клавиатура",
+  "decline": "Отклонить",
+  "and": "и",
+  "recording": "Запись",
+  "save": "Сохранить",
+
   "hideapptotray": "Сворачивать в трей",
   "hideapptotray_desc": "Приложение сворачивается в системный трей вместо закрытия.",
 
@@ -442,8 +452,45 @@
   "devmode": "Режим разработчика",
   "devmode_desc": "Включает инструменты разработчика, диагностику и экспериментальные функции.",
 
-  "restart_required": "Требуется перезапуск",
-  "restart_required_global": "Для применения изменений требуется перезапуск приложения"
+  "sentrydebug": "Отладка Sentry",
+  "sentrydebug_desc": "",
 
+  "extendscontentintotitlebar": "Расширить содержимое в заголовок",
+  "extendscontentintotitlebar_desc": "",
+
+  "systembackdrop": "Фоновый эффект",
+  "systembackdrop_desc": "",
+
+  "astlargs": "ASTL Args",
+  "astlargs_desc": "",
+
+  "exclusiveuserdatafolderaccess": "Эксклюзивный доступ к папке данных",
+  "exclusiveuserdatafolderaccess_desc": "",
+
+  "lktracemode": "LK TraceMode",
+  "lktracemode_desc": "",
+
+  "appDev": "Настройки разработки",
+
+  "restart_required": "Требуется перезапуск",
+  "restart_required_global": "Для применения изменений требуется перезапуск приложения",
+
+  "hotkey_admin_warning": "Горячие клавиши не работают в фоновом режиме, когда активно приложение с правами администратора.",
+  "add_hotkey": "Добавить горячую клавишу",
+  "hotkey_action": "Действие",
+  "hotkey_mode": "Режим горячей клавиши",
+  "hotkey.trigger": "Переключение",
+  "hotkey.hold": "Удержание",
+  "hotkey.toggle": "Переключать",
+  "change_hotkey": "Изменить горячую клавишу",
+  "record_hotkey": "Записать горячую клавишу",
+
+  "usegetkeyboardstate": "Использовать KeyboardState",
+  "usegetkeyboardstate_desc": "Использует User32.GetKeyboardState вместо User32.GetKeyState для горячих клавиш",
+
+  "displayfps": "Отображать FPS",
+  "displayfps_desc": "Включить виджет с подробной информацией о FPS",
+  "autolaunchdevtools": "Автозапуск DevTools",
+  "autolaunchdevtools_desc": ""
 
 }

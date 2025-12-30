@@ -425,6 +425,17 @@
   "event_friendship_removed": "Ձեզ հեռացրել են ընկերներից։",
   "event_user_blocked": "Օգտատերը արգելափակվել է։",
   "event_user_unblocked": "Օգտատերը ապայգելափակվել է։",
+
+  "choose_server_type": "Ընտրեք սերվերի տեսակը",
+  "enterprise_only": "Միայն ձեռնարկությունների համար",
+  "choose": "Ընտրել",
+  "message": "Հաղորդագրություն",
+  "dial_pad": "Թվային ստեղնաշար",
+  "decline": "Մերժել",
+  "and": "և",
+  "recording": "Ձայնագրում",
+  "save": "Պահպանել",
+
   "hideapptotray": "Թաքցնել համակարգային թրեյում",
   "hideapptotray_desc": "Ծրագիրը փակելու փոխարեն տեղափոխվում է համակարգային թրեյ։",
   "lowrammode": "Ցածր հիշողության ռեժիմ",
@@ -435,6 +446,45 @@
   "ignoresystemproxy_desc": "Օգտագործում է ուղիղ ցանցային միացում՝ անտեսելով proxy-ի համակարգային կարգավորումները։",
   "devmode": "Ծրագրավորողի ռեժիմ",
   "devmode_desc": "Միացնում է ծրագրավորողի գործիքները, ախտորոշումը և փորձարարական հնարավորությունները։",
+
+  "sentrydebug": "Sentry հետագայում",
+  "sentrydebug_desc": "",
+
+  "extendscontentintotitlebar": "Բովանդակությունը գլխավոր գոտիում",
+  "extendscontentintotitlebar_desc": "",
+
+  "systembackdrop": "Համակարգային հետևանք",
+  "systembackdrop_desc": "",
+
+  "astlargs": "ASTL պարամետրեր",
+  "astlargs_desc": "",
+
+  "exclusiveuserdatafolderaccess": "Գերակայություն տվյալների փակագծին",
+  "exclusiveuserdatafolderaccess_desc": "",
+
+  "lktracemode": "LK հետևումի ռեժիմ",
+  "lktracemode_desc": "",
+
+  "appDev": "Զարգացման կարգավորումներ",
+
   "restart_required": "Պահանջվում է վերագործարկում",
-  "restart_required_global": "Փոփոխությունները կիրառելու համար անհրաժեշտ է վերագործարկել ծրագիրը"
+  "restart_required_global": "Փոփոխությունները կիրառելու համար անհրազեշտ է վերագործարկել ծրագիրը",
+
+  "hotkey_admin_warning": "Շտապ ստեղները չեն աշխատում ֆոնում, երբ ակտիվ է ադմինիստրատորի մակարդակի կիրառությունը։",
+  "add_hotkey": "Ավելացնել շտապ ստեղն",
+  "hotkey_action": "Գործողություն",
+  "hotkey_mode": "Շտապ ստեղնի ռեժիմ",
+  "hotkey.trigger": "Ակտիվացում",
+  "hotkey.hold": "Պահելու պահ",
+  "hotkey.toggle": "Փոխարինել",
+  "change_hotkey": "Փոխել շտապ ստեղնը",
+  "record_hotkey": "Գրանցել շտապ ստեղնը",
+
+  "usegetkeyboardstate": "Օգտագործել KeyboardState",
+  "usegetkeyboardstate_desc": "Օգտագործում է User32.GetKeyboardState User32.GetKeyState-ի փոխարեն շտապ ստեղների համար",
+
+  "displayfps": "Ցույց տալ FPS",
+  "displayfps_desc": "Միացնել վիդժետը մանրամասն FPS տեղեկություններով",
+  "autolaunchdevtools": "Ավտոմատ մեկնարկել DevTools",
+  "autolaunchdevtools_desc": ""
 }

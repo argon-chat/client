@@ -429,6 +429,16 @@
   "event_user_blocked": "Моряк отправлен в бездну!",
   "event_user_unblocked": "Моряку позволено вернуться на палубу!",
 
+  "choose_server_type": "Выбери тип галеона",
+  "enterprise_only": "Только для капитанов флота",
+  "choose": "Взять курс!",
+  "message": "Послание",
+  "dial_pad": "Морская азбука",
+  "decline": "Отвергнуть",
+  "and": "да",
+  "recording": "Пишем в вахтенный журнал",
+  "save": "Записать в судовой журнал",
+
   "hideapptotray": "Спрятать в трюм",
   "hideapptotray_desc": "Прячет приложение в трей, а не выбрасывает за борт при закрытии.",
 
@@ -444,9 +454,45 @@
   "devmode": "Режим корабельного мастера",
   "devmode_desc": "Открывает тайные рычаги, отладку и опасные экспериментальные штуки.",
 
+  "sentrydebug": "Отладка капитанского дозора",
+  "sentrydebug_desc": "",
+
+  "extendscontentintotitlebar": "Растянуть содержимое на флагшток",
+  "extendscontentintotitlebar_desc": "",
+
+  "systembackdrop": "Фоновой туман",
+  "systembackdrop_desc": "",
+
+  "astlargs": "Аргументы ASTL",
+  "astlargs_desc": "",
+
+  "exclusiveuserdatafolderaccess": "Эксклюзивный доступ к сундуку данных",
+  "exclusiveuserdatafolderaccess_desc": "",
+
+  "lktracemode": "Режим отслеживания LK",
+  "lktracemode_desc": "",
+
+  "appDev": "Настройки судостроения",
 
   "restart_required": "Нужен перезапуск",
-  "restart_required_global": "Чтобы изменения вступили в силу, придётся перезапустить корабль"
+  "restart_required_global": "Чтобы изменения вступили в силу, придётся перезапустить корабль",
 
+  "hotkey_admin_warning": "Боевые команды не работают за бортом, если запущен адмиральский флагман.",
+  "add_hotkey": "Добавить боевую команду",
+  "hotkey_action": "Действие",
+  "hotkey_mode": "Режим команды",
+  "hotkey.trigger": "По сигналу",
+  "hotkey.hold": "Удержание",
+  "hotkey.toggle": "Переключать",
+  "change_hotkey": "Сменить команду",
+  "record_hotkey": "Записать команду",
+
+  "usegetkeyboardstate": "Использовать KeyboardState",
+  "usegetkeyboardstate_desc": "Использует User32.GetKeyboardState вместо User32.GetKeyState для горячих клавиш",
+
+  "displayfps": "Показывать скорость ветра (FPS)",
+  "displayfps_desc": "Включить виджет с подробной информацией о FPS",
+  "autolaunchdevtools": "Автозапуск инструментов мастера",
+  "autolaunchdevtools_desc": ""
 
 }
