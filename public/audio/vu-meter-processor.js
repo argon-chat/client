@@ -3,6 +3,8 @@ class VUMeterProcessor extends AudioWorkletProcessor {
         super();
         this._rmsL = 0;
         this._rmsR = 0;
+        this._frameCount = 0;
+        this._updateInterval = 4; // Update every 4 frames (~60Hz at 48kHz/128 buffer)
     }
 
     process(inputs) {
@@ -27,10 +29,14 @@ class VUMeterProcessor extends AudioWorkletProcessor {
         this._rmsL = this._rmsL * 0.85 + l * 0.15;
         this._rmsR = this._rmsR * 0.85 + r * 0.15;
 
-        this.port.postMessage({
-            left: this._rmsL,
-            right: this._rmsR
-        });
+        // Only send message every N frames to reduce main thread load
+        if (++this._frameCount >= this._updateInterval) {
+            this._frameCount = 0;
+            this.port.postMessage({
+                left: this._rmsL,
+                right: this._rmsR
+            });
+        }
 
         return true;
     }
