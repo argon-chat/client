@@ -1,45 +1,61 @@
 class VUMeterProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
-        this._rmsL = 0;
-        this._rmsR = 0;
-        this._frameCount = 0;
-        this._updateInterval = 4; // Update every 4 frames (~60Hz at 48kHz/128 buffer)
+
+        this._vu = new Float32Array(2); // [L, R]
+
+        this._envL = 0;
+        this._envR = 0;
+
+        this._samplesSincePost = 0;
+        this._samplesPerUpdate = sampleRate / 60; // ~60 Hz
+
+        this._attack = 0.15;
+        this._release = 0.85;
     }
 
     process(inputs) {
         const input = inputs[0];
-
         if (!input || input.length === 0) return true;
 
         const chL = input[0];
         const chR = input.length > 1 ? input[1] : null;
 
-        const peak = (buf) => {
-            let max = 0;
-            for (let i = 0; i < buf.length; i++) {
-                max = Math.max(max, Math.abs(buf[i]));
+        let peakL = 0;
+        let peakR = 0;
+
+        for (let i = 0; i < chL.length; i++) {
+            const v = chL[i];
+            const a = v < 0 ? -v : v;
+            if (a > peakL) peakL = a;
+        }
+
+        if (chR) {
+            for (let i = 0; i < chR.length; i++) {
+                const v = chR[i];
+                const a = v < 0 ? -v : v;
+                if (a > peakR) peakR = a;
             }
-            return max;
-        };
+        }
 
-        const l = peak(chL);
-        const r = peak(chR ?? []);
+        this._envL = this._envL * this._release + peakL * this._attack;
+        this._envR = this._envR * this._release + peakR * this._attack;
 
-        this._rmsL = this._rmsL * 0.85 + l * 0.15;
-        this._rmsR = this._rmsR * 0.85 + r * 0.15;
+        this._samplesSincePost += chL.length;
 
-        // Only send message every N frames to reduce main thread load
-        if (++this._frameCount >= this._updateInterval) {
-            this._frameCount = 0;
-            this.port.postMessage({
-                left: this._rmsL,
-                right: this._rmsR
-            });
+        if (this._samplesSincePost >= this._samplesPerUpdate) {
+            this._samplesSincePost -= this._samplesPerUpdate;
+
+            this._vu[0] = this._envL;
+            this._vu[1] = this._envR;
+
+            this.port.postMessage(this._vu, [this._vu.buffer]);
+
+            this._vu = new Float32Array(2);
         }
 
         return true;
     }
 }
 
-registerProcessor('vu-meter-processor', VUMeterProcessor);
+registerProcessor("vu-meter-processor", VUMeterProcessor);

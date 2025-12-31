@@ -17,17 +17,17 @@ export class WorkletBase {
     if (this.#inited) return;
     await audio.addWorkletModule(
       "/audio/vu-meter-processor.js",
-      "vu-meter-processor",
+      "vu-meter-processor"
     );
     await audio.addWorkletModule(
       "/audio/vu-stm.js",
-      "vu-stereo-to-mono-processor",
+      "vu-stereo-to-mono-processor"
     );
     this.#inited = true;
   }
 
   useSubjectAsRef<T>(
-    subject: BehaviorSubject<T>,
+    subject: BehaviorSubject<T>
   ): Readonly<Ref<DeepReadonly<T>>> {
     const state = ref(subject.getValue()) as Ref<T>;
 
@@ -44,7 +44,7 @@ export class WorkletBase {
 
   async createVUMeter(
     leftRef: Ref<number>,
-    rightRef: Ref<number>,
+    rightRef: Ref<number>
   ): Promise<Disposable<AudioWorkletNode>> {
     const vuNode = new AudioWorkletNode(
       audio.getCurrentAudioContext(),
@@ -56,13 +56,14 @@ export class WorkletBase {
         channelCount: 2,
         channelCountMode: "explicit",
         channelInterpretation: "discrete",
-      },
+      }
     );
 
-    vuNode.port.onmessage = (event) => {
-      const { left, right } = event.data;
-      leftRef.value = audio.volumeToPercent(left);
-      rightRef.value = audio.volumeToPercent(right);
+    vuNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
+      const data = event.data;
+
+      leftRef.value = audio.volumeToPercent(data[0]);
+      rightRef.value = audio.volumeToPercent(data[1]);
     };
 
     const disposable = new Disposable<AudioWorkletNode>(
@@ -71,7 +72,7 @@ export class WorkletBase {
         logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
-      },
+      }
     );
 
     return disposable;
@@ -88,7 +89,7 @@ export class WorkletBase {
         channelCount: 2,
         channelCountMode: "explicit",
         channelInterpretation: "speakers",
-      },
+      }
     );
 
     const disposable = new Disposable<AudioWorkletNode>(
@@ -97,7 +98,7 @@ export class WorkletBase {
         logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
-      },
+      }
     );
 
     return disposable;
@@ -109,7 +110,7 @@ export class WorkletBase {
       .get("enabled")
       ?.setValueAtTime(
         isEnabled ? 1.0 : 0.0,
-        audio.getCurrentAudioContext().currentTime,
+        audio.getCurrentAudioContext().currentTime
       );
   }
 }
