@@ -71,33 +71,24 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 
 <template>
     <Popover v-if="user && item.kind === 'friend'" v-model:open="isOpened">
-        <PopoverContent 
-            style="width: 19rem; min-height: 25rem;"
-            class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden"
-        >
+        <PopoverContent style="width: 19rem; min-height: 25rem;"
+            class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
             <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
         </PopoverContent>
         <PopoverTrigger as-child>
-            <div 
-                class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                :class="{ 'opacity-50 pointer-events-none': disabled }"
-            >
+            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                :class="{ 'opacity-50 pointer-events-none': disabled }">
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div class="relative">
                         <SmartArgonAvatar :user-id="user.userId" :overrided-size="40" />
-                        <span 
-                            :class="me.statusClass(user.status)"
-                            class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"
-                        ></span>
+                        <span :class="me.statusClass(user.status)"
+                            class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
                     </div>
                     <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <span class="text-sm font-medium truncate">{{ user.displayName }}</span>
                         </div>
-                        <span 
-                            v-if="user.activity" 
-                            class="text-[10px] flex items-center text-muted-foreground truncate"
-                        >
+                        <span v-if="user.activity" class="text-[10px] flex items-center text-muted-foreground truncate">
                             {{ t(getTextForActivityKind(user.activity.kind)) }}
                             <span class="font-bold pl-1 truncate">
                                 {{ user.activity.titleName }}
@@ -107,12 +98,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
                 </div>
 
                 <div class="flex gap-2 shrink-0" @click.stop>
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        :disabled="disabled"
-                        @click="emit('unfriend', item.userId)"
-                    >
+                    <Button variant="outline" size="sm" :disabled="disabled" @click="emit('unfriend', item.userId)">
                         {{ t("unfriend") }}
                     </Button>
                 </div>
@@ -120,34 +106,19 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
         </PopoverTrigger>
     </Popover>
 
-    <div 
-        v-else-if="user"
-        class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors"
-        :class="{ 'opacity-50 pointer-events-none': disabled }"
-    >
+    <div v-else-if="user" class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors"
+        :class="{ 'opacity-50 pointer-events-none': disabled }">
         <div class="flex items-center gap-3 flex-1 min-w-0">
             <SmartArgonAvatar :user-id="user.userId" :overrided-size="40" />
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-sm font-medium truncate">{{ user.displayName }}</span>
-                <Badge 
-                    v-if="item.kind === 'incoming'" 
-                    variant="default" 
-                    class="shrink-0 text-xs"
-                >
+                <Badge v-if="item.kind === 'incoming'" variant="default" class="shrink-0 text-xs">
                     {{ t("incoming_request") }}
                 </Badge>
-                <Badge 
-                    v-else-if="item.kind === 'outgoing'" 
-                    variant="secondary" 
-                    class="shrink-0 text-xs"
-                >
+                <Badge v-else-if="item.kind === 'outgoing'" variant="secondary" class="shrink-0 text-xs">
                     {{ t("outgoing_request") }}
                 </Badge>
-                <Badge 
-                    v-else-if="item.kind === 'blocked'" 
-                    variant="destructive" 
-                    class="shrink-0 text-xs"
-                >
+                <Badge v-else-if="item.kind === 'blocked'" variant="destructive" class="shrink-0 text-xs">
                     {{ t("blocked") }}
                 </Badge>
             </div>
@@ -155,30 +126,16 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 
         <div class="flex gap-2 shrink-0">
             <template v-if="item.kind === 'incoming'">
-                <Button 
-                    size="sm" 
-                    :disabled="disabled"
-                    @click="emit('accept', item.userId)"
-                >
+                <Button size="sm" :disabled="disabled" @click="emit('accept', item.userId)">
                     {{ t("accept") }}
                 </Button>
-                <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    :disabled="disabled"
-                    @click="emit('decline', item.userId)"
-                >
+                <Button variant="destructive" size="sm" :disabled="disabled" @click="emit('decline', item.userId)">
                     {{ t("decline") }}
                 </Button>
             </template>
 
             <template v-else-if="item.kind === 'outgoing'">
-                <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    :disabled="disabled"
-                    @click="emit('cancel', item.userId)"
-                >
+                <Button variant="secondary" size="sm" :disabled="disabled" @click="emit('cancel', item.userId)">
                     {{ t("cancel") }}
                 </Button>
             </template>

@@ -66,7 +66,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
             <SmartArgonAvatar :user-id="userId" :overrided-size="40" />
 
             <span :class="me.statusClass(displayStatus)"
-                class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800"></span>
+                class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
         </div>
 
         <div class="flex flex-col flex-1 overflow-hidden min-w-0">
