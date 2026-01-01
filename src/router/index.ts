@@ -37,7 +37,7 @@ const routes = [
           {
             path: "friends",
             name: "HomeFriends",
-            component: () => import("@/components/home/views/FriendsShell.vue"),
+            component: () => import("@/components/home/views/friends/FriendsShell.vue"),
           },
           {
             path: "inventory",
