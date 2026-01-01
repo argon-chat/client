@@ -41,13 +41,13 @@
 
 
 <script setup lang="ts">
-import SmartArgonAvatar from './SmartArgonAvatar.vue';
+import SmartArgonAvatar from './../SmartArgonAvatar.vue';
 import { PhPhoneIncoming, PhPhoneSlash } from "@phosphor-icons/vue"
 import { useCallManager } from '@/store/callManagerStore';
 import { ref, watch } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
 import { Guid } from '@argon-chat/ion.webcore';
-import Card from './ui/card/Card.vue';
+import Card from '@/components/ui/card/Card.vue';
 
 const callStore = useCallManager();
 const pool = usePoolStore();

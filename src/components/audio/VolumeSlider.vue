@@ -7,8 +7,8 @@
 <script setup lang="ts">
 import { IRealtimeChannelUserWithData } from "@/store/poolStore";
 import { computed } from "vue";
-import Slider from "./ui/slider/Slider.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
+import Slider from "@/components/ui/slider/Slider.vue";
 
 const props = defineProps<{ user: IRealtimeChannelUserWithData }>();
 const voice = useUnifiedCall();

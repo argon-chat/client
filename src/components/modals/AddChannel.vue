@@ -71,7 +71,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useLocale } from "@/store/localeStore";
-import InputWithError from "../InputWithError.vue";
+import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@/components/ui/button";
 import { ref } from "vue";
 import { logger } from "@/lib/logger";

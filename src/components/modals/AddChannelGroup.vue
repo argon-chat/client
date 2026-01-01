@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useLocale } from "@/store/localeStore";
-import InputWithError from "../InputWithError.vue";
+import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ref } from "vue";

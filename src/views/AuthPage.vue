@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PixelCard from "@/components/PixelCard.vue";
+import PixelCard from "@/components/shared/PixelCard.vue";
 import router from "@/router";
 import { useAuthStore } from "@/store/authStore";
 import { computed, onMounted } from "vue";

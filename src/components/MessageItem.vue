@@ -87,7 +87,7 @@ import {
 import { useDateFormat } from "@vueuse/core";
 import { useUserColors } from "@/store/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
-import UserProfilePopover from "./UserProfilePopover.vue";
+import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import {
   Popover,
   PopoverTrigger,

@@ -41,7 +41,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import UserProfilePopover from "./UserProfilePopover.vue";
+import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import { ref } from "vue";
 import { ActivityPresenceKind } from "@/lib/glue/argonChat";
 

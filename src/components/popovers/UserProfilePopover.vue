@@ -106,7 +106,7 @@
 </template>
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from "vue";
-import ArgonAvatar from "./ArgonAvatar.vue";
+import ArgonAvatar from "./../ArgonAvatar.vue";
 import {
   CrownIcon,
   ShieldCheckIcon,
@@ -123,7 +123,7 @@ import { usePoolStore } from "@/store/poolStore";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
-import ArgonBanner from "./ArgonBanner.vue";
+import ArgonBanner from "./../ArgonBanner.vue";
 import IconCat from "@/assets/icons/icon_cat.svg"
 import IconCpu from "@/assets/icons/icon_gpu_04.svg"
 import IconClean from "@/assets/icons/icon_clean.svg"

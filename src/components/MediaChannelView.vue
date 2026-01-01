@@ -78,8 +78,6 @@
                 </div>
             </div>
         </Transition>
-
-        <FloatingMiniVideo v-if="shouldShowMiniVideo" />
     </div>
 </template>
 
@@ -87,7 +85,6 @@
 import { computed, onUnmounted, ref } from "vue";
 import { IRealtimeChannelUserWithData, usePoolStore } from "@/store/poolStore";
 import type { Guid } from "@argon-chat/ion.webcore";
-import FloatingMiniVideo from "./FloatingMiniVideo.vue";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useSystemStore } from "@/store/systemStore";

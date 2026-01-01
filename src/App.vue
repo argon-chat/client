@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { Toaster } from "@/components/ui/toast/";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
-import DevPanel from "./components/DevPanel.vue";
 import { useSystemStore } from "./store/systemStore";
 import { MinusIcon, XIcon, FullscreenIcon } from "lucide-vue-next";
 import { ref, watch } from "vue";
 import { usePreference } from "./store/preferenceStore";
-import Island from "./components/Island.vue";
+import Island from "./components/shared/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
-import IncomingCallOverlay from "./components/IncomingCallOverlay.vue";
 import { native } from "./lib/glue/nativeGlue";
 import { useAppState } from "./store/appState";
+import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 const sys = useSystemStore();
 const appState = useAppState();
 const preferences = usePreference();
@@ -164,7 +163,6 @@ const themeOverrides = {
 
     <RouterView />
     <Toaster />
-    <DevPanel />
     <IncomingCallOverlay/>
     <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
     

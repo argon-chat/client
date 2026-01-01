@@ -98,8 +98,8 @@ import { usePexStore } from '@/store/permissionStore';
 import { useLocale } from '@/store/localeStore';
 import { useMe } from '@/store/meStore';
 import { useUnifiedCall } from '@/store/unifiedCallStore';
-import VoiceChannelUser from './VoiceChannelUser.vue';
-import VolumeSlider from './VolumeSlider.vue';
+import VoiceChannelUser from './channels/VoiceChannelUser.vue';
+import VolumeSlider from './audio/VolumeSlider.vue';
 import type { Guid } from '@argon-chat/ion.webcore';
 
 const props = defineProps<{

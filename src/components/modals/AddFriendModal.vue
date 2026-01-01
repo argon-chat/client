@@ -50,7 +50,7 @@ import { ref } from "vue";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import InputWithError from "@/components/InputWithError.vue";
+import InputWithError from "@/components/shared/InputWithError.vue";
 
 import { useLocale } from "@/store/localeStore";
 import { useApi } from "@/store/apiStore";

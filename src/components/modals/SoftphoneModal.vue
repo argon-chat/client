@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from "vue";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import SoftphoneKeyboard from "../SoftphoneKeyboard.vue";
+import SoftphoneKeyboard from "../calls/SoftphoneKeyboard.vue";
 import UssdModal from "./UssdModal.vue";
 
 import { ussdClient } from "@/lib/ussd";
@@ -124,28 +124,6 @@ const playNumberDTMF = async (num: string) => {
         await delay(130);
     }
 };
-
-
-const dtmf_track = [
-    "1 1 1 1 3 1 1 1",
-    "1 1 1 1 6 1 1 1 1 1 3 1 1 6 1 1",
-    "1 1 3 1 1 6 1 1 1 3 1 6 1 3 1 6",
-    "1 3 1 6 1 3 1 6",
-    "1 3 1 6 1 3 1 6",
-    "1 3 1 6 1 3 1 6",
-    "1 1 1 3 1 1 1 6",
-    "1 1 1 3 1 1 1 6",
-    "1 3 1 6 1 3 1 6",
-    "1 1 3 1 1 6 1 1",
-    "3 3 3 6",
-    "3 3 3 6",
-    "1 1 1 3",
-    "1 1 1 6",
-    "1 3 1 6 1 3 1 6",
-    "1 1 3 1 1 6 1 1",
-    "1 3 1 6 1 3 1 6",
-    "1 1 1 3 1 1 1 6"
-]
 
 
 const callOrUssd = async () => {

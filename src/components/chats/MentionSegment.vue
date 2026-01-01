@@ -17,7 +17,7 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/meStore";
 import { usePoolStore } from "@/store/poolStore";
 import { computed, onMounted, ref } from "vue";
-import UserProfilePopover from "../UserProfilePopover.vue";
+import UserProfilePopover from "../popovers/UserProfilePopover.vue";
 import {
   Popover,
   PopoverTrigger,

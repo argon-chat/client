@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon } from 'lucide-vue-next';
-import ArgonAvatar from './ArgonAvatar.vue';
+import ArgonAvatar from './../ArgonAvatar.vue';
 import { useUnifiedCall } from '@/store/unifiedCallStore';
 import { useSystemStore } from '@/store/systemStore';
 import { useMe } from '@/store/meStore';

@@ -12,7 +12,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
 import { useApi } from "@/store/apiStore";
 import { useLocale } from "@/store/localeStore";
-import InputWithError from "../InputWithError.vue";
+import InputWithError from "../shared/InputWithError.vue";
 
 const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();

@@ -1,7 +1,6 @@
 <template>
   <div class="chat-list rounded-xl scroll-smooth overflow-y-auto flex flex-col">
     <div class="py-2 overflow-x-hidden" style="text-overflow: ellipsis;">
-      <!-- Channels without group -->
       <ChannelItem
         v-for="(channel, index) in sortedUngroupedChannels"
         :key="channel.channelId"
@@ -19,8 +18,6 @@
         @dragend="onDragEnd"
         @kick-member="kickMember"
       />
-
-      <!-- Channel groups with channels -->
       <div v-for="group in sortedGroups" :key="group.groupId">
         <ContextMenu>
           <ContextMenuTrigger>
@@ -125,34 +122,29 @@ const voiceChannelUsers = computed(() => {
   return result;
 });
 
-// Use channel groups composable
 const { sortedGroups, toggleGroup, updateGroups, sortByFractionalIndex } = useChannelGroups(selectedSpaceId);
 
-// Watch for channel list changes which might indicate group updates
 watch(channelLists, () => {
   updateGroups();
 }, { deep: true });
 
-// Get channels without group (groupId is null)
 const sortedUngroupedChannels = computed(() => {
   const channels = channelLists.value.filter(c => c.groupId === null);
   return sortByFractionalIndex(channels);
 });
 
-// Get channels for specific group
 const getGroupChannels = (groupId: Guid) => {
   const channels = channelLists.value.filter(c => c.groupId === groupId);
   return sortByFractionalIndex(channels);
 };
 
-// Use drag and drop composable
+// https://github.com/microsoft/microsoft-ui-xaml/issues/10576
 const { dragOverChannel, onDragStart, onDragOver, onDrop, onDragEnd } = useChannelDragDrop(
   selectedSpaceId,
   sortedUngroupedChannels,
   getGroupChannels
 );
 
-// Add channel to group state
 const addChannelInGroupOpened = vueRef(false);
 const selectedGroupId = vueRef<Guid | null>(null);
 
