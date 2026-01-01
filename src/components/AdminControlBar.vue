@@ -5,7 +5,7 @@
                 <button @click="openServerSettings">
                     <SettingsIcon class="w-5 h-5" />
                 </button>
-                <button @click="addChannelOpened = true">
+                <button @click="addChannelOpened = true" v-if="false">
                     <CirclePlusIcon class="w-5 h-5" />
                 </button>
                 <button @click="addGroupOpened = true">
@@ -98,7 +98,7 @@ async function openServerSettings() {
 .controls {
     justify-content: center;
     display: flex;
-    gap: 6px;
+    gap: 1rem;
     flex: auto;
 }
 

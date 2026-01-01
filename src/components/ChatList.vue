@@ -1,17 +1,16 @@
 <template>
-  <div class="chat-list rounded-xl scroll-smooth">
-    <div class="flex flex-col">
-      <div class="flex-1 overflow-y-auto py-2 overflow-x-hidden" style="text-overflow: ellipsis;">
-        <!-- Channels without group -->
+  <div class="chat-list rounded-xl scroll-smooth overflow-y-auto flex flex-col">
+    <div class="py-2 overflow-x-hidden" style="text-overflow: ellipsis;">
+      <!-- Channels without group -->
         <div v-for="(channel, index) in sortedUngroupedChannels" :key="channel.channelId"
-          draggable="true"
+          :draggable="pex.has('ManageChannels')"
           @dragstart="onDragStart(channel, null, $event)"
           @dragover.prevent="onDragOver(channel, null, index, $event)"
           @drop="onDrop(channel, null, index, $event)"
           @dragend="onDragEnd"
           :class="{ 'drag-over': dragOverChannel === channel.channelId, 'channel-active': selectedChannelId === channel.channelId }"
           class="channel-item">
-          <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-move rounded-md transition-all duration-150"
+          <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-pointer rounded-md transition-all duration-150"
             v-on:click="channelSelect(channel.channelId)">
             <ContextMenu>
               <ContextMenuTrigger>
@@ -106,14 +105,14 @@
           </ContextMenu>
           <div v-if="!group.isCollapsed">
             <div v-for="(channel, index) in getGroupChannels(group.groupId)" :key="channel.channelId"
-              draggable="true"
+              :draggable="pex.has('ManageChannels')"
               @dragstart="onDragStart(channel, group.groupId, $event)"
               @dragover.prevent="onDragOver(channel, group.groupId, index, $event)"
               @drop="onDrop(channel, group.groupId, index, $event)"
               @dragend="onDragEnd"
               :class="{ 'drag-over': dragOverChannel === channel.channelId, 'channel-active': selectedChannelId === channel.channelId }"
               class="channel-item">
-              <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-move rounded-md transition-all duration-150"
+              <div class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-pointer rounded-md transition-all duration-150"
                 v-on:click="channelSelect(channel.channelId)">
                 <ContextMenu>
                   <ContextMenuTrigger>
@@ -185,7 +184,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <AddChannel
     v-model:open="addChannelInGroupOpened"
@@ -518,6 +516,30 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
   height: 100%;
 }
 
+/* Chrome, Edge, Safari */
+.chat-list::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.chat-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+  background: #3d3d3d;
+  border-radius: 8px;
+}
+
+.chat-list::-webkit-scrollbar-thumb:active {
+  background: #555;
+}
+
+/* Firefox */
+.chat-list {
+  scrollbar-width: thin;
+  scrollbar-color: #3d3d3d transparent;
+}
+
 .hover\:bg-gray-700:hover {
   border-radius: 5px;
 }
@@ -547,15 +569,8 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
   border-radius: 1px;
 }
 
-.cursor-move {
-  cursor: move;
-}
-
-[draggable="true"] {
-  user-select: none;
-}
-
-[draggable="true"]:active {
-  opacity: 0.6;
+.channel-item[draggable="true"]:active {
+  opacity: 0.8;
+  cursor: grabbing;
 }
 </style>
