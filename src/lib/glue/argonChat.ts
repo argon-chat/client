@@ -572,6 +572,7 @@ export enum LockdownReason
   TERRORISM_CONTENT = 14,
   SELF_HARM_PROMOTION = 15,
   CHILD_ABUSE = 16,
+  BAD_CLIENT = 17,
 }
 
 
@@ -2601,6 +2602,9 @@ export abstract class IMyAuthStatus implements IIonUnion<IMyAuthStatus>
   public isLockedAuthStatus(): this is LockedAuthStatus {
     return this.UnionKey === "LockedAuthStatus";
   }
+  public isCertificateErrorAuthStatus(): this is CertificateErrorAuthStatus {
+    return this.UnionKey === "CertificateErrorAuthStatus";
+  }
 
 }
 
@@ -2629,6 +2633,14 @@ export class LockedAuthStatus extends IMyAuthStatus
   UnionIndex: number = 2;
 }
 
+export class CertificateErrorAuthStatus extends IMyAuthStatus
+{
+  constructor(public message: string) { super(); }
+
+  UnionKey: string = "CertificateErrorAuthStatus";
+  UnionIndex: number = 3;
+}
+
 
 
 IonFormatterStorage.register("IMyAuthStatus", {
@@ -2645,6 +2657,8 @@ IonFormatterStorage.register("IMyAuthStatus", {
       value = IonFormatterStorage.get<BadAuthStatus>("BadAuthStatus").read(reader);
     else if (unionIndex == 2)
       value = IonFormatterStorage.get<LockedAuthStatus>("LockedAuthStatus").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<CertificateErrorAuthStatus>("CertificateErrorAuthStatus").read(reader);
 
     else throw new Error();
   
@@ -2664,6 +2678,9 @@ IonFormatterStorage.register("IMyAuthStatus", {
     }
     else if (value.UnionIndex == 2) {
         IonFormatterStorage.get<LockedAuthStatus>("LockedAuthStatus").write(writer, value as LockedAuthStatus);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<CertificateErrorAuthStatus>("CertificateErrorAuthStatus").write(writer, value as CertificateErrorAuthStatus);
     }
   
     else throw new Error();
@@ -2716,6 +2733,20 @@ IonFormatterStorage.register("LockedAuthStatus", {
     IonFormatterStorage.writeNullable<datetime>(writer, value.lockDownExpiration, 'datetime');
     IonFormatterStorage.get<bool>('bool').write(writer, value.isAppealable);
     IonFormatterStorage.get<LockdownSeverity>('LockdownSeverity').write(writer, value.severity);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CertificateErrorAuthStatus", {
+  read(reader: CborReader): CertificateErrorAuthStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const message = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new CertificateErrorAuthStatus(message);
+  },
+  write(writer: CborWriter, value: CertificateErrorAuthStatus): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.message);
     writer.writeEndArray();
   }
 });

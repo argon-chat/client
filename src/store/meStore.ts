@@ -8,6 +8,8 @@ import { useBus } from "./busStore";
 import {
   ArgonUser,
   BadAuthKind,
+  LockdownReason,
+  LockdownSeverity,
   LockedAuthStatus,
   UserStatus,
 } from "@/lib/glue/argonChat";
@@ -78,6 +80,10 @@ export const useMe = defineStore("me", () => {
     else if (result.isLockedAuthStatus()) {
       limitation.value = result;
       logger.warn("Detected restriction on account", result);
+      return false;
+    } else if (result.isCertificateErrorAuthStatus()) {
+      limitation.value = new LockedAuthStatus(LockdownReason.BAD_CLIENT, null, false, LockdownSeverity.Low);
+      logger.warn("Detected used bad client", result);
       return false;
     }
 

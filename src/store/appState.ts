@@ -23,6 +23,8 @@ export const useAppState = defineStore("app", () => {
   const loadingStep = ref("");
   const loadingProgress = ref(0);
   const totalSteps = 10;
+  const hasInitError = ref(false);
+  const initError = ref("");
 
   async function initializeArgonApp(): Promise<boolean> {
     loadingStep.value = "Checking network...";
@@ -110,6 +112,8 @@ export const useAppState = defineStore("app", () => {
   async function initApp() {
     logger.info("Begin initialization argon application");
     isInitializing.value = true;
+    hasInitError.value = false;
+    initError.value = "";
     try {
       const success = await initializeArgonApp();
       isLoaded.value = true;
@@ -117,9 +121,14 @@ export const useAppState = defineStore("app", () => {
       logger.success("Complete initialization");
     } catch (e) {
       isFailedLoad.value = true;
+      hasInitError.value = true;
+      initError.value = e instanceof Error ? e.message : String(e);
       logger.error("Failed init argon app", e);
     } finally {
-      isInitializing.value = false;
+      // Don't set isInitializing to false if there's an error - keep overlay visible
+      if (!hasInitError.value) {
+        isInitializing.value = false;
+      }
     }
   }
 
@@ -131,5 +140,7 @@ export const useAppState = defineStore("app", () => {
     loadingStep,
     loadingProgress,
     totalSteps,
+    hasInitError,
+    initError,
   };
 });

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import UserProfilePopover from "@/components/popovers/UserProfilePopover.vue";
-import { RealtimeUser } from "@/store/db/dexie";
 import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import { useMe } from "@/store/meStore";
