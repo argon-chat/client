@@ -44,13 +44,15 @@
         </button>
       </div>
       <Dialog v-model:open="isFileSelected">
-        <DialogContent class="max-h-[850px] max-w-[750px]" :disableOutsidePointerEvents="true">
+        <DialogContent class="max-h-[95vh] !max-w-[1400px] w-[95vw]" :disableOutsidePointerEvents="true">
           <DialogHeader>
             <DialogTitle>{{t("crop_image")  }}</DialogTitle>
           </DialogHeader>
-          <Cropper v-if="img" class="cropper" :src="img" :stencil-props="{
-            aspectRatio: 1
-          }" @change="change" image-restriction="stencil" :stencil-component="CircleStencil"></Cropper>
+          <div class="cropper-container">
+            <Cropper v-if="img" class="cropper" :src="img" :stencil-props="{
+              aspectRatio: 1
+            }" @change="change" image-restriction="stencil" :stencil-component="CircleStencil"></Cropper>
+          </div>
           <DialogFooter>
 
             <Button @click="saveChanges" :disabled="isLoadingAvatar">{{t("save_changes")}}</Button>
@@ -260,9 +262,22 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+.cropper-container {
+  width: 100%;
+  height: calc(95vh - 180px);
+  max-height: calc(95vh - 180px);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .cropper {
-  height: 700px;
-  width: 700px;
+  height: 100%;
+  width: 100%;
+  max-height: 100%;
+  max-width: 100%;
+  min-height: 400px;
   background: #dddddd00;
 }
 
