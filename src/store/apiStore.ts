@@ -26,6 +26,13 @@ class AuthInterceptor implements IonInterceptor {
     next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
     signal?: AbortSignal
   ): Promise<void> {
+    if (!localStorage.getItem("secref")) {
+      localStorage.setItem("secref", v7());
+    }
+    if (!localStorage.getItem("seccarry")) {
+      localStorage.setItem("seccarry", v7());
+    }
+
     let authData = {} as any;
 
     if ( this.lazyStore.value.token) {
@@ -34,7 +41,10 @@ class AuthInterceptor implements IonInterceptor {
     
     ctx.requestHeadets = {
       ...ctx.requestHeadets,
-      ...authData
+      ...authData,
+      'X-Sec-Ref': localStorage.getItem("secref")!,
+      'X-Sec-Ner': '1',
+      'X-Sec-Carry': localStorage.getItem("seccarry")!
     };
     await next(ctx, signal);
   }
