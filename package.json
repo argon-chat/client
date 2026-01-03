@@ -12,7 +12,7 @@
     "validate": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@argon-chat/ion.webcore": "^1.1.15",
+    "@argon-chat/ion.webcore": "^1.1.20",
     "@floating-ui/vue": "^1.1.6",
     "@phosphor-icons/vue": "^2.2.1",
     "@radix-icons/vue": "^1.0.0",

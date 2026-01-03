@@ -26,13 +26,6 @@ class AuthInterceptor implements IonInterceptor {
     next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
     signal?: AbortSignal
   ): Promise<void> {
-    if (!localStorage.getItem("secref")) {
-      localStorage.setItem("secref", v7());
-    }
-    if (!localStorage.getItem("seccarry")) {
-      localStorage.setItem("seccarry", v7());
-    }
-
     let authData = {} as any;
 
     if ( this.lazyStore.value.token) {
@@ -42,9 +35,6 @@ class AuthInterceptor implements IonInterceptor {
     ctx.requestHeadets = {
       ...ctx.requestHeadets,
       ...authData,
-      'X-Sec-Ref': localStorage.getItem("secref")!,
-      'X-Sec-Ner': '1',
-      'X-Sec-Carry': localStorage.getItem("seccarry")!
     };
     await next(ctx, signal);
   }
@@ -59,12 +49,18 @@ export const useApi = defineStore("api", () => {
   );
 
   const userInteraction = computed(() => rpcClient.value.UserInteraction);
-  const identityInteraction = computed(() => rpcClient.value.IdentityInteraction);
-  const inventoryInteraction = computed(() => rpcClient.value.InventoryInteraction);
+  const identityInteraction = computed(
+    () => rpcClient.value.IdentityInteraction
+  );
+  const inventoryInteraction = computed(
+    () => rpcClient.value.InventoryInteraction
+  );
   const serverInteraction = computed(() => rpcClient.value.ServerInteraction);
   const callInteraction = computed(() => rpcClient.value.CallInteraction);
   const freindsInteraction = computed(() => rpcClient.value.FriendsInteraction);
-  const userChatInteractions = computed(() => rpcClient.value.UserChatInteractions);
+  const userChatInteractions = computed(
+    () => rpcClient.value.UserChatInteractions
+  );
   const archetypeInteraction = computed(
     () => rpcClient.value.ArchetypeInteraction
   );
@@ -73,7 +69,6 @@ export const useApi = defineStore("api", () => {
 
   const getRawClient = () => rpcClient;
 
-  
   (window as any).callInteraction = callInteraction;
 
   return {
@@ -87,6 +82,6 @@ export const useApi = defineStore("api", () => {
     userChatInteractions,
     eventBus,
     getRawClient,
-    callInteraction
+    callInteraction,
   };
 });
