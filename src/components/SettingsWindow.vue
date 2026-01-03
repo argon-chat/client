@@ -2,32 +2,40 @@
     <Drawer :open="windows.settingsOpen" :dismissible="false">
         <DrawerContent class="sm:min-h-[95%] h-2 p-4 sm:px-40">
             <DrawerHeader class="grid grid-cols-[1fr_auto] items-start gap-4">
-                <div>
+                <div class="fade-in">
                     <DrawerTitle>{{ t("settings") }}</DrawerTitle>
                     <DrawerDescription>{{ t("manage_settings") }}</DrawerDescription>
                 </div>
 
-                <a @click="windows.settingsOpen = false" class="close-button">
+                <button 
+                    @click="closeSettings" 
+                    class="close-button transition-all duration-200 hover:scale-110"
+                    aria-label="Close settings"
+                >
                     <CircleXIcon class="w-10 h-10" />
-                </a>
+                </button>
             </DrawerHeader>
 
             <div class="settings-layout justify-center flex min-h-full space-x-4">
-                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
-                    <template v-for="category in categories" :key="category.id">
-                        <Button v-if="!category.hidden"
+                <nav class="settings-nav flex-shrink-0 w-48 p-4 text-white space-y-2 rounded-lg isolate">
+                    <TransitionGroup name="nav-list" tag="div" class="space-y-2">
+                        <Button 
+                            v-for="category in visibleCategories" 
+                            :key="category.id"
                             :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                            @click="selectedCategory = category.id" :disabled="category.disabled"
-                            class="nav-item px-4 py-2 rounded-md w-full transition-none">
+                            @click="changeCategory(category.id)" 
+                            :disabled="category.disabled"
+                            class="nav-item px-4 py-2 rounded-md w-full transition-all duration-200 hover:scale-[1.02] justify-center">
                             {{ t(category.id) }}
                         </Button>
-                    </template>
+                    </TransitionGroup>
                 </nav>
-                <div
-                    class="settings-content w-1/2 p-6 text-white overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                    <component :is="selectedCategoryComponent" />
+                
+                <div class="settings-content w-3/5 p-6 text-white overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                    <Transition name="slide-fade" mode="out-in">
+                        <component :is="selectedCategoryComponent" :key="selectedCategory" />
+                    </Transition>
                 </div>
-
             </div>
         </DrawerContent>
     </Drawer>
@@ -55,14 +63,24 @@ import SoundSettings from "./settings/SoundSettings.vue";
 import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
-import DrawerClose from "./ui/drawer/DrawerClose.vue";
 import { useConfigStore } from "@/store/configStore";
+
+// Stores
 const { t } = useLocale();
 const windows = useWindow();
-
 const configStore = useConfigStore();
 
-const categories = computed(() => [
+// State
+const selectedCategory = ref("account");
+
+// Category configuration
+interface Category {
+    id: string;
+    disabled?: boolean;
+    hidden?: boolean;
+}
+
+const CATEGORY_CONFIG: Category[] = [
     { id: "account" },
     { id: "application" },
     { id: "voice_video" },
@@ -70,16 +88,23 @@ const categories = computed(() => [
     { id: "languages" },
     { id: "sounds" },
     { id: "storages" },
+    { id: "activity", disabled: false }
+];
 
-    {
-        id: "activity",
-        disabled: false,
-        hidden: !configStore.devModeEnabled
-    }
-]);
-const selectedCategory = ref("account");
+const categories = computed<Category[]>(() => 
+    CATEGORY_CONFIG.map(cat => 
+        cat.id === "activity" 
+            ? { ...cat, hidden: !configStore.devModeEnabled }
+            : cat
+    )
+);
 
-const categoryComponents = {
+const visibleCategories = computed(() => 
+    categories.value.filter(cat => !cat.hidden)
+);
+
+// Component mapping
+const categoryComponents: Record<string, any> = {
     account: ProfileSettings,
     devices: ConnectedDevices,
     voice_video: VoiceVideoSettings,
@@ -92,15 +117,25 @@ const categoryComponents = {
 };
 
 const selectedCategoryComponent = computed(
-    () => (categoryComponents as any)[selectedCategory.value],
+    () => categoryComponents[selectedCategory.value]
 );
+
+// Methods
+const closeSettings = () => {
+    windows.settingsOpen = false;
+};
+
+const changeCategory = (categoryId: string) => {
+    selectedCategory.value = categoryId;
+};
 
 const handleEscape = (event: KeyboardEvent) => {
     if (event.key === "Escape" && windows.settingsOpen) {
-        windows.settingsOpen = false;
+        closeSettings();
     }
 };
 
+// Lifecycle
 onMounted(() => {
     window.addEventListener("keydown", handleEscape);
 });
@@ -111,6 +146,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Layout */
 .settings-layout {
     height: 100%;
 }
@@ -121,7 +157,6 @@ onUnmounted(() => {
     backface-visibility: hidden;
     overflow: hidden;
     contain: layout paint;
-    transition: none;
     box-shadow: none;
     border: none;
 }
@@ -129,14 +164,8 @@ onUnmounted(() => {
 .nav-item {
     text-align: left;
     backface-visibility: hidden;
-    transition: none;
     box-shadow: none;
     border: none;
-}
-
-.active-nav {
-    color: #ffffff;
-    background-color: #4b5563;
 }
 
 .settings-content {
@@ -149,10 +178,65 @@ onUnmounted(() => {
     font-size: 1.5rem;
     color: #9ca3af;
     cursor: pointer;
-    transition: color 0.2s ease;
 }
 
 .close-button:hover {
     color: #f87171;
+}
+
+/* Fade in animation */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide fade transition for content */
+.slide-fade-enter-active {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-leave-active {
+    transition: all 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.slide-fade-enter-from {
+    transform: translateX(20px);
+    opacity: 0;
+}
+
+.slide-fade-leave-to {
+    transform: translateX(-20px);
+    opacity: 0;
+}
+
+/* Nav list transitions */
+.nav-list-move,
+.nav-list-enter-active,
+.nav-list-leave-active {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-list-enter-from {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
+.nav-list-leave-to {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+.nav-list-leave-active {
+    position: absolute;
 }
 </style>

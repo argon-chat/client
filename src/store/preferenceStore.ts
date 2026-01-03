@@ -58,6 +58,8 @@ export const usePreference = defineStore("preference", () => {
     true,
   );
 
+  const defaultVideoDevice = persistedValue<string>("defaultVideoDevice", "");
+
   return {
     forceToMono,
 
@@ -78,5 +80,6 @@ export const usePreference = defineStore("preference", () => {
     isEnable_playUnmuteAllSound,
     isEnable_playNotificationSound,
     isEnable_playRingSound,
+    defaultVideoDevice,
   };
 });

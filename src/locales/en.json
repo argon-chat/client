@@ -484,6 +484,11 @@
 
   "hotkey_admin_warning": "Hotkeys do not work in the background while an administrator-level application is active.",
   "add_hotkey": "Add HotKey",
+  "add_first_hotkey": "Add Your First Hotkey",
+  "no_hotkeys_yet": "No Hotkeys Yet",
+  "no_hotkeys_description": "You haven't set up any keyboard shortcuts yet. Add your first hotkey to quickly access features.",
+  "not_set": "Not set",
+  "manage_keyboard_shortcuts": "Manage your keyboard shortcuts",
   "hotkey_action": "Action",
   "hotkey_mode": "HotKey Mode",
   "hotkey.trigger": "Trigger",
