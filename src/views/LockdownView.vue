@@ -1,10 +1,10 @@
 <template>
   <div class="app-container flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-red-500 font-mono">
     <div class="text-center mb-10 title-wrap">
-      <h1 class="title">Account Suspended</h1>
+      <h1 class="title">{{ isBadClient ? 'Client Configuration Error' : 'Account Suspended' }}</h1>
     </div>
 
-    <div class="mb-12">
+    <div class="mb-12" v-if="!isBadClient">
       <svg class="hazard-diamond" width="160" height="160" viewBox="0 0 160 160" aria-hidden="true">
         <g transform="translate(80,80) rotate(45)">
           <rect x="-56" y="-56" width="112" height="112" fill="none" stroke="#ff2b2b" stroke-width="2" />
@@ -27,7 +27,41 @@
       </svg>
     </div>
 
-    <div class="user-card">
+    <!-- Bad Client Error Message -->
+    <div v-if="isBadClient" class="error-card">
+      <div class="error-icon">⚠️</div>
+      <div class="error-content">
+        <h2 class="error-title">API Access Denied</h2>
+        <p class="error-description">
+          Unable to establish connection with the API. This is not an account suspension, but a client configuration issue.
+        </p>
+        
+        <div class="error-details">
+          <div class="detail-item">
+            <span class="detail-label">Error Code:</span>
+            <span class="detail-value">{{ details.reasonCode }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Issue:</span>
+            <span class="detail-value">Missing or invalid authentication parameters</span>
+          </div>
+        </div>
+
+        <div class="dev-info">
+          <div class="dev-info-header">For Developers:</div>
+          <ul class="dev-info-list">
+            <li>Verify that Session ID, Machine ID, and Client ID are correctly passed to the API</li>
+            <li>Ensure proper signature generation using your application credentials</li>
+            <li>Check that all required authentication headers are present in API requests</li>
+            <li>Validate that your client configuration matches the registered application settings</li>
+            <li>Review authentication logs for specific parameter validation errors</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Suspension Card -->
+    <div v-else class="user-card">
       <ArgonAvatar :overrided-size="64" :user-id="user.id" :file-id="user.avatar" :fallback="user.name" />
       <div class="user-main">
         <div class="user-name">{{ user.name }}</div>
@@ -43,18 +77,22 @@
           <span class="muted">Reason</span>
           <span class="value">{{ details.reasonCode }}</span>
         </div>
-        <div class="meta-row">
+        <div class="meta-row" v-if="details.until">
           <span class="muted">Until</span>
           <span class="value">{{ details.until }}</span>
         </div>
-        <div class="meta-row">
+        <div class="meta-row" v-else>
+          <span class="muted">Until</span>
+          <span class="value">♾️</span>
+        </div>
+        <!-- <div class="meta-row">
           <span class="muted">Violations</span>
           <span class="value">{{ details.violations }}</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
-    <button class="appeal-btn" @click="onAppeal">
+    <button class="appeal-btn" @click="onAppeal" v-if="!isBadClient && details.isAllowedAppeal">
       Lodge an appeal
     </button>
 
@@ -70,8 +108,6 @@ import { useToast } from '@/components/ui/toast';
 import { LockdownReason, LockdownSeverity } from '@/lib/glue/argonChat';
 import { useAuthStore } from '@/store/authStore';
 import { useMe } from '@/store/meStore';
-import { onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 
 const me = useMe();
 const toast = useToast();
@@ -85,8 +121,11 @@ const user = {
 const details = {
   reasonCode: LockdownReason[me.limitation?.lockdownReason ?? 0],
   until: me.limitation?.lockDownExpiration?.date.toUTCString(),
-  violations: 1,
+  //violations: me.limitation.vi,
+  isAllowedAppeal: me.limitation?.isAppealable ?? false,
 };
+
+const isBadClient = details.reasonCode === 'BAD_CLIENT';
 
 function onAppeal() {
   toast.toast({
@@ -312,6 +351,127 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
 
   .vert-divider {
     display: none;
+  }
+}
+
+.error-card {
+  border: 2px solid #fbbf24;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .5);
+  padding: 24px;
+  max-width: min(800px, 92vw);
+  color: #fef3c7;
+}
+
+.error-icon {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.error-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fbbf24;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+}
+
+.error-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #fef3c7;
+  text-align: center;
+}
+
+.error-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #92400e;
+  border-bottom: 1px solid #92400e;
+  padding: 12px 0;
+  margin: 8px 0;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .95rem;
+}
+
+.detail-label {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: #fef3c7;
+  font-family: monospace;
+}
+
+.dev-info {
+  background: rgba(217, 119, 6, .1);
+  border: 1px solid #92400e;
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.dev-info-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fbbf24;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.dev-info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dev-info-list li {
+  font-size: .9rem;
+  line-height: 1.5;
+  color: #fde68a;
+  padding-left: 20px;
+  position: relative;
+}
+
+.dev-info-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #d97706;
+}
+
+@media (max-width: 720px) {
+  .error-card {
+    padding: 16px;
+  }
+
+  .error-title {
+    font-size: 1.25rem;
+  }
+
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 }
 </style>
