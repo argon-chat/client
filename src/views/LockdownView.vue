@@ -47,15 +47,38 @@
           </div>
         </div>
 
-        <div class="dev-info">
-          <div class="dev-info-header">For Developers:</div>
-          <ul class="dev-info-list">
-            <li>Verify that Session ID, Machine ID, and Client ID are correctly passed to the API</li>
-            <li>Ensure proper signature generation using your application credentials</li>
-            <li>Check that all required authentication headers are present in API requests</li>
-            <li>Validate that your client configuration matches the registered application settings</li>
-            <li>Review authentication logs for specific parameter validation errors</li>
-          </ul>
+        <div class="info-container">
+          <div class="dev-info">
+            <div class="dev-info-header">For Developers:</div>
+            <ul class="dev-info-list">
+              <li>Verify that Session ID, Machine ID, and Client ID are correctly passed to the API</li>
+              <li>Ensure proper signature generation using your application credentials</li>
+              <li>Check that all required authentication headers and cookies are present in API requests</li>
+              <li>Validate that your client configuration matches the registered application settings</li>
+              <li>Review authentication logs for specific parameter validation errors</li>
+            </ul>
+          </div>
+
+          <div class="user-info">
+            <div class="user-info-header">For Users:</div>
+            <p class="user-info-text">
+              If you are using a custom or third-party client application, this error indicates an issue with the client's implementation. 
+              The application you're using may not be properly configured to communicate with our API servers.
+            </p>
+            <p class="user-info-text">
+              <strong>What you can do:</strong>
+            </p>
+            <ul class="user-info-list">
+              <li>Contact the developer of the client application you're using and inform them about this error</li>
+              <li>Switch to the official client if available, which is properly configured and tested</li>
+              <li>Ask the developer to verify their authentication implementation and API credentials</li>
+              <li>Check if there's an update available for your client application that might fix this issue</li>
+            </ul>
+            <p class="user-info-note">
+              This is not a problem with your account. Your account remains in good standing and you can access the service 
+              using properly configured client applications.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -96,7 +119,7 @@
       Lodge an appeal
     </button>
 
-    <button class="logout-btn" @click="logout">
+    <button class="logout-btn" @click="logout" v-if="!isBadClient">
       Logout
     </button>
   </div>
@@ -359,7 +382,7 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
   border-radius: 8px;
   background: rgba(0, 0, 0, .5);
   padding: 24px;
-  max-width: min(800px, 92vw);
+  max-width: min(1200px, 92vw);
   color: #fef3c7;
 }
 
@@ -418,12 +441,18 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
   font-family: monospace;
 }
 
+.info-container {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
 .dev-info {
   background: rgba(217, 119, 6, .1);
   border: 1px solid #92400e;
   border-radius: 4px;
   padding: 16px;
-  margin-top: 8px;
+  flex: 1;
 }
 
 .dev-info-header {
@@ -459,6 +488,70 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
   color: #d97706;
 }
 
+.user-info {
+  background: rgba(59, 130, 246, .1);
+  border: 1px solid #1e40af;
+  border-radius: 4px;
+  padding: 16px;
+  flex: 1;
+}
+
+.user-info-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #60a5fa;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.user-info-text {
+  font-size: .9rem;
+  line-height: 1.6;
+  color: #bfdbfe;
+  margin-bottom: 12px;
+}
+
+.user-info-text strong {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.user-info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-info-list li {
+  font-size: .9rem;
+  line-height: 1.5;
+  color: #bfdbfe;
+  padding-left: 20px;
+  position: relative;
+}
+
+.user-info-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #60a5fa;
+  font-weight: bold;
+}
+
+.user-info-note {
+  font-size: .85rem;
+  line-height: 1.5;
+  color: #93c5fd;
+  font-style: italic;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #1e40af;
+}
+
 @media (max-width: 720px) {
   .error-card {
     padding: 16px;
@@ -472,6 +565,11 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .info-container {
+    flex-direction: column;
+    gap: 12px;
   }
 }
 </style>
