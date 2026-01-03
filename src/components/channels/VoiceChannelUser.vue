@@ -4,8 +4,10 @@
       :fallback="user.User.displayName" 
       :fileId="user.User.avatarFileId" 
       :userId="user.userId"
-      :style="(user.isSpeaking ? 'outline: solid #45d110 2px; outline-offset: 2px; border-radius: 500px;' : '')"
-      class="w-7 h-7 rounded-full mr-3 transition" 
+      :class="[
+        'w-7 h-7 rounded-full mr-3 transition-all duration-300 ease-in-out',
+        { 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
+      ]"
     />
     <span>{{ user.User.displayName }}</span>
     <div class="flex items-center gap-1" style="margin-left: auto;">
@@ -25,32 +27,50 @@ import { useUnifiedCall } from '@/store/unifiedCallStore';
 import { useSystemStore } from '@/store/systemStore';
 import { useMe } from '@/store/meStore';
 import type { Guid } from '@argon-chat/ion.webcore';
+import type { IRealtimeChannelUser } from '@/store/realtimeStore';
 
 const props = defineProps<{
-  user: any;
+  user: IRealtimeChannelUser;
 }>();
 
 const voice = useUnifiedCall();
 const sys = useSystemStore();
 const me = useMe();
 
-const localUserId = computed<Guid | null>(() => {
-  const r = voice.room;
-  return r?.localParticipant?.identity ?? null;
+const isSpeaking = computed(() => {
+  return voice.speaking.has(props.user.userId);
 });
 
 const isMuted = computed(() => {
-  const localId = localUserId.value;
   const uid = props.user.userId;
-  if (localId && uid === localId) return sys.microphoneMuted;
+  const myId = me.me?.userId;
+  
+  // Explicitly read these reactive values to ensure Vue tracks them
+  const sysMicMuted = sys.microphoneMuted;
+  
+  // Check if this is the local user - use sys like in ChatPanel
+  if (myId && uid === myId) {
+    return sysMicMuted;
+  }
+  
+  // Check remote participant
   const participant = voice.participants.get(uid);
   return participant?.muted ?? false;
 });
 
 const isHeadphoneMuted = computed(() => {
-  const localId = localUserId.value;
   const uid = props.user.userId;
-  if (localId && uid === localId) return sys.headphoneMuted;
+  const myId = me.me?.userId;
+  
+  // Explicitly read these reactive values to ensure Vue tracks them
+  const sysHeadMuted = sys.headphoneMuted;
+  
+  // Check if this is the local user - use sys like in ChatPanel
+  if (myId && uid === myId) {
+    return sysHeadMuted;
+  }
+  
+  // Check remote participant
   const participant = voice.participants.get(uid);
   return participant?.mutedAll ?? false;
 });

@@ -101,22 +101,24 @@ import { useUnifiedCall } from '@/store/unifiedCallStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
 import type { Guid } from '@argon-chat/ion.webcore';
+import type { ArgonChannel } from '@/lib/glue/argonChat';
+import type { IRealtimeChannel } from '@/store/realtimeStore';
 
 const props = defineProps<{
-  channel: any;
+  channel: ArgonChannel;
   groupId: Guid | null;
   index: number;
   isActive: boolean;
   isDragOver: boolean;
-  voiceUsers?: any;
+  voiceUsers?: IRealtimeChannel;
 }>();
 
 const emit = defineEmits<{
   select: [channelId: string];
   delete: [channelId: string];
-  dragstart: [channel: any, groupId: Guid | null, event: DragEvent];
-  dragover: [channel: any, groupId: Guid | null, index: number, event: DragEvent];
-  drop: [channel: any, groupId: Guid | null, index: number, event: DragEvent];
+  dragstart: [channel: ArgonChannel, groupId: Guid | null, event: DragEvent];
+  dragover: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
+  drop: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
   dragend: [];
   'kick-member': [userId: string, channelId: string, spaceId: string];
 }>();

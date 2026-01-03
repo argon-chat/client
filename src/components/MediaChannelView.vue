@@ -6,6 +6,7 @@
                 <ParticipantCard
                     :user-id="mainStreamer.User.userId"
                     :display-name="mainStreamer.User.displayName"
+                    :is-speaking="isSpeaking(mainStreamer.User.userId)"
                     :is-muted="isMuted(mainStreamer.User.userId)"
                     :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
                     :is-screen-sharing="mainStreamer.isScreenShare"
@@ -88,10 +89,12 @@ import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useSystemStore } from "@/store/systemStore";
+import { useMe } from "@/store/meStore";
 
 const pool = usePoolStore();
 const voice = useUnifiedCall();
 const sys = useSystemStore();
+const me = useMe();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
@@ -151,29 +154,32 @@ const gridCardStyle = (userCount: number) => ({
 
 const shouldShowMiniVideo = computed(() => false); // Placeholder for future implementation
 
-const localUserId = computed<Guid | null>(() => {
-    const r = voice.room;
-    return r?.localParticipant?.identity ?? null;
-});
-
 // Helper functions - reactive computed maps for mute states
 const muteStates = computed(() => {
     const states = new Map<Guid, { muted: boolean; headphoneMuted: boolean }>();
     
-    // Remote participants from voice.participants first
-    for (const [uid, participant] of voice.participants) {
-        states.set(uid, {
-            muted: participant.muted,
-            headphoneMuted: participant.mutedAll
+    const myId = me.me?.userId;
+    
+    // Explicitly read reactive values to ensure Vue tracks them
+    const sysMicMuted = sys.microphoneMuted;
+    const sysHeadMuted = sys.headphoneMuted;
+    
+    // First, add local participant with sys values (like in ChatPanel)
+    if (myId) {
+        states.set(myId, {
+            muted: sysMicMuted,
+            headphoneMuted: sysHeadMuted
         });
     }
     
-    // Local user overwrites (priority)
-    const localId = localUserId.value;
-    if (localId) {
-        states.set(localId, {
-            muted: sys.microphoneMuted,
-            headphoneMuted: sys.headphoneMuted
+    // Then add all remote participants from voice.participants
+    for (const [uid, participant] of voice.participants) {
+        // Skip if already added as local user
+        if (uid === myId) continue;
+        
+        states.set(uid, {
+            muted: participant.muted,
+            headphoneMuted: participant.mutedAll
         });
     }
     
@@ -184,14 +190,10 @@ const isSpeaking = (uid: Guid) => voice.speaking.has(uid);
 const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
 
 const isMuted = (uid: Guid) => {
-    const localId = localUserId.value;
-    if (localId && uid === localId) return sys.microphoneMuted;
     return muteStates.value.get(uid)?.muted ?? false;
 };
 
 const isHeadphoneMuted = (uid: Guid) => {
-    const localId = localUserId.value;
-    if (localId && uid === localId) return sys.headphoneMuted;
     return muteStates.value.get(uid)?.headphoneMuted ?? false;
 };
 

@@ -88,6 +88,7 @@ import AddChannel from './modals/AddChannel.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
+import type { IRealtimeChannel } from '@/store/realtimeStore';
 
 const servers = useSpaceStore();
 const pool = usePoolStore();
@@ -108,9 +109,8 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
 
 const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
-// Computed для кеширования информации о голосовых каналах
 const voiceChannelUsers = computed(() => {
-  const result = new Map();
+  const result = new Map<Guid, IRealtimeChannel>();
   for (const channel of channelLists.value) {
     if (channel.type === ChannelType.Voice) {
       const realtimeChannel = pool.realtimeChannelUsers.get(channel.channelId);

@@ -1,10 +1,7 @@
 <template>
     <div 
         class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer"
-        :class="[
-            className,
-            { 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)]': isSpeaking }
-        ]"
+        :class="className"
         :style="customStyle"
         @click="$emit('click', userId)">
         
@@ -20,7 +17,10 @@
             v-else 
             :user-id="userId" 
             :overrided-size="avatarSize"
-            class="transition-transform duration-200 group-hover:scale-110" />
+            :class="[
+                'transition-all duration-300 ease-in-out group-hover:scale-110',
+                { 'ring-4 ring-lime-400/80 rounded-full shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
+            ]" />
 
         <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-1 px-2" :class="{ 'text-center': centered }">
             <span class="text-white font-semibold truncate block" :class="nameClass">
