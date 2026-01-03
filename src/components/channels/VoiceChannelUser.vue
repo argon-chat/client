@@ -38,6 +38,8 @@ const sys = useSystemStore();
 const me = useMe();
 
 const isSpeaking = computed(() => {
+  // Explicitly track speaking.size to ensure Vue detects changes in the Set
+  const _ = voice.speaking.size;
   return voice.speaking.has(props.user.userId);
 });
 

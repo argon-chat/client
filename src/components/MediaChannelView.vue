@@ -186,7 +186,11 @@ const muteStates = computed(() => {
     return states;
 });
 
-const isSpeaking = (uid: Guid) => voice.speaking.has(uid);
+const isSpeaking = (uid: Guid) => {
+    // Explicitly track speaking.size to ensure Vue detects changes in the Set
+    const _ = voice.speaking.size;
+    return voice.speaking.has(uid);
+};
 const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
 
 const isMuted = (uid: Guid) => {
