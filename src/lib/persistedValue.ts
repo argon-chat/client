@@ -63,8 +63,6 @@ export function persistedValue<T extends object | string | number | boolean>(
         ? boolean
         : T,
 ): T extends object ? Reactive<T> : Ref<T> {
-  logger.log("Persist value", key, defaultValue);
-
   const storedValue = localStorage.getItem(key);
 
   let value: any;
@@ -79,7 +77,7 @@ export function persistedValue<T extends object | string | number | boolean>(
       }
     } catch (e) {
       console.error(
-        `Ошибка парсинга JSON из localStorage для ключа "${key}"`,
+        `Error parsing JSON from localStorage for the key "${key}"`,
         e,
       );
       value =
