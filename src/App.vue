@@ -20,7 +20,7 @@ const keys = useMagicKeys();
 const isRestored = ref(false);
 
 const mode = useColorMode();
-const { applyAppearanceSettings } = useTheme();
+const { applyAppearanceSettings, currentTheme } = useTheme();
 
 const wakeWatcher = useSleepWatcher(async () => {
   location.reload();
@@ -34,7 +34,22 @@ onMounted(() => {
 });
 
 if (argon.isArgonHost) {
-  document.body.style.setProperty("background", "transparent", "important");
+  // Set initial background based on theme
+  const updateBackground = (theme: string) => {
+    if (theme === "oled") {
+      document.body.style.setProperty("background", "#000000", "important");
+    } else {
+      document.body.style.setProperty("background", "transparent", "important");
+    }
+  };
+  
+  // Apply initial theme
+  updateBackground(currentTheme.value);
+  
+  // Watch for theme changes
+  watch(currentTheme, (newTheme) => {
+    updateBackground(newTheme);
+  });
 }
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
