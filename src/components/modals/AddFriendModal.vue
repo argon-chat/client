@@ -1,17 +1,17 @@
 <template>
     <Dialog v-model:open="open">
         <DialogContent
-            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8">
+            class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8">
 
             <div class="absolute inset-0 bg-gradient-to-t 
-                        from-blue-500/5 via-transparent to-purple-500/5 
+                        from-primary/5 via-transparent to-primary/5 
                         pointer-events-none"></div>
 
             <div class="relative text-center space-y-2">
-                <h2 class="text-3xl font-extrabold text-white tracking-wide">
+                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
                     {{ t('add_friend') }}
                 </h2>
-                <p class="text-gray-400 text-sm">
+                <p class="text-muted-foreground text-sm">
                     {{ t('add_friend_description') }}
                 </p>
             </div>
@@ -21,22 +21,22 @@
                 <InputWithError v-model="username" :placeholder="t('username_placeholder')" :error="errorMessage" 
                     :success="successMessage" @clear-error="clearStatus">
                     <template #label>
-                        <Label class="text-gray-300 flex items-center gap-2">
-                            <span class="i-lucide-user-plus text-blue-400"></span>
+                        <Label class="text-muted-foreground flex items-center gap-2">
+                            <span class="i-lucide-user-plus text-primary"></span>
                             {{ t('username') }}
                         </Label>
                     </template>
                 </InputWithError>
 
                 <Button @click="submit" :disabled="isLoading"
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all">
+                    class="w-full font-semibold rounded-xl transition-all">
                     <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-send mr-2"></span>
                     {{ t('send_request') }}
                 </Button>
             </div>
             <DialogFooter class="relative flex justify-center pt-2">
-                <Button variant="ghost" @click="open = false" class="text-gray-400 hover:text-white">
+                <Button variant="ghost" @click="open = false">
                     {{ t('close') }}
                 </Button>
             </DialogFooter>

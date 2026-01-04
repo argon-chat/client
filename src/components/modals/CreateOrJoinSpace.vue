@@ -1,17 +1,17 @@
 <template>
     <Dialog v-model:open="open">
         <DialogContent
-            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8">
+            class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8">
 
             <div
-                class="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none">
+                class="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-primary/5 pointer-events-none">
             </div>
 
             <div class="relative text-center space-y-8 p-4">
-                <h2 class="text-3xl font-extrabold text-white tracking-wide">
+                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
                     {{ t('join_or_create_server') }}
                 </h2>
-                <p class="text-gray-400 text-sm">
+                <p class="text-muted-foreground text-sm">
                     {{t("choose_your_path")}}
                 </p>
             </div>
@@ -21,8 +21,8 @@
                 <InputWithError v-model="spaceName" placeholder="e.g., Cool Space" :error="createError"
                     @clear-error="createError = ''">
                     <template #label>
-                        <Label for="space-name" class="text-gray-300 flex items-center gap-2">
-                            <span class="i-lucide-plus-circle text-blue-400"></span>
+                        <Label for="space-name" class="text-muted-foreground flex items-center gap-2">
+                            <span class="i-lucide-plus-circle text-primary"></span>
                             {{ t('name') }}
                         </Label>
                     </template>
@@ -33,11 +33,11 @@
                     {{ t('create_new_server') }}
                 </Button>
             </div>
-
-            <div class="relative flex items-center gap-2 text-gray-400">
-                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+ 
+            <div class="relative flex items-center gap-2 text-muted-foreground">
+                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
                 <span class="text-xs uppercase tracking-widest">{{ t('or') }}</span>
-                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
             </div>
 
             <div class="relative space-y-8">
@@ -45,8 +45,8 @@
                 <InputWithError id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" :error="joinError"
                     @clear-error="joinError = ''">
                     <template #label>
-                        <Label for="invite-code" class="text-gray-300 flex items-center gap-2">
-                            <span class="i-lucide-link-2 text-purple-400"></span>
+                        <Label for="invite-code" class="text-muted-foreground flex items-center gap-2">
+                            <span class="i-lucide-link-2 text-primary"></span>
                             {{ t('invite_code') }}
                         </Label>
                     </template>

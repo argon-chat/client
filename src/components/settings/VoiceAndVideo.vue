@@ -46,7 +46,7 @@
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-muted-foreground font-medium">Left Channel</span>
-                            <span class="text-xs text-muted-foreground">{{ Math.round(leftVolume) }}%</span>
+                            <span class="text-xs text-muted-foreground">{{ formatDb(leftDbSmoothed) }} dB</span>
                         </div>
                         <div class="volume-meter">
                             <div 
@@ -59,7 +59,7 @@
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-muted-foreground font-medium">Right Channel</span>
-                            <span class="text-xs text-muted-foreground">{{ Math.round(rightVolume) }}%</span>
+                            <span class="text-xs text-muted-foreground">{{ formatDb(rightDbSmoothed) }} dB</span>
                         </div>
                         <div class="volume-meter">
                             <div 
@@ -423,6 +423,42 @@ const rightVolume = ref(0);
 const isVUMeterEnabled = ref(false);
 const isMonitoring = ref(false);
 
+const leftDbSmoothed = ref(0);
+const rightDbSmoothed = ref(0);
+
+const percentToDb = (percent: number): number => {
+  if (percent <= 0) return -Infinity;
+  // Reverse the volumeToPercent transformation: percent = vol^0.3 * 100
+  // So: vol = (percent / 100)^(1/0.3)
+  const amplitude = Math.pow(percent / 100, 1 / 0.3);
+  return 20 * Math.log10(amplitude);
+};
+
+const formatDb = (db: number): string => {
+  if (!isFinite(db) || db < -60) return '-∞';
+  return db.toFixed(1);
+};
+
+// Smooth dB values for display
+watch([leftVolume, rightVolume], ([left, right]) => {
+  const leftDb = percentToDb(left);
+  const rightDb = percentToDb(right);
+  
+  const smoothing = 0.3; // Lower = smoother but slower response
+  
+  if (!isFinite(leftDbSmoothed.value)) {
+    leftDbSmoothed.value = leftDb;
+  } else {
+    leftDbSmoothed.value = leftDbSmoothed.value + (leftDb - leftDbSmoothed.value) * smoothing;
+  }
+  
+  if (!isFinite(rightDbSmoothed.value)) {
+    rightDbSmoothed.value = rightDb;
+  } else {
+    rightDbSmoothed.value = rightDbSmoothed.value + (rightDb - rightDbSmoothed.value) * smoothing;
+  }
+});
+
 let source: MediaStreamAudioSourceNode | null = null;
 let mediaStream: MediaStream | null = null;
 let monitoringAudio: HTMLAudioElement | null = null;
@@ -438,6 +474,8 @@ async function onChangeForceToMono(x: boolean) {
 watch(isVUMeterEnabled, () => {
   leftVolume.value = 0;
   rightVolume.value = 0;
+  leftDbSmoothed.value = -Infinity;
+  rightDbSmoothed.value = -Infinity;
 });
 
 watch(isMonitoring, (x) => {
@@ -504,6 +542,8 @@ function stopMonitoring() {
   setTimeout(() => {
     leftVolume.value = 0;
     rightVolume.value = 0;
+    leftDbSmoothed.value = -Infinity;
+    rightDbSmoothed.value = -Infinity;
   }, 50);
 }
 

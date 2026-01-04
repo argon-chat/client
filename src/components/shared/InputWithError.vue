@@ -51,9 +51,9 @@ function handleInput() {
       <slot name="label" />
       <transition name="slide-fade">
         <div v-if="error" class="absolute top-[-6px] right-[-8px] px-2 py-0.5
-             bg-black/70 border border-red-500
-             text-red-400 text-[12px] font-mono tracking-wider
-             rounded-md shadow-[0_0_8px_rgba(255,0,80,0.6)]
+             bg-popover/95 backdrop-blur-sm border border-red-500
+             text-red-500 dark:text-red-400 text-[12px] font-mono tracking-wider
+             rounded-md shadow-lg
              flex items-center gap-1 overflow-hidden
              translate-x-2 -translate-y-1" :class="{ 'animate-glitch': glitching }">
           <ExclamationTriangleIcon class="w-4 h-4 shrink-0 text-red-500" />
@@ -63,9 +63,9 @@ function handleInput() {
       </transition>
       <transition name="slide-fade">
         <div v-if="success" class="absolute top-[-6px] right-[-8px] px-2 py-0.5
-             bg-black/70 border border-green-500
-             text-green-400 text-[12px] font-mono tracking-wider
-             rounded-md shadow-[0_0_8px_rgba(255,0,80,0.6)]
+             bg-popover/95 backdrop-blur-sm border border-green-500
+             text-green-600 dark:text-green-400 text-[12px] font-mono tracking-wider
+             rounded-md shadow-lg
              flex items-center gap-1 overflow-hidden
              translate-x-2 -translate-y-1" :class="{ 'animate-glitch': glitching }">
           <CheckCircledIcon class="w-4 h-4 shrink-0 text-green-500" />
@@ -75,12 +75,11 @@ function handleInput() {
 
     </div>
 
-    <Input v-model="val" :placeholder="placeholder" :type="type || 'text'" :disabled="disabled" class="h-11 rounded-xl bg-black/50 border  z-10
-             text-white placeholder-gray-500
+    <Input v-model="val" :placeholder="placeholder" :type="type || 'text'" :disabled="disabled" class="h-11 rounded-xl z-10
              focus:ring-2 transition
              w-full cyber-input" :class="error
               ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50'
-              : 'border-gray-700 focus:border-blue-500 focus:ring-blue-500/30'
+              : 'focus:border-primary focus:ring-primary/30'
               " @input="handleInput" :id="props.id" />
   </div>
 </template>

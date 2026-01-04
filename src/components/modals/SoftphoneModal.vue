@@ -1,7 +1,7 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="sm:max-w-[420px] rounded-2xl border border-white/10
-             bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60
+        <DialogContent class="sm:max-w-[420px] rounded-2xl border
+             bg-card/95
              backdrop-blur-2xl p-8 pt-12">
             <div class="w-full text-center py-3 mb-3 select-none
                text-red-500 font-mono tracking-widest text-xl
@@ -10,12 +10,12 @@
             </div>
             <div class="relative">
                 <input v-model="number" readonly :class="[
-                    'w-full bg-black/40 border rounded-xl px-4 py-4 text-3xl text-center font-mono tracking-widest',
-                    isUssd(number) ? 'border-green-500 text-green-400' : 'border-white/10'
+                    'w-full bg-background/50 border rounded-xl px-4 py-4 text-3xl text-center font-mono tracking-widest text-foreground',
+                    isUssd(number) ? 'border-green-500 text-green-400' : 'border-border'
                 ]" />
 
                 <div v-if="dialState === 'ussd-running' || ussdResult" class="absolute inset-0 rounded-xl
-               bg-black/80 backdrop-blur-xl
+               bg-background/90 backdrop-blur-xl
                border border-green-500/40
                flex items-center justify-center
                px-4 text-green-400 font-mono text-sm

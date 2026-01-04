@@ -1,14 +1,14 @@
 <template>
   <Dialog v-model:open="open">
     <DialogContent
-      class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8"
+      class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8"
     >
       <div
-        class="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none"
+        class="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-primary/5 pointer-events-none"
       ></div>
       <div class="relative text-center space-y-2">
-        <h2 class="text-3xl font-extrabold text-white tracking-wide">
-          {{ t("add_channel_group") }}
+        <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+          {{ t("add_category_channels") }}
         </h2>
       </div>
       <div class="relative space-y-3">
@@ -16,21 +16,21 @@
           v-model="groupName" 
           :error="addGroupError" 
           @clear-error="addGroupError = ''" 
-          :placeholder="t('group_name')"
+          :placeholder="t('category_name')"
         >
           <template #label>
             <Label
               for="group-name"
-              class="text-gray-300 flex items-center gap-2"
+              class="text-muted-foreground flex items-center gap-2"
             >
-              <span class="i-lucide-folder-plus text-blue-400"></span>
+              <span class="i-lucide-folder-plus text-primary"></span>
               {{ t("name") }}
             </Label>
           </template>
         </InputWithError>
       </div>
       <div class="relative space-y-3">
-        <Label for="group-desc" class="text-gray-300">
+        <Label for="group-desc" class="text-muted-foreground">
           {{ t("description") }}
         </Label>
         <Input 
@@ -43,11 +43,11 @@
         <Button
           @click="addGroup"
           :disabled="isLoading"
-          class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all"
+          class="w-full font-semibold rounded-xl transition-all"
         >
           <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
           <span v-else class="i-lucide-folder-plus mr-2"></span>
-          {{ t("create_group") }}
+          {{ t("create_category") }}
         </Button>
       </div>
     </DialogContent>

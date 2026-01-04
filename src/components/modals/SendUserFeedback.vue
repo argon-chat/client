@@ -1,52 +1,52 @@
 <template>
     <Dialog v-model:open="open">
         <DialogContent
-            class="sm:max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-br from-black/60 via-zinc-900/70 to-black/60 backdrop-blur-2xl p-8 space-y-8">
+            class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8">
             <div
-                class="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none">
+                class="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-primary/5 pointer-events-none">
             </div>
 
             <div class="relative text-center space-y-2">
-                <h2 class="text-3xl font-extrabold text-white tracking-wide">
+                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
                     {{ t('feedback_title') }}
                 </h2>
-                <p class="text-gray-400 text-sm">
+                <p class="text-muted-foreground text-sm">
                     {{ t('feedback_subtitle') }}
                 </p>
             </div>
 
             <div class="relative space-y-3">
-                <Label class="text-gray-300 flex items-center gap-2">
-                    <span class="i-lucide-message-circle text-purple-400"></span>
+                <Label class="text-muted-foreground flex items-center gap-2">
+                    <span class="i-lucide-message-circle text-primary"></span>
                     {{ t('message') }}
                 </Label>
-                <textarea v-model="message" class="w-full h-28 rounded-xl bg-black/50 border-gray-700 text-white placeholder-gray-500
-                 focus:border-purple-500 focus:ring focus:ring-purple-500/30 resize-none p-3"
+                <textarea v-model="message" class="w-full h-28 rounded-xl bg-background border border-input text-foreground placeholder:text-muted-foreground
+                 focus:border-primary focus:ring focus:ring-primary/30 resize-none p-3"
                     placeholder="Describe your issue or feedback..." />
             </div>
 
             <div class="relative space-y-3">
-                <Label class="text-gray-300 flex items-center gap-2">
-                    <span class="i-lucide-image text-green-400"></span>
+                <Label class="text-muted-foreground flex items-center gap-2">
+                    <span class="i-lucide-image text-primary"></span>
                     {{ t('attachments') }}
                 </Label>
 
                 <div class="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-xl cursor-pointer
-                 bg-black/40 border-gray-700 hover:border-green-500/50 hover:bg-black/60 transition" @dragover.prevent
+                 bg-muted/30 border-border hover:border-primary/50 hover:bg-muted/50 transition" @dragover.prevent
                     @drop.prevent="handleDrop" @click="fileInput?.click()">
-                    <span class="i-lucide-upload-cloud text-gray-400 text-3xl mb-2"></span>
-                    <p class="text-gray-400 text-sm">
+                    <span class="i-lucide-upload-cloud text-muted-foreground text-3xl mb-2"></span>
+                    <p class="text-muted-foreground text-sm">
                         {{ t('drag_or_click_to_upload') }}
                     </p>
-                    <p class="text-gray-500 text-xs">{{ t('feedback_attachments_limit') }}</p>
+                    <p class="text-muted-foreground/60 text-xs">{{ t('feedback_attachments_limit') }}</p>
                     <input ref="fileInput" type="file" class="hidden" multiple  accept="*.png,*.jpg,*.jpeg,image/png,image/jpeg" @change="handleFiles" />
                 </div>
 
                 <div v-if="attachmentsPreview.length" class="flex flex-wrap gap-3 pt-3">
                     <div v-for="(src, i) in attachmentsPreview" :key="i"
-                        class="relative w-20 h-20 rounded-lg overflow-hidden group border border-gray-700">
+                        class="relative w-20 h-20 rounded-lg overflow-hidden group border">
                         <img :src="src" class="object-cover w-full h-full" />
-                        <button @click.stop="removeAttachment(i)" class="absolute top-1 right-1 bg-black/70 rounded-full p-1 text-white opacity-70
+                        <button @click.stop="removeAttachment(i)" class="absolute top-1 right-1 bg-background/90 rounded-full p-1 text-foreground opacity-70
                      hover:opacity-100 transition">
                             <span class="i-lucide-x w-4 h-4"></span>
                         </button>
@@ -56,7 +56,7 @@
 
             <div class="relative space-y-3">
                 <Button @click="submitFeedback" :disabled="isLoading"
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all">
+                    class="w-full font-semibold rounded-xl transition-all">
                     <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-send mr-2"></span>
                     {{ t('send_feedback') }}

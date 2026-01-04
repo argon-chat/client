@@ -2,9 +2,7 @@
 import { Toaster } from "@/components/ui/toast/";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { useSystemStore } from "./store/systemStore";
-import { MinusIcon, XIcon, FullscreenIcon } from "lucide-vue-next";
 import { ref, watch, onMounted } from "vue";
-import { usePreference } from "./store/preferenceStore";
 import Island from "./components/shared/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
@@ -12,17 +10,17 @@ import { native } from "./lib/glue/nativeGlue";
 import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import { useTheme } from "@/composables/useTheme";
+import { logger } from "./lib/logger";
 
 const sys = useSystemStore();
 const appState = useAppState();
-const preferences = usePreference();
 const keys = useMagicKeys();
-const isRestored = ref(false);
 
 const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
 
 const wakeWatcher = useSleepWatcher(async () => {
+  logger.error("THROW WAKE RELOAD");
   location.reload();
 });
 
@@ -35,45 +33,15 @@ onMounted(() => {
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 
-const nativeControlsActive = ref(true);
-
 watch(shiftCtrlA, (_) => {
   native.hostProc.toggleDevTools();
 });
 
-const beginMove = () => {
-  //native.hostProc.beginMoveWindow();
-};
-
-const pressSystemKey = (key: number) => {
-  //native.hostProc.pressSystemKey(key);
-};
-
-const pressMaximize = () => {
-  if (isRestored.value) {
-    pressSystemKey(4);
-  } else {
-    pressSystemKey(3);
-  }
-
-  isRestored.value = !isRestored.value;
-};
-
-const endMove = () => {
-  //native.endMoveWindow();
-};
 
 const reloadPage = () => {
   location.reload();
 };
 
-const closeWindow = () => {
-  if (preferences.minimizeToTrayOnClose) {
-    pressSystemKey(2);
-  } else {
-    pressSystemKey(0);
-  }
-};
 const themeOverrides = {
   common: {
     bodyColor: '#000000',
@@ -232,16 +200,6 @@ const themeOverrides = {
         </Transition>
       </div>
     </div>
-
-    <div class="top-container  flex-col rounded-xl p-2 shadow-md justify-between" v-if="!nativeControlsActive">
-      <div class="sys-keyholder">
-        <MinusIcon height="16" width="16" class="close-icon" @click="pressSystemKey(1)" />
-        <FullscreenIcon height="16" width="16" class="close-icon" @click="pressMaximize" />
-        <XIcon height="16" width="16" class="close-icon" @click="closeWindow" />
-      </div>
-    </div>
-
-    <div class="topbar-collider" @mousedown="beginMove" @mouseup="endMove" v-if="!nativeControlsActive" />
   </NConfigProvider>
 
 </template>
