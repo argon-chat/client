@@ -31,28 +31,6 @@ mode.value = "dark";
 // Apply all appearance settings on app start
 onMounted(() => {
   applyAppearanceSettings();
-  
-  if (argon.isArgonHost) {
-    // Set initial background based on theme
-    const updateBackground = (theme: string) => {
-      console.log('[App.vue] Updating background for theme:', theme);
-      if (theme === "oled") {
-        document.body.style.setProperty("background", "#000000", "important");
-      } else {
-        document.body.style.setProperty("background", "transparent", "important");
-      }
-    };
-    
-    // Apply initial theme
-    console.log('[App.vue] Initial theme:', currentTheme.value);
-    updateBackground(currentTheme.value);
-    
-    // Watch for theme changes
-    watch(() => currentTheme.value, (newTheme) => {
-      console.log('[App.vue] Theme changed to:', newTheme);
-      updateBackground(newTheme);
-    });
-  }
 });
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];

@@ -75,6 +75,16 @@ export function useTheme() {
         if (themeId) {
             currentTheme.value = themeId;
             
+            // Update body background for Argon host (transparent for dark/light, black for OLED)
+            if (argon.isArgonHost) 
+            {
+                if (theme === "oled") {
+                    document.body.style.setProperty("background", "#000000", "important");
+                } else {
+                    document.body.style.setProperty("background", "transparent", "important");
+                }
+            }
+            
             // Sync with native host
             const nativeTheme = theme === "dark" ? "Dark" : theme === "light" ? "White" : "OLED";
             configStore.setTheme(nativeTheme).catch(err => {
