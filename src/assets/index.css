@@ -193,6 +193,15 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Argon host background overrides */
+  body:not(.oled-theme) {
+    background: transparent !important;
+  }
+  
+  body.oled-theme {
+    background: #000000 !important;
+  }
 }
 
 @layer components {
