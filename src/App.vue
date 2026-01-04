@@ -35,6 +35,7 @@ onMounted(() => {
   if (argon.isArgonHost) {
     // Set initial background based on theme
     const updateBackground = (theme: string) => {
+      console.log('[App.vue] Updating background for theme:', theme);
       if (theme === "oled") {
         document.body.style.setProperty("background", "#000000", "important");
       } else {
@@ -43,10 +44,12 @@ onMounted(() => {
     };
     
     // Apply initial theme
+    console.log('[App.vue] Initial theme:', currentTheme.value);
     updateBackground(currentTheme.value);
     
     // Watch for theme changes
-    watch(currentTheme, (newTheme) => {
+    watch(() => currentTheme.value, (newTheme) => {
+      console.log('[App.vue] Theme changed to:', newTheme);
       updateBackground(newTheme);
     });
   }
