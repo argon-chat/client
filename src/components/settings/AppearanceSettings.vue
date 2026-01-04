@@ -8,15 +8,10 @@
                 <PaletteIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t("theme") }}</h3>
             </div>
-            
+
             <div class="grid grid-cols-3 gap-3">
-                <div 
-                    v-for="theme in themes" 
-                    :key="theme.id"
-                    class="theme-card"
-                    :class="{ 'theme-selected': currentTheme === theme.id }"
-                    @click="selectTheme(theme.id)"
-                >
+                <div v-for="theme in themes" :key="theme.id" class="theme-card"
+                    :class="{ 'theme-selected': currentTheme === theme.id }" @click="selectTheme(theme.id)">
                     <div class="theme-preview" :style="theme.preview">
                         <div class="theme-preview-top"></div>
                         <div class="theme-preview-sidebar"></div>
@@ -70,13 +65,7 @@
                         </div>
                         <div class="flex items-center gap-4">
                             <MinusIcon class="w-4 h-4 text-muted-foreground" />
-                            <Slider 
-                                class="flex-1" 
-                                :min="12" 
-                                :max="20" 
-                                :step="1" 
-                                v-model="fontSizeArray" 
-                            />
+                            <Slider class="flex-1" :min="12" :max="20" :step="1" v-model="fontSizeArray" />
                             <PlusIcon class="w-4 h-4 text-primary" />
                         </div>
                     </div>
@@ -94,13 +83,7 @@
                         </div>
                         <div class="flex items-center gap-4">
                             <span class="text-xs text-muted-foreground">{{ t("line_height_tight") }}</span>
-                            <Slider 
-                                class="flex-1" 
-                                :min="1.2" 
-                                :max="2.0" 
-                                :step="0.1" 
-                                v-model="lineHeightArray" 
-                            />
+                            <Slider class="flex-1" :min="1.2" :max="2.0" :step="0.1" v-model="lineHeightArray" />
                             <span class="text-xs text-muted-foreground">{{ t("line_height_loose") }}</span>
                         </div>
                     </div>
@@ -116,13 +99,8 @@
             </div>
 
             <div class="grid grid-cols-3 gap-3">
-                <div 
-                    v-for="density in densities" 
-                    :key="density.id"
-                    class="density-card"
-                    :class="{ 'density-selected': uiDensity === density.id }"
-                    @click="uiDensity = density.id"
-                >
+                <div v-for="density in densities" :key="density.id" class="density-card"
+                    :class="{ 'density-selected': uiDensity === density.id }" @click="uiDensity = density.id">
                     <component :is="density.icon" class="w-8 h-8 mx-auto mb-2 text-primary" />
                     <div class="text-sm font-medium">{{ density.name }}</div>
                     <div class="text-xs text-muted-foreground">{{ density.description }}</div>
@@ -181,22 +159,13 @@
                     </div>
                     <div class="flex items-center gap-4">
                         <SquareIcon class="w-4 h-4 text-muted-foreground" />
-                        <Slider 
-                            class="flex-1" 
-                            :min="0" 
-                            :max="1.5" 
-                            :step="0.05" 
-                            v-model="borderRadiusArray" 
-                        />
+                        <Slider class="flex-1" :min="0" :max="1.5" :step="0.05" v-model="borderRadiusArray" />
                         <CircleIcon class="w-4 h-4 text-primary" />
                     </div>
-                    
+
                     <!-- Preview -->
                     <div class="mt-4 p-4 border rounded-lg bg-background/50 flex items-center gap-3">
-                        <div 
-                            class="preview-box"
-                            :style="{ borderRadius: `${borderRadius}rem` }"
-                        ></div>
+                        <div class="preview-box" :style="{ borderRadius: `${borderRadius}rem` }"></div>
                         <span class="text-xs text-muted-foreground">{{ t("preview") }}</span>
                     </div>
                 </div>
@@ -211,15 +180,9 @@
             </div>
 
             <div class="grid grid-cols-8 gap-2">
-                <button
-                    v-for="color in accentColors"
-                    :key="color.id"
-                    class="accent-color-btn"
-                    :class="{ 'accent-selected': accentColor === color.id }"
-                    :style="{ backgroundColor: color.value }"
-                    @click="accentColor = color.id"
-                    :title="color.name"
-                >
+                <button v-for="color in accentColors" :key="color.id" class="accent-color-btn"
+                    :class="{ 'accent-selected': accentColor === color.id }" :style="{ backgroundColor: color.value }"
+                    @click="accentColor = color.id" :title="color.name">
                     <CheckIcon v-if="accentColor === color.id" class="w-4 h-4 text-white" />
                 </button>
             </div>
@@ -306,22 +269,18 @@
                         <div class="text-sm font-medium">{{ t("color_blind_mode") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("color_blind_mode_desc") }}</div>
                     </div>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
-                        <div 
-                            v-for="cbMode in colorBlindModes" 
-                            :key="cbMode.id"
-                            class="colorblind-card"
+                        <div v-for="cbMode in colorBlindModes" :key="cbMode.id" class="colorblind-card"
                             :class="{ 'colorblind-selected': colorBlindMode === cbMode.id }"
-                            @click="colorBlindMode = cbMode.id"
-                        >
-                            <div class="colorblind-preview">
+                            @click="colorBlindMode = cbMode.id">
+                            <div class="colorblind-palette">
                                 <div 
-                                    v-for="color in cbMode.colors" 
-                                    :key="color"
-                                    class="colorblind-color-sample"
+                                    v-for="(color, idx) in cbMode.colors" 
+                                    :key="idx"
+                                    class="colorblind-palette-dot"
                                     :style="{ backgroundColor: color }"
-                                ></div>
+                                />
                             </div>
                             <div class="text-center mt-2">
                                 <div class="text-sm font-medium">{{ cbMode.name }}</div>
@@ -420,31 +379,31 @@ const densities = [
     { id: "spacious", name: t("density_spacious"), description: t("density_spacious_desc"), icon: MaximizeIcon }
 ];
 
-// Color blind modes with visual samples
+// Color blind modes with color palette visualization
 const colorBlindModes = [
     { 
         id: "none", 
         name: t("color_blind_none"), 
         description: "Standard colors",
-        colors: ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#a855f7"]
+        colors: ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#a855f7", "#ec4899"]
     },
     { 
         id: "protanopia", 
         name: t("color_blind_protanopia"), 
         description: "Red-weak",
-        colors: ["#9e9e4c", "#b4a146", "#c4b53f", "#22c55e", "#3b82f6", "#a855f7"]
+        colors: ["#8b7355", "#22c55e", "#3b82f6", "#d4a574", "#a855f7", "#9370db"]
     },
     { 
         id: "deuteranopia", 
         name: t("color_blind_deuteranopia"), 
         description: "Green-weak",
-        colors: ["#ef4444", "#c77a3a", "#b39c3a", "#7d9e6c", "#3b82f6", "#a855f7"]
+        colors: ["#ef4444", "#b8860b", "#3b82f6", "#eab308", "#a855f7", "#ec4899"]
     },
     { 
         id: "tritanopia", 
         name: t("color_blind_tritanopia"), 
         description: "Blue-weak",
-        colors: ["#ef4444", "#f97316", "#eab308", "#22c5a3", "#4fa0a0", "#ae5591"]
+        colors: ["#ef4444", "#20b2aa", "#008b8b", "#eab308", "#dc143c", "#ec4899"]
     }
 ];
 
@@ -528,19 +487,19 @@ const resetToDefaults = () => {
     enableAnimations.value = true;
     reduceMotion.value = false;
     enableBlur.value = true;
-    
+
     // Reset accessibility settings
     timestampFormat.value = "24h";
     highContrast.value = false;
     dyslexiaFont.value = false;
     colorBlindMode.value = "none";
-    
+
     fontSizeArray.value = [14];
     lineHeightArray.value = [1.5];
     // TODO: Enable when webview2 zoom control is implemented
     // uiScaleArray.value = [100];
     borderRadiusArray.value = [0.75];
-    
+
     toast.toast({
         title: t("settings_reset"),
         description: t("appearance_reset_desc"),
@@ -612,18 +571,18 @@ onMounted(() => {
 
 /* Color blind mode cards */
 .colorblind-card {
-    @apply p-4 rounded-lg border-2 border-border cursor-pointer transition-all hover:scale-105 hover:shadow-lg;
+    @apply p-3 rounded-lg border-2 border-border cursor-pointer transition-all hover:scale-105 hover:shadow-lg;
 }
 
 .colorblind-selected {
     @apply border-primary shadow-lg bg-primary/5;
 }
 
-.colorblind-preview {
-    @apply flex gap-1 h-12 rounded-md overflow-hidden;
+.colorblind-palette {
+    @apply w-full h-16 rounded-lg overflow-hidden bg-muted p-1.5 grid grid-cols-3 grid-rows-2 gap-1;
 }
 
-.colorblind-color-sample {
-    @apply flex-1;
+.colorblind-palette-dot {
+    @apply rounded-full w-full h-full shadow-sm;
 }
 </style>
