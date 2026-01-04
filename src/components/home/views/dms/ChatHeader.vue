@@ -37,10 +37,10 @@ watch(
 </script>
 
 <template>
-    <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
         <div class="flex items-center gap-3">
             <div
-                class="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 flex items-center justify-center text-white font-semibold">
+                class="w-10 h-10 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground font-semibold">
                 <SmartArgonAvatar :user-id="userId" />
             </div>
 
@@ -50,14 +50,14 @@ watch(
         </div>
 
         <div class="flex items-center gap-3">
-            <button class="p-2 rounded-full bg-neutral-800 hover:bg-neutral-700" @click="$emit('toggleProfile')">
+            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="$emit('toggleProfile')">
                 <IconUser class="w-5 h-5" />
             </button>
-            <button class="p-2 rounded-full bg-neutral-800 hover:bg-neutral-700" @click="emit('call')">
+            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="emit('call')">
                 <IconPhone class="w-5 h-5" />
             </button>
 
-            <button class="p-2 rounded-full bg-neutral-800 hover:bg-neutral-700" @click="emit('videoCall')">
+            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="emit('videoCall')">
                 <IconVideo class="w-5 h-5" />
             </button>
         </div>

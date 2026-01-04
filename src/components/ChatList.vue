@@ -189,7 +189,7 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 
 <style scoped>
 .chat-list {
-  background-color: #161616f5;
+  background-color: hsl(var(--card));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   height: 100%;
 }

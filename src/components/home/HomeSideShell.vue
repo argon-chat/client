@@ -176,7 +176,7 @@ onUnmounted(() => {
 
 <style lang="css" scoped>
 .item-slot {
-    background-color: #161616f5;
+    background-color: hsl(var(--card));
     border-radius: 15px;
     padding: 10px;
     display: flex;
@@ -197,18 +197,17 @@ onUnmounted(() => {
 }
 
 .recent-users-list::-webkit-scrollbar-thumb {
-    background: #3d3d3d;
-    /* темно-серый */
+    background: hsl(var(--muted));
     border-radius: 8px;
 }
 
 .recent-users-list::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: hsl(var(--muted-foreground) / 0.3);
 }
 
 /* Firefox */
 .recent-users-list {
     scrollbar-width: thin;
-    scrollbar-color: #3d3d3d transparent;
+    scrollbar-color: hsl(var(--muted)) transparent;
 }
 </style>

@@ -18,11 +18,11 @@ function sendMessage() {
 </script>
 
 <template>
-    <div class="p-4 border-t border-white/10 flex items-center gap-2">
+    <div class="p-4 border-t border-border flex items-center gap-2 bg-card">
         <input v-model="inputText" disabled placeholder="Write a message..."
-            class="flex-1 bg-[#1e1e1e] text-sm text-white px-3 py-2 rounded-lg border border-white/10 disabled:cursor-not-allowed"
+            class="flex-1 bg-background text-sm text-foreground px-3 py-2 rounded-lg border border-border disabled:cursor-not-allowed disabled:opacity-50"
             @keyup.enter="sendMessage" />
-        <button disabled @click="sendMessage" class="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-blue-900 disabled:text-gray-400 disabled:cursor-not-allowed">
+        <button disabled @click="sendMessage" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">
             Send
         </button>
     </div>

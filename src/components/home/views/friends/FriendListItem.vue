@@ -71,7 +71,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 <template>
     <Popover v-if="user && item.kind === 'friend'" v-model:open="isOpened">
         <PopoverContent style="width: 19rem; min-height: 25rem;"
-            class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
+            class="p-0 rounded-2xl shadow-xl border overflow-hidden">
             <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
         </PopoverContent>
         <PopoverTrigger as-child>
@@ -81,7 +81,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
                     <div class="relative">
                         <SmartArgonAvatar :user-id="user.userId" :overrided-size="40" />
                         <span :class="me.statusClass(user.status)"
-                            class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
+                            class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
                     </div>
                     <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-2">

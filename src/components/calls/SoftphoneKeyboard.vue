@@ -1,16 +1,16 @@
 <template>
     <div class="flex flex-col items-center gap-4">
         <div class="grid grid-cols-3 gap-4">
-            <div v-for="item in keys" :key="item.key" class="dial-key w-20 h-20 rounded-full bg-white/10 hover:bg-white/20
-         backdrop-blur-md border border-white/10
+            <div v-for="item in keys" :key="item.key" class="dial-key w-20 h-20 rounded-full bg-accent/50 hover:bg-accent/70
+         backdrop-blur-md border border-border
          flex flex-col items-center justify-center
          cursor-pointer transition select-none" :class="{ 'is-pressed': pressed.has(item.key) }"
                 @pointerdown.prevent="onPointerDown(item.key)" @pointerup.prevent="onPointerUp(item.key)"
                 @pointercancel.prevent="onPointerUp(item.key)" @pointerleave="onPointerUp(item.key)">
-                <span class="text-3xl font-semibold text-white leading-none">
+                <span class="text-3xl font-semibold text-foreground leading-none">
                     {{ item.key }}
                 </span>
-                <span v-if="item.label" class="text-xs text-gray-300 mt-1 tracking-wider">
+                <span v-if="item.label" class="text-xs text-muted-foreground mt-1 tracking-wider">
                     {{ item.label }}
                 </span>
             </div>
@@ -42,9 +42,9 @@
 
             <div class="flex justify-center">
                 <button class="w-16 h-16 rounded-full
-                   bg-white/10 hover:bg-white/20
+                   bg-accent/50 hover:bg-accent/70
                    flex items-center justify-center
-                   text-white text-3xl select-none" @pointerdown="startHold" @pointerup="stopHold"
+                   text-foreground text-3xl select-none" @pointerdown="startHold" @pointerup="stopHold"
                     @pointerleave="stopHold">
                     <DeleteIcon />
                 </button>
@@ -280,8 +280,8 @@ function onPointerUp(k: string) {
 
 .dial-key.is-pressed {
     transform: scale(0.92);
-    background: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
+    background: hsl(var(--accent) / 0.8);
+    box-shadow: 0 0 0 6px hsl(var(--accent) / 0.2);
 }
 
 .checking {

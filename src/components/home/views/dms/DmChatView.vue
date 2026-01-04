@@ -94,16 +94,16 @@ onMounted(async () => {
                     width: '100%'
                 }">
                     <template v-if="messages.length === 0 && item.index === 0">
-                        <div class="p-4 text-center text-gray-500">
+                        <div class="p-4 text-center text-muted-foreground">
                             No messages
                         </div>
                     </template>
                     <div class="p-2 flex" v-if="messages[item.index]" :class="messages[item.index].from === 'me'
                         ? 'justify-end'
                         : 'justify-start'">
-                        <div class="px-3 py-2 rounded-lg max-w-[70%]" :class="messages[item.index].from === 'me'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#2a2a2a] text-gray-200'">
+                        <div class="px-3 py-2 rounded-lg max-w-[70%] border" :class="messages[item.index].from === 'me'
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-card text-foreground border-border'">
                             {{ messages[item.index].text }}
                         </div>
                     </div>

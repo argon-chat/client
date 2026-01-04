@@ -16,7 +16,7 @@
                 </button>
             </DrawerHeader>
 
-            <div class="settings-layout justify-center flex min-h-full space-x-4">
+            <div class="settings-layout justify-center flex flex-1 space-x-4">
                 <nav class="settings-nav flex-shrink-0 w-48 p-4 text-white space-y-2 rounded-lg isolate">
                     <TransitionGroup name="nav-list" tag="div" class="space-y-2">
                         <Button 
@@ -31,7 +31,7 @@
                     </TransitionGroup>
                 </nav>
                 
-                <div class="settings-content w-3/5 p-6 text-white overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                <div class="settings-content flex-1 p-6 pb-8 text-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     <Transition name="slide-fade" mode="out-in">
                         <component :is="selectedCategoryComponent" :key="selectedCategory" />
                     </Transition>
@@ -60,6 +60,7 @@ import ApplicationSettings from "./settings/ApplicationSettings.vue";
 import HotKeySettings from "./settings/HotKeySettings.vue";
 import LanguageSettings from "./settings/LanguageSettings.vue";
 import SoundSettings from "./settings/SoundSettings.vue";
+import AppearanceSettings from "./settings/AppearanceSettings.vue";
 import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
@@ -82,6 +83,7 @@ interface Category {
 
 const CATEGORY_CONFIG: Category[] = [
     { id: "account" },
+    { id: "appearance" },
     { id: "application" },
     { id: "voice_video" },
     { id: "hotkeys" },
@@ -107,6 +109,7 @@ const visibleCategories = computed(() =>
 const categoryComponents: Record<string, any> = {
     account: ProfileSettings,
     devices: ConnectedDevices,
+    appearance: AppearanceSettings,
     voice_video: VoiceVideoSettings,
     application: ApplicationSettings,
     hotkeys: HotKeySettings,
@@ -170,6 +173,12 @@ onUnmounted(() => {
 
 .settings-content {
     border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-content::after {
+    content: '';
+    display: block;
+    height: 8rem;
 }
 
 .close-button {

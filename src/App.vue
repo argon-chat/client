@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toast/";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { useSystemStore } from "./store/systemStore";
 import { MinusIcon, XIcon, FullscreenIcon } from "lucide-vue-next";
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { usePreference } from "./store/preferenceStore";
 import Island from "./components/shared/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
@@ -11,6 +11,8 @@ import { useSleepWatcher } from "./composables/useSleepWatcher";
 import { native } from "./lib/glue/nativeGlue";
 import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
+import { useTheme } from "@/composables/useTheme";
+
 const sys = useSystemStore();
 const appState = useAppState();
 const preferences = usePreference();
@@ -18,13 +20,18 @@ const keys = useMagicKeys();
 const isRestored = ref(false);
 
 const mode = useColorMode();
-
+const { applyAppearanceSettings } = useTheme();
 
 const wakeWatcher = useSleepWatcher(async () => {
   location.reload();
 });
 
 mode.value = "dark";
+
+// Apply all appearance settings on app start
+onMounted(() => {
+  applyAppearanceSettings();
+});
 
 if (argon.isArgonHost) {
   document.body.style.setProperty("background", "transparent", "important");

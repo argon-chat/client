@@ -44,7 +44,7 @@ const me = useMe();
 }
 
 .user-bar {
-  background-color: #161616;
+  background-color: hsl(var(--card));
   border-radius: 15px;
   padding: 10px;
   display: flex;
@@ -88,7 +88,7 @@ const me = useMe();
   -webkit-mask-size: 100% 100%;
 
   font-size: 14px;
-  color: #fff;
+  color: hsl(var(--foreground));
 }
 
 .user-status {
@@ -120,7 +120,7 @@ const me = useMe();
 }
 
 .offline {
-  color: #635d5d;
+  color: hsl(var(--muted-foreground));
 }
 
 .donotdisturb {
@@ -138,7 +138,7 @@ const me = useMe();
 .controls button {
   background: none;
   border: none;
-  color: #fff;
+  color: hsl(var(--foreground));
   font-size: 16px;
   cursor: pointer;
   margin-left: 5px;
@@ -152,15 +152,15 @@ const me = useMe();
 }
 
 .controls button:hover {
-  color: #5865f2;
+  color: hsl(var(--primary));
 }
 
 .controls button.active {
-  color: #f04747;
+  color: hsl(var(--destructive));
 }
 
 .connection-card {
-  background-color: #414242;
+  background-color: hsl(var(--muted));
   text-align: center;
   margin-bottom: -5px;
   left: 10%;

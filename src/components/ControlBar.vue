@@ -123,7 +123,7 @@
 
         <div>
             <div v-show="isConnected || isConnecting" v-motion-slide-visible-bottom
-                class="connection-card absolute text-white rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
+                class="connection-card absolute text-foreground rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
                 style="bottom: 100%; margin-bottom: -5px;">
                 <div class="flex items-center space-x-2">
                     <TooltipProvider>
@@ -414,7 +414,7 @@ async function goShare() {
 
 <style scoped>
 .control-bar {
-    background-color: #161616;
+    background-color: hsl(var(--card));
     border-radius: 15px;
     padding: 10px;
     display: flex;
@@ -427,7 +427,7 @@ async function goShare() {
 .controls button {
     background: none;
     border: none;
-    color: #fff;
+    color: hsl(var(--foreground));
     font-size: 16px;
     cursor: pointer;
     margin-left: 5px;
@@ -443,20 +443,20 @@ async function goShare() {
 }
 
 .controls button:hover {
-    color: #5865f2;
+    color: hsl(var(--primary));
 }
 
 .controls button.active {
-    color: #f04747;
+    color: hsl(var(--destructive));
 }
 
 .controls button:disabled {
-    color: #4d4c4c;
+    color: hsl(var(--muted-foreground) / 0.5);
     cursor: not-allowed;
 }
 
 .connection-card {
-    background-color: #272626;
+    background-color: hsl(var(--muted));
     text-align: center;
     margin-bottom: -5px;
     left: 10%;

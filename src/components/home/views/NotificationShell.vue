@@ -13,8 +13,7 @@
             </div>
         </div>
         <div v-if="!items?.length"
-            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2"
-            style="background-color: #161616f5;">
+            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2 empty-state">
             <IconMail class="w-16 h-16" />
             <p class="mt-3 text-sm text-muted-foreground">{{t("no_new_notifications")}}</p>
         </div>
@@ -92,4 +91,8 @@ function formatTime(v: string | number | Date): string {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.empty-state {
+    background-color: hsl(var(--card));
+}
+</style>

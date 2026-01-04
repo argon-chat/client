@@ -74,7 +74,7 @@ async function openServerSettings() {
 
 <style scoped>
 .control-bar {
-    background-color: #161616;
+    background-color: hsl(var(--card));
     border-radius: 15px;
     padding: 10px;
     display: flex;
@@ -87,7 +87,7 @@ async function openServerSettings() {
 .controls button {
     background: none;
     border: none;
-    color: #fff;
+    color: hsl(var(--foreground));
     font-size: 16px;
     cursor: pointer;
     margin-left: 5px;
@@ -103,7 +103,7 @@ async function openServerSettings() {
 }
 
 .controls button:hover {
-    color: #5865f2;
+    color: hsl(var(--primary));
 }
 
 .controls button.active {
@@ -111,7 +111,7 @@ async function openServerSettings() {
 }
 
 .controls button:disabled {
-    color: #4d4c4c;
+    color: hsl(var(--muted-foreground));
     cursor: not-allowed;
 }
 </style>

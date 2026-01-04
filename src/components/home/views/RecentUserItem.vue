@@ -60,13 +60,13 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 </script>
 
 <template>
-    <div class="recent-user flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#ffffff0a] min-w-0"
+    <div class="recent-user flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-accent/50 min-w-0"
         @click="emit('open', userId)">
         <div class="relative w-[40px] h-[40px] shrink-0">
             <SmartArgonAvatar :user-id="userId" :overrided-size="40" />
 
             <span :class="me.statusClass(displayStatus)"
-                class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
+                class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
         </div>
 
         <div class="flex flex-col flex-1 overflow-hidden min-w-0">

@@ -4,7 +4,7 @@
             <source :src="`https://xcdn.argon.gl/user/${userId.replaceAll('-', '')}/${bannerId}`" type="video/mp4">
         </video>
 
-        <video playsinline autoplay muted loop alt="cover" class="w-full h-full object-cover" style="background-color: #161616f5" v-else>
+        <video playsinline autoplay muted loop alt="cover" class="w-full h-full object-cover banner-bg" v-else>
         </video>
     </div>
 </template>
@@ -17,3 +17,8 @@ const props = defineProps<{
     userId: Guid
 }>()
 </script>
+<style scoped>
+.banner-bg {
+    background-color: hsl(var(--card));
+}
+</style>

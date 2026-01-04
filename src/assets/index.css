@@ -38,13 +38,18 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.75rem;
+    
+    /* Default density variables */
+    --spacing: 0.75rem;
+    --padding: 1rem;
+    --gap: 0.75rem;
   }
 
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 0 0% 8.6%;
     --card-foreground: 0 0% 98%;
 
     --popover: 240 10% 3.9%;
@@ -68,6 +73,108 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+    
+    /* Default density variables */
+    --spacing: 0.75rem;
+    --padding: 1rem;
+    --gap: 0.75rem;
+  }
+  
+  /* Override hardcoded text colors for light theme */
+  html:not(.dark) .text-white {
+    color: rgb(10 10 10) !important;
+  }
+  
+  html:not(.dark) .text-gray-400,
+  html:not(.dark) .text-gray-500,
+  html:not(.dark) .text-gray-600 {
+    color: rgb(100 100 100) !important;
+  }
+  
+  html:not(.dark) .text-gray-700,
+  html:not(.dark) .text-gray-800,
+  html:not(.dark) .text-gray-900 {
+    color: rgb(60 60 60) !important;
+  }
+  
+  html:not(.dark) .bg-black {
+    background-color: rgb(255 255 255) !important;
+  }
+  
+  html:not(.dark) .bg-gray-900,
+  html:not(.dark) .bg-gray-800 {
+    background-color: rgb(240 240 240) !important;
+  }
+  
+  html:not(.dark) .border-neutral-800 {
+    border-color: rgb(220 220 220) !important;
+  }
+  
+  /* Override hardcoded background colors for light theme */
+  html:not(.dark) [style*="background-color: #161616"],
+  html:not(.dark) [style*="background-color:#161616"] {
+    background-color: rgb(250 250 250) !important;
+  }
+  
+  html:not(.dark) [style*="background-color: #1e1e1e"],
+  html:not(.dark) [style*="background-color:#1e1e1e"],
+  html:not(.dark) [style*="background-color: #181818"],
+  html:not(.dark) [style*="background-color:#181818"] {
+    background-color: rgb(245 245 245) !important;
+  }
+  
+  html:not(.dark) [style*="background-color: #0f0f0f"],
+  html:not(.dark) [style*="background-color:#0f0f0f"] {
+    background-color: rgb(255 255 255) !important;
+  }
+  
+  html:not(.dark) [style*="background-color: #414242"],
+  html:not(.dark) [style*="background-color:#414242"],
+  html:not(.dark) [style*="background-color: #272626"],
+  html:not(.dark) [style*="background-color:#272626"] {
+    background-color: rgb(235 235 235) !important;
+  }
+  
+  html:not(.dark) [style*="background-color: #494949"],
+  html:not(.dark) [style*="background-color:#494949"] {
+    background-color: rgb(210 210 210) !important;
+  }
+  
+  html:not(.dark) [style*="background-color: #1f2937"],
+  html:not(.dark) [style*="background-color:#1f2937"],
+  html:not(.dark) [style*="background-color: #4b5563"],
+  html:not(.dark) [style*="background-color:#4b5563"] {
+    background-color: rgb(230 230 230) !important;
+  }
+  
+  /* Override bg-[] Tailwind classes for light theme */
+  html:not(.dark) .bg-\[\#161616f5\],
+  html:not(.dark) .bg-\[\#161616\],
+  html:not(.dark) .bg-\[\#16161655\] {
+    background-color: rgb(250 250 250) !important;
+  }
+  
+  html:not(.dark) .bg-\[\#09090b\] {
+    background-color: rgb(255 255 255) !important;
+    border-color: rgb(220 220 220) !important;
+  }
+  
+  html:not(.dark) .bg-\[\#1e1e1e\],
+  html:not(.dark) .bg-\[\#0f0f0f\] {
+    background-color: rgb(245 245 245) !important;
+  }
+  
+  html:not(.dark) .bg-\[\#2a2a2a\] {
+    background-color: rgb(240 240 240) !important;
+  }
+  
+  html:not(.dark) .bg-\[\#232428\] {
+    background-color: rgb(235 235 235) !important;
+  }
+  
+  /* Override hover states */
+  html:not(.dark) .hover\:bg-\[\#ffffff0a\]:hover {
+    background-color: rgb(0 0 0 / 0.05) !important;
   }
 }
 
@@ -117,4 +224,93 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
   z-index: -5;
+}
+
+/* UI Density Classes */
+.density-compact {
+  --spacing: 0.5rem;
+  --padding: 0.75rem;
+  --gap: 0.5rem;
+}
+
+.density-compact .p-3 { padding: 0.5rem !important; }
+.density-compact .p-4 { padding: 0.75rem !important; }
+.density-compact .p-6 { padding: 1rem !important; }
+.density-compact .py-2 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+.density-compact .py-3 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.density-compact .gap-2 { gap: 0.375rem !important; }
+.density-compact .gap-3 { gap: 0.5rem !important; }
+.density-compact .gap-4 { gap: 0.625rem !important; }
+.density-compact .space-y-3 > * + * { margin-top: 0.5rem !important; }
+.density-compact .space-y-4 > * + * { margin-top: 0.625rem !important; }
+.density-compact .space-y-6 > * + * { margin-top: 0.875rem !important; }
+
+.density-comfortable {
+  --spacing: 0.75rem;
+  --padding: 1rem;
+  --gap: 0.75rem;
+}
+
+.density-spacious {
+  --spacing: 1rem;
+  --padding: 1.5rem;
+  --gap: 1rem;
+}
+
+.density-spacious .p-3 { padding: 0.875rem !important; }
+.density-spacious .p-4 { padding: 1.25rem !important; }
+.density-spacious .p-6 { padding: 2rem !important; }
+.density-spacious .py-2 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+.density-spacious .py-3 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+.density-spacious .gap-2 { gap: 0.625rem !important; }
+.density-spacious .gap-3 { gap: 0.875rem !important; }
+.density-spacious .gap-4 { gap: 1.25rem !important; }
+.density-spacious .space-y-3 > * + * { margin-top: 0.875rem !important; }
+.density-spacious .space-y-4 > * + * { margin-top: 1.25rem !important; }
+.density-spacious .space-y-6 > * + * { margin-top: 1.75rem !important; }
+
+/* No blur class for accessibility */
+.no-blur * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* High contrast mode */
+.high-contrast {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 8%;
+  --border: 0 0% 35%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 80%;
+}
+
+.high-contrast button:focus,
+.high-contrast a:focus,
+.high-contrast input:focus,
+.high-contrast select:focus {
+  outline: 3px solid hsl(var(--primary)) !important;
+  outline-offset: 2px !important;
+}
+
+/* Color blind filters */
+.colorblind-protanopia {
+  filter: url('#protanopia-filter');
+}
+
+.colorblind-deuteranopia {
+  filter: url('#deuteranopia-filter');
+}
+
+.colorblind-tritanopia {
+  filter: url('#tritanopia-filter');
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -62,7 +62,7 @@ function endCall() {
 }
 </script>
 <template>
-    <div class="flex flex-col flex-1 overflow-hidden rounded-xl bg-[#161616f5]">
+    <div class="flex flex-col flex-1 overflow-hidden rounded-xl bg-card border border-border">
         <ChatHeader :user-id="userId!" @call="onCall" @videoCall="onVideoCall" @toggleProfile="toggleProfile" />
 
         <div class="flex flex-row flex-1 overflow-hidden">
@@ -75,7 +75,7 @@ function endCall() {
 
             <transition name="slide-profile">
                 <div v-if="isProfileOpen"
-                    class="w-80 min-w-[20rem] max-w-[20rem] flex flex-col border-l border-white/10 bg-[#1e1e1e]">
+                    class="w-80 min-w-[20rem] max-w-[20rem] flex flex-col border-l border-border bg-card">
 
                     <div class="p-4 overflow-y-auto flex flex-col gap-3">
                         <SmartArgonAvatar :user-id="userId!" class="w-20 h-20 rounded-full" />
@@ -84,7 +84,7 @@ function endCall() {
                             123
                         </div>
 
-                        <div class="text-white/50 text-sm">
+                        <div class="text-muted-foreground text-sm">
                             User ID: {{ userId }}
                         </div>
                     </div>

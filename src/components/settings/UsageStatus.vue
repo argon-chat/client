@@ -193,7 +193,7 @@ const PALETTE: Record<string, string> = {
     files: '#ef7c3a',
     [SYSTEM_KEY]: '#06b6d4', 
     [OTHER_KEY]: '#465779', 
-    free: '#353535', 
+    free: 'var(--free-color)', 
 }
 const FALLBACK = ['#93c5fd', '#fde68a', '#bbf7d0', '#fecaca', '#ddd6fe', '#fca5a5', '#5eead4', '#a3a3a3']
 
@@ -261,8 +261,8 @@ function darken(color: string, percent: number): string {
 
 .progress-bar {
     @apply w-full h-4 bg-muted rounded-full overflow-hidden flex relative;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.1);
-    border: 1px solid rgba(255,255,255,0.05);
+    box-shadow: inset 0 2px 6px hsl(var(--muted-foreground) / 0.2), 0 1px 2px hsl(var(--muted-foreground) / 0.1);
+    border: 1px solid hsl(var(--border) / 0.3);
 }
 
 .progress-segment {
@@ -328,5 +328,10 @@ function darken(color: string, percent: number): string {
 
 :root {
     color-scheme: light dark;
+    --free-color: #353535;
+}
+
+html:not(.dark) {
+    --free-color: #d4d4d4;
 }
 </style>

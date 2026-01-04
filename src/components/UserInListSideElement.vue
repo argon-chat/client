@@ -1,7 +1,7 @@
 <template>
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
     <PopoverContent style="width: 19rem;min-height: 25rem;"
-      class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
+      class="p-0 rounded-2xl shadow-xl border overflow-hidden">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
     </PopoverContent>
     <PopoverTrigger as-child>
@@ -9,7 +9,7 @@
         <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
           :overridedSize="35" />
         <span :class="me.statusClass(user.status)"
-          class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
+          class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
       </div>
     </PopoverTrigger>
   </Popover>
@@ -18,7 +18,7 @@
     <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
       :overridedSize="40" />
     <span :class="me.statusClass(user.status)"
-      class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-gray-800"></span>
+      class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
   </div>
   <div class="flex flex-col items-start overflow-hidden shrink-0">
     <span class="font-bold">{{ user.displayName }}</span>

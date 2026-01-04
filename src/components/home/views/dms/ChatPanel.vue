@@ -116,12 +116,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col bg-[#0f0f0f]/90 backdrop-blur-md rounded-xl p-4 mb-3 select-none transition-all duration-300"
+    <div class="flex flex-col bg-card border border-border rounded-xl p-4 mb-3 select-none transition-all duration-300"
         :class="isFullscreen ? 'fixed inset-0 z-50 m-0 rounded-none' : ''"
         :style="{ height: panelHeight }">
 
         <div v-if="hasActiveStream && activeStream" class="flex gap-3 flex-1 overflow-hidden">
-            <div class="flex-1 relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group">
+            <div class="flex-1 relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group">
                 <video v-if="activeStream && hasVideo(activeStream.userId)" 
                     :ref="el => activeStream && setVideoRef(el, activeStream.userId)"
                     autoplay playsinline class="w-full h-full object-contain" />
@@ -129,8 +129,8 @@ onUnmounted(() => {
                 <SmartArgonAvatar v-else-if="activeStream" :user-id="activeStream.userId" :overrided-size="120"
                     class="transition-transform duration-200 group-hover:scale-110" />
 
-                <div v-if="activeStream" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-2 px-3">
-                    <span class="text-white font-semibold">
+                <div v-if="activeStream" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/70 to-transparent py-2 px-3">
+                    <span class="text-foreground font-semibold">
                         {{ activeStream.displayName }}
                         <span v-if="activeStream.screencase" class="text-xs text-lime-400 ml-2">📺 Sharing screen</span>
                     </span>
@@ -138,7 +138,7 @@ onUnmounted(() => {
 
                 <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button @click="toggleFullscreen"
-                        class="p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white transition-colors">
+                        class="p-2 rounded-lg bg-muted border border-border hover:bg-accent text-foreground transition-colors">
                         <MaximizeIcon v-if="!isFullscreen" :size="20" />
                         <Minimize2Icon v-else :size="20" />
                     </button>
@@ -152,7 +152,7 @@ onUnmounted(() => {
 
             <div class="flex flex-col gap-2 overflow-y-auto w-[200px]">
                 <div v-for="p in otherParticipants" :key="p.userId"
-                    class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all cursor-pointer h-[120px] min-h-[120px]"
+                    class="relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group transition-all cursor-pointer h-[120px] min-h-[120px]"
                     :class="{ [speakingRingClass]: isSpeaking(p.userId) }" @click="toggleFocus(p.userId)">
                     <video v-if="hasVideo(p.userId)" :ref="el => setVideoRef(el, p.userId)" autoplay playsinline
                         class="w-full h-full object-cover" />
@@ -160,8 +160,8 @@ onUnmounted(() => {
                     <SmartArgonAvatar v-else :user-id="p.userId" :overrided-size="60"
                         class="transition-transform duration-200 group-hover:scale-110" />
 
-                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-1 px-2">
-                        <span class="text-white font-semibold text-xs truncate block">{{ p.displayName }}</span>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/70 to-transparent py-1 px-2">
+                        <span class="text-foreground font-semibold text-xs truncate block">{{ p.displayName }}</span>
                     </div>
 
                     <div class="absolute top-1 right-1 flex gap-1">
@@ -179,7 +179,7 @@ onUnmounted(() => {
                 'grid-cols-3': participants.length > 4
             }">
             <div v-for="p in participants" :key="p.userId"
-                class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all cursor-pointer max-h-full min-h-[120px]"
+                class="relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group transition-all cursor-pointer max-h-full min-h-[120px]"
                 :class="{ 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.3)] scale-[1.02]': isSpeaking(p.userId) }" 
                 @click="toggleFocus(p.userId)">
                 <video v-if="hasVideo(p.userId)" :ref="el => setVideoRef(el, p.userId)" autoplay playsinline
@@ -188,8 +188,8 @@ onUnmounted(() => {
                 <SmartArgonAvatar v-else :user-id="p.userId" :overrided-size="80"
                     class="transition-transform duration-200 group-hover:scale-110" />
 
-                <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-black/70 to-transparent py-1">
-                    <span class="text-white font-semibold text-sm">{{ p.displayName }}</span>
+                <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-background/70 to-transparent py-1">
+                    <span class="text-foreground font-semibold text-sm">{{ p.displayName }}</span>
                 </div>
 
                 <div class="absolute top-2 right-2 flex gap-2">

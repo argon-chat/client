@@ -1,6 +1,6 @@
 <template>
     <div 
-        class="relative rounded-xl overflow-hidden bg-black/60 flex items-center justify-center group transition-all duration-300 cursor-pointer"
+        class="relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group transition-all duration-300 cursor-pointer"
         :class="className"
         :style="customStyle"
         @click="$emit('click', userId)">
@@ -22,8 +22,8 @@
                 { 'ring-4 ring-lime-400/80 rounded-full shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
             ]" />
 
-        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent py-1 px-2" :class="{ 'text-center': centered }">
-            <span class="text-white font-semibold truncate block" :class="nameClass">
+        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-card/90 via-card/60 to-transparent py-2 px-2" :class="{ 'text-center': centered }">
+            <span class="text-foreground font-semibold truncate block drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" :class="nameClass">
                 {{ displayName }}
                 <span v-if="isScreenSharing" class="text-xs text-lime-400 ml-2">📺 Sharing screen</span>
             </span>

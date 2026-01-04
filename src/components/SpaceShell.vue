@@ -41,7 +41,7 @@ watch(selectedChannelId, (x) => {
 
 <style lang="css" scoped>
 .chat-container {
-  background-color: #161616f5;
+  background-color: hsl(var(--card));
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
