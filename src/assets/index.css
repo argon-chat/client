@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* View Transition support for theme switching */
+@supports (view-transition-name: none) {
+  :root {
+    view-transition-name: root;
+  }
+}
+
 .xterm-viewport {
   overflow: hidden !important;
 }

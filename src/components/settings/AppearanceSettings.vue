@@ -11,7 +11,7 @@
 
             <div class="grid grid-cols-3 gap-3">
                 <div v-for="theme in themes" :key="theme.id" class="theme-card"
-                    :class="{ 'theme-selected': currentTheme === theme.id }" @click="selectTheme(theme.id)">
+                    :class="{ 'theme-selected': currentTheme === theme.id }" @click="(e) => selectTheme(theme.id, e)">
                     <div class="theme-preview" :style="theme.preview">
                         <div class="theme-preview-top"></div>
                         <div class="theme-preview-sidebar"></div>
@@ -303,7 +303,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, nextTick } from "vue";
 import { useLocale } from "@/store/localeStore";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -457,9 +457,61 @@ watch(lineHeightArray, (val) => lineHeight.value = val[0]);
 // watch(uiScaleArray, (val) => uiScale.value = val[0]);
 watch(borderRadiusArray, (val) => borderRadius.value = val[0]);
 
-// Apply theme function
-const selectTheme = (themeId: string) => {
-    applyThemeController(themeId as ThemeId);
+// Check if View Transitions are supported and user prefers animations
+const enableTransitions = () =>
+    'startViewTransition' in document &&
+    window.matchMedia('(prefers-reduced-motion: no-preference)').matches &&
+    enableAnimations.value &&
+    !reduceMotion.value;
+
+// Apply theme function with View Transition animation
+const selectTheme = async (themeId: string, event: MouseEvent) => {
+    if (currentTheme.value === themeId) return;
+
+    if (!enableTransitions() || !('startViewTransition' in document)) {
+        currentTheme.value = themeId;
+        applyThemeController(themeId as ThemeId);
+        return;
+    }
+
+    const x = event.clientX;
+    const y = event.clientY;
+    const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+    );
+
+    const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`
+    ];
+
+    const isDarkTheme = themeId === 'dark' || themeId === 'oled';
+    const wasLight = currentTheme.value === 'light';
+    const goingToDark = isDarkTheme && wasLight;
+
+    // @ts-ignore - startViewTransition is not yet in TypeScript types
+    const transition = document.startViewTransition(async () => {
+        currentTheme.value = themeId;
+        applyThemeController(themeId as ThemeId);
+        await nextTick();
+    });
+
+    try {
+        await transition.ready;
+        
+        document.documentElement.animate(
+            { clipPath: goingToDark ? clipPath : clipPath.reverse() },
+            {
+                duration: 400,
+                easing: 'ease-out',
+                pseudoElement: `::view-transition-${goingToDark ? 'new' : 'old'}(root)`
+            }
+        );
+    } catch (e) {
+        // Fallback if animation fails
+        console.warn('View transition failed:', e);
+    }
 };
 
 // Watch all settings
@@ -579,5 +631,22 @@ onMounted(() => {
 
 .colorblind-palette-dot {
     @apply rounded-full w-full h-full shadow-sm;
+}
+
+/* View Transition styles */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root),
+.dark::view-transition-new(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root),
+.dark::view-transition-old(root) {
+    z-index: 9999;
 }
 </style>
