@@ -329,7 +329,7 @@ import {
 } from "lucide-vue-next";
 import { persistedValue } from "@/lib/persistedValue";
 import { useToast } from "@/components/ui/toast";
-import { useTheme } from "@/composables/useTheme";
+import { useTheme, type ThemeId } from "@/composables/useTheme";
 
 const { t } = useLocale();
 const toast = useToast();
@@ -459,12 +459,7 @@ watch(borderRadiusArray, (val) => borderRadius.value = val[0]);
 
 // Apply theme function
 const selectTheme = (themeId: string) => {
-    currentTheme.value = themeId;
-    applyTheme();
-};
-
-const applyTheme = () => {
-    applyThemeController(currentTheme.value as any);
+    applyThemeController(themeId as ThemeId);
 };
 
 // Watch all settings

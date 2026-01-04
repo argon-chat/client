@@ -1,4 +1,5 @@
 import { persistedValue } from "@/lib/persistedValue";
+import { useConfigStore } from "@/store/configStore";
 
 export type ThemeId = "dark" | "light" | "oled";
 
@@ -19,6 +20,7 @@ const accentColors: Record<string, string> = {
 
 export function useTheme() {
     const currentTheme = persistedValue<string>("appearance.theme", "dark");
+    const configStore = useConfigStore();
 
     const applyTheme = (themeId?: ThemeId) => {
         const theme = (themeId || currentTheme.value) as ThemeId;
@@ -72,6 +74,12 @@ export function useTheme() {
         
         if (themeId) {
             currentTheme.value = themeId;
+            
+            // Sync with native host
+            const nativeTheme = theme === "dark" ? "Dark" : theme === "light" ? "White" : "OLED";
+            configStore.setTheme(nativeTheme).catch(err => {
+                console.warn("Failed to sync theme with native host:", err);
+            });
         }
     };
 
