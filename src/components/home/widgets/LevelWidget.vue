@@ -1,5 +1,14 @@
 <template>
-    <div class="widget-container h-full bg-gradient-to-br from-primary/10 to-transparent border-primary/20 p-2">
+    <div class="widget-container h-full bg-gradient-to-br from-primary/10 to-transparent border-primary/20 p-2 relative">
+        <!-- Info icon with tooltip -->
+        <div 
+            class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-muted/80 hover:bg-muted flex items-center justify-center cursor-help transition-colors shadow-md backdrop-blur-sm"
+            @mouseenter="handleIconHover"
+            @mouseleave="handleIconLeave"
+        >
+            <IconQuestionMark class="w-3.5 h-3.5 text-muted-foreground" />
+        </div>
+
         <div class="flex items-center gap-3 h-full">
             <div class="relative flex-shrink-0">
                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 flex items-center justify-center shadow-lg ring-2 ring-primary/30">
@@ -36,12 +45,37 @@
             </div>
         </div>
     </div>
+
+    <!-- Tooltip in teleport for proper z-index -->
+    <Teleport to="body">
+        <div 
+            v-if="showTooltip"
+            :style="{ 
+                position: 'fixed', 
+                top: tooltipPosition.top + 'px', 
+                left: tooltipPosition.left + 'px',
+                zIndex: 10000
+            }"
+            class="w-72 bg-popover border border-border rounded-lg shadow-2xl p-3"
+            @mouseenter="showTooltip = true"
+            @mouseleave="showTooltip = false"
+        >
+            <h4 class="text-xs font-bold mb-2 text-foreground">{{ t('level_system_title') }}</h4>
+            <div class="text-[10px] text-muted-foreground space-y-1.5 leading-relaxed">
+                <p>{{ t('level_system_xp') }}</p>
+                <p>{{ t('level_system_max_level') }}</p>
+                <p>{{ t('level_system_coin') }}</p>
+                <p>{{ t('level_system_upgrade') }}</p>
+                <p class="pt-1 border-t border-border text-[9px] italic">{{ t('level_system_note') }}</p>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <script setup lang="ts">
 import { useLocale } from '@/store/localeStore';
-import { IconStar, IconCoin } from '@tabler/icons-vue';
-import { computed, ref, onMounted } from 'vue';
+import { IconCoin, IconQuestionMark } from '@tabler/icons-vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useApi } from '@/store/apiStore';
 import { logger } from '@/lib/logger';
 
@@ -58,6 +92,8 @@ interface MyLevelDetails {
 
 const levelData = ref<MyLevelDetails | null>(null);
 const isLoading = ref(true);
+const showTooltip = ref(false);
+const tooltipPosition = ref({ top: 0, left: 0 });
 
 const currentLevel = computed(() => levelData.value?.currentLevel ?? 1);
 const currentXP = computed(() => {
@@ -79,7 +115,6 @@ async function claimCoin() {
     logger.log('[LevelWidget] Claiming coin...');
     await api.userInteraction.ClaimLevelCoin();
     logger.log('[LevelWidget] Coin claimed successfully!');
-    // Reload level data to update UI
     await loadLevelData();
   } catch (error) {
     logger.error('[LevelWidget] Failed to claim coin:', error);
@@ -97,6 +132,21 @@ async function loadLevelData() {
   } finally {
     isLoading.value = false;
   }
+}
+
+function handleIconHover(event: MouseEvent) {
+  const rect = (event.target as HTMLElement).getBoundingClientRect();
+  tooltipPosition.value = {
+    top: rect.bottom + 8,
+    left: rect.right - 288,
+  };
+  showTooltip.value = true;
+}
+
+function handleIconLeave() {
+  setTimeout(() => {
+    showTooltip.value = false;
+  }, 100);
 }
 
 onMounted(() => {
