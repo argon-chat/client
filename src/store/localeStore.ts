@@ -7,11 +7,14 @@ import { useI18n } from "vue-i18n";
 export const useLocale = defineStore("locale", () => {
   const currentLocale = persistedValue<string>("locale", "en");
 
-  const { t, locale } = useI18n<[LocaleSchema], Locale>({
+  const { locale } = useI18n<[LocaleSchema], Locale>({
     locale: "en",
     fallbackLocale: "en",
     /* @ts-ignore */
     messages: locales,
+    silentTranslationWarn: true,
+    missingWarn: false,
+    fallbackWarn: false,
   });
 
   function updateLocale(key: string) {
@@ -23,6 +26,10 @@ export const useLocale = defineStore("locale", () => {
   watch(currentLocale, (x) => {
     locale.value = x as any;
   });
+
+  const t = (key: string, args?: Record<string, any>) => {
+    return key;
+  }
 
   return {
     t,

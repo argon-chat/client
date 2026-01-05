@@ -210,6 +210,40 @@ export class AudioManagement implements IAudioManagement {
     return new WebRTCProcessor(this);
   }
 
+  async createVUMeterLight(
+    stream: MediaStream,
+    onLevel: (level: number) => void
+  ): Promise<Disposable<AudioWorkletNode>> {
+    const ctx = this.getCurrentAudioContext();
+    
+    // Add worklet module if not already added
+    if (!this.workletPaths.has('vu-meter-light')) {
+      await ctx.audioWorklet.addModule('/audio/vu-meter-light.js');
+      this.workletPaths.set('vu-meter-light', '/audio/vu-meter-light.js');
+    }
+    
+    const sourceNode = ctx.createMediaStreamSource(stream);
+    const vuMeter = new AudioWorkletNode(ctx, 'vu-meter-light');
+    
+    vuMeter.port.onmessage = (event) => {
+      // Convert to percentage with some scaling
+      const level = Math.min(100, event.data * 150);
+      onLevel(Math.round(level));
+    };
+    
+    sourceNode.connect(vuMeter);
+    
+    const dispose = async (node: AudioWorkletNode) => {
+      logger.debug('[AudioManagement] Disposing VU meter light');
+      node.port.close();
+      node.disconnect();
+      sourceNode.disconnect();
+      stream.getTracks().forEach(track => track.stop());
+    };
+    
+    return new Disposable(vuMeter, dispose);
+  }
+
   volumeToPercent(vol: number): number {
     if (vol <= 0) return 0;
 

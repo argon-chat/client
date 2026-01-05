@@ -11,7 +11,6 @@ import { native } from "./lib/glue/nativeGlue";
 import pkg from "../package.json";
 import tailwindColorMap from "../tailwind-colors.json";
 
-
 import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
@@ -33,6 +32,9 @@ export const i18n = createI18n<[LocaleSchema], Locale>({
   locale: "en",
   fallbackLocale: "en",
   messages: locales as any,
+  silentTranslationWarn: true,
+  missingWarn: false,
+  fallbackWarn: false,
 });
 const pinia = createPinia();
 const app = createApp(App);
@@ -65,4 +67,3 @@ app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
 app.mount("#app");
-

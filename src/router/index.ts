@@ -27,8 +27,14 @@ const routes = [
         path: "home",
         name: "HomeShellView",
         component: () => import("@/components/home/HomeShell.vue"),
-        redirect: "/master.pg/home/profile",
+        redirect: "/master.pg/home/dashboard",
         children: [
+          {
+            path: "dashboard",
+            name: "HomeDashboard",
+            component: () =>
+              import("@/components/home/views/HomeDashboard.vue"),
+          },
           {
             path: "profile",
             name: "HomeProfile",
@@ -37,7 +43,8 @@ const routes = [
           {
             path: "friends",
             name: "HomeFriends",
-            component: () => import("@/components/home/views/friends/FriendsShell.vue"),
+            component: () =>
+              import("@/components/home/views/friends/FriendsShell.vue"),
           },
           {
             path: "inventory",
