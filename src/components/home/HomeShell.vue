@@ -3,11 +3,11 @@ import HomeSideShell from './HomeSideShell.vue';
 import { computed, ref } from 'vue';
 import router from '@/router';
 
-function select(tab: "profile" | "friends" | "notifications" | "inventory") {
+function select(tab: "dashboard" | "friends" | "notifications" | "inventory") {
   router.push({ path: `/master.pg/home/${tab}` });
   tabRef.value = tab;
 }
-const tabRef = ref("profile" as "profile" | "friends" | "notifications" | "inventory");
+const tabRef = ref("dashboard" as "dashboard" | "friends" | "notifications" | "inventory");
 
 </script>
 

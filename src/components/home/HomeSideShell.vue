@@ -25,8 +25,8 @@ import { logger } from '@/lib/logger';
 
 const { t } = useLocale();
 
-const tab = defineModel<'profile' | 'friends' | 'notifications' | 'inventory'>('tab', {
-    default: 'profile'
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory'>('tab', {
+    default: 'dashboard'
 });
 const recentStore = useRecentChatsStore();
 const api = useApi();
@@ -37,7 +37,7 @@ const recentUsers = computed(() => recentStore.recent);
 const softphoneOpened = ref(false);
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'profile' | 'friends' | 'notifications' | 'inventory'): void
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory'): void
 }>();
 
 async function loadChats() {
@@ -110,10 +110,10 @@ onUnmounted(() => {
     <div class="channel-container flex flex-col justify-end rounded-xl space-y-3 min-w-0 max-w-60">
         <div class="item-slot flex flex-1 justify-start items-stretch flex-col overflow-hidden gap-1 h-full rounded-xl"
             style="border-radius: 15px;">
-            <Button @click="emit('select', 'profile')" :variant="tab == 'profile' ? 'outline' : 'ghost'"
+            <Button @click="emit('select', 'dashboard')" :variant="tab == 'dashboard' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconUserScan class="w-6 h-6 mr-2" />
-                {{ t("profile") }}
+                {{ t("dashboard") }}
             </Button>
             <Button @click="emit('select', 'friends')" :variant="tab == 'friends' ? 'outline' : 'ghost'"
                 class="justify-start">

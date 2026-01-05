@@ -7,7 +7,7 @@ import { useI18n } from "vue-i18n";
 export const useLocale = defineStore("locale", () => {
   const currentLocale = persistedValue<string>("locale", "en");
 
-  const { locale } = useI18n<[LocaleSchema], Locale>({
+  const { t, locale } = useI18n<[LocaleSchema], Locale>({
     locale: "en",
     fallbackLocale: "en",
     /* @ts-ignore */
@@ -27,9 +27,9 @@ export const useLocale = defineStore("locale", () => {
     locale.value = x as any;
   });
 
-  const t = (key: string, args?: Record<string, any>) => {
+  /*const t = (key: string, args?: Record<string, any>) => {
     return key;
-  }
+  }*/
 
   return {
     t,

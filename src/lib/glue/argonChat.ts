@@ -451,6 +451,22 @@ export interface ArgonIonTicket {
 };
 
 
+export interface TodayStats {
+  timeInVoice: i4;
+  callsMade: i4;
+  messagesSent: i4;
+};
+
+
+export interface MyLevelDetails {
+  totalXp: i4;
+  currentLevel: i4;
+  xpForNextLevel: i4;
+  xpForCurrentLevel: i4;
+  readyToClaimCoin: bool;
+};
+
+
 export interface UserEditInput {
   displayName: string | null;
   avatarId: string | null;
@@ -4419,6 +4435,46 @@ IonFormatterStorage.register("ArgonIonTicket", {
   }
 });
 
+IonFormatterStorage.register("TodayStats", {
+  read(reader: CborReader): TodayStats {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const timeInVoice = IonFormatterStorage.get<i4>('i4').read(reader);
+    const callsMade = IonFormatterStorage.get<i4>('i4').read(reader);
+    const messagesSent = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { timeInVoice, callsMade, messagesSent };
+  },
+  write(writer: CborWriter, value: TodayStats): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.timeInVoice);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.callsMade);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.messagesSent);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MyLevelDetails", {
+  read(reader: CborReader): MyLevelDetails {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const totalXp = IonFormatterStorage.get<i4>('i4').read(reader);
+    const currentLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const xpForNextLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const xpForCurrentLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const readyToClaimCoin = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { totalXp, currentLevel, xpForNextLevel, xpForCurrentLevel, readyToClaimCoin };
+  },
+  write(writer: CborWriter, value: MyLevelDetails): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.totalXp);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.currentLevel);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.xpForNextLevel);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.xpForCurrentLevel);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.readyToClaimCoin);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UserEditInput", {
   read(reader: CborReader): UserEditInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -4845,6 +4901,9 @@ export interface IUserInteraction extends IIonService
   CompleteUploadAvatar(blobId: guid): Promise<void>;
   BeginUploadProfileHeader(): Promise<IUploadFileResult>;
   CompleteUploadProfileHeader(blobId: guid): Promise<void>;
+  GetTodayStats(): Promise<TodayStats>;
+  GetMyLevel(): Promise<MyLevelDetails>;
+  ClaimLevelCoin(): Promise<bool>;
 }
 
 
@@ -5015,6 +5074,9 @@ export interface IUserInteraction extends IIonService
   CompleteUploadAvatar(blobId: guid): Promise<void>;
   BeginUploadProfileHeader(): Promise<IUploadFileResult>;
   CompleteUploadProfileHeader(blobId: guid): Promise<void>;
+  GetTodayStats(): Promise<TodayStats>;
+  GetMyLevel(): Promise<MyLevelDetails>;
+  ClaimLevelCoin(): Promise<bool>;
 }
 
 
@@ -6238,6 +6300,45 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  async GetTodayStats(): Promise<TodayStats> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetTodayStats");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<TodayStats>("TodayStats", writer.data, this.signal);
+  }
+  async GetMyLevel(): Promise<MyLevelDetails> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetMyLevel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<MyLevelDetails>("MyLevelDetails", writer.data, this.signal);
+  }
+  async ClaimLevelCoin(): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "ClaimLevelCoin");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
 
 }

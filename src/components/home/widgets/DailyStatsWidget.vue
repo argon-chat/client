@@ -42,14 +42,49 @@
 </template>
 
 <script setup lang="ts">
+import { useApi } from '@/store/apiStore';
 import { useLocale } from '@/store/localeStore';
 import { IconChartBar, IconClock, IconPhoneCall, IconMessage } from '@tabler/icons-vue';
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { logger } from '@/lib/logger';
 
 const { t } = useLocale();
+const api = useApi();
 
-// TODO: Fetch from API
-const voiceTime = ref('0h 0m');
-const callsMade = ref(0);
-const messagesSent = ref(0);
+interface TodayStats {
+  timeInVoice: number;
+  callsMade: number;
+  messagesSent: number;
+}
+
+const statsData = ref<TodayStats | null>(null);
+const isLoading = ref(true);
+
+const voiceTime = computed(() => {
+  if (!statsData.value) return '0h 0m';
+  const minutes = statsData.value.timeInVoice;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+});
+
+const callsMade = computed(() => statsData.value?.callsMade ?? 0);
+const messagesSent = computed(() => statsData.value?.messagesSent ?? 0);
+
+async function loadStats() {
+  try {
+    isLoading.value = true;
+    const data = await api.userInteraction.GetTodayStats();
+    statsData.value = data;
+    logger.log('[DailyStatsWidget] Stats loaded:', data);
+  } catch (error) {
+    logger.error('[DailyStatsWidget] Failed to load stats:', error);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadStats();
+});
 </script>

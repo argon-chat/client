@@ -36,11 +36,6 @@ const routes = [
               import("@/components/home/views/HomeDashboard.vue"),
           },
           {
-            path: "profile",
-            name: "HomeProfile",
-            component: () => import("@/components/home/views/ProfileShell.vue"),
-          },
-          {
             path: "friends",
             name: "HomeFriends",
             component: () =>
