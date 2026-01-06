@@ -2,57 +2,57 @@
     "items": [
         {
             "id": "scroll",
-            "desc": "Свиток с неивественными свойствами",
-            "name": "Неизвестный свиток",
+            "desc": "item_scroll_desc",
+            "name": "item_scroll_name",
             "class": "relic",
             "size": 512
         },
         {
             "id": "magic_coal",
-            "desc": "Данный предмет был получен в знак вашей крайне высокой токсичности",
-            "name": "Крайне токсичный уголёк",
+            "desc": "item_magic_coal_desc",
+            "name": "item_magic_coal_name",
             "class": "legendary",
             "size": 512
         },
         {
             "id": "box_common",
-            "desc": "Простая шкатулка с непредсказуемым содержимым.",
-            "name": "Обычная шкатулка",
+            "desc": "item_box_common_desc",
+            "name": "item_box_common_name",
             "class": "common",
             "size": 512
         },
         {
             "id": "box_rare",
-            "desc": "Необчная шкатулка — внутри ждёт что-то особенное",
-            "name": "Редкая шкатулка",
+            "desc": "item_box_rare_desc",
+            "name": "item_box_rare_name",
             "class": "rare",
             "size": 512
         },
         {
             "id": "box_legendary",
-            "desc": "Шкатулка, наполненная легендарными дарами",
-            "name": "Легендарная шкатулка",
+            "desc": "item_box_legendary_desc",
+            "name": "item_box_legendary_name",
             "class": "legendary",
             "size": 512
         },
         {
             "id": "box_relic",
-            "desc": "Окутанная тайной шкатулка, хранящая реликтовые дары неизмеримой ценности",
-            "name": "Реликтовая шкатулка",
+            "desc": "item_box_relic_desc",
+            "name": "item_box_relic_name",
             "class": "relic",
             "size": 512
         },
         {
             "id": "coin_argxstaff",
-            "desc": "Знак верности, вручаемый тем, кто связал свою судьбу с Великой Компанией. Его блеск не тускнеет даже в глубочайшей тьме.",
-            "name": "Монета Argon Staff",
+            "desc": "item_coin_argxstaff_desc",
+            "name": "item_coin_argxstaff_name",
             "class": "relic",
             "size": 512
         },
         {
             "id": "coin_argon_contributor",
-            "desc": "Знак тех, чьи строки стали кирпичами фундамента.",
-            "name": "Монета Argon Contributor",
+            "desc": "item_coin_argon_contributor_desc",
+            "name": "item_coin_argon_contributor_name",
             "class": "rare",
             "size": 512
         }

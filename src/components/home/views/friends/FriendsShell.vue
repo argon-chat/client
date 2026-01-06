@@ -104,6 +104,7 @@ import { useBus } from "@/store/busStore";
 import { useFriendEvents } from "@/composables/useFriendEvents";
 import { useMe } from "@/store/meStore";
 import type { FriendListItemVm } from "./FriendListItem.vue";
+import { useNotifications } from "@/composables/useNotifications";
 
 const { t } = useLocale();
 const { toast } = useToast();
@@ -112,6 +113,7 @@ defineOptions({ inheritAttrs: false });
 const me = useMe();
 const api = useApi();
 const client = api.freindsInteraction;
+const notifications = useNotifications();
 const query = ref("");
 const activeFilter = ref<"friends" | "pending" | "blocked">("friends");
 const loading = ref(true);
@@ -186,6 +188,9 @@ async function loadAll() {
         incoming.value = incomingData;
         outgoing.value = outgoingData;
         blocked.value = blockedData;
+        
+        // Refresh notifications count after loading friends data
+        await notifications.loadNotifications();
     } catch (error) {
         console.error("Failed to load friends data:", error);
         toast({

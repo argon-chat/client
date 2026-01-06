@@ -1,58 +1,130 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="w-[760px] max-w-[95vw] overflow-hidden border-0 bg-transparent p-0 shadow-none">
-      <div class="relative">
-        <div class="relative mx-auto w-full overflow-hidden rounded-2xl ring-1 ring-white/10 backdrop-blur-md">
-          <video v-if="videoSrc" @error="onVideoError"
-            class="absolute inset-0 h-full object-cover opacity-90 [mix-blend-mode:screen] w-[300px]"
-            :poster="poster || undefined" :playsinline="true" muted loop autoplay preload="metadata">
-            <source :src="videoSrc" type="video/webm" />
-          </video>
+    <DialogContent 
+      class="!w-[720px] max-w-[95vw] overflow-hidden border-0 bg-transparent p-0 shadow-none"
+      @escape-key-down="onEscape"
+    >
+      <!-- Accessibility: Hidden title and description for screen readers -->
+      <VisuallyHidden>
+        <DialogTitle>{{ computedTitle }}</DialogTitle>
+        <DialogDescription>
+          {{ item?.name }} - {{ item?.desc || t('inventory_item_desc_default') }}
+        </DialogDescription>
+      </VisuallyHidden>
 
-          <div class="relative grid grid-cols-[280px,1fr] md:grid-cols-[300px,1fr] min-h-[250px]">
-            <div class="relative">
-              <div
-                class="absolute inset-0 rounded-2xl border border-white/10 shadow-[inset_0_0_40px_rgba(0,0,0,.35)]" />
-              <div ref="tilt" class="relative h-full w-full [perspective:1100px]" @mousemove="onMouse"
-                @mouseleave="resetTilt">
-                <div class="absolute left-1/2 top-1/2 h-[180px] w-[220px] -translate-x-1/2 -translate-y-1/2">
-                  <div :class="['pointer-events-none absolute -inset-2 rounded-xl blur-2xl', glowClass]" />
-                  <div class="relative flex h-full w-full items-center justify-center">
-                    <div class="animate-float">
-                      <img :src="item?.icon" :alt="item?.name" class="pointer-events-none h-[256px] w-[256px] select-none object-contain
-             drop-shadow-[0_14px_40px_rgba(0,0,0,.6)] animate-flicker" draggable="false" />
-                    </div>
-                    <div class="pointer-events-none absolute bottom-[26px] h-5 w-24 rounded-full bg-black/50 blur-md" />
+      <div class="relative animate-in fade-in zoom-in-95 duration-300">
+        <!-- Animated gradient border wrapper -->
+        <div class="relative p-[3px] rounded-2xl bg-gradient-to-r animate-border-spin" :class="borderGradientClass">
+          <div class="relative w-full overflow-hidden rounded-2xl backdrop-blur-xl shadow-2xl bg-card border border-border">
+            
+            <!-- WebGL Shader Effect -->
+            <ItemGrantEffect 
+              :rarity="item?.class || 'common'" 
+              :active="open"
+              class="absolute inset-0 z-5"
+            />
+
+            <!-- Animated gradient overlay with radial pulse -->
+            <div class="absolute inset-0 bg-gradient-to-br from-background/60 via-background/80 to-background/90" />
+            <div class="absolute inset-0 animate-radial-pulse" :style="{ background: `radial-gradient(circle at 50% 40%, ${rayColor}15 0%, transparent 60%)` }" />
+
+            <!-- Main content -->
+            <div class="relative z-20 flex flex-col items-center p-12 min-h-[500px]">
+              
+              <!-- Item display with effects -->
+              <div class="mb-8 relative">
+                <!-- Glow - subtle layer for item -->
+                <div :class="['pointer-events-none absolute -inset-12 rounded-2xl blur-3xl opacity-60 animate-pulse-glow', glowClass]" />
+                
+                <!-- Item image -->
+                <div class="relative flex h-[240px] w-[240px] items-center justify-center z-30">
+                  <div class="animate-float">
+                    <img 
+                      :src="item?.icon" 
+                      :alt="item?.name" 
+                      class="pointer-events-none h-full w-full select-none object-contain drop-shadow-[0_20px_60px_rgba(0,0,0,.8)] animate-flicker" 
+                      draggable="false" 
+                    />
                   </div>
-
+                  <div class="pointer-events-none absolute bottom-0 h-8 w-40 rounded-full bg-foreground/20 blur-xl" />
                 </div>
               </div>
-            </div>
 
-            <div class="relative p-6 pr-7 text-white bg-black opacity-90">
-              <h3 class="text-[22px] font-semibold tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">
-                {{ props.title }}
+              <!-- Title -->
+              <h3 class="text-3xl font-bold tracking-wide drop-shadow-[0_4px_12px_rgba(0,0,0,.7)] animate-slide-in-right text-center text-foreground">
+                {{ computedTitle }}
               </h3>
-              <p class="mt-2 text-[15px] uppercase tracking-[0.15em] opacity-90"
+              
+              <!-- Item name with rarity gradient -->
+              <p class="mt-4 text-2xl uppercase tracking-[0.2em] font-bold bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine text-center"
                 :class="getCardClass(item?.class ?? null)">
                 {{ item?.name }}
               </p>
-              <p class="mt-3 text-sm leading-6 text-white/80">
-                {{ item?.desc }}
+              
+              <!-- Description -->
+              <p class="mt-4 text-base leading-relaxed text-foreground/90 animate-slide-in-right animation-delay-100 text-center max-w-md">
+                {{ item?.desc || t('inventory_item_desc_default') }}
               </p>
 
-              <div class="mt-6 flex gap-3">
-                <Button v-if="primaryAction" size="lg" variant="outline" @click="emit('primary'); open = false">
-                  {{ primaryAction }}
+              <!-- Item metadata -->
+              <div v-if="item" class="mt-6 flex flex-wrap gap-3 animate-slide-in-right animation-delay-200 justify-center">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30 backdrop-blur-sm border border-border">
+                  <span class="text-xs font-medium text-muted-foreground">{{ t('inventory_rarity') }}</span>
+                  <span 
+                    class="text-xs font-bold uppercase tracking-wider"
+                    :class="getCardClass(item?.class ?? null)">
+                    {{ item?.class }}
+                  </span>
+                </div>
+                <div v-if="item.usable" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-green-500/20 backdrop-blur-sm border border-green-500/40">
+                  <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                  <span class="text-xs font-medium text-green-300">{{ t('inventory_usable') }}</span>
+                </div>
+                <div v-if="item.giftable" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500/20 backdrop-blur-sm border border-blue-500/40">
+                  <span class="text-xs font-medium text-blue-300">{{ t('inventory_giftable') }}</span>
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="mt-8 flex flex-wrap gap-3 animate-slide-in-right animation-delay-300 justify-center">
+                <Button 
+                  v-if="primaryAction" 
+                  size="lg" 
+                  variant="default"
+                  class="group relative overflow-hidden bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-primary/50 transition-all duration-300"
+                  @click="onPrimaryAction"
+                  @keydown.enter.prevent="onPrimaryAction"
+                >
+                  <span class="relative z-10">{{ primaryAction }}</span>
+                  <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </Button>
-                <Button v-if="secondaryAction" size="lg" variant="outline" @click="emit('secondary')">
+                <Button 
+                  v-if="secondaryAction" 
+                  size="lg" 
+                  variant="outline"
+                  class="hover:bg-white/10 transition-all duration-300"
+                  @click="emit('secondary')"
+                >
                   {{ secondaryAction }}
                 </Button>
               </div>
-              <div
-                class="pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-              <div
-                class="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+
+              <!-- Keyboard hint -->
+              <div v-if="primaryAction" class="mt-6 flex items-center gap-2 text-xs text-muted-foreground/70 animate-slide-in-right animation-delay-400 justify-center">
+                <KbdGroup>
+                  <Kbd>Enter</Kbd>
+                </KbdGroup>
+                <span>{{ t('inventory_hint_enter') }} {{ primaryAction?.toLowerCase() || 'confirm' }}</span>
+                <span class="mx-2">•</span>
+                <KbdGroup>
+                  <Kbd>Esc</Kbd>
+                </KbdGroup>
+                <span>{{ t('inventory_hint_esc') }}</span>
+              </div>
+
+              <!-- Decorative lines -->
+              <div class="pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+              <div class="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
             </div>
           </div>
         </div>
@@ -62,11 +134,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import { Button } from '@/components/ui/button'
+import Kbd from '@/components/kbd/Kbd.vue'
+import KbdGroup from '@/components/kbd/KbdGroup.vue'
+import ItemGrantEffect from './ItemGrantEffect.vue'
+import { useLocale } from '@/store/localeStore'
 
-export interface ItemDef { id: string; desc: string; name: string; class: string; size: number; icon: string }
+export interface ItemDef { 
+  id: string; 
+  desc: string; 
+  name: string; 
+  class: string; 
+  size: number; 
+  icon: string;
+  usable?: boolean;
+  giftable?: boolean;
+}
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -77,12 +164,14 @@ const props = withDefaults(defineProps<{
   videoSrc?: string
   poster?: string
   getCardClass: (clazz: string | null) => string
+  showVideo?: boolean
 }>(), {
-  title: "Вы получили предмет!",
-  primaryAction: "Claim"
+  primaryAction: undefined,
+  showVideo: true
 })
 
-
+const { t } = useLocale()
+const computedTitle = computed(() => props.title || t('inventory_item_received'))
 
 const emit = defineEmits<{ 
   (e: 'update:modelValue', v: boolean): void; 
@@ -94,120 +183,233 @@ const open = ref(!!props.modelValue)
 watch(() => props.modelValue, v => (open.value = !!v))
 watch(open, v => emit('update:modelValue', v))
 
-const tilt = ref<HTMLDivElement | null>(null)
-const rotX = ref(0)
-const rotY = ref(0)
-function onMouse(e: MouseEvent) {
-  if (!tilt.value) return
-  const r = tilt.value.getBoundingClientRect()
-  const px = (e.clientX - r.left) / r.width
-  const py = (e.clientY - r.top) / r.height
-  const max = 10
-  rotY.value = (px - 0.5) * max * 2
-  rotX.value = -(py - 0.5) * max * 2
+// Keyboard shortcuts
+function onPrimaryAction() {
+  emit('primary')
+  open.value = false
 }
-function resetTilt() { rotX.value = 0; rotY.value = 0 }
 
-const bannerBaseClass = computed(() => ({
-  common: 'bg-[linear-gradient(135deg,#1a1d22_0%,#1b2230_60%,#101318_100%)]',
-  rare: 'bg-[linear-gradient(135deg,#0a1e2f_0%,#0e2a48_55%,#0b1220_100%)]',
-  epic: 'bg-[linear-gradient(135deg,#2a103a_0%,#3c1a58_55%,#160b25_100%)]',
-  legendary: 'bg-[linear-gradient(135deg,#3a2508_0%,#6b3b10_55%,#1a0f04_100%)]',
-  ancient: 'bg-[linear-gradient(135deg,#2a0f24_0%,#4e1d42_55%,#140813_100%)]',
-} as Record<string, string>)[props.item?.class ?? 'common'])
+function onEscape() {
+  open.value = false
+}
 
-const auraToneClass = computed(() => ({
-  common: 'from-[rgba(150,170,190,.18)]',
-  rare: 'from-[rgba(80,170,255,.22)]',
-  epic: 'from-[rgba(200,120,255,.24)]',
-  legendary: 'from-[rgba(255,200,90,.24)]',
-  ancient: 'from-[rgba(255,120,220,.26)]',
-} as Record<string, string>)[props.item?.class ?? 'common'])
+function handleKeydown(e: KeyboardEvent) {
+  if (!open.value) return
+  
+  if (e.key === 'Enter' && props.primaryAction) {
+    e.preventDefault()
+    onPrimaryAction()
+  }
+}
 
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
+
+// Styling
 const glowClass = computed(() => ({
-  common: 'bg-white/10',
-  rare: 'bg-cyan-300/25',
-  epic: 'bg-fuchsia-300/25',
-  legendary: 'bg-amber-300/25',
-  ancient: 'bg-pink-300/25',
+  common: 'bg-gray-300/40',
+  rare: 'bg-blue-400/50',
+  epic: 'bg-purple-400/50',
+  legendary: 'bg-amber-400/60',
+  relic: 'bg-pink-400/60',
+  ancient: 'bg-pink-300/50',
 } as Record<string, string>)[props.item?.class ?? 'common'])
 
-const videoSrc = computed(() => props.videoSrc || '')
-const poster = computed(() => props.poster || '')
+const borderGradientClass = computed(() => ({
+  common: 'from-gray-500 via-gray-300 via-50% to-gray-500',
+  rare: 'from-blue-500 via-cyan-400 via-50% to-blue-500',
+  epic: 'from-purple-500 via-fuchsia-400 via-50% to-purple-500',
+  legendary: 'from-amber-500 via-yellow-400 via-50% to-amber-500',
+  relic: 'from-pink-500 via-purple-400 via-50% to-pink-500',
+  ancient: 'from-pink-400 via-purple-300 via-50% to-pink-400',
+} as Record<string, string>)[props.item?.class ?? 'common'])
 
-function onVideoError(e: Event) {
-  const v = e.target as HTMLVideoElement
-  const code = v.error?.code
-  console.error('!!!!!!!!!!!! Video error', { code, error: v.error })
-}
+const rayColor = computed(() => ({
+  common: '#9ca3af',
+  rare: '#3b82f6',
+  epic: '#a855f7',
+  legendary: '#f59e0b',
+  relic: '#ec4899',
+  ancient: '#f9a8d4',
+} as Record<string, string>)[props.item?.class ?? 'common'])
 </script>
 <style lang="css" scoped>
-.animate-gold-shine {
-  animation: gold-shine 4s linear infinite;
-}
-
+/* Animated shine effect for gradients */
 @keyframes gold-shine {
-  0% {
-    background-position: 200% center;
-  }
-
-  100% {
-    background-position: -200% center;
-  }
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
-@keyframes gold-glint {
-  0% {
-    left: -75%;
-  }
-
-  100% {
-    left: 125%;
-  }
+.animate-gold-shine {
+  animation: gold-shine 3s linear infinite;
+  background-size: 200% auto;
 }
 
-
+/* Flicker effect for item image */
 @keyframes flicker {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
-    filter: drop-shadow(0 0 8px rgba(255, 255, 200, 0.5));
+    filter: drop-shadow(0 0 12px rgba(255, 255, 200, 0.6));
   }
-
   45% {
-    opacity: 0.9;
-    filter: drop-shadow(0 0 14px rgba(255, 255, 200, 0.9));
+    opacity: 0.92;
+    filter: drop-shadow(0 0 18px rgba(255, 255, 200, 1));
   }
-
   60% {
-    opacity: 0.95;
-    filter: drop-shadow(0 0 10px rgba(255, 180, 100, 0.7));
+    opacity: 0.96;
+    filter: drop-shadow(0 0 14px rgba(255, 180, 100, 0.8));
   }
-
   80% {
     opacity: 1;
-    filter: drop-shadow(0 0 12px rgba(255, 200, 150, 0.8));
+    filter: drop-shadow(0 0 16px rgba(255, 200, 150, 0.9));
   }
 }
 
 .animate-flicker {
-  animation: flicker 2.5s infinite ease-in-out;
+  animation: flicker 3s infinite ease-in-out;
 }
 
+/* Floating animation */
 @keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-8px);
-  }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-12px) scale(1.02); }
 }
 
 .animate-float {
-  animation: float 4s ease-in-out infinite;
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Pulse glow effect */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Slow pulse for background */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* Slide in animations */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.animation-delay-100 {
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+
+.animation-delay-200 {
+  animation-delay: 0.2s;
+  opacity: 0;
+}
+
+.animation-delay-300 {
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+  opacity: 0;
+}
+
+/* Dialog entrance animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoom-in-95 {
+  from { transform: scale(0.95); }
+  to { transform: scale(1); }
+}
+
+.animate-in {
+  animation: fade-in 0.3s ease-out, zoom-in-95 0.3s ease-out;
+}
+
+/* Shimmer effect for button */
+.group:hover .shimmer {
+  animation: shimmer 0.7s ease-in-out;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Animated gradient border spin */
+@keyframes border-spin {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-border-spin {
+  background-size: 200% 200%;
+  animation: border-spin 3s ease-in-out infinite;
+}
+
+/* Radial pulse animation for dramatic effect */
+@keyframes radial-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+}
+
+.animate-radial-pulse {
+  animation: radial-pulse 3s ease-in-out infinite;
+}
+
+/* Faster pulse for extra glow layers */
+@keyframes pulse-glow-fast {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse-glow-fast {
+  animation: pulse-glow-fast 1.5s ease-in-out infinite;
 }
 </style>

@@ -4,7 +4,7 @@
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <HardDriveIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">Storage Overview</h3>
+                <h3 class="text-lg font-semibold">{{ t('storage_overview') }}</h3>
             </div>
             <UsageStatus 
                 v-if="usageReport" 
@@ -18,7 +18,7 @@
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <DatabaseIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">Data Management</h3>
+                <h3 class="text-lg font-semibold">{{ t('data_management') }}</h3>
             </div>
             
             <div class="space-y-3">
@@ -28,10 +28,10 @@
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
                                 <ImageIcon class="w-4 h-4" />
-                                <span class="text-sm font-medium">Clear Media Cache</span>
+                                <span class="text-sm font-medium">{{ t('clear_media_cache') }}</span>
                             </div>
                             <div class="text-xs text-muted-foreground">
-                                Remove cached images, videos, and files. Your messages and settings will be safe.
+                                {{ t('clear_media_cache_desc') }}
                             </div>
                         </div>
                         <Button
@@ -43,7 +43,7 @@
                         >
                             <Loader2Icon v-if="isCacheClearing" class="w-4 h-4 mr-2 animate-spin" />
                             <Trash2Icon v-else class="w-4 h-4 mr-2" />
-                            Clear
+                            {{ t('clear') }}
                         </Button>
                     </div>
                 </Transition>
@@ -54,10 +54,10 @@
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
                                 <FolderIcon class="w-4 h-4" />
-                                <span class="text-sm font-medium">Clear System Cache</span>
+                                <span class="text-sm font-medium">{{ t('clear_system_cache') }}</span>
                             </div>
                             <div class="text-xs text-muted-foreground">
-                                Remove temporary system data. This won't delete your messages or account.
+                                {{ t('clear_system_cache_desc') }}
                             </div>
                         </div>
                         <Button
@@ -69,7 +69,7 @@
                         >
                             <Loader2Icon v-if="isSystemCacheClearing" class="w-4 h-4 mr-2 animate-spin" />
                             <Trash2Icon v-else class="w-4 h-4 mr-2" />
-                            Clear
+                            {{ t('clear') }}
                         </Button>
                     </div>
                 </Transition>
@@ -80,17 +80,17 @@
         <div class="setting-card border-destructive/50">
             <div class="flex items-center gap-2 mb-4">
                 <AlertTriangleIcon class="w-5 h-5 text-destructive" />
-                <h3 class="text-lg font-semibold text-destructive">Danger Zone</h3>
+                <h3 class="text-lg font-semibold text-destructive">{{ t('danger_zone') }}</h3>
             </div>
             
             <div class="action-item action-danger">
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
                         <AlertCircleIcon class="w-4 h-4 text-destructive" />
-                        <span class="text-sm font-medium">Reset All Data</span>
+                        <span class="text-sm font-medium">{{ t('reset_all_data') }}</span>
                     </div>
                     <div class="text-xs text-muted-foreground">
-                        This will log you out and remove ALL local data including messages, media, and settings. This action cannot be undone!
+                        {{ t('reset_all_data_desc') }}
                     </div>
                 </div>
                 <Button
@@ -102,7 +102,7 @@
                 >
                     <Loader2Icon v-if="isWiping" class="w-4 h-4 mr-2 animate-spin" />
                     <TrashIcon v-else class="w-4 h-4 mr-2" />
-                    Reset
+                    {{ t('reset') }}
                 </Button>
             </div>
         </div>
@@ -113,24 +113,24 @@
                 <div class="dialog-content" @click.stop>
                     <div class="dialog-header">
                         <AlertTriangleIcon class="w-6 h-6 text-destructive" />
-                        <h3 class="text-lg font-bold">Confirm Data Reset</h3>
+                        <h3 class="text-lg font-bold">{{ t('confirm_data_reset') }}</h3>
                     </div>
                     <p class="text-sm text-muted-foreground mb-4">
-                        Are you absolutely sure you want to reset all data? This will:
+                        {{ t('confirm_data_reset_question') }}
                     </p>
                     <ul class="text-sm space-y-1 mb-6 list-disc list-inside text-muted-foreground">
-                        <li>Log you out of your account</li>
-                        <li>Delete all messages and conversations</li>
-                        <li>Remove all cached media files</li>
-                        <li>Reset all application settings</li>
+                        <li>{{ t('reset_action_logout') }}</li>
+                        <li>{{ t('reset_action_delete_messages') }}</li>
+                        <li>{{ t('reset_action_remove_media') }}</li>
+                        <li>{{ t('reset_action_reset_settings') }}</li>
                     </ul>
                     <div class="flex gap-2 justify-end">
                         <Button @click="showConfirmDialog = false" variant="outline" size="sm">
-                            Cancel
+                            {{ t('cancel') }}
                         </Button>
                         <Button @click="onWipeAll" variant="destructive" size="sm">
                             <TrashIcon class="w-4 h-4 mr-2" />
-                            Yes, Reset Everything
+                            {{ t('yes_reset_everything') }}
                         </Button>
                     </div>
                 </div>
@@ -178,16 +178,16 @@ const onPruneCache = async () => {
         isCacheClearing.value = true;
         await pruneCache();
         toast.toast({
-            title: "Success",
-            description: "Media cache cleared successfully",
+            title: t('success'),
+            description: t('media_cache_cleared'),
         });
         // Refresh usage report
         usageReport.value = await getStorageUsageReport();
     } catch (error) {
         logger.error("Failed to clear cache:", error);
         toast.toast({
-            title: "Error",
-            description: "Failed to clear media cache",
+            title: t('error'),
+            description: t('failed_clear_media_cache'),
             variant: "destructive",
         });
     } finally {
@@ -202,16 +202,16 @@ const onPruneIndexDb = async () => {
         isSystemCacheClearing.value = true;
         await pruneIndexDb();
         toast.toast({
-            title: "Success",
-            description: "System cache cleared successfully",
+            title: t('success'),
+            description: t('system_cache_cleared'),
         });
         // Refresh usage report
         usageReport.value = await getStorageUsageReport();
     } catch (error) {
         logger.error("Failed to clear system cache:", error);
         toast.toast({
-            title: "Error",
-            description: "Failed to clear system cache",
+            title: t('error'),
+            description: t('failed_clear_system_cache'),
             variant: "destructive",
         });
     } finally {
@@ -231,14 +231,14 @@ const onWipeAll = async () => {
         showConfirmDialog.value = false;
         await pruneAll(true);
         toast.toast({
-            title: "Data Reset",
-            description: "All data has been cleared. Reloading...",
+            title: t('data_reset'),
+            description: t('all_data_cleared'),
         });
     } catch (error) {
         logger.error("Failed to wipe data:", error);
         toast.toast({
-            title: "Error",
-            description: "Failed to reset data",
+            title: t('error'),
+            description: t('failed_reset_data'),
             variant: "destructive",
         });
     } finally {

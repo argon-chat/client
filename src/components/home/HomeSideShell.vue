@@ -22,6 +22,7 @@ import { NBadge } from 'naive-ui';
 import { useMe } from '@/store/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { logger } from '@/lib/logger';
+import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();
 
@@ -35,6 +36,7 @@ const bus = useBus();
 const me = useMe();
 const recentUsers = computed(() => recentStore.recent);
 const softphoneOpened = ref(false);
+const notifications = useNotifications();
 
 const emit = defineEmits<{
     (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory'): void
@@ -48,6 +50,7 @@ async function loadChats() {
 onMounted(() => {
     loadChats();
     subscribeEvents();
+    notifications.initialize();
 });
 
 // --------------------------
@@ -102,6 +105,7 @@ function subscribeEvents() {
 
 onUnmounted(() => {
     subs.dispose();
+    notifications.cleanup();
 });
 </script>
 
@@ -119,13 +123,13 @@ onUnmounted(() => {
                 class="justify-start">
                 <IconCookieManFilled class="w-6 h-6 mr-2" />
                 {{ t("friends") }}
-                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+                <NBadge :value="notifications.pendingFriendRequestsCount.value" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
                 {{ t("inventory") }}
-                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+                <NBadge :value="notifications.newInventoryItemsCount.value" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
                 class="justify-start">
