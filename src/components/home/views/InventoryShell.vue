@@ -166,7 +166,8 @@ async function nextGrant() {
   if (next.instanceId.startsWith("debug-")) return;
 
   try {
-    //await inventory.value.MarkSeen([next.instanceId]);
+    await inventory.value.MarkSeen([next.instanceId]);
+    notificationsStore.markInventoryItemSeen(next.instanceId);
   } catch (e) {
     logger.warn("Failed to mark seen", e, next.instanceId);
   }
