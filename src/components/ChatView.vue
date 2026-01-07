@@ -5,7 +5,7 @@
       <div class="sticky-header">
         <div class="header-content">
           <h2 class="text-lg font-bold flex items-center">
-            <HashIcon class="mr-2 w-5 h-5" /> {{ channelName }}
+            <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="mr-2 w-5 h-5" /> {{ channelName }}
           </h2>
         </div>
         <Transition name="typing-slide">
@@ -101,7 +101,7 @@ import {
   shallowRef,
 } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import { CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { AntennaIcon, CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
 
 import MessageItem from "@/components/MessageItem.vue";
 
@@ -132,6 +132,7 @@ const props = defineProps<{
   channelId: Guid;
   spaceId?: Guid;
   channelName?: string;
+  channelType?: 'text' | 'announcement';
   typingUsers?: { displayName: string }[];
   class?: string;
 }>();

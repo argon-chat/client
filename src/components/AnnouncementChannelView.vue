@@ -1,19 +1,15 @@
 <template>
-    <div class="channel-chat flex flex-col h-full rounded-lg">
-        <div v-if="channelData" class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative"
-            style="z-index: 3">
-            <div class="p-4 flex flex-col border-b space-y-1">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-bold relative z-10 text-white flex items-center">
-                        <AntennaIcon class="mr-2" /> {{ channelData.name }}
-                    </h2>
-                </div>
-            </div>
-        </div>
-        
+    <div class="channel-chat flex flex-col h-full rounded-lg overflow-hidden relative">
         <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
-            class="messages flex-1 overflow-y-auto space-y-4 rounded-t-lg pb-4 p-5">
-            <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" @select-reply="onReplySelect" />
+            class="messages-scroll flex-1 p-5">
+            <ChatView 
+                :channel-id="selectedChannelId" 
+                :space-id="selectedSpaceId" 
+                :channel-name="channelData.name" 
+                :channel-type="'announcement'"
+                :typing-users="typingUsers" 
+                @select-reply="onReplySelect" 
+            />
         </div>
 
         <div v-if="!channelData" class="flex flex-1 flex-col items-center justify-center text-center space-y-2 p-5">
@@ -29,13 +25,13 @@
         </div>
 
         <!-- Input area for users with ManageChannels permission -->
-        <div v-if="channelData && canManageChannels" class="message-input rounded-b-lg flex items-center space-x-3 p-5">
-            <EnterText style="width: 100%;" :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTypingEvent"
+        <div v-if="channelData && canManageChannels" class="message-input rounded-b-lg p-5 overflow-hidden flex-shrink-0">
+            <EnterText :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTypingEvent"
                 @stop_typing="onStopTypingEvent" />
         </div>
 
         <!-- Follow banner for users without ManageChannels permission -->
-        <div v-else-if="channelData" class="announcement-banner rounded-b-lg flex items-center justify-center p-4">
+        <div v-else-if="channelData" class="announcement-banner rounded-b-lg flex items-center justify-center p-4 flex-shrink-0">
             <div class="flex items-center gap-3 text-muted-foreground">
                 <BellIcon class="h-5 w-5" />
                 <span class="text-sm">{{ t("follow_to_get_updates") }}</span>
@@ -54,8 +50,9 @@ import { usePoolStore } from "@/store/poolStore";
 import { usePexStore } from "@/store/permissionStore";
 import { logger } from "@/lib/logger";
 import type { Subscription } from "rxjs";
+import type { RealtimeUser } from "@/store/db/dexie";
 import { useBus } from "@/store/busStore";
-import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent } from "@/lib/glue/argonChat";
+import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent, UserStopTypingEvent, UserTypingEvent } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 
 const { t } = useLocale();
@@ -66,6 +63,10 @@ const bus = useBus();
 const channelData = ref(null as null | ArgonChannel);
 const subs = ref(null as Subscription | null);
 const messageContainer = ref<HTMLElement | null>(null);
+const typingUsers = ref<RealtimeUser[]>([]);
+const lastTypingTime = new Map<string, number>();
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const TYPING_TIMEOUT_MS = 15000;
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
 
@@ -85,24 +86,85 @@ const selectedChannelId = defineModel<string | null>('selectedChannelId', {
     type: String, required: true
 });
 
+watch(
+    () => selectedChannelId.value,
+    async (newChannelId) => {
+        typingUsers.value = [];
+        if (newChannelId) {
+            const channel = await getChannel(newChannelId);
+            channelData.value = channel ?? null;
+        } else {
+            channelData.value = null;
+        }
+    },
+    { immediate: true }
+);
+
 const onTypingEvent = () => {
     if (!channelData.value) return;
+    logger.log("Sending IAmTypingEvent with channelId:", channelData.value.channelId);
     bus.sendEventAsync(new IAmTypingEvent(channelData.value.channelId));
 };
 
 const onStopTypingEvent = () => {
     if (!channelData.value) return;
+    logger.log("Sending IAmStopTypingEvent with channelId:", channelData.value.channelId);
     bus.sendEventAsync(new IAmStopTypingEvent(channelData.value.channelId));
 };
 
+function scheduleTypingTimeout(userId: string) {
+    const oldTimer = typingTimers.get(userId);
+    if (oldTimer) clearTimeout(oldTimer);
+
+    const timer = setTimeout(() => {
+        const last = lastTypingTime.get(userId);
+        if (last && Date.now() - last >= TYPING_TIMEOUT_MS) {
+            typingUsers.value = typingUsers.value.filter((u) => u.userId !== userId);
+            typingTimers.delete(userId);
+            lastTypingTime.delete(userId);
+        }
+    }, TYPING_TIMEOUT_MS + 100);
+
+    typingTimers.set(userId, timer);
+}
+
 onMounted(async () => {
     subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
+    subs.value.add(
+        bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
+            logger.log("UserTypingEvent received", q.channelId, "current:", selectedChannelId.value);
+            if (q.channelId !== selectedChannelId.value) return;
 
-    if (selectedChannelId.value) {
-        logger.log("Selected announcement channel", selectedChannelId.value);
-        const channel = await getChannel(selectedChannelId.value);
-        if (channel) channelData.value = channel;
-    }
+            lastTypingTime.set(q.userId, Date.now());
+
+            if (!typingUsers.value.some((u) => u.userId === q.userId)) {
+                const user = await pool.getUser(q.userId);
+                logger.log("User found for typing:", user);
+                if (user) {
+                    typingUsers.value = [...typingUsers.value, user];
+                }
+            }
+
+            scheduleTypingTimeout(q.userId);
+        }),
+    );
+
+    subs.value.add(
+        bus.onServerEvent<UserStopTypingEvent>("UserStopTypingEvent", (q) => {
+            if (q.channelId !== selectedChannelId.value) return;
+
+            typingUsers.value = typingUsers.value.filter(
+                (u) => u.userId !== q.userId,
+            );
+            lastTypingTime.delete(q.userId);
+
+            const timer = typingTimers.get(q.userId);
+            if (timer) {
+                clearTimeout(timer);
+                typingTimers.delete(q.userId);
+            }
+        }),
+    );
 });
 
 onUnmounted(() => {
@@ -117,25 +179,22 @@ const onChannelChanged = async (channelId: Guid | null) => {
         if (channel) channelData.value = channel;
     }
 };
-
-watch(selectedChannelId, async (id) => {
-    if (id) {
-        const channel = await getChannel(id);
-        if (channel) channelData.value = channel;
-    } else {
-        channelData.value = null;
-    }
-});
 </script>
 
 <style scoped>
-.header-list {
-    background-color: #161616;
-    padding-top: 5px;
+.messages-scroll {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.message-input {
+    background: hsl(var(--card));
 }
 
 .announcement-banner {
-    background-color: hsl(var(--muted));
+    background: hsl(var(--muted));
     border-top: 1px solid hsl(var(--border));
 }
 </style>
