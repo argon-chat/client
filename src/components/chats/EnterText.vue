@@ -9,18 +9,19 @@
 
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Editable message area -->
-
-            <textarea disabled class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"></textarea>
-
-            <!--   <div @contextmenu.prevent="onContextMenu" 
+            <div 
                 class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"
-                ref="editorRef" contenteditable="false" @input="onEditorInput" @keydown="onEditorKeydown"
-                placeholder="Enter text..." :data-placeholder="'Enter text..'"></div> -->
+                ref="editorRef" 
+                contenteditable="true" 
+                @input="onEditorInput" 
+                @keydown="onEditorKeydown"
+                :data-placeholder="t('enter_some_text')"
+            ></div>
 
             <!-- Emoji picker -->
             <Popover>
-                <PopoverTrigger disabled style="align-items: flex-start;">
-                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0" disabled>
+                <PopoverTrigger style="align-items: flex-start;">
+                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
                         <SmileIcon />
                     </Button>
                 </PopoverTrigger>
@@ -32,7 +33,7 @@
 
             <!-- Send button -->
             <div style="align-items: flex-start;">
-                <Button disabled variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
+                <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
                     <SendHorizonalIcon />
                 </Button>
             </div>
@@ -66,12 +67,10 @@ import SmartArgonAvatar from "../SmartArgonAvatar.vue";
 import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/poolStore";
-import { useDebounce } from "@vueuse/core";
-import { Subscription } from "rxjs";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
-import { v7 } from "uuid";
+import { refDebounced } from "@vueuse/core";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
+import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/localeStore";
-import { native } from "@/lib/glue/nativeGlue";
 const { t } = useLocale();
 
 const editorRef = ref<HTMLElement | null>(null);
@@ -86,80 +85,13 @@ const mention = reactive({
   startOffset: 0,
 });
 
+// Map to store mention text -> userId for post-parsing
+const mentionRegistry = new Map<string, string>();
+
 const rawQuery = ref("");
-const debouncedQuery = useDebounce(rawQuery, 150);
+const debouncedQuery = refDebounced(rawQuery, 150);
 
-const onContextMenu = (e: MouseEvent) => {
-  logger.error("try open context menu", e);
 
-  /*if (!native.openContextMenu(e.clientX, e.clientY, items)) {
-    logger.error("failed to open context menu", e);
-  }*/
-};
-
-const redo = () => {
-  document.execCommand("redo");
-};
-const undo = () => {
-  document.execCommand("undo");
-};
-
-async function cut() {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) return;
-
-  const text = selection.toString();
-  if (argon.isArgonHost) native.hostProc.clipboardWrite(text);
-  else await navigator.clipboard.writeText(text);
-  selection.deleteFromDocument();
-}
-
-async function copy() {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) return;
-
-  const text = selection.toString();
-  if (argon.isArgonHost) native.hostProc.clipboardWrite(text);
-  else await navigator.clipboard.writeText(text);
-}
-
-async function paste() {
-  const text = argon.isArgonHost
-    ? await native.hostProc.clipboardRead()
-    : await navigator.clipboard.readText();
-
-  const selection = window.getSelection();
-  if (!selection || !selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  range.insertNode(document.createTextNode(text));
-  range.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-function deleteSelection() {
-  const selection = window.getSelection();
-  if (selection && !selection.isCollapsed) {
-    selection.deleteFromDocument();
-  }
-}
-
-const items: any[] = [
-  { CommandId: 1, Label: "Undo", KeyCode: "Ctrl+Z", Action: undo },
-  { CommandId: 2, Label: "Redo", KeyCode: "Ctrl+Y", Action: redo },
-  { IsSeparator: true },
-  { CommandId: 4, Label: "Copy", KeyCode: "Ctrl+C", Action: copy },
-  { CommandId: 5, Label: "Paste", KeyCode: "Ctrl+V", Action: paste },
-  { CommandId: 6, Label: "Cut", KeyCode: "Ctrl+X", Action: cut },
-  {
-    CommandId: 7,
-    Label: "Delete",
-    KeyCode: "Backspace",
-    Action: deleteSelection,
-  },
-];
 
 watch(debouncedQuery, async (query) => {
   if (!query || !mention.show) return;
@@ -168,6 +100,7 @@ watch(debouncedQuery, async (query) => {
 
 const props = defineProps<{
   replyTo: ArgonMessage | null;
+  spaceId: Guid;
 }>();
 
 const emit = defineEmits<{
@@ -227,92 +160,9 @@ function onEditorInput() {
   }
 
   mention.show = false;
-  parseInlineFormatting();
-  cleanFormattingArtifacts();
-  resetFormatIfEmpty();
-  breakFormattingIfCursorInsideEmptyTag();
-  resetEditorIfEmpty();
 }
 
-function resetEditorIfEmpty() {
-  const el = editorRef.value;
-  if (!el) return;
 
-  const onlyBr = el.childNodes.length === 1 && el.firstChild?.nodeName === "BR";
-  const onlyEmpty = Array.from(el.childNodes).every(
-    (n) =>
-      (n.nodeType === Node.ELEMENT_NODE &&
-        (n as HTMLElement).textContent?.trim() === "") ||
-      (n.nodeType === Node.TEXT_NODE && n.textContent?.trim() === ""),
-  );
-
-  if (onlyBr || onlyEmpty) {
-    el.innerHTML = "";
-
-    const textNode = document.createTextNode(" ");
-    el.appendChild(textNode);
-
-    const range = document.createRange();
-    range.setStart(textNode, 1);
-    range.collapse(true);
-
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  }
-}
-
-function breakFormattingIfCursorInsideEmptyTag() {
-  const sel = window.getSelection();
-  if (!sel || !sel.rangeCount) return;
-
-  const range = sel.getRangeAt(0);
-  const container = range.startContainer as HTMLElement;
-
-  // ищем ближайший форматирующий тег
-  let el =
-    container.nodeType === Node.ELEMENT_NODE
-      ? container
-      : container.parentElement;
-
-  while (el && el !== editorRef.value) {
-    if (["B", "I", "U"].includes(el.tagName)) {
-      // если тег пустой или содержит только <br> / \u200B
-      const textContent = el.textContent?.replace(/\u200B/g, "").trim();
-      const onlyBr =
-        el.childNodes.length === 1 && el.firstChild?.nodeName === "BR";
-
-      if (!textContent && (onlyBr || el.childNodes.length === 0)) {
-        // заменим формат-тег на пустой текстовый узел
-        const text = document.createTextNode("");
-        const parent = el.parentNode;
-        if (!parent) return;
-
-        parent.replaceChild(text, el);
-
-        // переместим курсор в конец нового текстового узла
-        const newRange = document.createRange();
-        newRange.setStart(text, 0);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
-      }
-      return;
-    }
-
-    el = el.parentElement;
-  }
-}
-
-function resetFormatIfEmpty() {
-  const el = editorRef.value;
-  if (!el) return;
-  if (el.childNodes.length === 1 && el.firstChild?.nodeName === "BR") {
-    document.execCommand("removeFormat");
-  }
-}
 
 async function onEditorKeydown(e: KeyboardEvent) {
   if (!mention.show) {
@@ -346,15 +196,17 @@ function selectMention(user: MentionUser) {
     range.setEnd(sel.focusNode, sel.focusOffset);
   }
   range.deleteContents();
-  const span = document.createElement("span");
-  span.contentEditable = "false";
-  span.className = "bg-blue-700 text-white px-1 rounded mr-1";
-  span.textContent = `@${user.displayName}`;
-  span.dataset.userId = user.id;
+  
+  // Insert mention as plain text with special marker
+  const mentionText = `@${user.displayName}`;
+  const textNode = document.createTextNode(mentionText);
+  
+  // Register mention for post-parsing
+  mentionRegistry.set(mentionText, user.id);
 
   const space = document.createTextNode("\u00A0");
   range.insertNode(space);
-  range.insertNode(span);
+  range.insertNode(textNode);
   range.setStartAfter(space);
   range.setEndAfter(space);
   sel.removeAllRanges();
@@ -363,324 +215,199 @@ function selectMention(user: MentionUser) {
   mention.show = false;
 }
 
-function applyItalicToSelection() {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-
-  const range = sel.getRangeAt(0);
-  if (range.collapsed) return;
-
-  const italic = document.createElement("i");
-  italic.className = "italic text-white/70";
-  italic.appendChild(range.extractContents());
-  range.insertNode(italic);
-
-  range.setStartAfter(italic);
-  range.setEndAfter(italic);
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-function isInsideFormattingTag(initialNode: Node): boolean {
-  let currentNode = initialNode;
-  while (currentNode && currentNode !== editorRef.value) {
-    if (currentNode.nodeType === Node.ELEMENT_NODE) {
-      const tag = (currentNode as HTMLElement).tagName.toLowerCase();
-      if (["b", "i", "u", "span"].includes(tag)) {
-        return true;
-      }
-    }
-    if (!currentNode.parentNode) break;
-    currentNode = currentNode.parentNode;
-  }
-  return false;
-}
-
-function cleanFormattingArtifacts() {
-  if (!editorRef.value) return;
-
-  const tags = editorRef.value.querySelectorAll("b, i, u, span");
-
-  for (const tag of Array.from(tags)) {
-    const isEmpty = tag.textContent === "" || tag.textContent === "\u200B";
-    if (!isEmpty) continue;
-
-    const parent = tag.parentNode;
-    if (!parent) continue;
-    const space = document.createTextNode("\u200B");
-    parent.replaceChild(space, tag);
-
-    const range = document.createRange();
-    range.setStartAfter(space);
-    range.collapse(true);
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  }
-}
-
-function isInsideEntity(node: Node): boolean {
-  const el = node.parentElement;
-  if (!el) return false;
-  return (
-    el.matches("[data-user-id]") || // mention
-    el.matches("[data-url]") || // ссылка
-    el.matches("[data-fractions]") || // дробь
-    el.tagName === "I" ||
-    el.tagName === "B" ||
-    el.tagName === "U"
-  );
-}
-function parseInlineFormatting() {
-  if (!editorRef.value) return;
-
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-
-  const container = editorRef.value;
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-
-  const patterns: {
-    regex: RegExp;
-    tag: string;
-    className?: string;
-    handleMatch?: (match: RegExpMatchArray) => HTMLElement;
-  }[] = [
-    {
-      regex: /~~(.*?)~~/,
-      tag: "i",
-      className: "italic",
-    },
-    {
-      regex: /\*\*(.*?)\*\*/,
-      tag: "b",
-      className: "font-bold",
-    },
-    {
-      regex: /__(.*?)(?::([a-zA-Z0-9\-]{3,20}))?__/,
-      tag: "u",
-      handleMatch: (match) => {
-        const [full, text, color] = match;
-        const u = document.createElement("u");
-        u.textContent = text;
-        u.classList.add("underline");
-
-        if (color) {
-          if (/^[a-fA-F0-9]{3,6}$/.test(color)) {
-            u.classList.add(`decoration-[#${color}]`);
-          } else if (/^[a-z]+-\d{3}$/.test(color)) {
-            u.classList.add(`decoration-${color}`);
-          }
-        }
-
-        return u;
-      },
-    },
-    {
-      regex: /\b(\d)\\(\d)\b/,
-      tag: "span",
-      handleMatch: (match) => {
-        const [, numerator, denominator] = match;
-        const span = document.createElement("span");
-        span.className = "stacked-fractions";
-        span.textContent = `${numerator}/${denominator}`;
-        span.dataset.fractions = "1";
-        return span;
-      },
-    },
-  ];
-
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    const text = node.textContent ?? "";
-    if (isInsideEntity(node) || isInsideFormattingTag(node)) continue;
-    for (const { regex, tag, className, handleMatch } of patterns) {
-      const match = regex.exec(text);
-      if (match) {
-        const matchIndex = match.index;
-        const matchLength = match[0].length;
-
-        const range = document.createRange();
-        range.setStart(node, matchIndex);
-        range.setEnd(node, matchIndex + matchLength);
-
-        let el: HTMLElement;
-        if (handleMatch) {
-          el = handleMatch(match);
-        } else {
-          el = document.createElement(tag);
-          el.textContent = match[1];
-          if (className) el.className = className;
-        }
-
-        range.deleteContents();
-
-        const space = document.createTextNode("\u200B");
-        const wrapper = document.createDocumentFragment();
-        wrapper.appendChild(el);
-        wrapper.appendChild(space);
-        range.insertNode(wrapper);
-
-        sel.removeAllRanges();
-        const newRange = document.createRange();
-        newRange.setStart(space, 1);
-        newRange.collapse(true);
-        sel.addRange(newRange);
-
-        return;
-      }
-    }
-  }
-}
-
-const onCallContext = (cmd: { commandId: number }) => {
-  const item = items.find((x) => x.CommandId === cmd.commandId);
-  if (item?.Action) item.Action();
-};
-
-function getEditorPlainText(): string {
-  const clone = editorRef.value?.cloneNode(true) as HTMLElement;
-  if (!clone) return "";
-
-  const userIdElements = clone.querySelectorAll("[data-user-id]");
-  for (const el of Array.from(userIdElements)) {
-    el.replaceWith(document.createTextNode(el.textContent || ""));
-  }
-
-  const italicElements = clone.querySelectorAll("i");
-  for (const el of Array.from(italicElements)) {
-    el.replaceWith(document.createTextNode(el.textContent || ""));
-  }
-
-  return clone.innerText.replace(/\u00A0/g, " ").trim();
-}
-
-const subs = new Subscription();
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
- /* subs.add(
-    bus.subscribeToEvent<{ commandId: number }>(
-      "native.host.context.menu.call",
-      onCallContext,
-    ),
-  );*/
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
-  subs.unsubscribe();
 });
 
 const onEmojiClick = (emoji: EmojiExt) => {
   logger.log(emoji);
 };
 
-function extractEntitiesFromEditor(): IMessageEntity[] {
-  const entities: IMessageEntity[] = [];
-  if (!editorRef.value) return entities;
-
-  let currentOffset = 0;
-
-  const processNode = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || "";
-      currentOffset += text.length;
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as HTMLElement;
-
-      const offsetStart = currentOffset;
-
-      if (el.dataset.userId) {
-        el.childNodes.forEach(processNode);
-        entities.push({
-          type: EntityType.Mention,
-          offset: offsetStart,
-          length: currentOffset - offsetStart,
-          userId: el.dataset.userId,
-          version: 1,
-        } as MessageEntityMention);
-      } else if (el.tagName === "I") {
-        el.childNodes.forEach(processNode);
-        entities.push({
-          type: EntityType.Italic,
-          offset: offsetStart,
-          length: currentOffset - offsetStart,
-          version: 1
-        }as any);
-      } else if (el.tagName === "B") {
-        el.childNodes.forEach(processNode);
-        entities.push({
-          type: EntityType.Bold,
-          offset: offsetStart,
-          length: currentOffset - offsetStart,
-          version: 1,
-        } as any);
-      } else if (el.tagName === "U") {
-        el.childNodes.forEach(processNode);
-        const classColor = [...el.classList].find((c) =>
-          c.startsWith("decoration-"),
-        );
-        let colourHex: string | undefined;
-
-        if (classColor) {
-          const colorKey = classColor
-            .replace("decoration-", "")
-            .replace(/^\[#/, "")
-            .replace(/]$/, "");
-          const mapped = (window as any).tailwindColorMap?.[colorKey];
-          if (mapped && /^#?[a-fA-F0-9]{3,6}$/.test(mapped)) {
-            colourHex = mapped.replace(/^#/, "");
-          } else if (/^[a-fA-F0-9]{3,6}$/.test(colorKey)) {
-            colourHex = colorKey;
-          }
-        }
-
-        const colourNum = colourHex ? Number.parseInt(colourHex, 16) : 0xffffff;
-
-        entities.push({
-          type: EntityType.Underline,
-          offset: offsetStart,
-          length: currentOffset - offsetStart,
-          colour: colourNum,
-          version: 1,
-        } as MessageEntityUnderline);
-      } else if (el.tagName === "SPAN" && el.dataset.fractions === "1") {
-        el.childNodes.forEach(processNode);
-        entities.push({
-          type: EntityType.Fraction,
-          offset: offsetStart,
-          length: currentOffset - offsetStart,
-          version: 1,
-        } as any);
-      } else {
-        el.childNodes.forEach(processNode);
-      }
-    }
-  };
-
-  editorRef.value.childNodes.forEach(processNode);
-  return entities;
+interface ParsedMessage {
+  text: string;
+  entities: IMessageEntity[];
 }
+
+interface FormatMatch {
+  start: number;
+  end: number;
+  content: string;
+  type: EntityType;
+  extra?: Record<string, any>;
+}
+
+/**
+ * Parse message content and extract entities
+ * Formats:
+ * - __text__ = italic
+ * - **text** = bold  
+ * - ~~text~~ = strikethrough
+ * - #hashtag = hashtag
+ * - <tailwind-color:text> = colored underline
+ * - @mention = mention (from mentionRegistry)
+ */
+function parseMessageContent(): ParsedMessage {
+  if (!editorRef.value) return { text: "", entities: [] };
+
+  // Get raw text from editor
+  let rawText = editorRef.value.innerText.replace(/\u00A0/g, " ").trim();
+  
+  const entities: IMessageEntity[] = [];
+  const formatMatches: FormatMatch[] = [];
+
+  // Pattern definitions: [regex, entityType, contentGroupIndex, extraHandler?]
+  const patterns: Array<{
+    regex: RegExp;
+    type: EntityType;
+    contentGroup: number;
+    extraHandler?: (match: RegExpMatchArray) => Record<string, any>;
+  }> = [
+    { regex: /__(.+?)__/g, type: EntityType.Italic, contentGroup: 1 },
+    { regex: /\*\*(.+?)\*\*/g, type: EntityType.Bold, contentGroup: 1 },
+    { regex: /~~(.+?)~~/g, type: EntityType.Strikethrough, contentGroup: 1 },
+    { regex: /#(\w+)/g, type: EntityType.Hashtag, contentGroup: 0 },
+    { 
+      regex: /<([a-z]+-\d{3}):(.+?)>/g, 
+      type: EntityType.Underline, 
+      contentGroup: 2,
+      extraHandler: (m) => {
+        const colorKey = m[1];
+        const mapped = (window as any).tailwindColorMap?.[colorKey];
+        const hex = mapped?.replace(/^#/, "") || "ffffff";
+        return { colour: Number.parseInt(hex, 16) };
+      }
+    },
+  ];
+
+  // Find all formatting matches
+  for (const { regex, type, contentGroup, extraHandler } of patterns) {
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(rawText)) !== null) {
+      formatMatches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: contentGroup === 0 ? match[0] : match[contentGroup],
+        type,
+        extra: extraHandler?.(match),
+      });
+    }
+  }
+
+  // Find mentions from registry
+  for (const [mentionText, userId] of mentionRegistry) {
+    let searchPos = 0;
+    while (true) {
+      const idx = rawText.indexOf(mentionText, searchPos);
+      if (idx === -1) break;
+      
+      formatMatches.push({
+        start: idx,
+        end: idx + mentionText.length,
+        content: mentionText,
+        type: EntityType.Mention,
+        extra: { userId },
+      });
+      searchPos = idx + mentionText.length;
+    }
+  }
+
+  // Sort by start position, then by length (longer matches first for same position)
+  formatMatches.sort((a, b) => a.start - b.start || b.end - a.end);
+
+  // Remove overlapping matches (keep first one)
+  const nonOverlapping: FormatMatch[] = [];
+  for (const fm of formatMatches) {
+    const overlaps = nonOverlapping.some(
+      existing => !(fm.end <= existing.start || fm.start >= existing.end)
+    );
+    if (!overlaps) {
+      nonOverlapping.push(fm);
+    }
+  }
+
+  // Build clean text and entities with adjusted offsets
+  let cleanText = "";
+  let lastEnd = 0;
+  
+  for (const fm of nonOverlapping) {
+    // Add text before this match
+    cleanText += rawText.slice(lastEnd, fm.start);
+    
+    const entityStart = cleanText.length;
+    
+    // Add content without markers
+    cleanText += fm.content;
+    
+    const entityEnd = cleanText.length;
+
+    // Create entity
+    if (fm.type === EntityType.Mention) {
+      entities.push({
+        type: EntityType.Mention,
+        offset: entityStart,
+        length: entityEnd - entityStart,
+        userId: fm.extra!.userId,
+        version: 1,
+      } as MessageEntityMention);
+    } else if (fm.type === EntityType.Hashtag) {
+      entities.push({
+        type: EntityType.Hashtag,
+        offset: entityStart,
+        length: entityEnd - entityStart,
+        hashtag: fm.content.slice(1), // Remove # prefix
+        version: 1,
+      } as MessageEntityHashTag);
+    } else if (fm.type === EntityType.Underline) {
+      entities.push({
+        type: EntityType.Underline,
+        offset: entityStart,
+        length: entityEnd - entityStart,
+        colour: fm.extra?.colour ?? 0xffffff,
+        version: 1,
+      } as MessageEntityUnderline);
+    } else {
+      entities.push({
+        type: fm.type,
+        offset: entityStart,
+        length: entityEnd - entityStart,
+        version: 1,
+      } as IMessageEntity);
+    }
+
+    lastEnd = fm.end;
+  }
+
+  // Add remaining text
+  cleanText += rawText.slice(lastEnd);
+
+  return { text: cleanText, entities };
+}
+
 const handleSend = async () => {
   if (!pool.selectedTextChannel) {
     logger.warn("selected text channel is not defined");
     return;
   }
 
-  const plainText = getEditorPlainText();
-  const entities = extractEntitiesFromEditor();
+  const { text: plainText, entities } = parseMessageContent();
 
   if (entities.length === 0 && plainText.length === 0) return;
 
-  console.log("Sending message:", plainText);
-  console.log("totalEntities:", entities);
-  // @ts-ignore
-  await api.channelInteraction.SendMessage(v7(),
-    pool.selectedTextChannel, 
+  // Generate random message ID as bigint
+  const randomId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
+  await api.channelInteraction.SendMessage(
+    props.spaceId,
+    pool.selectedTextChannel,
     plainText,
     entities,
+    randomId,
     props.replyTo?.messageId ?? null,
   );
 
@@ -691,6 +418,9 @@ const handleSend = async () => {
   if (editorRef.value) {
     editorRef.value.innerHTML = "";
   }
+  
+  // Clear mention registry after send
+  mentionRegistry.clear();
 };
 </script>
 <style lang="css" scoped>

@@ -7,21 +7,24 @@
     @dragend="emit('dragend')"
     :class="{ 
       'drag-over': isDragOver, 
-      'channel-active': isActive 
+      'channel-active': isActive,
+      'channel-connected': isConnectedVoiceChannel
     }"
     class="channel-item"
   >
     <div 
       class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-pointer rounded-md transition-all duration-150"
       @click="emit('select', channel.channelId)"
+      @dblclick="emit('switch-voice', channel.channelId)"
     >
       <ContextMenu>
         <ContextMenuTrigger>
           <div class="flex items-center space-x-2">
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <Volume2Icon v-else-if="channel.type === ChannelType.Voice" class="w-5 h-5 text-gray-400 flex-shrink-0" />
+            <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-gray-400']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
             <span class="text-gray-300 font-medium truncate">{{ channel?.name }}</span>
+            <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent class="w-64">
@@ -115,6 +118,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [channelId: string];
+  'switch-voice': [channelId: string];
   delete: [channelId: string];
   dragstart: [channel: ArgonChannel, groupId: Guid | null, event: DragEvent];
   dragover: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
@@ -129,6 +133,10 @@ const me = useMe();
 const voice = useUnifiedCall();
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
+const isConnectedVoiceChannel = computed(() => 
+  props.channel.type === ChannelType.Voice && 
+  voice.connectedVoiceChannelId === props.channel.channelId
+);
 </script>
 
 <style scoped>
@@ -140,6 +148,11 @@ const canManageChannels = computed(() => pex.has('ManageChannels'));
 .channel-active > div {
   background-color: rgba(88, 101, 242, 0.1) !important;
   color: white;
+}
+
+.channel-connected > div {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+  border-left: 2px solid rgb(34, 197, 94);
 }
 
 .drag-over {

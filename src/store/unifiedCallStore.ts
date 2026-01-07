@@ -44,6 +44,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   const callId = ref<string | null>(null);
   const targetId = ref<string | null>(null);
+  const connectedVoiceChannelId = ref<string | null>(null);
 
   const isConnecting = ref(false);
   const isConnected = ref(false);
@@ -134,6 +135,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     mode.value = "none";
     callId.value = null;
     targetId.value = null;
+    connectedVoiceChannelId.value = null;
 
     isConnecting.value = false;
     isConnected.value = false;
@@ -251,6 +253,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     callId.value = `channel-${channelId}`;
     targetId.value = channelId;
+    connectedVoiceChannelId.value = channelId;
 
     await joinLiveKit({
       token: join.token,
@@ -857,6 +860,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     room,
     callId,
     targetId,
+    connectedVoiceChannelId,
     isConnected,
     isConnecting,
     isReconnecting,

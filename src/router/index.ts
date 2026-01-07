@@ -65,6 +65,11 @@ const routes = [
         name: "SpaceShellView",
         component: () => import("@/components/SpaceShell.vue"),
       },
+      {
+        path: "space/:id/channel/:channelId",
+        name: "SpaceChannel",
+        component: () => import("@/components/SpaceShell.vue"),
+      },
     ],
   },
   {

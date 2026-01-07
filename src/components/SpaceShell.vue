@@ -3,11 +3,12 @@ import { usePoolStore } from '@/store/poolStore';
 import ChannelChat from './ChannelChat.vue';
 import LeftSideUserList from './LeftSideUserList.vue';
 import SpaceSideShell from './SpaceSideShell.vue';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { logger } from '@/lib/logger';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
+const router = useRouter();
 const pool = usePoolStore();
 
 const selectedSpace = computed(() => {
@@ -23,7 +24,20 @@ watch(
   { immediate: true }
 );
 
-const selectedChannelId = ref('');
+const selectedChannelId = computed({
+  get: () => (route.params.channelId as string) || '',
+  set: (channelId: string) => {
+    if (channelId && selectedSpace.value) {
+      router.push({
+        name: 'SpaceChannel',
+        params: {
+          id: selectedSpace.value,
+          channelId
+        }
+      });
+    }
+  }
+});
 
 watch(selectedChannelId, (x) => {
   logger.warn("SpaceShell, selectedChannelId", x);

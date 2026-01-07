@@ -33,9 +33,9 @@
                 </div>
             </Transition>
         </div>
-        <div v-if="channelData && selectedChannelId" ref="messageContainer"
+        <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
             class="messages flex-1 overflow-y-auto space-y-4 rounded-t-lg pb-4 p-5">
-            <ChatView :channel-id="selectedChannelId" @select-reply="onReplySelect" />
+            <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" @select-reply="onReplySelect" />
         </div>
 
         <div v-if="!channelData" class="flex flex-1 flex-col items-center justify-center text-center space-y-2 p-5">
@@ -51,7 +51,7 @@
         </div>
 
         <div v-if="channelData" class="message-input rounded-b-lg flex items-center space-x-3 p-5">
-            <EnterText style="width: 100%;" :reply-to="replyTo" @clear-reply="replyTo = null" @typing="onTypingEvent"
+            <EnterText style="width: 100%;" :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTypingEvent"
                 @stop_typing="onStopTypingEvent" />
         </div>
     </div>

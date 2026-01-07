@@ -11,6 +11,7 @@
         :is-drag-over="dragOverChannel === channel.channelId"
         :voice-users="voiceChannelUsers.get(channel.channelId)"
         @select="channelSelect"
+        @switch-voice="switchVoiceChannel"
         @delete="channelDelete"
         @dragstart="onDragStart"
         @dragover="onDragOver"
@@ -45,6 +46,7 @@
             :is-drag-over="dragOverChannel === channel.channelId"
             :voice-users="voiceChannelUsers.get(channel.channelId)"
             @select="channelSelect"
+            @switch-voice="switchVoiceChannel"
             @delete="channelDelete"
             @dragstart="onDragStart"
             @dragover="onDragOver"
@@ -157,25 +159,55 @@ async function channelSelect(channelId: string) {
   logger.info(`Do action for channel '${channelId}'`);
   const channel = await pool.getChannel(channelId);
 
-  if (channel && channel.type !== ChannelType.Voice) {
-    pool.selectedTextChannel = channel.channelId;
-  } else {
-    logger.warn('no found channel for ', channelId, channel);
-  }
-  selectedChannelId.value = channelId;
-  logger.info(`Do action for channel`, channel);
-
-  if (voice.isConnected) {
-    return;
-  }
-
   if (!channel) {
     logger.warn('no found channel for ', channelId);
     return;
   }
-  if (channel.type === ChannelType.Voice) {
-    await voice.joinVoiceChannel(channelId);
+
+  // Always update selected channel for view switching
+  selectedChannelId.value = channelId;
+
+  // Handle different channel types
+  switch (channel.type) {
+    case ChannelType.Text:
+    case ChannelType.Announcement:
+      // Text and Announcement channels just open the view
+      pool.selectedTextChannel = channel.channelId;
+      break;
+
+    case ChannelType.Voice:
+      // Voice channel: join only if not already connected to any voice channel
+      if (!voice.isConnected) {
+        await voice.joinVoiceChannel(channelId);
+      }
+      // If already connected, just switch the view (selectedChannelId already set above)
+      break;
   }
+
+  logger.info(`Channel selected`, channel);
+}
+
+async function switchVoiceChannel(channelId: string) {
+  const channel = await pool.getChannel(channelId);
+  
+  if (!channel || channel.type !== ChannelType.Voice) {
+    return;
+  }
+
+  // Only switch if it's a different voice channel
+  if (voice.connectedVoiceChannelId === channelId) {
+    return;
+  }
+
+  // Leave current voice channel and join the new one
+  if (voice.isConnected) {
+    await voice.leave();
+  }
+  
+  selectedChannelId.value = channelId;
+  await voice.joinVoiceChannel(channelId);
+  
+  logger.info(`Switched to voice channel`, channel);
 }
 
 async function channelDelete(channelId: string) {
