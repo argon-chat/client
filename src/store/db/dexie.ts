@@ -24,19 +24,22 @@ export class PoolDatabase extends Dexie {
   members!: Table<SpaceMember, Guid>;
 
   constructor() {
-    super("argon-database");
-    this.version(3).stores({
+    super("argon-database-v2");
+    this.version(1).stores({
       users: "userId, status",
       servers: "spaceId",
       channels: "channelId, spaceId",
       channelGroups: "groupId, spaceId",
       messages:
-        "messageId, [channelId+messageId], [spaceId+channelId+messageId]",
+        "++id, messageId, [channelId+messageId], [spaceId+channelId+messageId]",
       archetypes: "id, spaceId, [Id+spaceId]",
       members:
         "memberId, spaceId, [memberId+userId], [userId+spaceId], [memberId+userId+spaceId], [memberId+spaceId]",
     });
   }
 }
+
+// Drop old database before creating new one
+tryDropOldDb("argon-database");
 
 export const db = new PoolDatabase();

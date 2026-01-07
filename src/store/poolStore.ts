@@ -8,6 +8,7 @@ import { useChannelStore } from "./channelStore";
 import { useArchetypeStore } from "./archetypeStore";
 import { useRealtimeStore } from "./realtimeStore";
 import { useEventStore } from "./eventStore";
+import { useMessageStore } from "./messageStore";
 import { db } from "./db/dexie";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
 import { ChannelType, UserStatus } from "@/lib/glue/argonChat";
@@ -27,6 +28,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const archetypeStore = useArchetypeStore();
   const realtimeStore = useRealtimeStore();
   const eventStore = useEventStore();
+  const messageStore = useMessageStore();
 
   // Selected server (can be extracted to separate store, but kept for backward compatibility)
   const selectedServer = ref<Guid | null>(null);
@@ -267,6 +269,15 @@ export const usePoolStore = defineStore("data-pool", () => {
     // Events
     onNewMessageReceived: eventStore.onNewMessageReceived,
 
+    // Messages
+    loadCachedMessages: messageStore.loadCachedMessages,
+    loadOlderCachedMessages: messageStore.loadOlderCachedMessages,
+    cacheMessages: messageStore.cacheMessages,
+    cacheMessage: messageStore.cacheMessage,
+    getMessageById: messageStore.getMessageById,
+    clearChannelMessages: messageStore.clearChannelMessages,
+    getChannelMessageCount: messageStore.getChannelMessageCount,
+
     // Servers
     useAllServers: () => {
       const obs = ref<any[]>([]);
@@ -293,6 +304,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     _archetypeStore: archetypeStore,
     _realtimeStore: realtimeStore,
     _eventStore: eventStore,
+    _messageStore: messageStore,
   };
 });
 

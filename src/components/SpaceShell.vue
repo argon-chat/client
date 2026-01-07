@@ -38,11 +38,6 @@ const selectedChannelId = computed({
     }
   }
 });
-
-watch(selectedChannelId, (x) => {
-  logger.warn("SpaceShell, selectedChannelId", x);
-});
-
 </script>
 
 <template>

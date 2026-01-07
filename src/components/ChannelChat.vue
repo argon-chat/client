@@ -29,7 +29,6 @@ const channelViewMap: Record<ChannelType, Component> = {
 };
 
 watch(selectedChannelId, async (id) => {
-  logger.warn("watch(selectedChannelId", id);
   
   if (!id) {
     channelData.value = null;

@@ -186,7 +186,42 @@ const loadOlderMessages = async () => {
   
   try {
     const fromId = oldestMessageId.value;
-    
+    if (!fromId) {
+      hasReachedEnd.value = true;
+      return;
+    }
+
+    // First, try to load from cache
+    const cachedOlder = await pool.loadOlderCachedMessages(
+      props.spaceId,
+      props.channelId,
+      fromId,
+      MESSAGES_PER_LOAD
+    );
+
+    if (cachedOlder.length >= MESSAGES_PER_LOAD) {
+      // We have enough cached messages
+      const addedCount = cachedOlder.length;
+      
+      // Shift measured indices since we're prepending
+      const shiftedMeasured = new Set<number>();
+      measuredItems.forEach(idx => shiftedMeasured.add(idx + addedCount));
+      measuredItems.clear();
+      shiftedMeasured.forEach(idx => measuredItems.add(idx));
+      
+      messages.value = [...cachedOlder, ...messages.value];
+
+      await nextTick();
+      virtualizer.value.scrollToIndex(addedCount, { align: 'start', behavior: 'auto' });
+
+      isLoadingOlder.value = false;
+      setTimeout(() => {
+        isRestoringScroll.value = false;
+      }, 200);
+      return;
+    }
+
+    // Not enough in cache, fetch from server
     const olderMessages = await api.channelInteraction.QueryMessages(
       props.spaceId,
       props.channelId,
@@ -198,6 +233,9 @@ const loadOlderMessages = async () => {
       hasReachedEnd.value = true;
       return;
     }
+
+    // Cache older messages to Dexie
+    await pool.cacheMessages(olderMessages);
     
     // Sort and prepend older messages
     const sortedOlder = [...olderMessages].sort((a, b) => 
@@ -246,6 +284,19 @@ const loadInitialMessages = async () => {
   isScrolledUp.value = false;
 
   try {
+    // First, load cached messages from Dexie
+    const cachedMessages = await pool.loadCachedMessages(props.spaceId, props.channelId);
+
+    if (cachedMessages.length > 0) {
+      messages.value = cachedMessages;
+      
+      await nextTick();
+      setTimeout(() => {
+        scrollToBottomImmediate();
+      }, 100);
+    }
+
+    // Then fetch fresh messages from server
     const initialMessages = await api.channelInteraction.QueryMessages(
       props.spaceId,
       props.channelId,
@@ -254,6 +305,9 @@ const loadInitialMessages = async () => {
     );
 
     if (initialMessages && initialMessages.length > 0) {
+      // Bulk add new messages to Dexie cache
+      await pool.cacheMessages(initialMessages);
+
       messages.value = [...initialMessages].sort((a, b) => 
         Number(a.messageId - b.messageId)
       );
@@ -261,14 +315,15 @@ const loadInitialMessages = async () => {
       if (initialMessages.length < MESSAGES_PER_LOAD) {
         hasReachedEnd.value = true;
       }
-    }
 
-    await nextTick();
-    
-    // Give virtualizer time to initialize and measure
-    setTimeout(() => {
-      scrollToBottomImmediate();
-    }, 100);
+      await nextTick();
+      setTimeout(() => {
+        scrollToBottomImmediate();
+      }, 100);
+    } else if (cachedMessages.length === 0) {
+      // No cached or fresh messages
+      await nextTick();
+    }
   } catch (error) {
     logger.error('Failed to load initial messages:', error);
   } finally {
@@ -369,8 +424,11 @@ watch(
 
     await loadInitialMessages();
 
-    subs.value = pool.onNewMessageReceived.subscribe((e) => {
+    subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
       if (newChannelId === e.channelId) {
+        // Add new message to Dexie cache
+        await pool.cacheMessage(e);
+
         messages.value = [...messages.value, e];
 
         // Play notification if mentioned
