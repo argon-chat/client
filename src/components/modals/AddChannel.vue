@@ -103,7 +103,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@/components/ui/button";
-import { computed, ref } from "vue";
+import { computed, shallowRef, onUnmounted, nextTick } from "vue";
 import { logger } from "@/lib/logger";
 import { useSpaceStore } from "@/store/serverStore";
 import { ChannelType } from "@/lib/glue/argonChat";
@@ -114,10 +114,10 @@ const { t } = useLocale();
 const servers = useSpaceStore();
 
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
-const channelType = ref("Text");
-const channelName = ref("");
-const addChannelError = ref("")
-const isLoading = ref(false)
+const channelType = shallowRef("Text");
+const channelName = shallowRef("");
+const addChannelError = shallowRef("")
+const isLoading = shallowRef(false)
 
 const selectedSpaceId = defineModel<string>("selectedSpace", {
   type: String,
@@ -149,10 +149,6 @@ const channelTypes = computed(() => [
     icon: Megaphone,
   },
 ]);
-
-const emit = defineEmits<{
-  (e: "close"): void;
-}>();
 
 const addChannel = async () => {
   if (!channelName.value.trim()) {
@@ -189,18 +185,22 @@ const addChannel = async () => {
 
     channelName.value = ""
     addChannelError.value = ""
+    channelType.value = "Text"
     
-    // Сначала закрываем диалог, чтобы убрать overlay
+    await nextTick();
     open.value = false;
-    
-    // Затем эмитим событие закрытия через небольшую задержку
-    setTimeout(() => {
-      emit("close");
-    }, 50);
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
+    addChannelError.value = String(error);
   } finally {
     isLoading.value = false
   }
 };
+
+onUnmounted(() => {
+  channelName.value = "";
+  addChannelError.value = "";
+  channelType.value = "Text";
+  isLoading.value = false;
+});
 </script>

@@ -60,7 +60,7 @@ import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ref } from "vue";
+import { shallowRef, onUnmounted, nextTick } from "vue";
 import { logger } from "@/lib/logger";
 import { Label } from "@/components/ui/label";
 import { useApi } from "@/store/apiStore";
@@ -70,19 +70,15 @@ const { t } = useLocale();
 const api = useApi();
 
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
-const groupName = ref("");
-const groupDescription = ref("");
-const addGroupError = ref("");
-const isLoading = ref(false);
+const groupName = shallowRef("");
+const groupDescription = shallowRef("");
+const addGroupError = shallowRef("");
+const isLoading = shallowRef(false);
 
 const selectedSpaceId = defineModel<string>("selectedSpace", {
   type: String,
   required: true,
 });
-
-const emit = defineEmits<{
-  (e: "close"): void;
-}>();
 
 const addGroup = async () => {
   if (!groupName.value.trim()) {
@@ -106,12 +102,21 @@ const addGroup = async () => {
     groupName.value = "";
     groupDescription.value = "";
     addGroupError.value = "";
-    emit("close");
+    
+    await nextTick();
+    open.value = false;
   } catch (error) {
     logger.error(`Failed to create channel group: ${error}`);
-    addGroupError.value = t('failed_to_create_group');
+    addGroupError.value = String(error);
   } finally {
     isLoading.value = false;
   }
 };
+
+onUnmounted(() => {
+  groupName.value = "";
+  groupDescription.value = "";
+  addGroupError.value = "";
+  isLoading.value = false;
+});
 </script>

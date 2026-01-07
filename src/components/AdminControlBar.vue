@@ -27,13 +27,11 @@
     <AddChannel 
       v-model:open="addChannelOpened" 
       :selected-space="selectedSpaceId"
-      @close="addChannelOpened = false"
     />
 
     <AddChannelGroup
       v-model:open="addGroupOpened"
       :selected-space="selectedSpaceId"
-      @close="addGroupOpened = false"
     />
 </template>
 
@@ -53,7 +51,7 @@ import { useLocale } from "@/store/localeStore";
 import { useMe } from "@/store/meStore";
 import { useWindow } from "@/store/windowStore";
 import { usePexStore } from "@/store/permissionStore";
-import { ref } from "vue";
+import { shallowRef, onUnmounted } from "vue";
 import AddChannel from "./modals/AddChannel.vue";
 import AddChannelGroup from "./modals/AddChannelGroup.vue";
 
@@ -64,12 +62,18 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 
 const me = useMe();
 const windows = useWindow();
-const addChannelOpened = ref(false);
-const addGroupOpened = ref(false);
+const addChannelOpened = shallowRef(false);
+const addGroupOpened = shallowRef(false);
 const pex = usePexStore();
+
 async function openServerSettings() {
     windows.serverSettingsOpen = true;
 }
+
+onUnmounted(() => {
+    addChannelOpened.value = false;
+    addGroupOpened.value = false;
+});
 </script>
 
 <style scoped>
