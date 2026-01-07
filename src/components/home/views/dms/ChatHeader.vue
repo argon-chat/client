@@ -2,24 +2,28 @@
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
 import { RealtimeUser } from "@/store/db/dexie";
 import { usePoolStore } from "@/store/poolStore";
-import { IconPhone, IconVideo, IconUser } from "@tabler/icons-vue";
-import { onMounted, ref, watch } from "vue";
+import { useCallManager } from "@/store/callManagerStore";
+import { IconPhone } from "@tabler/icons-vue";
+import { onUnmounted, shallowRef, watch, computed } from "vue";
 
 const pool = usePoolStore();
+const calls = useCallManager();
 
 const props = defineProps({
     userId: { type: String, required: true }
 });
 
-const user = ref(null as RealtimeUser | null);
+const user = shallowRef<RealtimeUser | null>(null);
 
 const emit = defineEmits<{
     (e: "call"): void;
-    (e: "videoCall"): void;
-    (e: "toggleProfile"): void;
 }>();
 
-watch(
+const isAlreadyInCall = computed(() => {
+    return calls.activePeerId === props.userId && calls.activeCallId !== null;
+});
+
+const stopWatch = watch(
     () => props.userId,
     async (newUserId, oldUserId) => {
         if (!newUserId) {
@@ -33,6 +37,11 @@ watch(
     },
     { immediate: true }
 );
+
+onUnmounted(() => {
+    stopWatch();
+    user.value = null;
+});
 
 </script>
 
@@ -50,15 +59,11 @@ watch(
         </div>
 
         <div class="flex items-center gap-3">
-            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="$emit('toggleProfile')">
-                <IconUser class="w-5 h-5" />
-            </button>
-            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="emit('call')">
+            <button 
+                class="p-2 rounded-full bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed" 
+                :disabled="isAlreadyInCall"
+                @click="emit('call')">
                 <IconPhone class="w-5 h-5" />
-            </button>
-
-            <button class="p-2 rounded-full bg-muted hover:bg-muted/80" @click="emit('videoCall')">
-                <IconVideo class="w-5 h-5" />
             </button>
         </div>
     </div>

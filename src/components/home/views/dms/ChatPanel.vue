@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, toRef } from "vue";
+import { computed, onUnmounted, shallowRef, toRef, triggerRef } from "vue";
 import { usePoolStore } from "@/store/poolStore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
@@ -13,22 +13,33 @@ const dm = useUnifiedCall();
 const pool = usePoolStore();
 const sys = useSystemStore();
 
-const videoRefs = ref(new Map<string, HTMLVideoElement>());
-const isFullscreen = ref(false);
-const focusedUserId = ref<string | null>(null);
+const videoRefs = shallowRef(new Map<string, HTMLVideoElement>());
+const isFullscreen = shallowRef(false);
+const focusedUserId = shallowRef<string | null>(null);
+const userRefsCache = shallowRef(new Map<string, any>());
 
 function setVideoRef(el: any, userId: string) {
     if (!el) {
         const old = videoRefs.value.get(userId);
         const track = dm.videoTracks.get(userId);
-        if (old && track) track.detach(old);
+        if (old && track) {
+            track.detach(old);
+        }
         videoRefs.value.delete(userId);
+        triggerRef(videoRefs);
         return;
     }
     if (el instanceof HTMLVideoElement) {
-        videoRefs.value.set(userId, el);
-        const track = dm.videoTracks.get(userId);
-        if (track) track.attach(el);
+        const existing = videoRefs.value.get(userId);
+        if (existing !== el) {
+            const track = dm.videoTracks.get(userId);
+            if (existing && track) {
+                track.detach(existing);
+            }
+            videoRefs.value.set(userId, el);
+            if (track) track.attach(el);
+            triggerRef(videoRefs);
+        }
     }
 }
 
@@ -38,11 +49,15 @@ const participants = computed(() => {
     const r = dm.room;
     if (r && r.localParticipant) {
         const uid = r.localParticipant.identity;
-        const u = pool.getUserReactive(toRef(uid));
+        let userRef = userRefsCache.value.get(uid);
+        if (!userRef) {
+            userRef = pool.getUserReactive(toRef(uid));
+            userRefsCache.value.set(uid, userRef);
+        }
 
         arr.push({
             userId: uid,
-            displayName: u?.value?.displayName ?? "You",
+            displayName: userRef?.value?.displayName ?? "You",
             muted: sys.microphoneMuted,
             mutedAll: sys.headphoneMuted,
             screencase: false
@@ -50,11 +65,15 @@ const participants = computed(() => {
     }
 
     for (const [uid, data] of dm.participants) {
-        const u = pool.getUserReactive(toRef(uid));
+        let userRef = userRefsCache.value.get(uid);
+        if (!userRef) {
+            userRef = pool.getUserReactive(toRef(uid));
+            userRefsCache.value.set(uid, userRef);
+        }
 
         arr.push({
             userId: uid,
-            displayName: u?.value?.displayName ?? data.displayName,
+            displayName: userRef?.value?.displayName ?? data.displayName,
             muted: data.muted,
             mutedAll: data.mutedAll,
             screencase: data.screencast
@@ -112,6 +131,8 @@ onUnmounted(() => {
         if (t) t.detach(el);
     }
     videoRefs.value.clear();
+    userRefsCache.value.clear();
+    focusedUserId.value = null;
 });
 </script>
 

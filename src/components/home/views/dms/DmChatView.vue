@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from "vue"
+import { ref, watch, nextTick, onMounted, onUnmounted, shallowRef } from "vue"
 import { useVirtualizer } from "@tanstack/vue-virtual"
 
 type Msg = {
@@ -9,8 +9,9 @@ type Msg = {
 }
 
 const parentRef = ref<HTMLElement | null>(null)
-const messages = ref<Msg[]>([])
-const isLoading = ref(false)
+const messages = shallowRef<Msg[]>([])
+const isLoading = shallowRef(false)
+let scrollDebounceTimer: number | null = null
 
 const virtualizer = useVirtualizer({
     count: 0,
@@ -57,10 +58,16 @@ async function loadOlder() {
 }
 
 function onScroll() {
-    const el = parentRef.value!
-    if (el.scrollTop < 100) {
-        loadOlder()
+    if (scrollDebounceTimer !== null) {
+        clearTimeout(scrollDebounceTimer);
     }
+    scrollDebounceTimer = setTimeout(() => {
+        const el = parentRef.value;
+        if (el && el.scrollTop < 100) {
+            loadOlder();
+        }
+        scrollDebounceTimer = null;
+    }, 150) as unknown as number;
 }
 
 onMounted(async () => {
@@ -75,6 +82,14 @@ onMounted(async () => {
     virtualizer.value.scrollToIndex(messages.value.length - 1, {
         align: "end"
     })
+})
+
+onUnmounted(() => {
+    if (scrollDebounceTimer !== null) {
+        clearTimeout(scrollDebounceTimer);
+        scrollDebounceTimer = null;
+    }
+    messages.value = [];
 })
 </script>
 <template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, shallowRef, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCallManager } from "@/store/callManagerStore";
 import DmChatView from "./dms/DmChatView.vue";
@@ -16,8 +16,9 @@ const dmCall = useUnifiedCall();
 const calls = useCallManager();
 
 const userId = computed(() => route.params.userId as string | undefined);
+const isProfileOpen = shallowRef(false);
 
-watch(
+const stopUserIdWatch = watch(
   userId,
   async (newUserId, oldUserId) => {
     if (!newUserId) return;
@@ -30,26 +31,20 @@ watch(
   { immediate: true }
 );
 
-const isProfileOpen = ref(false);
-
 async function onCall() {
     if (!userId.value) return;
     await calls.startOutgoingCall(userId.value);
 }
 
-async function onVideoCall() {
-    if (!userId.value) return;
-    await calls.startOutgoingCall(userId.value);
-}
-
 const isCallActive = computed(() => {
+    const uid = userId.value;
+    if (!uid) return false;
     return (
         calls.activeCallId &&
-        calls.activePeerId === userId.value &&
+        calls.activePeerId === uid &&
         dmCall.isConnected
     );
 });
-
 
 function toggleProfile() {
     isProfileOpen.value = !isProfileOpen.value;
@@ -60,10 +55,15 @@ function endCall() {
         calls.hangupCall();
     }
 }
+
+onUnmounted(() => {
+    stopUserIdWatch();
+    isProfileOpen.value = false;
+});
 </script>
 <template>
     <div class="flex flex-col flex-1 overflow-hidden rounded-xl bg-card border border-border">
-        <ChatHeader :user-id="userId!" @call="onCall" @videoCall="onVideoCall" @toggleProfile="toggleProfile" />
+        <ChatHeader :user-id="userId!" @call="onCall" />
 
         <div class="flex flex-row flex-1 overflow-hidden">
 
