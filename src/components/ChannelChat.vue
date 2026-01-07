@@ -45,5 +45,5 @@ watch(selectedChannelId, async (id) => {
   }
 
   channelComponent.value = channelViewMap[channelData.value.type] ?? TextChannelView;
-});
+}, { immediate: true });
 </script>

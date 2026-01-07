@@ -100,10 +100,17 @@ const selectedChannelId = defineModel<string | null>('selectedChannelId', {
 })
 
 watch(
-    () => selectedChannelId,
-    () => {
+    () => selectedChannelId.value,
+    async (newChannelId) => {
         typingUsers.value = [];
+        if (newChannelId) {
+            const channel = await getChannel(newChannelId);
+            channelData.value = channel ?? null;
+        } else {
+            channelData.value = null;
+        }
     },
+    { immediate: true }
 );
 
 const onTypingEvent = () => {
@@ -164,12 +171,6 @@ onMounted(async () => {
             }
         }),
     );
-
-    if (selectedChannelId.value) {
-        logger.log("Selected channel", selectedChannelId.value);
-        const channel = await getChannel(selectedChannelId.value);
-        if (channel) channelData.value = channel;
-    }
 });
 
 onUnmounted(() => {

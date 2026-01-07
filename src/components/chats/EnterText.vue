@@ -243,13 +243,12 @@ interface FormatMatch {
 
 /**
  * Parse message content and extract entities
- * Formats:
- * - __text__ = italic
- * - **text** = bold  
- * - ~~text~~ = strikethrough
+ * Supported formats:
  * - #hashtag = hashtag
  * - <tailwind-color:text> = colored underline
  * - @mention = mention (from mentionRegistry)
+ * 
+ * TODO: Bold, Italic, Strikethrough not yet supported by server
  */
 function parseMessageContent(): ParsedMessage {
   if (!editorRef.value) return { text: "", entities: [] };
@@ -260,16 +259,13 @@ function parseMessageContent(): ParsedMessage {
   const entities: IMessageEntity[] = [];
   const formatMatches: FormatMatch[] = [];
 
-  // Pattern definitions: [regex, entityType, contentGroupIndex, extraHandler?]
+  // Pattern definitions - only server-supported types
   const patterns: Array<{
     regex: RegExp;
     type: EntityType;
     contentGroup: number;
     extraHandler?: (match: RegExpMatchArray) => Record<string, any>;
   }> = [
-    { regex: /__(.+?)__/g, type: EntityType.Italic, contentGroup: 1 },
-    { regex: /\*\*(.+?)\*\*/g, type: EntityType.Bold, contentGroup: 1 },
-    { regex: /~~(.+?)~~/g, type: EntityType.Strikethrough, contentGroup: 1 },
     { regex: /#(\w+)/g, type: EntityType.Hashtag, contentGroup: 0 },
     { 
       regex: /<([a-z]+-\d{3}):(.+?)>/g, 
@@ -345,40 +341,35 @@ function parseMessageContent(): ParsedMessage {
     cleanText += fm.content;
     
     const entityEnd = cleanText.length;
+    const entityLength = entityEnd - entityStart;
 
-    // Create entity
+    // Create entity using proper constructors (required for serialization)
     if (fm.type === EntityType.Mention) {
-      entities.push({
-        type: EntityType.Mention,
-        offset: entityStart,
-        length: entityEnd - entityStart,
-        userId: fm.extra!.userId,
-        version: 1,
-      } as MessageEntityMention);
+      entities.push(new MessageEntityMention(
+        EntityType.Mention,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.extra!.userId
+      ));
     } else if (fm.type === EntityType.Hashtag) {
-      entities.push({
-        type: EntityType.Hashtag,
-        offset: entityStart,
-        length: entityEnd - entityStart,
-        hashtag: fm.content.slice(1), // Remove # prefix
-        version: 1,
-      } as MessageEntityHashTag);
+      entities.push(new MessageEntityHashTag(
+        EntityType.Hashtag,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.content.slice(1) // Remove # prefix
+      ));
     } else if (fm.type === EntityType.Underline) {
-      entities.push({
-        type: EntityType.Underline,
-        offset: entityStart,
-        length: entityEnd - entityStart,
-        colour: fm.extra?.colour ?? 0xffffff,
-        version: 1,
-      } as MessageEntityUnderline);
-    } else {
-      entities.push({
-        type: fm.type,
-        offset: entityStart,
-        length: entityEnd - entityStart,
-        version: 1,
-      } as IMessageEntity);
+      entities.push(new MessageEntityUnderline(
+        EntityType.Underline,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.extra?.colour ?? 0xffffff
+      ));
     }
+    // Note: Bold, Italic, Strikethrough not yet supported by server
 
     lastEnd = fm.end;
   }
@@ -401,6 +392,12 @@ const handleSend = async () => {
 
   // Generate random message ID as bigint
   const randomId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+
+  logger.log("Sending message", {
+    plainText,
+    entities,
+    replyTo: props.replyTo?.messageId ?? null,
+  });
 
   await api.channelInteraction.SendMessage(
     props.spaceId,

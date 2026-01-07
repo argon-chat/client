@@ -17,6 +17,7 @@
         <div
           v-for="item in virtualItems"
           :key="String(item.key)"
+          :ref="(el) => measureItem(el as HTMLElement, item.index)"
           :data-index="item.index"
           :style="{
             position: 'absolute',
@@ -113,6 +114,7 @@ const chatWidth = ref(0);
 const isLoading = ref(false);
 const isLoadingOlder = ref(false);
 const isRestoringScroll = ref(false);
+const measuredItems = new Set<number>();
 
 // Get the oldest message ID for pagination
 const oldestMessageId = computed(() => {
@@ -124,17 +126,24 @@ const virtualizerOptions = computed(() => ({
   count: messages.value.length,
   getScrollElement: () => parentRef.value ?? null,
   estimateSize: () => MESSAGE_HEIGHT_ESTIMATE,
-  overscan: 5,
+  overscan: 50,
   getItemKey: (index: number) => messages.value[index]?.messageId?.toString() ?? index,
 }));
 
 const virtualizer = useVirtualizer(virtualizerOptions);
 const virtualItems = computed(() => virtualizer.value.getVirtualItems());
 
+// Measure item only once to avoid jitter
+const measureItem = (el: HTMLElement | null, index: number) => {
+  if (!el || measuredItems.has(index)) return;
+  measuredItems.add(index);
+  virtualizer.value.measureElement(el);
+};
+
 // Debounced scroll trigger
 let scrollLoadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-// Load older messages (scrolling up)
+// Load older messages (scrolling up) 
 const loadOlderMessages = async () => {
   if (isLoadingOlder.value || hasReachedEnd.value || !props.spaceId || isRestoringScroll.value) return;
   
@@ -162,6 +171,13 @@ const loadOlderMessages = async () => {
     );
     
     const addedCount = sortedOlder.length;
+    
+    // Shift measured indices since we're prepending
+    const shiftedMeasured = new Set<number>();
+    measuredItems.forEach(idx => shiftedMeasured.add(idx + addedCount));
+    measuredItems.clear();
+    shiftedMeasured.forEach(idx => measuredItems.add(idx));
+    
     messages.value = [...sortedOlder, ...messages.value];
 
     // Wait for DOM update then scroll to maintain position
@@ -190,6 +206,7 @@ const loadInitialMessages = async () => {
   
   isLoading.value = true;
   messages.value = [];
+  measuredItems.clear();
   hasReachedEnd.value = false;
   newMessagesCount.value = 0;
   isScrolledUp.value = false;
@@ -213,7 +230,11 @@ const loadInitialMessages = async () => {
     }
 
     await nextTick();
-    scrollToBottomImmediate();
+    
+    // Give virtualizer time to initialize and measure
+    setTimeout(() => {
+      scrollToBottomImmediate();
+    }, 100);
   } catch (error) {
     logger.error('Failed to load initial messages:', error);
   } finally {
@@ -251,22 +272,38 @@ const scrollToBottomImmediate = () => {
   if (messages.value.length === 0) return;
   
   const lastIndex = messages.value.length - 1;
+  
+  // Multiple attempts to ensure scroll lands at bottom after measurements
   virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
   
-  // Double-tap with RAF for stability
   requestAnimationFrame(() => {
     virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
+    
+    // Final fallback after elements are measured
+    setTimeout(() => {
+      if (parentRef.value) {
+        parentRef.value.scrollTop = parentRef.value.scrollHeight;
+      }
+      newMessagesCount.value = 0;
+      isScrolledUp.value = false;
+    }, 50);
   });
-  
-  newMessagesCount.value = 0;
-  isScrolledUp.value = false;
 };
 
 const scrollToBottom = () => {
   if (messages.value.length === 0) return;
   
   const lastIndex = messages.value.length - 1;
-  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'smooth' });
+  
+  // Use auto behavior - smooth is not supported with dynamic sizes
+  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
+  
+  // Fallback: directly scroll the container to bottom
+  requestAnimationFrame(() => {
+    if (parentRef.value) {
+      parentRef.value.scrollTop = parentRef.value.scrollHeight;
+    }
+  });
   
   newMessagesCount.value = 0;
   isScrolledUp.value = false;
