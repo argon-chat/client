@@ -125,24 +125,22 @@
             <div v-show="isConnected || isConnecting" v-motion-slide-visible-bottom
                 class="connection-card absolute text-foreground rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
                 style="bottom: 100%; margin-bottom: -5px;">
-                <div class="flex items-center space-x-2">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <div>
-                                    <Signal class="w-4 h-4 text-green-500" v-if="qualityConnection === 'GREEN'" />
-                                    <Signal class="w-4 h-4 text-orange-500"
-                                        v-else-if="qualityConnection === 'ORANGE'" />
-                                    <Signal class="w-4 h-4 text-red-500" v-else-if="qualityConnection === 'RED'" />
-                                    <Signal class="w-4 h-4 text-gray-500" v-else />
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p v-if="isConnected">{{ voice.ping }}</p>
-                                <p v-else-if="isConnecting">??? ms</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                <div class="flex items-center space-x-2 relative">
+                    <button @click="openPingDetails = !openPingDetails" class="ping-button">
+                        <Signal class="w-4 h-4 text-green-500" v-if="qualityConnection === 'GREEN'" />
+                        <Signal class="w-4 h-4 text-orange-500"
+                            v-else-if="qualityConnection === 'ORANGE'" />
+                        <Signal class="w-4 h-4 text-red-500" v-else-if="qualityConnection === 'RED'" />
+                        <Signal class="w-4 h-4 text-gray-500" v-else />
+                    </button>
+                    
+                    <PingDetailsPopup
+                        :is-open="openPingDetails"
+                        :current-ping="voice.ping"
+                        :average-ping="voice.averagePing"
+                        :ping-history="voice.pingHistory"
+                        :quality-connection="qualityConnection"
+                    />
 
                     <span class="font-semibold marquee">
                         {{ callTitle }}
@@ -176,12 +174,6 @@
 
 <script setup lang="ts">
 import {
-    TooltipProvider,
-    Tooltip,
-    TooltipTrigger,
-    TooltipContent,
-} from "@/components/ui/tooltip";
-import {
     Mic,
     MicOff,
     HeadphoneOff,
@@ -214,7 +206,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useLocale } from "@/store/localeStore";
 import { UserStatus } from "@/lib/glue/argonChat";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
@@ -222,6 +214,7 @@ import { useApi } from "@/store/apiStore";
 import { usePoolStore } from "@/store/poolStore";
 import { computedAsync } from "@vueuse/core";
 import Counter from "./motionCounter/Counter.vue";
+import PingDetailsPopup from "./PingDetailsPopup.vue";
 import { Screen } from "@/lib/glue/argon.ipc";
 import { native } from "@/lib/glue/nativeGlue";
 
@@ -260,6 +253,7 @@ const allFps = [
     { title: "165fps", value: "165" },
 ];
 
+const openPingDetails = ref(false);
 const openShareSettings = ref(false);
 const includeAudio = ref(false);
 const quality = ref(allSizes.at(0)?.title);
@@ -410,6 +404,25 @@ async function goShare() {
         });
     }
 }
+
+// Close ping popup when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    const pingPopup = target.closest('.ping-popup');
+    const pingButton = target.closest('.ping-button');
+    
+    if (!pingPopup && !pingButton && openPingDetails.value) {
+        openPingDetails.value = false;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style scoped>
@@ -477,4 +490,21 @@ async function goShare() {
     white-space: nowrap;
     display: inline-block;
 }
+
+.ping-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ping-button:hover {
+    background-color: hsl(var(--muted) / 0.5);
+}
 </style>
+

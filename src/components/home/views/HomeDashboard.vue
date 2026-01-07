@@ -41,7 +41,7 @@
                 <grid-layout
                     v-model:layout="widgetStore.layout"
                     :col-num="3"
-                    :row-height="120"
+                    :row-height="60"
                     :is-draggable="widgetStore.isEditMode"
                     :is-resizable="widgetStore.isEditMode"
                     :responsive="false"
@@ -120,6 +120,10 @@ const getWidgetComponent = (widgetId: string | number) => {
 
 .shell-item:hover {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.widget-grid-item.edit-mode {
+    user-select: none;
 }
 
 .widget-grid-item.edit-mode .shell-item {

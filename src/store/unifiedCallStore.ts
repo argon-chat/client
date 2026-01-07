@@ -87,6 +87,17 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   let screenTrackPub: any = null;
 
   const ping = ref(-1);
+  
+  // Ping history for graph (last 10 minutes, 1 sample per second)
+  const pingHistory = reactive<Array<{ timestamp: number; value: number }>>([]);
+  const maxPingHistorySize = 600; // 10 minutes * 60 seconds
+  
+  const averagePing = computed(() => {
+    if (pingHistory.length === 0) return -1;
+    const sum = pingHistory.reduce((acc, item) => acc + item.value, 0);
+    return Math.round(sum / pingHistory.length);
+  });
+  
   const interval = reactive({
     sec: 0,
     min: 0,
@@ -257,7 +268,19 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     pingTimer = setInterval(() => {
       try {
-        ping.value = room.value?.engine?.client?.rtt ?? -1;
+        const currentPing = room.value?.engine?.client?.rtt ?? -1;
+        ping.value = currentPing;
+        
+        // Add to history every second (skip if same timestamp)
+        const now = Date.now();
+        if (currentPing >= 0 && (pingHistory.length === 0 || now - pingHistory[pingHistory.length - 1].timestamp >= 1000)) {
+          pingHistory.push({ timestamp: now, value: currentPing });
+          
+          // Keep only last 10 minutes
+          if (pingHistory.length > maxPingHistorySize) {
+            pingHistory.shift();
+          }
+        }
       } catch {
         ping.value = -1;
       }
@@ -276,6 +299,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     stopRtcDiagnostics();
     if (pingTimer) clearInterval(pingTimer);
     if (intervalTimer) intervalTimer();
+    pingHistory.length = 0; // Clear history
   }
 
   async function updateRtcStats() {
@@ -845,6 +869,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isSharing,
 
     ping,
+    pingHistory,
+    averagePing,
     qualityConnection,
     interval,
     diagnostics,
