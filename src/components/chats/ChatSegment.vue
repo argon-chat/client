@@ -6,6 +6,8 @@
     <MonospaceSegment v-else-if="props.entity && isMonospaceEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <ItalicSegment v-else-if="props.entity && isItalicEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <StrikethroughSegment v-else-if="props.entity && isStrikethroughEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <SpoilerSegment v-else-if="props.entity && isSpoilerEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <CapitalizedSegment v-else-if="props.entity && isCapitalizedEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <FractionSegment v-else-if="props.entity && isFractionEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <OrdinalSegment v-else-if="props.entity && isOrdinalEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <UrlSegment v-else-if="props.entity && isUrlEntity(props.entity)" :entity="props.entity" :text="props.text" />
@@ -15,12 +17,14 @@
 <script setup lang="ts" generic="T extends IMessageEntity">
 import { EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline, MessageEntityUrl } from "@/lib/glue/argonChat";
 import BoldSegment from "./BoldSegment.vue";
+import CapitalizedSegment from "./CapitalizedSegment.vue";
 import FractionSegment from "./FractionSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import ItalicSegment from "./ItalicSegment.vue";
 import MentionSegment from "./MentionSegment.vue";
 import MonospaceSegment from "./MonospaceSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
+import SpoilerSegment from "./SpoilerSegment.vue";
 import StrikethroughSegment from "./StrikethroughSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
 import UrlSegment from "./UrlSegment.vue";
@@ -71,6 +75,12 @@ function isFractionEntity(entity: IMessageEntity): entity is IMessageEntity {
 }
 function isStrikethroughEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.Strikethrough;
+}
+function isSpoilerEntity(entity: IMessageEntity): entity is IMessageEntity {
+  return entity.type === EntityType.Spoiler;
+}
+function isCapitalizedEntity(entity: IMessageEntity): entity is IMessageEntity {
+  return entity.type === EntityType.Capitalized;
 }
 function isUrlEntity(entity: IMessageEntity): entity is MessageEntityUrl {
   return entity.type === EntityType.Url;

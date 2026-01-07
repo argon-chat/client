@@ -1,14 +1,14 @@
 <template>
     <Popover v-model:open="isOpened">
         <PopoverContent style="width: 19rem;min-height: 25rem;"
-            class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
+            class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
             <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
         </PopoverContent>
         <PopoverTrigger>
-            <span
-                class="bg-orange-700/70 font-bold px-1 rounded-full border border-red-500/70 shadow-md shadow-orange-500/50"
-                v-if="isForMeMention">@{{ user?.username }}</span>
-            <span class="text-blue-400 font-semibold" v-else>@{{ user?.username }}</span>
+            <span class="mention" :class="{ 'mention--me': isForMeMention }">
+                <span class="mention__icon">@</span>
+                <span class="mention__name">{{ user?.username }}</span>
+            </span>
         </PopoverTrigger>
     </Popover>
 </template>
@@ -42,3 +42,35 @@ onMounted(async () => {
   user.value = await pool.getUser(props.entity.userId);
 });
 </script>
+
+<style scoped>
+.mention {
+    display: inline;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    color: hsl(var(--primary));
+}
+
+.mention:hover {
+    text-decoration: underline;
+}
+
+.mention__icon {
+    opacity: 0.8;
+}
+
+.mention__name {
+    font-weight: 600;
+}
+
+/* Highlighted mention for current user */
+.mention--me {
+    color: hsl(var(--destructive));
+    font-weight: 700;
+}
+
+.mention--me .mention__icon {
+    opacity: 1;
+}
+</style>

@@ -23,7 +23,7 @@
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
             <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-gray-400']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <span class="text-gray-300 font-medium truncate">{{ channel?.name }}</span>
+            <span class="text-gray-400 font-medium truncate">{{ channel?.name }}</span>
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
           </div>
         </ContextMenuTrigger>

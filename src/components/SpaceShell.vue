@@ -46,16 +46,16 @@ watch(selectedChannelId, (x) => {
 </script>
 
 <template>
-    <div class="server-workspace flex flex-1 gap-4" v-if="selectedSpace">
+    <div class="server-workspace flex flex-1 gap-4 overflow-hidden" v-if="selectedSpace">
         <SpaceSideShell v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" />
-        <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 flex-col rounded-xl shadow-md justify-between" />
+        <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 min-w-0 flex-col rounded-xl shadow-md justify-between" />
         <LeftSideUserList v-model:selected-space="selectedSpace"/>
     </div>
 </template>
 
 <style lang="css" scoped>
 .chat-container {
-  background-color: hsl(var(--card));
+  background-color: transparent;
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

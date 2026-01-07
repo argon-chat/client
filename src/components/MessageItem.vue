@@ -32,32 +32,62 @@
                 </TooltipProvider>
             </div>
             <template v-if="!isRequiredUpperVersionMessage">
-                <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
-                    backgroundPositionY: backgroundOffset + 'px',
-                }" ref="bubble">
-                    <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                        'reply-preview inline-table',
-                        'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                        ">
-                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                            replyUser?.value?.displayName || t("unknown_display_name")}}</div>
-                        <div class="reply-text">{{ replyMessage.text }}</div>
+                <div class="bubble-wrapper">
+                    <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
+                        backgroundPositionY: backgroundOffset + 'px',
+                    }" ref="bubble">
+                        <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                            'reply-preview inline-table',
+                            'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
+                            ">
+                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                                replyUser?.value?.displayName || t("unknown_display_name")}}</div>
+                            <div class="reply-text">{{ replyMessage.text }}</div>
+                        </div>
+                        <div>
+                            <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true"  />
+                        </div>
                     </div>
-                    <div>
-                        <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true"  />
+                    <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
+                        <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                            'reply-preview inline-table',
+                            'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
+                            ">
+                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                                replyUser?.value?.displayName || t("unknown_display_name") }}</div>
+                            <div class="reply-text">{{ replyMessage.text }}</div>
+                        </div>
+                        <div>
+                            <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
+                        </div>
                     </div>
-                </div>
-                <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
-                    <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                        'reply-preview inline-table',
-                        'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                        ">
-                        <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                            replyUser?.value?.displayName || t("unknown_display_name") }}</div>
-                        <div class="reply-text">{{ replyMessage.text }}</div>
-                    </div>
-                    <div>
-                        <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
+                    
+                    <!-- Hover actions -->
+                    <div class="message-actions">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <button class="action-btn" @click="copyMessage">
+                                        <CopyIcon class="w-4 h-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>{{ t("copy") }}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <button class="action-btn" @click="replyToMessage">
+                                        <ReplyIcon class="w-4 h-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>{{ t("reply") }}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
             </template>
@@ -94,6 +124,7 @@ import {
 } from "@/components/ui/popover";
 import { ArgonMessage, IMessageEntity } from "@/lib/glue/argonChat";
 import { useLocale } from "@/store/localeStore";
+import { CopyIcon, ReplyIcon } from "lucide-vue-next";
 
 const { t } = useLocale();
 const isOpened = ref(false);
@@ -101,6 +132,10 @@ const isOpened = ref(false);
 const props = defineProps<{
   message: ArgonMessage;
   getMsgById: (replyId: bigint | null) => ArgonMessage;
+}>();
+
+const emit = defineEmits<{
+  (e: "reply", message: ArgonMessage): void;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);
@@ -188,6 +223,17 @@ onBeforeUnmount(() => {
 
 const formattedTime = computed(() => {
   const date = props.message.timeSent.date;
+  const format = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+  
+  if (format === "12h") {
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 should be 12
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes}`;
@@ -197,6 +243,14 @@ const formattedFullTime = useDateFormat(
   props.message.timeSent.date,
   "YYYY-MM-DD HH:mm:ss",
 );
+
+function copyMessage() {
+  navigator.clipboard.writeText(props.message.text);
+}
+
+function replyToMessage() {
+  emit("reply", props.message);
+}
 
 function getColorByUserId(userId: string): string {
   return userColors.getColorByUserId(userId);
@@ -276,5 +330,52 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 .reply-username {
     font-weight: 800;
     margin-bottom: 2px;
+}
+
+/* Hover actions */
+.bubble-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.message-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 2px 8px hsl(var(--background) / 0.5);
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.bubble-wrapper:hover .message-actions {
+    opacity: 1;
+    visibility: visible;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.action-btn:hover {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
 }
 </style>

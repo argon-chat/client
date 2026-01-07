@@ -1,41 +1,8 @@
 <template>
-    <div class="channel-chat flex flex-col h-full rounded-lg">
-        <div v-if="channelData" class="header-list rounded-t-lg bg-cover bg-no-repeat bg-center contrast-125 relative"
-            style="z-index: 3">
-            <div class="p-4 flex flex-col border-b space-y-1">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-bold relative z-10 text-white flex items-center">
-                        <HashIcon class="mr-2" /> {{ channelData.name }}
-                    </h2>
-                </div>
-            </div>
-            <Transition name="typing-slide">
-                <div v-if="typingUsers.length > 0"
-                    class="absolute top-full left-1/2 transform -translate-x-1/2 z-20 overflow-hidden">
-                    <div
-                        class="backdrop-blur-sm bg-black/30 rounded-b-lg px-4 py-2 text-sm text-white whitespace-nowrap text-center w-fit max-w-[90vw] min-w-[10rem] text-ellipsis overflow-hidden">
-                        <span>
-                            {{
-                                typingUsers.length === 1
-                                    ? t("typing.one", { name: typingUsers[0].displayName })
-                                    : typingUsers.length <= 3 ? t("typing.few", {
-                                        names: typingUsers.map(u =>
-                                            u.displayName).join(", ")
-                                    }) : t("typing.many")
-                            }}
-                        </span>
-                        <span class="inline-flex gap-[1px] ml-1">
-                            <span class="dot inline-block w-[4px] h-[4px] bg-white rounded-full animate-dot1"></span>
-                            <span class="dot inline-block w-[4px] h-[4px] bg-white rounded-full animate-dot2"></span>
-                            <span class="dot inline-block w-[4px] h-[4px] bg-white rounded-full animate-dot3"></span>
-                        </span>
-                    </div>
-                </div>
-            </Transition>
-        </div>
+    <div class="channel-chat flex flex-col h-full rounded-lg overflow-hidden relative">
         <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
-            class="messages flex-1 overflow-y-auto space-y-4 rounded-t-lg pb-4 p-5">
-            <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" @select-reply="onReplySelect" />
+            class="messages-scroll flex-1 p-5">
+            <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" :channel-name="channelData.name" :typing-users="typingUsers" @select-reply="onReplySelect" />
         </div>
 
         <div v-if="!channelData" class="flex flex-1 flex-col items-center justify-center text-center space-y-2 p-5">
@@ -50,8 +17,8 @@
             </div>
         </div>
 
-        <div v-if="channelData" class="message-input rounded-b-lg flex items-center space-x-3 p-5">
-            <EnterText style="width: 100%;" :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTypingEvent"
+        <div v-if="channelData" class="message-input rounded-b-lg p-5 overflow-hidden flex-shrink-0">
+            <EnterText :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTypingEvent"
                 @stop_typing="onStopTypingEvent" />
         </div>
     </div>
@@ -195,59 +162,14 @@ const onChannelChanged = async (channelId: Guid | null) => {
 </script>
 
 <style scoped>
-.editor:focus {
-    border: 1px solid #4a90e2;
-}
-
-.header-list {
-    background-color: hsl(var(--card));
-    padding-top: 5px;
-}
-
-.typing-slide-enter-active,
-.typing-slide-leave-active {
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+.messages-scroll {
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
-.typing-slide-enter-from,
-.typing-slide-leave-to {
-    max-height: 0;
-    opacity: 0;
-}
-
-.typing-slide-enter-to,
-.typing-slide-leave-from {
-    max-height: 100px;
-    opacity: 1;
-}
-
-@keyframes dot-flash {
-    0% {
-        opacity: 0;
-    }
-
-    20% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
-}
-
-.animate-dot1 {
-    animation: dot-flash 1.5s infinite;
-    animation-delay: 0s;
-}
-
-.animate-dot2 {
-    animation: dot-flash 1.5s infinite;
-    animation-delay: 0.3s;
-}
-
-.animate-dot3 {
-    animation: dot-flash 1.5s infinite;
-    animation-delay: 0.6s;
+.message-input {
+    background: hsl(var(--card));
 }
 </style>

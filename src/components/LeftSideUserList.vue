@@ -21,7 +21,8 @@
 import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
-import { watch } from "vue";
+import { watch, computed } from "vue";
+import { persistedValue } from "@/lib/persistedValue";
 
 const model = defineModel<string | null>('selectedSpace', {
     type: String, required: true
@@ -34,13 +35,46 @@ const dataPool = usePoolStore();
 
 const groupedUsers = dataPool.useGroupedServerUsers(model);
 
+const currentTheme = persistedValue<string>("appearance.theme", "dark");
+const isLightTheme = computed(() => currentTheme.value === "light");
 
 const { t } = useLocale();
+
+// Calculate relative luminance
+const getLuminance = (r: number, g: number, b: number) => {
+  const [rs, gs, bs] = [r, g, b].map(c => {
+    c = c / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+};
+
 const formatColour = (argb: number) => {
   const a = ((argb >> 24) & 0xff) / 255;
-  const r = (argb >> 16) & 0xff;
-  const g = (argb >> 8) & 0xff;
-  const b = argb & 0xff;
+  let r = (argb >> 16) & 0xff;
+  let g = (argb >> 8) & 0xff;
+  let b = argb & 0xff;
+  
+  const luminance = getLuminance(r, g, b);
+  
+  if (isLightTheme.value) {
+    // On light theme, darken light colors for readability
+    if (luminance > 0.5) {
+      const factor = 0.6;
+      r = Math.round(r * factor);
+      g = Math.round(g * factor);
+      b = Math.round(b * factor);
+    }
+  } else {
+    // On dark theme, lighten very dark colors for readability
+    if (luminance < 0.1) {
+      const factor = 2;
+      r = Math.min(255, Math.round(r * factor + 50));
+      g = Math.min(255, Math.round(g * factor + 50));
+      b = Math.min(255, Math.round(b * factor + 50));
+    }
+  }
+  
   return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
 };
 </script>

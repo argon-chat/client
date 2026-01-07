@@ -1,22 +1,23 @@
 <template>
-    <div class="relative w-full">
+    <div class="enter-text-wrapper">
         <div v-if="replyTo" class="reply-banner">
             <div class="reply-info">
                 <strong>{{ t("replying_to") }}</strong> {{ replyTo.text }}
             </div>
-            <X class="text-red-600" @click="$emit('clear-reply')" />
+            <X class="text-red-600 cursor-pointer flex-shrink-0" @click="$emit('clear-reply')" />
         </div>
 
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
-            <!-- Editable message area -->
-            <div 
-                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none text-white bg-transparent rounded resize-none flex items-center"
-                ref="editorRef" 
-                contenteditable="true" 
-                @input="onEditorInput" 
+            <!-- Textarea message area -->
+            <textarea
+                ref="editorRef"
+                v-model="messageText"
+                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none"
+                :placeholder="t('enter_some_text')"
+                @input="onEditorInput"
                 @keydown="onEditorKeydown"
-                :data-placeholder="t('enter_some_text')"
-            ></div>
+                rows="1"
+            ></textarea>
 
             <!-- Emoji picker -->
             <Popover>
@@ -26,7 +27,7 @@
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent class="w-auto p-0">
-                    <EmojiPicker :native="true" :disable-skin-tones="true" theme="dark"
+                    <EmojiPicker :native="true" :disable-skin-tones="true" :theme="emojiPickerTheme"
                         @select="(e: EmojiExt) => onEmojiClick(e)" />
                 </PopoverContent>
             </Popover>
@@ -41,20 +42,20 @@
 
         <!-- Mentions dropdown -->
         <ul v-if="mention.show && mention.candidates.length"
-            class="absolute bottom-full mb-1 w-500 max-h-40 overflow-y-auto text-sm border rounded bg-zinc-900 text-white shadow z-50 scrollbar-thin">
+            class="absolute bottom-full mb-1 w-500 max-h-40 overflow-y-auto text-sm border rounded bg-popover text-popover-foreground shadow z-50 scrollbar-thin">
             <li v-for="(user, i) in mention.candidates" :key="user.id" :class="[
                 'flex items-center gap-3 px-3 py-2 cursor-pointer',
-                i === mention.index ? 'bg-blue-600' : 'hover:bg-zinc-700',
+                i === mention.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
             ]" @mousedown.prevent="selectMention(user)">
                 <SmartArgonAvatar :user-id="user.id" :overrided-size="32" />
                 <span>{{ user.displayName }}</span>
-                <span class="text-gray-400"> @{{ user.username }}</span>
+                <span class="text-muted-foreground"> @{{ user.username }}</span>
             </li>
         </ul>
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { onMounted, onUnmounted, reactive, ref, watch, nextTick, computed } from "vue";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -71,9 +72,14 @@ import { refDebounced } from "@vueuse/core";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/localeStore";
+import { persistedValue } from "@/lib/persistedValue";
 const { t } = useLocale();
 
-const editorRef = ref<HTMLElement | null>(null);
+const currentTheme = persistedValue<string>("appearance.theme", "dark");
+const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light" : "dark");
+
+const editorRef = ref<HTMLTextAreaElement | null>(null);
+const messageText = ref("");
 const api = useApi();
 const pool = usePoolStore();
 const mention = reactive({
@@ -81,7 +87,6 @@ const mention = reactive({
   query: "",
   candidates: [] as MentionUser[],
   index: 0,
-  startNode: null as Node | null,
   startOffset: 0,
 });
 
@@ -132,28 +137,25 @@ function onEditorInput() {
     emit("stop_typing");
   }, 3000);
 
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) {
-    mention.show = false;
-    return;
+  // Auto-resize textarea
+  if (editorRef.value) {
+    editorRef.value.style.height = "auto";
+    editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, 200)}px`;
   }
 
-  const range = sel.getRangeAt(0);
-  const node = range.startContainer;
-  const offset = range.startOffset;
-
-  const text = node.textContent?.slice(0, offset) || "";
-  const atIndex = text.lastIndexOf("@");
+  // Check for mention trigger
+  const text = messageText.value;
+  const cursorPos = editorRef.value?.selectionStart ?? 0;
+  const textBeforeCursor = text.slice(0, cursorPos);
+  const atIndex = textBeforeCursor.lastIndexOf("@");
 
   if (atIndex >= 0) {
-    const query = text.slice(atIndex + 1);
+    const query = textBeforeCursor.slice(atIndex + 1);
     if (/^[\w\d_]{0,20}$/.test(query)) {
       mention.show = true;
       mention.query = query;
-      mention.startNode = node;
       mention.startOffset = atIndex;
       mention.index = 0;
-
       rawQuery.value = mention.query;
       return;
     }
@@ -169,6 +171,7 @@ async function onEditorKeydown(e: KeyboardEvent) {
     if (e.shiftKey || e.altKey || e.ctrlKey) return;
     if (e.altKey) return;
     if (e.key !== "Enter") return;
+    e.preventDefault();
     await handleSend();
     return;
   }
@@ -184,33 +187,35 @@ async function onEditorKeydown(e: KeyboardEvent) {
   } else if (e.key === "Enter") {
     e.preventDefault();
     selectMention(mention.candidates[mention.index]);
+  } else if (e.key === "Escape") {
+    mention.show = false;
   }
 }
-function selectMention(user: MentionUser) {
-  const range = document.createRange();
-  const sel = window.getSelection();
-  if (!mention.startNode || !sel) return;
 
-  range.setStart(mention.startNode, mention.startOffset);
-  if (sel.focusNode) {
-    range.setEnd(sel.focusNode, sel.focusOffset);
-  }
-  range.deleteContents();
+function selectMention(user: MentionUser) {
+  if (!editorRef.value) return;
+
+  const cursorPos = editorRef.value.selectionStart ?? 0;
+  const text = messageText.value;
   
-  // Insert mention as plain text with special marker
+  // Replace @query with @displayName
   const mentionText = `@${user.displayName}`;
-  const textNode = document.createTextNode(mentionText);
+  const beforeMention = text.slice(0, mention.startOffset);
+  const afterCursor = text.slice(cursorPos);
+  
+  messageText.value = beforeMention + mentionText + " " + afterCursor;
   
   // Register mention for post-parsing
   mentionRegistry.set(mentionText, user.id);
 
-  const space = document.createTextNode("\u00A0");
-  range.insertNode(space);
-  range.insertNode(textNode);
-  range.setStartAfter(space);
-  range.setEndAfter(space);
-  sel.removeAllRanges();
-  sel.addRange(range);
+  // Set cursor position after mention
+  nextTick(() => {
+    if (editorRef.value) {
+      const newPos = mention.startOffset + mentionText.length + 1;
+      editorRef.value.setSelectionRange(newPos, newPos);
+      editorRef.value.focus();
+    }
+  });
 
   mention.show = false;
 }
@@ -225,7 +230,21 @@ onUnmounted(() => {
 });
 
 const onEmojiClick = (emoji: EmojiExt) => {
-  logger.log(emoji);
+  if (!editorRef.value) return;
+  
+  const cursorPos = editorRef.value.selectionStart ?? messageText.value.length;
+  const before = messageText.value.slice(0, cursorPos);
+  const after = messageText.value.slice(cursorPos);
+  
+  messageText.value = before + emoji.i + after;
+  
+  nextTick(() => {
+    if (editorRef.value) {
+      const newPos = cursorPos + emoji.i.length;
+      editorRef.value.setSelectionRange(newPos, newPos);
+      editorRef.value.focus();
+    }
+  });
 };
 
 interface ParsedMessage {
@@ -257,10 +276,7 @@ interface FormatMatch {
  * - @mention = mention (from mentionRegistry)
  */
 function parseMessageContent(): ParsedMessage {
-  if (!editorRef.value) return { text: "", entities: [] };
-
-  // Get raw text from editor
-  let rawText = editorRef.value.innerText.replace(/\u00A0/g, " ").trim();
+  let rawText = messageText.value.trim();
   
   const entities: IMessageEntity[] = [];
   const formatMatches: FormatMatch[] = [];
@@ -488,8 +504,11 @@ const handleSend = async () => {
   if (props.replyTo) {
     emit("clear-reply");
   }
+  
+  // Clear editor
+  messageText.value = "";
   if (editorRef.value) {
-    editorRef.value.innerHTML = "";
+    editorRef.value.style.height = "auto";
   }
   
   // Clear mention registry after send
@@ -497,6 +516,24 @@ const handleSend = async () => {
 };
 </script>
 <style lang="css" scoped>
+.enter-text-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+textarea {
+    font-family: inherit;
+    line-height: 1.5;
+    color: hsl(var(--foreground));
+}
+
+textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+}
+
 .reply-preview {
     padding: 6px 10px;
     border-radius: 6px;
@@ -519,6 +556,9 @@ const handleSend = async () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .clear-reply {
@@ -526,7 +566,6 @@ const handleSend = async () => {
     border: none;
     color: hsl(var(--muted-foreground));
     cursor: pointer;
-    margin-left: 8px;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -537,6 +576,7 @@ const handleSend = async () => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-grow: 1;
+    flex: 1;
+    min-width: 0;
 }
 </style>

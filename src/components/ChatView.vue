@@ -1,6 +1,36 @@
 <template>
   <div class="chat-container" :style="{ '--chat-width': chatWidth + 'px' }">
     <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
+      <!-- Sticky header -->
+      <div class="sticky-header">
+        <div class="header-content">
+          <h2 class="text-lg font-bold flex items-center">
+            <HashIcon class="mr-2 w-5 h-5" /> {{ channelName }}
+          </h2>
+        </div>
+        <Transition name="typing-slide">
+          <div v-if="typingUsers && typingUsers.length > 0"
+            class="typing-indicator">
+            <div class="typing-bubble">
+              <span>
+                {{
+                  typingUsers.length === 1
+                    ? t("typing.one", { name: typingUsers[0].displayName })
+                    : typingUsers.length <= 3 ? t("typing.few", {
+                        names: typingUsers.map(u => u.displayName).join(", ")
+                      }) : t("typing.many")
+                }}
+              </span>
+              <span class="inline-flex gap-[1px] ml-1">
+                <span class="dot"></span>
+                <span class="dot dot2"></span>
+                <span class="dot dot3"></span>
+              </span>
+            </div>
+          </div>
+        </Transition>
+      </div>
+      
       <!-- Loading indicator at top -->
       <div v-if="isLoadingOlder" class="loading-indicator top">
         <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
@@ -32,6 +62,7 @@
             :message="messages[item.index]"
             :get-msg-by-id="getMessageById"
             @dblclick="() => emit('select-reply', messages[item.index])"
+            @reply="(msg) => emit('select-reply', msg)"
           />
         </div>
       </div>
@@ -70,7 +101,7 @@ import {
   shallowRef,
 } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import { CircleArrowDown, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
 
 import MessageItem from "@/components/MessageItem.vue";
 
@@ -100,6 +131,8 @@ const { t } = useLocale();
 const props = defineProps<{
   channelId: Guid;
   spaceId?: Guid;
+  channelName?: string;
+  typingUsers?: { displayName: string }[];
   class?: string;
 }>();
 
@@ -383,13 +416,83 @@ onUnmounted(() => {
   position: relative;
   height: 100%;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .chat-scroll {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   position: relative;
-  padding: 8px;
+  padding: 0 8px 8px 8px;
+  background: hsl(var(--card));
+  border-radius: 0.5rem;
+}
+
+/* Sticky header */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 0.5rem 0.5rem 0 0;
+  margin: 0 -8px 0 -8px;
+  padding: 0 8px;
+}
+
+.header-content {
+  padding: 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.typing-indicator {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.typing-bubble {
+  backdrop-filter: blur(8px);
+  background: hsl(var(--foreground) / 0.1);
+  border-radius: 0 0 0.5rem 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+
+.dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: dot-flash 1.5s infinite;
+}
+
+.dot2 { animation-delay: 0.3s; }
+.dot3 { animation-delay: 0.6s; }
+
+@keyframes dot-flash {
+  0%, 100% { opacity: 0; }
+  20% { opacity: 1; }
+}
+
+.typing-slide-enter-active,
+.typing-slide-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.typing-slide-enter-from,
+.typing-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
 }
 
 .chat-message {
@@ -401,8 +504,12 @@ onUnmounted(() => {
 }
 
 .messages::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: hsl(var(--foreground) / 0.2);
   border-radius: 3px;
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--foreground) / 0.3);
 }
 
 /* Scroll to bottom button - fixed within container */
