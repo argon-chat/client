@@ -68,7 +68,7 @@ import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/poolStore";
 import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline } from "@/lib/glue/argonChat";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@/lib/glue/argonChat";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();
@@ -244,11 +244,17 @@ interface FormatMatch {
 /**
  * Parse message content and extract entities
  * Supported formats:
+ * - __text__ = italic
+ * - **text** = bold  
+ * - ~~text~~ = strikethrough
+ * - ||text|| = spoiler
+ * - `text` = monospace
+ * - ^text = ordinal (superscript)
+ * - ^^text^^ = capitalized
+ * - numerator/denominator = fraction (e.g. 1/2)
  * - #hashtag = hashtag
  * - <tailwind-color:text> = colored underline
  * - @mention = mention (from mentionRegistry)
- * 
- * TODO: Bold, Italic, Strikethrough not yet supported by server
  */
 function parseMessageContent(): ParsedMessage {
   if (!editorRef.value) return { text: "", entities: [] };
@@ -259,13 +265,26 @@ function parseMessageContent(): ParsedMessage {
   const entities: IMessageEntity[] = [];
   const formatMatches: FormatMatch[] = [];
 
-  // Pattern definitions - only server-supported types
+  // Pattern definitions
   const patterns: Array<{
     regex: RegExp;
     type: EntityType;
     contentGroup: number;
     extraHandler?: (match: RegExpMatchArray) => Record<string, any>;
   }> = [
+    { regex: /__(.+?)__/g, type: EntityType.Italic, contentGroup: 1 },
+    { regex: /\*\*(.+?)\*\*/g, type: EntityType.Bold, contentGroup: 1 },
+    { regex: /~~(.+?)~~/g, type: EntityType.Strikethrough, contentGroup: 1 },
+    { regex: /\|\|(.+?)\|\|/g, type: EntityType.Spoiler, contentGroup: 1 },
+    { regex: /`([^`]+)`/g, type: EntityType.Monospace, contentGroup: 1 },
+    { regex: /\^\^(.+?)\^\^/g, type: EntityType.Capitalized, contentGroup: 1 },
+    { regex: /\^(\w+)/g, type: EntityType.Ordinal, contentGroup: 1 },
+    { 
+      regex: /(\d+)\/(\d+)/g, 
+      type: EntityType.Fraction, 
+      contentGroup: 0,
+      extraHandler: (m) => ({ numerator: Number.parseInt(m[1], 10), denominator: Number.parseInt(m[2], 10) })
+    },
     { regex: /#(\w+)/g, type: EntityType.Hashtag, contentGroup: 0 },
     { 
       regex: /<([a-z]+-\d{3}):(.+?)>/g, 
@@ -368,8 +387,65 @@ function parseMessageContent(): ParsedMessage {
         1, // version
         fm.extra?.colour ?? 0xffffff
       ));
+    } else if (fm.type === EntityType.Bold) {
+      entities.push(new MessageEntityBold(
+        EntityType.Bold,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Italic) {
+      entities.push(new MessageEntityItalic(
+        EntityType.Italic,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Strikethrough) {
+      entities.push(new MessageEntityStrikethrough(
+        EntityType.Strikethrough,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Spoiler) {
+      entities.push(new MessageEntitySpoiler(
+        EntityType.Spoiler,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Monospace) {
+      entities.push(new MessageEntityMonospace(
+        EntityType.Monospace,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Ordinal) {
+      entities.push(new MessageEntityOrdinal(
+        EntityType.Ordinal,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Capitalized) {
+      entities.push(new MessageEntityCapitalized(
+        EntityType.Capitalized,
+        entityStart,
+        entityLength,
+        1 // version
+      ));
+    } else if (fm.type === EntityType.Fraction) {
+      entities.push(new MessageEntityFraction(
+        EntityType.Fraction,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.extra!.numerator,
+        fm.extra!.denominator
+      ));
     }
-    // Note: Bold, Italic, Strikethrough not yet supported by server
 
     lastEnd = fm.end;
   }
@@ -426,17 +502,17 @@ const handleSend = async () => {
     border-radius: 6px;
     font-size: 13px;
     margin-bottom: 6px;
-    color: #d0d0d0;
-    background-color: #1e1e1e;
+    color: hsl(var(--foreground) / 0.85);
+    background-color: hsl(var(--muted));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border: 1px solid #2a2a2a;
+    border: 1px solid hsl(var(--border));
 }
 
 .reply-banner {
-    background-color: #222;
-    border-left: 3px solid #444;
+    background-color: hsl(var(--muted));
+    border-left: 3px solid hsl(var(--border));
     padding: 6px 10px;
     margin-bottom: 6px;
     border-radius: 6px;
@@ -448,7 +524,7 @@ const handleSend = async () => {
 .clear-reply {
     background: transparent;
     border: none;
-    color: #999;
+    color: hsl(var(--muted-foreground));
     cursor: pointer;
     margin-left: 8px;
     white-space: nowrap;
@@ -456,7 +532,7 @@ const handleSend = async () => {
 }
 
 .reply-info {
-    color: #d0d0d0;
+    color: hsl(var(--foreground) / 0.85);
     font-size: 13px;
     white-space: nowrap;
     overflow: hidden;

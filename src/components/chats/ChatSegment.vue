@@ -5,6 +5,7 @@
     <UnderlineSegment v-else-if="props.entity && isUnderlineEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <MonospaceSegment v-else-if="props.entity && isMonospaceEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <ItalicSegment v-else-if="props.entity && isItalicEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <StrikethroughSegment v-else-if="props.entity && isStrikethroughEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <FractionSegment v-else-if="props.entity && isFractionEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <OrdinalSegment v-else-if="props.entity && isOrdinalEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <UrlSegment v-else-if="props.entity && isUrlEntity(props.entity)" :entity="props.entity" :text="props.text" />
@@ -20,8 +21,10 @@ import ItalicSegment from "./ItalicSegment.vue";
 import MentionSegment from "./MentionSegment.vue";
 import MonospaceSegment from "./MonospaceSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
+import StrikethroughSegment from "./StrikethroughSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
 import UrlSegment from "./UrlSegment.vue";
+import { logger } from "@/lib/logger";
 
 const props = defineProps<{
   entity?: T;
@@ -31,6 +34,7 @@ const props = defineProps<{
 const emits = defineEmits<(e: "unsupported") => void>();
 
 function throwIsNotSupported() {
+  logger.warn("Message entity type not supported:", props.entity);
   emits("unsupported");
   return true;
 }
@@ -64,6 +68,9 @@ function isOrdinalEntity(entity: IMessageEntity): entity is IMessageEntity {
 }
 function isFractionEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.Fraction;
+}
+function isStrikethroughEntity(entity: IMessageEntity): entity is IMessageEntity {
+  return entity.type === EntityType.Strikethrough;
 }
 function isUrlEntity(entity: IMessageEntity): entity is MessageEntityUrl {
   return entity.type === EntityType.Url;

@@ -29,12 +29,14 @@ window.ui_branch = pkg.branch;
 (window as any).tailwindColorMap = tailwindColorMap;
 
 export const i18n = createI18n<[LocaleSchema], Locale>({
+  legacy: false,
   locale: "en",
   fallbackLocale: "en",
   messages: locales as any,
   silentTranslationWarn: true,
   missingWarn: false,
   fallbackWarn: false,
+  warnHtmlMessage: false,
 });
 const pinia = createPinia();
 const app = createApp(App);

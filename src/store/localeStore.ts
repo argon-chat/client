@@ -8,6 +8,7 @@ export const useLocale = defineStore("locale", () => {
   const currentLocale = persistedValue<string>("locale", "en");
 
   const { t, locale } = useI18n<[LocaleSchema], Locale>({
+    legacy: false,
     locale: "en",
     fallbackLocale: "en",
     /* @ts-ignore */
@@ -15,6 +16,7 @@ export const useLocale = defineStore("locale", () => {
     silentTranslationWarn: true,
     missingWarn: false,
     fallbackWarn: false,
+    warnHtmlMessage: false,
   });
 
   function updateLocale(key: string) {

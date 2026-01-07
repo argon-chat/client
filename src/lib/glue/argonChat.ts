@@ -653,6 +653,30 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
 
   
   
+  public isMessageEntityBold(): this is MessageEntityBold {
+    return this.UnionKey === "MessageEntityBold";
+  }
+  public isMessageEntityItalic(): this is MessageEntityItalic {
+    return this.UnionKey === "MessageEntityItalic";
+  }
+  public isMessageEntityStrikethrough(): this is MessageEntityStrikethrough {
+    return this.UnionKey === "MessageEntityStrikethrough";
+  }
+  public isMessageEntitySpoiler(): this is MessageEntitySpoiler {
+    return this.UnionKey === "MessageEntitySpoiler";
+  }
+  public isMessageEntityMonospace(): this is MessageEntityMonospace {
+    return this.UnionKey === "MessageEntityMonospace";
+  }
+  public isMessageEntityFraction(): this is MessageEntityFraction {
+    return this.UnionKey === "MessageEntityFraction";
+  }
+  public isMessageEntityOrdinal(): this is MessageEntityOrdinal {
+    return this.UnionKey === "MessageEntityOrdinal";
+  }
+  public isMessageEntityCapitalized(): this is MessageEntityCapitalized {
+    return this.UnionKey === "MessageEntityCapitalized";
+  }
   public isMessageEntityMention(): this is MessageEntityMention {
     return this.UnionKey === "MessageEntityMention";
   }
@@ -675,12 +699,76 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
 }
 
 
+export class MessageEntityBold extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityBold";
+  UnionIndex: number = 0;
+}
+
+export class MessageEntityItalic extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityItalic";
+  UnionIndex: number = 1;
+}
+
+export class MessageEntityStrikethrough extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityStrikethrough";
+  UnionIndex: number = 2;
+}
+
+export class MessageEntitySpoiler extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntitySpoiler";
+  UnionIndex: number = 3;
+}
+
+export class MessageEntityMonospace extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityMonospace";
+  UnionIndex: number = 4;
+}
+
+export class MessageEntityFraction extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public numerator: i4, public denominator: i4) { super(); }
+
+  UnionKey: string = "MessageEntityFraction";
+  UnionIndex: number = 5;
+}
+
+export class MessageEntityOrdinal extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityOrdinal";
+  UnionIndex: number = 6;
+}
+
+export class MessageEntityCapitalized extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4) { super(); }
+
+  UnionKey: string = "MessageEntityCapitalized";
+  UnionIndex: number = 7;
+}
+
 export class MessageEntityMention extends IMessageEntity
 {
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public userId: guid) { super(); }
 
   UnionKey: string = "MessageEntityMention";
-  UnionIndex: number = 0;
+  UnionIndex: number = 8;
 }
 
 export class MessageEntityEmail extends IMessageEntity
@@ -688,7 +776,7 @@ export class MessageEntityEmail extends IMessageEntity
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public email: string) { super(); }
 
   UnionKey: string = "MessageEntityEmail";
-  UnionIndex: number = 1;
+  UnionIndex: number = 9;
 }
 
 export class MessageEntityHashTag extends IMessageEntity
@@ -696,7 +784,7 @@ export class MessageEntityHashTag extends IMessageEntity
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public hashtag: string) { super(); }
 
   UnionKey: string = "MessageEntityHashTag";
-  UnionIndex: number = 2;
+  UnionIndex: number = 10;
 }
 
 export class MessageEntityQuote extends IMessageEntity
@@ -704,7 +792,7 @@ export class MessageEntityQuote extends IMessageEntity
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public quotedUserId: guid) { super(); }
 
   UnionKey: string = "MessageEntityQuote";
-  UnionIndex: number = 3;
+  UnionIndex: number = 11;
 }
 
 export class MessageEntityUnderline extends IMessageEntity
@@ -712,7 +800,7 @@ export class MessageEntityUnderline extends IMessageEntity
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public colour: i4) { super(); }
 
   UnionKey: string = "MessageEntityUnderline";
-  UnionIndex: number = 4;
+  UnionIndex: number = 12;
 }
 
 export class MessageEntityUrl extends IMessageEntity
@@ -720,7 +808,7 @@ export class MessageEntityUrl extends IMessageEntity
   constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public domain: string, public path: string) { super(); }
 
   UnionKey: string = "MessageEntityUrl";
-  UnionIndex: number = 5;
+  UnionIndex: number = 13;
 }
 
 
@@ -734,16 +822,32 @@ IonFormatterStorage.register("IMessageEntity", {
     if (false)
     {}
         else if (unionIndex == 0)
-      value = IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").read(reader);
+      value = IonFormatterStorage.get<MessageEntityBold>("MessageEntityBold").read(reader);
     else if (unionIndex == 1)
-      value = IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").read(reader);
+      value = IonFormatterStorage.get<MessageEntityItalic>("MessageEntityItalic").read(reader);
     else if (unionIndex == 2)
-      value = IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").read(reader);
+      value = IonFormatterStorage.get<MessageEntityStrikethrough>("MessageEntityStrikethrough").read(reader);
     else if (unionIndex == 3)
-      value = IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").read(reader);
+      value = IonFormatterStorage.get<MessageEntitySpoiler>("MessageEntitySpoiler").read(reader);
     else if (unionIndex == 4)
-      value = IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").read(reader);
+      value = IonFormatterStorage.get<MessageEntityMonospace>("MessageEntityMonospace").read(reader);
     else if (unionIndex == 5)
+      value = IonFormatterStorage.get<MessageEntityFraction>("MessageEntityFraction").read(reader);
+    else if (unionIndex == 6)
+      value = IonFormatterStorage.get<MessageEntityOrdinal>("MessageEntityOrdinal").read(reader);
+    else if (unionIndex == 7)
+      value = IonFormatterStorage.get<MessageEntityCapitalized>("MessageEntityCapitalized").read(reader);
+    else if (unionIndex == 8)
+      value = IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").read(reader);
+    else if (unionIndex == 9)
+      value = IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").read(reader);
+    else if (unionIndex == 10)
+      value = IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").read(reader);
+    else if (unionIndex == 11)
+      value = IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").read(reader);
+    else if (unionIndex == 12)
+      value = IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").read(reader);
+    else if (unionIndex == 13)
       value = IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").read(reader);
 
     else throw new Error();
@@ -757,21 +861,45 @@ IonFormatterStorage.register("IMessageEntity", {
     if (false)
     {}
         else if (value.UnionIndex == 0) {
-        IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").write(writer, value as MessageEntityMention);
+        IonFormatterStorage.get<MessageEntityBold>("MessageEntityBold").write(writer, value as MessageEntityBold);
     }
     else if (value.UnionIndex == 1) {
-        IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").write(writer, value as MessageEntityEmail);
+        IonFormatterStorage.get<MessageEntityItalic>("MessageEntityItalic").write(writer, value as MessageEntityItalic);
     }
     else if (value.UnionIndex == 2) {
-        IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").write(writer, value as MessageEntityHashTag);
+        IonFormatterStorage.get<MessageEntityStrikethrough>("MessageEntityStrikethrough").write(writer, value as MessageEntityStrikethrough);
     }
     else if (value.UnionIndex == 3) {
-        IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").write(writer, value as MessageEntityQuote);
+        IonFormatterStorage.get<MessageEntitySpoiler>("MessageEntitySpoiler").write(writer, value as MessageEntitySpoiler);
     }
     else if (value.UnionIndex == 4) {
-        IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").write(writer, value as MessageEntityUnderline);
+        IonFormatterStorage.get<MessageEntityMonospace>("MessageEntityMonospace").write(writer, value as MessageEntityMonospace);
     }
     else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<MessageEntityFraction>("MessageEntityFraction").write(writer, value as MessageEntityFraction);
+    }
+    else if (value.UnionIndex == 6) {
+        IonFormatterStorage.get<MessageEntityOrdinal>("MessageEntityOrdinal").write(writer, value as MessageEntityOrdinal);
+    }
+    else if (value.UnionIndex == 7) {
+        IonFormatterStorage.get<MessageEntityCapitalized>("MessageEntityCapitalized").write(writer, value as MessageEntityCapitalized);
+    }
+    else if (value.UnionIndex == 8) {
+        IonFormatterStorage.get<MessageEntityMention>("MessageEntityMention").write(writer, value as MessageEntityMention);
+    }
+    else if (value.UnionIndex == 9) {
+        IonFormatterStorage.get<MessageEntityEmail>("MessageEntityEmail").write(writer, value as MessageEntityEmail);
+    }
+    else if (value.UnionIndex == 10) {
+        IonFormatterStorage.get<MessageEntityHashTag>("MessageEntityHashTag").write(writer, value as MessageEntityHashTag);
+    }
+    else if (value.UnionIndex == 11) {
+        IonFormatterStorage.get<MessageEntityQuote>("MessageEntityQuote").write(writer, value as MessageEntityQuote);
+    }
+    else if (value.UnionIndex == 12) {
+        IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").write(writer, value as MessageEntityUnderline);
+    }
+    else if (value.UnionIndex == 13) {
         IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").write(writer, value as MessageEntityUrl);
     }
   
@@ -780,6 +908,170 @@ IonFormatterStorage.register("IMessageEntity", {
   }
 });
 
+
+IonFormatterStorage.register("MessageEntityBold", {
+  read(reader: CborReader): MessageEntityBold {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityBold(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityBold): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityItalic", {
+  read(reader: CborReader): MessageEntityItalic {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityItalic(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityItalic): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityStrikethrough", {
+  read(reader: CborReader): MessageEntityStrikethrough {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityStrikethrough(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityStrikethrough): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySpoiler", {
+  read(reader: CborReader): MessageEntitySpoiler {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntitySpoiler(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntitySpoiler): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityMonospace", {
+  read(reader: CborReader): MessageEntityMonospace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityMonospace(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityMonospace): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityFraction", {
+  read(reader: CborReader): MessageEntityFraction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const numerator = IonFormatterStorage.get<i4>('i4').read(reader);
+    const denominator = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new MessageEntityFraction(type, offset, length, version, numerator, denominator);
+  },
+  write(writer: CborWriter, value: MessageEntityFraction): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.numerator);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.denominator);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityOrdinal", {
+  read(reader: CborReader): MessageEntityOrdinal {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityOrdinal(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityOrdinal): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityCapitalized", {
+  read(reader: CborReader): MessageEntityCapitalized {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageEntityCapitalized(type, offset, length, version);
+  },
+  write(writer: CborWriter, value: MessageEntityCapitalized): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    writer.writeEndArray();
+  }
+});
 
 IonFormatterStorage.register("MessageEntityMention", {
   read(reader: CborReader): MessageEntityMention {

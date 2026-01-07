@@ -6,7 +6,7 @@
 
         <Popover v-model:open="isOpened">
             <PopoverContent style="width: 19rem;min-height: 25rem;"
-                class="p-0 rounded-2xl shadow-xl border border-neutral-800 bg-[#09090b] text-white overflow-hidden">
+                class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
                 <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
             </PopoverContent>
             <PopoverTrigger>
@@ -62,8 +62,7 @@
                 </div>
             </template>
             <template v-else>
-                <div class="rounded-r-lg border-red-500 border-l-4 bg-gray-800/40 italic text-sm p-4">
-                   {{t("not_supported_message_please_update")  }}
+                <div class="rounded-r-lg border-red-500 border-l-4 bg-destructive/10 italic text-sm p-4" v-html="t('not_supported_message_please_update')">
                 </div>
 
             </template>
@@ -242,29 +241,24 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 
 .meta .time {
     font-size: 12px;
-    color: #888;
+    color: hsl(var(--muted-foreground));
 }
 
 .meta .username {
     font-size: 13px;
     font-weight: 600;
-    color: #bbb;
+    color: hsl(var(--foreground) / 0.8);
     margin-bottom: 2px;
 }
-
-.incoming {}
-
-.outgoing {}
-
 .bubble {
     padding: 10px;
     border-radius: 4px 18px 18px 18px;
-    color: #e0e0e0;
+    color: hsl(var(--foreground));
     font-size: 14px;
     line-height: 1.4;
     word-break: break-word;
     white-space: pre-wrap;
-    background-color: #222;
+    background-color: hsl(var(--muted));
 }
 
 .reply-preview {
@@ -272,8 +266,8 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     border-radius: 6px;
     font-size: 13px;
     margin-bottom: 6px;
-    color: #d0d0d0;
-    background-color: #181818;
+    color: hsl(var(--foreground) / 0.85);
+    background-color: hsl(var(--muted) / 0.7);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

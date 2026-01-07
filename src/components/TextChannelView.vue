@@ -115,10 +115,12 @@ watch(
 
 const onTypingEvent = () => {
     if (!channelData.value) return;
+    logger.log("Sending IAmTypingEvent with channelId:", channelData.value.channelId);
     bus.sendEventAsync(new IAmTypingEvent(channelData.value.channelId));
 };
 const onStopTypingEvent = () => {
     if (!channelData.value) return;
+    logger.log("Sending IAmStopTypingEvent with channelId:", channelData.value.channelId);
     bus.sendEventAsync(new IAmStopTypingEvent(channelData.value.channelId));
 };
 
@@ -142,13 +144,18 @@ onMounted(async () => {
     subs.value = pool.onChannelChanged.subscribe(onChannelChanged);
     subs.value.add(
         bus.onServerEvent<UserTypingEvent>("UserTypingEvent", async (q) => {
+            logger.log("UserTypingEvent received", q.channelId, "current:", selectedChannelId.value);
             if (q.channelId !== selectedChannelId.value) return;
 
             lastTypingTime.set(q.userId, Date.now());
 
             if (!typingUsers.value.some((u) => u.userId === q.userId)) {
                 const user = await pool.getUser(q.userId);
-                if (user) typingUsers.value.push(user);
+                logger.log("User found for typing:", user);
+                if (user) {
+                    // Use immutable update for reactivity
+                    typingUsers.value = [...typingUsers.value, user];
+                }
             }
 
             scheduleTypingTimeout(q.userId);
@@ -193,28 +200,26 @@ const onChannelChanged = async (channelId: Guid | null) => {
 }
 
 .header-list {
-    background-color: #161616;
+    background-color: hsl(var(--card));
     padding-top: 5px;
 }
 
 .typing-slide-enter-active,
 .typing-slide-leave-active {
-    transition: transform 0.3s ease, visibility 0.3s ease;
-}
-
-.typing-slide-enter-active,
-.typing-slide-leave-active {
-    transition: max-height 0.3s ease;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
 }
 
 .typing-slide-enter-from,
 .typing-slide-leave-to {
     max-height: 0;
+    opacity: 0;
 }
 
 .typing-slide-enter-to,
 .typing-slide-leave-from {
     max-height: 100px;
+    opacity: 1;
 }
 
 @keyframes dot-flash {
