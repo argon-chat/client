@@ -60,8 +60,6 @@ export const useBus = defineStore("bus", () => {
     for await (const e of handle) {
       if (e.UnionKey !== "UserChangedStatus")
         logger.log(`Received event, ${e.UnionKey}`, e);
-      // Используем requestAnimationFrame для обработки событий между кадрами
-      // Это гарантирует, что браузер успеет обработать пользовательский ввод
       requestAnimationFrame(() => {
         argonEventBus.next(e);
       });

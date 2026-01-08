@@ -1,9 +1,10 @@
 <template>
     <div
         class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px] shrink-0">
-        <Button variant="ghost" size="icon" class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
+        <Button variant="ghost" size="icon" class="relative w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
             @click="emit('home')">
             <IconSw class="w-8 h-8 fill-blue-500" />
+            <span v-if="totalNotifications > 0" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-card"></span>
         </Button>
 
         <Separator class="my-3" />
@@ -197,8 +198,10 @@ import TooltipContent from "./ui/tooltip/TooltipContent.vue"
 import { useVersionChecker } from "@/lib/useVersionChecker"
 import SendUserFeedback from "./modals/SendUserFeedback.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
+import { useNotifications } from "@/composables/useNotifications"
 
 const { t } = useLocale();
+const { totalNotifications, initialize, cleanup } = useNotifications();
 
 const createSpaceOpened = ref(false);
 const feedbackOpened = ref(false);
@@ -417,10 +420,12 @@ function closeAll() {
 
 onMounted(() => {
     document.addEventListener('click', closeAll);
+    initialize();
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', closeAll);
+    cleanup();
 });
 </script>
 <style lang="css" scoped>

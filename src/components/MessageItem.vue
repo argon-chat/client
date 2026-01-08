@@ -1,5 +1,13 @@
 <template>
-    <div class="message-item" :class="{
+    <!-- System message -->
+    <div v-if="isSystemMessage" class="system-message">
+        <div class="system-message-content">
+            {{ systemMessageText }}
+        </div>
+    </div>
+
+    <!-- Regular message -->
+    <div v-else class="message-item" :class="{
         incoming: isIncoming,
         outgoing: !isIncoming
     }" v-if="user">
@@ -122,17 +130,76 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { ArgonMessage, IMessageEntity } from "@/lib/glue/argonChat";
+import { ArgonMessage, IMessageEntity, EntityType, MessageEntitySystemCallStarted, MessageEntitySystemCallEnded, MessageEntitySystemCallTimeout, MessageEntitySystemUserJoined } from "@/lib/glue/argonChat";
 import { useLocale } from "@/store/localeStore";
 import { CopyIcon, ReplyIcon } from "lucide-vue-next";
 
 const { t } = useLocale();
 const isOpened = ref(false);
 
+const SYSTEM_USER_ID = "11111111-2222-1111-2222-111111111111";
+
 const props = defineProps<{
   message: ArgonMessage;
   getMsgById: (replyId: bigint | null) => ArgonMessage;
 }>();
+
+const isSystemMessage = computed(() => {
+  return props.message.sender === SYSTEM_USER_ID;
+});
+
+const systemMessageText = computed(() => {
+  if (!isSystemMessage.value || !props.message.entities || props.message.entities.length === 0) {
+    return "";
+  }
+
+  const entity = props.message.entities[0];
+  
+  if (entity.type === EntityType.SystemCallStarted) {
+    const callEntity = entity as MessageEntitySystemCallStarted;
+    const caller = pool.getUserReactive(ref(callEntity.callerId));
+    return `${caller.value?.displayName || "User"} started a call`;
+  }
+  
+  if (entity.type === EntityType.SystemCallEnded) {
+    const callEntity = entity as MessageEntitySystemCallEnded;
+    const caller = pool.getUserReactive(ref(callEntity.callerId));
+    const duration = formatCallDuration(callEntity.durationSeconds);
+    return `Call ended • ${duration}`;
+  }
+  
+  if (entity.type === EntityType.SystemCallTimeout) {
+    const callEntity = entity as MessageEntitySystemCallTimeout;
+    const caller = pool.getUserReactive(ref(callEntity.callerId));
+    return `Call timeout • No answer`;
+  }
+  
+  if (entity.type === EntityType.SystemUserJoined) {
+    const joinEntity = entity as MessageEntitySystemUserJoined;
+    const user = pool.getUserReactive(ref(joinEntity.userId));
+    if (joinEntity.inviterId) {
+      const inviter = pool.getUserReactive(ref(joinEntity.inviterId));
+      return `${user.value?.displayName || "User"} joined (invited by ${inviter.value?.displayName || "User"})`;
+    }
+    return `${user.value?.displayName || "User"} joined`;
+  }
+  
+  return "";
+});
+
+function formatCallDuration(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
@@ -267,6 +334,23 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 </script>
 
 <style scoped>
+.system-message {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+    width: 100%;
+}
+
+.system-message-content {
+    padding: 6px 12px;
+    border-radius: 12px;
+    background: hsl(var(--muted) / 0.5);
+    color: hsl(var(--muted-foreground));
+    font-size: 13px;
+    text-align: center;
+    max-width: 80%;
+}
+
 .message-item {
     display: flex;
     align-items: flex-start;

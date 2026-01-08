@@ -129,6 +129,12 @@ export interface RealtimeChannelUser {
 };
 
 
+export interface NotificationCounterKv {
+  counterType: string;
+  count: i8;
+};
+
+
 export interface UserActivityPresence {
   kind: ActivityPresenceKind;
   startTimestampSeconds: u8;
@@ -177,6 +183,10 @@ export enum EntityType
   Fraction = 11,
   Ordinal = 12,
   Capitalized = 13,
+  SystemCallStarted = 14,
+  SystemCallEnded = 15,
+  SystemCallTimeout = 16,
+  SystemUserJoined = 17,
 }
 
 
@@ -237,6 +247,17 @@ export interface UserChat {
   lastMessageAt: datetime;
   pinnedAt: datetime | null;
   unreadCount: i4;
+};
+
+
+export interface DirectMessage {
+  messageId: i8;
+  senderId: guid;
+  receiverId: guid;
+  text: string;
+  entities: IonArray<IMessageEntity>;
+  createdAt: datetime;
+  replyTo: i8 | null;
 };
 
 
@@ -695,6 +716,18 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntityUrl(): this is MessageEntityUrl {
     return this.UnionKey === "MessageEntityUrl";
   }
+  public isMessageEntitySystemCallStarted(): this is MessageEntitySystemCallStarted {
+    return this.UnionKey === "MessageEntitySystemCallStarted";
+  }
+  public isMessageEntitySystemCallEnded(): this is MessageEntitySystemCallEnded {
+    return this.UnionKey === "MessageEntitySystemCallEnded";
+  }
+  public isMessageEntitySystemCallTimeout(): this is MessageEntitySystemCallTimeout {
+    return this.UnionKey === "MessageEntitySystemCallTimeout";
+  }
+  public isMessageEntitySystemUserJoined(): this is MessageEntitySystemUserJoined {
+    return this.UnionKey === "MessageEntitySystemUserJoined";
+  }
 
 }
 
@@ -811,6 +844,38 @@ export class MessageEntityUrl extends IMessageEntity
   UnionIndex: number = 13;
 }
 
+export class MessageEntitySystemCallStarted extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public callerId: guid, public callId: guid) { super(); }
+
+  UnionKey: string = "MessageEntitySystemCallStarted";
+  UnionIndex: number = 14;
+}
+
+export class MessageEntitySystemCallEnded extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public callerId: guid, public callId: guid, public durationSeconds: i4) { super(); }
+
+  UnionKey: string = "MessageEntitySystemCallEnded";
+  UnionIndex: number = 15;
+}
+
+export class MessageEntitySystemCallTimeout extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public callerId: guid, public callId: guid) { super(); }
+
+  UnionKey: string = "MessageEntitySystemCallTimeout";
+  UnionIndex: number = 16;
+}
+
+export class MessageEntitySystemUserJoined extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public userId: guid, public inviterId: guid | null) { super(); }
+
+  UnionKey: string = "MessageEntitySystemUserJoined";
+  UnionIndex: number = 17;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
@@ -849,6 +914,14 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntityUnderline>("MessageEntityUnderline").read(reader);
     else if (unionIndex == 13)
       value = IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").read(reader);
+    else if (unionIndex == 14)
+      value = IonFormatterStorage.get<MessageEntitySystemCallStarted>("MessageEntitySystemCallStarted").read(reader);
+    else if (unionIndex == 15)
+      value = IonFormatterStorage.get<MessageEntitySystemCallEnded>("MessageEntitySystemCallEnded").read(reader);
+    else if (unionIndex == 16)
+      value = IonFormatterStorage.get<MessageEntitySystemCallTimeout>("MessageEntitySystemCallTimeout").read(reader);
+    else if (unionIndex == 17)
+      value = IonFormatterStorage.get<MessageEntitySystemUserJoined>("MessageEntitySystemUserJoined").read(reader);
 
     else throw new Error();
   
@@ -901,6 +974,18 @@ IonFormatterStorage.register("IMessageEntity", {
     }
     else if (value.UnionIndex == 13) {
         IonFormatterStorage.get<MessageEntityUrl>("MessageEntityUrl").write(writer, value as MessageEntityUrl);
+    }
+    else if (value.UnionIndex == 14) {
+        IonFormatterStorage.get<MessageEntitySystemCallStarted>("MessageEntitySystemCallStarted").write(writer, value as MessageEntitySystemCallStarted);
+    }
+    else if (value.UnionIndex == 15) {
+        IonFormatterStorage.get<MessageEntitySystemCallEnded>("MessageEntitySystemCallEnded").write(writer, value as MessageEntitySystemCallEnded);
+    }
+    else if (value.UnionIndex == 16) {
+        IonFormatterStorage.get<MessageEntitySystemCallTimeout>("MessageEntitySystemCallTimeout").write(writer, value as MessageEntitySystemCallTimeout);
+    }
+    else if (value.UnionIndex == 17) {
+        IonFormatterStorage.get<MessageEntitySystemUserJoined>("MessageEntitySystemUserJoined").write(writer, value as MessageEntitySystemUserJoined);
     }
   
     else throw new Error();
@@ -1203,6 +1288,104 @@ IonFormatterStorage.register("MessageEntityUrl", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.version);
     IonFormatterStorage.get<string>('string').write(writer, value.domain);
     IonFormatterStorage.get<string>('string').write(writer, value.path);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySystemCallStarted", {
+  read(reader: CborReader): MessageEntitySystemCallStarted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const callerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new MessageEntitySystemCallStarted(type, offset, length, version, callerId, callId);
+  },
+  write(writer: CborWriter, value: MessageEntitySystemCallStarted): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySystemCallEnded", {
+  read(reader: CborReader): MessageEntitySystemCallEnded {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const callerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const durationSeconds = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return new MessageEntitySystemCallEnded(type, offset, length, version, callerId, callId, durationSeconds);
+  },
+  write(writer: CborWriter, value: MessageEntitySystemCallEnded): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.durationSeconds);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySystemCallTimeout", {
+  read(reader: CborReader): MessageEntitySystemCallTimeout {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const callerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const callId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new MessageEntitySystemCallTimeout(type, offset, length, version, callerId, callId);
+  },
+  write(writer: CborWriter, value: MessageEntitySystemCallTimeout): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.callId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySystemUserJoined", {
+  read(reader: CborReader): MessageEntitySystemUserJoined {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const inviterId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new MessageEntitySystemUserJoined(type, offset, length, version, userId, inviterId);
+  },
+  write(writer: CborWriter, value: MessageEntitySystemUserJoined): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.inviterId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -1544,6 +1727,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChannelReordered(): this is ChannelReordered {
     return this.UnionKey === "ChannelReordered";
   }
+  public isDirectMessageSent(): this is DirectMessageSent {
+    return this.UnionKey === "DirectMessageSent";
+  }
+  public isUpdatedNotificationCounters(): this is UpdatedNotificationCounters {
+    return this.UnionKey === "UpdatedNotificationCounters";
+  }
 
 }
 
@@ -1860,6 +2049,22 @@ export class ChannelReordered extends IArgonEvent
   UnionIndex: number = 38;
 }
 
+export class DirectMessageSent extends IArgonEvent
+{
+  constructor(public senderId: guid, public receiverId: guid, public message: DirectMessage) { super(); }
+
+  UnionKey: string = "DirectMessageSent";
+  UnionIndex: number = 39;
+}
+
+export class UpdatedNotificationCounters extends IArgonEvent
+{
+  constructor(public userId: guid, public counters: IonArray<NotificationCounterKv>) { super(); }
+
+  UnionKey: string = "UpdatedNotificationCounters";
+  UnionIndex: number = 40;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -1948,6 +2153,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").read(reader);
     else if (unionIndex == 38)
       value = IonFormatterStorage.get<ChannelReordered>("ChannelReordered").read(reader);
+    else if (unionIndex == 39)
+      value = IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").read(reader);
+    else if (unionIndex == 40)
+      value = IonFormatterStorage.get<UpdatedNotificationCounters>("UpdatedNotificationCounters").read(reader);
 
     else throw new Error();
   
@@ -2075,6 +2284,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 38) {
         IonFormatterStorage.get<ChannelReordered>("ChannelReordered").write(writer, value as ChannelReordered);
+    }
+    else if (value.UnionIndex == 39) {
+        IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").write(writer, value as DirectMessageSent);
+    }
+    else if (value.UnionIndex == 40) {
+        IonFormatterStorage.get<UpdatedNotificationCounters>("UpdatedNotificationCounters").write(writer, value as UpdatedNotificationCounters);
     }
   
     else throw new Error();
@@ -2725,6 +2940,40 @@ IonFormatterStorage.register("ChannelReordered", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.writeNullable<guid>(writer, value.targetGroupId, 'guid');
     IonFormatterStorage.get<string>('string').write(writer, value.fractionalIndex);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("DirectMessageSent", {
+  read(reader: CborReader): DirectMessageSent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const senderId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const receiverId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const message = IonFormatterStorage.get<DirectMessage>('DirectMessage').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new DirectMessageSent(senderId, receiverId, message);
+  },
+  write(writer: CborWriter, value: DirectMessageSent): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.senderId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.receiverId);
+    IonFormatterStorage.get<DirectMessage>('DirectMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UpdatedNotificationCounters", {
+  read(reader: CborReader): UpdatedNotificationCounters {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const counters = IonFormatterStorage.readArray<NotificationCounterKv>(reader, 'NotificationCounterKv');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new UpdatedNotificationCounters(userId, counters);
+  },
+  write(writer: CborWriter, value: UpdatedNotificationCounters): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeArray<NotificationCounterKv>(writer, value.counters, 'NotificationCounterKv');
     writer.writeEndArray();
   }
 });
@@ -4204,6 +4453,22 @@ IonFormatterStorage.register("RealtimeChannelUser", {
   }
 });
 
+IonFormatterStorage.register("NotificationCounterKv", {
+  read(reader: CborReader): NotificationCounterKv {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const counterType = IonFormatterStorage.get<string>('string').read(reader);
+    const count = IonFormatterStorage.get<i8>('i8').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { counterType, count };
+  },
+  write(writer: CborWriter, value: NotificationCounterKv): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.counterType);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.count);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ActivityPresenceKind", {
   read(reader: CborReader): ActivityPresenceKind {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -4366,6 +4631,32 @@ IonFormatterStorage.register("UserChat", {
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastMessageAt);
     IonFormatterStorage.writeNullable<datetime>(writer, value.pinnedAt, 'datetime');
     IonFormatterStorage.get<i4>('i4').write(writer, value.unreadCount);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("DirectMessage", {
+  read(reader: CborReader): DirectMessage {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const senderId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const receiverId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const text = IonFormatterStorage.get<string>('string').read(reader);
+    const entities = IonFormatterStorage.readArray<IMessageEntity>(reader, 'IMessageEntity');
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const replyTo = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { messageId, senderId, receiverId, text, entities, createdAt, replyTo };
+  },
+  write(writer: CborWriter, value: DirectMessage): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.senderId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.receiverId);
+    IonFormatterStorage.get<string>('string').write(writer, value.text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, value.entities, 'IMessageEntity');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.writeNullable<i8>(writer, value.replyTo, 'i8');
     writer.writeEndArray();
   }
 });
@@ -5124,6 +5415,8 @@ export interface IUserChatInteractions extends IIonService
   PinChat(peerId: guid): Promise<void>;
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
+  SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
+  QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
 
 
@@ -5196,6 +5489,7 @@ export interface IUserInteraction extends IIonService
   GetTodayStats(): Promise<TodayStats>;
   GetMyLevel(): Promise<MyLevelDetails>;
   ClaimLevelCoin(): Promise<bool>;
+  GetNotificationCounters(): Promise<IonArray<NotificationCounterKv>>;
 }
 
 
@@ -5297,6 +5591,8 @@ export interface IUserChatInteractions extends IIonService
   PinChat(peerId: guid): Promise<void>;
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
+  SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
+  QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
 
 
@@ -5369,6 +5665,7 @@ export interface IUserInteraction extends IIonService
   GetTodayStats(): Promise<TodayStats>;
   GetMyLevel(): Promise<MyLevelDetails>;
   ClaimLevelCoin(): Promise<bool>;
+  GetNotificationCounters(): Promise<IonArray<NotificationCounterKv>>;
 }
 
 
@@ -6034,6 +6331,38 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
           
     await req.callAsync(writer.data, this.signal);
   }
+  async SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "SendDirectMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, receiverId);
+    IonFormatterStorage.get<string>('string').write(writer, text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
+    IonFormatterStorage.get<i8>('i8').write(writer, randomId);
+    IonFormatterStorage.writeNullable<i8>(writer, replyTo, 'i8');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<i8>("i8", writer.data, this.signal);
+  }
+  async QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "QueryDirectMessages");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.writeNullable<i8>(writer, from, 'i8');
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<DirectMessage>>("IonArray<DirectMessage>", writer.data, this.signal);
+  }
 
 }
 
@@ -6631,6 +6960,19 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async GetNotificationCounters(): Promise<IonArray<NotificationCounterKv>> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetNotificationCounters");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<NotificationCounterKv>>("IonArray<NotificationCounterKv>", writer.data, this.signal);
   }
 
 }

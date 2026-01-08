@@ -1,20 +1,13 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useApi } from '@/store/apiStore';
 import { useBus } from '@/store/busStore';
-import { useMe } from '@/store/meStore';
 import { DisposableBag } from '@/lib/disposables';
 import { logger } from '@/lib/logger';
-import type {
-    FriendRequestReceivedEvent,
-    FriendRequestAcceptedEvent,
-    FriendRequestDeclinedEvent,
-    FriendRequestCanceledEvent,
-} from '@/lib/glue/argonChat';
+import type { UpdatedNotificationCounters } from '@/lib/glue/argonChat';
 
 export function useNotifications() {
     const api = useApi();
     const bus = useBus();
-    const me = useMe();
     
     const pendingFriendRequestsCount = ref(0);
     const newInventoryItemsCount = ref(0);
@@ -29,13 +22,15 @@ export function useNotifications() {
     async function loadNotifications() {
         loading.value = true;
         try {
-            const [friendRequests, inventoryNotifications] = await Promise.all([
-                api.freindsInteraction.GetMyFriendPendingList(50, 0),
-                api.inventoryInteraction.GetNotifications()
-            ]);
+            const counters = await api.userInteraction.GetNotificationCounters();
             
-            pendingFriendRequestsCount.value = friendRequests.length;
-            newInventoryItemsCount.value = inventoryNotifications.length;
+            for (const counter of counters) {
+                if (counter.counterType === 'pending_friend_requests') {
+                    pendingFriendRequestsCount.value = Number(counter.count);
+                } else if (counter.counterType === 'unread_inventory') {
+                    newInventoryItemsCount.value = Number(counter.count);
+                }
+            }
             
             logger.info('Loaded notifications:', {
                 friends: pendingFriendRequestsCount.value,
@@ -49,52 +44,27 @@ export function useNotifications() {
     }
     
     function subscribeToEvents() {
-        // Friend request events
         subs.addSubscription(
-            bus.onServerEvent<FriendRequestReceivedEvent>('FriendRequestReceivedEvent', () => {
-                pendingFriendRequestsCount.value++;
-                logger.info('Friend request received, count:', pendingFriendRequestsCount.value);
-            })
-        );
-        
-        subs.addSubscription(
-            bus.onServerEvent<FriendRequestAcceptedEvent>('FriendRequestAcceptedEvent', () => {
-                if (pendingFriendRequestsCount.value > 0) {
-                    pendingFriendRequestsCount.value--;
-                    logger.info('Friend request accepted, count:', pendingFriendRequestsCount.value);
-                }
-            })
-        );
-        
-        subs.addSubscription(
-            bus.onServerEvent<FriendRequestDeclinedEvent>('FriendRequestDeclinedEvent', () => {
-                if (pendingFriendRequestsCount.value > 0) {
-                    pendingFriendRequestsCount.value--;
-                    logger.info('Friend request declined, count:', pendingFriendRequestsCount.value);
-                }
-            })
-        );
-        
-        subs.addSubscription(
-            bus.onServerEvent<FriendRequestCanceledEvent>('FriendRequestCanceledEvent', () => {
-                if (pendingFriendRequestsCount.value > 0) {
-                    pendingFriendRequestsCount.value--;
-                    logger.info('Friend request canceled, count:', pendingFriendRequestsCount.value);
+            bus.onServerEvent<UpdatedNotificationCounters>('UpdatedNotificationCounters', (event) => {
+                for (const counter of event.counters) {
+                    if (counter.counterType === 'pending_friend_requests') {
+                        pendingFriendRequestsCount.value = Number(counter.count);
+                        logger.info('Friend requests count updated:', counter.count);
+                    } else if (counter.counterType === 'unread_inventory') {
+                        newInventoryItemsCount.value = Number(counter.count);
+                        logger.info('Inventory items count updated:', counter.count);
+                    }
                 }
             })
         );
     }
     
-    function markInventoryItemSeen(instanceId: string) {
+    async function markInventoryItemSeen(instanceId: string) {
         if (newInventoryItemsCount.value > 0) {
             newInventoryItemsCount.value--;
             logger.info('Inventory item marked as seen, count:', newInventoryItemsCount.value);
         }
-        
-        // Uncomment when ready to send to backend
-        // api.inventoryInteraction.MarkSeen([instanceId]).catch(err => {
-        //     logger.error('Failed to mark inventory item as seen:', err);
-        // });
+        await api.inventoryInteraction.MarkSeen([instanceId]);
     }
     
     function initialize() {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch, onUnmounted } from "vue";
+import { computed, shallowRef, watch, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCallManager } from "@/store/callManagerStore";
 import DmChatView from "./dms/DmChatView.vue";
@@ -8,15 +8,26 @@ import ChatPanel from "./dms/ChatPanel.vue";
 import ChatHeader from "./dms/ChatHeader.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import { DirectMessage } from "@/lib/glue/argonChat";
+import { usePoolStore } from "@/store/poolStore";
 
 const route = useRoute();
 const router = useRouter();
 
 const dmCall = useUnifiedCall();
 const calls = useCallManager();
+const pool = usePoolStore();
 
 const userId = computed(() => route.params.userId as string | undefined);
 const isProfileOpen = shallowRef(false);
+const replyTo = ref<DirectMessage | null>(null);
+
+const peerName = computed(() => {
+    if (!userId.value) return undefined;
+    // Get user from pool if available
+    // This is a placeholder - adjust based on your actual user storage
+    return undefined;
+});
 
 const stopUserIdWatch = watch(
   userId,
@@ -27,6 +38,7 @@ const stopUserIdWatch = watch(
     console.warn("Switch DM:", oldUserId, "→", newUserId);
 
     isProfileOpen.value = false;
+    replyTo.value = null;
   },
   { immediate: true }
 );
@@ -56,9 +68,14 @@ function endCall() {
     }
 }
 
+function onReplySelect(message: DirectMessage) {
+    replyTo.value = message;
+}
+
 onUnmounted(() => {
     stopUserIdWatch();
     isProfileOpen.value = false;
+    replyTo.value = null;
 });
 </script>
 <template>
@@ -69,8 +86,10 @@ onUnmounted(() => {
 
             <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
                 <ChatPanel v-if="isCallActive" @end="endCall" />
-                <DmChatView class="flex-1" />
-                <ChatInput />
+                <DmChatView v-if="userId" :peer-id="userId" :peer-name="peerName" class="flex-1" @select-reply="onReplySelect" />
+                <div class="message-input p-5 overflow-hidden flex-shrink-0 bg-card">
+                    <ChatInput v-if="userId" :receiver-id="userId" :reply-to="replyTo" @clear-reply="replyTo = null" />
+                </div>
             </div>
 
             <transition name="slide-profile">
