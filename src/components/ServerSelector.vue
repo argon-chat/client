@@ -26,14 +26,12 @@
                         @dragend="onDragEnd"
                         @click="select(server.spaceId)"
                         @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                        <div class="flex items-center justify-center w-full h-full">
-                            <ArgonAvatar 
-                                class="w-8 h-8"
-                                :file-id="server.avatarFieldId"
-                                :space-id="server.spaceId"
-                                :fallback="initials(server.name)"
-                            />
-                        </div>
+                        <ArgonAvatar 
+                            class="w-full h-full"
+                            :file-id="server.avatarFieldId"
+                            :space-id="server.spaceId"
+                            :fallback="initials(server.name)"
+                        />
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
                         <IconPinFilled class="absolute -top-1 -right-1 w-3 h-3 text-primary" />
@@ -54,10 +52,12 @@
                         <div v-for="(server, idx) in getFolderServers(folder).slice(0, 4)" 
                             :key="server.spaceId" 
                             class="overflow-hidden rounded-sm">
-                            <Avatar :class="getFolderServers(folder).length === 1 ? 'w-8 h-8' : 'w-3.5 h-3.5'">
-                                <AvatarImage v-if="server.avatarFieldId" :src="server.avatarFieldId" :alt="server.name" />
-                                <AvatarFallback class="text-[6px]">{{ initials(server.name) }}</AvatarFallback>
-                            </Avatar>
+                            <ArgonAvatar 
+                                :class="getFolderServers(folder).length === 1 ? 'w-8 h-8' : 'w-3.5 h-3.5'"
+                                :file-id="server.avatarFieldId"
+                                :space-id="server.spaceId"
+                                :fallback="initials(server.name)"
+                            />
                         </div>
                     </div>
                 </Button>
@@ -77,14 +77,12 @@
                         @dragend="onDragEnd"
                         @click="select(server.spaceId)"
                         @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                        <div class="flex items-center justify-center w-full h-full pointer-events-none">
-                            <ArgonAvatar 
-                                class="w-8 h-8"
-                                :file-id="server.avatarFieldId"
-                                :space-id="server.spaceId"
-                                :fallback="initials(server.name)"
-                            />
-                        </div>
+                        <ArgonAvatar 
+                            class="w-full h-full"
+                            :file-id="server.avatarFieldId"
+                            :space-id="server.spaceId"
+                            :fallback="initials(server.name)"
+                        />
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
                     </Button>
@@ -150,14 +148,12 @@
                 @dragend="onDragEnd"
                 @click="select(server.spaceId); folderPopup.show = false"
                 @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                <div class="flex items-center justify-center w-full h-full">
-                    <ArgonAvatar 
-                        class="w-8 h-8"
-                        :file-id="server.avatarFieldId"
-                        :space-id="server.spaceId"
-                        :fallback="initials(server.name)"
-                    />
-                </div>
+                <ArgonAvatar 
+                    class="w-full h-full"
+                    :file-id="server.avatarFieldId"
+                    :space-id="server.spaceId"
+                    :fallback="initials(server.name)"
+                />
             </Button>
         </div>
     </div>

@@ -67,7 +67,7 @@ const avatarStyle = computed(() => {
 
 <template>
   <keep-alive :max="10" :key="props.fileId!">
-    <Avatar :class="props.class" :key="props.fileId!" :style="{ width: size, height: size, ...avatarStyle }">
+    <Avatar :class="['!bg-transparent', props.class]" :key="props.fileId!" :style="{ width: size, height: size, ...avatarStyle }">
       <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
       <video v-else-if="loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc" disablePictureInPicture
         controlslist="nodownload nofullscreen noremoteplayback" />

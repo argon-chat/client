@@ -58,9 +58,6 @@ const headerImageUrl = ref<string | null>(null);
 const isLoadingHeader = ref(false);
 
 const backgroundImage = computed(() => {
-  if (isVerifiedSpace.value) {
-    return `url(${img0})`;
-  }
   if (headerImageUrl.value) {
     return `url(${headerImageUrl.value})`;
   }
