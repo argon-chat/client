@@ -846,8 +846,15 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   bus.onServerEvent<CallIncoming>("CallIncoming", handleIncoming);
 
   bus.onServerEvent<CallFinished>("CallFinished", async (ev) => {
+    // If this is our active call - leave
     if (callId.value === ev.callId) {
       await leave();
+    }
+    
+    // If this is the incoming call we're seeing - clear the overlay and stop ringing
+    if (incoming.value?.callId === ev.callId) {
+      tone.stopPlayRingSound();
+      incoming.value = null;
     }
   });
 
