@@ -7,6 +7,7 @@ import { useApi } from "./apiStore";
 import { useBus } from "./busStore";
 import {
   ArgonUser,
+  ArgonUserProfile,
   BadAuthKind,
   LockdownReason,
   LockdownSeverity,
@@ -24,6 +25,7 @@ export const useMe = defineStore("me", () => {
   const api = useApi();
   const bus = useBus();
   const me = ref(null as ExtendedUser | null);
+  const meProfile = ref(null as ArgonUserProfile | null);
 
   const limitation = ref(null as LockedAuthStatus | null);
 
@@ -47,6 +49,9 @@ export const useMe = defineStore("me", () => {
 
   async function getMe() {
     return await api.userInteraction.GetMe();
+  }
+  async function getMeProfile(): Promise<ArgonUserProfile> {
+    return await api.userInteraction.GetMyProfile();
   }
 
   async function changeStatusTo(status: UserStatus) {
@@ -88,8 +93,9 @@ export const useMe = defineStore("me", () => {
     }
 
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
-
+    meProfile.value = await getMeProfile();
     logger.info("Received user info ", me.value);
+    logger.info("Received user profile ", meProfile.value);
     WelcomeCommanderHasReceived.value = true;
 
     setUser({ id: me.value.userId, username: me.value.username });
@@ -116,6 +122,7 @@ export const useMe = defineStore("me", () => {
 
   return {
     me,
+    meProfile,
     init,
     completeInit,
     WelcomeCommanderHasReceived,

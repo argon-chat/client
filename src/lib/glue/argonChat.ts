@@ -326,6 +326,97 @@ export enum RedeemError
 }
 
 
+export interface SecurityDetails {
+  otpEnabled: bool;
+  passkeys: IonArray<Passkey>;
+  email: string | null;
+  phone: string | null;
+  autoDeletePeriod: AutoDeletePeriod;
+};
+
+
+export interface Passkey {
+  id: guid;
+  name: string;
+  createdAt: datetime;
+  lastUsedAt: datetime | null;
+};
+
+
+export interface AutoDeletePeriod {
+  months: i4 | null;
+  enabled: bool;
+};
+
+
+export enum EmailChangeError
+{
+  NONE = 0,
+  INVALID_EMAIL = 1,
+  EMAIL_ALREADY_USED = 2,
+  INVALID_PASSWORD = 3,
+  INVALID_VERIFICATION_CODE = 4,
+  VERIFICATION_CODE_EXPIRED = 5,
+  RATE_LIMITED = 6,
+  INTERNAL_ERROR = 7,
+}
+
+
+export enum PhoneChangeError
+{
+  NONE = 0,
+  INVALID_PHONE = 1,
+  PHONE_ALREADY_USED = 2,
+  INVALID_PASSWORD = 3,
+  INVALID_VERIFICATION_CODE = 4,
+  VERIFICATION_CODE_EXPIRED = 5,
+  RATE_LIMITED = 6,
+  INTERNAL_ERROR = 7,
+}
+
+
+export enum PasswordChangeError
+{
+  NONE = 0,
+  INVALID_CURRENT_PASSWORD = 1,
+  PASSWORD_TOO_WEAK = 2,
+  PASSWORD_TOO_SHORT = 3,
+  PASSWORD_SAME_AS_CURRENT = 4,
+  RATE_LIMITED = 5,
+  INTERNAL_ERROR = 6,
+}
+
+
+export enum OTPError
+{
+  NONE = 0,
+  ALREADY_ENABLED = 1,
+  NOT_ENABLED = 2,
+  INVALID_CODE = 3,
+  RATE_LIMITED = 4,
+  INTERNAL_ERROR = 5,
+}
+
+
+export enum PasskeyError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  LIMIT_REACHED = 2,
+  INVALID_PUBLIC_KEY = 3,
+  INTERNAL_ERROR = 4,
+}
+
+
+export enum AutoDeleteError
+{
+  NONE = 0,
+  PREMIUM_REQUIRED = 1,
+  INVALID_PERIOD = 2,
+  INTERNAL_ERROR = 3,
+}
+
+
 export interface ArgonSpaceBase {
   spaceId: guid;
   name: string;
@@ -1733,6 +1824,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isUpdatedNotificationCounters(): this is UpdatedNotificationCounters {
     return this.UnionKey === "UpdatedNotificationCounters";
   }
+  public isUserSecurityDetailsUpdated(): this is UserSecurityDetailsUpdated {
+    return this.UnionKey === "UserSecurityDetailsUpdated";
+  }
+  public isSpaceDetailsUpdated(): this is SpaceDetailsUpdated {
+    return this.UnionKey === "SpaceDetailsUpdated";
+  }
 
 }
 
@@ -2065,6 +2162,22 @@ export class UpdatedNotificationCounters extends IArgonEvent
   UnionIndex: number = 40;
 }
 
+export class UserSecurityDetailsUpdated extends IArgonEvent
+{
+  constructor(public userId: guid, public details: SecurityDetails) { super(); }
+
+  UnionKey: string = "UserSecurityDetailsUpdated";
+  UnionIndex: number = 41;
+}
+
+export class SpaceDetailsUpdated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public details: ArgonSpaceBase) { super(); }
+
+  UnionKey: string = "SpaceDetailsUpdated";
+  UnionIndex: number = 42;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -2157,6 +2270,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").read(reader);
     else if (unionIndex == 40)
       value = IonFormatterStorage.get<UpdatedNotificationCounters>("UpdatedNotificationCounters").read(reader);
+    else if (unionIndex == 41)
+      value = IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").read(reader);
+    else if (unionIndex == 42)
+      value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
 
     else throw new Error();
   
@@ -2290,6 +2407,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 40) {
         IonFormatterStorage.get<UpdatedNotificationCounters>("UpdatedNotificationCounters").write(writer, value as UpdatedNotificationCounters);
+    }
+    else if (value.UnionIndex == 41) {
+        IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").write(writer, value as UserSecurityDetailsUpdated);
+    }
+    else if (value.UnionIndex == 42) {
+        IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
     }
   
     else throw new Error();
@@ -2978,6 +3101,38 @@ IonFormatterStorage.register("UpdatedNotificationCounters", {
   }
 });
 
+IonFormatterStorage.register("UserSecurityDetailsUpdated", {
+  read(reader: CborReader): UserSecurityDetailsUpdated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const details = IonFormatterStorage.get<SecurityDetails>('SecurityDetails').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new UserSecurityDetailsUpdated(userId, details);
+  },
+  write(writer: CborWriter, value: UserSecurityDetailsUpdated): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<SecurityDetails>('SecurityDetails').write(writer, value.details);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceDetailsUpdated", {
+  read(reader: CborReader): SpaceDetailsUpdated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const details = IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SpaceDetailsUpdated(spaceId, details);
+  },
+  write(writer: CborWriter, value: SpaceDetailsUpdated): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').write(writer, value.details);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
@@ -3406,6 +3561,1336 @@ IonFormatterStorage.register("FailedRedeem", {
   write(writer: CborWriter, value: FailedRedeem): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<RedeemError>('RedeemError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRequestEmailChangeResult implements IIonUnion<IRequestEmailChangeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRequestEmailChange(): this is SuccessRequestEmailChange {
+    return this.UnionKey === "SuccessRequestEmailChange";
+  }
+  public isFailedRequestEmailChange(): this is FailedRequestEmailChange {
+    return this.UnionKey === "FailedRequestEmailChange";
+  }
+
+}
+
+
+export class SuccessRequestEmailChange extends IRequestEmailChangeResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRequestEmailChange";
+  UnionIndex: number = 0;
+}
+
+export class FailedRequestEmailChange extends IRequestEmailChangeResult
+{
+  constructor(public error: EmailChangeError) { super(); }
+
+  UnionKey: string = "FailedRequestEmailChange";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRequestEmailChangeResult", {
+  read(reader: CborReader): IRequestEmailChangeResult {
+    reader.readStartArray();
+    let value: IRequestEmailChangeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRequestEmailChange>("SuccessRequestEmailChange").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRequestEmailChange>("FailedRequestEmailChange").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRequestEmailChangeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRequestEmailChange>("SuccessRequestEmailChange").write(writer, value as SuccessRequestEmailChange);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRequestEmailChange>("FailedRequestEmailChange").write(writer, value as FailedRequestEmailChange);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRequestEmailChange", {
+  read(reader: CborReader): SuccessRequestEmailChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRequestEmailChange();
+  },
+  write(writer: CborWriter, value: SuccessRequestEmailChange): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRequestEmailChange", {
+  read(reader: CborReader): FailedRequestEmailChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<EmailChangeError>('EmailChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRequestEmailChange(error);
+  },
+  write(writer: CborWriter, value: FailedRequestEmailChange): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<EmailChangeError>('EmailChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IConfirmEmailChangeResult implements IIonUnion<IConfirmEmailChangeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessConfirmEmailChange(): this is SuccessConfirmEmailChange {
+    return this.UnionKey === "SuccessConfirmEmailChange";
+  }
+  public isFailedConfirmEmailChange(): this is FailedConfirmEmailChange {
+    return this.UnionKey === "FailedConfirmEmailChange";
+  }
+
+}
+
+
+export class SuccessConfirmEmailChange extends IConfirmEmailChangeResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessConfirmEmailChange";
+  UnionIndex: number = 0;
+}
+
+export class FailedConfirmEmailChange extends IConfirmEmailChangeResult
+{
+  constructor(public error: EmailChangeError) { super(); }
+
+  UnionKey: string = "FailedConfirmEmailChange";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IConfirmEmailChangeResult", {
+  read(reader: CborReader): IConfirmEmailChangeResult {
+    reader.readStartArray();
+    let value: IConfirmEmailChangeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessConfirmEmailChange>("SuccessConfirmEmailChange").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedConfirmEmailChange>("FailedConfirmEmailChange").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IConfirmEmailChangeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessConfirmEmailChange>("SuccessConfirmEmailChange").write(writer, value as SuccessConfirmEmailChange);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedConfirmEmailChange>("FailedConfirmEmailChange").write(writer, value as FailedConfirmEmailChange);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessConfirmEmailChange", {
+  read(reader: CborReader): SuccessConfirmEmailChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessConfirmEmailChange();
+  },
+  write(writer: CborWriter, value: SuccessConfirmEmailChange): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedConfirmEmailChange", {
+  read(reader: CborReader): FailedConfirmEmailChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<EmailChangeError>('EmailChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedConfirmEmailChange(error);
+  },
+  write(writer: CborWriter, value: FailedConfirmEmailChange): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<EmailChangeError>('EmailChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRequestPhoneChangeResult implements IIonUnion<IRequestPhoneChangeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRequestPhoneChange(): this is SuccessRequestPhoneChange {
+    return this.UnionKey === "SuccessRequestPhoneChange";
+  }
+  public isFailedRequestPhoneChange(): this is FailedRequestPhoneChange {
+    return this.UnionKey === "FailedRequestPhoneChange";
+  }
+
+}
+
+
+export class SuccessRequestPhoneChange extends IRequestPhoneChangeResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRequestPhoneChange";
+  UnionIndex: number = 0;
+}
+
+export class FailedRequestPhoneChange extends IRequestPhoneChangeResult
+{
+  constructor(public error: PhoneChangeError) { super(); }
+
+  UnionKey: string = "FailedRequestPhoneChange";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRequestPhoneChangeResult", {
+  read(reader: CborReader): IRequestPhoneChangeResult {
+    reader.readStartArray();
+    let value: IRequestPhoneChangeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRequestPhoneChange>("SuccessRequestPhoneChange").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRequestPhoneChange>("FailedRequestPhoneChange").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRequestPhoneChangeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRequestPhoneChange>("SuccessRequestPhoneChange").write(writer, value as SuccessRequestPhoneChange);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRequestPhoneChange>("FailedRequestPhoneChange").write(writer, value as FailedRequestPhoneChange);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRequestPhoneChange", {
+  read(reader: CborReader): SuccessRequestPhoneChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRequestPhoneChange();
+  },
+  write(writer: CborWriter, value: SuccessRequestPhoneChange): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRequestPhoneChange", {
+  read(reader: CborReader): FailedRequestPhoneChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRequestPhoneChange(error);
+  },
+  write(writer: CborWriter, value: FailedRequestPhoneChange): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IConfirmPhoneChangeResult implements IIonUnion<IConfirmPhoneChangeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessConfirmPhoneChange(): this is SuccessConfirmPhoneChange {
+    return this.UnionKey === "SuccessConfirmPhoneChange";
+  }
+  public isFailedConfirmPhoneChange(): this is FailedConfirmPhoneChange {
+    return this.UnionKey === "FailedConfirmPhoneChange";
+  }
+
+}
+
+
+export class SuccessConfirmPhoneChange extends IConfirmPhoneChangeResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessConfirmPhoneChange";
+  UnionIndex: number = 0;
+}
+
+export class FailedConfirmPhoneChange extends IConfirmPhoneChangeResult
+{
+  constructor(public error: PhoneChangeError) { super(); }
+
+  UnionKey: string = "FailedConfirmPhoneChange";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IConfirmPhoneChangeResult", {
+  read(reader: CborReader): IConfirmPhoneChangeResult {
+    reader.readStartArray();
+    let value: IConfirmPhoneChangeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessConfirmPhoneChange>("SuccessConfirmPhoneChange").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedConfirmPhoneChange>("FailedConfirmPhoneChange").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IConfirmPhoneChangeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessConfirmPhoneChange>("SuccessConfirmPhoneChange").write(writer, value as SuccessConfirmPhoneChange);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedConfirmPhoneChange>("FailedConfirmPhoneChange").write(writer, value as FailedConfirmPhoneChange);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessConfirmPhoneChange", {
+  read(reader: CborReader): SuccessConfirmPhoneChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessConfirmPhoneChange();
+  },
+  write(writer: CborWriter, value: SuccessConfirmPhoneChange): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedConfirmPhoneChange", {
+  read(reader: CborReader): FailedConfirmPhoneChange {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedConfirmPhoneChange(error);
+  },
+  write(writer: CborWriter, value: FailedConfirmPhoneChange): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRemovePhoneResult implements IIonUnion<IRemovePhoneResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRemovePhone(): this is SuccessRemovePhone {
+    return this.UnionKey === "SuccessRemovePhone";
+  }
+  public isFailedRemovePhone(): this is FailedRemovePhone {
+    return this.UnionKey === "FailedRemovePhone";
+  }
+
+}
+
+
+export class SuccessRemovePhone extends IRemovePhoneResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRemovePhone";
+  UnionIndex: number = 0;
+}
+
+export class FailedRemovePhone extends IRemovePhoneResult
+{
+  constructor(public error: PhoneChangeError) { super(); }
+
+  UnionKey: string = "FailedRemovePhone";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRemovePhoneResult", {
+  read(reader: CborReader): IRemovePhoneResult {
+    reader.readStartArray();
+    let value: IRemovePhoneResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRemovePhone>("SuccessRemovePhone").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRemovePhone>("FailedRemovePhone").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRemovePhoneResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRemovePhone>("SuccessRemovePhone").write(writer, value as SuccessRemovePhone);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRemovePhone>("FailedRemovePhone").write(writer, value as FailedRemovePhone);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRemovePhone", {
+  read(reader: CborReader): SuccessRemovePhone {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRemovePhone();
+  },
+  write(writer: CborWriter, value: SuccessRemovePhone): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRemovePhone", {
+  read(reader: CborReader): FailedRemovePhone {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRemovePhone(error);
+  },
+  write(writer: CborWriter, value: FailedRemovePhone): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IChangePasswordResult implements IIonUnion<IChangePasswordResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessChangePassword(): this is SuccessChangePassword {
+    return this.UnionKey === "SuccessChangePassword";
+  }
+  public isFailedChangePassword(): this is FailedChangePassword {
+    return this.UnionKey === "FailedChangePassword";
+  }
+
+}
+
+
+export class SuccessChangePassword extends IChangePasswordResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessChangePassword";
+  UnionIndex: number = 0;
+}
+
+export class FailedChangePassword extends IChangePasswordResult
+{
+  constructor(public error: PasswordChangeError) { super(); }
+
+  UnionKey: string = "FailedChangePassword";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IChangePasswordResult", {
+  read(reader: CborReader): IChangePasswordResult {
+    reader.readStartArray();
+    let value: IChangePasswordResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessChangePassword>("SuccessChangePassword").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedChangePassword>("FailedChangePassword").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IChangePasswordResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessChangePassword>("SuccessChangePassword").write(writer, value as SuccessChangePassword);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedChangePassword>("FailedChangePassword").write(writer, value as FailedChangePassword);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessChangePassword", {
+  read(reader: CborReader): SuccessChangePassword {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessChangePassword();
+  },
+  write(writer: CborWriter, value: SuccessChangePassword): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedChangePassword", {
+  read(reader: CborReader): FailedChangePassword {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasswordChangeError>('PasswordChangeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedChangePassword(error);
+  },
+  write(writer: CborWriter, value: FailedChangePassword): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasswordChangeError>('PasswordChangeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IEnableOTPResult implements IIonUnion<IEnableOTPResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessEnableOTP(): this is SuccessEnableOTP {
+    return this.UnionKey === "SuccessEnableOTP";
+  }
+  public isFailedEnableOTP(): this is FailedEnableOTP {
+    return this.UnionKey === "FailedEnableOTP";
+  }
+
+}
+
+
+export class SuccessEnableOTP extends IEnableOTPResult
+{
+  constructor(public secret: string, public qrCodeUrl: string) { super(); }
+
+  UnionKey: string = "SuccessEnableOTP";
+  UnionIndex: number = 0;
+}
+
+export class FailedEnableOTP extends IEnableOTPResult
+{
+  constructor(public error: OTPError) { super(); }
+
+  UnionKey: string = "FailedEnableOTP";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IEnableOTPResult", {
+  read(reader: CborReader): IEnableOTPResult {
+    reader.readStartArray();
+    let value: IEnableOTPResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessEnableOTP>("SuccessEnableOTP").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedEnableOTP>("FailedEnableOTP").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IEnableOTPResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessEnableOTP>("SuccessEnableOTP").write(writer, value as SuccessEnableOTP);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedEnableOTP>("FailedEnableOTP").write(writer, value as FailedEnableOTP);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessEnableOTP", {
+  read(reader: CborReader): SuccessEnableOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const secret = IonFormatterStorage.get<string>('string').read(reader);
+    const qrCodeUrl = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessEnableOTP(secret, qrCodeUrl);
+  },
+  write(writer: CborWriter, value: SuccessEnableOTP): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.secret);
+    IonFormatterStorage.get<string>('string').write(writer, value.qrCodeUrl);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedEnableOTP", {
+  read(reader: CborReader): FailedEnableOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedEnableOTP(error);
+  },
+  write(writer: CborWriter, value: FailedEnableOTP): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<OTPError>('OTPError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IVerifyOTPResult implements IIonUnion<IVerifyOTPResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessVerifyOTP(): this is SuccessVerifyOTP {
+    return this.UnionKey === "SuccessVerifyOTP";
+  }
+  public isFailedVerifyOTP(): this is FailedVerifyOTP {
+    return this.UnionKey === "FailedVerifyOTP";
+  }
+
+}
+
+
+export class SuccessVerifyOTP extends IVerifyOTPResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessVerifyOTP";
+  UnionIndex: number = 0;
+}
+
+export class FailedVerifyOTP extends IVerifyOTPResult
+{
+  constructor(public error: OTPError) { super(); }
+
+  UnionKey: string = "FailedVerifyOTP";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IVerifyOTPResult", {
+  read(reader: CborReader): IVerifyOTPResult {
+    reader.readStartArray();
+    let value: IVerifyOTPResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessVerifyOTP>("SuccessVerifyOTP").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedVerifyOTP>("FailedVerifyOTP").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IVerifyOTPResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessVerifyOTP>("SuccessVerifyOTP").write(writer, value as SuccessVerifyOTP);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedVerifyOTP>("FailedVerifyOTP").write(writer, value as FailedVerifyOTP);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessVerifyOTP", {
+  read(reader: CborReader): SuccessVerifyOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessVerifyOTP();
+  },
+  write(writer: CborWriter, value: SuccessVerifyOTP): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedVerifyOTP", {
+  read(reader: CborReader): FailedVerifyOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedVerifyOTP(error);
+  },
+  write(writer: CborWriter, value: FailedVerifyOTP): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<OTPError>('OTPError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IDisableOTPResult implements IIonUnion<IDisableOTPResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDisableOTP(): this is SuccessDisableOTP {
+    return this.UnionKey === "SuccessDisableOTP";
+  }
+  public isFailedDisableOTP(): this is FailedDisableOTP {
+    return this.UnionKey === "FailedDisableOTP";
+  }
+
+}
+
+
+export class SuccessDisableOTP extends IDisableOTPResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessDisableOTP";
+  UnionIndex: number = 0;
+}
+
+export class FailedDisableOTP extends IDisableOTPResult
+{
+  constructor(public error: OTPError) { super(); }
+
+  UnionKey: string = "FailedDisableOTP";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IDisableOTPResult", {
+  read(reader: CborReader): IDisableOTPResult {
+    reader.readStartArray();
+    let value: IDisableOTPResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDisableOTP>("SuccessDisableOTP").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDisableOTP>("FailedDisableOTP").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IDisableOTPResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDisableOTP>("SuccessDisableOTP").write(writer, value as SuccessDisableOTP);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDisableOTP>("FailedDisableOTP").write(writer, value as FailedDisableOTP);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDisableOTP", {
+  read(reader: CborReader): SuccessDisableOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessDisableOTP();
+  },
+  write(writer: CborWriter, value: SuccessDisableOTP): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDisableOTP", {
+  read(reader: CborReader): FailedDisableOTP {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedDisableOTP(error);
+  },
+  write(writer: CborWriter, value: FailedDisableOTP): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<OTPError>('OTPError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IBeginPasskeyResult implements IIonUnion<IBeginPasskeyResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBeginPasskey(): this is SuccessBeginPasskey {
+    return this.UnionKey === "SuccessBeginPasskey";
+  }
+  public isFailedBeginPasskey(): this is FailedBeginPasskey {
+    return this.UnionKey === "FailedBeginPasskey";
+  }
+
+}
+
+
+export class SuccessBeginPasskey extends IBeginPasskeyResult
+{
+  constructor(public passkeyId: guid, public challenge: string) { super(); }
+
+  UnionKey: string = "SuccessBeginPasskey";
+  UnionIndex: number = 0;
+}
+
+export class FailedBeginPasskey extends IBeginPasskeyResult
+{
+  constructor(public error: PasskeyError) { super(); }
+
+  UnionKey: string = "FailedBeginPasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginPasskeyResult", {
+  read(reader: CborReader): IBeginPasskeyResult {
+    reader.readStartArray();
+    let value: IBeginPasskeyResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBeginPasskey>("SuccessBeginPasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBeginPasskey>("FailedBeginPasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginPasskeyResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBeginPasskey>("SuccessBeginPasskey").write(writer, value as SuccessBeginPasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBeginPasskey>("FailedBeginPasskey").write(writer, value as FailedBeginPasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBeginPasskey", {
+  read(reader: CborReader): SuccessBeginPasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const passkeyId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const challenge = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessBeginPasskey(passkeyId, challenge);
+  },
+  write(writer: CborWriter, value: SuccessBeginPasskey): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.passkeyId);
+    IonFormatterStorage.get<string>('string').write(writer, value.challenge);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBeginPasskey", {
+  read(reader: CborReader): FailedBeginPasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBeginPasskey(error);
+  },
+  write(writer: CborWriter, value: FailedBeginPasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasskeyError>('PasskeyError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICompletePasskeyResult implements IIonUnion<ICompletePasskeyResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCompletePasskey(): this is SuccessCompletePasskey {
+    return this.UnionKey === "SuccessCompletePasskey";
+  }
+  public isFailedCompletePasskey(): this is FailedCompletePasskey {
+    return this.UnionKey === "FailedCompletePasskey";
+  }
+
+}
+
+
+export class SuccessCompletePasskey extends ICompletePasskeyResult
+{
+  constructor(public passkey: Passkey) { super(); }
+
+  UnionKey: string = "SuccessCompletePasskey";
+  UnionIndex: number = 0;
+}
+
+export class FailedCompletePasskey extends ICompletePasskeyResult
+{
+  constructor(public error: PasskeyError) { super(); }
+
+  UnionKey: string = "FailedCompletePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICompletePasskeyResult", {
+  read(reader: CborReader): ICompletePasskeyResult {
+    reader.readStartArray();
+    let value: ICompletePasskeyResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCompletePasskey>("SuccessCompletePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCompletePasskey>("FailedCompletePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICompletePasskeyResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCompletePasskey>("SuccessCompletePasskey").write(writer, value as SuccessCompletePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCompletePasskey>("FailedCompletePasskey").write(writer, value as FailedCompletePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCompletePasskey", {
+  read(reader: CborReader): SuccessCompletePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const passkey = IonFormatterStorage.get<Passkey>('Passkey').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCompletePasskey(passkey);
+  },
+  write(writer: CborWriter, value: SuccessCompletePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<Passkey>('Passkey').write(writer, value.passkey);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCompletePasskey", {
+  read(reader: CborReader): FailedCompletePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCompletePasskey(error);
+  },
+  write(writer: CborWriter, value: FailedCompletePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasskeyError>('PasskeyError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRemovePasskeyResult implements IIonUnion<IRemovePasskeyResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRemovePasskey(): this is SuccessRemovePasskey {
+    return this.UnionKey === "SuccessRemovePasskey";
+  }
+  public isFailedRemovePasskey(): this is FailedRemovePasskey {
+    return this.UnionKey === "FailedRemovePasskey";
+  }
+
+}
+
+
+export class SuccessRemovePasskey extends IRemovePasskeyResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRemovePasskey";
+  UnionIndex: number = 0;
+}
+
+export class FailedRemovePasskey extends IRemovePasskeyResult
+{
+  constructor(public error: PasskeyError) { super(); }
+
+  UnionKey: string = "FailedRemovePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRemovePasskeyResult", {
+  read(reader: CborReader): IRemovePasskeyResult {
+    reader.readStartArray();
+    let value: IRemovePasskeyResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRemovePasskey>("SuccessRemovePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRemovePasskey>("FailedRemovePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRemovePasskeyResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRemovePasskey>("SuccessRemovePasskey").write(writer, value as SuccessRemovePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRemovePasskey>("FailedRemovePasskey").write(writer, value as FailedRemovePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRemovePasskey", {
+  read(reader: CborReader): SuccessRemovePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRemovePasskey();
+  },
+  write(writer: CborWriter, value: SuccessRemovePasskey): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRemovePasskey", {
+  read(reader: CborReader): FailedRemovePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRemovePasskey(error);
+  },
+  write(writer: CborWriter, value: FailedRemovePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasskeyError>('PasskeyError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISetAutoDeleteResult implements IIonUnion<ISetAutoDeleteResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSetAutoDelete(): this is SuccessSetAutoDelete {
+    return this.UnionKey === "SuccessSetAutoDelete";
+  }
+  public isFailedSetAutoDelete(): this is FailedSetAutoDelete {
+    return this.UnionKey === "FailedSetAutoDelete";
+  }
+
+}
+
+
+export class SuccessSetAutoDelete extends ISetAutoDeleteResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessSetAutoDelete";
+  UnionIndex: number = 0;
+}
+
+export class FailedSetAutoDelete extends ISetAutoDeleteResult
+{
+  constructor(public error: AutoDeleteError) { super(); }
+
+  UnionKey: string = "FailedSetAutoDelete";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISetAutoDeleteResult", {
+  read(reader: CborReader): ISetAutoDeleteResult {
+    reader.readStartArray();
+    let value: ISetAutoDeleteResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSetAutoDelete>("SuccessSetAutoDelete").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSetAutoDelete>("FailedSetAutoDelete").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ISetAutoDeleteResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSetAutoDelete>("SuccessSetAutoDelete").write(writer, value as SuccessSetAutoDelete);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSetAutoDelete>("FailedSetAutoDelete").write(writer, value as FailedSetAutoDelete);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSetAutoDelete", {
+  read(reader: CborReader): SuccessSetAutoDelete {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessSetAutoDelete();
+  },
+  write(writer: CborWriter, value: SuccessSetAutoDelete): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSetAutoDelete", {
+  read(reader: CborReader): FailedSetAutoDelete {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<AutoDeleteError>('AutoDeleteError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSetAutoDelete(error);
+  },
+  write(writer: CborWriter, value: FailedSetAutoDelete): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AutoDeleteError>('AutoDeleteError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -4767,6 +6252,130 @@ IonFormatterStorage.register("RedeemError", {
   }
 });
 
+IonFormatterStorage.register("AutoDeletePeriod", {
+  read(reader: CborReader): AutoDeletePeriod {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const months = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const enabled = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { months, enabled };
+  },
+  write(writer: CborWriter, value: AutoDeletePeriod): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeNullable<i4>(writer, value.months, 'i4');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.enabled);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SecurityDetails", {
+  read(reader: CborReader): SecurityDetails {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const otpEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
+    const passkeys = IonFormatterStorage.readArray<Passkey>(reader, 'Passkey');
+    const email = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const phone = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const autoDeletePeriod = IonFormatterStorage.get<AutoDeletePeriod>('AutoDeletePeriod').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { otpEnabled, passkeys, email, phone, autoDeletePeriod };
+  },
+  write(writer: CborWriter, value: SecurityDetails): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.otpEnabled);
+    IonFormatterStorage.writeArray<Passkey>(writer, value.passkeys, 'Passkey');
+    IonFormatterStorage.writeNullable<string>(writer, value.email, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.phone, 'string');
+    IonFormatterStorage.get<AutoDeletePeriod>('AutoDeletePeriod').write(writer, value.autoDeletePeriod);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Passkey", {
+  read(reader: CborReader): Passkey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const lastUsedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { id, name, createdAt, lastUsedAt };
+  },
+  write(writer: CborWriter, value: Passkey): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.lastUsedAt, 'datetime');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("EmailChangeError", {
+  read(reader: CborReader): EmailChangeError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return EmailChangeError[num] !== undefined ? num as EmailChangeError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: EmailChangeError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PhoneChangeError", {
+  read(reader: CborReader): PhoneChangeError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return PhoneChangeError[num] !== undefined ? num as PhoneChangeError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: PhoneChangeError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PasswordChangeError", {
+  read(reader: CborReader): PasswordChangeError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return PasswordChangeError[num] !== undefined ? num as PasswordChangeError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: PasswordChangeError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("OTPError", {
+  read(reader: CborReader): OTPError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return OTPError[num] !== undefined ? num as OTPError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: OTPError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PasskeyError", {
+  read(reader: CborReader): PasskeyError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return PasskeyError[num] !== undefined ? num as PasskeyError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: PasskeyError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("AutoDeleteError", {
+  read(reader: CborReader): AutoDeleteError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return AutoDeleteError[num] !== undefined ? num as AutoDeleteError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: AutoDeleteError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ArgonSpaceBase", {
   read(reader: CborReader): ArgonSpaceBase {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -5448,6 +7057,29 @@ export interface IInventoryInteraction extends IIonService
 
 
 
+export interface ISecurityInteraction extends IIonService
+{
+  RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult>;
+  ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult>;
+  RequestPhoneChange(newPhone: string, password: string): Promise<IRequestPhoneChangeResult>;
+  ConfirmPhoneChange(verificationCode: string): Promise<IConfirmPhoneChangeResult>;
+  RemovePhone(password: string): Promise<IRemovePhoneResult>;
+  ChangePassword(currentPassword: string, newPassword: string): Promise<IChangePasswordResult>;
+  EnableOTP(): Promise<IEnableOTPResult>;
+  VerifyAndEnableOTP(code: string): Promise<IVerifyOTPResult>;
+  DisableOTP(code: string): Promise<IDisableOTPResult>;
+  GetPasskeys(): Promise<IonArray<Passkey>>;
+  BeginAddPasskey(name: string): Promise<IBeginPasskeyResult>;
+  CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult>;
+  RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
+  SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
+  GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
+  GetSecurityDetails(): Promise<SecurityDetails>;
+}
+
+
+
+
 export interface IServerInteraction extends IIonService
 {
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
@@ -5619,6 +7251,29 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface ISecurityInteraction extends IIonService
+{
+  RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult>;
+  ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult>;
+  RequestPhoneChange(newPhone: string, password: string): Promise<IRequestPhoneChangeResult>;
+  ConfirmPhoneChange(verificationCode: string): Promise<IConfirmPhoneChangeResult>;
+  RemovePhone(password: string): Promise<IRemovePhoneResult>;
+  ChangePassword(currentPassword: string, newPassword: string): Promise<IChangePasswordResult>;
+  EnableOTP(): Promise<IEnableOTPResult>;
+  VerifyAndEnableOTP(code: string): Promise<IVerifyOTPResult>;
+  DisableOTP(code: string): Promise<IDisableOTPResult>;
+  GetPasskeys(): Promise<IonArray<Passkey>>;
+  BeginAddPasskey(name: string): Promise<IBeginPasskeyResult>;
+  CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult>;
+  RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
+  SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
+  GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
+  GetSecurityDetails(): Promise<SecurityDetails>;
 }
 
 
@@ -6549,6 +8204,229 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
 
 IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
 
+export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInteraction> implements ISecurityInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RequestEmailChange");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, newEmail);
+    IonFormatterStorage.get<string>('string').write(writer, password);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRequestEmailChangeResult>("IRequestEmailChangeResult", writer.data, this.signal);
+  }
+  async ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "ConfirmEmailChange");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, verificationCode);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IConfirmEmailChangeResult>("IConfirmEmailChangeResult", writer.data, this.signal);
+  }
+  async RequestPhoneChange(newPhone: string, password: string): Promise<IRequestPhoneChangeResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RequestPhoneChange");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, newPhone);
+    IonFormatterStorage.get<string>('string').write(writer, password);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRequestPhoneChangeResult>("IRequestPhoneChangeResult", writer.data, this.signal);
+  }
+  async ConfirmPhoneChange(verificationCode: string): Promise<IConfirmPhoneChangeResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "ConfirmPhoneChange");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, verificationCode);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IConfirmPhoneChangeResult>("IConfirmPhoneChangeResult", writer.data, this.signal);
+  }
+  async RemovePhone(password: string): Promise<IRemovePhoneResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RemovePhone");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, password);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRemovePhoneResult>("IRemovePhoneResult", writer.data, this.signal);
+  }
+  async ChangePassword(currentPassword: string, newPassword: string): Promise<IChangePasswordResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "ChangePassword");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, currentPassword);
+    IonFormatterStorage.get<string>('string').write(writer, newPassword);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IChangePasswordResult>("IChangePasswordResult", writer.data, this.signal);
+  }
+  async EnableOTP(): Promise<IEnableOTPResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "EnableOTP");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEnableOTPResult>("IEnableOTPResult", writer.data, this.signal);
+  }
+  async VerifyAndEnableOTP(code: string): Promise<IVerifyOTPResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "VerifyAndEnableOTP");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, code);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVerifyOTPResult>("IVerifyOTPResult", writer.data, this.signal);
+  }
+  async DisableOTP(code: string): Promise<IDisableOTPResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "DisableOTP");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, code);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IDisableOTPResult>("IDisableOTPResult", writer.data, this.signal);
+  }
+  async GetPasskeys(): Promise<IonArray<Passkey>> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetPasskeys");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<Passkey>>("IonArray<Passkey>", writer.data, this.signal);
+  }
+  async BeginAddPasskey(name: string): Promise<IBeginPasskeyResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "BeginAddPasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, name);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginPasskeyResult>("IBeginPasskeyResult", writer.data, this.signal);
+  }
+  async CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "CompleteAddPasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, passkeyId);
+    IonFormatterStorage.get<string>('string').write(writer, publicKey);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICompletePasskeyResult>("ICompletePasskeyResult", writer.data, this.signal);
+  }
+  async RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RemovePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, passkeyId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRemovePasskeyResult>("IRemovePasskeyResult", writer.data, this.signal);
+  }
+  async SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "SetAutoDeletePeriod");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.writeNullable<i4>(writer, months, 'i4');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISetAutoDeleteResult>("ISetAutoDeleteResult", writer.data, this.signal);
+  }
+  async GetAutoDeletePeriod(): Promise<AutoDeletePeriod> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetAutoDeletePeriod");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<AutoDeletePeriod>("AutoDeletePeriod", writer.data, this.signal);
+  }
+  async GetSecurityDetails(): Promise<SecurityDetails> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetSecurityDetails");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SecurityDetails>("SecurityDetails", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ISecurityInteraction>('SecurityInteraction', SecurityInteraction_Executor);
+
 export class ServerInteraction_Executor extends ServiceExecutor<IServerInteraction> implements IServerInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -7182,6 +9060,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
+        if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
@@ -7200,6 +9079,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     UserChatInteractions: IUserChatInteractions;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
+    SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;

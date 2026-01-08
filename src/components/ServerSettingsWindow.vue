@@ -43,6 +43,7 @@ import { useWindow } from "@/store/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
 import Invites from "@/components/settings/Invites.vue";
 import RolesSettings from "./settings/spaces/RolesSettings.vue";
+import ServerProfile from "./settings/spaces/ServerProfile.vue";
 import { useLocale } from "@/store/localeStore";
 
 const windows = useWindow();
@@ -50,15 +51,15 @@ const windows = useWindow();
 const { t } = useLocale();
 
 const categories = ref([
-    { id: "server", name: "Server" },
+    { id: "profile", name: "Profile" },
     { id: "archetypes", name: "Archetypes" },
     { id: "invites", name: "Invites" },
 ]);
 
-const selectedCategory = ref("account");
+const selectedCategory = ref("profile");
 
 const categoryComponents = {
-    server: Invites,
+    profile: ServerProfile,
     invites: Invites,
     archetypes: RolesSettings,
 };

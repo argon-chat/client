@@ -11,6 +11,7 @@ const props = withDefaults(
     fallback: string;
     serverId?: string;
     userId?: string;
+    spaceId?: string;
     overridedSize?: number;
   }>(),
   {
@@ -20,11 +21,25 @@ const props = withDefaults(
 
 const fileIdRef = toRef(props, "fileId");
 const userIdRef = toRef(props, "userId");
+const spaceIdRef = toRef(props, "spaceId");
+
+// Determine the owner ID and type based on what's provided
+const ownerId = computed(() => {
+  if (props.spaceId) return props.spaceId;
+  if (props.userId) return props.userId;
+  if (props.serverId) return props.serverId;
+  return null;
+});
+
+const avatarType = computed<"user" | "server">(() => {
+  if (props.spaceId || props.serverId) return "server";
+  return "user";
+});
 
 const { loaded, loading, blobSrc } = useAvatarBlob(
   fileIdRef,
-  userIdRef,
-  "user",
+  ownerId,
+  avatarType,
 );
 
 const size = computed(() =>

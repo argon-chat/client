@@ -29,10 +29,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import delay from "@/lib/delay";
 import { computedAsync } from "@vueuse/core";
 import { usePoolStore } from "@/store/poolStore";
+import { useFileStorage } from "@/store/fileStorage";
 import img0 from "@/assets/image0.jpg";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import Tooltip from "./ui/tooltip/Tooltip.vue";
@@ -41,28 +42,72 @@ import TooltipTrigger from "./ui/tooltip/TooltipTrigger.vue";
 import TooltipContent from "./ui/tooltip/TooltipContent.vue";
 
 const pool = usePoolStore();
-
+const fileStorage = useFileStorage();
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
   type: String, required: true
 });
 
-
 const isVerifiedSpace = computed(() => {
   return selectedSpaceId.value === "11111111-0000-1111-1111-111111111112";
 })
 
-const backgroundImage = computed(() => {
-  if (selectedSpaceId.value === "11111111-0000-1111-1111-111111111112")
-    return `url(${img0})`;
-  return '';
-
-})
-
 const spaceName = computedAsync(() => pool.getServer(selectedSpaceId.value))
 
+const headerImageUrl = ref<string | null>(null);
+const isLoadingHeader = ref(false);
+
+const backgroundImage = computed(() => {
+  if (isVerifiedSpace.value) {
+    return `url(${img0})`;
+  }
+  if (headerImageUrl.value) {
+    return `url(${headerImageUrl.value})`;
+  }
+  return '';
+});
+
+const loadHeaderImage = async () => {
+  if (!selectedSpaceId.value) {
+    headerImageUrl.value = null;
+    return;
+  }
+
+  const space = await pool.getServer(selectedSpaceId.value);
+  if (!space?.topBannerFileId) {
+    headerImageUrl.value = null;
+    return;
+  }
+
+  try {
+    isLoadingHeader.value = true;
+    const url = await fileStorage.fetchServerAvatar(space.topBannerFileId, space.spaceId);
+    if (url !== fileStorage.FAILED_ADDRESS) {
+      headerImageUrl.value = url;
+    } else {
+      headerImageUrl.value = null;
+    }
+  } catch (error) {
+    console.error("Failed to load header image:", error);
+    headerImageUrl.value = null;
+  } finally {
+    isLoadingHeader.value = false;
+  }
+};
+
+watch(selectedSpaceId, () => {
+  loadHeaderImage();
+}, { immediate: true });
+
+// Watch for space details updates
+watch(() => spaceName.value, async (newSpace, oldSpace) => {
+  if (newSpace && oldSpace && newSpace.topBannerFileId !== oldSpace.topBannerFileId) {
+    await loadHeaderImage();
+  }
+}, { deep: true });
 
 onMounted(async () => {
   await delay(1000);
+  await loadHeaderImage();
 });
 </script>

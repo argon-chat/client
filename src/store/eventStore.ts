@@ -32,6 +32,7 @@ import {
   ChannelGroupRemoved,
   ChannelGroupReordered,
   ChannelReordered,
+  SpaceDetailsUpdated,
 } from "@/lib/glue/argonChat";
 
 export const useEventStore = defineStore("events", () => {
@@ -290,6 +291,19 @@ export const useEventStore = defineStore("events", () => {
           });
         } catch (error) {
           logger.error("Error handling ChannelReordered", error);
+        }
+      })();
+    });
+
+    bus.onServerEvent<SpaceDetailsUpdated>("SpaceDetailsUpdated", (x: SpaceDetailsUpdated) => {
+      logger.info("SpaceDetailsUpdated", x);
+      void (async () => {
+        try {
+          // Update server details in DB
+          await db.servers.update(x.spaceId, x.details);
+          logger.info("Updated space details in DB", x.spaceId, x.details);
+        } catch (error) {
+          logger.error("Error handling SpaceDetailsUpdated", error);
         }
       })();
     });

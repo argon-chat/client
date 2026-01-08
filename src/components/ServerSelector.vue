@@ -27,10 +27,12 @@
                         @click="select(server.spaceId)"
                         @contextmenu.prevent="openContextMenu($event, server.spaceId)">
                         <div class="flex items-center justify-center w-full h-full">
-                            <Avatar class="w-8 h-8">
-                                <AvatarImage v-if="server.avatarFieldId" :src="server.avatarFieldId" :alt="server.name" />
-                                <AvatarFallback>{{ initials(server.name) }}</AvatarFallback>
-                            </Avatar>
+                            <ArgonAvatar 
+                                class="w-8 h-8"
+                                :file-id="server.avatarFieldId"
+                                :space-id="server.spaceId"
+                                :fallback="initials(server.name)"
+                            />
                         </div>
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
@@ -76,10 +78,12 @@
                         @click="select(server.spaceId)"
                         @contextmenu.prevent="openContextMenu($event, server.spaceId)">
                         <div class="flex items-center justify-center w-full h-full pointer-events-none">
-                            <Avatar class="w-8 h-8">
-                                <AvatarImage v-if="server.avatarFieldId" :src="server.avatarFieldId" :alt="server.name" />
-                                <AvatarFallback>{{ initials(server.name) }}</AvatarFallback>
-                            </Avatar>
+                            <ArgonAvatar 
+                                class="w-8 h-8"
+                                :file-id="server.avatarFieldId"
+                                :space-id="server.spaceId"
+                                :fallback="initials(server.name)"
+                            />
                         </div>
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
@@ -147,10 +151,12 @@
                 @click="select(server.spaceId); folderPopup.show = false"
                 @contextmenu.prevent="openContextMenu($event, server.spaceId)">
                 <div class="flex items-center justify-center w-full h-full">
-                    <Avatar class="w-8 h-8">
-                        <AvatarImage v-if="server.avatarFieldId" :src="server.avatarFieldId" :alt="server.name" />
-                        <AvatarFallback>{{ initials(server.name) }}</AvatarFallback>
-                    </Avatar>
+                    <ArgonAvatar 
+                        class="w-8 h-8"
+                        :file-id="server.avatarFieldId"
+                        :space-id="server.spaceId"
+                        :fallback="initials(server.name)"
+                    />
                 </div>
             </Button>
         </div>
@@ -181,7 +187,7 @@
 import { computed, ref, onMounted, onUnmounted } from "vue"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import ArgonAvatar from "./ArgonAvatar.vue"
 import { Plus, ArrowBigDown, PaintbrushIcon } from "lucide-vue-next"
 import { IconChevronRight, IconDots, IconPin, IconPinFilled, IconFolderPlus } from '@tabler/icons-vue'
 import IconSw from "@/assets/icons/icon_cat.svg"

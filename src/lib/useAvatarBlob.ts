@@ -16,12 +16,14 @@ function makeCacheKey(
 export function useAvatarBlob(
   fileId: Ref<string | null>,
   ownerId: Ref<string | null | undefined>,
-  type: AvatarType,
+  type: AvatarType | Ref<AvatarType>,
 ) {
   const loaded = ref(false);
   const loading = ref(true);
   const blobSrc = ref("");
   const fileStorage = useFileStorage();
+
+  const avatarType = typeof type === 'string' ? ref(type) : type;
 
   const fetchAvatar = async () => {
     if (!ownerId.value || !fileId.value) {
@@ -31,7 +33,7 @@ export function useAvatarBlob(
       return;
     }
 
-    const key = makeCacheKey(type, fileId.value, ownerId.value);
+    const key = makeCacheKey(avatarType.value, fileId.value, ownerId.value);
 
     if (avatarCache.has(key)) {
       const cachedSrc = avatarCache.get(key);
@@ -46,12 +48,12 @@ export function useAvatarBlob(
     loading.value = true;
     let src: string;
 
-    if (type === "user") {
+    if (avatarType.value === "user") {
       src = await fileStorage.fetchUserAvatar(fileId.value, ownerId.value);
-    } else if (type === "server") {
+    } else if (avatarType.value === "server") {
       src = await fileStorage.fetchServerAvatar(fileId.value, ownerId.value);
     } else {
-      throw new Error(`Unknown avatar type: ${type}`);
+      throw new Error(`Unknown avatar type: ${avatarType.value}`);
     }
 
     avatarCache.set(key, src);
@@ -60,7 +62,7 @@ export function useAvatarBlob(
     loaded.value = src !== fileStorage.FAILED_ADDRESS;
   };
 
-  watch([fileId, ownerId], fetchAvatar, { immediate: true });
+  watch([fileId, ownerId, avatarType], fetchAvatar, { immediate: true });
 
   return {
     loaded,

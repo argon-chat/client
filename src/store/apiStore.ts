@@ -49,6 +49,7 @@ export const useApi = defineStore("api", () => {
   );
 
   const userInteraction = computed(() => rpcClient.value.UserInteraction);
+  const securityInteraction = computed(() => rpcClient.value.SecurityInteraction);
   const identityInteraction = computed(
     () => rpcClient.value.IdentityInteraction
   );
@@ -73,6 +74,7 @@ export const useApi = defineStore("api", () => {
 
   return {
     userInteraction,
+    securityInteraction,
     serverInteraction,
     channelInteraction,
     archetypeInteraction,

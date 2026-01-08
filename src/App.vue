@@ -148,7 +148,6 @@ const themeOverrides = {
   <NConfigProvider :theme="darkTheme" :theme-overrides="themeOverrides">
 
     <RouterView />
-    <Toaster />
     <IncomingCallOverlay />
     <DiagnosticsOverlay v-if="showDiagnostics" />
     <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
@@ -214,6 +213,8 @@ const themeOverrides = {
     </div>
   </NConfigProvider>
 
+  <!-- Toaster moved outside NConfigProvider for highest z-index -->
+  <Toaster />
 </template>
 
   <style scoped>

@@ -1,71 +1,1432 @@
 <template>
-  <div class="profile-settings text-white rounded-lg space-y-6" v-if="me.me">
-    <h2 class="text-2xl font-bold">{{ t("profile_settings") }}</h2>
-    <div class="avatar-username flex items-center space-x-4">
-      <AvatarUploader
-        :fallback="me.me.displayName"
-        :avatar-file-id="me.me?.avatarFileId"
-        :user-id="me.me.userId"
-        @avatar-updated="onAvatarUpdated"
-      />
-      <div>
-        <label class="block font-semibold mb-1">{{ t("username") }}</label>
-        <Input readonly disabled v-model="me.me.username" type="text" class="input-field"
-          placeholder="Enter username" />
-      </div>
-    </div>
-    <div>
-      <label class="block font-semibold mb-1">{{ t("display_name") }}</label>
-      <Input readonly disabled v-model="me.me.displayName" type="text" class="input-field"
-        placeholder="Enter display name" />
-    </div>
-    <div>
-      <div v-if="false">
-        <label class="block font-semibold mb-1">{{ t("password") }}</label>
-        <Input type="password" class="input-field" placeholder="Enter new password" />
-      </div>
-      <div v-if="false">
-        <label class="block font-semibold mb-1">{{ t("phone_number") }}</label>
-        <Input type="tel" class="input-field" placeholder="Enter phone number" />
+  <div>
+    <div class="profile-settings-container">
+      <div v-if="!me.me" class="flex items-center justify-center min-h-[400px]">
+        <div class="text-muted-foreground">Loading...</div>
       </div>
 
-      <div class="otp-settings" v-if="false">
-        <label class="block font-semibold mb-1">{{ t("otp_title") }}</label>
-        <button @click="toggleOTP" class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
-          {{ t('disable_otp')}}
-        </button>
+      <div v-else class="space-y-6">
+        <!-- Profile Header & Info Container -->
+        <div class="flex flex-col lg:flex-row gap-6">
+          <!-- Profile Header & Avatar Card -->
+          <div class="setting-card profile-header p-0 overflow-hidden lg:w-[400px] flex-shrink-0">
+            <ProfileHeaderUploader :header-file-id="me.meProfile?.bannerFileID ?? null" :user-id="me.me.userId"
+              @header-updated="onProfileUpdated" />
+
+            <div class="p-6">
+              <div class="flex items-start gap-4 -mt-12">
+                <div class="relative">
+                  <AvatarUploader :fallback="me.me.displayName" :avatar-file-id="me.me?.avatarFileId"
+                    :user-id="me.me.userId" @avatar-updated="onProfileUpdated" />
+                </div>
+
+                <div class="flex-1 mt-8">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h3 class="text-xl font-bold">{{ me.me.displayName }}</h3>
+
+                    <!-- Badges inline with name -->
+                    <div v-if="me.meProfile?.badges && me.meProfile.badges.length > 0"
+                      class="flex items-center gap-1.5">
+                      <img v-for="badge in me.meProfile.badges" :key="badge" :src="getBadgeIcon(badge)" :alt="badge"
+                        class="w-6 h-6 object-contain transition-transform hover:scale-110 cursor-help"
+                        :title="badge" />
+                    </div>
+                  </div>
+                  <p class="text-sm text-muted-foreground">@{{ me.me.username }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Information Card -->
+          <div class="setting-card flex-1">
+            <div class="flex items-center gap-2 mb-4">
+              <UserIcon class="w-5 h-5 text-primary" />
+              <h3 class="text-lg font-semibold">{{ t("profile_information") }}</h3>
+            </div>
+
+            <div class="space-y-4">
+              <div class="setting-item">
+                <div class="flex-1">
+                  <div class="text-sm font-medium">{{ t("username") }}</div>
+                  <div class="text-xs text-muted-foreground">{{ t("username_desc") }}</div>
+                </div>
+                <Input readonly disabled v-model="me.me.username" type="text" class="w-[250px]"
+                  placeholder="username" />
+              </div>
+
+              <div class="setting-item">
+                <div class="flex-1">
+                  <div class="text-sm font-medium">{{ t("display_name") }}</div>
+                  <div class="text-xs text-muted-foreground">{{ t("display_name_desc") }}</div>
+                </div>
+                <Input readonly disabled v-model="me.me.displayName" type="text" class="w-[250px]"
+                  placeholder="Display Name" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security & Authentication Card -->
+        <div class="setting-card">
+          <div class="flex items-center gap-2 mb-4">
+            <ShieldIcon class="w-5 h-5 text-primary" />
+            <h3 class="text-lg font-semibold">{{ t("security_authentication") }}</h3>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Two-Factor Authentication -->
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div class="space-y-0.5">
+                <div class="text-sm font-medium">{{ t("two_factor_auth") }}</div>
+                <div class="text-xs text-muted-foreground">
+                  {{ t("two_factor_auth_desc") }}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Badge v-if="otpEnabled" variant="outline" class="bg-green-500/10 text-green-500 border-green-500/30">
+                  {{ t("enabled") }}
+                </Badge>
+                <Badge v-else variant="outline" class="bg-gray-500/10 text-gray-400 border-gray-500/30">
+                  {{ t("disabled") }}
+                </Badge>
+                <Button @click="toggleOTP" variant="outline" size="sm">
+                  {{ otpEnabled ? t("disable") : t("enable") }}
+                </Button>
+              </div>
+            </div>
+
+            <!-- Phone Number Section -->
+            <div class="rounded-lg border p-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="space-y-0.5">
+                  <div class="text-sm font-medium flex items-center gap-2">
+                    <PhoneIcon class="w-4 h-4" />
+                    {{ t("phone_number") }}
+                  </div>
+                  <div class="text-xs text-muted-foreground">
+                    {{ t("phone_number_desc") }}
+                  </div>
+                </div>
+                <Button @click="showChangePhoneDialog = true" variant="outline" size="sm">
+                  {{ userPhone ? t("change") : t("add") }}
+                </Button>
+              </div>
+
+              <!-- Phone Display -->
+              <div v-if="userPhone" class="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-blue-500/5 to-purple-500/5 border border-blue-500/20">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <PhoneIcon class="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium flex items-center gap-2">
+                      {{ maskPhone(userPhone) }}
+                      <CheckCircle2Icon class="w-4 h-4 text-green-500" />
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      {{ t("verified") }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="text-center py-6 text-sm text-muted-foreground">
+                {{ t("no_phone_added") }}
+              </div>
+            </div>
+
+            <!-- Email Address Section -->
+            <div class="rounded-lg border p-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="space-y-0.5">
+                  <div class="text-sm font-medium flex items-center gap-2">
+                    <MailIcon class="w-4 h-4" />
+                    {{ t("email") }}
+                  </div>
+                  <div class="text-xs text-muted-foreground">
+                    {{ t("email_desc") }}
+                  </div>
+                </div>
+                <Button @click="showChangeEmailDialog = true" variant="outline" size="sm">
+                  {{ t("change") }}
+                </Button>
+              </div>
+
+              <!-- Email Display -->
+              <div class="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/20">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <MailIcon class="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium flex items-center gap-2">
+                      {{ maskEmail(userEmail) }}
+                      <CheckCircle2Icon class="w-4 h-4 text-green-500" />
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      {{ t("verified") }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Passkeys Section -->
+            <div class="rounded-lg border p-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="space-y-0.5">
+                  <div class="text-sm font-medium flex items-center gap-2">
+                    <KeyRoundIcon class="w-4 h-4" />
+                    {{ t("passkeys") }}
+                  </div>
+                  <div class="text-xs text-muted-foreground">
+                    {{ t("passkeys_desc") }}
+                  </div>
+                </div>
+                <Button @click="showAddPasskeyDialog = true" variant="outline" size="sm">
+                  <PlusIcon class="w-4 h-4 mr-1" />
+                  {{ t("add_passkey") }}
+                </Button>
+              </div>
+
+              <!-- Passkeys List -->
+              <div v-if="passkeys.length > 0" class="space-y-2 mt-4">
+                <div v-for="passkey in passkeys" :key="passkey.id"
+                  class="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                  <div class="flex items-center gap-3">
+                    <KeyRoundIcon class="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div class="text-sm font-medium">{{ passkey.name }}</div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ t("created") }}: {{ formatDate(passkey.createdAt) }}
+                      </div>
+                    </div>
+                  </div>
+                  <Button @click="removePasskey(passkey.id)" variant="ghost" size="icon"
+                    class="h-8 w-8 text-destructive hover:text-destructive">
+                    <TrashIcon class="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div v-else class="text-center py-6 text-sm text-muted-foreground">
+                {{ t("no_passkeys") }}
+              </div>
+            </div>
+            <!-- Password Change -->
+            <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div class="space-y-0.5">
+                <div class="text-sm font-medium">{{ t("password") }}</div>
+                <div class="text-xs text-muted-foreground">
+                  {{ t("change_password_desc") }}
+                </div>
+              </div>
+              <Button @click="showChangePasswordDialog = true" variant="outline" size="sm">
+                {{ t("change_password") }}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Actions Card -->
+        <div class="setting-card border-destructive/50">
+          <div class="flex items-center gap-2 mb-4">
+            <AlertTriangleIcon class="w-5 h-5 text-destructive" />
+            <h3 class="text-lg font-semibold text-destructive">{{ t("danger_zone") }}</h3>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Auto-delete account -->
+            <div class="flex flex-row items-center justify-between rounded-lg border border-destructive/30 p-4">
+              <div class="space-y-0.5 flex-1">
+                <div class="text-sm font-medium">{{ t("auto_delete_account") }}</div>
+                <div class="text-xs text-muted-foreground">
+                  {{ t("auto_delete_account_desc") }}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Select v-model="autoDeletePeriod" @update:modelValue="updateAutoDeletePeriod">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue :placeholder="t('select_period')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="disabled">{{ t("disabled") }}</SelectItem>
+                      <SelectItem value="1">1 {{ t("month") }}</SelectItem>
+                      <SelectItem value="3">3 {{ t("months") }}</SelectItem>
+                      <SelectItem value="6">6 {{ t("months") }}</SelectItem>
+                      <SelectItem value="12">12 {{ t("months") }}</SelectItem>
+                      <SelectItem value="18" :disabled="!me.isPremium">
+                        18 {{ t("months") }}
+                        <span v-if="!me.isPremium" class="text-xs text-muted-foreground ml-1">(Premium)</span>
+                      </SelectItem>
+                      <SelectItem value="24" :disabled="!me.isPremium">
+                        24 {{ t("months") }}
+                        <span v-if="!me.isPremium" class="text-xs text-muted-foreground ml-1">(Premium)</span>
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <!-- Delete account -->
+            <div class="flex flex-row items-center justify-between rounded-lg border border-destructive/30 p-4">
+              <div class="space-y-0.5">
+                <div class="text-sm font-medium">{{ t("delete_account") }}</div>
+                <div class="text-xs text-muted-foreground">
+                  {{ t("delete_account_console_only") }}
+                </div>
+              </div>
+              <Button @click="openConsole" variant="outline" size="sm">
+                {{ t("open_console") }}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Add Passkey Dialog -->
+    <Dialog v-model:open="showAddPasskeyDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("add_passkey") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-medium">{{ t("passkey_name") }}</label>
+            <Input v-model="newPasskeyName" :placeholder="t('passkey_name_placeholder')" class="mt-2" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button @click="showAddPasskeyDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="addPasskey" :disabled="!newPasskeyName.trim()">
+            {{ t("add") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- OTP Setup Dialog -->
+    <Dialog v-model:open="showOTPDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("setup_two_factor") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("setup_two_factor_desc") }}
+          </div>
+          <div class="flex justify-center p-4">
+            <QRStyled :value="otpQrUrl" :size="200" level="M" class="rounded-md shadow-lg" />
+          </div>
+          <div class="text-xs text-center text-muted-foreground">
+            {{ t("scan_with_authenticator") }}
+          </div>
+          <div>
+            <label class="text-sm font-medium">{{ t("verification_code") }}</label>
+            <Input v-model="otpCode" :placeholder="t('enter_code')" class="mt-2" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button @click="showOTPDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="confirmOTP">
+            {{ t("verify") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Disable OTP Dialog -->
+    <Dialog v-model:open="showDisableOTPDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("disable_two_factor") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("disable_two_factor_desc") }}
+          </div>
+          <div>
+            <label class="text-sm font-medium">{{ t("verification_code") }}</label>
+            <Input v-model="disableOtpCode" :placeholder="t('enter_code')" class="mt-2" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button @click="showDisableOTPDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="confirmDisableOTP" variant="destructive">
+            {{ t("disable") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Change Password Dialog -->
+    <Dialog v-model:open="showChangePasswordDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("change_password") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("password_requirements") }}
+          </div>
+          <InputWithError v-model="currentPassword" type="password" :placeholder="t('current_password')"
+            :error="passwordErrors.current" @clear-error="passwordErrors.current = null">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("current_password") }}</label>
+            </template>
+          </InputWithError>
+
+          <InputWithError v-model="newPassword" type="password" :placeholder="t('new_password')"
+            :error="validateNewPassword">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("new_password") }}</label>
+            </template>
+          </InputWithError>
+
+          <InputWithError v-model="confirmPassword" type="password" :placeholder="t('confirm_password')"
+            :error="validateConfirmPassword">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("confirm_password") }}</label>
+            </template>
+          </InputWithError>
+        </div>
+        <DialogFooter>
+          <Button @click="showChangePasswordDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="changePassword"
+            :disabled="isChangingPassword || !!validateNewPassword || !!validateConfirmPassword">
+            {{ isChangingPassword ? t("updating") : t("update_password") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Change Email Dialog -->
+    <Dialog v-model:open="showChangeEmailDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("change_email") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("change_email_instructions") }}
+          </div>
+          <InputWithError v-model="newEmail" type="email" :placeholder="t('new_email_placeholder')"
+            :error="validateEmail">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("new_email") }}</label>
+            </template>
+          </InputWithError>
+
+          <InputWithError v-model="emailPassword" type="password" :placeholder="t('confirm_with_password')"
+            :error="emailErrors.password" @clear-error="emailErrors.password = null">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("current_password") }}</label>
+            </template>
+          </InputWithError>
+        </div>
+        <DialogFooter>
+          <Button @click="showChangeEmailDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="requestEmailChange" :disabled="isChangingEmail || !!validateEmail">
+            {{ isChangingEmail ? t("sending") : t("send_code") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Email Verification Dialog -->
+    <Dialog v-model:open="showEmailVerificationDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("verify_email") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("verification_code_sent_to") }} <strong>{{ newEmail }}</strong>
+          </div>
+          <div>
+            <label class="text-sm font-medium">{{ t("verification_code") }}</label>
+            <Input v-model="verificationCode" type="text" :placeholder="t('enter_6_digit_code')" class="mt-2"
+              maxlength="6" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button @click="showEmailVerificationDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="confirmEmailChange" :disabled="isChangingEmail">
+            {{ isChangingEmail ? t("verifying") : t("verify") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Change Phone Dialog -->
+    <Dialog v-model:open="showChangePhoneDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ userPhone ? t("change_phone") : t("add_phone") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("change_phone_instructions") }}
+          </div>
+          <InputWithError v-model="newPhone" type="tel" :placeholder="t('phone_placeholder')" :error="validatePhone">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("new_phone") }}</label>
+            </template>
+          </InputWithError>
+
+          <InputWithError v-model="phonePassword" type="password" :placeholder="t('confirm_with_password')"
+            :error="phoneErrors.password" @clear-error="phoneErrors.password = null">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("current_password") }}</label>
+            </template>
+          </InputWithError>
+        </div>
+        <DialogFooter>
+          <Button @click="showChangePhoneDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="requestPhoneChange" :disabled="isChangingPhone || !!validatePhone">
+            {{ isChangingPhone ? t("sending") : t("send_code") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Phone Verification Dialog -->
+    <Dialog v-model:open="showPhoneVerificationDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("verify_phone") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("verification_code_sent_to_phone") }} <strong>{{ newPhone }}</strong>
+          </div>
+          <div>
+            <label class="text-sm font-medium">{{ t("verification_code") }}</label>
+            <Input v-model="phoneVerificationCode" type="text" :placeholder="t('enter_6_digit_code')" class="mt-2"
+              maxlength="6" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button @click="showPhoneVerificationDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="confirmPhoneChange" :disabled="isChangingPhone">
+            {{ isChangingPhone ? t("verifying") : t("verify") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Remove Phone Dialog -->
+    <Dialog v-model:open="showRemovePhoneDialog">
+      <DialogContent @interactOutside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("remove_phone") }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="text-sm text-muted-foreground">
+            {{ t("remove_phone_instructions") }}
+          </div>
+          <InputWithError v-model="removePhonePassword" type="password" :placeholder="t('confirm_with_password')"
+            :error="phoneErrors.removePassword" @clear-error="phoneErrors.removePassword = null">
+            <template #label>
+              <label class="text-sm font-medium">{{ t("current_password") }}</label>
+            </template>
+          </InputWithError>
+        </div>
+        <DialogFooter>
+          <Button @click="showRemovePhoneDialog = false" variant="outline">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="confirmRemovePhone" :disabled="isRemovingPhone" variant="destructive">
+            {{ isRemovingPhone ? t("removing") : t("remove") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, reactive, computed, onMounted } from "vue";
 import { Input } from "@/components/ui/input";
+import InputWithError from "@/components/shared/InputWithError.vue";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import AvatarUploader from "./AvatarUploader.vue";
+import ProfileHeaderUploader from "./ProfileHeaderUploader.vue";
+import QRStyled from "../login/QRStyled.vue";
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
+import {
+  UserIcon,
+  ShieldIcon,
+  KeyRoundIcon,
+  PlusIcon,
+  TrashIcon,
+  AlertTriangleIcon,
+  PhoneIcon,
+  CheckCircle2Icon,
+  MailIcon,
+} from "lucide-vue-next";
+import Select from "../ui/select/Select.vue";
+import SelectTrigger from "../ui/select/SelectTrigger.vue";
+import SelectValue from "../ui/select/SelectValue.vue";
+import SelectContent from "../ui/select/SelectContent.vue";
+import SelectGroup from "../ui/select/SelectGroup.vue";
+import SelectItem from "../ui/select/SelectItem.vue";
+import { useApi } from "@/store/apiStore";
+import { useToast } from "../ui/toast";
+import { logger } from "@/lib/logger";
+import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@/lib/glue/argonChat";
+import { useBus } from "@/store/busStore";
 
 const { t } = useLocale();
 const me = useMe();
 
-const toggleOTP = () => {
+const { toast } = useToast();
+
+const api = useApi();
+const bus = useBus();
+
+
+// Email State
+const userEmail = ref("user@example.com"); // TODO: Load from API
+const showChangeEmailDialog = ref(false);
+const showEmailVerificationDialog = ref(false);
+const newEmail = ref("");
+const emailPassword = ref("");
+const verificationCode = ref("");
+const isChangingEmail = ref(false);
+
+const emailErrors = reactive({
+  email: null as string | null,
+  password: null as string | null,
+  verification: null as string | null,
+});
+
+const validateEmail = computed(() => {
+  if (!newEmail.value) return null;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(newEmail.value)) return t("invalid_email");
+  return null;
+});
+
+// Phone State
+const userPhone = ref(""); // TODO: Load from API
+const showChangePhoneDialog = ref(false);
+const showPhoneVerificationDialog = ref(false);
+const showRemovePhoneDialog = ref(false);
+const newPhone = ref("");
+const phonePassword = ref("");
+const phoneVerificationCode = ref("");
+const removePhonePassword = ref("");
+const isChangingPhone = ref(false);
+const isRemovingPhone = ref(false);
+
+const phoneErrors = reactive({
+  phone: null as string | null,
+  password: null as string | null,
+  verification: null as string | null,
+  removePassword: null as string | null,
+});
+
+const validatePhone = computed(() => {
+  if (!newPhone.value) return null;
+  // Basic international phone format validation
+  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(newPhone.value.replace(/[\s-()]/g, ""))) return t("invalid_phone");
+  return null;
+});
+
+// Auto-delete State
+const autoDeletePeriod = ref("disabled");
+
+// OTP State
+const otpEnabled = ref(false);
+const showOTPDialog = ref(false);
+const showDisableOTPDialog = ref(false);
+const otpCode = ref("");
+const disableOtpCode = ref("");
+const otpQrUrl = ref("otpauth://totp/Argon:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Argon");
+
+// Passkeys State
+const showAddPasskeyDialog = ref(false);
+const newPasskeyName = ref("");
+const passkeys = ref<Array<{ id: string; name: string; createdAt: Date }>>([
+  // TODO: Load from API - api.userInteraction.GetPasskeys()
+  { id: "1", name: "MacBook Pro", createdAt: new Date("2024-01-15") },
+  { id: "2", name: "iPhone 15", createdAt: new Date("2024-02-20") },
+]);
+
+// Password State
+const showChangePasswordDialog = ref(false);
+const currentPassword = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
+const isChangingPassword = ref(false);
+
+const passwordErrors = reactive({
+  current: null as string | null,
+  new: null as string | null,
+  confirm: null as string | null,
+});
+
+// Password validation computed
+const validateNewPassword = computed(() => {
+  if (!newPassword.value) return null;
+  if (newPassword.value.length < 8) return t("password_too_short");
+
+  const hasLetter = /[a-zA-Z]/.test(newPassword.value);
+  const hasNumber = /[0-9]/.test(newPassword.value);
+  if (!hasLetter || !hasNumber) return t("password_weak");
+
+  if (currentPassword.value && currentPassword.value === newPassword.value) {
+    return t("password_same_as_current");
+  }
+
+  return null;
+});
+
+const validateConfirmPassword = computed(() => {
+  if (!confirmPassword.value) return null;
+  if (newPassword.value && confirmPassword.value !== newPassword.value) {
+    return t("passwords_dont_match");
+  }
+  return null;
+});
+
+const openConsole = () => {
+  window.open("https://console.argon.gl", "_blank");
 };
 
-const onAvatarUpdated = () => {
-  // Handle avatar update if needed (e.g., refresh user data)
-  console.log("Avatar updated successfully");
+const onProfileUpdated = () => {
+  console.log("Profile updated successfully");
+  // Refresh user data if needed
 };
+
+const updateAutoDeletePeriod = async (value: string | number | bigint | Record<string, any> | null) => {
+  if (!value) return;
+
+  const stringValue = String(value);
+
+  // Check if premium is required for 18/24 months
+  // TODO: Add proper premium check when me.me has isPremium property
+  const isPremium = false; // Replace with actual premium check
+  if ((stringValue === "18" || stringValue === "24") && !isPremium) {
+    toast({
+      title: t("premium_required"),
+      description: t("premium_required_auto_delete"),
+      variant: "destructive",
+    });
+    autoDeletePeriod.value = "disabled";
+    return;
+  }
+
+  try {
+    const result = await api.securityInteraction.SetAutoDeletePeriod(
+      stringValue === "disabled" ? null : parseInt(stringValue)
+    );
+
+    if (result.isSuccessSetAutoDelete()) {
+      autoDeletePeriod.value = stringValue;
+
+      toast({
+        title: t("auto_delete_updated"),
+        description: stringValue === "disabled"
+          ? t("auto_delete_disabled")
+          : t("auto_delete_set_to", { months: stringValue }),
+      });
+    } else {
+      autoDeletePeriod.value = "disabled";
+      toast({
+        title: t("error"),
+        description: t("auto_delete_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    autoDeletePeriod.value = "disabled";
+    toast({
+      title: t("error"),
+      description: t("auto_delete_failed"),
+      variant: "destructive",
+    });
+  }
+};
+
+const requestEmailChange = async () => {
+  if (!newEmail.value || !emailPassword.value) {
+    toast({
+      title: t("error"),
+      description: t("fill_all_fields"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (validateEmail.value) {
+    return;
+  }
+
+  isChangingEmail.value = true;
+
+  try {
+    const result = await api.securityInteraction.RequestEmailChange(newEmail.value, emailPassword.value);
+
+    if (result.isSuccessRequestEmailChange()) {
+      showChangeEmailDialog.value = false;
+      showEmailVerificationDialog.value = true;
+
+      toast({
+        title: t("verification_code_sent"),
+        description: t("check_your_email"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("email_change_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("email_change_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isChangingEmail.value = false;
+  }
+};
+
+const confirmEmailChange = async () => {
+  if (!verificationCode.value) {
+    toast({
+      title: t("error"),
+      description: t("enter_verification_code"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  isChangingEmail.value = true;
+
+  try {
+    const result = await api.securityInteraction.ConfirmEmailChange(verificationCode.value);
+
+    if (result.isSuccessConfirmEmailChange()) {
+      userEmail.value = newEmail.value;
+      showEmailVerificationDialog.value = false;
+      newEmail.value = "";
+      emailPassword.value = "";
+      verificationCode.value = "";
+
+      toast({
+        title: t("email_changed"),
+        description: t("email_changed_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("verification_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("verification_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isChangingEmail.value = false;
+  }
+};
+
+const requestPhoneChange = async () => {
+  // Clear previous errors
+  phoneErrors.password = null;
+
+  if (!newPhone.value || !phonePassword.value) {
+    if (!phonePassword.value) {
+      phoneErrors.password = t("password_required");
+    }
+    toast({
+      title: t("error"),
+      description: t("fill_all_fields"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (validatePhone.value) {
+    console.log("Phone validation failed:", validatePhone.value);
+    toast({
+      title: t("error"),
+      description: validatePhone.value,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  isChangingPhone.value = true;
+
+  try {
+    console.log("Calling RequestPhoneChange API...");
+    const result = await api.securityInteraction.RequestPhoneChange(newPhone.value, phonePassword.value);
+    console.log("RequestPhoneChange result:", result);
+
+    if (result.isSuccessRequestPhoneChange()) {
+      showChangePhoneDialog.value = false;
+      showPhoneVerificationDialog.value = true;
+
+      toast({
+        title: t("verification_code_sent"),
+        description: t("check_your_phone"),
+      });
+    }
+    if (result.isFailedRequestPhoneChange()) {
+
+      console.error("RequestPhoneChange failed:", result, PhoneChangeError[result.error]);
+      toast({
+        title: t("error"),
+        description: t("phone_change_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    console.error("RequestPhoneChange exception:", error);
+    toast({
+      title: t("error"),
+      description: t("phone_change_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isChangingPhone.value = false;
+  }
+};
+
+const confirmPhoneChange = async () => {
+  if (!phoneVerificationCode.value) {
+    toast({
+      title: t("error"),
+      description: t("enter_verification_code"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  isChangingPhone.value = true;
+
+  try {
+    const result = await api.securityInteraction.ConfirmPhoneChange(phoneVerificationCode.value);
+
+    if (result.isSuccessConfirmPhoneChange()) {
+      userPhone.value = newPhone.value;
+      showPhoneVerificationDialog.value = false;
+      newPhone.value = "";
+      phonePassword.value = "";
+      phoneVerificationCode.value = "";
+
+      toast({
+        title: t("phone_changed"),
+        description: t("phone_changed_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("verification_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("verification_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isChangingPhone.value = false;
+  }
+};
+
+const confirmRemovePhone = async () => {
+  if (!removePhonePassword.value) {
+    toast({
+      title: t("error"),
+      description: t("enter_password"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  isRemovingPhone.value = true;
+
+  try {
+    const result = await api.securityInteraction.RemovePhone(removePhonePassword.value);
+
+    if (result.isSuccessRemovePhone()) {
+      userPhone.value = "";
+      showRemovePhoneDialog.value = false;
+      removePhonePassword.value = "";
+
+      toast({
+        title: t("phone_removed"),
+        description: t("phone_removed_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("phone_remove_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("phone_remove_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isRemovingPhone.value = false;
+  }
+};
+
+const toggleOTP = async () => {
+  if (otpEnabled.value) {
+    // Show disable OTP confirmation dialog
+    showDisableOTPDialog.value = true;
+  } else {
+    // Request OTP setup from API
+    try {
+      const result = await api.securityInteraction.EnableOTP();
+
+      console.log("EnableOTP result:", result);
+
+      if (result.isSuccessEnableOTP()) {
+        console.log("OTP QR URL:", result.qrCodeUrl);
+        otpQrUrl.value = result.qrCodeUrl!;
+        showOTPDialog.value = true;
+        console.log("Dialog should be open, showOTPDialog:", showOTPDialog.value);
+      } else {
+        if (result.isFailedEnableOTP()) {
+          logger.error("EnableOTP failed with reason:", OTPError[result.error]);
+        }
+        toast({
+          title: t("error"),
+          description: t("otp_enable_failed"),
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("EnableOTP exception:", error);
+      toast({
+        title: t("error"),
+        description: t("otp_enable_failed"),
+        variant: "destructive",
+      });
+    }
+  }
+};
+
+const confirmOTP = async () => {
+  if (!otpCode.value.trim()) {
+    toast({
+      title: t("error"),
+      description: t("enter_code"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    const result = await api.securityInteraction.VerifyAndEnableOTP(otpCode.value);
+
+    if (result.isSuccessVerifyOTP()) {
+      otpEnabled.value = true;
+      showOTPDialog.value = false;
+      otpCode.value = "";
+
+      toast({
+        title: t("otp_enabled"),
+        description: t("otp_enabled_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("invalid_code"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("otp_enable_failed"),
+      variant: "destructive",
+    });
+  }
+};
+
+const confirmDisableOTP = async () => {
+  if (!disableOtpCode.value.trim()) {
+    toast({
+      title: t("error"),
+      description: t("enter_code"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    const result = await api.securityInteraction.DisableOTP(disableOtpCode.value);
+
+    if (result.isSuccessDisableOTP()) {
+      otpEnabled.value = false;
+      showDisableOTPDialog.value = false;
+      disableOtpCode.value = "";
+
+      toast({
+        title: t("otp_disabled"),
+        description: t("otp_disabled_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("invalid_code"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("otp_disable_failed"),
+      variant: "destructive",
+    });
+  }
+};
+
+const addPasskey = async () => {
+  if (!newPasskeyName.value.trim()) return;
+
+  try {
+    const beginResult = await api.securityInteraction.BeginAddPasskey(newPasskeyName.value);
+
+    if (beginResult.isSuccessBeginPasskey()) {
+      const passkeyId = beginResult.passkeyId!;
+      const challenge = beginResult.challenge!;
+
+      // Convert challenge from base64 to Uint8Array
+      const challengeBuffer = Uint8Array.from(atob(challenge), c => c.charCodeAt(0));
+
+      // Create WebAuthn credential
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: challengeBuffer,
+          rp: {
+            name: "ArgonChat",
+            id: window.location.hostname,
+          },
+          user: {
+            id: Uint8Array.from(me.me!.userId, c => c.charCodeAt(0)),
+            name: me.me!.username,
+            displayName: me.me!.displayName,
+          },
+          pubKeyCredParams: [
+            { alg: -7, type: "public-key" },  // ES256
+            { alg: -257, type: "public-key" }, // RS256
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            requireResidentKey: false,
+            userVerification: "preferred",
+          },
+          timeout: 60000,
+          attestation: "none",
+        },
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        toast({
+          title: t("error"),
+          description: t("passkey_add_error"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Extract public key from credential
+      const response = credential.response as AuthenticatorAttestationResponse;
+      const publicKeyBuffer = response.getPublicKey();
+      const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyBuffer!)));
+
+      const completeResult = await api.securityInteraction.CompleteAddPasskey(
+        passkeyId,
+        publicKeyBase64
+      );
+
+      if (completeResult.isSuccessCompletePasskey()) {
+        passkeys.value.push({
+          id: completeResult.passkey!.id.toString(),
+          name: completeResult.passkey!.name,
+          createdAt: completeResult.passkey!.createdAt.date,
+        });
+        showAddPasskeyDialog.value = false;
+        newPasskeyName.value = "";
+
+        toast({
+          title: t("passkey_added"),
+          description: t("passkey_added_desc"),
+        });
+      } else {
+        toast({
+          title: t("error"),
+          description: t("passkey_add_error"),
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: t("error"),
+        description: t("passkey_add_error"),
+        variant: "destructive",
+      });
+    }
+  } catch (error: any) {
+    // Handle user cancellation gracefully
+    if (error.name === "NotAllowedError") {
+      toast({
+        title: t("cancelled"),
+        description: t("passkey_add_cancelled"),
+      });
+    } else {
+      console.error("Passkey creation error:", error);
+      toast({
+        title: t("error"),
+        description: t("passkey_add_error"),
+        variant: "destructive",
+      });
+    }
+  }
+};
+
+const removePasskey = async (id: string) => {
+  const index = passkeys.value.findIndex((p) => p.id === id);
+  if (index === -1) return;
+
+  const passkey = passkeys.value[index];
+
+  try {
+    const result = await api.securityInteraction.RemovePasskey(id);
+
+    if (result.isSuccessRemovePasskey()) {
+      passkeys.value.splice(index, 1);
+
+      toast({
+        title: t("passkey_removed"),
+        description: `${passkey.name} ${t("has_been_removed")}`,
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("passkey_remove_error"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("passkey_remove_error"),
+      variant: "destructive",
+    });
+  }
+};
+
+const changePassword = async () => {
+  // Validate all fields
+  if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
+    toast({
+      title: t("error"),
+      description: t("fill_all_fields"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (validateNewPassword.value || validateConfirmPassword.value) {
+    return;
+  }
+
+  isChangingPassword.value = true;
+
+  try {
+    const result = await api.securityInteraction.ChangePassword(currentPassword.value, newPassword.value);
+
+    if (result.isSuccessChangePassword()) {
+      showChangePasswordDialog.value = false;
+      currentPassword.value = "";
+      newPassword.value = "";
+      confirmPassword.value = "";
+
+      toast({
+        title: t("password_changed"),
+        description: t("password_changed_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("password_change_failed"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("password_change_failed"),
+      variant: "destructive",
+    });
+  } finally {
+    isChangingPassword.value = false;
+  }
+};
+
+const maskEmail = (email: string) => {
+  if (!email || email === "user@example.com") return email;
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  
+  if (local.length <= 2) {
+    return `${local[0]}***@${domain}`;
+  }
+  
+  return `${local.substring(0, 2)}***@${domain}`;
+};
+
+const maskPhone = (phone: string) => {
+  if (!phone) return phone;
+  
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, "");
+  
+  if (digits.length < 4) return phone;
+  
+  // Show first 2 and last 2 digits
+  const first = digits.substring(0, 2);
+  const last = digits.substring(digits.length - 2);
+  const masked = "*".repeat(Math.min(digits.length - 4, 7));
+  
+  return `+${first} ${masked} ${last}`;
+};
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+};
+
+const getBadgeIcon = (badge: string) => {
+  // Fallback: staff -> coin_argxstaff
+  const badgeId = badge === "staff" ? "coin_argxstaff" : badge;
+
+  // Check if it's a coin badge from items.json
+  if (badgeId.startsWith("coin_")) {
+    return `/src/assets/icons/inventory/${badgeId}-64px.png`;
+  }
+
+  // Default fallback for non-coin badges
+  return `/src/assets/icons/inventory/${badgeId}-64px.png`;
+};
+
+// Load initial data
+onMounted(async () => {
+  try {
+    // Load all security details in one call
+    const details = await api.securityInteraction.GetSecurityDetails();
+
+    // Update all states from the response
+    otpEnabled.value = details.otpEnabled;
+
+    passkeys.value = details.passkeys.map(pk => ({
+      id: pk.id.toString(),
+      name: pk.name,
+      createdAt: pk.createdAt.date,
+    }));
+
+    autoDeletePeriod.value = details.autoDeletePeriod.enabled && details.autoDeletePeriod.months
+      ? details.autoDeletePeriod.months.toString()
+      : "disabled";
+
+    userEmail.value = details.email ?? "user@example.com";
+    userPhone.value = details.phone ?? "";
+
+    bus.onServerEvent<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated", (event) => {
+      if (event.userId === me.me?.userId) {
+        otpEnabled.value = event.details.otpEnabled;
+
+        passkeys.value = event.details.passkeys.map(pk => ({
+          id: pk.id.toString(),
+          name: pk.name,
+          createdAt: pk.createdAt.date,
+        }));
+
+        autoDeletePeriod.value = event.details.autoDeletePeriod.enabled && event.details.autoDeletePeriod.months
+          ? event.details.autoDeletePeriod.months.toString()
+          : "disabled";
+
+        userEmail.value = event.details.email ?? "user@example.com";
+        userPhone.value = event.details.phone ?? "";
+      }
+    });
+  } catch (error) {
+    console.error("Failed to load profile settings:", error);
+  }
+});
 </script>
 
 <style scoped>
-.profile-settings {
-  max-width: 600px;
+.profile-settings-container {
+  max-width: 900px;
   margin: 0 auto;
 }
 
-.button {
-  padding: 10px 16px;
-  font-size: 1rem;
-  font-weight: 500;
+.setting-card {
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  padding: 1.5rem;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 </style>
