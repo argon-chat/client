@@ -33,11 +33,7 @@ import {
   ChannelGroupReordered,
   ChannelReordered,
 } from "@/lib/glue/argonChat";
-import type { Guid } from "@argon-chat/ion.webcore";
 
-/**
- * Store для обработки realtime событий от сервера
- */
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();
   const api = useApi();
@@ -49,18 +45,43 @@ export const useEventStore = defineStore("events", () => {
 
   const onNewMessageReceived = new Subject<ArgonMessage>();
 
-  /**
-   * Подписка на все события от сервера
-   */
+  const pendingUserFetches = new Map<string, Promise<void>>();
+
+  const ensureUser = async (spaceId: string, userId: string): Promise<boolean> => {
+    let user = await userStore.getUser(userId);
+    if (user) return true;
+
+    const pending = pendingUserFetches.get(userId);
+    if (pending) {
+      await pending;
+      return !!(await userStore.getUser(userId));
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        logger.debug(`[EventStore] Fetching user ${userId} from API...`);
+        const userData = await api.serverInteraction.PrefetchUser(spaceId, userId);
+        await userStore.trackUser(userData);
+        logger.debug(`[EventStore] User ${userId} fetched and cached`);
+      } catch (error) {
+        logger.error(`[EventStore] Failed to fetch user ${userId}:`, error);
+      } finally {
+        pendingUserFetches.delete(userId);
+      }
+    })();
+
+    pendingUserFetches.set(userId, fetchPromise);
+    await fetchPromise;
+    return !!(await userStore.getUser(userId));
+  };
+
   const subscribeToEvents = () => {
-    // Каналы
     bus.onServerEvent<ChannelCreated>("ChannelCreated", (x) => {
       void (async () => {
         try {
           const server = await db.servers.get(x.spaceId);
           if (server) {
             await channelStore.trackChannel(x.data);
-            // Откладываем обновление реактивного состояния в следующий event loop
             setTimeout(() => {
               realtimeStore.initRealtimeChannel(x.data);
             }, 0);
@@ -88,7 +109,6 @@ export const useEventStore = defineStore("events", () => {
       // TODO: implement
     });
 
-    // Пользователи в каналах
     bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", (x) => {
       void (async () => {
         try {
@@ -98,18 +118,16 @@ export const useEventStore = defineStore("events", () => {
             return;
           }
 
-          let user = await userStore.getUser(x.userId);
-          if (!user) {
-            await userStore.trackUser(
-              await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
-            );
-            user = await userStore.getUser(x.userId);
-            if (!user) {
-              throw new Error("Failed to fetch user");
-            }
+          const success = await ensureUser(x.spaceId, x.userId);
+          if (!success) {
+            logger.error("Failed to ensure user", x.userId);
+            return;
           }
 
-          realtimeStore.addUserToChannel(x.channelId, x.userId, user);
+          const user = await userStore.getUser(x.userId);
+          if (user) {
+            realtimeStore.addUserToChannel(x.channelId, x.userId, user);
+          }
         } catch (error) {
           logger.error("Error handling JoinedToChannelUser", error);
         }
@@ -135,7 +153,6 @@ export const useEventStore = defineStore("events", () => {
       }
     );
 
-    // Пользователи на сервере
     bus.onServerEvent<JoinToServerUser>("JoinToServerUser", (x) => {
       void (async () => {
         try {
@@ -145,7 +162,7 @@ export const useEventStore = defineStore("events", () => {
             return;
           }
 
-          const existsUser = (await db.users.where("userId").equals(x.userId).count()) > 0;
+          const existsUser = await db.users.get(x.userId);
           if (!existsUser) {
             const member = await api.serverInteraction.GetMember(x.spaceId, x.userId);
             await archetypeStore.trackMember(member.member);
@@ -158,7 +175,6 @@ export const useEventStore = defineStore("events", () => {
       })();
     });
 
-    // Обновления пользователей
     bus.onServerEvent<UserUpdated>("UserUpdated", (x) => {
       userStore.trackUser(x.dto);
       if (x.dto.userId === me.me?.userId) {
@@ -171,15 +187,6 @@ export const useEventStore = defineStore("events", () => {
     bus.onServerEvent<UserChangedStatus>("UserChangedStatus", (x) => {
       void (async () => {
         try {
-          const user = await userStore.getUser(x.userId);
-          if (!user) {
-            await userStore.trackUser(
-              await api.serverInteraction.PrefetchUser(x.spaceId, x.userId),
-              x.status
-            );
-            return;
-          }
-
           await userStore.updateUserStatus(x.userId, x.status);
         } catch (error) {
           logger.error("Error handling UserChangedStatus", error);
@@ -192,17 +199,6 @@ export const useEventStore = defineStore("events", () => {
       (x) => {
         void (async () => {
           try {
-            let user = await userStore.getUser(x.userId);
-            if (!user) {
-              await userStore.trackUser(
-                await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
-              );
-              user = await userStore.getUser(x.userId);
-              if (!user) {
-                throw new Error("Failed to fetch user");
-              }
-            }
-
             await userStore.updateUserActivity(x.userId, x.presence);
           } catch (error) {
             logger.error("Error handling OnUserPresenceActivityChanged", error);
@@ -216,17 +212,6 @@ export const useEventStore = defineStore("events", () => {
       (x) => {
         void (async () => {
           try {
-            let user = await userStore.getUser(x.userId);
-            if (!user) {
-              await userStore.trackUser(
-                await api.serverInteraction.PrefetchUser(x.spaceId, x.userId)
-              );
-              user = await userStore.getUser(x.userId);
-              if (!user) {
-                throw new Error("Failed to fetch user");
-              }
-            }
-
             await userStore.updateUserActivity(x.userId, undefined);
           } catch (error) {
             logger.error("Error handling OnUserPresenceActivityRemoved", error);
@@ -235,17 +220,14 @@ export const useEventStore = defineStore("events", () => {
       }
     );
 
-    // Сообщения
     bus.onServerEvent<MessageSent>("MessageSent", (x) => {
       onNewMessageReceived.next(x.message);
     });
 
-    // Архетипы
     bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
       void archetypeStore.trackArchetype(x.data);
     });
 
-    // Запись в каналах
     bus.onServerEvent<RecordStarted>("RecordStarted", (x) => {
       realtimeStore.startRecording(x.channelId, x.byUserId);
     });
@@ -254,7 +236,6 @@ export const useEventStore = defineStore("events", () => {
       realtimeStore.stopRecording(x.channelId);
     });
 
-    // Channel groups events
     bus.onServerEvent<ChannelGroupCreated>("ChannelGroupCreated", (x: ChannelGroupCreated) => {
       logger.info("ChannelGroupCreated", x);
       void (async () => {
@@ -270,10 +251,7 @@ export const useEventStore = defineStore("events", () => {
       logger.info("ChannelGroupModified", x);
       void (async () => {
         try {
-          const group = await db.channelGroups.get(x.groupId);
-          if (group) {
-            await db.channelGroups.update(x.groupId, x.data);
-          }
+          await db.channelGroups.update(x.groupId, x.data);
         } catch (error) {
           logger.error("Error handling ChannelGroupModified", error);
         }

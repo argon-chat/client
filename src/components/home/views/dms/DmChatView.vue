@@ -187,6 +187,12 @@ const loadOlderMessages = async () => {
       return;
     }
 
+    // Preload all unique senders in batch
+    const uniqueSenderIds = [...new Set(olderMessages.map(m => m.senderId))];
+    if (uniqueSenderIds.length > 0) {
+      await pool.getUsersBatch(uniqueSenderIds);
+    }
+
     // Sort and prepend older messages
     const sortedOlder = [...olderMessages].sort((a, b) => 
       Number(a.messageId - b.messageId)
@@ -241,6 +247,13 @@ const loadInitialMessages = async () => {
     logger.log('Initial DM messages loaded:', initialMessages);
 
     if (initialMessages && initialMessages.length > 0) {
+      // Preload all unique senders in batch
+      const uniqueSenderIds = [...new Set(initialMessages.map(m => m.senderId))];
+      if (uniqueSenderIds.length > 0) {
+        await pool.getUsersBatch(uniqueSenderIds);
+        logger.log(`[DmChatView] Preloaded ${uniqueSenderIds.length} users in batch`);
+      }
+      
       messages.value = [...initialMessages].sort((a, b) => 
         Number(a.messageId - b.messageId)
       );

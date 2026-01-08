@@ -1,9 +1,8 @@
 import { logger } from "@/lib/logger";
-import { useObservable } from "@vueuse/rxjs";
 import { liveQuery, type Subscription } from "dexie";
 import { defineStore } from "pinia";
-import { Subject, from } from "rxjs";
-import { type Ref, computed, onUnmounted, ref, watch } from "vue";
+import { Subject } from "rxjs";
+import { type Ref, onUnmounted, ref, watch, reactive } from "vue";
 import { db } from "./db/dexie";
 import { type ArgonChannel, ChannelType } from "@/lib/glue/argonChat";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -17,6 +16,55 @@ export const useChannelStore = defineStore("channel", () => {
   
   const onChannelChanged = new Subject<Guid | null>();
 
+  // Diagnostics
+  const diagnostics = reactive({
+    totalQueriesExecuted: 0,
+    slowQueries: [] as { operation: string; duration: number; timestamp: number }[],
+    maxSlowQueries: 50,
+    criticalQueries: 0,
+    errorCount: 0,
+    activeSubscriptions: 0,
+  });
+
+  /**
+   * Get diagnostics info
+   */
+  const getDiagnostics = () => ({
+    totalQueriesExecuted: diagnostics.totalQueriesExecuted,
+    slowQueries: diagnostics.slowQueries,
+    criticalQueries: diagnostics.criticalQueries,
+    errorCount: diagnostics.errorCount,
+    activeSubscriptions: diagnostics.activeSubscriptions,
+  });
+
+  /**
+   * Log slow query
+   */
+  const logSlowQuery = (operation: string, duration: number) => {
+    if (duration > 100) {
+      logger.warn(`[ChannelStore] Slow query: ${operation} took ${duration}ms`);
+      diagnostics.slowQueries.push({ operation, duration, timestamp: Date.now() });
+      if (diagnostics.slowQueries.length > diagnostics.maxSlowQueries) {
+        diagnostics.slowQueries.shift();
+      }
+      
+      if (duration > 1000) {
+        diagnostics.criticalQueries++;
+      }
+    }
+  };
+
+  /**
+   * Periodic diagnostics logging
+   */
+  if (typeof window !== 'undefined') {
+    setInterval(() => {
+      if (diagnostics.activeSubscriptions > 20) {
+        logger.warn(`[ChannelStore] High subscription count: ${diagnostics.activeSubscriptions} active subscriptions`);
+      }
+    }, 30000);
+  }
+
   watch(selectedTextChannel, (newChannelId, oldChannelId) => {
     if (newChannelId !== oldChannelId) {
       onChannelChanged.next(newChannelId);
@@ -27,7 +75,14 @@ export const useChannelStore = defineStore("channel", () => {
    * Get channel by ID
    */
   const getChannel = async (channelId: Guid): Promise<ArgonChannel | undefined> => {
-    return await db.channels.where("channelId").equals(channelId).first();
+    const startTime = performance.now();
+    diagnostics.totalQueriesExecuted++;
+
+    const result = await db.channels.get(channelId);
+    const duration = performance.now() - startTime;
+    logSlowQuery(`getChannel(${channelId})`, duration);
+
+    return result;
   };
 
   /**
@@ -37,25 +92,43 @@ export const useChannelStore = defineStore("channel", () => {
     const result = ref<ArgonChannel[]>([]);
     let sub: Subscription | null = null;
 
-    watch(
-      spaceId,
-      (id) => {
-        sub?.unsubscribe();
-        if (!id) {
-          result.value = [];
-          return;
-        }
+    const updateChannels = (id: Guid | null) => {
+      if (sub) {
+        sub.unsubscribe();
+        diagnostics.activeSubscriptions--;
+      }
+      if (!id) {
+        result.value = [];
+        return;
+      }
 
-        sub = liveQuery(() =>
-          db.channels.where("spaceId").equals(id).toArray()
-        ).subscribe((channels) => {
+      diagnostics.activeSubscriptions++;
+      const startTime = performance.now();
+
+      sub = liveQuery(() =>
+        db.channels.where("spaceId").equals(id).toArray()
+      ).subscribe({
+        next: (channels) => {
+          const duration = performance.now() - startTime;
+          logSlowQuery(`liveQuery.useActiveServerChannels(${id})`, duration);
           result.value = channels;
-        });
-      },
-      { immediate: true }
-    );
+        },
+        error: (err) => {
+          diagnostics.errorCount++;
+          logger.error("[ChannelStore] Error in liveQuery subscription:", err);
+          result.value = [];
+        }
+      });
+    };
 
-    onUnmounted(() => sub?.unsubscribe());
+    watch(spaceId, updateChannels, { immediate: true });
+
+    onUnmounted(() => {
+      if (sub) {
+        sub.unsubscribe();
+        diagnostics.activeSubscriptions--;
+      }
+    });
 
     return result;
   }
@@ -64,13 +137,6 @@ export const useChannelStore = defineStore("channel", () => {
    * Add/update channel in DB
    */
   const trackChannel = async (channel: ArgonChannel) => {
-    const exist = await db.channels.get(channel.channelId);
-
-    if (exist) {
-      await db.channels.update(exist.channelId, channel);
-      return;
-    }
-    
     await db.channels.put(channel, channel.channelId);
   };
 
@@ -102,7 +168,7 @@ export const useChannelStore = defineStore("channel", () => {
   const pruneChannels = async (serverId: Guid, activeChannelIds: Guid[]) => {
     const prunedCount = await db.channels
       .where("channelId")
-      .noneOf([...activeChannelIds])
+      .noneOf(activeChannelIds)
       .and((q) => q.spaceId === serverId)
       .delete();
 
@@ -123,5 +189,7 @@ export const useChannelStore = defineStore("channel", () => {
     removeChannel,
     selectFirstTextChannel,
     pruneChannels,
+    // Diagnostics
+    getDiagnostics,
   };
 });

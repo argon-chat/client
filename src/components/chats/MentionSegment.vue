@@ -16,7 +16,7 @@
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/meStore";
 import { usePoolStore } from "@/store/poolStore";
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import UserProfilePopover from "../popovers/UserProfilePopover.vue";
 import {
   Popover,
@@ -33,14 +33,10 @@ const props = defineProps<{
   text: string;
 }>();
 
-const user = ref(undefined as RealtimeUser | undefined);
+const user = computed(() => pool.getUserReactive(computed(() => props.entity.userId)).value);
 const me = useMe();
 
 const isForMeMention = computed(() => user.value?.userId === me.me?.userId);
-
-onMounted(async () => {
-  user.value = await pool.getUser(props.entity.userId);
-});
 </script>
 
 <style scoped>

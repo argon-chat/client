@@ -243,6 +243,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     // Users
     getUser: userStore.getUser,
+    getUsersBatch: userStore.getUsersBatch,
     getUserReactive: userStore.getUserReactive,
     searchMentions: userStore.searchMentions,
     searchUser: userStore.searchUser,

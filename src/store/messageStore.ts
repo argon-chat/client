@@ -24,7 +24,7 @@ export const useMessageStore = defineStore("message", () => {
         )
         .toArray();
 
-      return messages.sort((a, b) => Number(a.messageId - b.messageId));
+      return messages;
     } catch (error) {
       logger.error("Failed to load cached messages:", error);
       return [];
@@ -51,7 +51,7 @@ export const useMessageStore = defineStore("message", () => {
         .limit(limit)
         .toArray();
 
-      return messages.sort((a, b) => Number(a.messageId - b.messageId));
+      return messages.reverse();
     } catch (error) {
       logger.error("Failed to load older cached messages:", error);
       return [];

@@ -30,12 +30,26 @@ export interface IRealtimeChannel {
  * Store for managing realtime channel states
  */
 export const useRealtimeStore = defineStore("realtime", () => {
-  // Используем shallowReactive для Map чтобы избежать глубокой реактивности
-  // Это означает что Vue будет отслеживать только добавление/удаление каналов
-  // но не изменения внутри каждого канала (для этого канал сам reactive)
-  const realtimeChannels = shallowReactive(
+  const realtimeChannels = reactive(
     new Map<Guid, Reactive<IRealtimeChannel>>()
   );
+
+  /**
+   * Create default realtime channel user
+   */
+  const createRealtimeChannelUser = (
+    userId: Guid,
+    user: RealtimeUser
+  ): IRealtimeChannelUser => ({
+    state: 0,
+    userId,
+    User: user,
+    isSpeaking: false,
+    isMuted: false,
+    isScreenShare: false,
+    volume: [100],
+    isRecording: false,
+  });
 
   /**
    * Create or update realtime channel
@@ -82,16 +96,7 @@ export const useRealtimeStore = defineStore("realtime", () => {
       return;
     }
 
-    channel.Users.set(userId, {
-      state: 0,
-      userId,
-      User: user,
-      isSpeaking: false,
-      isMuted: false,
-      isScreenShare: false,
-      volume: [100],
-      isRecording: false,
-    });
+    channel.Users.set(userId, createRealtimeChannelUser(userId, user));
   };
 
   /**
@@ -163,18 +168,20 @@ export const useRealtimeStore = defineStore("realtime", () => {
     userId: Guid,
     isSpeaking: boolean
   ) => {
-    setUserProperty(channelId, userId, (user) => {
-      user.isSpeaking = isSpeaking;
-    });
+    const channel = realtimeChannels.get(channelId);
+    if (!channel) return;
+    const user = channel.Users.get(userId);
+    if (user) user.isSpeaking = isSpeaking;
   };
 
   /**
    * Set Muted status for user
    */
   const setUserMuted = (channelId: Guid, userId: Guid, isMuted: boolean) => {
-    setUserProperty(channelId, userId, (user) => {
-      user.isMuted = isMuted;
-    });
+    const channel = realtimeChannels.get(channelId);
+    if (!channel) return;
+    const user = channel.Users.get(userId);
+    if (user) user.isMuted = isMuted;
   };
 
   /**
@@ -185,18 +192,20 @@ export const useRealtimeStore = defineStore("realtime", () => {
     userId: Guid,
     isScreenShare: boolean
   ) => {
-    setUserProperty(channelId, userId, (user) => {
-      user.isScreenShare = isScreenShare;
-    });
+    const channel = realtimeChannels.get(channelId);
+    if (!channel) return;
+    const user = channel.Users.get(userId);
+    if (user) user.isScreenShare = isScreenShare;
   };
 
   /**
    * Set volume for user
    */
   const setUserVolume = (channelId: Guid, userId: Guid, volume: number[]) => {
-    setUserProperty(channelId, userId, (user) => {
-      user.volume = volume;
-    });
+    const channel = realtimeChannels.get(channelId);
+    if (!channel) return;
+    const user = channel.Users.get(userId);
+    if (user) user.volume = volume;
   };
 
   /**

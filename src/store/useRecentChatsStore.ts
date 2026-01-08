@@ -48,10 +48,29 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   }
 
   async function setChats(list: UserChat[]) {
-    const items = [];
-    for (const chat of list) {
-      items.push(await mergeUserInfo(chat));
-    }
+    logger.debug(`[RecentChatsStore] Loading ${list.length} chats...`);
+    const start = performance.now();
+    
+    const userIds = list.map(chat => chat.peerId);
+    const usersMap = await pool.getUsersBatch(userIds);
+    
+    const items = list.map(chat => {
+      const user = usersMap.get(chat.peerId);
+      return {
+        peerId: chat.peerId,
+        displayName: user?.displayName ?? chat.peerId,
+        status: user?.status ?? 0,
+        isPinned: chat.isPinned,
+        pinnedAt: chat.pinnedAt,
+        lastMsg: chat.lastMsg ?? null,
+        lastMessageAt: chat.lastMessageAt,
+        unreadCount: chat.unreadCount ?? 0,
+      };
+    });
+    
+    const duration = performance.now() - start;
+    logger.debug(`[RecentChatsStore] Loaded ${items.length} chats in ${duration.toFixed(0)}ms`);
+    
     recent.value = items.sort(sorter);
   }
 

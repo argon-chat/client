@@ -18,8 +18,13 @@
                 <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
             </PopoverContent>
             <PopoverTrigger>
-                <ArgonAvatar :file-id="user.avatarFileId" :fallback="user.displayName"
-                    :serverId="message.spaceId" :userId="user.userId" class="avatar" />
+                <ArgonAvatar 
+                    :file-id="user.avatarFileId" 
+                    :fallback="user.displayName"
+                    :userId="user.userId"
+                    :overrided-size="36"
+                    class="avatar" 
+                />
             </PopoverTrigger>
         </Popover>
 
@@ -49,7 +54,7 @@
                             'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                             ">
                             <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                                replyUser?.value?.displayName || t("unknown_display_name")}}</div>
+                                replyUser?.displayName || t("unknown_display_name")}}</div>
                             <div class="reply-text">{{ replyMessage.text }}</div>
                         </div>
                         <div>
@@ -62,7 +67,7 @@
                             'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                             ">
                             <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                                replyUser?.value?.displayName || t("unknown_display_name") }}</div>
+                                replyUser?.displayName || t("unknown_display_name") }}</div>
                             <div class="reply-text">{{ replyMessage.text }}</div>
                         </div>
                         <div>
@@ -144,6 +149,10 @@ const props = defineProps<{
   getMsgById: (replyId: bigint | null) => ArgonMessage;
 }>();
 
+const pool = usePoolStore();
+const me = useMe();
+const userColors = useUserColors();
+
 const isSystemMessage = computed(() => {
   return props.message.sender === SYSTEM_USER_ID;
 });
@@ -208,10 +217,8 @@ const emit = defineEmits<{
 const isRequiredUpperVersionMessage = ref(false);
 const bubble = ref<HTMLElement | null>(null);
 const backgroundOffset = ref(0);
-const pool = usePoolStore();
-const user = pool.getUserReactive(ref(props.message.sender));
-const me = useMe();
-const userColors = useUserColors();
+const userIdRef = computed(() => props.message.sender);
+const user = pool.getUserReactive(userIdRef);
 
 interface IFrag {
   entity?: IMessageEntity;
@@ -264,10 +271,8 @@ const replyMessage = computed(() => {
   return props.getMsgById(props.message.replyId);
 });
 
-const replyUser = computed(() => {
-  if (!replyMessage.value) return null;
-  return pool.getUserReactive(ref(replyMessage.value.sender));
-});
+const replyUserIdRef = computed(() => replyMessage.value?.sender);
+const replyUser = pool.getUserReactive(replyUserIdRef);
 
 const updateBackground = () => {
   if (!bubble.value) return;
