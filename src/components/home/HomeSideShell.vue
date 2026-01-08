@@ -57,7 +57,6 @@ onMounted(() => {
 // OPEN CHAT
 // --------------------------
 function openChat(peerId: string) {
-    logger.warn("openChat called, peerId:", peerId);
     router.push({
         name: "HomeChat",
         params: { userId: peerId }

@@ -35,8 +35,6 @@ const stopUserIdWatch = watch(
     if (!newUserId) return;
     if (newUserId === oldUserId) return;
 
-    console.warn("Switch DM:", oldUserId, "→", newUserId);
-
     isProfileOpen.value = false;
     replyTo.value = null;
   },

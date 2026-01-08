@@ -44,7 +44,7 @@
 import SmartArgonAvatar from './../SmartArgonAvatar.vue';
 import { PhPhoneIncoming, PhPhoneSlash } from "@phosphor-icons/vue"
 import { useCallManager } from '@/store/callManagerStore';
-import { ref, watch } from 'vue';
+import { computed } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
 import { Guid } from '@argon-chat/ion.webcore';
 import Card from '@/components/ui/card/Card.vue';
@@ -52,41 +52,19 @@ import Card from '@/components/ui/card/Card.vue';
 const callStore = useCallManager();
 const pool = usePoolStore();
 
-const caller = ref<{
-    username: string;
-    displayName: string;
-    userId: Guid;
-} | null>(null);
+const caller = computed(() => {
+    const incomingCall = callStore.incomingCall;
+    if (!incomingCall) return null;
 
-watch(
-    () => callStore.incomingCall,
-    async (newCall) => {
-        if (!newCall) {
-            caller.value = null;
-            return;
-        }
+    const userId = incomingCall.fromId;
+    const user = pool.getUserReactive(computed(() => userId)).value;
 
-        const userId = newCall.fromId;
-
-        try {
-            const user = await pool.getUser(userId);
-
-            caller.value = {
-                username: user?.username ?? "unknown",
-                displayName: user?.displayName ?? user?.username ?? "unknown",
-                userId
-            };
-        } catch (err) {
-            console.error("Failed to load user:", err);
-            caller.value = {
-                username: "unknown",
-                displayName: "unknown",
-                userId
-            };
-        }
-    },
-    { immediate: true }
-);
+    return {
+        username: user?.username ?? "unknown",
+        displayName: user?.displayName ?? user?.username ?? "unknown",
+        userId
+    };
+});
 
 const accept = async () => {
     await callStore.acceptIncomingCall()
