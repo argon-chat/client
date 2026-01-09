@@ -39,7 +39,7 @@
     "idb": "^8.0.1",
     "jsbarcode": "^3.12.1",
     "lexical-vue": "^0.13.1",
-    "livekit-client": "^2.13.8",
+    "livekit-client": "^2.16.1",
     "lucide-vue-next": "^0.548.0",
     "maska": "^3.2.0",
     "motion-v": "^1.7.4",

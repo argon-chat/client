@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, onUnmounted, nextTick } from "vue";
+import { onMounted, ref, watch, onUnmounted, nextTick, computed } from "vue";
 import QRCodeStyling, { Options } from "qr-code-styling";
 import CatIconUrl from "@/assets/icons/icon_cat_colored.svg?url";
+import { useTheme } from "@/composables/useTheme";
 
 const props = defineProps<{ value: string }>();
+const { currentTheme } = useTheme();
 
 function makeQrUrl(base: string) {
   const salt = Math.random().toString(36).slice(2, 8);
@@ -21,55 +23,68 @@ const container1 = ref<HTMLDivElement | null>(null);
 
 let intervalId: number | null = null;
 
-const config: Options = {
-  type: "canvas",
-  shape: "square",
-  width: 220,
-  height: 220,
-  margin: 2,
-  qrOptions: {
-    typeNumber: 0,
-    mode: "Byte",
-    errorCorrectionLevel: "M"
-  },
-  image: CatIconUrl,
-  imageOptions: {
-    hideBackgroundDots: true,
-    imageSize: 0.4,
-    margin: 0
-  },
-  dotsOptions: {
-    type: "extra-rounded",
-    roundSize: true,
-    gradient: {
-      type: "radial",
-      rotation: 0.017,
-      colorStops: [
-        { offset: 0, color: "#3b82f6" },
-        { offset: 1, color: "#475c7f" }
-      ]
+const config = computed<Options>(() => {
+  const isLightTheme = currentTheme.value === "light";
+  
+  return {
+    type: "canvas",
+    shape: "square",
+    width: 220,
+    height: 220,
+    margin: 2,
+    qrOptions: {
+      typeNumber: 0,
+      mode: "Byte",
+      errorCorrectionLevel: "M"
+    },
+    image: CatIconUrl,
+    imageOptions: {
+      hideBackgroundDots: true,
+      imageSize: 0.4,
+      margin: 0
+    },
+    dotsOptions: {
+      type: "extra-rounded",
+      roundSize: true,
+      gradient: {
+        type: "radial",
+        rotation: 0.017,
+        colorStops: isLightTheme
+          ? [
+              { offset: 0, color: "#3b82f6" },
+              { offset: 1, color: "#1e40af" }
+            ]
+          : [
+              { offset: 0, color: "#3b82f6" },
+              { offset: 1, color: "#475c7f" }
+            ]
+      }
+    },
+    backgroundOptions: {
+      color: isLightTheme ? "#ffffff" : "#000000"
+    },
+    cornersSquareOptions: {
+      type: "dot",
+      gradient: {
+        type: "radial",
+        rotation: 0.017,
+        colorStops: isLightTheme
+          ? [{ offset: 1, color: "#1e40af" }]
+          : [{ offset: 1, color: "#475c7f" }]
+      }
+    },
+    cornersDotOptions: {
+      type: "rounded",
+      gradient: {
+        type: "radial",
+        rotation: 0.017,
+        colorStops: isLightTheme
+          ? [{ offset: 1, color: "#1e40af" }]
+          : [{ offset: 1, color: "#475c7f" }]
+      }
     }
-  },
-  backgroundOptions: {
-    color: "#000000"
-  },
-  cornersSquareOptions: {
-    type: "dot",
-    gradient: {
-      type: "radial",
-      rotation: 0.017,
-      colorStops: [{ offset: 1, color: "#475c7f" }]
-    }
-  },
-  cornersDotOptions: {
-    type: "rounded",
-    gradient: {
-      type: "radial",
-      rotation: 0.017,
-      colorStops: [{ offset: 1, color: "#475c7f" }]
-    }
-  }
-};
+  };
+});
 
 async function renderQr(targetIndex: 0 | 1) {
   const data = makeQrUrl(props.value);
@@ -80,7 +95,7 @@ async function renderQr(targetIndex: 0 | 1) {
   if (!el) return;
 
   el.innerHTML = "";
-  const qr = new QRCodeStyling({ ...config, data });
+  const qr = new QRCodeStyling({ ...config.value, data });
   qr.append(el);
 
   setTimeout(() => {
@@ -117,6 +132,14 @@ onUnmounted(() => {
 
 watch(
   () => props.value,
+  () => {
+    const nextIndex = activeIndex.value === 0 ? 1 : 0;
+    renderQr(nextIndex);
+  }
+);
+
+watch(
+  currentTheme,
   () => {
     const nextIndex = activeIndex.value === 0 ? 1 : 0;
     renderQr(nextIndex);

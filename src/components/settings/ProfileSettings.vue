@@ -327,9 +327,18 @@
           <div class="text-xs text-center text-muted-foreground">
             {{ t("scan_with_authenticator") }}
           </div>
-          <div>
+          <div class="flex flex-col items-center gap-2">
             <label class="text-sm font-medium">{{ t("verification_code") }}</label>
-            <Input v-model="otpCode" :placeholder="t('enter_code')" class="mt-2" />
+            <PinInput v-model="otpCode" placeholder="○" @complete="handleOTPComplete">
+              <PinInputGroup class="gap-1">
+                <template v-for="(id, index) in 6" :key="id">
+                  <PinInputInput class="rounded-md border" :index="index" />
+                  <template v-if="index !== 5">
+                    <PinInputSeparator />
+                  </template>
+                </template>
+              </PinInputGroup>
+            </PinInput>
           </div>
         </div>
         <DialogFooter>
@@ -353,9 +362,18 @@
           <div class="text-sm text-muted-foreground">
             {{ t("disable_two_factor_desc") }}
           </div>
-          <div>
+          <div class="flex flex-col items-center gap-2">
             <label class="text-sm font-medium">{{ t("verification_code") }}</label>
-            <Input v-model="disableOtpCode" :placeholder="t('enter_code')" class="mt-2" />
+            <PinInput v-model="disableOtpCode" placeholder="○" @complete="handleDisableOTPComplete">
+              <PinInputGroup class="gap-1">
+                <template v-for="(id, index) in 6" :key="id">
+                  <PinInputInput class="rounded-md border" :index="index" />
+                  <template v-if="index !== 5">
+                    <PinInputSeparator />
+                  </template>
+                </template>
+              </PinInputGroup>
+            </PinInput>
           </div>
         </div>
         <DialogFooter>
@@ -600,6 +618,7 @@ import SelectValue from "../ui/select/SelectValue.vue";
 import SelectContent from "../ui/select/SelectContent.vue";
 import SelectGroup from "../ui/select/SelectGroup.vue";
 import SelectItem from "../ui/select/SelectItem.vue";
+import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@/components/ui/pin-input";
 import { useApi } from "@/store/apiStore";
 import { useToast } from "../ui/toast";
 import { logger } from "@/lib/logger";
@@ -671,8 +690,8 @@ const autoDeletePeriod = ref("disabled");
 const otpEnabled = ref(false);
 const showOTPDialog = ref(false);
 const showDisableOTPDialog = ref(false);
-const otpCode = ref("");
-const disableOtpCode = ref("");
+const otpCode = ref([] as string[]);
+const disableOtpCode = ref([] as string[]);
 const otpQrUrl = ref("otpauth://totp/Argon:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Argon");
 
 // Passkeys State
@@ -1030,7 +1049,6 @@ const toggleOTP = async () => {
       console.log("EnableOTP result:", result);
 
       if (result.isSuccessEnableOTP()) {
-        console.log("OTP QR URL:", result.qrCodeUrl);
         otpQrUrl.value = result.qrCodeUrl!;
         showOTPDialog.value = true;
         console.log("Dialog should be open, showOTPDialog:", showOTPDialog.value);
@@ -1055,23 +1073,15 @@ const toggleOTP = async () => {
   }
 };
 
-const confirmOTP = async () => {
-  if (!otpCode.value.trim()) {
-    toast({
-      title: t("error"),
-      description: t("enter_code"),
-      variant: "destructive",
-    });
-    return;
-  }
-
+const handleOTPComplete = async (code: string[]) => {
+  const codeString = code.join("");
   try {
-    const result = await api.securityInteraction.VerifyAndEnableOTP(otpCode.value);
+    const result = await api.securityInteraction.VerifyAndEnableOTP(codeString);
 
     if (result.isSuccessVerifyOTP()) {
       otpEnabled.value = true;
       showOTPDialog.value = false;
-      otpCode.value = "";
+      otpCode.value = [];
 
       toast({
         title: t("otp_enabled"),
@@ -1093,8 +1103,8 @@ const confirmOTP = async () => {
   }
 };
 
-const confirmDisableOTP = async () => {
-  if (!disableOtpCode.value.trim()) {
+const confirmOTP = async () => {
+  if (otpCode.value.length !== 6) {
     toast({
       title: t("error"),
       description: t("enter_code"),
@@ -1103,13 +1113,83 @@ const confirmDisableOTP = async () => {
     return;
   }
 
+  const codeString = otpCode.value.join("");
   try {
-    const result = await api.securityInteraction.DisableOTP(disableOtpCode.value);
+    const result = await api.securityInteraction.VerifyAndEnableOTP(codeString);
+
+    if (result.isSuccessVerifyOTP()) {
+      otpEnabled.value = true;
+      showOTPDialog.value = false;
+      otpCode.value = [];
+
+      toast({
+        title: t("otp_enabled"),
+        description: t("otp_enabled_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("invalid_code"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("otp_enable_failed"),
+      variant: "destructive",
+    });
+  }
+};
+
+const handleDisableOTPComplete = async (code: string[]) => {
+  const codeString = code.join("");
+  try {
+    const result = await api.securityInteraction.DisableOTP(codeString);
 
     if (result.isSuccessDisableOTP()) {
       otpEnabled.value = false;
       showDisableOTPDialog.value = false;
-      disableOtpCode.value = "";
+      disableOtpCode.value = [];
+
+      toast({
+        title: t("otp_disabled"),
+        description: t("otp_disabled_desc"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: t("invalid_code"),
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: t("error"),
+      description: t("otp_disable_failed"),
+      variant: "destructive",
+    });
+  }
+};
+
+const confirmDisableOTP = async () => {
+  if (disableOtpCode.value.length !== 6) {
+    toast({
+      title: t("error"),
+      description: t("enter_code"),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const codeString = disableOtpCode.value.join("");
+  try {
+    const result = await api.securityInteraction.DisableOTP(codeString);
+
+    if (result.isSuccessDisableOTP()) {
+      otpEnabled.value = false;
+      showDisableOTPDialog.value = false;
+      disableOtpCode.value = [];
 
       toast({
         title: t("otp_disabled"),
@@ -1132,46 +1212,78 @@ const confirmDisableOTP = async () => {
 };
 
 const addPasskey = async () => {
-  if (!newPasskeyName.value.trim()) return;
+  console.log("[PASSKEY] 🚀 Starting passkey creation process");
+  console.log("[PASSKEY] 📝 Passkey name:", newPasskeyName.value);
+  
+  if (!newPasskeyName.value.trim()) {
+    console.log("[PASSKEY] ❌ Passkey name is empty, aborting");
+    return;
+  }
 
   try {
+    console.log("[PASSKEY] 📡 Calling BeginAddPasskey API...");
     const beginResult = await api.securityInteraction.BeginAddPasskey(newPasskeyName.value);
+    console.log("[PASSKEY] 📥 BeginAddPasskey result:", beginResult);
 
     if (beginResult.isSuccessBeginPasskey()) {
       const passkeyId = beginResult.passkeyId!;
       const challenge = beginResult.challenge!;
+      
+      console.log("[PASSKEY] ✅ BeginAddPasskey successful");
+      console.log("[PASSKEY] 🔑 Passkey ID:", passkeyId);
+      console.log("[PASSKEY] 🎲 Challenge (base64):", challenge);
 
       // Convert challenge from base64 to Uint8Array
+      console.log("[PASSKEY] 🔄 Converting challenge to Uint8Array...");
       const challengeBuffer = Uint8Array.from(atob(challenge), c => c.charCodeAt(0));
+      console.log("[PASSKEY] ✅ Challenge converted, length:", challengeBuffer.length);
+
+      // Prepare WebAuthn options
+      const publicKeyOptions = {
+        challenge: challengeBuffer,
+        rp: {
+          name: "ArgonChat",
+          id: window.location.hostname,
+        },
+        user: {
+          id: Uint8Array.from(me.me!.userId, c => c.charCodeAt(0)),
+          name: me.me!.username,
+          displayName: me.me!.displayName,
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: "public-key" },  // ES256
+          { alg: -257, type: "public-key" }, // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          requireResidentKey: false,
+          userVerification: "preferred",
+        },
+        timeout: 60000,
+        attestation: "none",
+      };
+      
+      console.log("[PASSKEY] 🌐 WebAuthn options prepared:", {
+        rpId: publicKeyOptions.rp.id,
+        userName: publicKeyOptions.user.name,
+        userDisplayName: publicKeyOptions.user.displayName,
+        timeout: publicKeyOptions.timeout,
+      });
 
       // Create WebAuthn credential
+      console.log("[PASSKEY] 🔐 Calling navigator.credentials.create...");
+      console.log("[PASSKEY] ⏳ Waiting for user interaction...");
+      
       const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: challengeBuffer,
-          rp: {
-            name: "ArgonChat",
-            id: window.location.hostname,
-          },
-          user: {
-            id: Uint8Array.from(me.me!.userId, c => c.charCodeAt(0)),
-            name: me.me!.username,
-            displayName: me.me!.displayName,
-          },
-          pubKeyCredParams: [
-            { alg: -7, type: "public-key" },  // ES256
-            { alg: -257, type: "public-key" }, // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            requireResidentKey: false,
-            userVerification: "preferred",
-          },
-          timeout: 60000,
-          attestation: "none",
-        },
+        publicKey: publicKeyOptions as any,
       }) as PublicKeyCredential;
+      
+      console.log("[PASSKEY] 📦 Credential received:", credential);
+      console.log("[PASSKEY] 🆔 Credential ID:", credential.id);
+      console.log("[PASSKEY] 🔧 Credential type:", credential.type);
 
       if (!credential) {
+        console.log("[PASSKEY] ❌ Credential is null");
         toast({
           title: t("error"),
           description: t("passkey_add_error"),
@@ -1181,16 +1293,38 @@ const addPasskey = async () => {
       }
 
       // Extract public key from credential
+      console.log("[PASSKEY] 🔍 Extracting public key from credential...");
       const response = credential.response as AuthenticatorAttestationResponse;
+      console.log("[PASSKEY] 📋 Response type:", response.constructor.name);
+      
       const publicKeyBuffer = response.getPublicKey();
-      const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyBuffer!)));
+      console.log("[PASSKEY] 🔑 Public key buffer length:", publicKeyBuffer?.byteLength);
+      
+      if (!publicKeyBuffer) {
+        console.log("[PASSKEY] ❌ Public key buffer is null");
+        toast({
+          title: t("error"),
+          description: t("passkey_add_error"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyBuffer)));
+      console.log("[PASSKEY] ✅ Public key converted to base64, length:", publicKeyBase64.length);
+      console.log("[PASSKEY] 🔐 Public key (truncated):", publicKeyBase64.substring(0, 50) + "...");
 
+      console.log("[PASSKEY] 📡 Calling CompleteAddPasskey API...");
       const completeResult = await api.securityInteraction.CompleteAddPasskey(
         passkeyId,
         publicKeyBase64
       );
+      console.log("[PASSKEY] 📥 CompleteAddPasskey result:", completeResult);
 
       if (completeResult.isSuccessCompletePasskey()) {
+        console.log("[PASSKEY] ✅ CompleteAddPasskey successful");
+        console.log("[PASSKEY] 🎉 Passkey added:", completeResult.passkey);
+        
         passkeys.value.push({
           id: completeResult.passkey!.id.toString(),
           name: completeResult.passkey!.name,
@@ -1199,11 +1333,15 @@ const addPasskey = async () => {
         showAddPasskeyDialog.value = false;
         newPasskeyName.value = "";
 
+        console.log("[PASSKEY] ✅ Passkey added to local state");
+        console.log("[PASSKEY] 📊 Total passkeys:", passkeys.value.length);
+
         toast({
           title: t("passkey_added"),
           description: t("passkey_added_desc"),
         });
       } else {
+        console.log("[PASSKEY] ❌ CompleteAddPasskey failed");
         toast({
           title: t("error"),
           description: t("passkey_add_error"),
@@ -1211,6 +1349,7 @@ const addPasskey = async () => {
         });
       }
     } else {
+      console.log("[PASSKEY] ❌ BeginAddPasskey failed");
       toast({
         title: t("error"),
         description: t("passkey_add_error"),
@@ -1218,14 +1357,34 @@ const addPasskey = async () => {
       });
     }
   } catch (error: any) {
+    console.log("[PASSKEY] ❌ Exception caught:", error);
+    console.log("[PASSKEY] 📛 Error name:", error.name);
+    console.log("[PASSKEY] 📝 Error message:", error.message);
+    console.log("[PASSKEY] 📚 Error stack:", error.stack);
+    
     // Handle user cancellation gracefully
     if (error.name === "NotAllowedError") {
+      console.log("[PASSKEY] 🚫 User cancelled or not allowed");
       toast({
         title: t("cancelled"),
         description: t("passkey_add_cancelled"),
       });
+    } else if (error.name === "NotSupportedError") {
+      console.log("[PASSKEY] ⚠️ WebAuthn not supported");
+      toast({
+        title: t("error"),
+        description: "WebAuthn not supported on this device",
+        variant: "destructive",
+      });
+    } else if (error.name === "InvalidStateError") {
+      console.log("[PASSKEY] ⚠️ Invalid state or authenticator already registered");
+      toast({
+        title: t("error"),
+        description: "This authenticator is already registered",
+        variant: "destructive",
+      });
     } else {
-      console.error("Passkey creation error:", error);
+      console.error("[PASSKEY] 💥 Unexpected error:", error);
       toast({
         title: t("error"),
         description: t("passkey_add_error"),
@@ -1236,22 +1395,37 @@ const addPasskey = async () => {
 };
 
 const removePasskey = async (id: string) => {
+  console.log("[PASSKEY] 🗑️ Starting passkey removal process");
+  console.log("[PASSKEY] 🆔 Passkey ID to remove:", id);
+  
   const index = passkeys.value.findIndex((p) => p.id === id);
-  if (index === -1) return;
+  console.log("[PASSKEY] 📍 Passkey index:", index);
+  
+  if (index === -1) {
+    console.log("[PASSKEY] ❌ Passkey not found in local state");
+    return;
+  }
 
   const passkey = passkeys.value[index];
+  console.log("[PASSKEY] 📝 Passkey to remove:", passkey);
 
   try {
+    console.log("[PASSKEY] 📡 Calling RemovePasskey API...");
     const result = await api.securityInteraction.RemovePasskey(id);
+    console.log("[PASSKEY] 📥 RemovePasskey result:", result);
 
     if (result.isSuccessRemovePasskey()) {
+      console.log("[PASSKEY] ✅ RemovePasskey successful");
       passkeys.value.splice(index, 1);
+      console.log("[PASSKEY] ✅ Passkey removed from local state");
+      console.log("[PASSKEY] 📊 Remaining passkeys:", passkeys.value.length);
 
       toast({
         title: t("passkey_removed"),
         description: `${passkey.name} ${t("has_been_removed")}`,
       });
     } else {
+      console.log("[PASSKEY] ❌ RemovePasskey failed");
       toast({
         title: t("error"),
         description: t("passkey_remove_error"),
@@ -1259,6 +1433,8 @@ const removePasskey = async (id: string) => {
       });
     }
   } catch (error) {
+    console.log("[PASSKEY] ❌ Exception caught:", error);
+    console.error("[PASSKEY] 💥 Error details:", error);
     toast({
       title: t("error"),
       description: t("passkey_remove_error"),
@@ -1352,16 +1528,8 @@ const formatDate = (date: Date) => {
 };
 
 const getBadgeIcon = (badge: string) => {
-  // Fallback: staff -> coin_argxstaff
   const badgeId = badge === "staff" ? "coin_argxstaff" : badge;
-
-  // Check if it's a coin badge from items.json
-  if (badgeId.startsWith("coin_")) {
-    return `/src/assets/icons/inventory/${badgeId}-64px.png`;
-  }
-
-  // Default fallback for non-coin badges
-  return `/src/assets/icons/inventory/${badgeId}-64px.png`;
+  return new URL(`../../assets/icons/inventory/${badgeId}-64px.png`, import.meta.url).href;
 };
 
 // Load initial data
