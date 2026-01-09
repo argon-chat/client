@@ -69,7 +69,6 @@ export class WorkletBase {
     const disposable = new Disposable<AudioWorkletNode>(
       vuNode,
       async (node) => {
-        logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
       }
@@ -95,7 +94,6 @@ export class WorkletBase {
     const disposable = new Disposable<AudioWorkletNode>(
       stmNode,
       async (node) => {
-        logger.warn("Node disconnected", node);
         node.port.close();
         node.disconnect();
       }
@@ -105,7 +103,6 @@ export class WorkletBase {
   }
 
   setEnabledVUNode(node: AudioWorkletNode, isEnabled: boolean) {
-    logger.info("set vu node settings, enabled ", isEnabled ? 1.0 : 0.0);
     node.parameters
       .get("enabled")
       ?.setValueAtTime(

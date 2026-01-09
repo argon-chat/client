@@ -402,14 +402,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         logger.info(`[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`);
       }
     });
-
-    // Process already subscribed tracks
-    for (const [trackSid, publication] of p.trackPublications) {
-      if (publication.isSubscribed && publication.track) {
-        logger.info(`[CALL] Processing existing track for ${uid}:`, publication.kind);
-        await onTrackSubscribed(publication.track, publication, p);
-      }
-    }
   }
 
   async function updateRtcStats() {
@@ -604,11 +596,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       await r.localParticipant.publishTrack(mic, {
         red: true,
         simulcast: true,
-        stopMicTrackOnMute: true,
+        stopMicTrackOnMute: false, // Changed to false so track keeps sending data
         audioPreset: AudioPresets.musicStereo,
         forceStereo: true,
         degradationPreference: "maintain-resolution"
       });
+
+      // Setup speaking detector AFTER publish
+      disposables.addSubscription(setupLocalSpeakingDetector(mic.mediaStreamTrack, opts.selfId));
 
       // Mute IMMEDIATELY after publishing if needed (before attributes)
       if (shouldMuteMic) {
@@ -638,8 +633,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       });
 
       mic.setProcessor(audio.createRtcProcessor());
-
-      disposables.addSubscription(setupLocalSpeakingDetector(mic, opts.selfId));
 
       const onIdc = audio.onInputDeviceChanged(async (devId) => {
         logger.warn("audio input device has changed");
@@ -694,9 +687,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
   }
 
-  function setupLocalSpeakingDetector(track: LocalAudioTrack, userId: string) {
+  function setupLocalSpeakingDetector(rawTrack: MediaStreamTrack, userId: string) {
     const audioCtx = audio.getCurrentAudioContext();
-    const mediaStream = new MediaStream([track.mediaStreamTrack]);
+    const mediaStream = new MediaStream([rawTrack]);
 
     const src = audioCtx.createMediaStreamSource(mediaStream);
     const analyser = audioCtx.createAnalyser();
@@ -722,7 +715,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       }
       const rms = Math.sqrt(sum / buffer.length);
 
-      const newState = rms > threshold;
+      // Check if microphone is muted - if so, don't show speaking indicator
+      const isMicMuted = sys.microphoneMuted;
+      const newState = !isMicMuted && rms > threshold;
 
       if (newState !== speakingState) {
         speakingState = newState;
@@ -748,10 +743,15 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   function applyMuteAllToExistingParticipants(isMutedAll: boolean) {
     if (!room.value) return;
 
-    const volume = isMutedAll ? 0 : 100;
-
     Object.values(participants).forEach((x) => {
-      setVolume(x.userId, volume);
+      if (isMutedAll) {
+        // Mute: set volume to 0 WITHOUT saving to localStorage
+        setVolume(x.userId, 0, true);
+      } else {
+        // Unmute: restore saved volume from localStorage
+        const savedVolume = userVolume.getUserVolume(x.userId);
+        setVolume(x.userId, savedVolume, true);
+      }
     });
   }
 
@@ -781,7 +781,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
 
     if (track.kind === Track.Kind.Audio) {
-      logger.warn(track);
+      // Check if audio graph already exists for this user
+      const existing = participants[uid];
+      if (existing?.gain) {
+        logger.warn(`[CALL] Audio graph already exists for ${uid}, skipping duplicate setup`);
+        return;
+      }
+      
+      logger.info(`[CALL] Setting up audio graph for ${uid}`);
       disposables.addSubscription(setupAudioGraph(uid, track));
     }
   }
@@ -804,6 +811,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   }
 
   function setupAudioGraph(userId: string, track: RemoteTrack) {
+    const pdata = participants[userId];
+    if (pdata?.gain) {
+      logger.error(`[CALL] setupAudioGraph called for ${userId} but gain already exists! Preventing duplicate.`);
+      return new Subscription(() => {}); // Return empty subscription
+    }
+    
     const audioCtx = audio.getCurrentAudioContext();
 
     const el = document.createElement("audio");
@@ -833,7 +846,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     src.connect(analyser).connect(gain).connect(audioCtx.destination);
 
-    const pdata = participants[userId];
+    // pdata already declared at the top of the function
     if (pdata) {
       pdata.gain = gain;
 
@@ -879,10 +892,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         speakingState = newState;
         if (speakingState) {
           speaking.add(userId);
-          logger.info(`[SPEAKING] ${userId} started speaking (remote)`);
         } else {
           speaking.delete(userId);
-          logger.info(`[SPEAKING] ${userId} stopped speaking (remote)`);
         }
       }
 
@@ -900,7 +911,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
   }
 
-  function setVolume(userId: string, vol: number) {
+  function setVolume(userId: string, vol: number, skipSave = false) {
     const u = participants[userId];
     if (!u || !u.gain) return;
 
@@ -908,7 +919,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     u.gain.gain.setValueAtTime(g, u.gain.context.currentTime);
     u.volume = [vol];
 
-    userVolume.setUserVolume(userId, vol);
+    if (!skipSave) {
+      userVolume.setUserVolume(userId, vol);
+    }
 
     // Update volume in realtimeStore for UI sync
     if (targetId.value) {

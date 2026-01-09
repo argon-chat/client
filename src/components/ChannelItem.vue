@@ -60,7 +60,6 @@
         </ContextMenuTrigger>
         <ContextMenuContent class="w-64">
           <ContextMenuLabel v-show="user.userId != me.me?.userId">
-            <!-- @vue-ignore -->
             <VolumeSlider :user="user"/>
           </ContextMenuLabel>
           <ContextMenuItem 

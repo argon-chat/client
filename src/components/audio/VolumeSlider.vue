@@ -1,6 +1,7 @@
 <template>
     <!-- @vue-ignore -->
     <Slider :max="200" :step="1" v-model="user.volume" :range-class="volumeRangeClass" :thumb-class="volumeThumbClass"
+        :disabled="sys.headphoneMuted"
         @update:model-value="onVolumeChange" @dblclick="resetVolume" />
 </template>
 
@@ -8,10 +9,12 @@
 import { IRealtimeChannelUserWithData } from "@/store/poolStore";
 import { computed } from "vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
+import { useSystemStore } from "@/store/systemStore";
 import Slider from "@/components/ui/slider/Slider.vue";
 
 const props = defineProps<{ user: IRealtimeChannelUserWithData }>();
 const voice = useUnifiedCall();
+const sys = useSystemStore();
 const volumeRangeClass = computed(() => {
     // @ts-ignore
     const vol = props.user.volume[0];

@@ -11,10 +11,10 @@
     />
     <span>{{ user.User.displayName }}</span>
     <div class="flex items-center gap-1" style="margin-left: auto;">
-      <MicOffIcon v-if="isMuted" width="16" height="16" />
-      <HeadphoneOffIcon v-if="isHeadphoneMuted" width="16" height="16" />
-      <ScreenShare v-if="user.isScreenShare" width="16" height="16" />
-      <RadiusIcon v-if="user.isRecording" width="16" height="16" style="color: red;" />
+      <MicOffIcon v-if="isMuted" class="w-5 h-5"  />
+      <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-5 h-5" />
+      <ScreenShare v-if="user.isScreenShare" class="w-5 h-5" />
+      <RadiusIcon v-if="user.isRecording" class="w-5 h-5" style="color: red;" />
     </div>
   </li>
 </template>
