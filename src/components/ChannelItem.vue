@@ -71,12 +71,6 @@
             {{ t("kick") }}
             <ContextMenuShortcut>⌘]</ContextMenuShortcut>
           </ContextMenuItem>
-
-          <ContextMenuSeparator v-show="user.userId != me.me?.userId" />
-          <ContextMenuCheckboxItem :disabled="true">
-            Ya ebal mamu
-            <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
-          </ContextMenuCheckboxItem>
         </ContextMenuContent>
       </ContextMenu>
     </ul>

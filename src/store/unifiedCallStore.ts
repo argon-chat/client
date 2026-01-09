@@ -9,6 +9,7 @@ import {
   ScreenShareCaptureOptions,
   Track,
   LocalAudioTrack,
+  AudioPresets,
 } from "livekit-client";
 import { ref, reactive, computed } from "vue";
 
@@ -22,7 +23,7 @@ import { useBus } from "./busStore";
 import { useUserVolumeStore } from "./userVolumeStore";
 import { useRealtimeStore } from "./realtimeStore";
 
-import { CallIncoming, CallFinished, CallAccepted } from "@/lib/glue/argonChat";
+import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@/lib/glue/argonChat";
 import { startTimer } from "@/lib/intervalTimer";
 import { useSystemStore } from "./systemStore";
 import { DisposableBag } from "@/lib/disposables";
@@ -63,8 +64,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     rtcTimer = null;
   }
 
-  const participants = reactive(
-    new Map<
+  const participants = reactive<
+    Record<
       string,
       {
         userId: string;
@@ -75,8 +76,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         volume: number[];
         gain: GainNode | null;
       }
-    >()
-  );
+    >
+  >({});
 
   const videoTracks = reactive(new Map<string, RemoteTrack>());
 
@@ -88,17 +89,17 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   let screenTrackPub: any = null;
 
   const ping = ref(-1);
-  
+
   // Ping history for graph (last 10 minutes, 1 sample per second)
   const pingHistory = reactive<Array<{ timestamp: number; value: number }>>([]);
   const maxPingHistorySize = 600; // 10 minutes * 60 seconds
-  
+
   const averagePing = computed(() => {
     if (pingHistory.length === 0) return -1;
     const sum = pingHistory.reduce((acc, item) => acc + item.value, 0);
     return Math.round(sum / pingHistory.length);
   });
-  
+
   const interval = reactive({
     sec: 0,
     min: 0,
@@ -141,7 +142,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isConnected.value = false;
     isReconnecting.value = false;
 
-    participants.clear();
+    Object.keys(participants).forEach(key => delete participants[key]);
     videoTracks.clear();
     speaking.clear();
     incoming.value = null;
@@ -178,6 +179,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       token: res.token,
       callId: res.callId,
       selfId: me.me!.userId,
+      rts: res.rtc,
     });
 
     startTimersRTT();
@@ -216,6 +218,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       token: res.token,
       callId: res.callId,
       selfId: me.me!.userId,
+      rts: res.rtc,
     });
 
     startTimersRTT();
@@ -258,7 +261,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     await joinLiveKit({
       token: join.token,
       callId: callId.value!,
-      selfId: me.me!.userId,
+      selfId: me.me!.userId, 
+      rts: join.rtc,
     });
 
     startTimersRTT();
@@ -273,12 +277,16 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       try {
         const currentPing = room.value?.engine?.client?.rtt ?? -1;
         ping.value = currentPing;
-        
+
         // Add to history every second (skip if same timestamp)
         const now = Date.now();
-        if (currentPing >= 0 && (pingHistory.length === 0 || now - pingHistory[pingHistory.length - 1].timestamp >= 1000)) {
+        if (
+          currentPing >= 0 &&
+          (pingHistory.length === 0 ||
+            now - pingHistory[pingHistory.length - 1].timestamp >= 1000)
+        ) {
           pingHistory.push({ timestamp: now, value: currentPing });
-          
+
           // Keep only last 10 minutes
           if (pingHistory.length > maxPingHistorySize) {
             pingHistory.shift();
@@ -303,6 +311,105 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (pingTimer) clearInterval(pingTimer);
     if (intervalTimer) intervalTimer();
     pingHistory.length = 0; // Clear history
+  }
+
+  async function addParticipant(p: RemoteParticipant) {
+    const uid = p.identity;
+    
+    // Skip if already added
+    if (participants[uid]) {
+      logger.warn(`[CALL] Participant ${uid} already exists, updating state`);
+    }
+
+    const info = await pool.getUser(uid);
+    const savedVolume = userVolume.getUserVolume(uid);
+
+    // Read initial muted state from tracks
+    const audioPub = Array.from(p.trackPublications.values()).find(
+      (t) => t.kind === Track.Kind.Audio
+    );
+    
+    // Check both publication and actual track if subscribed
+    let isInitiallyMuted = audioPub?.isMuted ?? false;
+    if (audioPub?.track) {
+      isInitiallyMuted = audioPub.track.isMuted;
+    }
+    
+    logger.info(`[CALL] Reading initial mute state for ${uid}:`, {
+      pubMuted: audioPub?.isMuted,
+      trackMuted: audioPub?.track?.isMuted,
+      finalMuted: isInitiallyMuted
+    });
+
+    // Read initial attributes
+    const isInitiallyMutedAll = p.attributes?.isMutedAll === "true";
+    const isInitiallyScreencast = p.attributes?.isScreencast === "true";
+
+    logger.info(`[CALL] Adding participant ${uid}:`, {
+      muted: isInitiallyMuted,
+      mutedAll: isInitiallyMutedAll,
+      screencast: isInitiallyScreencast,
+      attributes: p.attributes
+    });
+
+    participants[uid] = {
+      userId: uid,
+      displayName: info?.displayName ?? "Unknown User",
+      muted: isInitiallyMuted,
+      volume: [savedVolume],
+      gain: null,
+      mutedAll: isInitiallyMutedAll,
+      screencast: isInitiallyScreencast,
+    };
+
+    const isMutedAll = sys.headphoneMuted;
+
+    if (isMutedAll) {
+      setVolume(uid, 0);
+    } else {
+      setVolume(uid, savedVolume);
+    }
+
+    // Setup event listeners for this participant
+    p.on("trackMuted", (pub) => {
+      if (pub.kind === Track.Kind.Audio) {
+        const pm = participants[uid];
+        if (pm) {
+          pm.muted = true;
+          logger.info(`[MUTE] ${uid} muted microphone`);
+        }
+      }
+    });
+    
+    p.on("trackUnmuted", (pub) => {
+      if (pub.kind === Track.Kind.Audio) {
+        const pm = participants[uid];
+        if (pm) {
+          pm.muted = false;
+          logger.info(`[MUTE] ${uid} unmuted microphone`);
+        }
+      }
+    });
+    
+    p.setAudioContext(audio.getCurrentAudioContext());
+    
+    p.on("attributesChanged", (x) => {
+      logger.info("attributesChanged", uid, x);
+      const pm = participants[uid];
+      if (pm) {
+        pm.mutedAll = x.isMutedAll === "true";
+        pm.screencast = x.isScreencast === "true";
+        logger.info(`[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`);
+      }
+    });
+
+    // Process already subscribed tracks
+    for (const [trackSid, publication] of p.trackPublications) {
+      if (publication.isSubscribed && publication.track) {
+        logger.info(`[CALL] Processing existing track for ${uid}:`, publication.kind);
+        await onTrackSubscribed(publication.track, publication, p);
+      }
+    }
   }
 
   async function updateRtcStats() {
@@ -407,6 +514,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     token: string;
     callId: string;
     selfId: string;
+    rts: RtcEndpoint;
   }) {
     if (isConnecting.value) return;
 
@@ -418,55 +526,19 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       return;
     }
 
-    const r = new Room();
+    const r = new Room({
+      loggerName: `${callId.value}-room`,
+    });
     room.value = r;
 
     r.on("participantConnected", async (p: RemoteParticipant) => {
-      const uid = p.identity;
-      const info = await pool.getUser(uid);
-
-      const savedVolume = userVolume.getUserVolume(uid);
-
-      participants.set(uid, {
-        userId: uid,
-        displayName: info?.displayName ?? "Unknown User",
-        muted: false,
-        volume: [savedVolume],
-        gain: null,
-        mutedAll: false,
-        screencast: false,
-      });
-
-      const isMutedAll = sys.headphoneMuted;
-
-      if (isMutedAll) {
-        setVolume(uid, 0);
-      } else {
-        setVolume(uid, savedVolume);
-      }
-
-      p.on("trackMuted", (pub) => {
-        const pm = participants.get(uid);
-        if (pm) pm.muted = true;
-      });
-      p.on("trackUnmuted", (pub) => {
-        const pm = participants.get(uid);
-        if (pm) pm.muted = false;
-      });
-      p.setAudioContext(audio.getCurrentAudioContext());
-      p.on("attributesChanged", (x) => {
-        logger.info("attributesChanged", x);
-        const pm = participants.get(uid);
-        if (pm) {
-          pm.mutedAll = x.isMutedAll === "true";
-          pm.screencast = x.isScreencast === "true";
-        }
-      });
+      logger.info(`[CALL] participantConnected event:`, p.identity);
+      await addParticipant(p);
     });
 
     r.on("participantDisconnected", (p) => {
       const uid = p.identity;
-      participants.delete(uid);
+      delete participants[uid];
       speaking.delete(uid);
       if (videoTracks.has(uid)) videoTracks.delete(uid);
       tone.playSoftLeaveSound();
@@ -491,7 +563,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
 
     try {
-      await r.connect("wss://rts.argon.gl", opts.token);
+      logger.warn("LiveKit connecting...", opts.rts.endpoint);
+      await r.connect(opts.rts.endpoint, opts.token, {
+        rtcConfig: {
+          bundlePolicy: "max-bundle",
+          iceTransportPolicy: "all",
+          rtcpMuxPolicy: "require",
+          iceServers: [
+            ...opts.rts.ices.map((x) => ({
+              urls: x.endpoint,
+              username: x.username,
+              credential: x.password,
+            })),
+          ],
+        },
+      });
     } catch (err) {
       logger.error("LiveKit connect failed", err);
       await leave();
@@ -509,8 +595,34 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         channelCount: 2,
       });
 
-      if (sys.microphoneMuted) mic.mute();
+      mic.setAudioContext(audioCtx);
+      
+      const shouldMuteMic = sys.microphoneMuted;
+      
+      logger.info(`[CALL] Publishing track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`);
+      
+      await r.localParticipant.publishTrack(mic, {
+        red: true,
+        simulcast: true,
+        stopMicTrackOnMute: true,
+        audioPreset: AudioPresets.musicStereo,
+        forceStereo: true,
+        degradationPreference: "maintain-resolution"
+      });
 
+      // Mute IMMEDIATELY after publishing if needed (before attributes)
+      if (shouldMuteMic) {
+        logger.info("[CALL] Muting mic AFTER publish");
+        await mic.mute();
+      }
+
+      // Set initial attributes for local participant IMMEDIATELY after mute
+      await r.localParticipant.setAttributes({
+        isMutedAll: sys.headphoneMuted ? "true" : "false",
+        isScreencast: "false",
+      });
+      
+      logger.info(`[CALL] Local participant published with muted=${mic.isMuted}, attributes set`);
       const mutedSub = sys.muteEvent.subscribe((x) => {
         if (x) mic.mute();
         else mic.unmute();
@@ -523,13 +635,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         });
 
         applyMuteAllToExistingParticipants(x);
-      });
-
-      mic.setAudioContext(audioCtx);
-      await r.localParticipant.publishTrack(mic, {
-        red: true,
-        simulcast: true,
-        stopMicTrackOnMute: true,
       });
 
       mic.setProcessor(audio.createRtcProcessor());
@@ -581,6 +686,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isConnecting.value = false;
     isConnected.value = true;
     tone.playSoftEnterSound();
+
+    // Process already connected participants
+    logger.info(`[CALL] Processing ${r.remoteParticipants.size} already connected participants`);
+    for (const [uid, participant] of r.remoteParticipants) {
+      await addParticipant(participant);
+    }
   }
 
   function setupLocalSpeakingDetector(track: LocalAudioTrack, userId: string) {
@@ -616,8 +727,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       if (newState !== speakingState) {
         speakingState = newState;
 
-        if (speakingState) speaking.add(userId);
-        else speaking.delete(userId);
+        if (speakingState) {
+          speaking.add(userId);
+        } else {
+          speaking.delete(userId);
+        }
       }
 
       requestAnimationFrame(detect);
@@ -636,7 +750,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     const volume = isMutedAll ? 0 : 100;
 
-    participants.forEach((x) => {
+    Object.values(participants).forEach((x) => {
       setVolume(x.userId, volume);
     });
   }
@@ -647,10 +761,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     participant: RemoteParticipant
   ) {
     const uid = participant.identity;
-    if (!participants.has(uid)) {
+    if (!participants[uid]) {
       const info = await pool.getUser(uid);
       const savedVolume = userVolume.getUserVolume(uid);
-      participants.set(uid, {
+      participants[uid] = {
         userId: uid,
         displayName: info?.displayName ?? "User",
         muted: pub.isMuted,
@@ -658,7 +772,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         gain: null,
         mutedAll: false,
         screencast: false,
-      });
+      };
     }
 
     if (track.kind === Track.Kind.Video) {
@@ -719,21 +833,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     src.connect(analyser).connect(gain).connect(audioCtx.destination);
 
-    const pdata = participants.get(userId);
+    const pdata = participants[userId];
     if (pdata) {
       pdata.gain = gain;
-      
+
       // Apply saved volume from localStorage
       const savedVolume = userVolume.getUserVolume(userId);
       const isMutedAll = sys.headphoneMuted;
-      
+
       if (isMutedAll) {
         gain.gain.setValueAtTime(0, gain.context.currentTime);
       } else {
         const g = Math.max(0, Math.min(savedVolume / 100, 2.0));
         gain.gain.setValueAtTime(g, gain.context.currentTime);
         pdata.volume = [savedVolume];
-        
+
         // Update volume in realtimeStore for UI sync
         if (targetId.value) {
           realtimeStore.setUserProperty(targetId.value, userId, (user) => {
@@ -763,8 +877,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
       if (newState !== speakingState) {
         speakingState = newState;
-        if (speakingState) speaking.add(userId);
-        else speaking.delete(userId);
+        if (speakingState) {
+          speaking.add(userId);
+          logger.info(`[SPEAKING] ${userId} started speaking (remote)`);
+        } else {
+          speaking.delete(userId);
+          logger.info(`[SPEAKING] ${userId} stopped speaking (remote)`);
+        }
       }
 
       requestAnimationFrame(detect);
@@ -782,15 +901,15 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   }
 
   function setVolume(userId: string, vol: number) {
-    const u = participants.get(userId);
+    const u = participants[userId];
     if (!u || !u.gain) return;
 
     const g = Math.max(0, Math.min(vol / 100, 2.0));
     u.gain.gain.setValueAtTime(g, u.gain.context.currentTime);
     u.volume = [vol];
-    
+
     userVolume.setUserVolume(userId, vol);
-    
+
     // Update volume in realtimeStore for UI sync
     if (targetId.value) {
       realtimeStore.setUserProperty(targetId.value, userId, (user) => {
@@ -813,7 +932,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
           chromeMediaSource: "desktop",
           chromeMediaSourceId: opts.deviceId,
         },
-      } as any
+      } as any;
     } else {
       oo = true;
     }
@@ -850,7 +969,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (callId.value === ev.callId) {
       await leave();
     }
-    
+
     // If this is the incoming call we're seeing - clear the overlay and stop ringing
     if (incoming.value?.callId === ev.callId) {
       tone.stopPlayRingSound();

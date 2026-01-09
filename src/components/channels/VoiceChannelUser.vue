@@ -56,7 +56,7 @@ const isMuted = computed(() => {
   }
   
   // Check remote participant
-  const participant = voice.participants.get(uid);
+  const participant = voice.participants[uid];
   return participant?.muted ?? false;
 });
 
@@ -73,7 +73,7 @@ const isHeadphoneMuted = computed(() => {
   }
   
   // Check remote participant
-  const participant = voice.participants.get(uid);
+  const participant = voice.participants[uid];
   return participant?.mutedAll ?? false;
 });
 </script>

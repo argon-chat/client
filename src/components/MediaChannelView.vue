@@ -173,12 +173,13 @@ const muteStates = computed(() => {
     }
     
     // Then add all remote participants from voice.participants
-    for (const [uid, participant] of voice.participants) {
+    for (const uid of Object.keys(voice.participants)) {
         // Skip if already added as local user
         if (uid === myId) continue;
         
+        const participant = voice.participants[uid];
         states.set(uid, {
-            muted: participant.muted,
+            muted: participant.muted,   
             headphoneMuted: participant.mutedAll
         });
     }
