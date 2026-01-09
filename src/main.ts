@@ -2,11 +2,11 @@ import "vue-advanced-cropper/dist/style.css";
 import "vue3-emoji-picker/css";
 import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
-import "./assets/index.css";
+import "@argon/assets/styles";
 
-import "@/lib/glue/argonChat";
-import "@/lib/glue/argon.ipc";
-import { native } from "./lib/glue/nativeGlue";
+import "@argon/glue";
+import "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 
 import pkg from "../package.json";
 import tailwindColorMap from "../tailwind-colors.json";
@@ -19,7 +19,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import { MotionPlugin } from "@vueuse/motion";
 import { createI18n } from "vue-i18n";
-import { locales, type Locale, type LocaleSchema } from "@/locales";
+import { coreMessages, type SupportedLocale, type CoreLocaleSchema } from "@argon/i18n";
 import { createSentryPiniaPlugin } from "@sentry/vue";
 
 window.ui_version = pkg.version;
@@ -28,11 +28,11 @@ window.ui_fullversion = pkg.fullVersion;
 window.ui_branch = pkg.branch;
 (window as any).tailwindColorMap = tailwindColorMap;
 
-export const i18n = createI18n<[LocaleSchema], Locale>({
+export const i18n = createI18n<[CoreLocaleSchema], SupportedLocale>({
   legacy: false,
   locale: "en",
   fallbackLocale: "en",
-  messages: locales as any,
+  messages: coreMessages as any,
   silentTranslationWarn: true,
   missingWarn: false,
   fallbackWarn: false,

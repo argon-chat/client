@@ -3,26 +3,20 @@ import { onMounted, ref, computed, watch } from 'vue';
 import InventoryView from './InventoryView.vue';
 import InventoryItemGranted from './InventoryItemGranted.vue';
 import { useApi } from '@/store/apiStore';
-import { logger } from '@/lib/logger';
-import { InventoryItem, RedeemError } from '@/lib/glue/argonChat';
-import itemsData from "@/assets/icons/inventory/items.json";
-import ContextMenu from '@/components/ui/context-menu/ContextMenu.vue';
-import ContextMenuTrigger from '@/components/ui/context-menu/ContextMenuTrigger.vue';
-import ContextMenuContent from '@/components/ui/context-menu/ContextMenuContent.vue';
-import ContextMenuItem from '@/components/ui/context-menu/ContextMenuItem.vue';
-import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
-import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
-import TooltipProvider from '@/components/ui/tooltip/TooltipProvider.vue';
-import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
+import { logger } from '@argon/core';
+import { InventoryItem, RedeemError } from '@argon/glue';
+import itemsData from "@argon/assets/icons/inventory/items.json";
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from '@argon/ui/context-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconFilter, IconSortAscending, IconSparkles } from '@tabler/icons-vue';
 import { useConfigStore } from '@/store/configStore';
-import Button from '@/components/ui/button/Button.vue';
+import { Button } from '@argon/ui/button';
 import { useLocale } from '@/store/localeStore';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@argon/ui/toast';
 import { useNotifications } from '@/composables/useNotifications';
 
-const effects = import.meta.glob('@/assets/icons/inventory/*.webm', { eager: true, import: 'default' });
-const icons = import.meta.glob('@/assets/icons/inventory/*.png', { eager: true, import: 'default' });
+const effects = import.meta.glob('/packages/assets/icons/inventory/*.webm', { eager: true, import: 'default' }) as Record<string, string>;
+const icons = import.meta.glob('/packages/assets/icons/inventory/*.png', { eager: true, import: 'default' }) as Record<string, string>;
 
 export interface ItemDef {
   id: string;
@@ -94,11 +88,11 @@ const filteredItems = computed(() => {
 });
 
 const getVideoForItem = (item: InventoryItemView | null) => {
-  return effects[`/src/assets/icons/inventory/effect_${item?.class}.webm`] as string;
+  return effects[`/packages/assets/icons/inventory/effect_${item?.class}.webm`];
 }
 
 const getIconForItem = (item: ItemDef | null): string => {
-  return icons[`/src/assets/icons/inventory/${item?.id}.png`] as string;
+  return icons[`/packages/assets/icons/inventory/${item?.id}.png`];
 }
 
 const rarityClasses = {

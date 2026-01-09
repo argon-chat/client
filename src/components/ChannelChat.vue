@@ -11,8 +11,8 @@ import { usePoolStore } from "@/store/poolStore";
 import TextChannelView from "./TextChannelView.vue";
 import MediaChannelView from "./MediaChannelView.vue";
 import AnnouncementChannelView from "./AnnouncementChannelView.vue";
-import { ArgonChannel, ChannelType } from "@/lib/glue/argonChat";
-import { logger } from "@/lib/logger";
+import { ArgonChannel, ChannelType } from "@argon/glue";
+import { logger } from "@argon/core";
 
 const pool = usePoolStore();
 

@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue';
-import type { ArgonSpaceBase } from '@/lib/glue/argonChat';
+import type { ArgonSpaceBase } from '@argon/glue';
 
 const STORAGE_KEY = 'argon_recent_spaces';
 const VIEW_MODE_KEY = 'argon_recent_spaces_view';

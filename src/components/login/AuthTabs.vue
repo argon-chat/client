@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@argon/ui/tabs";
 import { TabType, useAuthForm } from "@/composables/useAuthForm";
 
 import LoginForm from "./LoginForm.vue";

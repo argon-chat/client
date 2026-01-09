@@ -1,5 +1,5 @@
-import { toast } from "@/components/ui/toast";
-import { logger } from "@/lib/logger";
+import { toast } from "@argon/ui/toast";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
@@ -9,7 +9,7 @@ import {
   ChannelType,
   InviteCode,
   InviteCodeEntity,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
 

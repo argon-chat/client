@@ -26,6 +26,7 @@ export default {
     './components/**/*.{ts,tsx,vue}',
     './app/**/*.{ts,tsx,vue}',
     './src/**/*.{ts,tsx,vue}',
+    './packages/*/src/**/*.{ts,tsx,vue}',
 	],
   
   theme: {

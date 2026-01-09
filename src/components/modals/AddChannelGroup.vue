@@ -55,14 +55,14 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@argon/ui/button";
+import { Input } from "@argon/ui/input";
 import { shallowRef, onUnmounted, nextTick } from "vue";
-import { logger } from "@/lib/logger";
-import { Label } from "@/components/ui/label";
+import { logger } from "@argon/core";
+import { Label } from "@argon/ui/label";
 import { useApi } from "@/store/apiStore";
 import { v7 } from "uuid";
 

@@ -305,10 +305,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from "vue";
 import { useLocale } from "@/store/localeStore";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import Switch from "@/components/ui/switch/Switch.vue";
+import { Button } from "@argon/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
+import { Slider } from "@argon/ui/slider";
+import { Switch } from "@argon/ui/switch";
 import {
     PaletteIcon,
     TypeIcon,
@@ -327,8 +327,8 @@ import {
     ShrinkIcon,
     EyeIcon
 } from "lucide-vue-next";
-import { persistedValue } from "@/lib/persistedValue";
-import { useToast } from "@/components/ui/toast";
+import { persistedValue } from "@argon/storage";
+import { useToast } from "@argon/ui/toast";
 import { useTheme, type ThemeId } from "@/composables/useTheme";
 
 const { t } = useLocale();

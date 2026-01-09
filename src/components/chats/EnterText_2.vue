@@ -48,16 +48,16 @@ import {
   LexicalComposer,
 } from "lexical-vue";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
-import { Button } from "@/components/ui/button";
+import { Button } from "@argon/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@argon/ui/popover";
 import { SmileIcon, SendHorizonalIcon, X } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { usePoolStore, type MentionUser } from "@/store/poolStore";
-import { ArgonMessage } from "@/lib/glue/argonChat";
+import { ArgonMessage } from "@argon/glue";
 import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();
 

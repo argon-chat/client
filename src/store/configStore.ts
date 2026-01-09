@@ -5,8 +5,8 @@ import {
   type ConfigSectionMetadata_Value,
   type ConfigKeyMetadata_Value,
   type SetRequest,
-} from "@/lib/glue/argon.ipc";
-import { native } from "@/lib/glue/nativeGlue";
+} from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 
 export const useConfigStore = defineStore("nativeConfig", () => {
   const sections = ref<ConfigSectionMetadata_Value[]>([]);

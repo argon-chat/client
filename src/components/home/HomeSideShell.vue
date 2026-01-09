@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import Button from '../ui/button/Button.vue';
+import { Button } from '@argon/ui/button';
 import ControlBar from './../ControlBar.vue';
 import UserBar from './../UserBar.vue';
 import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification, IconDialpad } from "@tabler/icons-vue"
 import { computed, onMounted, PropType, ref, onUnmounted } from 'vue';
 import { useLocale } from "@/store/localeStore";
-import Separator from '../ui/separator/Separator.vue';
+import { Separator } from '@argon/ui/separator';
 import RecentUserItem from './views/RecentUserItem.vue';
 import router from '@/router';
 import { useRecentChatsStore } from '@/store/useRecentChatsStore';
@@ -15,13 +15,13 @@ import type {
     ChatPinnedEvent,
     ChatUnpinnedEvent,
     ChatReadEvent,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import { useBus } from '@/store/busStore';
-import { DisposableBag } from '@/lib/disposables';
+import { DisposableBag } from '@argon/core';
 import { NBadge } from 'naive-ui';
 import { useMe } from '@/store/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();

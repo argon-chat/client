@@ -37,8 +37,8 @@ import {
     DrawerHeader,
     DrawerTitle,
     DrawerDescription,
-} from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
+} from "@argon/ui/drawer";
+import { Button } from "@argon/ui/button";
 import { useWindow } from "@/store/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
 import Invites from "@/components/settings/Invites.vue";

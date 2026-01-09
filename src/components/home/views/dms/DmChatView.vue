@@ -74,7 +74,7 @@ import { CircleArrowDown, Loader2Icon, MessageSquareIcon } from "lucide-vue-next
 
 import MessageItem from "@/components/MessageItem.vue";
 
-import { DirectMessage, EntityType, IMessageEntity, MessageEntityMention, ArgonMessage, DirectMessageSent } from "@/lib/glue/argonChat";
+import { DirectMessage, EntityType, IMessageEntity, MessageEntityMention, ArgonMessage, DirectMessageSent } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 import { useApi } from "@/store/apiStore";
@@ -82,8 +82,8 @@ import { usePoolStore } from "@/store/poolStore";
 import { useMe } from "@/store/meStore";
 import { useTone } from "@/store/toneStore";
 import { useLocale } from "@/store/localeStore";
-import { cn } from "@/lib/utils";
-import { logger } from "@/lib/logger";
+import { cn } from "@argon/core";
+import { logger } from "@argon/core";
 
 import type { Subscription } from "rxjs";
 import { useBus } from "@/store/busStore";

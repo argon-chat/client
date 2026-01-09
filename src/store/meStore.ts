@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { setUser } from "@sentry/vue";
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -13,7 +13,7 @@ import {
   LockdownSeverity,
   LockedAuthStatus,
   UserStatus,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import { useAuthStore } from "./authStore";
 import delay from "@/lib/delay";
 

@@ -1,17 +1,17 @@
 import { defineStore } from "pinia";
 import { useApi } from "./apiStore";
 import { ref } from "vue";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { interval, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
-import { ActivityPresenceKind } from "@/lib/glue/argonChat";
+import { ActivityPresenceKind } from "@argon/glue";
 import {
   AudioPlaying,
   AudioPlayingEnd,
   ProcessEnd,
   ProcessPlaying,
-} from "@/lib/glue/argon.ipc";
-import { native } from "@/lib/glue/nativeGlue";
+} from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 
 type Presence = {
   kind: ActivityPresenceKind;

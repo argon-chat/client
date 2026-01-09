@@ -1,8 +1,8 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { type Reactive, reactive, ref, shallowReactive } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
-import type { ArgonChannel, RealtimeChannelUser } from "@/lib/glue/argonChat";
+import type { ArgonChannel, RealtimeChannelUser } from "@argon/glue";
 import type { RealtimeUser } from "./db/dexie";
 
 /**

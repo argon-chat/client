@@ -17,16 +17,16 @@ import { audio } from "@/lib/audio/AudioManager";
 import { useApi } from "./apiStore";
 import { usePoolStore } from "./poolStore";
 import { useTone } from "./toneStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { useMe } from "./meStore";
 import { useBus } from "./busStore";
 import { useUserVolumeStore } from "./userVolumeStore";
 import { useRealtimeStore } from "./realtimeStore";
 
-import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@/lib/glue/argonChat";
+import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
 import { startTimer } from "@/lib/intervalTimer";
 import { useSystemStore } from "./systemStore";
-import { DisposableBag } from "@/lib/disposables";
+import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
 
 export const useUnifiedCall = defineStore("unifiedCall", () => {

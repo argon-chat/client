@@ -88,8 +88,8 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
   ContextMenuLabel,
-} from '@/components/ui/context-menu';
-import { ChannelType } from '@/lib/glue/argonChat';
+} from '@argon/ui/context-menu';
+import { ChannelType } from '@argon/glue';
 import { usePexStore } from '@/store/permissionStore';
 import { useLocale } from '@/store/localeStore';
 import { useMe } from '@/store/meStore';
@@ -97,7 +97,7 @@ import { useUnifiedCall } from '@/store/unifiedCallStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
 import type { Guid } from '@argon-chat/ion.webcore';
-import type { ArgonChannel } from '@/lib/glue/argonChat';
+import type { ArgonChannel } from '@argon/glue';
 import type { IRealtimeChannel } from '@/store/realtimeStore';
 
 const props = defineProps<{

@@ -38,10 +38,10 @@ import { CameraIcon } from "lucide-vue-next";
 import ArgonAvatar from "../ArgonAvatar.vue";
 import AvatarCropDialog from "./AvatarCropDialog.vue";
 import BuyPremium from "../modals/BuyPremium.vue";
-import { useToast } from "@/components/ui/toast/use-toast";
+import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/meStore";
 import { useApi } from "@/store/apiStore";
-import { UploadFileError } from "@/lib/glue/argonChat";
+import { UploadFileError } from "@argon/glue";
 import { v7 } from "uuid";
 
 interface Props {

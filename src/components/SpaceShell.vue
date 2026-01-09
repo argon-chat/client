@@ -4,7 +4,7 @@ import ChannelChat from './ChannelChat.vue';
 import LeftSideUserList from './LeftSideUserList.vue';
 import SpaceSideShell from './SpaceSideShell.vue';
 import { computed, watch } from 'vue';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();

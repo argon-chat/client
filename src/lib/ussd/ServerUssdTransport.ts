@@ -1,7 +1,7 @@
 import { useApi } from "@/store/apiStore";
 import { IUssdTransport, UssdRequest, UssdResponse } from "./IUssdTransport";
 import { v7 } from "uuid";
-import { logger } from "../logger";
+import { logger } from "@argon/core";
 
 export class ServerUssdTransport implements IUssdTransport {
   async execute(request: UssdRequest): Promise<UssdResponse> {

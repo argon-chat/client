@@ -46,7 +46,7 @@ import { useApi } from '@/store/apiStore';
 import { useLocale } from '@/store/localeStore';
 import { IconChartBar, IconClock, IconPhoneCall, IconMessage } from '@tabler/icons-vue';
 import { ref, computed, onMounted } from 'vue';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 
 const { t } = useLocale();
 const api = useApi();

@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { computedAsync } from "@vueuse/core";
 import { useObservable } from "@vueuse/rxjs";
 import { liveQuery, type Subscription } from "dexie";
@@ -11,7 +11,7 @@ import {
   type ArgonUser,
   UserStatus,
   type UserActivityPresence,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 export interface MentionUser {

@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import type { IMessageEntity } from "@/lib/glue/argonChat";
+import type { IMessageEntity } from "@argon/glue";
 
 const props = defineProps<{
     entity: IMessageEntity;

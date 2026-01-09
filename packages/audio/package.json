@@ -1,0 +1,22 @@
+{
+  "name": "@argon/audio",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./worklets/*": "./worklets/*"
+  },
+  "files": [
+    "src",
+    "worklets"
+  ],
+  "dependencies": {
+    "@argon/core": "workspace:*",
+    "rxjs": "*",
+    "uuid": "*",
+    "vue": "*"
+  }
+}

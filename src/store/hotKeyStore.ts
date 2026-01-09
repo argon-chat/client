@@ -4,10 +4,10 @@ import {
   HotkeyDescriptor,
   HotkeyPhase,
   HotKeyTriggered,
-} from "@/lib/glue/argon.ipc";
-import { native } from "@/lib/glue/nativeGlue";
-import { logger } from "@/lib/logger";
-import { persistedValue } from "@/lib/persistedValue";
+} from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
+import { logger } from "@argon/core";
+import { persistedValue } from "@argon/storage";
 import { defineStore } from "pinia";
 import { filter, Subject, type Subscription } from "rxjs";
 import { ref } from "vue";

@@ -117,18 +117,18 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@argon/ui/tooltip";
 import { useApi } from "@/store/apiStore";
 import { usePoolStore } from "@/store/poolStore";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
 import ArgonBanner from "./../ArgonBanner.vue";
-import IconCat from "@/assets/icons/icon_cat.svg"
-import IconCpu from "@/assets/icons/icon_gpu_04.svg"
-import IconClean from "@/assets/icons/icon_clean.svg"
-import IconGiga from "@/assets/icons/icon_gigachad.svg"
-import { ActivityPresenceKind, ArgonUserProfile } from "@/lib/glue/argonChat";
+import IconCat from "@argon/assets/icons/icon_cat.svg"
+import IconCpu from "@argon/assets/icons/icon_gpu_04.svg"
+import IconClean from "@argon/assets/icons/icon_clean.svg"
+import IconGiga from "@argon/assets/icons/icon_gigachad.svg"
+import { ActivityPresenceKind, ArgonUserProfile } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 const isLoading = ref(true);

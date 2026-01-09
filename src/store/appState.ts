@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { useOnline } from "@vueuse/core";
 import delay from "@/lib/delay";
 import { ref } from "vue";
@@ -10,10 +10,14 @@ import { useMe } from "./meStore";
 import { usePredictor } from "./predictorStore";
 import { useIdleStore } from "./idleStore";
 import { useActivity } from "./activityStore";
-import { worklets } from "@/lib/audio/WorkletBase";
+import { worklets, initWorklets } from "@/lib/audio/WorkletBase";
+import { audio } from "@/lib/audio/AudioManager";
 import router from "@/router";
 import { useConfigStore } from "./configStore";
 import { usePoolStore } from "./poolStore";
+
+// Initialize worklets with audio getter to break circular dependency
+initWorklets(() => audio);
 
 export const useAppState = defineStore("app", () => {
   const isOnline = useOnline();

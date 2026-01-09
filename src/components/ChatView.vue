@@ -105,7 +105,7 @@ import { AntennaIcon, CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon 
 
 import MessageItem from "@/components/MessageItem.vue";
 
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@/lib/glue/argonChat";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 import { useApi } from "@/store/apiStore";
@@ -113,8 +113,8 @@ import { usePoolStore } from "@/store/poolStore";
 import { useMe } from "@/store/meStore";
 import { useTone } from "@/store/toneStore";
 import { useLocale } from "@/store/localeStore";
-import { cn } from "@/lib/utils";
-import { logger } from "@/lib/logger";
+import { cn } from "@argon/core";
+import { logger } from "@argon/core";
 
 import type { Subscription } from "rxjs";
 

@@ -34,6 +34,8 @@
 		"src/**/*.ts",
 		"src/**/*.tsx",
 		"src/**/*.vue",
+		"packages/*/src/**/*.ts",
+		"packages/*/src/**/*.vue",
 		"global.d.ts",
 		"argon.d.ts"
 	]

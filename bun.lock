@@ -6,6 +6,16 @@
       "name": "ui",
       "dependencies": {
         "@argon-chat/ion.webcore": "^1.1.20",
+        "@argon/assets": "workspace:*",
+        "@argon/audio": "workspace:*",
+        "@argon/avatar": "workspace:*",
+        "@argon/core": "workspace:*",
+        "@argon/glue": "workspace:*",
+        "@argon/i18n": "workspace:*",
+        "@argon/softphone": "workspace:*",
+        "@argon/storage": "workspace:*",
+        "@argon/theme": "workspace:*",
+        "@argon/ui": "workspace:*",
         "@floating-ui/vue": "^1.1.6",
         "@phosphor-icons/vue": "^2.2.1",
         "@radix-icons/vue": "^1.0.0",
@@ -24,6 +34,7 @@
         "canvas-confetti": "^1.9.3",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "consola": "^3.2.3",
         "dexie": "^4.2.1",
         "emoji-regex": "^10.4.0",
         "epic-spinners": "^2.0.0",
@@ -89,6 +100,126 @@
         "vue-tsc": "^3.1.2",
       },
     },
+    "packages/assets": {
+      "name": "@argon/assets",
+      "version": "1.0.0",
+    },
+    "packages/audio": {
+      "name": "@argon/audio",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "rxjs": "*",
+        "uuid": "*",
+        "vue": "*",
+      },
+    },
+    "packages/avatar": {
+      "name": "@argon/avatar",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/ui": "workspace:*",
+      },
+      "peerDependencies": {
+        "vue": "^3.4.0",
+      },
+    },
+    "packages/calls": {
+      "name": "@argon/calls",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "@argon/glue": "workspace:*",
+        "livekit-client": "^2.11.1",
+      },
+      "peerDependencies": {
+        "pinia": "^3.0.0",
+        "rxjs": "^7.0.0",
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/core": {
+      "name": "@argon/core",
+      "version": "1.0.0",
+      "dependencies": {
+        "clsx": "^2.1.1",
+        "consola": "^3.2.3",
+        "rxjs": "^7.8.2",
+        "tailwind-merge": "^2.6.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/glue": {
+      "name": "@argon/glue",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon-chat/ion.webcore": "^1.1.20",
+      },
+    },
+    "packages/i18n": {
+      "name": "@argon/i18n",
+      "version": "1.0.0",
+      "dependencies": {
+        "vue-i18n": "^11.1.12",
+      },
+      "peerDependencies": {
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/softphone": {
+      "name": "@argon/softphone",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/audio": "workspace:*",
+        "@argon/core": "workspace:*",
+        "@argon/ui": "workspace:*",
+        "@vueuse/core": "*",
+        "lucide-vue-next": "*",
+        "uuid": "^11.1.0",
+      },
+      "peerDependencies": {
+        "pinia": "^3.0.0",
+        "vue": "^3.4.0",
+      },
+    },
+    "packages/storage": {
+      "name": "@argon/storage",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "superjson": "^2.2.2",
+      },
+      "peerDependencies": {
+        "vue": "^3.4.0",
+      },
+    },
+    "packages/theme": {
+      "name": "@argon/theme",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "@argon/storage": "workspace:*",
+      },
+      "peerDependencies": {
+        "vue": "^3.4.0",
+      },
+    },
+    "packages/ui": {
+      "name": "@argon/ui",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "class-variance-authority": "^0.7.1",
+        "lucide-vue-next": "^0.548.0",
+        "radix-vue": "1.9.17",
+        "vaul-vue": "^0.4.1",
+      },
+      "peerDependencies": {
+        "vue": "^3.5.0",
+      },
+    },
   },
   "trustedDependencies": [
     "esbuild",
@@ -105,6 +236,28 @@
     "@antfu/utils": ["@antfu/utils@9.3.0", "", {}, "sha512-9hFT4RauhcUzqOE4f1+frMKLZrgNog5b06I7VmZQV1BkvwvqrbC8EBZf3L1eEL2AKb6rNKjER0sEvJiSP1FXEA=="],
 
     "@argon-chat/ion.webcore": ["@argon-chat/ion.webcore@1.1.20", "", {}, "sha512-Yf9mXzyd8sTwemg+Ig+M7D+vQLCnJVSynJXb5srueztZAafQmN5M6KGcrlAeZ8fD8qz6RoCH4AAiubBzXV1yKg=="],
+
+    "@argon/assets": ["@argon/assets@workspace:packages/assets"],
+
+    "@argon/audio": ["@argon/audio@workspace:packages/audio"],
+
+    "@argon/avatar": ["@argon/avatar@workspace:packages/avatar"],
+
+    "@argon/calls": ["@argon/calls@workspace:packages/calls"],
+
+    "@argon/core": ["@argon/core@workspace:packages/core"],
+
+    "@argon/glue": ["@argon/glue@workspace:packages/glue"],
+
+    "@argon/i18n": ["@argon/i18n@workspace:packages/i18n"],
+
+    "@argon/softphone": ["@argon/softphone@workspace:packages/softphone"],
+
+    "@argon/storage": ["@argon/storage@workspace:packages/storage"],
+
+    "@argon/theme": ["@argon/theme@workspace:packages/theme"],
+
+    "@argon/ui": ["@argon/ui@workspace:packages/ui"],
 
     "@babel/code-frame": ["@babel/code-frame@7.27.1", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.27.1", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg=="],
 
@@ -1689,6 +1842,8 @@
     "yocto-queue": ["yocto-queue@0.1.0", "", {}, "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="],
 
     "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "@argon/softphone/uuid": ["uuid@11.1.0", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A=="],
 
     "@babel/core/semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 

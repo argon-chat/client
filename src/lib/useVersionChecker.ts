@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from "vue";
-import { logger } from "./logger";
+import { logger } from "@argon/core";
 
 export function useVersionChecker(intervalMs = 120_000) {
   const needsUpdate = ref(false);

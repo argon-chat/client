@@ -167,9 +167,9 @@ import {
   watch,
   type WatchStopHandle,
 } from "vue";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@argon/ui/card";
+import { ScrollArea } from "@argon/ui/scroll-area";
+import { Switch } from "@argon/ui/switch";
 import { usePoolStore } from "@/store/poolStore";
 import { useLiveQuery } from "@/lib/useLiveQuery";
 import {
@@ -182,20 +182,20 @@ import {
 import { useLocale } from "@/store/localeStore";
 import delay from "@/lib/delay";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
-import Button from "@/components/ui/button/Button.vue";
+import { Button } from "@argon/ui/button";
 import { PlusCircleIcon, BanIcon } from "lucide-vue-next";
-import Input from "@/components/ui/input/Input.vue";
+import { Input } from "@argon/ui/input";
 import { watchDebounced } from "@vueuse/core";
 import { useApi } from "@/store/apiStore";
-import { useToast } from "@/components/ui/toast";
-import { logger } from "@/lib/logger";
-import Textarea from "@/components/ui/textarea/Textarea.vue";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useToast } from "@argon/ui/toast";
+import { logger } from "@argon/core";
+import { Textarea } from "@argon/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@argon/ui/tabs";
 import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
-import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@/lib/glue/argonChat";
+import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 

@@ -4,7 +4,7 @@
     }">{{ props.text }}</span>
 </template>
 <script setup lang="ts" generic="T extends MessageEntityUnderline">
-import { MessageEntityUnderline } from "@/lib/glue/argonChat";
+import { MessageEntityUnderline } from "@argon/glue";
 import { computed } from "vue";
 
 const props = defineProps<{

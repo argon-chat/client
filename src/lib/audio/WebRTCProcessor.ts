@@ -5,7 +5,7 @@ import type {
   Track,
   TrackProcessor,
 } from "livekit-client";
-import { DisposableBag } from "../disposables";
+import { DisposableBag } from "@argon/core";
 import type { IAudioManagement } from "./AudioManager";
 import { worklets } from "./WorkletBase";
 

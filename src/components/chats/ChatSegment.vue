@@ -15,7 +15,7 @@
     <template v-else>{{ props.text }}</template>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntity">
-import { EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline, MessageEntityUrl } from "@/lib/glue/argonChat";
+import { EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline, MessageEntityUrl } from "@argon/glue";
 import BoldSegment from "./BoldSegment.vue";
 import CapitalizedSegment from "./CapitalizedSegment.vue";
 import FractionSegment from "./FractionSegment.vue";
@@ -28,7 +28,7 @@ import SpoilerSegment from "./SpoilerSegment.vue";
 import StrikethroughSegment from "./StrikethroughSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
 import UrlSegment from "./UrlSegment.vue";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 
 const props = defineProps<{
   entity?: T;

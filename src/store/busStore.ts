@@ -10,7 +10,7 @@ import {
 } from "rxjs";
 import { catchError, filter, repeat, switchMap } from "rxjs/operators";
 import { useApi } from "./apiStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import {
@@ -18,7 +18,7 @@ import {
   IArgonClientEvent,
   IArgonEvent,
   UserStatus,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 
 export type EventWithServerId<T> = { spaceId: string } & T;
 

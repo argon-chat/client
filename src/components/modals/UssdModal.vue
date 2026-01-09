@@ -21,8 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
 
 const open = defineModel<boolean>("open", { default: false });
 const loading = defineModel<boolean>("loading", { default: false });

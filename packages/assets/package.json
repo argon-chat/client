@@ -1,0 +1,24 @@
+{
+  "name": "@argon/assets",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./fonts.css": "./fonts/fonts.css",
+    "./styles": "./styles/index.css",
+    "./sounds/*": "./sounds/*",
+    "./icons/*": "./icons/*",
+    "./fonts/*": "./fonts/*",
+    "./icon.png": "./icon.png",
+    "./icon.svg": "./icon.svg",
+    "./image0.jpg": "./image0.jpg"
+  },
+  "files": [
+    "fonts",
+    "icons", 
+    "sounds",
+    "styles",
+    "icon.png",
+    "icon.svg",
+    "image0.jpg"
+  ]
+}

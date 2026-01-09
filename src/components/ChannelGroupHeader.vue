@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { ChevronRightIcon, ChevronDownIcon } from 'lucide-vue-next';
-import type { ChannelGroup } from '@/lib/glue/argonChat';
+import type { ChannelGroup } from '@argon/glue';
 import type { Guid } from '@argon-chat/ion.webcore';
 
 defineProps<{

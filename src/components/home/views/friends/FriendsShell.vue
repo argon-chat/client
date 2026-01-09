@@ -86,19 +86,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import Input from "@/components/ui/input/Input.vue";
+import { Input } from "@argon/ui/input";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@argon/ui/button";
+import { Badge } from "@argon/ui/badge";
 
 import { IconCookieManFilled, IconUserPlus } from "@tabler/icons-vue";
 import FriendList from "./FriendList.vue";
 
 import { useLocale } from "@/store/localeStore";
 import { useApi } from "@/store/apiStore";
-import { useToast } from "@/components/ui/toast/use-toast";
+import { useToast } from "@argon/ui/toast";
 
-import { FriendRequest, Friendship, SendFriendStatus, UserBlock } from "@/lib/glue/argonChat";
+import { FriendRequest, Friendship, SendFriendStatus, UserBlock } from "@argon/glue";
 import AddFriendModal from "@/components/modals/AddFriendModal.vue";
 import { useBus } from "@/store/busStore";
 import { useFriendEvents } from "@/composables/useFriendEvents";

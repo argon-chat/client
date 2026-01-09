@@ -1,13 +1,13 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { useToast } from "@/components/ui/toast/use-toast";
-import { logger } from "@/lib/logger";
+import { useToast } from "@argon/ui/toast";
+import { logger } from "@argon/core";
 import { useApi } from "./apiStore";
 import {
   AuthorizationError,
   NewUserCredentialsInput,
   RegistrationError,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import { IonMaybe } from "@argon-chat/ion.webcore";
 const { toast } = useToast();
 

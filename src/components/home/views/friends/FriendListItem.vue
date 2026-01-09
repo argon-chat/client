@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Button } from "@argon/ui/button";
+import { Badge } from "@argon/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import UserProfilePopover from "@/components/popovers/UserProfilePopover.vue";
 import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import { useMe } from "@/store/meStore";
 import { ref, computed } from "vue";
-import { ActivityPresenceKind } from "@/lib/glue/argonChat";
+import { ActivityPresenceKind } from "@argon/glue";
 
 const { t } = useLocale();
 const pool = usePoolStore();

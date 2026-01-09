@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { UserStatus, ActivityPresenceKind } from "@/lib/glue/argonChat";
+import { UserStatus, ActivityPresenceKind } from "@argon/glue";
 import { useMe } from "@/store/meStore";
 import { usePoolStore } from "@/store/poolStore";
 import { useLocale } from "@/store/localeStore";

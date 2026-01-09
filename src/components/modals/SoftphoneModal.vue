@@ -43,19 +43,21 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import SoftphoneKeyboard from "../calls/SoftphoneKeyboard.vue";
-import UssdModal from "./UssdModal.vue";
+import { onUnmounted, ref, watch, provide } from "vue";
+import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { SoftphoneKeyboard } from "@argon/softphone";
 
 import { ussdClient } from "@/lib/ussd";
 import delay from "@/lib/delay";
 import { useApi } from "@/store/apiStore";
-import { DialCheckFailReason } from "@/lib/glue/argonChat";
-import { playBusyTone, playDTMF } from "@/lib/DTMF";
+import { DialCheckFailReason } from "@argon/glue";
+import { playBusyTone, playDTMF, dtmfPlayer } from "@/lib/audio/AudioManager";
 import { encodePhoneToGuid } from "@/lib/bcd";
 import { Guid } from "@argon-chat/ion.webcore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
+
+// Provide DTMF player to keyboard component
+provide('dtmfPlayer', dtmfPlayer);
 
 const api = useApi();
 

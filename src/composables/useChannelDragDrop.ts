@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue';
 import { usePexStore } from '@/store/permissionStore';
 import { useApi } from '@/store/apiStore';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 import type { Guid } from '@argon-chat/ion.webcore';
 
 export function useChannelDragDrop(

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, onUnmounted, nextTick, computed } from "vue";
 import QRCodeStyling, { Options } from "qr-code-styling";
-import CatIconUrl from "@/assets/icons/icon_cat_colored.svg?url";
+import CatIconUrl from "@argon/assets/icons/icon_cat_colored.svg?url";
 import { useTheme } from "@/composables/useTheme";
 
 const props = defineProps<{ value: string }>();

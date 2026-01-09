@@ -1,7 +1,7 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { db } from "./db/dexie";
-import { type ArgonMessage } from "@/lib/glue/argonChat";
+import { type ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**

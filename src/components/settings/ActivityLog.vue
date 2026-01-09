@@ -109,12 +109,12 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from "vue";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ActivityKind, ActivityLogEntity, ActivityLogLevel } from "@/lib/glue/argon.ipc";
-import { native } from "@/lib/glue/nativeGlue";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@argon/ui/select";
+import { Input } from "@argon/ui/input";
+import { Button } from "@argon/ui/button";
+import { Badge } from "@argon/ui/badge";
+import { ActivityKind, ActivityLogEntity, ActivityLogLevel } from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 
 const kinds = [
     { value: String(ActivityKind.GameActivity), label: "Game Activity" },

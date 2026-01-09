@@ -48,11 +48,11 @@ import EnterText from "./chats/EnterText.vue";
 import ChatView from "./ChatView.vue";
 import { usePoolStore } from "@/store/poolStore";
 import { usePexStore } from "@/store/permissionStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import type { Subscription } from "rxjs";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useBus } from "@/store/busStore";
-import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent, UserStopTypingEvent, UserTypingEvent } from "@/lib/glue/argonChat";
+import { ArgonChannel, ArgonMessage, IAmStopTypingEvent, IAmTypingEvent, UserStopTypingEvent, UserTypingEvent } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 const { t } = useLocale();

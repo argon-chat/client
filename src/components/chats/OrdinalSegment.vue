@@ -2,7 +2,7 @@
     <sup class="ordinal">{{ props.text }}</sup>
 </template>
 <script setup lang="ts" generic="T extends IMessageEntity">
-import { IMessageEntity } from '@/lib/glue/argonChat';
+import { IMessageEntity } from '@argon/glue';
 
 const props = defineProps<{
   entity: T;

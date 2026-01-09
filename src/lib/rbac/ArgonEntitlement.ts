@@ -1,4 +1,4 @@
-import { ArgonEntitlement } from "../glue/argonChat";
+import { ArgonEntitlement } from "@argon/glue";
 
 export const ArgonEntitlementFlags = {
   None: ArgonEntitlement.None,

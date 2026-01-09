@@ -81,9 +81,9 @@ import {
   ContextMenuItem,
   ContextMenuShortcut,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { logger } from '@/lib/logger';
-import { ChannelType } from '@/lib/glue/argonChat';
+} from '@argon/ui/context-menu';
+import { logger } from '@argon/core';
+import { ChannelType } from '@argon/glue';
 import ChannelItem from './ChannelItem.vue';
 import ChannelGroupHeader from './ChannelGroupHeader.vue';
 import AddChannel from './modals/AddChannel.vue';

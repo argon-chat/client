@@ -114,7 +114,7 @@
 import { useLocale } from '@/store/localeStore';
 import { onMounted, ref } from 'vue';
 import { useApi } from '@/store/apiStore';
-import { ArgonUserProfile } from '@/lib/glue/argonChat';
+import { ArgonUserProfile } from '@argon/glue';
 import { useMe } from '@/store/meStore';
 import ProfileBanner from './ProfileBanner.vue';
 import ProfileAvatar from './ProfileAvatar.vue';

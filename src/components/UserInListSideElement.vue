@@ -40,10 +40,10 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@/components/ui/popover";
+} from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import { ref } from "vue";
-import { ActivityPresenceKind } from "@/lib/glue/argonChat";
+import { ActivityPresenceKind } from "@argon/glue";
 
 const isOpened = ref(false);
 const props = withDefaults(

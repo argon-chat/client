@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { Toaster } from "@/components/ui/toast/";
+import { Toaster } from "@argon/ui/toast";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { useSystemStore } from "./store/systemStore";
 import { ref, watch, onMounted } from "vue";
 import Island from "./components/shared/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
-import { native } from "./lib/glue/nativeGlue";
+import { native } from "@argon/glue/native";
 import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/DiagnosticsOverlay.vue";
 import { useTheme } from "@/composables/useTheme";
-import { logger } from "./lib/logger";
+import { logger } from "@argon/core";
 
 const sys = useSystemStore();
 const appState = useAppState();

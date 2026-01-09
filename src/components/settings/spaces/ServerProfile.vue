@@ -144,21 +144,21 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@argon/ui/input";
+import { Button } from "@argon/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@argon/ui/dialog";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
 import { usePoolStore } from "@/store/poolStore";
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
 import { useApi } from "@/store/apiStore";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@argon/ui/toast";
 import {
   UserIcon,
   CopyIcon,

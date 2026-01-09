@@ -187,9 +187,9 @@ import {
 } from "lucide-vue-next";
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Label } from "@argon/ui/label";
+import { Button } from "@argon/ui/button";
+import { Switch } from "@argon/ui/switch";
 import {
     Dialog,
     DialogContent,
@@ -197,26 +197,26 @@ import {
     DialogTitle,
     DialogDescription,
     DialogHeader,
-} from "@/components/ui/dialog";
+} from "@argon/ui/dialog";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@argon/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@argon/ui/tabs";
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useLocale } from "@/store/localeStore";
-import { UserStatus } from "@/lib/glue/argonChat";
+import { UserStatus } from "@argon/glue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useApi } from "@/store/apiStore";
 import { usePoolStore } from "@/store/poolStore";
 import { computedAsync } from "@vueuse/core";
 import Counter from "./motionCounter/Counter.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
-import { Screen } from "@/lib/glue/argon.ipc";
-import { native } from "@/lib/glue/nativeGlue";
+import { Screen } from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 
 const voice = useUnifiedCall();
 const api = useApi();

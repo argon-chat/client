@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { z } from "zod";
 
 export const useConfig = defineStore("config", () => {

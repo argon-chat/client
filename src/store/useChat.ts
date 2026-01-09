@@ -2,9 +2,9 @@ import { ref } from "vue";
 import { db } from "@/store/db/dexie";
 import Dexie from "dexie";
 import { useApi } from "./apiStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { usePoolStore } from "./poolStore";
-import { ArgonMessage } from "@/lib/glue/argonChat";
+import { ArgonMessage } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
 const PAGE_SIZE = 30;

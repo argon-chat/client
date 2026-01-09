@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 
 interface LogEntry {
   message: string;

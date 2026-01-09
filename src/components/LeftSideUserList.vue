@@ -22,7 +22,7 @@ import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
 import { watch, computed } from "vue";
-import { persistedValue } from "@/lib/persistedValue";
+import { persistedValue } from "@argon/storage";
 
 const model = defineModel<string | null>('selectedSpace', {
     type: String, required: true

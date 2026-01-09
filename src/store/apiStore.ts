@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ComputedRef } from "vue";
 import { useConfig } from "./remoteConfig";
-import { createClient } from "@/lib/glue/argonChat";
+import { createClient } from "@argon/glue";
 import { IonCallContext, IonInterceptor } from "@argon-chat/ion.webcore";
 import { useAuthStore } from "./authStore";
 import { v7 } from "uuid";

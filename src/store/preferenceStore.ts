@@ -1,4 +1,4 @@
-import { persistedValue } from "@/lib/persistedValue";
+import { persistedValue } from "@argon/storage";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { watch } from "vue";

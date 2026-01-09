@@ -127,8 +127,8 @@
 
 <script setup lang="ts">
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
-import { useToast } from '@/components/ui/toast';
-import { LockdownReason, LockdownSeverity } from '@/lib/glue/argonChat';
+import { useToast } from '@argon/ui/toast';
+import { LockdownReason, LockdownSeverity } from '@argon/glue';
 import { useAuthStore } from '@/store/authStore';
 import { useMe } from '@/store/meStore';
 

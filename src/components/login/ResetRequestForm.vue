@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@argon/ui/card";
+import { Input } from "@argon/ui/input";
+import { Label } from "@argon/ui/label";
+import { Button } from "@argon/ui/button";
 import { ReloadIcon } from "@radix-icons/vue";
 import { ArrowBigLeftDashIcon } from "lucide-vue-next";
 import { useLocale } from "@/store/localeStore";

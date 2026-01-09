@@ -8,7 +8,7 @@ import ChatPanel from "./dms/ChatPanel.vue";
 import ChatHeader from "./dms/ChatHeader.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { DirectMessage } from "@/lib/glue/argonChat";
+import { DirectMessage } from "@argon/glue";
 import { usePoolStore } from "@/store/poolStore";
 
 const route = useRoute();

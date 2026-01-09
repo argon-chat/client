@@ -188,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { Button } from "@/components/ui/button";
+import { Button } from "@argon/ui/button";
 import {
   Select,
   SelectContent,
@@ -196,11 +196,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@argon/ui/select";
 import { audio } from "@/lib/audio/AudioManager";
 import { worklets } from "@/lib/audio/WorkletBase";
-import { DisposableBag } from "@/lib/disposables";
-import { logger } from "@/lib/logger";
+import { DisposableBag } from "@argon/core";
+import { logger } from "@argon/core";
 import { useLocale } from "@/store/localeStore";
 import { usePreference } from "@/store/preferenceStore";
 import { 
@@ -215,7 +215,7 @@ import {
   Loader2Icon
 } from "lucide-vue-next";
 import { nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
-import Switch from "../ui/switch/Switch.vue";
+import { Switch } from "@argon/ui/switch";
 const { t } = useLocale();
 
 const preferenceStore = usePreference();

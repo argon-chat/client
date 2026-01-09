@@ -106,8 +106,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent } from "@argon/ui/dialog"
+import { Button } from "@argon/ui/button"
 import { useLocale } from "@/store/localeStore"
 
 const { t } = useLocale()

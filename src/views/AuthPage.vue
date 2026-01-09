@@ -5,7 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { computed, onMounted } from "vue";
 import { useConfig } from "@/store/remoteConfig";
 import AuthTabs from "@/components/login/AuthTabs.vue";
-import IconSw from "@/assets/icons/icon_cat.svg"
+import IconSw from "@argon/assets/icons/icon_cat.svg"
 
 const cfg = useConfig();
 const authStore = useAuthStore();

@@ -1,0 +1,27 @@
+{
+  "name": "@argon/calls",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@argon/core": "workspace:*",
+    "@argon/glue": "workspace:*",
+    "livekit-client": "^2.11.1"
+  },
+  "peerDependencies": {
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "rxjs": "^7.0.0"
+  }
+}

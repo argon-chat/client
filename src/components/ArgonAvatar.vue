@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
+// Re-export from @argon/avatar with app-specific file storage
+import { Avatar, AvatarFallback, AvatarImage } from "@argon/ui/avatar";
+import { Skeleton } from "@argon/ui/skeleton";
 import { computed, toRef, type HTMLAttributes } from "vue";
-import { useAvatarBlob } from "@/lib/useAvatarBlob";
+import { useAvatarBlob } from "@argon/avatar";
+import { useFileStorage } from "@/store/fileStorage";
 
 const props = withDefaults(
   defineProps<{
@@ -36,10 +38,13 @@ const avatarType = computed<"user" | "server">(() => {
   return "user";
 });
 
+const fileStorage = useFileStorage();
+
 const { loaded, loading, blobSrc } = useAvatarBlob(
   fileIdRef,
   ownerId,
   avatarType,
+  fileStorage,
 );
 
 const size = computed(() =>

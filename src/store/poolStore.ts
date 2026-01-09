@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
@@ -11,7 +11,7 @@ import { useEventStore } from "./eventStore";
 import { useMessageStore } from "./messageStore";
 import { db } from "./db/dexie";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
-import { ChannelType, UserStatus } from "@/lib/glue/argonChat";
+import { ChannelType, UserStatus } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**

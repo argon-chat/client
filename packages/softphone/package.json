@@ -1,0 +1,29 @@
+{
+  "name": "@argon/softphone",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./ussd": "./src/ussd/index.ts",
+    "./keyboard": "./src/components/SoftphoneKeyboard.vue",
+    "./modal": "./src/components/SoftphoneModal.vue"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0",
+    "pinia": "^3.0.0"
+  },
+  "dependencies": {
+    "@argon/core": "workspace:*",
+    "@argon/audio": "workspace:*",
+    "@argon/ui": "workspace:*",
+    "@vueuse/core": "*",
+    "lucide-vue-next": "*",
+    "uuid": "^11.1.0"
+  }
+}

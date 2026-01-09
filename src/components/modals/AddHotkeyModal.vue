@@ -2,12 +2,12 @@
 import { computed, ref, watch } from "vue";
 import { useLocale } from "@/store/localeStore";
 import { useHotkeys, availableActions } from "@/store/hotKeyStore";
-import { native } from "@/lib/glue/nativeGlue";
+import { native } from "@argon/glue/native";
 import {
     HotkeyActionType,
     HotkeyDescriptor,
     HotkeyButton,
-} from "@/lib/glue/argon.ipc";
+} from "@argon/glue/ipc";
 
 import {
     Dialog,
@@ -15,15 +15,11 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Select, SelectItem } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import SelectTrigger from "../ui/select/SelectTrigger.vue";
-import SelectValue from "../ui/select/SelectValue.vue";
-import SelectContent from "../ui/select/SelectContent.vue";
-import SelectGroup from "../ui/select/SelectGroup.vue";
+} from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
+import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup } from "@argon/ui/select";
+import { RadioGroup, RadioGroupItem } from "@argon/ui/radio-group";
+import { Alert, AlertDescription } from "@argon/ui/alert";
 import { keyCodeToFormatterSymbolsOrNames, keyCodeToNames } from "@/lib/keyCodes";
 import KbdGroup from "../kbd/KbdGroup.vue";
 import Kbd from "../kbd/Kbd.vue";

@@ -18,13 +18,9 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useToast } from '../ui/toast';
-import DialogContent from '../ui/dialog/DialogContent.vue';
-import DialogHeader from '../ui/dialog/DialogHeader.vue';
-import DialogTitle from '../ui/dialog/DialogTitle.vue';
-import DialogFooter from '../ui/dialog/DialogFooter.vue';
-import Dialog from '../ui/dialog/Dialog.vue';
-import Button from '../ui/button/Button.vue';
+import { useToast } from '@argon/ui/toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@argon/ui/dialog';
+import { Button } from '@argon/ui/button';
 
 
 const open = defineModel<boolean>('open', { type: Boolean, default: false })

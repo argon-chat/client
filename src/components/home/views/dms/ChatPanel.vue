@@ -64,7 +64,7 @@ const participants = computed(() => {
         });
     }
 
-    for (const [uid, data] of dm.participants) {
+    for (const [uid, data] of Object.entries(dm.participants)) {
         let userRef = userRefsCache.value.get(uid);
         if (!userRef) {
             userRef = pool.getUserReactive(toRef(uid));

@@ -142,13 +142,13 @@
 <script setup lang="ts">
 import { useMe } from "@/store/meStore";
 import { useLocale } from "@/store/localeStore";
-import { logger } from "@/lib/logger";
-import { useToast } from "@/components/ui/toast/";
-import { Button } from "@/components/ui/button";
+import { logger } from "@argon/core";
+import { useToast } from "@argon/ui/toast";
+import { Button } from "@argon/ui/button";
 import UsageStatus from "./UsageStatus.vue";
 import { onMounted, ref } from "vue";
 import { getStorageUsageReport, StorageUsageReport, pruneCache, pruneIndexDb, pruneAll } from "@/store/fileStorage";
-import { native } from "@/lib/glue/nativeGlue";
+import { native } from "@argon/glue/native";
 import {
     HardDriveIcon,
     DatabaseIcon,

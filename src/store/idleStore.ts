@@ -3,8 +3,8 @@ import { useIdle, useTimestamp } from "@vueuse/core";
 import { interval, switchMap } from "rxjs";
 import { useMe } from "./meStore";
 import { ref } from "vue";
-import { UserStatus } from "@/lib/glue/argonChat";
-import { native } from "@/lib/glue/nativeGlue";
+import { UserStatus } from "@argon/glue";
+import { native } from "@argon/glue/native";
 export const useIdleStore = defineStore("idle", () => {
   const savedStatus = ref(UserStatus.Online);
 

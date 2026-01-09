@@ -87,8 +87,8 @@ import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff } 
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useSystemStore } from '@/store/systemStore';
 import { audio } from '@/lib/audio/AudioManager';
-import { logger } from '@/lib/logger';
-import type { Disposable } from '@/lib/disposables';
+import { logger } from '@argon/core';
+import type { Disposable } from '@argon/core';
 
 const { t } = useLocale();
 const sys = useSystemStore();

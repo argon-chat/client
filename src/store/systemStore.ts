@@ -4,7 +4,7 @@ import { useTone } from "@/store/toneStore";
 import { Subject, Subscription } from "rxjs";
 import { useHotkeys } from "./hotKeyStore";
 import { IonWsClient } from "@argon-chat/ion.webcore";
-import { HotkeyPhase } from "@/lib/glue/argon.ipc";
+import { HotkeyPhase } from "@argon/glue/ipc";
 
 const LONG_RECONNECT_TIMEOUT = 5000; // 5 seconds
 

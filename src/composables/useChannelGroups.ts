@@ -1,6 +1,6 @@
 import { ref, watch, computed, type Ref } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
-import type { ChannelGroup } from '@/lib/glue/argonChat';
+import type { ChannelGroup } from '@argon/glue';
 import type { Guid } from '@argon-chat/ion.webcore';
 
 export function useChannelGroups(selectedSpaceId: Ref<string>) {

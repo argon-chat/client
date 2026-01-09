@@ -119,13 +119,13 @@ import { usePoolStore } from "@/store/poolStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useMe } from "@/store/meStore";
 import emojiRegex from "emoji-regex";
-import { cn } from "@/lib/utils";
+import { cn } from "@argon/core";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@argon/ui/tooltip";
 import { useDateFormat } from "@vueuse/core";
 import { useUserColors } from "@/store/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
@@ -134,8 +134,8 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@/components/ui/popover";
-import { ArgonMessage, IMessageEntity, EntityType, MessageEntitySystemCallStarted, MessageEntitySystemCallEnded, MessageEntitySystemCallTimeout, MessageEntitySystemUserJoined } from "@/lib/glue/argonChat";
+} from "@argon/ui/popover";
+import { ArgonMessage, IMessageEntity, EntityType, MessageEntitySystemCallStarted, MessageEntitySystemCallEnded, MessageEntitySystemCallTimeout, MessageEntitySystemUserJoined } from "@argon/glue";
 import { useLocale } from "@/store/localeStore";
 import { CopyIcon, ReplyIcon } from "lucide-vue-next";
 

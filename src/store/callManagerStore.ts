@@ -3,7 +3,7 @@ import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useApi } from "./apiStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 
 export const useCallManager = defineStore("callManager", () => {

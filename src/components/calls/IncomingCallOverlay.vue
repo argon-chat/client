@@ -47,7 +47,7 @@ import { useCallManager } from '@/store/callManagerStore';
 import { computed } from 'vue';
 import { usePoolStore } from '@/store/poolStore';
 import { Guid } from '@argon-chat/ion.webcore';
-import Card from '@/components/ui/card/Card.vue';
+import { Card } from '@argon/ui/card';
 
 const callStore = useCallManager();
 const pool = usePoolStore();

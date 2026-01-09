@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import Button from "../ui/button/Button.vue";
-import Card from "../ui/card/Card.vue";
-import CardContent from "../ui/card/CardContent.vue";
-import CardFooter from "../ui/card/CardFooter.vue";
-import CardHeader from "../ui/card/CardHeader.vue";
-import CardTitle from "../ui/card/CardTitle.vue";
-import CardDescription from "../ui/card/CardDescription.vue";
-import Input from "../ui/input/Input.vue";
-import Label from "../ui/label/Label.vue";
+import { Button } from "@argon/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@argon/ui/card";
+import { Input } from "@argon/ui/input";
+import { Label } from "@argon/ui/label";
 import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
 import { useApi } from "@/store/apiStore";

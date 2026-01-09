@@ -22,8 +22,8 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@/components/ui/popover";
-import { MessageEntityMention } from "@/lib/glue/argonChat";
+} from "@argon/ui/popover";
+import { MessageEntityMention } from "@argon/glue";
 
 const isOpened = ref(false);
 const pool = usePoolStore();

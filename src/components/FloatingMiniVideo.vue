@@ -6,11 +6,11 @@ import {
   ContextMenuItem,
   ContextMenuShortcut,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@argon/ui/context-menu";
 import { useLocale } from "@/store/localeStore";
 import type { RemoteVideoTrack } from "livekit-client";
 import type { Subscription } from "rxjs";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { Guid } from "@argon-chat/ion.webcore";
 const { t } = useLocale();
 

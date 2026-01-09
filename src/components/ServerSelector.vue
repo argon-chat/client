@@ -181,22 +181,19 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from "vue"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@argon/ui/button"
+import { Separator } from "@argon/ui/separator"
 import ArgonAvatar from "./ArgonAvatar.vue"
 import { Plus, ArrowBigDown, PaintbrushIcon } from "lucide-vue-next"
 import { IconChevronRight, IconDots, IconPin, IconPinFilled, IconFolderPlus } from '@tabler/icons-vue'
-import IconSw from "@/assets/icons/icon_cat.svg"
-import { ArgonSpaceBase } from "@/lib/glue/argonChat"
+import IconSw from "@argon/assets/icons/icon_cat.svg"
+import { ArgonSpaceBase } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/localeStore"
 import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
-import TooltipProvider from "./ui/tooltip/TooltipProvider.vue"
-import Tooltip from "./ui/tooltip/Tooltip.vue"
-import TooltipTrigger from "./ui/tooltip/TooltipTrigger.vue"
-import TooltipContent from "./ui/tooltip/TooltipContent.vue"
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 import { useVersionChecker } from "@/lib/useVersionChecker"
 import SendUserFeedback from "./modals/SendUserFeedback.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"

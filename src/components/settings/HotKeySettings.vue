@@ -5,13 +5,13 @@ import { useHotkeys } from "@/store/hotKeyStore";
 import {
   HotkeyActionType,
   type HotkeyChord,
-} from "@/lib/glue/argon.ipc";
-import { Button } from "@/components/ui/button";
+} from "@argon/glue/ipc";
+import { Button } from "@argon/ui/button";
 import KbdGroup from "@/components/kbd/KbdGroup.vue";
 import Kbd from "@/components/kbd/Kbd.vue";
 import { keyCodeToFormatterSymbolsOrNames } from "@/lib/keyCodes";
 import AddHotkeyModal from "../modals/AddHotkeyModal.vue";
-import Badge from "../ui/badge/Badge.vue";
+import { Badge } from "@argon/ui/badge";
 import { PlusIcon, TrashIcon, KeyboardIcon } from "lucide-vue-next";
 
 // Stores

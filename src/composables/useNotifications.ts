@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue';
 import { useApi } from '@/store/apiStore';
 import { useBus } from '@/store/busStore';
-import { DisposableBag } from '@/lib/disposables';
-import { logger } from '@/lib/logger';
-import type { UpdatedNotificationCounters } from '@/lib/glue/argonChat';
+import { DisposableBag } from '@argon/core';
+import { logger } from '@argon/core';
+import type { UpdatedNotificationCounters } from '@argon/glue';
 
 export function useNotifications() {
     const api = useApi();

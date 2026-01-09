@@ -1,5 +1,5 @@
-import { persistedValue } from "@/lib/persistedValue";
-import { locales, type Locale, type LocaleSchema } from "@/locales";
+import { persistedValue } from "@argon/storage";
+import { coreMessages, type SupportedLocale } from "@argon/i18n";
 import { defineStore } from "pinia";
 import { watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -7,17 +7,16 @@ import { useI18n } from "vue-i18n";
 export const useLocale = defineStore("locale", () => {
   const currentLocale = persistedValue<string>("locale", "en");
 
-  const { t, locale } = useI18n<[LocaleSchema], Locale>({
+  const { t, locale } = useI18n({
     legacy: false,
     locale: "en",
     fallbackLocale: "en",
-    /* @ts-ignore */
-    messages: locales,
+    messages: coreMessages as any,
     silentTranslationWarn: true,
     missingWarn: false,
     fallbackWarn: false,
     warnHtmlMessage: false,
-  });
+  } as any);
 
   function updateLocale(key: string) {
     currentLocale.value = key as any;
@@ -28,10 +27,6 @@ export const useLocale = defineStore("locale", () => {
   watch(currentLocale, (x) => {
     locale.value = x as any;
   });
-
-  /*const t = (key: string, args?: Record<string, any>) => {
-    return key;
-  }*/
 
   return {
     t,

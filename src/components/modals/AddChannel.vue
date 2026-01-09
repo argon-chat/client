@@ -99,15 +99,15 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
-import { Button } from "@/components/ui/button";
+import { Button } from "@argon/ui/button";
 import { computed, shallowRef, onUnmounted, nextTick } from "vue";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { useSpaceStore } from "@/store/serverStore";
-import { ChannelType } from "@/lib/glue/argonChat";
-import { Label } from "@/components/ui/label";
+import { ChannelType } from "@argon/glue";
+import { Label } from "@argon/ui/label";
 import { Hash, Megaphone, Mic } from "lucide-vue-next";
 
 const { t } = useLocale();

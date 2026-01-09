@@ -77,7 +77,7 @@
 import { usePreference } from "@/store/preferenceStore";
 import { useLocale } from "@/store/localeStore";
 import { ref } from "vue";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@argon/ui/slider";
 import { watchArray } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { 
@@ -87,8 +87,8 @@ import {
   PlayIcon, 
   Loader2Icon 
 } from "lucide-vue-next";
-import Switch from "@/components/ui/switch/Switch.vue";
-import Button from "@/components/ui/button/Button.vue";
+import { Switch } from "@argon/ui/switch";
+import { Button } from "@argon/ui/button";
 import { useTone } from "@/store/toneStore";
 
 const { t } = useLocale();

@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@argon/ui/radio-group";
 import { useLocale } from "@/store/localeStore";
 import { availableLanguages } from "@/lib/languages";
 import { useLanguageSelection } from "@/composables/useLanguageSelection";

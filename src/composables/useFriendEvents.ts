@@ -1,5 +1,5 @@
-import { DisposableBag } from "@/lib/disposables";
-import { FriendRequestAcceptedEvent, FriendRequestCanceledEvent, FriendRequestDeclinedEvent, FriendRequestReceivedEvent, FriendRequestSentEvent, FriendshipRemovedEvent, UserBlockedEvent, UserUnblockedEvent } from "@/lib/glue/argonChat";
+import { DisposableBag } from "@argon/core";
+import { FriendRequestAcceptedEvent, FriendRequestCanceledEvent, FriendRequestDeclinedEvent, FriendRequestReceivedEvent, FriendRequestSentEvent, FriendshipRemovedEvent, UserBlockedEvent, UserUnblockedEvent } from "@argon/glue";
 import { useBus } from "@/store/busStore";
 import { onUnmounted } from "vue";
 

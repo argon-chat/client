@@ -33,9 +33,9 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast/use-toast";
+} from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
+import { useToast } from "@argon/ui/toast";
 import { useLocale } from "@/store/localeStore";
 import { useApi } from "@/store/apiStore";
 import { v7 } from "uuid";

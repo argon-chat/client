@@ -1,10 +1,10 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { UserChat } from "@/lib/glue/argonChat";
+import type { UserChat } from "@argon/glue";
 import type { DateTimeOffset, Guid } from "@argon-chat/ion.webcore";
 import { usePoolStore } from "@/store/poolStore";
 import { RealtimeUser } from "./db/dexie";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 
 function toTsDate(dto: DateTimeOffset | null | undefined): number {
   if (!dto) return 0;

@@ -34,12 +34,9 @@ import delay from "@/lib/delay";
 import { computedAsync } from "@vueuse/core";
 import { usePoolStore } from "@/store/poolStore";
 import { useFileStorage } from "@/store/fileStorage";
-import img0 from "@/assets/image0.jpg";
+import img0 from "@argon/assets/image0.jpg";
 import { PhSealCheck } from "@phosphor-icons/vue";
-import Tooltip from "./ui/tooltip/Tooltip.vue";
-import TooltipProvider from "./ui/tooltip/TooltipProvider.vue";
-import TooltipTrigger from "./ui/tooltip/TooltipTrigger.vue";
-import TooltipContent from "./ui/tooltip/TooltipContent.vue";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 
 const pool = usePoolStore();
 const fileStorage = useFileStorage();

@@ -65,17 +65,17 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent } from '@argon/ui/dialog'
+import { Button } from '@argon/ui/button'
+import { Label } from '@argon/ui/label'
+import { Input } from '@argon/ui/input'
 import { ref } from 'vue'
 import { useLocale } from '@/store/localeStore'
 import { useApi } from '@/store/apiStore'
 import { ReloadIcon, ExclamationTriangleIcon } from '@radix-icons/vue'
-import { CreateSpaceError } from '@/lib/glue/argonChat'
+import { CreateSpaceError } from '@argon/glue'
 import InputWithError from '../shared/InputWithError.vue'
-import { logger } from '@/lib/logger'
+import { logger } from '@argon/core'
 import { DeferFlag } from '@/lib/DeferFlag'
 import { useSpaceStore } from '@/store/serverStore'
 import { usePoolStore } from '@/store/poolStore'

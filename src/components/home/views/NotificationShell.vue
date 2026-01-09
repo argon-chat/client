@@ -53,9 +53,8 @@
 </template>
 
 <script setup lang="ts">
-import Alert from '@/components/ui/alert/Alert.vue'
-import AlertTitle from '@/components/ui/alert/AlertTitle.vue'
-import { Card, CardContent } from '@/components/ui/card'
+import { Alert, AlertTitle } from '@argon/ui/alert'
+import { Card, CardContent } from '@argon/ui/card'
 import { IconMail } from "@tabler/icons-vue"
 import { useLocale } from "@/store/localeStore";
 const { t } = useLocale();

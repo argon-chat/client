@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, type HTMLAttributes } from "vue";
 import { useFileStorage } from "@/store/fileStorage";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 const loaded = ref(false);
 const loading = ref(true);
 const blobSrc = ref("");

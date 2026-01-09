@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import Card from "../ui/card/Card.vue";
-import CardContent from "../ui/card/CardContent.vue";
-import CardFooter from "../ui/card/CardFooter.vue";
-import CardHeader from "../ui/card/CardHeader.vue";
-import CardTitle from "../ui/card/CardTitle.vue";
-import CardDescription from "../ui/card/CardDescription.vue";
-import Button from "../ui/button/Button.vue";
-import Input from "../ui/input/Input.vue";
-import Label from "../ui/label/Label.vue";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@argon/ui/card";
+import { Button } from "@argon/ui/button";
+import { Input } from "@argon/ui/input";
+import { Label } from "@argon/ui/label";
 import { ReloadIcon } from "@radix-icons/vue";
-import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@/components/ui/pin-input";
+import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@argon/ui/pin-input";
 import { useLocale } from "@/store/localeStore";
 import { ArrowBigLeftDashIcon } from "lucide-vue-next";
 import { ref } from "vue";

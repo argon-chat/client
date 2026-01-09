@@ -67,9 +67,9 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent } from '@argon/ui/dialog'
+import { Button } from '@argon/ui/button'
+import { Label } from '@argon/ui/label'
 import { ref } from 'vue'
 import { useLocale } from '@/store/localeStore'
 import { captureFeedback } from "@sentry/vue";

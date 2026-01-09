@@ -136,9 +136,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { VisuallyHidden } from '@/components/ui/visually-hidden'
-import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@argon/ui/dialog'
+import { VisuallyHidden } from '@argon/ui/visually-hidden'
+import { Button } from '@argon/ui/button'
 import Kbd from '@/components/kbd/Kbd.vue'
 import KbdGroup from '@/components/kbd/KbdGroup.vue'
 import ItemGrantEffect from './ItemGrantEffect.vue'

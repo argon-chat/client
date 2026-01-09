@@ -77,7 +77,7 @@ import { useLocale } from '@/store/localeStore';
 import { IconCoin, IconQuestionMark } from '@tabler/icons-vue';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useApi } from '@/store/apiStore';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 
 const { t } = useLocale();
 const api = useApi();

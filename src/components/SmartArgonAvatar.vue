@@ -15,12 +15,12 @@
   </Avatar>
 </template>
 <script setup lang="ts">
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@argon/ui/avatar";
+import { Skeleton } from "@argon/ui/skeleton";
 import { computed, ref, toRef, watch, type HTMLAttributes } from "vue";
 import { useFileStorage } from "@/store/fileStorage";
 import { usePoolStore } from "@/store/poolStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 
 const props = withDefaults(
   defineProps<{

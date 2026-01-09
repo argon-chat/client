@@ -1,7 +1,7 @@
 import { liveQuery, type Subscription } from "dexie";
 import { type Ref, onUnmounted, ref, watch } from "vue";
 import { db, type RealtimeUser } from "@/store/db/dexie";
-import { type Archetype, UserStatus, ArgonEntitlement } from "@/lib/glue/argonChat";
+import { type Archetype, UserStatus, ArgonEntitlement } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 export function useGroupedServerUsers(serverId: Ref<Guid | null | undefined>) {

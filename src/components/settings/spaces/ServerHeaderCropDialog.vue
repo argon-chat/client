@@ -32,8 +32,8 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
 import { useLocale } from "@/store/localeStore";
 
 interface Props {

@@ -31,14 +31,14 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Button } from "@/components/ui/button";
+import { Button } from "@argon/ui/button";
 import { useSpaceStore } from "@/store/serverStore";
 //@ts-ignore
 import { AtomSpinner } from "epic-spinners";
-import { Input } from "@/components/ui/input";
+import { Input } from "@argon/ui/input";
 import { useLocale } from "@/store/localeStore";
 import { usePexStore } from "@/store/permissionStore";
-import { InviteCodeEntity } from "@/lib/glue/argonChat";
+import { InviteCodeEntity } from "@argon/glue";
 
 const { t } = useLocale();
 const servers = useSpaceStore();

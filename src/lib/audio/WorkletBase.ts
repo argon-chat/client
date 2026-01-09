@@ -1,117 +1,32 @@
-import {
-  type DeepReadonly,
-  onBeforeUnmount,
-  readonly,
-  ref,
-  type Ref,
-} from "vue";
-import { Disposable } from "../disposables";
-import { logger } from "../logger";
-import type { BehaviorSubject } from "rxjs";
-import { audio } from "./AudioManager";
+import { WorkletManager } from "@argon/audio";
 
-export class WorkletBase {
-  #inited = false;
+// Lazy-initialized worklet manager to avoid circular dependency
+let _worklets: WorkletManager | null = null;
+let _audioGetter: (() => any) | null = null;
 
-  async init(): Promise<void> {
-    if (this.#inited) return;
-    await audio.addWorkletModule(
-      "/audio/vu-meter-processor.js",
-      "vu-meter-processor"
-    );
-    await audio.addWorkletModule(
-      "/audio/vu-stm.js",
-      "vu-stereo-to-mono-processor"
-    );
-    this.#inited = true;
-  }
-
-  useSubjectAsRef<T>(
-    subject: BehaviorSubject<T>
-  ): Readonly<Ref<DeepReadonly<T>>> {
-    const state = ref(subject.getValue()) as Ref<T>;
-
-    const sub = subject.subscribe((value) => {
-      state.value = value;
-    });
-
-    onBeforeUnmount(() => {
-      sub.unsubscribe();
-    });
-
-    return readonly(state);
-  }
-
-  async createVUMeter(
-    leftRef: Ref<number>,
-    rightRef: Ref<number>
-  ): Promise<Disposable<AudioWorkletNode>> {
-    const vuNode = new AudioWorkletNode(
-      audio.getCurrentAudioContext(),
-      "vu-meter-processor",
-      {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        outputChannelCount: [2],
-        channelCount: 2,
-        channelCountMode: "explicit",
-        channelInterpretation: "discrete",
-      }
-    );
-
-    vuNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
-      const data = event.data;
-
-      leftRef.value = audio.volumeToPercent(data[0]);
-      rightRef.value = audio.volumeToPercent(data[1]);
-    };
-
-    const disposable = new Disposable<AudioWorkletNode>(
-      vuNode,
-      async (node) => {
-        node.port.close();
-        node.disconnect();
-      }
-    );
-
-    return disposable;
-  }
-
-  async createStereoToMonoProcessor(): Promise<Disposable<AudioWorkletNode>> {
-    const stmNode = new AudioWorkletNode(
-      audio.getCurrentAudioContext(),
-      "vu-stereo-to-mono-processor",
-      {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        outputChannelCount: [2],
-        channelCount: 2,
-        channelCountMode: "explicit",
-        channelInterpretation: "speakers",
-      }
-    );
-
-    const disposable = new Disposable<AudioWorkletNode>(
-      stmNode,
-      async (node) => {
-        node.port.close();
-        node.disconnect();
-      }
-    );
-
-    return disposable;
-  }
-
-  setEnabledVUNode(node: AudioWorkletNode, isEnabled: boolean) {
-    node.parameters
-      .get("enabled")
-      ?.setValueAtTime(
-        isEnabled ? 1.0 : 0.0,
-        audio.getCurrentAudioContext().currentTime
-      );
-  }
+// Must be called before using worklets
+export function initWorklets(audioGetter: () => any) {
+  _audioGetter = audioGetter;
 }
 
-const worklets = new WorkletBase();
+function getWorklets(): WorkletManager {
+  if (!_worklets) {
+    if (!_audioGetter) {
+      throw new Error("[WorkletBase] initWorklets() must be called before using worklets");
+    }
+    _worklets = new WorkletManager(_audioGetter());
+  }
+  return _worklets;
+}
 
-export { worklets };
+// Proxy object that lazily initializes worklets
+export const worklets = new Proxy({} as WorkletManager, {
+  get(_target, prop) {
+    const instance = getWorklets();
+    const value = (instance as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  }
+});

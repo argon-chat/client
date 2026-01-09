@@ -80,11 +80,9 @@
 </template>
 
 <script setup lang="ts">
-import Alert from '@/components/ui/alert/Alert.vue';
-import AlertDescription from '@/components/ui/alert/AlertDescription.vue';
-import AlertTitle from '@/components/ui/alert/AlertTitle.vue';
-import { Card, CardContent } from '@/components/ui/card'
-import Input from '@/components/ui/input/Input.vue';
+import { Alert, AlertDescription, AlertTitle } from '@argon/ui/alert';
+import { Card, CardContent } from '@argon/ui/card'
+import { Input } from '@argon/ui/input';
 import { useLocale } from '@/store/localeStore';
 import { IconBasket } from '@tabler/icons-vue';
 import { computed, CSSProperties, ref } from 'vue'

@@ -56,23 +56,23 @@
 </template>
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref, watch, nextTick, computed } from "vue";
-import { Button } from "@/components/ui/button";
+import { Button } from "@argon/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@argon/ui/popover";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import SmartArgonAvatar from "../SmartArgonAvatar.vue";
 import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/poolStore";
 import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@/lib/glue/argonChat";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/localeStore";
-import { persistedValue } from "@/lib/persistedValue";
+import { persistedValue } from "@argon/storage";
 const { t } = useLocale();
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");

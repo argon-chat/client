@@ -52,7 +52,7 @@ import { ref, watch, onMounted } from "vue";
 import { CameraIcon, ImageIcon } from "lucide-vue-next";
 import ServerHeaderCropDialog from "./ServerHeaderCropDialog.vue";
 import BuyPremium from "../../modals/BuyPremium.vue";
-import { useToast } from "@/components/ui/toast/use-toast";
+import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/meStore";
 import { useApi } from "@/store/apiStore";
 import { useFileStorage } from "@/store/fileStorage";

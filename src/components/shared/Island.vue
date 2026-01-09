@@ -36,7 +36,7 @@
 
 <script lang="ts" setup>
 import delay from "@/lib/delay";
-import { cn } from "@/lib/utils";
+import { cn } from "@argon/core";
 import { useColorMode } from "@vueuse/core";
 import { motion, MotionConfig } from "motion-v";
 import { computed, onMounted, onUnmounted, ref, useSlots } from "vue";

@@ -25,11 +25,8 @@
     </Badge>
 </template>
 <script setup lang="ts">
-import Badge from '@/components/ui/badge/Badge.vue';
-import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
-import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
-import TooltipProvider from '@/components/ui/tooltip/TooltipProvider.vue';
-import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
+import { Badge } from '@argon/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconCat, IconCpu } from '@tabler/icons-vue';
 
 

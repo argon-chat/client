@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import {
   type ArgonEntitlementFlag,
   extractEntitlements,
@@ -14,7 +14,7 @@ import {
   ArgonEntitlement,
   type SpaceMember,
   type SpaceMemberArchetype,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**

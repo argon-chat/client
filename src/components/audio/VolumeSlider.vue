@@ -10,7 +10,7 @@ import { IRealtimeChannelUserWithData } from "@/store/poolStore";
 import { computed } from "vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useSystemStore } from "@/store/systemStore";
-import Slider from "@/components/ui/slider/Slider.vue";
+import { Slider } from "@argon/ui/slider";
 
 const props = defineProps<{ user: IRealtimeChannelUserWithData }>();
 const voice = useUnifiedCall();

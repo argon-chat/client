@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@argon/ui/scroll-area";
 import FriendListItem from "./FriendListItem.vue";
 import type { FriendListItemVm } from "./FriendListItem.vue";
 import { useLocale } from "@/store/localeStore";

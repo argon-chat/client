@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { nextTick } from "vue";
@@ -33,7 +33,7 @@ import {
   ChannelGroupReordered,
   ChannelReordered,
   SpaceDetailsUpdated,
-} from "@/lib/glue/argonChat";
+} from "@argon/glue";
 
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();

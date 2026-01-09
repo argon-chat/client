@@ -1,4 +1,4 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus } from "@/lib/glue/argonChat";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import Dexie, { type Table } from "dexie";
 

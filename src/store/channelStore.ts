@@ -1,10 +1,10 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { liveQuery, type Subscription } from "dexie";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { type Ref, onUnmounted, ref, watch, reactive } from "vue";
 import { db } from "./db/dexie";
-import { type ArgonChannel, ChannelType } from "@/lib/glue/argonChat";
+import { type ArgonChannel, ChannelType } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**

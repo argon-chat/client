@@ -34,7 +34,7 @@ import { ref, watch } from 'vue';
 import { useSpaceStore } from '@/store/serverStore';
 import { usePoolStore } from '@/store/poolStore';
 import { DeferFlag } from '@/lib/DeferFlag';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 
 const { t } = useLocale();
 const spaceStore = useSpaceStore();

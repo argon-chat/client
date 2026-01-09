@@ -585,17 +585,17 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { Input } from "@/components/ui/input";
+import { Input } from "@argon/ui/input";
 import InputWithError from "@/components/shared/InputWithError.vue";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@argon/ui/button";
+import { Badge } from "@argon/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@argon/ui/dialog";
 import AvatarUploader from "./AvatarUploader.vue";
 import ProfileHeaderUploader from "./ProfileHeaderUploader.vue";
 import QRStyled from "../login/QRStyled.vue";
@@ -612,18 +612,16 @@ import {
   CheckCircle2Icon,
   MailIcon,
 } from "lucide-vue-next";
-import Select from "../ui/select/Select.vue";
-import SelectTrigger from "../ui/select/SelectTrigger.vue";
-import SelectValue from "../ui/select/SelectValue.vue";
-import SelectContent from "../ui/select/SelectContent.vue";
-import SelectGroup from "../ui/select/SelectGroup.vue";
-import SelectItem from "../ui/select/SelectItem.vue";
-import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@/components/ui/pin-input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem } from "@argon/ui/select";
+import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@argon/ui/pin-input";
 import { useApi } from "@/store/apiStore";
-import { useToast } from "../ui/toast";
-import { logger } from "@/lib/logger";
-import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@/lib/glue/argonChat";
+import { useToast } from "@argon/ui/toast";
+import { logger } from "@argon/core";
+import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@argon/glue";
 import { useBus } from "@/store/busStore";
+
+// Import badge icons
+const badgeIcons = import.meta.glob('/packages/assets/icons/inventory/*-64px.png', { eager: true, import: 'default' }) as Record<string, string>;
 
 const { t } = useLocale();
 const me = useMe();
@@ -1529,7 +1527,7 @@ const formatDate = (date: Date) => {
 
 const getBadgeIcon = (badge: string) => {
   const badgeId = badge === "staff" ? "coin_argxstaff" : badge;
-  return new URL(`../../assets/icons/inventory/${badgeId}-64px.png`, import.meta.url).href;
+  return badgeIcons[`/packages/assets/icons/inventory/${badgeId}-64px.png`];
 };
 
 // Load initial data

@@ -59,10 +59,10 @@ import { useApi } from '@/store/apiStore';
 import { usePoolStore } from '@/store/poolStore';
 import { useMe } from '@/store/meStore';
 import { useCallManager } from '@/store/callManagerStore';
-import { UserStatus } from '@/lib/glue/argonChat';
+import { UserStatus } from '@argon/glue';
 import type { RealtimeUser } from '@/store/db/dexie';
 import SmartArgonAvatar from '@/components/SmartArgonAvatar.vue';
-import { logger } from '@/lib/logger';
+import { logger } from '@argon/core';
 import { db } from '@/store/db/dexie';
 
 const { t } = useLocale();

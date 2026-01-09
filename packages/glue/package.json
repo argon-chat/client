@@ -1,0 +1,29 @@
+{
+  "name": "@argon/glue",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./ipc": {
+      "import": "./src/argon.ipc.ts",
+      "types": "./src/argon.ipc.ts"
+    },
+    "./native": {
+      "import": "./src/nativeGlue.ts",
+      "types": "./src/nativeGlue.ts"
+    }
+  },
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@argon-chat/ion.webcore": "^1.1.20"
+  }
+}

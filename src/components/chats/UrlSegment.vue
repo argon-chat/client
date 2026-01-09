@@ -3,10 +3,10 @@
     }}</a>
 </template>
 <script setup lang="ts" generic="T extends MessageEntityUrl">
-import { MessageEntityUrl } from "@/lib/glue/argonChat";
-import { useToast } from "../ui/toast";
+import { MessageEntityUrl } from "@argon/glue";
+import { useToast } from "@argon/ui/toast";
 import { useLocale } from "@/store/localeStore";
-import { native } from "@/lib/glue/nativeGlue";
+import { native } from "@argon/glue/native";
 const { t } = useLocale();
 
 const props = defineProps<{

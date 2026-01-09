@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import delay from "@/lib/delay";
