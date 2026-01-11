@@ -33,6 +33,8 @@ import {
   ChannelGroupReordered,
   ChannelReordered,
   SpaceDetailsUpdated,
+  type MeetingCreatedFor,
+  type MeetingDeletedFor,
 } from "@argon/glue";
 
 export const useEventStore = defineStore("events", () => {
@@ -304,6 +306,30 @@ export const useEventStore = defineStore("events", () => {
           logger.info("Updated space details in DB", x.spaceId, x.details);
         } catch (error) {
           logger.error("Error handling SpaceDetailsUpdated", error);
+        }
+      })();
+    });
+
+    bus.onServerEvent<MeetingCreatedFor>("MeetingCreatedFor", (x: MeetingCreatedFor) => {
+      logger.info("MeetingCreatedFor", x);
+      void (async () => {
+        try {
+          realtimeStore.setMeetingInfo(x.channelId, x.meetInfo);
+          logger.info("Meeting created for channel", x.channelId, x.meetInfo);
+        } catch (error) {
+          logger.error("Error handling MeetingCreatedFor", error);
+        }
+      })();
+    });
+
+    bus.onServerEvent<MeetingDeletedFor>("MeetingDeletedFor", (x: MeetingDeletedFor) => {
+      logger.info("MeetingDeletedFor", x);
+      void (async () => {
+        try {
+          realtimeStore.setMeetingInfo(x.channelId, undefined);
+          logger.info("Meeting deleted for channel", x.channelId);
+        } catch (error) {
+          logger.error("Error handling MeetingDeletedFor", error);
         }
       })();
     });

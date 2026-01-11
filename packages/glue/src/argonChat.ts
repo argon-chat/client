@@ -97,6 +97,15 @@ export interface CreateChannelRequest {
 export interface RealtimeChannel {
   channel: ArgonChannel;
   users: IonArray<RealtimeChannelUser>;
+  meetInfo: LinkedMeetingInfo | null;
+};
+
+
+export interface LinkedMeetingInfo {
+  meetingId: guid;
+  meetingUrl: string;
+  meetingCode: string;
+  startDate: datetime;
 };
 
 
@@ -1830,6 +1839,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isSpaceDetailsUpdated(): this is SpaceDetailsUpdated {
     return this.UnionKey === "SpaceDetailsUpdated";
   }
+  public isMeetingCreatedFor(): this is MeetingCreatedFor {
+    return this.UnionKey === "MeetingCreatedFor";
+  }
+  public isMeetingDeletedFor(): this is MeetingDeletedFor {
+    return this.UnionKey === "MeetingDeletedFor";
+  }
 
 }
 
@@ -2178,6 +2193,22 @@ export class SpaceDetailsUpdated extends IArgonEvent
   UnionIndex: number = 42;
 }
 
+export class MeetingCreatedFor extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
+
+  UnionKey: string = "MeetingCreatedFor";
+  UnionIndex: number = 43;
+}
+
+export class MeetingDeletedFor extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
+
+  UnionKey: string = "MeetingDeletedFor";
+  UnionIndex: number = 44;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -2274,6 +2305,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").read(reader);
     else if (unionIndex == 42)
       value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
+    else if (unionIndex == 43)
+      value = IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").read(reader);
+    else if (unionIndex == 44)
+      value = IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").read(reader);
 
     else throw new Error();
   
@@ -2413,6 +2448,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 42) {
         IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
+    }
+    else if (value.UnionIndex == 43) {
+        IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").write(writer, value as MeetingCreatedFor);
+    }
+    else if (value.UnionIndex == 44) {
+        IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").write(writer, value as MeetingDeletedFor);
     }
   
     else throw new Error();
@@ -3129,6 +3170,42 @@ IonFormatterStorage.register("SpaceDetailsUpdated", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').write(writer, value.details);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetingCreatedFor", {
+  read(reader: CborReader): MeetingCreatedFor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new MeetingCreatedFor(spaceId, channelId, meetInfo);
+  },
+  write(writer: CborWriter, value: MeetingCreatedFor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetingDeletedFor", {
+  read(reader: CborReader): MeetingDeletedFor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new MeetingDeletedFor(spaceId, channelId, meetInfo);
+  },
+  write(writer: CborWriter, value: MeetingDeletedFor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
     writer.writeEndArray();
   }
 });
@@ -5872,13 +5949,35 @@ IonFormatterStorage.register("RealtimeChannel", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     const users = IonFormatterStorage.readArray<RealtimeChannelUser>(reader, 'RealtimeChannelUser');
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { channel, users };
+    const meetInfo = IonFormatterStorage.readNullable<LinkedMeetingInfo>(reader, 'LinkedMeetingInfo');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { channel, users, meetInfo };
   },
   write(writer: CborWriter, value: RealtimeChannel): void {
-    writer.writeStartArray(2);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
     IonFormatterStorage.writeArray<RealtimeChannelUser>(writer, value.users, 'RealtimeChannelUser');
+    IonFormatterStorage.writeNullable<LinkedMeetingInfo>(writer, value.meetInfo, 'LinkedMeetingInfo');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LinkedMeetingInfo", {
+  read(reader: CborReader): LinkedMeetingInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const meetingId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetingUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const meetingCode = IonFormatterStorage.get<string>('string').read(reader);
+    const startDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { meetingId, meetingUrl, meetingCode, startDate };
+  },
+  write(writer: CborWriter, value: LinkedMeetingInfo): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.meetingId);
+    IonFormatterStorage.get<string>('string').write(writer, value.meetingUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.meetingCode);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.startDate);
     writer.writeEndArray();
   }
 });
@@ -6989,6 +7088,8 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
+  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
 }
 
 
@@ -7188,6 +7289,8 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
+  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
 }
 
 
@@ -7713,6 +7816,34 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateLinkedMeeting");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<LinkedMeetingInfo>("LinkedMeetingInfo", writer.data, this.signal);
+  }
+  async EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "EndLinkedMeeting");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
   }
 
 }
