@@ -116,6 +116,12 @@ export const usePoolStore = defineStore("data-pool", () => {
         // Prepare users for realtime channel
         const realtimeUsers = new Map();
         for (const uw of c.users) {
+          // Skip guest users - they will be added by LiveKit events
+          if (isGuestUser(uw.userId)) {
+            logger.debug(`[PoolStore] Skipping guest user ${uw.userId} in channel init`);
+            continue;
+          }
+          
           const selectedUser = users
             .filter((z) => z.member.userId === uw.userId)
             .at(0);
@@ -128,10 +134,16 @@ export const usePoolStore = defineStore("data-pool", () => {
 
           let member = selectedUser?.member.user;
           if (!member) {
-            member = await api.serverInteraction.PrefetchUser(
+
+            
+            try {
+              member = await api.serverInteraction.PrefetchUser(
               c.channel.spaceId,
-              selectedUser?.member.userId || ""
+              selectedUser?.member.userId!
             );
+            }catch (e) {
+              logger.error(e, "Failed to prefetch user", selectedUser);
+            } 
           }
 
           if (!selectedUser) {
@@ -170,6 +182,14 @@ export const usePoolStore = defineStore("data-pool", () => {
       // Start listening to server events
       bus.listenEvents(server.spaceId);
     }
+  };
+
+  /**
+   * Check if userId is a guest user by GUID prefix
+   * Guest users have GUID starting with 0xFA, 0xFC, 0xCC, 0xCC (ccccfcfa in hex)
+   */
+  const isGuestUser = (userId: string): boolean => {
+    return userId.toLowerCase().startsWith('ccccfcfa');
   };
 
   /**

@@ -50,7 +50,21 @@ export const useEventStore = defineStore("events", () => {
 
   const pendingUserFetches = new Map<string, Promise<void>>();
 
+  /**
+   * Check if userId is a guest user by GUID prefix
+   * Guest users have GUID starting with ccccfcfa
+   */
+  const isGuestUser = (userId: string): boolean => {
+    return userId.toLowerCase().startsWith('ccccfcfa');
+  };
+
   const ensureUser = async (spaceId: string, userId: string): Promise<boolean> => {
+    // Guest users don't exist on the server, skip fetching
+    if (isGuestUser(userId)) {
+      logger.debug(`[EventStore] Skipping fetch for guest user ${userId}`);
+      return false;
+    }
+
     let user = await userStore.getUser(userId);
     if (user) return true;
 
@@ -121,6 +135,12 @@ export const useEventStore = defineStore("events", () => {
             return;
           }
 
+          // Guest users are handled by LiveKit events, not server events
+          if (isGuestUser(x.userId)) {
+            logger.debug(`[EventStore] Ignoring JoinedToChannelUser for guest ${x.userId}`);
+            return;
+          }
+
           const success = await ensureUser(x.spaceId, x.userId);
           if (!success) {
             logger.error("Failed to ensure user", x.userId);
@@ -145,6 +165,12 @@ export const useEventStore = defineStore("events", () => {
             const channel = await db.channels.get(x.channelId);
             if (!channel) {
               logger.error("recollect channel required");
+              return;
+            }
+
+            // Guest users are handled by LiveKit events, not server events
+            if (isGuestUser(x.userId)) {
+              logger.debug(`[EventStore] Ignoring LeavedFromChannelUser for guest ${x.userId}`);
               return;
             }
 
@@ -338,5 +364,6 @@ export const useEventStore = defineStore("events", () => {
   return {
     onNewMessageReceived,
     subscribeToEvents,
+    isGuestUser,
   };
 });
