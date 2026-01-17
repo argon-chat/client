@@ -544,7 +544,7 @@ textarea::placeholder {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border: 1px solid hsl(var(--border));
+    border: 1px solid hsl(var(--border) / 0.5);
 }
 
 .reply-banner {

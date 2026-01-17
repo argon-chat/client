@@ -5,6 +5,7 @@ import { Skeleton } from "@argon/ui/skeleton";
 import { computed, toRef, type HTMLAttributes } from "vue";
 import { useAvatarBlob } from "@argon/avatar";
 import { useFileStorage } from "@/store/fileStorage";
+import { useUserColors } from "@/store/userColors";
 
 const props = withDefaults(
   defineProps<{
@@ -39,6 +40,7 @@ const avatarType = computed<"user" | "server">(() => {
 });
 
 const fileStorage = useFileStorage();
+const userColors = useUserColors();
 
 const { loaded, loading, blobSrc } = useAvatarBlob(
   fileIdRef,
@@ -62,9 +64,25 @@ const emojiFallback = computed(() =>
 );
 
 const avatarStyle = computed(() => {
-  if (!isSipUser.value) return {};
+  // Показываем цветной фон только для фоллбека (когда нет изображения)
+  if (loading.value || loaded.value) {
+    return {};
+  }
+  
+  const baseColor = props.userId || props.spaceId || props.serverId;
+  const backgroundColor = baseColor 
+    ? userColors.getColorByUserId(baseColor)
+    : "#494949";
+  
+  if (isSipUser.value) {
+    return {
+      backgroundColor: "#ff8b00",
+      color: "white",
+    };
+  }
+  
   return {
-    backgroundColor: "#ff8b00",
+    backgroundColor,
     color: "white",
   };
 });
@@ -72,7 +90,7 @@ const avatarStyle = computed(() => {
 
 <template>
   <keep-alive :max="10" :key="props.fileId!">
-    <Avatar :class="['!bg-transparent', props.class]" :key="props.fileId!" :style="{ width: size, height: size, ...avatarStyle }">
+    <Avatar :class="[props.class]" :key="props.fileId!" :style="{ width: size, height: size, ...avatarStyle }">
       <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
       <video v-else-if="loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc" disablePictureInPicture
         controlslist="nodownload nofullscreen noremoteplayback" />

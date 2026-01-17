@@ -232,6 +232,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.media-channel {
+    border: 1px solid hsl(var(--border) / 0.5);
+}
+
 /* Transition animations */
 .stream-layout-enter-active,
 .stream-layout-leave-active {

@@ -1,5 +1,21 @@
 import { defineStore } from "pinia";
 
+// Палитра приглушенных цветов, которые не бьют по глазам
+const colorPalette = [
+  "hsl(210, 35%, 50%)", // приглушенный синий
+  "hsl(160, 35%, 45%)", // приглушенный бирюзовый
+  "hsl(280, 30%, 50%)", // приглушенный фиолетовый
+  "hsl(30, 40%, 50%)",  // приглушенный оранжевый
+  "hsl(340, 35%, 50%)", // приглушенный розовый
+  "hsl(180, 30%, 45%)", // приглушенный циан
+  "hsl(120, 30%, 45%)", // приглушенный зеленый
+  "hsl(250, 35%, 50%)", // приглушенный индиго
+  "hsl(50, 35%, 50%)",  // приглушенный желтый
+  "hsl(200, 35%, 50%)", // приглушенный голубой
+  "hsl(300, 30%, 50%)", // приглушенный пурпурный
+  "hsl(150, 30%, 45%)", // приглушенный мятный
+];
+
 export const useUserColors = defineStore("userColors", () => {
   const userColorCache = new Map<string, string>();
   function getColorByUserId(userId: string): string {
@@ -12,8 +28,9 @@ export const useUserColors = defineStore("userColors", () => {
       hash |= 0;
     }
 
-    const hue = Math.abs(hash) % 360;
-    const color = `hsl(${hue}, 60%, 50%)`;
+    // Используем хеш как seed для выбора цвета из палитры
+    const colorIndex = Math.abs(hash) % colorPalette.length;
+    const color = colorPalette[colorIndex];
     userColorCache.set(userId, color);
     return color;
   }

@@ -222,6 +222,7 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 <style scoped>
 .chat-list {
   background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   height: 100%;
 }

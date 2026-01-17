@@ -11,7 +11,7 @@ import { useEventStore } from "./eventStore";
 import { useMessageStore } from "./messageStore";
 import { db } from "./db/dexie";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
-import { ChannelType, UserStatus } from "@argon/glue";
+import { ChannelType, UserStatus, type ArgonSpaceBase, type ArgonUser, type RealtimeChannel, type RealtimeServerMember } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**
@@ -42,146 +42,227 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   /**
-   * Load all server details
+   * Load all server details with parallel fetching and bulk DB operations
    */
   const loadServerDetails = async () => {
+    const startTime = performance.now();
     const servers = await api.userInteraction.GetSpaces();
 
     logger.log(`Loaded '${servers.length}' servers`);
+
+    // Bulk save servers first
+    await db.servers.bulkPut(servers);
+
+    // Process servers in parallel batches
+    const BATCH_SIZE = 5; // Limit concurrent server loads to avoid overwhelming API
     
-    for (const server of servers) {
-      await db.servers.put(server, server.spaceId);
+    for (let i = 0; i < servers.length; i += BATCH_SIZE) {
+      const batch = servers.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(server => loadSingleServerDetails(server)));
+    }
 
-      // Load archetypes
-      try {
-        const serverArchetypes =
-          await api.serverInteraction.GetServerArchetypes(server.spaceId);
+    const duration = performance.now() - startTime;
+    logger.log(`[PoolStore] loadServerDetails completed in ${duration.toFixed(0)}ms for ${servers.length} servers`);
+  };
 
-        logger.log(
-          `Loaded '${serverArchetypes.length}' archetypes`,
-          serverArchetypes
-        );
+  /**
+   * Load details for a single server with parallel API calls
+   */
+  const loadSingleServerDetails = async (server: ArgonSpaceBase) => {
+    const startTime = performance.now();
+    const spaceId = server.spaceId;
 
-        for (const arch of serverArchetypes) {
-          await archetypeStore.trackArchetype(arch);
+    try {
+      // Parallel fetch all server data
+      const [archetypesResult, membersResult, channelsResult, groupsResult] = await Promise.allSettled([
+        api.serverInteraction.GetServerArchetypes(spaceId),
+        api.serverInteraction.GetMembers(spaceId),
+        api.serverInteraction.GetChannels(spaceId),
+        api.serverInteraction.GetChannelGroups(spaceId),
+      ]);
+
+      // Process archetypes
+      const serverArchetypes = archetypesResult.status === 'fulfilled' ? archetypesResult.value : [];
+      if (archetypesResult.status === 'rejected') {
+        logger.error(archetypesResult.reason, "failed receive archetypes for server", spaceId);
+      } else {
+        logger.log(`Loaded '${serverArchetypes.length}' archetypes for ${spaceId}`);
+        // Bulk save archetypes
+        if (serverArchetypes.length > 0) {
+          await db.archetypes.bulkPut(serverArchetypes);
         }
-      } catch (e) {
-        logger.error(e, "failed receive archetypes for server", server.spaceId);
       }
 
-      // Load users and members
-      const users = await api.serverInteraction.GetMembers(server.spaceId);
-      logger.log(`Loaded '${users.length}' users`, users);
-
-      for (const u of users) {
-        await archetypeStore.trackMember(u.member);
-        if (u.member.user) {
-          await userStore.trackUser(u.member.user, u.status, u.presence);
-        }
-      }
-
-      // Set offline status for users not in the list
-      const excludeSet = new Set(
-        users.filter((x) => x.member).map((x) => x.member.userId)
-      );
-
-      await db.users
-        .filter((user) => !excludeSet.has(user.userId))
-        .modify((user) => {
-          user.status = UserStatus.Offline;
-          user.activity = undefined;
-        });
-
-      // Load channels
-      const channels = await api.serverInteraction.GetChannels(server.spaceId);
-      logger.log(`Loaded '${channels.length}' channels`, channels);
-
-      const groups = await api.serverInteraction.GetChannelGroups(server.spaceId);
-      logger.log(`Loaded '${groups.length}' channel groups`, groups);
-      
-      // Save channel groups to DB
-      for (const group of groups) {
-        await db.channelGroups.put(group, group.groupId);
-      }
-      
-      const trackedIds: Guid[] = [];
-
-      for (const c of channels) {
-        if (c.channel.type === ChannelType.Text && !channelStore.selectedTextChannel) {
-          channelStore.selectedTextChannel = c.channel.channelId;
-        }
+      // Process members/users
+      const users = membersResult.status === 'fulfilled' ? membersResult.value : [];
+      if (membersResult.status === 'rejected') {
+        logger.error(membersResult.reason, "failed receive members for server", spaceId);
+      } else {
+        logger.log(`Loaded '${users.length}' users for ${spaceId}`);
         
-        trackedIds.push(c.channel.channelId);
+        // Bulk save members
+        const members = users.map(u => u.member).filter(Boolean);
+        if (members.length > 0) {
+          await db.members.bulkPut(members);
+        }
 
-        // Prepare users for realtime channel
-        const realtimeUsers = new Map();
-        for (const uw of c.users) {
-          // Skip guest users - they will be added by LiveKit events
-          if (isGuestUser(uw.userId)) {
-            logger.debug(`[PoolStore] Skipping guest user ${uw.userId} in channel init`);
-            continue;
-          }
-          
-          const selectedUser = users
-            .filter((z) => z.member.userId === uw.userId)
-            .at(0);
-          
-          if (!selectedUser) {
-            await userStore.trackUser(
-              await api.serverInteraction.PrefetchUser(server.spaceId, uw.userId)
-            );
-          }
+        // Bulk save/update users
+        const usersToTrack = users
+          .filter(u => u.member.user)
+          .map(u => ({
+            ...u.member.user,
+            status: u.status,
+            activity: u.presence ?? undefined,
+          }));
+        
+        if (usersToTrack.length > 0) {
+          await db.users.bulkPut(usersToTrack);
+        }
 
-          let member = selectedUser?.member.user;
-          if (!member) {
-
-            
-            try {
-              member = await api.serverInteraction.PrefetchUser(
-              c.channel.spaceId,
-              selectedUser?.member.userId!
-            );
-            }catch (e) {
-              logger.error(e, "Failed to prefetch user", selectedUser);
-            } 
-          }
-
-          if (!selectedUser) {
-            logger.fatal(
-              "Cannot filter user from store, maybe bug",
-              uw,
-              users
-            );
-            continue;
-          }
-
-          realtimeUsers.set(uw.userId, {
-            state: uw.state,
-            userId: uw.userId,
-            User: member,
-            isSpeaking: false,
-            isMuted: false,
-            isScreenShare: false,
-            volume: [100],
-            isRecording: false,
+        // Set offline status for users not in the list
+        const excludeSet = new Set(users.filter(x => x.member).map(x => x.member.userId));
+        await db.users
+          .filter(user => !excludeSet.has(user.userId))
+          .modify(user => {
+            user.status = UserStatus.Offline;
+            user.activity = undefined;
           });
-        }
+      }
 
-        await channelStore.trackChannel(c.channel);
-        realtimeStore.initRealtimeChannel(c.channel, realtimeUsers);
-        
-        // Set meeting info if exists
-        if (c.meetInfo) {
-          realtimeStore.setMeetingInfo(c.channel.channelId, c.meetInfo);
+      // Process channel groups
+      const groups = groupsResult.status === 'fulfilled' ? groupsResult.value : [];
+      if (groupsResult.status === 'rejected') {
+        logger.error(groupsResult.reason, "failed receive channel groups for server", spaceId);
+      } else {
+        logger.log(`Loaded '${groups.length}' channel groups for ${spaceId}`);
+        if (groups.length > 0) {
+          await db.channelGroups.bulkPut(groups);
         }
       }
 
-      // Remove stale channels
-      await channelStore.pruneChannels(server.spaceId, trackedIds);
+      // Process channels
+      const channels = channelsResult.status === 'fulfilled' ? channelsResult.value : [];
+      if (channelsResult.status === 'rejected') {
+        logger.error(channelsResult.reason, "failed receive channels for server", spaceId);
+      } else {
+        logger.log(`Loaded '${channels.length}' channels for ${spaceId}`);
+        await processChannels(channels, users, spaceId);
+      }
 
       // Start listening to server events
-      bus.listenEvents(server.spaceId);
+      bus.listenEvents(spaceId);
+
+      const duration = performance.now() - startTime;
+      logger.debug(`[PoolStore] Server ${spaceId} loaded in ${duration.toFixed(0)}ms`);
+    } catch (e) {
+      logger.error(e, `[PoolStore] Critical error loading server ${spaceId}`);
     }
+  };
+
+  /**
+   * Process channels with bulk operations and parallel user prefetching
+   */
+  const processChannels = async (channels: RealtimeChannel[], users: RealtimeServerMember[], spaceId: Guid) => {
+    const trackedIds: Guid[] = [];
+    const channelsToSave: RealtimeChannel['channel'][] = [];
+    const usersToPrefetch: Array<{ spaceId: Guid; userId: Guid }> = [];
+    
+    // Map userId -> member data from server response
+    const membersMap = new Map(users.map(u => [u.member.userId, u]));
+    // Map userId -> ArgonUser (for prefetched users)
+    const prefetchedUsersMap = new Map<Guid, ArgonUser>();
+
+    // First pass: collect channels and identify missing users
+    for (const c of channels) {
+      if (c.channel.type === ChannelType.Text && !channelStore.selectedTextChannel) {
+        channelStore.selectedTextChannel = c.channel.channelId;
+      }
+
+      trackedIds.push(c.channel.channelId);
+      channelsToSave.push(c.channel);
+
+      // Collect users that need prefetching
+      for (const uw of c.users) {
+        if (isGuestUser(uw.userId)) continue;
+        
+        const existingUser = membersMap.get(uw.userId);
+        if (!existingUser || !existingUser.member.user) {
+          usersToPrefetch.push({ spaceId: c.channel.spaceId, userId: uw.userId });
+        }
+      }
+    }
+
+    // Bulk save channels
+    if (channelsToSave.length > 0) {
+      await db.channels.bulkPut(channelsToSave);
+    }
+
+    // Parallel prefetch missing users (with deduplication)
+    const uniquePrefetches = Array.from(
+      new Map(usersToPrefetch.map(p => [p.userId, p])).values()
+    );
+
+    if (uniquePrefetches.length > 0) {
+      const PREFETCH_BATCH = 10;
+      for (let i = 0; i < uniquePrefetches.length; i += PREFETCH_BATCH) {
+        const batch = uniquePrefetches.slice(i, i + PREFETCH_BATCH);
+        const prefetchedUsers = await Promise.allSettled(
+          batch.map(p => api.serverInteraction.PrefetchUser(p.spaceId, p.userId))
+        );
+
+        // Add prefetched users to map
+        prefetchedUsers.forEach((result, idx) => {
+          if (result.status === 'fulfilled' && result.value) {
+            const userId = batch[idx].userId;
+            prefetchedUsersMap.set(userId, result.value);
+            // Also track in store
+            userStore.trackUser(result.value);
+          }
+        });
+      }
+    }
+
+    // Second pass: initialize realtime channels
+    for (const c of channels) {
+      const realtimeUsers = new Map();
+
+      for (const uw of c.users) {
+        if (isGuestUser(uw.userId)) {
+          logger.debug(`[PoolStore] Skipping guest user ${uw.userId} in channel init`);
+          continue;
+        }
+
+        // Try to get user from members map first, then from prefetched
+        const memberData = membersMap.get(uw.userId);
+        const user = memberData?.member.user ?? prefetchedUsersMap.get(uw.userId);
+        
+        if (!user) {
+          logger.fatal("Cannot find user data", uw.userId);
+          continue;
+        }
+
+        realtimeUsers.set(uw.userId, {
+          state: uw.state,
+          userId: uw.userId,
+          User: user,
+          isSpeaking: false,
+          isMuted: false,
+          isScreenShare: false,
+          volume: [100],
+          isRecording: false,
+        });
+      }
+
+      realtimeStore.initRealtimeChannel(c.channel, realtimeUsers);
+
+      // Set meeting info if exists
+      if (c.meetInfo) {
+        realtimeStore.setMeetingInfo(c.channel.channelId, c.meetInfo);
+      }
+    }
+
+    // Remove stale channels
+    await channelStore.pruneChannels(spaceId, trackedIds);
   };
 
   /**
