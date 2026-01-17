@@ -24,7 +24,7 @@ import { useUserVolumeStore } from "./userVolumeStore";
 import { useRealtimeStore } from "./realtimeStore";
 
 import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
-import { startTimer } from "@/lib/intervalTimer";
+import { startTimer } from "@argon/core";
 import { useSystemStore } from "./systemStore";
 import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
@@ -554,6 +554,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     const r = new Room({
       loggerName: `${callId.value}-room`,
+      webAudioMix: {
+        audioContext: audio.getCurrentAudioContext()
+      }
     });
     room.value = r;
 

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { logger } from "@argon/core";
 import { useOnline } from "@vueuse/core";
-import delay from "@/lib/delay";
+import { delay } from "@argon/core";
 import { ref } from "vue";
 import { useTone } from "./toneStore";
 import { useAuthStore } from "./authStore";

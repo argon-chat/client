@@ -619,6 +619,7 @@ import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@argon/glue";
 import { useBus } from "@/store/busStore";
+import { PasskeyManager, type PasskeyApiCallbacks } from "@argon/passkey";
 
 // Import badge icons
 const badgeIcons = import.meta.glob('/packages/assets/icons/inventory/*-64px.png', { eager: true, import: 'default' }) as Record<string, string>;
@@ -630,6 +631,76 @@ const { toast } = useToast();
 
 const api = useApi();
 const bus = useBus();
+
+// Create API callbacks for PasskeyManager
+const passkeyApiCallbacks: PasskeyApiCallbacks = {
+  beginAddPasskey: async (name: string) => {
+    const result = await api.securityInteraction.BeginAddPasskey(name);
+    if (result.isSuccessBeginPasskey()) {
+      return {
+        success: true,
+        passkeyId: (result as any).passkeyId,
+        challenge: (result as any).challenge,
+      };
+    }
+    return { success: false };
+  },
+  completeAddPasskey: async (passkeyId: string, publicKey: string) => {
+    const result = await api.securityInteraction.CompleteAddPasskey(passkeyId, publicKey);
+    if (result.isSuccessCompletePasskey()) {
+      const passkey = (result as any).passkey;
+      return {
+        success: true,
+        passkey: passkey ? {
+          id: passkey.id.toString(),
+          name: passkey.name,
+          createdAt: passkey.createdAt.date,
+        } : undefined,
+      };
+    }
+    return { success: false };
+  },
+  removePasskey: async (passkeyId: string) => {
+    const result = await api.securityInteraction.RemovePasskey(passkeyId);
+    return {
+      success: result.isSuccessRemovePasskey(),
+    };
+  },
+  beginValidatePasskey: async () => {
+    const result = await api.securityInteraction.BeginValidatePasskey();
+    if (result.isSuccessBeginValidatePasskey()) {
+      return {
+        success: true,
+        challenge: result.challenge,
+        allowedCredentials: result.allowedCredentials,
+      };
+    }
+    return { success: false };
+  },
+  completeValidatePasskey: async (
+    credentialId: string,
+    signature: string,
+    authenticatorData: string,
+    clientDataJSON: string
+  ) => {
+    const result = await api.securityInteraction.CompleteValidatePasskey(
+      credentialId,
+      signature,
+      authenticatorData,
+      clientDataJSON
+    );
+    return {
+      success: result.isSuccessCompletePasskey(),
+    };
+  },
+};
+
+const passkeyManager = new PasskeyManager(passkeyApiCallbacks, {
+  relyingPartyId: "gl.argon.app",
+  relyingPartyName: "ArgonChat",
+  origin: "https://aegis.argon.gl",
+  timeoutMilliseconds: 60000,
+});
 
 
 // Email State
@@ -1210,182 +1281,61 @@ const confirmDisableOTP = async () => {
 };
 
 const addPasskey = async () => {
-  console.log("[PASSKEY] 🚀 Starting passkey creation process");
-  console.log("[PASSKEY] 📝 Passkey name:", newPasskeyName.value);
-  
   if (!newPasskeyName.value.trim()) {
-    console.log("[PASSKEY] ❌ Passkey name is empty, aborting");
     return;
   }
 
-  try {
-    console.log("[PASSKEY] 📡 Calling BeginAddPasskey API...");
-    const beginResult = await api.securityInteraction.BeginAddPasskey(newPasskeyName.value);
-    console.log("[PASSKEY] 📥 BeginAddPasskey result:", beginResult);
+  if (!me.me) {
+    toast({
+      title: t("error"),
+      description: t("user_not_loaded"),
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (beginResult.isSuccessBeginPasskey()) {
-      const passkeyId = beginResult.passkeyId!;
-      const challenge = beginResult.challenge!;
-      
-      console.log("[PASSKEY] ✅ BeginAddPasskey successful");
-      console.log("[PASSKEY] 🔑 Passkey ID:", passkeyId);
-      console.log("[PASSKEY] 🎲 Challenge (base64):", challenge);
+  const result = await passkeyManager.createPasskey(newPasskeyName.value, {
+    userId: me.me.userId,
+    username: me.me.username,
+    displayName: me.me.displayName,
+  });
 
-      // Convert challenge from base64 to Uint8Array
-      console.log("[PASSKEY] 🔄 Converting challenge to Uint8Array...");
-      const challengeBuffer = Uint8Array.from(atob(challenge), c => c.charCodeAt(0));
-      console.log("[PASSKEY] ✅ Challenge converted, length:", challengeBuffer.length);
+  if (result.success) {
+    passkeys.value.push({
+      id: result.passkeyId!,
+      name: result.name!,
+      createdAt: result.createdAt!,
+    });
+    showAddPasskeyDialog.value = false;
+    newPasskeyName.value = "";
 
-      // Prepare WebAuthn options
-      const publicKeyOptions = {
-        challenge: challengeBuffer,
-        rp: {
-          name: "ArgonChat",
-          id: window.location.hostname,
-        },
-        user: {
-          id: Uint8Array.from(me.me!.userId, c => c.charCodeAt(0)),
-          name: me.me!.username,
-          displayName: me.me!.displayName,
-        },
-        pubKeyCredParams: [
-          { alg: -7, type: "public-key" },  // ES256
-          { alg: -257, type: "public-key" }, // RS256
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          requireResidentKey: false,
-          userVerification: "preferred",
-        },
-        timeout: 60000,
-        attestation: "none",
-      };
-      
-      console.log("[PASSKEY] 🌐 WebAuthn options prepared:", {
-        rpId: publicKeyOptions.rp.id,
-        userName: publicKeyOptions.user.name,
-        userDisplayName: publicKeyOptions.user.displayName,
-        timeout: publicKeyOptions.timeout,
-      });
-
-      // Create WebAuthn credential
-      console.log("[PASSKEY] 🔐 Calling navigator.credentials.create...");
-      console.log("[PASSKEY] ⏳ Waiting for user interaction...");
-      
-      const credential = await navigator.credentials.create({
-        publicKey: publicKeyOptions as any,
-      }) as PublicKeyCredential;
-      
-      console.log("[PASSKEY] 📦 Credential received:", credential);
-      console.log("[PASSKEY] 🆔 Credential ID:", credential.id);
-      console.log("[PASSKEY] 🔧 Credential type:", credential.type);
-
-      if (!credential) {
-        console.log("[PASSKEY] ❌ Credential is null");
-        toast({
-          title: t("error"),
-          description: t("passkey_add_error"),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Extract public key from credential
-      console.log("[PASSKEY] 🔍 Extracting public key from credential...");
-      const response = credential.response as AuthenticatorAttestationResponse;
-      console.log("[PASSKEY] 📋 Response type:", response.constructor.name);
-      
-      const publicKeyBuffer = response.getPublicKey();
-      console.log("[PASSKEY] 🔑 Public key buffer length:", publicKeyBuffer?.byteLength);
-      
-      if (!publicKeyBuffer) {
-        console.log("[PASSKEY] ❌ Public key buffer is null");
-        toast({
-          title: t("error"),
-          description: t("passkey_add_error"),
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyBuffer)));
-      console.log("[PASSKEY] ✅ Public key converted to base64, length:", publicKeyBase64.length);
-      console.log("[PASSKEY] 🔐 Public key (truncated):", publicKeyBase64.substring(0, 50) + "...");
-
-      console.log("[PASSKEY] 📡 Calling CompleteAddPasskey API...");
-      const completeResult = await api.securityInteraction.CompleteAddPasskey(
-        passkeyId,
-        publicKeyBase64
-      );
-      console.log("[PASSKEY] 📥 CompleteAddPasskey result:", completeResult);
-
-      if (completeResult.isSuccessCompletePasskey()) {
-        console.log("[PASSKEY] ✅ CompleteAddPasskey successful");
-        console.log("[PASSKEY] 🎉 Passkey added:", completeResult.passkey);
-        
-        passkeys.value.push({
-          id: completeResult.passkey!.id.toString(),
-          name: completeResult.passkey!.name,
-          createdAt: completeResult.passkey!.createdAt.date,
-        });
-        showAddPasskeyDialog.value = false;
-        newPasskeyName.value = "";
-
-        console.log("[PASSKEY] ✅ Passkey added to local state");
-        console.log("[PASSKEY] 📊 Total passkeys:", passkeys.value.length);
-
-        toast({
-          title: t("passkey_added"),
-          description: t("passkey_added_desc"),
-        });
-      } else {
-        console.log("[PASSKEY] ❌ CompleteAddPasskey failed");
-        toast({
-          title: t("error"),
-          description: t("passkey_add_error"),
-          variant: "destructive",
-        });
-      }
-    } else {
-      console.log("[PASSKEY] ❌ BeginAddPasskey failed");
-      toast({
-        title: t("error"),
-        description: t("passkey_add_error"),
-        variant: "destructive",
-      });
-    }
-  } catch (error: any) {
-    console.log("[PASSKEY] ❌ Exception caught:", error);
-    console.log("[PASSKEY] 📛 Error name:", error.name);
-    console.log("[PASSKEY] 📝 Error message:", error.message);
-    console.log("[PASSKEY] 📚 Error stack:", error.stack);
-    
-    // Handle user cancellation gracefully
-    if (error.name === "NotAllowedError") {
-      console.log("[PASSKEY] 🚫 User cancelled or not allowed");
+    toast({
+      title: t("passkey_added"),
+      description: t("passkey_added_desc"),
+    });
+  } else {
+    // Handle specific error codes
+    if (result.errorCode === "CANCELLED") {
       toast({
         title: t("cancelled"),
         description: t("passkey_add_cancelled"),
       });
-    } else if (error.name === "NotSupportedError") {
-      console.log("[PASSKEY] ⚠️ WebAuthn not supported");
+    } else if (result.errorCode === "NOT_SUPPORTED") {
       toast({
         title: t("error"),
         description: "WebAuthn not supported on this device",
         variant: "destructive",
       });
-    } else if (error.name === "InvalidStateError") {
-      console.log("[PASSKEY] ⚠️ Invalid state or authenticator already registered");
+    } else if (result.errorCode === "INVALID_STATE") {
       toast({
         title: t("error"),
         description: "This authenticator is already registered",
         variant: "destructive",
       });
     } else {
-      console.error("[PASSKEY] 💥 Unexpected error:", error);
       toast({
         title: t("error"),
-        description: t("passkey_add_error"),
+        description: result.error || t("passkey_add_error"),
         variant: "destructive",
       });
     }
@@ -1393,49 +1343,26 @@ const addPasskey = async () => {
 };
 
 const removePasskey = async (id: string) => {
-  console.log("[PASSKEY] 🗑️ Starting passkey removal process");
-  console.log("[PASSKEY] 🆔 Passkey ID to remove:", id);
-  
   const index = passkeys.value.findIndex((p) => p.id === id);
-  console.log("[PASSKEY] 📍 Passkey index:", index);
   
   if (index === -1) {
-    console.log("[PASSKEY] ❌ Passkey not found in local state");
     return;
   }
 
   const passkey = passkeys.value[index];
-  console.log("[PASSKEY] 📝 Passkey to remove:", passkey);
+  const result = await passkeyManager.removePasskey(id);
 
-  try {
-    console.log("[PASSKEY] 📡 Calling RemovePasskey API...");
-    const result = await api.securityInteraction.RemovePasskey(id);
-    console.log("[PASSKEY] 📥 RemovePasskey result:", result);
+  if (result.success) {
+    passkeys.value.splice(index, 1);
 
-    if (result.isSuccessRemovePasskey()) {
-      console.log("[PASSKEY] ✅ RemovePasskey successful");
-      passkeys.value.splice(index, 1);
-      console.log("[PASSKEY] ✅ Passkey removed from local state");
-      console.log("[PASSKEY] 📊 Remaining passkeys:", passkeys.value.length);
-
-      toast({
-        title: t("passkey_removed"),
-        description: `${passkey.name} ${t("has_been_removed")}`,
-      });
-    } else {
-      console.log("[PASSKEY] ❌ RemovePasskey failed");
-      toast({
-        title: t("error"),
-        description: t("passkey_remove_error"),
-        variant: "destructive",
-      });
-    }
-  } catch (error) {
-    console.log("[PASSKEY] ❌ Exception caught:", error);
-    console.error("[PASSKEY] 💥 Error details:", error);
+    toast({
+      title: t("passkey_removed"),
+      description: `${passkey.name} ${t("has_been_removed")}`,
+    });
+  } else {
     toast({
       title: t("error"),
-      description: t("passkey_remove_error"),
+      description: result.error || t("passkey_remove_error"),
       variant: "destructive",
     });
   }

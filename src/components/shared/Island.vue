@@ -35,7 +35,6 @@
 </template>
 
 <script lang="ts" setup>
-import delay from "@/lib/delay";
 import { cn } from "@argon/core";
 import { useColorMode } from "@vueuse/core";
 import { motion, MotionConfig } from "motion-v";

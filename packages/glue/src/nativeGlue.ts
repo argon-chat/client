@@ -78,6 +78,10 @@ class NativeProxy {
     if (argon.isArgonHost) return this.hostProc.dsn();
     return Promise.resolve("");
   }
+
+  captureFrame(sessionId: string) {
+    return this.hostProc.overlayCaptureFrame(sessionId);
+  }
 }
 
 window.argon = deepFreeze(new ArgonHostProxy());

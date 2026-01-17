@@ -352,6 +352,12 @@ export interface Passkey {
 };
 
 
+export interface PasskeyCredentialDescriptor {
+  id: string;
+  type: string;
+};
+
+
 export interface AutoDeletePeriod {
   months: i4 | null;
   enabled: bool;
@@ -4872,6 +4878,110 @@ IonFormatterStorage.register("FailedRemovePasskey", {
 
 
 
+export abstract class IBeginPasskeyValidateResult implements IIonUnion<IBeginPasskeyValidateResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBeginValidatePasskey(): this is SuccessBeginValidatePasskey {
+    return this.UnionKey === "SuccessBeginValidatePasskey";
+  }
+  public isFailedBeginValidatePasskey(): this is FailedBeginValidatePasskey {
+    return this.UnionKey === "FailedBeginValidatePasskey";
+  }
+
+}
+
+
+export class SuccessBeginValidatePasskey extends IBeginPasskeyValidateResult
+{
+  constructor(public challenge: string, public allowedCredentials: IonArray<PasskeyCredentialDescriptor>) { super(); }
+
+  UnionKey: string = "SuccessBeginValidatePasskey";
+  UnionIndex: number = 0;
+}
+
+export class FailedBeginValidatePasskey extends IBeginPasskeyValidateResult
+{
+  constructor(public error: PasskeyError) { super(); }
+
+  UnionKey: string = "FailedBeginValidatePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginPasskeyValidateResult", {
+  read(reader: CborReader): IBeginPasskeyValidateResult {
+    reader.readStartArray();
+    let value: IBeginPasskeyValidateResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBeginValidatePasskey>("SuccessBeginValidatePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginPasskeyValidateResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBeginValidatePasskey>("SuccessBeginValidatePasskey").write(writer, value as SuccessBeginValidatePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").write(writer, value as FailedBeginValidatePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBeginValidatePasskey", {
+  read(reader: CborReader): SuccessBeginValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const challenge = IonFormatterStorage.get<string>('string').read(reader);
+    const allowedCredentials = IonFormatterStorage.readArray<PasskeyCredentialDescriptor>(reader, 'PasskeyCredentialDescriptor');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessBeginValidatePasskey(challenge, allowedCredentials);
+  },
+  write(writer: CborWriter, value: SuccessBeginValidatePasskey): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.challenge);
+    IonFormatterStorage.writeArray<PasskeyCredentialDescriptor>(writer, value.allowedCredentials, 'PasskeyCredentialDescriptor');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBeginValidatePasskey", {
+  read(reader: CborReader): FailedBeginValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBeginValidatePasskey(error);
+  },
+  write(writer: CborWriter, value: FailedBeginValidatePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasskeyError>('PasskeyError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ISetAutoDeleteResult implements IIonUnion<ISetAutoDeleteResult>
 {
   abstract UnionKey: string;
@@ -6409,6 +6519,22 @@ IonFormatterStorage.register("Passkey", {
   }
 });
 
+IonFormatterStorage.register("PasskeyCredentialDescriptor", {
+  read(reader: CborReader): PasskeyCredentialDescriptor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const type = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { id, type };
+  },
+  write(writer: CborWriter, value: PasskeyCredentialDescriptor): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.type);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("EmailChangeError", {
   read(reader: CborReader): EmailChangeError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -7176,6 +7302,8 @@ export interface ISecurityInteraction extends IIonService
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
+  BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
+  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -7377,6 +7505,8 @@ export interface ISecurityInteraction extends IIonService
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
+  BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
+  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -8552,6 +8682,35 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
     writer.writeEndArray();
           
     return await req.callAsyncT<SecurityDetails>("SecurityDetails", writer.data, this.signal);
+  }
+  async BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "BeginValidatePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginPasskeyValidateResult>("IBeginPasskeyValidateResult", writer.data, this.signal);
+  }
+  async CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "CompleteValidatePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<string>('string').write(writer, credentialId);
+    IonFormatterStorage.get<string>('string').write(writer, signature);
+    IonFormatterStorage.get<string>('string').write(writer, authenticatorData);
+    IonFormatterStorage.get<string>('string').write(writer, clientDataJSON);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICompletePasskeyResult>("ICompletePasskeyResult", writer.data, this.signal);
   }
 
 }

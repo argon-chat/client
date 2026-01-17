@@ -48,11 +48,11 @@ import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { SoftphoneKeyboard } from "@argon/softphone";
 
 import { ussdClient } from "@/lib/ussd";
-import delay from "@/lib/delay";
+import { delay } from "@argon/core";
 import { useApi } from "@/store/apiStore";
 import { DialCheckFailReason } from "@argon/glue";
 import { playBusyTone, playDTMF, dtmfPlayer } from "@/lib/audio/AudioManager";
-import { encodePhoneToGuid } from "@/lib/bcd";
+import { encodePhoneToGuid } from "@argon/softphone";
 import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
 

@@ -58,6 +58,23 @@ declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
 
+export interface IceServerCred {
+  url: string;
+  pass: string;
+  user: string;
+};
+
+
+export interface StreamBegin {
+  whipUrl: string;
+  iceServers: IonArray<IceServerCred>;
+  outputIndex: i4;
+  fps: i4;
+  targetWidth: i4;
+  targetHeight: i4;
+};
+
+
 export interface SetResult {
   value: ConfigKeyMetadata_Value | null;
 };
@@ -120,6 +137,7 @@ export interface SetRequest {
   valueStr: string | null;
   valueNum: i8 | null;
   valueEnum: string | null;
+  valueF: f8 | null;
 };
 
 
@@ -139,6 +157,7 @@ export interface ConfigKeyMetadata_Value {
   valueNum: i8 | null;
   valueEnum: string | null;
   valueEnumVariants: IonArray<string>;
+  valueF: f8 | null;
 };
 
 
@@ -202,12 +221,20 @@ export enum HostKind
 }
 
 
+export enum OverlayKind
+{
+  GameOverlay = 0,
+  VrOverlay = 1,
+}
+
+
 export enum ConfigPrimitiveType
 {
   Boolean = 0,
   Number = 1,
   String = 2,
   Enum = 3,
+  Double = 4,
 }
 
 
@@ -261,6 +288,12 @@ export abstract class INativeEvent implements IIonUnion<INativeEvent>
   public isHotKeyTriggered(): this is HotKeyTriggered {
     return this.UnionKey === "HotKeyTriggered";
   }
+  public isOverlayStarted(): this is OverlayStarted {
+    return this.UnionKey === "OverlayStarted";
+  }
+  public isOverlayEnded(): this is OverlayEnded {
+    return this.UnionKey === "OverlayEnded";
+  }
 
 }
 
@@ -313,6 +346,22 @@ export class HotKeyTriggered extends INativeEvent
   UnionIndex: number = 5;
 }
 
+export class OverlayStarted extends INativeEvent
+{
+  constructor(public sessionId: string, public pid: i4, public kind: OverlayKind) { super(); }
+
+  UnionKey: string = "OverlayStarted";
+  UnionIndex: number = 6;
+}
+
+export class OverlayEnded extends INativeEvent
+{
+  constructor(public sessionId: string, public pid: i4, public kind: OverlayKind) { super(); }
+
+  UnionKey: string = "OverlayEnded";
+  UnionIndex: number = 7;
+}
+
 
 
 IonFormatterStorage.register("INativeEvent", {
@@ -335,6 +384,10 @@ IonFormatterStorage.register("INativeEvent", {
       value = IonFormatterStorage.get<ActivityLog>("ActivityLog").read(reader);
     else if (unionIndex == 5)
       value = IonFormatterStorage.get<HotKeyTriggered>("HotKeyTriggered").read(reader);
+    else if (unionIndex == 6)
+      value = IonFormatterStorage.get<OverlayStarted>("OverlayStarted").read(reader);
+    else if (unionIndex == 7)
+      value = IonFormatterStorage.get<OverlayEnded>("OverlayEnded").read(reader);
 
     else throw new Error();
   
@@ -363,6 +416,12 @@ IonFormatterStorage.register("INativeEvent", {
     }
     else if (value.UnionIndex == 5) {
         IonFormatterStorage.get<HotKeyTriggered>("HotKeyTriggered").write(writer, value as HotKeyTriggered);
+    }
+    else if (value.UnionIndex == 6) {
+        IonFormatterStorage.get<OverlayStarted>("OverlayStarted").write(writer, value as OverlayStarted);
+    }
+    else if (value.UnionIndex == 7) {
+        IonFormatterStorage.get<OverlayEnded>("OverlayEnded").write(writer, value as OverlayEnded);
     }
   
     else throw new Error();
@@ -475,7 +534,85 @@ IonFormatterStorage.register("HotKeyTriggered", {
   }
 });
 
+IonFormatterStorage.register("OverlayStarted", {
+  read(reader: CborReader): OverlayStarted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const pid = IonFormatterStorage.get<i4>('i4').read(reader);
+    const kind = IonFormatterStorage.get<OverlayKind>('OverlayKind').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new OverlayStarted(sessionId, pid, kind);
+  },
+  write(writer: CborWriter, value: OverlayStarted): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.pid);
+    IonFormatterStorage.get<OverlayKind>('OverlayKind').write(writer, value.kind);
+    writer.writeEndArray();
+  }
+});
 
+IonFormatterStorage.register("OverlayEnded", {
+  read(reader: CborReader): OverlayEnded {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const pid = IonFormatterStorage.get<i4>('i4').read(reader);
+    const kind = IonFormatterStorage.get<OverlayKind>('OverlayKind').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new OverlayEnded(sessionId, pid, kind);
+  },
+  write(writer: CborWriter, value: OverlayEnded): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.pid);
+    IonFormatterStorage.get<OverlayKind>('OverlayKind').write(writer, value.kind);
+    writer.writeEndArray();
+  }
+});
+
+
+
+IonFormatterStorage.register("IceServerCred", {
+  read(reader: CborReader): IceServerCred {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    const pass = IonFormatterStorage.get<string>('string').read(reader);
+    const user = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { url, pass, user };
+  },
+  write(writer: CborWriter, value: IceServerCred): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    IonFormatterStorage.get<string>('string').write(writer, value.pass);
+    IonFormatterStorage.get<string>('string').write(writer, value.user);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("StreamBegin", {
+  read(reader: CborReader): StreamBegin {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const whipUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const iceServers = IonFormatterStorage.readArray<IceServerCred>(reader, 'IceServerCred');
+    const outputIndex = IonFormatterStorage.get<i4>('i4').read(reader);
+    const fps = IonFormatterStorage.get<i4>('i4').read(reader);
+    const targetWidth = IonFormatterStorage.get<i4>('i4').read(reader);
+    const targetHeight = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { whipUrl, iceServers, outputIndex, fps, targetWidth, targetHeight };
+  },
+  write(writer: CborWriter, value: StreamBegin): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<string>('string').write(writer, value.whipUrl);
+    IonFormatterStorage.writeArray<IceServerCred>(writer, value.iceServers, 'IceServerCred');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.outputIndex);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.fps);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.targetWidth);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.targetHeight);
+    writer.writeEndArray();
+  }
+});
 
 IonFormatterStorage.register("SetResult", {
   read(reader: CborReader): SetResult {
@@ -650,17 +787,19 @@ IonFormatterStorage.register("SetRequest", {
     const valueStr = IonFormatterStorage.readNullable<string>(reader, 'string');
     const valueNum = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const valueEnum = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 6);
-    return { key, section, valueB, valueStr, valueNum, valueEnum };
+    const valueF = IonFormatterStorage.readNullable<f8>(reader, 'f8');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { key, section, valueB, valueStr, valueNum, valueEnum, valueF };
   },
   write(writer: CborWriter, value: SetRequest): void {
-    writer.writeStartArray(6);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<string>('string').write(writer, value.key);
     IonFormatterStorage.get<string>('string').write(writer, value.section);
     IonFormatterStorage.writeNullable<bool>(writer, value.valueB, 'bool');
     IonFormatterStorage.writeNullable<string>(writer, value.valueStr, 'string');
     IonFormatterStorage.writeNullable<i8>(writer, value.valueNum, 'i8');
     IonFormatterStorage.writeNullable<string>(writer, value.valueEnum, 'string');
+    IonFormatterStorage.writeNullable<f8>(writer, value.valueF, 'f8');
     writer.writeEndArray();
   }
 });
@@ -693,11 +832,12 @@ IonFormatterStorage.register("ConfigKeyMetadata_Value", {
     const valueNum = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const valueEnum = IonFormatterStorage.readNullable<string>(reader, 'string');
     const valueEnumVariants = IonFormatterStorage.readArray<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { key, type, requiredToRestartApp, onlyForDevMode, valueB, valueStr, valueNum, valueEnum, valueEnumVariants };
+    const valueF = IonFormatterStorage.readNullable<f8>(reader, 'f8');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { key, type, requiredToRestartApp, onlyForDevMode, valueB, valueStr, valueNum, valueEnum, valueEnumVariants, valueF };
   },
   write(writer: CborWriter, value: ConfigKeyMetadata_Value): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(10);
     IonFormatterStorage.get<string>('string').write(writer, value.key);
     IonFormatterStorage.get<ConfigPrimitiveType>('ConfigPrimitiveType').write(writer, value.type);
     IonFormatterStorage.get<bool>('bool').write(writer, value.requiredToRestartApp);
@@ -707,6 +847,7 @@ IonFormatterStorage.register("ConfigKeyMetadata_Value", {
     IonFormatterStorage.writeNullable<i8>(writer, value.valueNum, 'i8');
     IonFormatterStorage.writeNullable<string>(writer, value.valueEnum, 'string');
     IonFormatterStorage.writeArray<string>(writer, value.valueEnumVariants, 'string');
+    IonFormatterStorage.writeNullable<f8>(writer, value.valueF, 'f8');
     writer.writeEndArray();
   }
 });
@@ -847,6 +988,17 @@ IonFormatterStorage.register("HostKind", {
   }
 });
 
+IonFormatterStorage.register("OverlayKind", {
+  read(reader: CborReader): OverlayKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return OverlayKind[num] !== undefined ? num as OverlayKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: OverlayKind): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 
 
 export interface IHostProc extends IIonService
@@ -881,6 +1033,8 @@ export interface IHostProc extends IIonService
   hotkeyPause(): Promise<void>;
   hotkeyResume(): Promise<void>;
   hotkeyFired(fn: PinnedFn): Promise<bool>;
+  startStreaming(parameters: StreamBegin): Promise<void>;
+  overlayCaptureFrame(sessionId: string): Promise<bool>;
 }
 
 
@@ -918,6 +1072,8 @@ export interface IHostProc extends IIonService
   hotkeyPause(): Promise<void>;
   hotkeyResume(): Promise<void>;
   hotkeyFired(fn: PinnedFn): Promise<bool>;
+  startStreaming(parameters: StreamBegin): Promise<void>;
+  overlayCaptureFrame(sessionId: string): Promise<bool>;
 }
 
 
@@ -1326,6 +1482,32 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeStartArray(1);
           
     IonFormatterStorage.get<PinnedFn>('PinnedFn').write(writer, fn);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async startStreaming(parameters: StreamBegin): Promise<void> {
+    const req = new IonRequest(this.ctx, "IHostProc", "startStreaming");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<StreamBegin>('StreamBegin').write(writer, parameters);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async overlayCaptureFrame(sessionId: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "overlayCaptureFrame");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, sessionId);
       
     writer.writeEndArray();
           

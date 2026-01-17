@@ -180,7 +180,7 @@ import {
   extractEntitlementStrict,
 } from "@/lib/rbac/ArgonEntitlement";
 import { useLocale } from "@/store/localeStore";
-import delay from "@/lib/delay";
+import { delay } from "@argon/core";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
 import { Button } from "@argon/ui/button";
 import { PlusCircleIcon, BanIcon } from "lucide-vue-next";
