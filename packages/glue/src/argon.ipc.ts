@@ -274,6 +274,50 @@ export enum HotkeyPhase
 }
 
 
+export interface InitCfg {
+  width: i4;
+  height: i4;
+  tileSize: i4;
+  tilesX: i4;
+  tilesY: i4;
+};
+
+
+export interface FrameData {
+  timestamp: i4;
+  width: i4;
+  height: i4;
+  tiles: IonArray<BridgeDirtyTile>;
+};
+
+
+export interface FrameDataDelta {
+  timestamp: i4;
+  tiles: IonArray<BridgeDirtyTile>;
+  skippedTransparent: i4;
+};
+
+
+export interface OverlayStats {
+  fps: i4;
+  captureTimeMs: i4;
+  bytesThisFrame: i4;
+  tileCount: i4;
+  transparentSkipped: i4;
+};
+
+
+export interface BridgeDirtyTile {
+  tx: i4;
+  ty: i4;
+  x: i4;
+  y: i4;
+  w: i4;
+  h: i4;
+  data: string;
+};
+
+
 
 export abstract class ICreatePasskeyResult implements IIonUnion<ICreatePasskeyResult>
 {
@@ -1256,6 +1300,114 @@ IonFormatterStorage.register("OverlayKind", {
   }
 });
 
+IonFormatterStorage.register("InitCfg", {
+  read(reader: CborReader): InitCfg {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tileSize = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tilesX = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tilesY = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { width, height, tileSize, tilesX, tilesY };
+  },
+  write(writer: CborWriter, value: InitCfg): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.tileSize);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.tilesX);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.tilesY);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameData", {
+  read(reader: CborReader): FrameData {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const timestamp = IonFormatterStorage.get<i4>('i4').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tiles = IonFormatterStorage.readArray<BridgeDirtyTile>(reader, 'BridgeDirtyTile');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { timestamp, width, height, tiles };
+  },
+  write(writer: CborWriter, value: FrameData): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.timestamp);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.writeArray<BridgeDirtyTile>(writer, value.tiles, 'BridgeDirtyTile');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameDataDelta", {
+  read(reader: CborReader): FrameDataDelta {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const timestamp = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tiles = IonFormatterStorage.readArray<BridgeDirtyTile>(reader, 'BridgeDirtyTile');
+    const skippedTransparent = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { timestamp, tiles, skippedTransparent };
+  },
+  write(writer: CborWriter, value: FrameDataDelta): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.timestamp);
+    IonFormatterStorage.writeArray<BridgeDirtyTile>(writer, value.tiles, 'BridgeDirtyTile');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.skippedTransparent);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("OverlayStats", {
+  read(reader: CborReader): OverlayStats {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const fps = IonFormatterStorage.get<i4>('i4').read(reader);
+    const captureTimeMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const bytesThisFrame = IonFormatterStorage.get<i4>('i4').read(reader);
+    const tileCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const transparentSkipped = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { fps, captureTimeMs, bytesThisFrame, tileCount, transparentSkipped };
+  },
+  write(writer: CborWriter, value: OverlayStats): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.fps);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.captureTimeMs);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.bytesThisFrame);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.tileCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.transparentSkipped);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BridgeDirtyTile", {
+  read(reader: CborReader): BridgeDirtyTile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const tx = IonFormatterStorage.get<i4>('i4').read(reader);
+    const ty = IonFormatterStorage.get<i4>('i4').read(reader);
+    const x = IonFormatterStorage.get<i4>('i4').read(reader);
+    const y = IonFormatterStorage.get<i4>('i4').read(reader);
+    const w = IonFormatterStorage.get<i4>('i4').read(reader);
+    const h = IonFormatterStorage.get<i4>('i4').read(reader);
+    const data = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { tx, ty, x, y, w, h, data };
+  },
+  write(writer: CborWriter, value: BridgeDirtyTile): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.tx);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.ty);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.x);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.y);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.w);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.h);
+    IonFormatterStorage.get<string>('string').write(writer, value.data);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export interface IHostProc extends IIonService
@@ -1291,9 +1443,22 @@ export interface IHostProc extends IIonService
   hotkeyResume(): Promise<void>;
   hotkeyFired(fn: PinnedFn): Promise<bool>;
   startStreaming(parameters: StreamBegin): Promise<void>;
-  overlayCaptureFrame(sessionId: string): Promise<bool>;
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
+}
+
+
+
+
+export interface IOverlayController extends IIonService
+{
+  init(cfg: InitCfg): Promise<void>;
+  sendFullFrame(frame: FrameData): Promise<void>;
+  sendDelta(deltaFrame: FrameDataDelta): Promise<void>;
+  clear(): Promise<void>;
+  resize(width: i4, height: i4, tileSize: i4, tilesX: i4, tilesY: i4): Promise<void>;
+  sendStats(stats: OverlayStats): Promise<void>;
+  dispose(): Promise<void>;
 }
 
 
@@ -1332,9 +1497,22 @@ export interface IHostProc extends IIonService
   hotkeyResume(): Promise<void>;
   hotkeyFired(fn: PinnedFn): Promise<bool>;
   startStreaming(parameters: StreamBegin): Promise<void>;
-  overlayCaptureFrame(sessionId: string): Promise<bool>;
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
+}
+
+
+
+
+export interface IOverlayController extends IIonService
+{
+  init(cfg: InitCfg): Promise<void>;
+  sendFullFrame(frame: FrameData): Promise<void>;
+  sendDelta(deltaFrame: FrameDataDelta): Promise<void>;
+  clear(): Promise<void>;
+  resize(width: i4, height: i4, tileSize: i4, tilesX: i4, tilesY: i4): Promise<void>;
+  sendStats(stats: OverlayStats): Promise<void>;
+  dispose(): Promise<void>;
 }
 
 
@@ -1761,19 +1939,6 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
           
     await req.callAsync(writer.data, this.signal);
   }
-  async overlayCaptureFrame(sessionId: string): Promise<bool> {
-    const req = new IonRequest(this.ctx, "IHostProc", "overlayCaptureFrame");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<string>('string').write(writer, sessionId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
-  }
   async createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult> {
     const req = new IonRequest(this.ctx, "IHostProc", "createPasskey");
           
@@ -1811,6 +1976,112 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
 
 IonFormatterStorage.registerClientExecutor<IHostProc>('HostProc', HostProc_Executor);
 
+export class OverlayController_Executor extends ServiceExecutor<IOverlayController> implements IOverlayController {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async init(cfg: InitCfg): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "init");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<InitCfg>('InitCfg').write(writer, cfg);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async sendFullFrame(frame: FrameData): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "sendFullFrame");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<FrameData>('FrameData').write(writer, frame);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async sendDelta(deltaFrame: FrameDataDelta): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "sendDelta");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<FrameDataDelta>('FrameDataDelta').write(writer, deltaFrame);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async clear(): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "clear");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async resize(width: i4, height: i4, tileSize: i4, tilesX: i4, tilesY: i4): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "resize");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, width);
+    IonFormatterStorage.get<i4>('i4').write(writer, height);
+    IonFormatterStorage.get<i4>('i4').write(writer, tileSize);
+    IonFormatterStorage.get<i4>('i4').write(writer, tilesX);
+    IonFormatterStorage.get<i4>('i4').write(writer, tilesY);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async sendStats(stats: OverlayStats): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "sendStats");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<OverlayStats>('OverlayStats').write(writer, stats);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async dispose(): Promise<void> {
+    const req = new IonRequest(this.ctx, "IOverlayController", "dispose");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IOverlayController>('OverlayController', OverlayController_Executor);
+
 
 export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
   const ctx = {
@@ -1825,6 +2096,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
       get(_target, propKey) {
         if (typeof propKey !== "string") return undefined;
         if (propKey === "HostProc") return IonFormatterStorage.createExecutor("HostProc", ctx, controller.signal);
+        if (propKey === "OverlayController") return IonFormatterStorage.createExecutor("OverlayController", ctx, controller.signal);
 
 
         throw new Error(`${propKey} service is not defined`);
@@ -1832,6 +2104,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     }
   ) as {
     HostProc: IHostProc;
+    OverlayController: IOverlayController;
 
   };
 }

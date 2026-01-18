@@ -54,6 +54,12 @@ const routes = [
               import("@/components/home/views/NotificationShell.vue"),
           },
           {
+            path: "overlayDebug",
+            name: "HomeOverlayDebug",
+            component: () =>
+              import("@/components/home/views/OverlayDebug.vue"),
+          },
+          {
             path: "chat/:userId",
             name: "HomeChat",
             component: () => import("@/components/home/views/ChatShell.vue"),

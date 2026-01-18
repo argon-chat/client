@@ -26,7 +26,7 @@ import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'>('tab', {
     default: 'dashboard'
 });
 const recentStore = useRecentChatsStore();
@@ -39,7 +39,7 @@ const softphoneOpened = ref(false);
 const notifications = useNotifications();
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory'): void
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'): void
 }>();
 
 async function loadChats() {
@@ -134,6 +134,12 @@ onUnmounted(() => {
                 class="justify-start">
                 <IconNotification class="w-6 h-6 mr-2" />
                 {{ t("notifications") }}
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+            </Button>
+            <Button @click="emit('select', 'overlayDebug')" :variant="tab == 'overlayDebug' ? 'outline' : 'ghost'"
+                class="justify-start">
+                <IconNotification class="w-6 h-6 mr-2" />
+                Overlay Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"
