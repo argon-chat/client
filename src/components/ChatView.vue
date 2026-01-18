@@ -3,10 +3,24 @@
     <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
       <!-- Sticky header -->
       <div class="sticky-header">
-        <div class="header-content">
-          <h2 class="text-lg font-bold flex items-center">
-            <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="mr-2 w-5 h-5" /> {{ channelName }}
+        <div class="header-top-bar">
+          <h2 class="channel-header">
+            <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="channel-icon" />
+            <span>{{ channelName }}</span>
           </h2>
+          <div class="header-actions">
+            <button class="notification-btn" title="Notification settings">
+              <BellIcon class="w-5 h-5" />
+            </button>
+            <div class="search-input-wrapper">
+              <SearchIcon class="search-icon" />
+              <input 
+                type="text" 
+                placeholder="Search messages..." 
+                class="search-input"
+              />
+            </div>
+          </div>
         </div>
         <Transition name="typing-slide">
           <div v-if="typingUsers && typingUsers.length > 0"
@@ -101,7 +115,7 @@ import {
   shallowRef,
 } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import { AntennaIcon, CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { AntennaIcon, BellIcon, CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon, SearchIcon } from "lucide-vue-next";
 
 import MessageItem from "@/components/MessageItem.vue";
 
@@ -483,11 +497,10 @@ onUnmounted(() => {
 .chat-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: auto; 
   position: relative;
-  padding: 0 8px 8px 8px;
+  padding: 0 2.25rem 8px 2.25rem;
   background: hsl(var(--card));
-  border-radius: 0.5rem;
 }
 
 /* Sticky header */
@@ -499,13 +512,89 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   border-radius: 0.5rem 0.5rem 0 0;
-  margin: 0 -8px 0 -8px;
-  padding: 0 8px;
+  margin: 0 -2.25rem;
+  padding: 0 2.25rem;
 }
 
-.header-content {
-  padding: 1rem;
+.header-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.channel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.channel-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+.search-input {
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  outline: none;
+  transition: border-color 0.2s ease;
+  width: 200px;
+}
+
+.search-input:focus {
+  border-color: hsl(var(--primary));
+}
+
+.search-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.notification-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border-radius: 0.375rem;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.notification-btn:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--accent-foreground) / 0.2);
 }
 
 .typing-indicator {

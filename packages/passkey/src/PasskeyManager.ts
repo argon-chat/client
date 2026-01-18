@@ -1,4 +1,5 @@
 import { logger } from "@argon/core";
+import { native } from "@argon/glue";
 
 export interface PasskeyUser {
   userId: string;
@@ -40,7 +41,7 @@ export interface PasskeyApiCallbacks {
   }>;
   completeAddPasskey: (
     passkeyId: string,
-    publicKey: string
+    publicKey: string,
   ) => Promise<{
     success: boolean;
     passkey?: PasskeyData;
@@ -57,7 +58,7 @@ export interface PasskeyApiCallbacks {
     credentialId: string,
     signature: string,
     authenticatorData: string,
-    clientDataJSON: string
+    clientDataJSON: string,
   ) => Promise<{
     success: boolean;
   }>;
@@ -76,13 +77,13 @@ export interface IPasskeyProvider {
     challenge: string,
     user: PasskeyUser,
     rpName: string,
-    rpId: string
+    rpId: string,
   ): Promise<string | null>; // Returns public key in base64
 
   validatePasskey(
     challenge: string,
     allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string
+    rpId: string,
   ): Promise<{
     credentialId: string;
     signature: string;
@@ -94,8 +95,7 @@ export interface IPasskeyProvider {
 }
 
 /**
- * Native provider for Electron/native applications
- * TODO: Implement native passkey support using argon.native APIs
+ * Native provider for native applications
  */
 class NativeProvider implements IPasskeyProvider {
   isSupported(): boolean {
@@ -107,22 +107,43 @@ class NativeProvider implements IPasskeyProvider {
     challenge: string,
     user: PasskeyUser,
     rpName: string,
-    rpId: string
+    rpId: string,
   ): Promise<string | null> {
-    throw new Error("Native passkey provider not yet implemented");
+    const result = await native.hostProc.createPasskey(
+      passkeyId,
+      challenge,
+      { displayName: user.displayName, id: user.userId, name: user.username },
+      rpName,
+      rpId,
+    );
+    if (result.isSuccessCreatePasskey()) return result.cert;
+    logger.error("Native passkey creation failed", result);
+    return null;
   }
 
   async validatePasskey(
     challenge: string,
     allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string
+    rpId: string,
   ): Promise<{
     credentialId: string;
     signature: string;
     authenticatorData: string;
     clientDataJSON: string;
   } | null> {
-    throw new Error("Native passkey provider not yet implemented");
+    logger.info("NativeProvider: Validating passkey", allowedCredentials);
+    const result = await native.hostProc.validatePasskey(
+      challenge,
+      allowedCredentials.map((c) => {
+        return { id: c.id, publicKey: c.type };
+      }),
+      rpId,
+    );
+
+    if (result.isSuccessValidatePasskey())
+      return result;
+    logger.error("Native passkey validate failed", result);
+    return null; 
   }
 }
 
@@ -143,14 +164,14 @@ class WebAuthnProvider implements IPasskeyProvider {
     challenge: string,
     user: PasskeyUser,
     rpName: string,
-    rpId: string
+    rpId: string,
   ): Promise<string | null> {
     logger.info("[WebAuthn] Creating passkey with browser API");
 
     try {
       // Convert challenge from base64 to Uint8Array
       const challengeBuffer = Uint8Array.from(atob(challenge), (c) =>
-        c.charCodeAt(0)
+        c.charCodeAt(0),
       );
 
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
@@ -199,7 +220,7 @@ class WebAuthnProvider implements IPasskeyProvider {
       }
 
       const publicKeyBase64 = btoa(
-        String.fromCharCode(...new Uint8Array(publicKeyBuffer))
+        String.fromCharCode(...new Uint8Array(publicKeyBuffer)),
       );
       logger.info("[WebAuthn] Public key extracted and encoded");
 
@@ -213,7 +234,7 @@ class WebAuthnProvider implements IPasskeyProvider {
   async validatePasskey(
     challenge: string,
     allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string
+    rpId: string,
   ): Promise<{
     credentialId: string;
     signature: string;
@@ -225,7 +246,7 @@ class WebAuthnProvider implements IPasskeyProvider {
     try {
       // Convert challenge from base64 to Uint8Array
       const challengeBuffer = Uint8Array.from(atob(challenge), (c) =>
-        c.charCodeAt(0)
+        c.charCodeAt(0),
       );
 
       // Convert credential IDs from base64 to Uint8Array
@@ -258,16 +279,16 @@ class WebAuthnProvider implements IPasskeyProvider {
 
       // Convert buffers to base64
       const credentialId = btoa(
-        String.fromCharCode(...new Uint8Array(credential.rawId))
+        String.fromCharCode(...new Uint8Array(credential.rawId)),
       );
       const signature = btoa(
-        String.fromCharCode(...new Uint8Array(response.signature))
+        String.fromCharCode(...new Uint8Array(response.signature)),
       );
       const authenticatorData = btoa(
-        String.fromCharCode(...new Uint8Array(response.authenticatorData))
+        String.fromCharCode(...new Uint8Array(response.authenticatorData)),
       );
       const clientDataJSON = btoa(
-        String.fromCharCode(...new Uint8Array(response.clientDataJSON))
+        String.fromCharCode(...new Uint8Array(response.clientDataJSON)),
       );
 
       logger.info("[WebAuthn] Credential data extracted and encoded");
@@ -300,7 +321,7 @@ export class PasskeyManager {
       relyingPartyName: "ArgonChat",
       origin: "https://aegis.argon.gl",
       timeoutMilliseconds: 60000,
-    }
+    },
   ) {
     this.api = api;
     this.config = config;
@@ -334,7 +355,7 @@ export class PasskeyManager {
    */
   async createPasskey(
     name: string,
-    user: PasskeyUser
+    user: PasskeyUser,
   ): Promise<PasskeyCreateResult> {
     logger.info("[PasskeyManager] Starting passkey creation:", name);
 
@@ -370,7 +391,7 @@ export class PasskeyManager {
         challenge,
         user,
         this.config.relyingPartyName,
-        this.config.relyingPartyId
+        this.config.relyingPartyId,
       );
 
       if (!publicKeyBase64) {
@@ -385,7 +406,7 @@ export class PasskeyManager {
       logger.info("[PasskeyManager] Completing passkey creation on server");
       const completeResult = await this.api.completeAddPasskey(
         passkeyId,
-        publicKeyBase64
+        publicKeyBase64,
       );
 
       if (!completeResult.success) {
@@ -406,7 +427,10 @@ export class PasskeyManager {
         createdAt: passkey.createdAt,
       };
     } catch (error: any) {
-      logger.error("[PasskeyManager] Exception during passkey creation:", error);
+      logger.error(
+        "[PasskeyManager] Exception during passkey creation:",
+        error,
+      );
 
       // Map error codes
       let errorCode: PasskeyCreateResult["errorCode"] = "UNKNOWN";
@@ -483,7 +507,7 @@ export class PasskeyManager {
       logger.info(
         "[PasskeyManager] Challenge received with",
         allowedCredentials.length,
-        "allowed credentials"
+        "allowed credentials",
       );
 
       // Step 2: Get assertion using the selected provider
@@ -491,7 +515,7 @@ export class PasskeyManager {
       const assertionData = await this.provider.validatePasskey(
         challenge,
         allowedCredentials,
-        this.config.relyingPartyId
+        this.config.relyingPartyId,
       );
 
       if (!assertionData) {
@@ -508,7 +532,7 @@ export class PasskeyManager {
         assertionData.credentialId,
         assertionData.signature,
         assertionData.authenticatorData,
-        assertionData.clientDataJSON
+        assertionData.clientDataJSON,
       );
 
       if (!completeResult.success) {
@@ -524,7 +548,7 @@ export class PasskeyManager {
     } catch (error: any) {
       logger.error(
         "[PasskeyManager] Exception during passkey validation:",
-        error
+        error,
       );
 
       // Map error codes

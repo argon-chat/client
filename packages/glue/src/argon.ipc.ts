@@ -58,6 +58,19 @@ declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
 
+export interface PasskeyUser {
+  id: string;
+  name: string;
+  displayName: string;
+};
+
+
+export interface PasskeyCredential {
+  id: string;
+  publicKey: string;
+};
+
+
 export interface IceServerCred {
   url: string;
   pass: string;
@@ -259,6 +272,216 @@ export enum HotkeyPhase
   Triggered = 1,
   Ended = 2,
 }
+
+
+
+export abstract class ICreatePasskeyResult implements IIonUnion<ICreatePasskeyResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreatePasskey(): this is SuccessCreatePasskey {
+    return this.UnionKey === "SuccessCreatePasskey";
+  }
+  public isErrorCreatePasskey(): this is ErrorCreatePasskey {
+    return this.UnionKey === "ErrorCreatePasskey";
+  }
+
+}
+
+
+export class SuccessCreatePasskey extends ICreatePasskeyResult
+{
+  constructor(public cert: string) { super(); }
+
+  UnionKey: string = "SuccessCreatePasskey";
+  UnionIndex: number = 0;
+}
+
+export class ErrorCreatePasskey extends ICreatePasskeyResult
+{
+  constructor(public errorMessage: string) { super(); }
+
+  UnionKey: string = "ErrorCreatePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreatePasskeyResult", {
+  read(reader: CborReader): ICreatePasskeyResult {
+    reader.readStartArray();
+    let value: ICreatePasskeyResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreatePasskey>("SuccessCreatePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<ErrorCreatePasskey>("ErrorCreatePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreatePasskeyResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreatePasskey>("SuccessCreatePasskey").write(writer, value as SuccessCreatePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<ErrorCreatePasskey>("ErrorCreatePasskey").write(writer, value as ErrorCreatePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreatePasskey", {
+  read(reader: CborReader): SuccessCreatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const cert = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreatePasskey(cert);
+  },
+  write(writer: CborWriter, value: SuccessCreatePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.cert);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ErrorCreatePasskey", {
+  read(reader: CborReader): ErrorCreatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const errorMessage = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ErrorCreatePasskey(errorMessage);
+  },
+  write(writer: CborWriter, value: ErrorCreatePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.errorMessage);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IValidatePasskeyResult implements IIonUnion<IValidatePasskeyResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessValidatePasskey(): this is SuccessValidatePasskey {
+    return this.UnionKey === "SuccessValidatePasskey";
+  }
+  public isErrorValidatePasskey(): this is ErrorValidatePasskey {
+    return this.UnionKey === "ErrorValidatePasskey";
+  }
+
+}
+
+
+export class SuccessValidatePasskey extends IValidatePasskeyResult
+{
+  constructor(public credentialId: string, public signature: string, public authenticatorData: string, public clientDataJSON: string) { super(); }
+
+  UnionKey: string = "SuccessValidatePasskey";
+  UnionIndex: number = 0;
+}
+
+export class ErrorValidatePasskey extends IValidatePasskeyResult
+{
+  constructor(public errorMessage: string) { super(); }
+
+  UnionKey: string = "ErrorValidatePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IValidatePasskeyResult", {
+  read(reader: CborReader): IValidatePasskeyResult {
+    reader.readStartArray();
+    let value: IValidatePasskeyResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessValidatePasskey>("SuccessValidatePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<ErrorValidatePasskey>("ErrorValidatePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IValidatePasskeyResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessValidatePasskey>("SuccessValidatePasskey").write(writer, value as SuccessValidatePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<ErrorValidatePasskey>("ErrorValidatePasskey").write(writer, value as ErrorValidatePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessValidatePasskey", {
+  read(reader: CborReader): SuccessValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const credentialId = IonFormatterStorage.get<string>('string').read(reader);
+    const signature = IonFormatterStorage.get<string>('string').read(reader);
+    const authenticatorData = IonFormatterStorage.get<string>('string').read(reader);
+    const clientDataJSON = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new SuccessValidatePasskey(credentialId, signature, authenticatorData, clientDataJSON);
+  },
+  write(writer: CborWriter, value: SuccessValidatePasskey): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.credentialId);
+    IonFormatterStorage.get<string>('string').write(writer, value.signature);
+    IonFormatterStorage.get<string>('string').write(writer, value.authenticatorData);
+    IonFormatterStorage.get<string>('string').write(writer, value.clientDataJSON);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ErrorValidatePasskey", {
+  read(reader: CborReader): ErrorValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const errorMessage = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ErrorValidatePasskey(errorMessage);
+  },
+  write(writer: CborWriter, value: ErrorValidatePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.errorMessage);
+    writer.writeEndArray();
+  }
+});
 
 
 
@@ -571,6 +794,40 @@ IonFormatterStorage.register("OverlayEnded", {
 });
 
 
+
+IonFormatterStorage.register("PasskeyUser", {
+  read(reader: CborReader): PasskeyUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const displayName = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { id, name, displayName };
+  },
+  write(writer: CborWriter, value: PasskeyUser): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.displayName);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PasskeyCredential", {
+  read(reader: CborReader): PasskeyCredential {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const publicKey = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { id, publicKey };
+  },
+  write(writer: CborWriter, value: PasskeyCredential): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.publicKey);
+    writer.writeEndArray();
+  }
+});
 
 IonFormatterStorage.register("IceServerCred", {
   read(reader: CborReader): IceServerCred {
@@ -1035,6 +1292,8 @@ export interface IHostProc extends IIonService
   hotkeyFired(fn: PinnedFn): Promise<bool>;
   startStreaming(parameters: StreamBegin): Promise<void>;
   overlayCaptureFrame(sessionId: string): Promise<bool>;
+  createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
+  validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
 }
 
 
@@ -1074,6 +1333,8 @@ export interface IHostProc extends IIonService
   hotkeyFired(fn: PinnedFn): Promise<bool>;
   startStreaming(parameters: StreamBegin): Promise<void>;
   overlayCaptureFrame(sessionId: string): Promise<bool>;
+  createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
+  validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
 }
 
 
@@ -1512,6 +1773,38 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult> {
+    const req = new IonRequest(this.ctx, "IHostProc", "createPasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<string>('string').write(writer, passkeyId);
+    IonFormatterStorage.get<string>('string').write(writer, challenge);
+    IonFormatterStorage.get<PasskeyUser>('PasskeyUser').write(writer, user);
+    IonFormatterStorage.get<string>('string').write(writer, rpName);
+    IonFormatterStorage.get<string>('string').write(writer, rpId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreatePasskeyResult>("ICreatePasskeyResult", writer.data, this.signal);
+  }
+  async validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult> {
+    const req = new IonRequest(this.ctx, "IHostProc", "validatePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<string>('string').write(writer, challenge);
+    IonFormatterStorage.writeArray<PasskeyCredential>(writer, allowedCredentials, 'PasskeyCredential');
+    IonFormatterStorage.get<string>('string').write(writer, rpId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IValidatePasskeyResult>("IValidatePasskeyResult", writer.data, this.signal);
   }
 
 }

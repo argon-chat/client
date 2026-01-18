@@ -7,37 +7,48 @@
             <X class="text-red-600 cursor-pointer flex-shrink-0" @click="$emit('clear-reply')" />
         </div>
 
-        <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
-            <!-- Textarea message area -->
-            <textarea
-                ref="editorRef"
-                v-model="messageText"
-                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none"
-                :placeholder="t('enter_some_text')"
-                @input="onEditorInput"
-                @keydown="onEditorKeydown"
-                rows="1"
-            ></textarea>
-
-            <!-- Emoji picker -->
-            <Popover>
-                <PopoverTrigger style="align-items: flex-start;">
-                    <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                        <SmileIcon />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent class="w-auto p-0">
-                    <EmojiPicker :native="true" :disable-skin-tones="true" :theme="emojiPickerTheme"
-                        @select="(e: EmojiExt) => onEmojiClick(e)" />
-                </PopoverContent>
-            </Popover>
-
-            <!-- Send button -->
-            <div style="align-items: flex-start;">
-                <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click="handleSend">
-                    <SendHorizonalIcon />
+        <div class="relative">
+            <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
+                <!-- Attach file button -->
+                <Button variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5" title="Attach file">
+                    <PaperclipIcon />
                 </Button>
+
+                <!-- Textarea message area -->
+                <textarea
+                    ref="editorRef"
+                    v-model="messageText"
+                    class="flex-1 text-sm min-h-[36px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none py-2 scrollbar-thin"
+                    :placeholder="t('enter_some_text')"
+                    @input="onEditorInput"
+                    @keydown="onEditorKeydown"
+                    rows="1"
+                ></textarea>
+
+                <!-- Emoji picker -->
+                <Popover>
+                    <PopoverTrigger>
+                        <Button variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5">
+                            <SmileIcon />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-auto p-0">
+                        <EmojiPicker :native="true" :disable-skin-tones="true" :theme="emojiPickerTheme"
+                            @select="(e: EmojiExt) => onEmojiClick(e)" />
+                    </PopoverContent>
+                </Popover>
             </div>
+            
+            <!-- Help button -->
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                class="absolute -bottom-2 -right-2 h-6 w-6 p-0 z-10 opacity-50 hover:opacity-100 bg-background"
+                @click="showFormatHelp = true"
+                title="Formatting help"
+            >
+                <HelpCircleIcon class="h-3 w-3" />
+            </Button>
         </div>
 
         <!-- Mentions dropdown -->
@@ -52,6 +63,102 @@
                 <span class="text-muted-foreground"> @{{ user.username }}</span>
             </li>
         </ul>
+
+        <!-- Formatting Help Dialog -->
+        <Dialog v-model:open="showFormatHelp" class="w-max">
+            <DialogContent class="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{{ t('formatting_help') || 'Message Formatting' }}</DialogTitle>
+                    <DialogDescription>
+                        {{ t('formatting_help_desc') || 'Use these special characters to format your messages' }}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-4 py-4">
+                    <!-- Text Styling -->
+                    <div class="space-y-2">
+                        <h3 class="font-semibold text-sm">{{ t('text_styling') || 'Text Styling' }}</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">**bold text**</code>
+                                <span class="flex-1"><BoldSegment :entity="mockBoldEntity" text="bold text" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">__italic text__</code>
+                                <span class="flex-1"><ItalicSegment :entity="mockItalicEntity" text="italic text" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">~~strikethrough~~</code>
+                                <span class="flex-1"><StrikethroughSegment :entity="mockStrikeEntity" text="strikethrough" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">`monospace code`</code>
+                                <span class="flex-1"><MonospaceSegment :entity="mockMonospaceEntity" text="monospace code" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">||spoiler text||</code>
+                                <span class="flex-1"><SpoilerSegment :entity="mockSpoilerEntity" text="spoiler text" /></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Special Formatting -->
+                    <div class="space-y-2">
+                        <h3 class="font-semibold text-sm">{{ t('special_formatting') || 'Special Formatting' }}</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">^^CAPITALIZED^^</code>
+                                <span class="flex-1"><CapitalizedSegment :entity="mockCapitalizedEntity" text="capitalized" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">ordinal^5</code>
+                                <span class="flex-1">ordinal<OrdinalSegment :entity="mockOrdinalEntity" text="5" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">1/2</code>
+                                <span class="flex-1">½ (fraction)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Links and Mentions -->
+                    <div class="space-y-2">
+                        <h3 class="font-semibold text-sm">{{ t('links_mentions') || 'Links & Mentions' }}</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">@username</code>
+                                <span class="flex-1 text-primary">@username (mention)</span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">#hashtag</code>
+                                <span class="flex-1"><HashTagSegment :entity="mockHashtagEntity" text="#hashtag" /></span>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">&lt;blue-500:text&gt;</code>
+                                <span class="flex-1"><UnderlineSegment :entity="mockUnderlineEntity" text="colored underline" /></span>
+                            </div>
+                             <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
+                                <code class="flex-1">&lt;red-500:text&gt;</code>
+                                <span class="flex-1"><UnderlineSegment :entity="mockUnderlineEntity2" text="colored underline" /></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tips -->
+                    <div class="space-y-2 pt-2 border-t">
+                        <h3 class="font-semibold text-sm">{{ t('tips') || 'Tips' }}</h3>
+                        <ul class="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                            <li>{{ t('tip_enter') || 'Press Enter to send (Shift+Enter for new line)' }}</li>
+                            <li>{{ t('tip_mention') || 'Type @ to mention users' }}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button @click="showFormatHelp = false">{{ t('got_it') || 'Got it!' }}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>
 <script setup lang="ts">
@@ -62,10 +169,27 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@argon/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@argon/ui/dialog";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
 import { logger } from "@argon/core";
 import SmartArgonAvatar from "../SmartArgonAvatar.vue";
-import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
+import BoldSegment from "./BoldSegment.vue";
+import ItalicSegment from "./ItalicSegment.vue";
+import StrikethroughSegment from "./StrikethroughSegment.vue";
+import MonospaceSegment from "./MonospaceSegment.vue";
+import SpoilerSegment from "./SpoilerSegment.vue";
+import CapitalizedSegment from "./CapitalizedSegment.vue";
+import OrdinalSegment from "./OrdinalSegment.vue";
+import HashTagSegment from "./HashTagSegment.vue";
+import UnderlineSegment from "./UnderlineSegment.vue";
+import { SendHorizonalIcon, SmileIcon, X, PaperclipIcon, HelpCircleIcon } from "lucide-vue-next";
 import { useApi } from "@/store/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/poolStore";
 import { refDebounced } from "@vueuse/core";
@@ -80,8 +204,21 @@ const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light"
 
 const editorRef = ref<HTMLTextAreaElement | null>(null);
 const messageText = ref("");
+const showFormatHelp = ref(false);
 const api = useApi();
 const pool = usePoolStore();
+
+// Mock entities for formatting examples
+const mockBoldEntity = new MessageEntityBold(EntityType.Bold, 0, 9, 1);
+const mockItalicEntity = new MessageEntityItalic(EntityType.Italic, 0, 11, 1);
+const mockStrikeEntity = new MessageEntityStrikethrough(EntityType.Strikethrough, 0, 13, 1);
+const mockMonospaceEntity = new MessageEntityMonospace(EntityType.Monospace, 0, 14, 1);
+const mockSpoilerEntity = new MessageEntitySpoiler(EntityType.Spoiler, 0, 12, 1);
+const mockCapitalizedEntity = new MessageEntityCapitalized(EntityType.Capitalized, 0, 11, 1);
+const mockOrdinalEntity = new MessageEntityOrdinal(EntityType.Ordinal, 0, 7, 1);
+const mockHashtagEntity = new MessageEntityHashTag(EntityType.Hashtag, 0, 8, 1, "hashtag");
+const mockUnderlineEntity = new MessageEntityUnderline(EntityType.Underline, 0, 16, 1, 0x3b82f6);
+const mockUnderlineEntity2 = new MessageEntityUnderline(EntityType.Underline, 0, 16, 1, 0xf63b3b);
 const mention = reactive({
   show: false,
   query: "",
@@ -121,6 +258,36 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 };
 
+// Auto-replacement configuration
+const autoReplacements = [
+  { pattern: "--", replacement: "—" },
+  { pattern: "...", replacement: "…" },
+  { pattern: "->", replacement: "→" },
+  { pattern: "<-", replacement: "←" },
+  { pattern: "<3", replacement: "♥" },
+  { pattern: "(c)", replacement: "©" },
+  { pattern: "(r)", replacement: "®" },
+  { pattern: "(tm)", replacement: "™" },
+  { pattern: "+-", replacement: "±" },
+  { pattern: "!=", replacement: "≠" },
+  { pattern: "<=", replacement: "≤" },
+  { pattern: ">=", replacement: "≥" },
+  { pattern: "~=", replacement: "≈" },
+  { pattern: "<<", replacement: "«" },
+  { pattern: ">>", replacement: "»" },
+  { pattern: "(shrug)", replacement: "¯\\_(ツ)_/¯" },
+  { pattern: "(check)", replacement: "✓" },
+  { pattern: "(x)", replacement: "✗" },
+];
+
+// Track recent replacements for backspace reversal
+interface ReplacementRecord {
+  position: number;
+  original: string;
+  replacement: string;
+}
+let lastReplacement: ReplacementRecord | null = null;
+
 let typingTimeout: NodeJS.Timeout | undefined;
 let lastTypingSent = 0;
 
@@ -143,9 +310,48 @@ function onEditorInput() {
     editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, 200)}px`;
   }
 
-  // Check for mention trigger
-  const text = messageText.value;
+  // Auto-replacements
   const cursorPos = editorRef.value?.selectionStart ?? 0;
+  const text = messageText.value;
+  
+  // Check each pattern
+  for (const { pattern, replacement } of autoReplacements) {
+    // Check if pattern appears just before cursor
+    const startPos = cursorPos - pattern.length;
+    if (startPos >= 0) {
+      const textBeforeCursor = text.slice(startPos, cursorPos);
+      
+      if (textBeforeCursor === pattern) {
+        // Perform replacement
+        const before = text.slice(0, startPos);
+        const after = text.slice(cursorPos);
+        
+        messageText.value = before + replacement + after;
+        
+        // Record this replacement for potential backspace reversal
+        lastReplacement = {
+          position: startPos,
+          original: pattern,
+          replacement: replacement,
+        };
+        
+        // Position cursor after replacement
+        nextTick(() => {
+          if (editorRef.value) {
+            const newCursorPos = startPos + replacement.length;
+            editorRef.value.setSelectionRange(newCursorPos, newCursorPos);
+          }
+        });
+        
+        return; // Only one replacement per input event
+      }
+    }
+  }
+  
+  // Clear replacement record if text changed without replacement
+  lastReplacement = null;
+
+  // Check for mention trigger
   const textBeforeCursor = text.slice(0, cursorPos);
   const atIndex = textBeforeCursor.lastIndexOf("@");
 
@@ -167,6 +373,45 @@ function onEditorInput() {
 
 
 async function onEditorKeydown(e: KeyboardEvent) {
+  // Handle backspace to revert auto-replacements
+  if (e.key === "Backspace" && !mention.show && editorRef.value && lastReplacement) {
+    const cursorPos = editorRef.value.selectionStart ?? 0;
+    const text = messageText.value;
+    
+    // Check if we're right after a replacement
+    const expectedPos = lastReplacement.position + lastReplacement.replacement.length;
+    
+    if (cursorPos === expectedPos) {
+      // Check if the replacement is still there
+      const replacementText = text.slice(lastReplacement.position, expectedPos);
+      
+      if (replacementText === lastReplacement.replacement) {
+        e.preventDefault();
+        
+        const before = text.slice(0, lastReplacement.position);
+        const after = text.slice(expectedPos);
+        
+        messageText.value = before + lastReplacement.original + after;
+        
+        nextTick(() => {
+          if (editorRef.value) {
+            // Position cursor after the original pattern
+            const newCursorPos = lastReplacement!.position + lastReplacement!.original.length;
+            editorRef.value.setSelectionRange(newCursorPos, newCursorPos);
+          }
+        });
+        
+        // Clear the replacement record
+        lastReplacement = null;
+        
+        return;
+      }
+    }
+    
+    // If conditions don't match, clear the record
+    lastReplacement = null;
+  }
+
   if (!mention.show) {
     if (e.shiftKey || e.altKey || e.ctrlKey) return;
     if (e.altKey) return;
@@ -521,7 +766,7 @@ const handleSend = async () => {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 textarea {
@@ -532,6 +777,23 @@ textarea {
 
 textarea::placeholder {
     color: hsl(var(--muted-foreground));
+}
+
+textarea::-webkit-scrollbar {
+    width: 6px;
+}
+
+textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+textarea::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
 }
 
 .reply-preview {

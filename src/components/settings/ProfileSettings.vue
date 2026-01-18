@@ -203,10 +203,15 @@
                       </div>
                     </div>
                   </div>
-                  <Button @click="removePasskey(passkey.id)" variant="ghost" size="icon"
-                    class="h-8 w-8 text-destructive hover:text-destructive">
-                    <TrashIcon class="w-4 h-4" />
-                  </Button>
+                  <div class="flex items-center gap-2">
+                    <Button @click="testPasskey(passkey.id)" variant="outline" size="sm">
+                      {{ t("test") }}
+                    </Button>
+                    <Button @click="removePasskey(passkey.id)" variant="ghost" size="icon"
+                      class="h-8 w-8 text-destructive hover:text-destructive">
+                      <TrashIcon class="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -639,8 +644,8 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
     if (result.isSuccessBeginPasskey()) {
       return {
         success: true,
-        passkeyId: (result as any).passkeyId,
-        challenge: (result as any).challenge,
+        passkeyId: result.passkeyId,
+        challenge: result.challenge,
       };
     }
     return { success: false };
@@ -649,6 +654,7 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
     const result = await api.securityInteraction.CompleteAddPasskey(passkeyId, publicKey);
     if (result.isSuccessCompletePasskey()) {
       const passkey = (result as any).passkey;
+      logger.warn("BeginValidatePasskey result:", result);
       return {
         success: true,
         passkey: passkey ? {
@@ -669,6 +675,7 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
   beginValidatePasskey: async () => {
     const result = await api.securityInteraction.BeginValidatePasskey();
     if (result.isSuccessBeginValidatePasskey()) {
+      logger.warn("BeginValidatePasskey result:", result);
       return {
         success: true,
         challenge: result.challenge,
@@ -696,7 +703,7 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
 };
 
 const passkeyManager = new PasskeyManager(passkeyApiCallbacks, {
-  relyingPartyId: "gl.argon.app",
+  relyingPartyId: "argon.gl",
   relyingPartyName: "ArgonChat",
   origin: "https://aegis.argon.gl",
   timeoutMilliseconds: 60000,
@@ -1365,6 +1372,36 @@ const removePasskey = async (id: string) => {
       description: result.error || t("passkey_remove_error"),
       variant: "destructive",
     });
+  }
+};
+
+const testPasskey = async (id: string) => {
+  const passkey = passkeys.value.find((p) => p.id === id);
+  
+  if (!passkey) {
+    return;
+  }
+
+  const result = await passkeyManager.validatePasskey();
+
+  if (result.success) {
+    toast({
+      title: t("passkey_test_success"),
+      description: `${passkey.name} ${t("works_correctly")}`,
+    });
+  } else {
+    if (result.errorCode === "CANCELLED") {
+      toast({
+        title: t("cancelled"),
+        description: t("passkey_test_cancelled"),
+      });
+    } else {
+      toast({
+        title: t("error"),
+        description: result.error || t("passkey_test_error"),
+        variant: "destructive",
+      });
+    }
   }
 };
 

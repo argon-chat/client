@@ -1,7 +1,7 @@
 <template>
     <div class="channel-chat flex flex-col h-full rounded-lg overflow-hidden relative">
         <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
-            class="messages-scroll flex-1 p-5">
+            class="messages-scroll flex-1">
             <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" :channel-name="channelData.name" :typing-users="typingUsers" @select-reply="onReplySelect" />
         </div>
 
