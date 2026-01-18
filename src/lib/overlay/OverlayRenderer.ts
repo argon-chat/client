@@ -273,6 +273,8 @@ export interface OverlayDiagnostics {
   // Frame history for graphs
   frameTimeHistory: number[]
   fpsHistory: number[]
+  cpuTimeHistory: number[]
+  gpuTimeHistory: number[]
   
   // Dirty capture diagnostics
   dirtyCapture: {
@@ -365,6 +367,9 @@ export class OverlayRenderer {
   private fixedWidth: number = 0
   private fixedHeight: number = 0
   
+  // Global opacity for all rendering
+  private globalOpacity: number = 1.0
+  
   // ==================== Diagnostics ====================
   private diagnosticsEnabled: boolean = true
   private frameStartTime: number = 0
@@ -386,11 +391,28 @@ export class OverlayRenderer {
   // Frame time history (for graphs)
   private frameTimeHistory: number[] = []
   private fpsHistory: number[] = []
-  private readonly historyLength: number = 120 // 2 seconds at 60fps
+  private cpuTimeHistory: number[] = []
+  private gpuTimeHistory: number[] = []
+  private readonly historyLength: number = 60 // ~2 seconds of samples
   
-  // GPU Timestamp not available without Chrome flag --enable-dawn-features=allow_unsafe_apis
+  // Smoothed values (EMA - exponential moving average)
+  private smoothedFrameTime: number = 0
+  private smoothedCpuTime: number = 0
+  private smoothedGpuTime: number = 0
+  private readonly smoothingFactor: number = 0.15 // Lower = smoother
+  
+  // History update throttle (update every N frames)
+  private historyFrameCounter: number = 0
+  private readonly historyUpdateInterval: number = 6 // Update every 6 frames (~10Hz at 60fps)
+  
+  // GPU Timestamp query (requires Chrome flag --enable-dawn-features=allow_unsafe_apis)
   private supportsTimestamps: boolean = false
+  private timestampQuerySet: GPUQuerySet | null = null
+  private timestampBuffer: GPUBuffer | null = null
+  private timestampReadBuffers: [GPUBuffer | null, GPUBuffer | null] = [null, null]
+  private timestampReadBufferIndex: number = 0
   private lastGpuTime: number | null = null
+  private pendingTimestampReads: [boolean, boolean] = [false, false]
   
   // VRAM tracking
   private trackedBuffers: Map<string, { size: number; label: string }> = new Map()
@@ -485,11 +507,19 @@ export class OverlayRenderer {
         return false
       }
       
-      // Note: timestamp-query requires Chrome flag --enable-dawn-features=allow_unsafe_apis
-      // We'll use CPU-based timing instead which is sufficient for diagnostics
-      this.supportsTimestamps = false
+      // Check if timestamp-query is supported (requires Chrome flag --enable-dawn-features=allow_unsafe_apis)
+      this.supportsTimestamps = this.adapter.features.has('timestamp-query')
+      console.log('[Overlay] GPU timestamp-query supported:', this.supportsTimestamps)
       
-      this.device = await this.adapter.requestDevice()
+      // Request device with timestamp-query feature if available
+      const requiredFeatures: GPUFeatureName[] = []
+      if (this.supportsTimestamps) {
+        requiredFeatures.push('timestamp-query')
+      }
+      
+      this.device = await this.adapter.requestDevice({
+        requiredFeatures,
+      })
       
       this.context = this.canvas.getContext('webgpu')
       if (!this.context) {
@@ -520,6 +550,40 @@ export class OverlayRenderer {
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       })
       this.trackBuffer('spriteVertexBuffer', this.spriteVertexBuffer, this.spriteVertices.byteLength)
+      
+      // Create GPU timestamp query resources if supported
+      if (this.supportsTimestamps) {
+        // Query set for 2 timestamps (start + end of render pass)
+        this.timestampQuerySet = this.device.createQuerySet({
+          label: 'Overlay Timestamp Queries',
+          type: 'timestamp',
+          count: 2,
+        })
+        
+        // Buffer to resolve query results (2 x uint64 = 16 bytes)
+        this.timestampBuffer = this.device.createBuffer({
+          label: 'Overlay Timestamp Buffer',
+          size: 16,
+          usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+        })
+        this.trackBuffer('timestampBuffer', this.timestampBuffer, 16)
+        
+        // Double-buffered staging buffers for async readback (avoids mapped buffer conflicts)
+        this.timestampReadBuffers[0] = this.device.createBuffer({
+          label: 'Overlay Timestamp Read Buffer 0',
+          size: 16,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        })
+        this.timestampReadBuffers[1] = this.device.createBuffer({
+          label: 'Overlay Timestamp Read Buffer 1',
+          size: 16,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        })
+        this.trackBuffer('timestampReadBuffer0', this.timestampReadBuffers[0], 16)
+        this.trackBuffer('timestampReadBuffer1', this.timestampReadBuffers[1], 16)
+        
+        console.log('[Overlay] GPU timestamp queries initialized')
+      }
       
       // Create pipelines
       await this.createPipelines()
@@ -850,8 +914,8 @@ export class OverlayRenderer {
       label: 'Overlay Render Encoder',
     })
     
-    // Begin render pass
-    const passEncoder = encoder.beginRenderPass({
+    // Begin render pass with timestamp writes if supported
+    const renderPassDescriptor: GPURenderPassDescriptor = {
       label: 'Overlay Render Pass',
       colorAttachments: [{
         view: textureView,
@@ -859,7 +923,18 @@ export class OverlayRenderer {
         loadOp: 'clear',
         storeOp: 'store',
       }],
-    })
+    }
+    
+    // Add timestamp writes if supported
+    if (this.supportsTimestamps && this.timestampQuerySet) {
+      renderPassDescriptor.timestampWrites = {
+        querySet: this.timestampQuerySet,
+        beginningOfPassWriteIndex: 0,
+        endOfPassWriteIndex: 1,
+      }
+    }
+    
+    const passEncoder = encoder.beginRenderPass(renderPassDescriptor)
     
     // Create render context for widgets
     const ctx: OverlayRenderContext = {
@@ -870,10 +945,17 @@ export class OverlayRenderer {
       canvasSize: { x: this.canvas.width, y: this.canvas.height },
       time: currentTime / 1000,
       deltaTime,
+      globalOpacity: this.globalOpacity,
       trackDraw: (vertexCount: number, spriteCount: number = 1) => {
         this.drawCallsThisFrame++
         this.vertexCountThisFrame += vertexCount
         this.spriteCount += spriteCount
+      },
+      trackTexture: (id: string, texture: GPUTexture, width: number, height: number, bytesPerPixel: number = 4) => {
+        this.trackTexture(id, texture, width, height, bytesPerPixel)
+      },
+      untrackTexture: (id: string) => {
+        this.untrackTexture(id)
       },
       // @ts-ignore - internal extension for widgets
       uniformBindGroup: this.uniformBindGroup,
@@ -890,8 +972,45 @@ export class OverlayRenderer {
     // End render pass
     passEncoder.end()
     
+    // Resolve timestamp queries if supported - use double buffering to avoid conflicts
+    const currentReadBufferIdx = this.timestampReadBufferIndex
+    const currentReadBuffer = this.timestampReadBuffers[currentReadBufferIdx]
+    
+    if (this.supportsTimestamps && this.timestampQuerySet && this.timestampBuffer && currentReadBuffer) {
+      // Only copy to buffer if it's not currently being read
+      if (!this.pendingTimestampReads[currentReadBufferIdx]) {
+        encoder.resolveQuerySet(this.timestampQuerySet, 0, 2, this.timestampBuffer, 0)
+        encoder.copyBufferToBuffer(this.timestampBuffer, 0, currentReadBuffer, 0, 16)
+        // Flip to other buffer for next frame
+        this.timestampReadBufferIndex = 1 - currentReadBufferIdx
+      }
+    }
+    
     // Submit commands
     this.device.queue.submit([encoder.finish()])
+    
+    // Read GPU timestamps asynchronously from the buffer we just wrote to
+    if (this.supportsTimestamps && currentReadBuffer && !this.pendingTimestampReads[currentReadBufferIdx]) {
+      this.pendingTimestampReads[currentReadBufferIdx] = true
+      const bufferIdx = currentReadBufferIdx
+      
+      currentReadBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        const buffer = this.timestampReadBuffers[bufferIdx]
+        if (!buffer) return
+        
+        const data = new BigUint64Array(buffer.getMappedRange())
+        const startTime = data[0]
+        const endTime = data[1]
+        buffer.unmap()
+        this.pendingTimestampReads[bufferIdx] = false
+        
+        // Convert nanoseconds to milliseconds
+        const gpuTimeNs = Number(endTime - startTime)
+        this.lastGpuTime = gpuTimeNs / 1_000_000
+      }).catch(() => {
+        this.pendingTimestampReads[bufferIdx] = false
+      })
+    }
     
     // Calculate CPU time (includes GPU submit, good approximation)
     const cpuEndTime = performance.now()
@@ -912,18 +1031,52 @@ export class OverlayRenderer {
       }
     }
     
-    // Add to frame time history
+    // Calculate raw frame time
     const frameTime = currentTime - this.frameStartTime
-    this.frameTimeHistory.push(frameTime)
-    if (this.frameTimeHistory.length > this.historyLength) {
-      this.frameTimeHistory.shift()
-    }
     
     // Save diagnostics for this frame (so getDiagnostics returns accurate values)
     this.lastCpuTime = performance.now() - this.cpuStartTime
     this.lastDrawCalls = this.drawCallsThisFrame
     this.lastVertexCount = this.vertexCountThisFrame
     this.lastSpriteCount = this.spriteCount
+    
+    // Apply EMA smoothing to values
+    this.smoothedFrameTime = this.smoothedFrameTime === 0 
+      ? frameTime 
+      : this.smoothedFrameTime * (1 - this.smoothingFactor) + frameTime * this.smoothingFactor
+    
+    this.smoothedCpuTime = this.smoothedCpuTime === 0
+      ? this.lastCpuTime
+      : this.smoothedCpuTime * (1 - this.smoothingFactor) + this.lastCpuTime * this.smoothingFactor
+    
+    const gpuTime = this.lastGpuTime ?? 0
+    this.smoothedGpuTime = this.smoothedGpuTime === 0
+      ? gpuTime
+      : this.smoothedGpuTime * (1 - this.smoothingFactor) + gpuTime * this.smoothingFactor
+    
+    // Throttle history updates (don't add every frame)
+    this.historyFrameCounter++
+    if (this.historyFrameCounter >= this.historyUpdateInterval) {
+      this.historyFrameCounter = 0
+      
+      // Add smoothed values to history
+      this.frameTimeHistory.push(this.smoothedFrameTime)
+      if (this.frameTimeHistory.length > this.historyLength) {
+        this.frameTimeHistory.shift()
+      }
+      
+      // Add to CPU time history
+      this.cpuTimeHistory.push(this.smoothedCpuTime)
+      if (this.cpuTimeHistory.length > this.historyLength) {
+        this.cpuTimeHistory.shift()
+      }
+      
+      // Add to GPU time history
+      this.gpuTimeHistory.push(this.smoothedGpuTime)
+      if (this.gpuTimeHistory.length > this.historyLength) {
+        this.gpuTimeHistory.shift()
+      }
+    }
     
     // Cache the frame immediately after render (before buffer is cleared)
     this.cacheCurrentFrame()
@@ -944,10 +1097,16 @@ export class OverlayRenderer {
       this.cachedFrameCanvas = document.createElement('canvas')
       this.cachedFrameCanvas.width = this.canvas.width
       this.cachedFrameCanvas.height = this.canvas.height
-      this.cachedFrameCtx = this.cachedFrameCanvas.getContext('2d', { willReadFrequently: true })
+      this.cachedFrameCtx = this.cachedFrameCanvas.getContext('2d', { 
+        willReadFrequently: true,
+        alpha: true 
+      })
     }
     
     if (this.cachedFrameCtx) {
+      // IMPORTANT: Clear before drawing to avoid alpha compositing issues
+      // Without this, transparent pixels get blended with previous frame
+      this.cachedFrameCtx.clearRect(0, 0, this.cachedFrameCanvas!.width, this.cachedFrameCanvas!.height)
       this.cachedFrameCtx.drawImage(this.canvas, 0, 0)
     }
   }
@@ -1084,6 +1243,8 @@ export class OverlayRenderer {
       // History
       frameTimeHistory: [...this.frameTimeHistory],
       fpsHistory: [...this.fpsHistory],
+      cpuTimeHistory: [...this.cpuTimeHistory],
+      gpuTimeHistory: [...this.gpuTimeHistory],
       
       // Dirty capture diagnostics
       dirtyCapture: {
@@ -1583,6 +1744,28 @@ export class OverlayRenderer {
   // ==================== Dirty Tile Rendering ====================
 
   /**
+   * Set global opacity for all rendering
+   * @param opacity Value between 0 and 1
+   */
+  setGlobalOpacity(opacity: number): void {
+    this.globalOpacity = Math.max(0, Math.min(1, opacity))
+  }
+
+  /**
+   * Get current global opacity
+   */
+  getGlobalOpacity(): number {
+    return this.globalOpacity
+  }
+
+  /**
+   * Get the canvas element
+   */
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas
+  }
+
+  /**
    * Set the tile size for dirty rendering
    * Smaller tiles = more granular updates but more overhead
    * Larger tiles = less granular but more efficient comparison
@@ -1735,9 +1918,14 @@ export class OverlayRenderer {
         mergedRects++
         
         if (tileType === 2) {
-          // Transparent - send empty data
+          // Transparent tile - send actual transparent pixel data
+          // Native side needs real RGBA data with alpha=0 to clear properly
           transparentTiles += maxW * maxH
           transparentSaved += rectW * rectH * 4
+          
+          // Create transparent pixel data (all zeros = RGBA 0,0,0,0)
+          const transparentData = new Uint8Array(rectW * rectH * 4)
+          // Array is already zeroed by default
           
           dirtyTiles.push({
             tileX: tx,
@@ -1746,7 +1934,7 @@ export class OverlayRenderer {
             y: rectY,
             width: rectW,
             height: rectH,
-            data: new Uint8Array(0)
+            data: transparentData
           })
         } else {
           // Content - extract merged region data
@@ -1972,16 +2160,20 @@ export class OverlayRenderer {
    * @param callback - Called with dirty capture data
    * @param fps - Target capture FPS (default 30)
    * @param skipUnchanged - Skip callback if no tiles changed (default true)
+   * @param recoveryIntervalSec - Force full refresh every N seconds to fix artifacts (0 = disabled, default 5)
    * @returns Stop function
    */
   startDirtyCapture(
     callback: (capture: DirtyCapture) => void,
     fps: number = 30,
-    skipUnchanged: boolean = true
+    skipUnchanged: boolean = true,
+    recoveryIntervalSec: number = 5
   ): () => void {
     let isCapturing = true
     const interval = 1000 / fps
     let lastCapture = 0
+    let lastRecovery = performance.now()
+    const recoveryInterval = recoveryIntervalSec * 1000
     
     const captureLoop = () => {
       if (!isCapturing) return
@@ -1991,6 +2183,13 @@ export class OverlayRenderer {
         lastCapture = now
         
         try {
+          // Check if recovery refresh is needed
+          if (recoveryInterval > 0 && now - lastRecovery >= recoveryInterval) {
+            lastRecovery = now
+            this.invalidateFrame() // Force full refresh
+            console.debug('[Overlay] Recovery refresh triggered')
+          }
+          
           const capture = this.captureDirtyTiles()
           
           // Skip callback if no changes and skipUnchanged is true
@@ -2065,6 +2264,12 @@ export class OverlayRenderer {
     
     this.spriteVertexBuffer?.destroy()
     this.uniformBuffer?.destroy()
+    
+    // Clean up timestamp query resources
+    this.timestampQuerySet?.destroy()
+    this.timestampBuffer?.destroy()
+    this.timestampReadBuffers[0]?.destroy()
+    this.timestampReadBuffers[1]?.destroy()
     
     // Clean up dirty rendering state
     this.previousFrameData = null

@@ -45,6 +45,17 @@ export interface VoiceMember {
 }
 
 /**
+ * Widget anchor position
+ */
+export type WidgetAnchor = 
+  | 'top-left' 
+  | 'top-right' 
+  | 'bottom-left' 
+  | 'bottom-right'
+  | 'top-center'
+  | 'bottom-center'
+
+/**
  * Widget configuration
  */
 export interface WidgetConfig {
@@ -53,6 +64,18 @@ export interface WidgetConfig {
   size: Vec2
   visible: boolean
   opacity: number
+  /** Show widget card background (default true) */
+  showWidgetBackground: boolean
+  /** Show member card backgrounds (default true) */
+  showMemberCards: boolean
+  /** Widget internal padding in pixels (default 12) */
+  padding: number
+  /** Spacing between member cards in pixels (default 6) */
+  memberSpacing: number
+  /** Widget offset from screen edge in pixels (default 20) */
+  screenPadding: number
+  /** Anchor position for the widget (default 'top-left') */
+  anchor: WidgetAnchor
 }
 
 /**
@@ -78,6 +101,8 @@ export interface OverlayRenderContext {
   canvasSize: Vec2
   time: number
   deltaTime: number
+  /** Global opacity multiplier for all rendering (0-1) */
+  globalOpacity: number
   
   /**
    * Track a draw call for diagnostics
@@ -85,6 +110,16 @@ export interface OverlayRenderContext {
    * @param spriteCount Number of sprites/quads drawn (default 1)
    */
   trackDraw(vertexCount: number, spriteCount?: number): void
+  
+  /**
+   * Track texture memory for VRAM diagnostics
+   */
+  trackTexture(id: string, texture: GPUTexture, width: number, height: number, bytesPerPixel?: number): void
+  
+  /**
+   * Untrack texture when destroyed
+   */
+  untrackTexture(id: string): void
 }
 
 /**
@@ -205,3 +240,141 @@ export interface SpriteVertex {
 
 export const SPRITE_VERTEX_SIZE = 10 * 4 // 10 floats * 4 bytes
 export const VERTICES_PER_SPRITE = 6 // 2 triangles
+
+/**
+ * Public interface for OverlayRenderer
+ * Used for typing in Vue components to avoid ref unwrap issues
+ */
+export interface IOverlayRenderer {
+  // Lifecycle
+  initialize(): Promise<boolean>
+  start(): void
+  stop(): void
+  dispose(): void
+  resize(width: number, height: number): void
+  
+  // Size management
+  setSizeMode(mode: CanvasSizeMode): void
+  getSizeMode(): CanvasSizeMode
+  getLogicalSize(): { width: number; height: number }
+  
+  // Global opacity
+  setGlobalOpacity(opacity: number): void
+  getGlobalOpacity(): number
+  
+  // Canvas access
+  getCanvas(): HTMLCanvasElement
+  
+  // GPU resources
+  getDevice(): GPUDevice | null
+  getFormat(): GPUTextureFormat
+  getUniformBindGroupLayout(): GPUBindGroupLayout | null
+  
+  // Widgets
+  addWidget(widget: IWidget): void
+  removeWidget(id: string): void
+  
+  // Diagnostics
+  getDiagnostics(): OverlayDiagnostics
+  
+  // Frame capture
+  getFrameInfo(): { width: number; height: number; totalBytes: number }
+  captureRawFrame(): Promise<{ data: ArrayBuffer; width: number; height: number }>
+  captureBlob(type: 'image/png' | 'image/jpeg' | 'image/webp', quality?: number): Promise<Blob>
+  captureDataURL(type?: 'image/png' | 'image/jpeg' | 'image/webp', quality?: number): string
+  
+  // Fragment capture
+  getVisibleBounds(): { x: number; y: number; width: number; height: number } | null
+  captureFragments(): Promise<FragmentCapture>
+  captureCombinedRegion(): Promise<{ x: number; y: number; width: number; height: number; data: Uint8Array } | null>
+  
+  // Dirty tile capture
+  setDirtyTileSize(size: number): void
+  captureDirtyTiles(): DirtyCapture
+  invalidateFrame(): void
+  startDirtyCapture(
+    callback: (capture: DirtyCapture) => void,
+    targetFps?: number,
+    skipUnchanged?: boolean,
+    recoveryIntervalSec?: number  // Force full refresh every N seconds (0 = disabled)
+  ): () => void
+  
+  // Native bridge config
+  getInitConfig(): { width: number; height: number; tileSize: number; tilesX: number; tilesY: number }
+}
+
+/**
+ * Canvas size mode for overlay renderer
+ */
+export type CanvasSizeMode = 
+  | { type: 'container' }
+  | { type: 'screen' }
+  | { type: 'window' }
+  | { type: 'fixed'; width: number; height: number }
+
+/**
+ * GPU diagnostics info
+ */
+export interface GPUInfo {
+  vendor: string
+  device: string
+  architecture: string
+  description: string
+  features: string[]
+}
+
+/**
+ * VRAM usage tracking
+ */
+export interface VRAMUsage {
+  buffers: number
+  textures: number
+  total: number
+}
+
+/**
+ * Dirty capture statistics
+ */
+export interface DirtyCaptureStats {
+  tileSize: number
+  tilesX: number
+  tilesY: number
+  totalTiles: number
+  previousFrameMemory: number
+  captureCount: number
+  lastCaptureTime: number
+  lastCompareTime: number
+  lastExtractTime: number
+  lastDirtyPercent: number
+  avgCaptureTime: number
+  avgDirtyPercent: number
+  avgBytesPerCapture: number
+  lastTransparentSkipped: number
+  lastTransparentSaved: number
+  totalTransparentSkipped: number
+  totalTransparentSaved: number
+}
+
+/**
+ * Full diagnostics from renderer
+ */
+export interface OverlayDiagnostics {
+  fps: number
+  frameTime: number
+  cpuTime: number
+  gpuTime: number | null
+  drawCalls: number
+  vertexCount: number
+  triangleCount: number
+  spriteCount: number
+  widgetCount: number
+  visibleWidgetCount: number
+  textureCount: number
+  pipelineCount: number
+  vramUsage: VRAMUsage
+  gpuInfo: GPUInfo | null
+  frameTimeHistory: number[]
+  cpuTimeHistory: number[]
+  gpuTimeHistory: number[]
+  dirtyCapture: DirtyCaptureStats
+}

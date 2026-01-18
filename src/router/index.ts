@@ -57,7 +57,7 @@ const routes = [
             path: "overlayDebug",
             name: "HomeOverlayDebug",
             component: () =>
-              import("@/components/home/views/OverlayDebug.vue"),
+              import("@/components/home/views/overlay/OverlayDebug.vue"),
           },
           {
             path: "chat/:userId",

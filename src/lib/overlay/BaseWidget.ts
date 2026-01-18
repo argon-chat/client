@@ -3,7 +3,7 @@
  * Abstract base for all overlay widgets
  */
 
-import type { IWidget, WidgetConfig, OverlayRenderContext, Vec2 } from './types'
+import type { IWidget, WidgetConfig, OverlayRenderContext, Vec2, WidgetAnchor } from './types'
 
 export abstract class BaseWidget implements IWidget {
   public readonly id: string
@@ -17,6 +17,12 @@ export abstract class BaseWidget implements IWidget {
       size,
       visible: true,
       opacity: 1,
+      showWidgetBackground: true,
+      showMemberCards: true,
+      padding: 12,
+      memberSpacing: 6,
+      screenPadding: 20,
+      anchor: 'top-left',
     }
   }
   
