@@ -26,7 +26,7 @@ import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'>('tab', {
     default: 'dashboard'
 });
 const recentStore = useRecentChatsStore();
@@ -39,7 +39,7 @@ const softphoneOpened = ref(false);
 const notifications = useNotifications();
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory'): void
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'): void
 }>();
 
 async function loadChats() {
@@ -136,6 +136,12 @@ onUnmounted(() => {
                 {{ t("notifications") }}
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
+            <Button @click="emit('select', 'overlayDebug')" :variant="tab == 'overlayDebug' ? 'outline' : 'ghost'"
+                class="justify-start">
+                <IconNotification class="w-6 h-6 mr-2" />
+                Overlay Debug
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+            </Button>
             <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"
                 class="justify-start">
                 <IconDialpad class="w-6 h-6 mr-2" />
@@ -180,6 +186,7 @@ onUnmounted(() => {
 <style lang="css" scoped>
 .item-slot {
     background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 15px;
     padding: 10px;
     display: flex;

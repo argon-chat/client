@@ -1,7 +1,7 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import delay from "@/lib/delay";
+import { delay } from "@argon/core";
 
 export type GroupReport = {
   name: string;
@@ -36,7 +36,7 @@ export async function getStorageUsageReport(
     "gifs",
     "videos",
     "files",
-  ]
+  ],
 ): Promise<StorageUsageReport> {
   let quota: number | null = null;
   let storageUsed: number | null = null;
@@ -96,7 +96,7 @@ export async function getStorageUsageReport(
     quota != null
       ? Math.max(
           0,
-          quota - (storageUsed != null ? storageUsed : groupsTotalUsed)
+          quota - (storageUsed != null ? storageUsed : groupsTotalUsed),
         )
       : null;
 
@@ -259,8 +259,7 @@ export const useFileStorage = defineStore("files", () => {
     return fetchByFileId({
       fileId,
       cache: imagesCache.value,
-      fileUrlBuilder: (x) =>
-        `https://cdn.argon.gl/${x}`,
+      fileUrlBuilder: (x) => `https://cdn.argon.gl/${x}`,
       allowFallback: false,
     });
   }
@@ -269,8 +268,7 @@ export const useFileStorage = defineStore("files", () => {
     return fetchByFileId({
       fileId,
       cache: imagesCache.value,
-      fileUrlBuilder: (x) =>
-        `https://cdn.argon.gl/${x}`,
+      fileUrlBuilder: (x) => `https://cdn.argon.gl/${x}`,
       allowFallback: false,
     });
   }
@@ -279,8 +277,7 @@ export const useFileStorage = defineStore("files", () => {
     return fetchByFileId({
       fileId,
       cache: imagesCache.value,
-      fileUrlBuilder: (x) =>
-        `https://eu.argon.zone/${x}`,
+      fileUrlBuilder: (x) => `https://eu.argon.zone/${x}`,
       allowFallback: true,
     });
   }

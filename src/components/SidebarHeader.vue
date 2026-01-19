@@ -30,7 +30,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from "vue";
-import delay from "@/lib/delay";
+import { delay } from "@argon/core";
 import { computedAsync } from "@vueuse/core";
 import { usePoolStore } from "@/store/poolStore";
 import { useFileStorage } from "@/store/fileStorage";

@@ -24,7 +24,7 @@ import { useUserVolumeStore } from "./userVolumeStore";
 import { useRealtimeStore } from "./realtimeStore";
 
 import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
-import { startTimer } from "@/lib/intervalTimer";
+import { startTimer } from "@argon/core";
 import { useSystemStore } from "./systemStore";
 import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
@@ -321,7 +321,20 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       logger.warn(`[CALL] Participant ${uid} already exists, updating state`);
     }
 
-    const info = await pool.getUser(uid);
+    // Check if this is a guest user (GUID starts with ccccfcfa)
+    const isGuest = uid.toLowerCase().startsWith('ccccfcfa') || uid.toLowerCase().startsWith('guest-');
+    
+    let displayName: string;
+    if (isGuest) {
+      // For guest users, use name from LiveKit participant metadata or default
+      displayName = p.name || p.metadata || `Guest ${uid.substring(0, 8)}`;
+      logger.info(`[CALL] Adding guest participant ${uid} with name: ${displayName}`);
+    } else {
+      // For regular users, fetch from pool
+      const info = await pool.getUser(uid);
+      displayName = info?.displayName ?? "Unknown User";
+    }
+    
     const savedVolume = userVolume.getUserVolume(uid);
 
     // Read initial muted state from tracks
@@ -346,21 +359,42 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     const isInitiallyScreencast = p.attributes?.isScreencast === "true";
 
     logger.info(`[CALL] Adding participant ${uid}:`, {
+      isGuest,
       muted: isInitiallyMuted,
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
-      attributes: p.attributes
+      attributes: p.attributes,
+      displayName
     });
 
     participants[uid] = {
       userId: uid,
-      displayName: info?.displayName ?? "Unknown User",
+      displayName,
       muted: isInitiallyMuted,
       volume: [savedVolume],
       gain: null,
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
     };
+    
+    // Add guest user to realtime channel if in channel mode
+    if (isGuest && mode.value === "channel" && connectedVoiceChannelId.value) {
+      // Create a mock user object for guest
+      const guestUser = {
+        userId: uid,
+        displayName,
+        username: `guest_${uid.substring(0, 8)}`,
+        avatarFileId: null, // Will use default guest avatar
+        status: 0,
+        activity: undefined,
+      };
+      pool._realtimeStore.addUserToChannel(
+        connectedVoiceChannelId.value,
+        uid,
+        guestUser as any
+      );
+      logger.info(`[CALL] Added guest ${uid} to realtime channel ${connectedVoiceChannelId.value}`);
+    }
 
     const isMutedAll = sys.headphoneMuted;
 
@@ -520,6 +554,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     const r = new Room({
       loggerName: `${callId.value}-room`,
+      webAudioMix: {
+        audioContext: audio.getCurrentAudioContext()
+      }
     });
     room.value = r;
 
@@ -533,6 +570,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       delete participants[uid];
       speaking.delete(uid);
       if (videoTracks.has(uid)) videoTracks.delete(uid);
+      
+      // Remove guest user from realtime channel
+      const isGuest = uid.toLowerCase().startsWith('fafccccc');
+      if (isGuest && mode.value === "channel" && connectedVoiceChannelId.value) {
+        pool._realtimeStore.removeUserFromChannel(connectedVoiceChannelId.value, uid);
+        logger.info(`[CALL] Removed guest ${uid} from realtime channel`);
+      }
+      
       tone.playSoftLeaveSound();
     });
     r.on("participantActive", (p) => {

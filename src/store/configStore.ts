@@ -27,16 +27,31 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   const getKey = (section: string, key: string) =>
     flatKeys.value.get(`${section}:${key}`);
 
-
   const enableDevMode = async () => {
-    await setValue_raw({ key: "DevMode", section: "app", valueB: true, valueEnum: null, valueNum: null, valueStr: null });
+    await setValue_raw({
+      key: "DevMode",
+      section: "app",
+      valueB: true,
+      valueEnum: null,
+      valueNum: null,
+      valueStr: null,
+      valueF: null,
+    });
     await load();
-  }
+  };
 
-  const setTheme = async (theme: "Dark" | "White" | "OLED") => { 
+  const setTheme = async (theme: "Dark" | "White" | "OLED") => {
     if (argon.isArgonHost)
-      await setValue_raw({ key: "Theme", section: "appearance", valueB: null, valueEnum: theme, valueNum: null, valueStr: null });
-  }
+      await setValue_raw({
+        key: "Theme",
+        section: "appearance",
+        valueB: null,
+        valueEnum: theme,
+        valueNum: null,
+        valueStr: null,
+        valueF: null,
+      });
+  };
 
   const load = async () => {
     if (!argon.isArgonHost) {
@@ -75,7 +90,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     }
 
     return updated.value;
-  }
+  };
 
   const setValue = async (
     section: string,
@@ -89,6 +104,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
       valueStr: null,
       valueNum: null,
       valueEnum: null,
+      valueF: null,
     };
 
     switch (key.type) {
@@ -103,6 +119,9 @@ export const useConfigStore = defineStore("nativeConfig", () => {
         break;
       case ConfigPrimitiveType.Enum:
         req.valueEnum = value;
+        break;
+      case ConfigPrimitiveType.Double:
+        req.valueF = value;
         break;
     }
 
@@ -133,6 +152,6 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     load,
     setValue,
     getKey,
-    setTheme
+    setTheme,
   };
 });

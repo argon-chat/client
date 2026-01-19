@@ -1,7 +1,7 @@
 import { defineStore, storeToRefs } from "pinia";
 import { usePreference } from "./preferenceStore";
 import { type Ref, ref } from "vue";
-import { useSound } from "./../lib/sound";
+import { useSound } from "@argon/soundfx";
 import normalizedAtlas from "@argon/assets/sounds/normalized_atlas.wav";
 import { audio } from "@/lib/audio/AudioManager";
 import { logger } from "@argon/core";

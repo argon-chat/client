@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { useApi } from "./apiStore";
 import { ref } from "vue";
 import { logger } from "@argon/core";
-import { interval, Subject } from "rxjs";
+import { interval, Subject, type Subscription } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { ActivityPresenceKind } from "@argon/glue";
 import {
@@ -24,85 +24,113 @@ export interface IMusicEvent {
   isPlaying: boolean;
 }
 
+enum ProcessKind {
+  GAME = 0,
+  SOFTWARE = 1,
+}
+
+const ACTIVITY_PUBLISH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const ACTIVITY_DEBOUNCE_MS = 1000; // 1 second
+
 export const useActivity = defineStore("activity", () => {
   const api = useApi();
-  const activeActivity = ref(null as null | number);
-  const gameSessions: Map<number, ProcessPlaying> = new Map();
-  const musicSessions: Map<string, IMusicEvent> = new Map();
-  const onActivityChanged = new Subject();
+  const activeActivity = ref<number | null>(null);
+  const gameSessions = new Map<number, ProcessPlaying>();
+  const musicSessions = new Map<string, IMusicEvent>();
+  const onActivityChanged = new Subject<void>();
   const lastPublishedPresence = ref<Presence>(null);
+  const subscriptions: Subscription[] = [];
 
-  const debouncedActivitySubject = onActivityChanged.pipe(debounceTime(1000));
+  const debouncedActivitySubject = onActivityChanged.pipe(
+    debounceTime(ACTIVITY_DEBOUNCE_MS)
+  );
+
+  type ActivityHandler = {
+    register: () => Promise<boolean>;
+    errorMessage: string;
+  };
+
+  function setupSubscriptions(): void {
+    subscriptions.push(
+      debouncedActivitySubject.subscribe(() => publishLatestActivity())
+    );
+
+    subscriptions.push(
+      interval(ACTIVITY_PUBLISH_INTERVAL_MS)
+        .pipe(switchMap(() => Promise.resolve(publishLatestActivity())))
+        .subscribe()
+    );
+  }
 
   async function init() {
     if (!argon.isArgonHost) return;
-    const populatePinnedFn = argon.on<ProcessPlaying>("ProcessPlaying", (x) => {
-      onActivityDetected(x);
-    });
-    if (!(await native.hostProc.onGameActivityDetected(populatePinnedFn)))
-      logger.error("failed to bind activity manager 1");
-    const terminatedPinnedFn = argon.on<ProcessEnd>("ProcessEnd", (x) => {
-      onActivityTerminated(x);
-    });
-    if (!(await native.hostProc.onGameActivityTerminated(terminatedPinnedFn)))
-      logger.error("failed to bind activity manager 2");
-    const onMusicPlay_pin = argon.on<AudioPlaying>("AudioPlaying", (x) => {
-      onMusicPlay(x);
-    });
-    if (
-      !(await native.hostProc.onMusicSessionPlayStateChanged(onMusicPlay_pin))
-    )
-      logger.error("failed to bind activity manager 4");
 
-    const onMusicStop_pin = argon.on<AudioPlayingEnd>(
-      "AudioPlayingEnd",
-      (x) => {
-        onMusicStop(x);
+    const handlers: ActivityHandler[] = [
+      {
+        register: () =>
+          native.hostProc.onGameActivityDetected(
+            argon.on<ProcessPlaying>("ProcessPlaying", onActivityDetected)
+          ),
+        errorMessage: "Failed to bind game activity detection",
+      },
+      {
+        register: () =>
+          native.hostProc.onGameActivityTerminated(
+            argon.on<ProcessEnd>("ProcessEnd", onActivityTerminated)
+          ),
+        errorMessage: "Failed to bind game activity termination",
+      },
+      {
+        register: () =>
+          native.hostProc.onMusicSessionPlayStateChanged(
+            argon.on<AudioPlaying>("AudioPlaying", onMusicPlay)
+          ),
+        errorMessage: "Failed to bind music play state",
+      },
+      {
+        register: () =>
+          native.hostProc.onMusicSessionStopStateChanged(
+            argon.on<AudioPlayingEnd>("AudioPlayingEnd", onMusicStop)
+          ),
+        errorMessage: "Failed to bind music stop state",
+      },
+    ];
+
+    for (const handler of handlers) {
+      if (!(await handler.register())) {
+        logger.error(handler.errorMessage);
       }
-    );
-    if (
-      !(await native.hostProc.onMusicSessionStopStateChanged(onMusicStop_pin))
-    )
-      logger.error("failed to bind activity manager 5");
+    }
 
-    debouncedActivitySubject.subscribe(publishLatestActivity);
-    interval(2 * 60 * 1000)
-      .pipe(
-        switchMap(() => {
-          return Promise.resolve(publishLatestActivity());
-        })
-      )
-      .subscribe();
+    setupSubscriptions();
+
     native.hostProc.listenActivity();
     native.hostProc.listenSessionMusic();
   }
   function onMusicStop(ev: AudioPlayingEnd) {
-    const audioEntity = ev;
-    const vl = musicSessions.get(audioEntity.sessionId);
+    const session = musicSessions.get(ev.sessionId);
 
-    if (!vl) return;
+    if (!session) return;
 
-    vl.isPlaying = false;
-
-    musicSessions.set(audioEntity.sessionId, vl);
-    onActivityChanged.next(0);
+    session.isPlaying = false;
+    musicSessions.set(ev.sessionId, session);
+    onActivityChanged.next();
   }
 
   function onMusicPlay(ev: AudioPlaying) {
-    const audioEntity = ev;
-    musicSessions.set(audioEntity.sessionId, {
-      author: audioEntity.author,
+    musicSessions.set(ev.sessionId, {
+      author: ev.author,
       isPlaying: true,
-      title: audioEntity.titleName,
+      title: ev.titleName,
     });
-    onActivityChanged.next(0);
+    onActivityChanged.next();
   }
 
   function onActivityDetected(proc: ProcessPlaying) {
     logger.info("onActivityDetected", proc);
     gameSessions.set(proc.pid, proc);
     activeActivity.value = proc.pid;
-    onActivityChanged.next(0);
+    onActivityChanged.next();
   }
 
   function onActivityTerminated(end: ProcessEnd) {
@@ -114,7 +142,7 @@ export const useActivity = defineStore("activity", () => {
       activeActivity.value = null;
     }
 
-    onActivityChanged.next(undefined);
+    onActivityChanged.next();
   }
 
   function isSamePresence(a: Presence, b: Presence): boolean {
@@ -174,31 +202,35 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function getLastMusicSession(): IMusicEvent | null {
-    const sessionsArray = Array.from(musicSessions.values());
-    return sessionsArray.length > 0
-      ? sessionsArray[sessionsArray.length - 1]
-      : null;
+    const sessions = Array.from(musicSessions.values());
+    return sessions[sessions.length - 1] ?? null;
+  }
+
+  function getLastSessionByKind(kind: ProcessKind): ProcessPlaying | null {
+    const sessions = Array.from(gameSessions.values()).filter(
+      (x) => x.kind === kind
+    );
+    return sessions[sessions.length - 1] ?? null;
   }
 
   function getLastGameSession(): ProcessPlaying | null {
-    const sessionsArray = Array.from(
-      gameSessions.values().filter((x) => x.kind === 0)
-    );
-    return sessionsArray.length > 0
-      ? sessionsArray[sessionsArray.length - 1]
-      : null;
+    return getLastSessionByKind(ProcessKind.GAME);
   }
 
   function getLastSoftwareSession(): ProcessPlaying | null {
-    const sessionsArray = Array.from(
-      gameSessions.values().filter((x) => x.kind === 1)
-    );
-    return sessionsArray.length > 0
-      ? sessionsArray[sessionsArray.length - 1]
-      : null;
+    return getLastSessionByKind(ProcessKind.SOFTWARE);
+  }
+
+  function cleanup() {
+    subscriptions.forEach((sub) => sub.unsubscribe());
+    subscriptions.length = 0;
+    gameSessions.clear();
+    musicSessions.clear();
+    onActivityChanged.complete();
   }
 
   return {
     init,
+    cleanup,
   };
 });

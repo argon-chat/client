@@ -82,6 +82,7 @@ const formatColour = (argb: number) => {
 <style lang="css" scoped>
 .user-list-container {
   background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
   border-radius: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

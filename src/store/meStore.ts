@@ -15,7 +15,6 @@ import {
   UserStatus,
 } from "@argon/glue";
 import { useAuthStore } from "./authStore";
-import delay from "@/lib/delay";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;

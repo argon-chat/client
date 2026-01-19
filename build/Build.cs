@@ -63,8 +63,34 @@ class Build : NukeBuild
             Bun("install", workingDirectory: FrontendDir);
         });
 
-    Target FrontendBuild => _ => _
+    Target UpdatePackageJson => _ => _
         .DependsOn(FrontendRestore)
+        .Executes(() =>
+        {
+            var packageJsonPath = FrontendDir / "package.json";
+            Log.Information("Updating package.json with build metadata: {Path}", packageJsonPath);
+
+            var packageJson = File.ReadAllText(packageJsonPath);
+            
+            var lastBuildTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var fullVersion = $"{GitVersion.FullSemVer}+{GitVersion.Sha.Substring(0, 8)}";
+            var branch = GitVersion.BranchName;
+            var version = GitVersion.AssemblySemFileVer;
+
+            packageJson = packageJson
+                .Replace("\"{lastBuildTime}\"", $"\"{lastBuildTime}\"")
+                .Replace("\"{fullVersion}\"", $"\"{fullVersion}\"")
+                .Replace("\"{branch}\"", $"\"{branch}\"")
+                .Replace("\"0.0.0\"", $"\"{version}\"");
+
+            File.WriteAllText(packageJsonPath, packageJson);
+
+            Log.Information("Updated package.json: Version={Version}, FullVersion={FullVersion}, Branch={Branch}, BuildTime={BuildTime}",
+                version, fullVersion, branch, lastBuildTime);
+        });
+
+    Target FrontendBuild => _ => _
+        .DependsOn(UpdatePackageJson)
         .Executes(() =>
         {
             FrontendDist.CreateOrCleanDirectory();

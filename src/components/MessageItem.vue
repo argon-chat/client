@@ -436,7 +436,7 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
+    border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 6px;
     padding: 2px;
     box-shadow: 0 2px 8px hsl(var(--background) / 0.5);

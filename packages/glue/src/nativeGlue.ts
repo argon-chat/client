@@ -1,5 +1,5 @@
 import { CborReader, IonFormatterStorage } from "@argon-chat/ion.webcore";
-import { ActivityKind, createClient, IHostProc, INativeEvent, PinnedFn } from "./argon.ipc";
+import { ActivityKind, createClient, IHostProc, INativeEvent, IOverlayController, PinnedFn } from "./argon.ipc";
 
 if (!("ahid" in window)) {
   window["ahid"] = 0;
@@ -72,6 +72,10 @@ class NativeProxy {
 
   get hostProc(): IHostProc {
     return this.#client.HostProc;
+  }
+
+  get overlayController(): IOverlayController {
+    return this.#client.OverlayController;
   }
 
   get dsn(): Promise<string> {

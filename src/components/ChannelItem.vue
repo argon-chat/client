@@ -20,6 +20,11 @@
       <ContextMenu>
         <ContextMenuTrigger>
           <div class="flex items-center space-x-2">
+            <VideoIcon 
+              v-if="channelMeetingInfo" 
+              class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
+              @click.stop="openMeetingDetails"
+            />
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
             <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-gray-400']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
@@ -38,6 +43,28 @@
           </ContextMenuItem>
 
           <ContextMenuSeparator />
+          
+          <ContextMenuItem 
+            v-if="channel.type === ChannelType.Voice && !channelMeetingInfo"
+            inset 
+            :disabled="!canManageChannels" 
+            @click="createMeeting"
+          >
+            {{ t("create_meeting") }}
+            <ContextMenuShortcut>⌘M</ContextMenuShortcut>
+          </ContextMenuItem>
+          
+          <ContextMenuItem 
+            v-if="channel.type === ChannelType.Voice && channelMeetingInfo"
+            inset 
+            @click="openMeetingDetails"
+          >
+            {{ t("meeting_details") }}
+            <ContextMenuShortcut>⌘I</ContextMenuShortcut>
+          </ContextMenuItem>
+          
+          <ContextMenuSeparator v-if="channel.type === ChannelType.Voice" />
+          
           <ContextMenuCheckboxItem :disabled="!pex.has('MuteMember')">
             {{ t("mute") }}
             <ContextMenuShortcut>⌘⇧B</ContextMenuShortcut>
@@ -74,11 +101,18 @@
       </ContextMenu>
     </ul>
   </div>
+
+  <MeetingDetailsModal
+    v-model:open="meetingDetailsOpened"
+    :meeting-info="currentMeetingInfo || channelMeetingInfo"
+    :space-id="channel.spaceId"
+    :channel-id="channel.channelId"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { HashIcon, Volume2Icon, AntennaIcon } from 'lucide-vue-next';
+import { computed, ref as vueRef } from 'vue';
+import { HashIcon, Volume2Icon, AntennaIcon, VideoIcon } from 'lucide-vue-next';
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -96,6 +130,8 @@ import { useMe } from '@/store/meStore';
 import { useUnifiedCall } from '@/store/unifiedCallStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
+import MeetingDetailsModal from './modals/MeetingDetailsModal.vue';
+import { useApi } from '@/store/apiStore';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
 import type { IRealtimeChannel } from '@/store/realtimeStore';
@@ -124,12 +160,34 @@ const pex = usePexStore();
 const { t } = useLocale();
 const me = useMe();
 const voice = useUnifiedCall();
+const api = useApi();
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
 const isConnectedVoiceChannel = computed(() => 
   props.channel.type === ChannelType.Voice && 
   voice.connectedVoiceChannelId === props.channel.channelId
 );
+
+const meetingDetailsOpened = vueRef(false);
+const currentMeetingInfo = vueRef<any>(null);
+const channelMeetingInfo = computed(() => props.voiceUsers?.meetingInfo);
+
+const createMeeting = async () => {
+  try {
+    const meetingInfo = await api.channelInteraction.CreateLinkedMeeting(props.channel.spaceId, props.channel.channelId);
+    currentMeetingInfo.value = meetingInfo;
+    meetingDetailsOpened.value = true;
+  } catch (error) {
+    console.error('Failed to create meeting', error);
+  }
+};
+
+const openMeetingDetails = () => {
+  if (channelMeetingInfo.value) {
+    currentMeetingInfo.value = channelMeetingInfo.value;
+    meetingDetailsOpened.value = true;
+  }
+};
 </script>
 
 <style scoped>

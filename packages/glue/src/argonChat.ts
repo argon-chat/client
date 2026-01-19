@@ -97,6 +97,15 @@ export interface CreateChannelRequest {
 export interface RealtimeChannel {
   channel: ArgonChannel;
   users: IonArray<RealtimeChannelUser>;
+  meetInfo: LinkedMeetingInfo | null;
+};
+
+
+export interface LinkedMeetingInfo {
+  meetingId: guid;
+  meetingUrl: string;
+  meetingCode: string;
+  startDate: datetime;
 };
 
 
@@ -340,6 +349,12 @@ export interface Passkey {
   name: string;
   createdAt: datetime;
   lastUsedAt: datetime | null;
+};
+
+
+export interface PasskeyCredentialDescriptor {
+  id: string;
+  type: string;
 };
 
 
@@ -1830,6 +1845,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isSpaceDetailsUpdated(): this is SpaceDetailsUpdated {
     return this.UnionKey === "SpaceDetailsUpdated";
   }
+  public isMeetingCreatedFor(): this is MeetingCreatedFor {
+    return this.UnionKey === "MeetingCreatedFor";
+  }
+  public isMeetingDeletedFor(): this is MeetingDeletedFor {
+    return this.UnionKey === "MeetingDeletedFor";
+  }
 
 }
 
@@ -2178,6 +2199,22 @@ export class SpaceDetailsUpdated extends IArgonEvent
   UnionIndex: number = 42;
 }
 
+export class MeetingCreatedFor extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
+
+  UnionKey: string = "MeetingCreatedFor";
+  UnionIndex: number = 43;
+}
+
+export class MeetingDeletedFor extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
+
+  UnionKey: string = "MeetingDeletedFor";
+  UnionIndex: number = 44;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -2274,6 +2311,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").read(reader);
     else if (unionIndex == 42)
       value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
+    else if (unionIndex == 43)
+      value = IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").read(reader);
+    else if (unionIndex == 44)
+      value = IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").read(reader);
 
     else throw new Error();
   
@@ -2413,6 +2454,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 42) {
         IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
+    }
+    else if (value.UnionIndex == 43) {
+        IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").write(writer, value as MeetingCreatedFor);
+    }
+    else if (value.UnionIndex == 44) {
+        IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").write(writer, value as MeetingDeletedFor);
     }
   
     else throw new Error();
@@ -3129,6 +3176,42 @@ IonFormatterStorage.register("SpaceDetailsUpdated", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').write(writer, value.details);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetingCreatedFor", {
+  read(reader: CborReader): MeetingCreatedFor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new MeetingCreatedFor(spaceId, channelId, meetInfo);
+  },
+  write(writer: CborWriter, value: MeetingCreatedFor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MeetingDeletedFor", {
+  read(reader: CborReader): MeetingDeletedFor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new MeetingDeletedFor(spaceId, channelId, meetInfo);
+  },
+  write(writer: CborWriter, value: MeetingDeletedFor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
     writer.writeEndArray();
   }
 });
@@ -4795,6 +4878,110 @@ IonFormatterStorage.register("FailedRemovePasskey", {
 
 
 
+export abstract class IBeginPasskeyValidateResult implements IIonUnion<IBeginPasskeyValidateResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBeginValidatePasskey(): this is SuccessBeginValidatePasskey {
+    return this.UnionKey === "SuccessBeginValidatePasskey";
+  }
+  public isFailedBeginValidatePasskey(): this is FailedBeginValidatePasskey {
+    return this.UnionKey === "FailedBeginValidatePasskey";
+  }
+
+}
+
+
+export class SuccessBeginValidatePasskey extends IBeginPasskeyValidateResult
+{
+  constructor(public challenge: string, public allowedCredentials: IonArray<PasskeyCredentialDescriptor>) { super(); }
+
+  UnionKey: string = "SuccessBeginValidatePasskey";
+  UnionIndex: number = 0;
+}
+
+export class FailedBeginValidatePasskey extends IBeginPasskeyValidateResult
+{
+  constructor(public error: PasskeyError) { super(); }
+
+  UnionKey: string = "FailedBeginValidatePasskey";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginPasskeyValidateResult", {
+  read(reader: CborReader): IBeginPasskeyValidateResult {
+    reader.readStartArray();
+    let value: IBeginPasskeyValidateResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBeginValidatePasskey>("SuccessBeginValidatePasskey").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginPasskeyValidateResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBeginValidatePasskey>("SuccessBeginValidatePasskey").write(writer, value as SuccessBeginValidatePasskey);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").write(writer, value as FailedBeginValidatePasskey);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBeginValidatePasskey", {
+  read(reader: CborReader): SuccessBeginValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const challenge = IonFormatterStorage.get<string>('string').read(reader);
+    const allowedCredentials = IonFormatterStorage.readArray<PasskeyCredentialDescriptor>(reader, 'PasskeyCredentialDescriptor');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessBeginValidatePasskey(challenge, allowedCredentials);
+  },
+  write(writer: CborWriter, value: SuccessBeginValidatePasskey): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.challenge);
+    IonFormatterStorage.writeArray<PasskeyCredentialDescriptor>(writer, value.allowedCredentials, 'PasskeyCredentialDescriptor');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBeginValidatePasskey", {
+  read(reader: CborReader): FailedBeginValidatePasskey {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBeginValidatePasskey(error);
+  },
+  write(writer: CborWriter, value: FailedBeginValidatePasskey): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PasskeyError>('PasskeyError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ISetAutoDeleteResult implements IIonUnion<ISetAutoDeleteResult>
 {
   abstract UnionKey: string;
@@ -5872,13 +6059,35 @@ IonFormatterStorage.register("RealtimeChannel", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     const users = IonFormatterStorage.readArray<RealtimeChannelUser>(reader, 'RealtimeChannelUser');
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { channel, users };
+    const meetInfo = IonFormatterStorage.readNullable<LinkedMeetingInfo>(reader, 'LinkedMeetingInfo');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { channel, users, meetInfo };
   },
   write(writer: CborWriter, value: RealtimeChannel): void {
-    writer.writeStartArray(2);
+    writer.writeStartArray(3);
     IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
     IonFormatterStorage.writeArray<RealtimeChannelUser>(writer, value.users, 'RealtimeChannelUser');
+    IonFormatterStorage.writeNullable<LinkedMeetingInfo>(writer, value.meetInfo, 'LinkedMeetingInfo');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LinkedMeetingInfo", {
+  read(reader: CborReader): LinkedMeetingInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const meetingId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const meetingUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const meetingCode = IonFormatterStorage.get<string>('string').read(reader);
+    const startDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { meetingId, meetingUrl, meetingCode, startDate };
+  },
+  write(writer: CborWriter, value: LinkedMeetingInfo): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.meetingId);
+    IonFormatterStorage.get<string>('string').write(writer, value.meetingUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.meetingCode);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.startDate);
     writer.writeEndArray();
   }
 });
@@ -6306,6 +6515,22 @@ IonFormatterStorage.register("Passkey", {
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
     IonFormatterStorage.writeNullable<datetime>(writer, value.lastUsedAt, 'datetime');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PasskeyCredentialDescriptor", {
+  read(reader: CborReader): PasskeyCredentialDescriptor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const type = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { id, type };
+  },
+  write(writer: CborWriter, value: PasskeyCredentialDescriptor): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.type);
     writer.writeEndArray();
   }
 });
@@ -6989,6 +7214,8 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
+  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
 }
 
 
@@ -7075,6 +7302,8 @@ export interface ISecurityInteraction extends IIonService
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
+  BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
+  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -7188,6 +7417,8 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
+  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
+  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
 }
 
 
@@ -7274,6 +7505,8 @@ export interface ISecurityInteraction extends IIonService
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
+  BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
+  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -7713,6 +7946,34 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateLinkedMeeting");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<LinkedMeetingInfo>("LinkedMeetingInfo", writer.data, this.signal);
+  }
+  async EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "EndLinkedMeeting");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
   }
 
 }
@@ -8421,6 +8682,35 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
     writer.writeEndArray();
           
     return await req.callAsyncT<SecurityDetails>("SecurityDetails", writer.data, this.signal);
+  }
+  async BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "BeginValidatePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginPasskeyValidateResult>("IBeginPasskeyValidateResult", writer.data, this.signal);
+  }
+  async CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "CompleteValidatePasskey");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<string>('string').write(writer, credentialId);
+    IonFormatterStorage.get<string>('string').write(writer, signature);
+    IonFormatterStorage.get<string>('string').write(writer, authenticatorData);
+    IonFormatterStorage.get<string>('string').write(writer, clientDataJSON);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICompletePasskeyResult>("ICompletePasskeyResult", writer.data, this.signal);
   }
 
 }

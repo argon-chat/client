@@ -182,6 +182,10 @@ const onChannelChanged = async (channelId: Guid | null) => {
 </script>
 
 <style scoped>
+.channel-chat {
+    border: 1px solid hsl(var(--border) / 0.5);
+}
+
 .messages-scroll {
     display: flex;
     flex-direction: column;

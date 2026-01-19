@@ -1,5 +1,5 @@
 import { useApi } from "@/store/apiStore";
-import { IUssdTransport, UssdRequest, UssdResponse } from "./IUssdTransport";
+import { IUssdTransport, UssdRequest, UssdResponse } from "@argon/softphone";
 import { v7 } from "uuid";
 import { logger } from "@argon/core";
 

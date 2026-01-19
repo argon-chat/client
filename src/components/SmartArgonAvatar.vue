@@ -52,7 +52,17 @@ const isCallUser = computed(() =>
   props.userId.toLocaleUpperCase().startsWith("CFFFFFFF")
 );
 
+const isGuestUser = computed(() =>
+  props.userId.toLowerCase().startsWith("fafccccc")
+);
+
 const avatarRootStyle = computed(() => {
+  if (isGuestUser.value) {
+    return {
+      backgroundColor: "#8b5cf6",
+      color: "white",
+    };
+  }
   if (!isCallUser.value) return {};
   return {
     backgroundColor: "#ff8b00",
@@ -75,7 +85,9 @@ watch(
     }
 
     try {
-      fallbackLetter.value = isCallUser.value
+      fallbackLetter.value = isGuestUser.value
+        ? "👤"
+        : isCallUser.value
         ? "📞"
         : (user.value?.displayName?.at(0)?.toUpperCase() ?? "?");
 
@@ -85,7 +97,7 @@ watch(
     } catch (e) {
       logger.error("Error loading avatar:", e);
       blobSrc.value = fileStorage.FAILED_ADDRESS;
-      fallbackLetter.value = isCallUser.value ? "📞" : "?";
+      fallbackLetter.value = isGuestUser.value ? "👤" : isCallUser.value ? "📞" : "?";
       loaded.value = false;
     } finally {
       loading.value = false;

@@ -1,8 +1,8 @@
 import { useMe } from "@/store/meStore";
-import { IUssdCommand } from "./IUssdTransport";
-import { LocalUssdTransport } from "./LocalUssdTransport";
-import { UssdClient } from "./UssdClient";
-import { HybridUssdTransport } from "./HybridUssdTransport";
+import { IUssdCommand } from "@argon/softphone";
+import { LocalUssdTransport } from "@argon/softphone";
+import { UssdClient } from "@argon/softphone";
+import { HybridUssdTransport } from "@argon/softphone";
 import { ServerUssdTransport } from "./ServerUssdTransport";
 import JsBarcode from "jsbarcode";
 import { useConfigStore } from "@/store/configStore";

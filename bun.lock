@@ -12,7 +12,9 @@
         "@argon/core": "workspace:*",
         "@argon/glue": "workspace:*",
         "@argon/i18n": "workspace:*",
+        "@argon/passkey": "workspace:*",
         "@argon/softphone": "workspace:*",
+        "@argon/soundfx": "workspace:*",
         "@argon/storage": "workspace:*",
         "@argon/theme": "workspace:*",
         "@argon/ui": "workspace:*",
@@ -168,6 +170,13 @@
         "vue": "^3.5.0",
       },
     },
+    "packages/passkey": {
+      "name": "@argon/passkey",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+      },
+    },
     "packages/softphone": {
       "name": "@argon/softphone",
       "version": "1.0.0",
@@ -181,6 +190,18 @@
       },
       "peerDependencies": {
         "pinia": "^3.0.0",
+        "vue": "^3.4.0",
+      },
+    },
+    "packages/soundFx": {
+      "name": "@argon/soundfx",
+      "version": "1.0.0",
+      "dependencies": {
+        "@argon/core": "workspace:*",
+        "howler": "^2.2.4",
+        "vue-demi": "^0.14.10",
+      },
+      "peerDependencies": {
         "vue": "^3.4.0",
       },
     },
@@ -251,7 +272,11 @@
 
     "@argon/i18n": ["@argon/i18n@workspace:packages/i18n"],
 
+    "@argon/passkey": ["@argon/passkey@workspace:packages/passkey"],
+
     "@argon/softphone": ["@argon/softphone@workspace:packages/softphone"],
+
+    "@argon/soundfx": ["@argon/soundfx@workspace:packages/soundFx"],
 
     "@argon/storage": ["@argon/storage@workspace:packages/storage"],
 

@@ -39,6 +39,10 @@
                         :value="key.valueNum ?? 0"
                         @change="e => configStore.setValue(section.section, key, Number((e.target as HTMLInputElement).value))" />
 
+                    <input v-else-if="key.type === ConfigPrimitiveType.Double" type="number" step="any" class="input w-[180px]"
+                        :value="key.valueF ?? 0"
+                        @change="e => configStore.setValue(section.section, key, Number((e.target as HTMLInputElement).value))" />
+
                     <Select v-else-if="key.type === ConfigPrimitiveType.Enum" :model-value="key.valueEnum!"
                         @update:model-value="v => configStore.setValue(section.section, key, v)">
                         <SelectTrigger class="w-[180px]">
