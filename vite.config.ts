@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 import tailwind from "tailwindcss";
@@ -6,8 +6,8 @@ import autoprefixer from "autoprefixer";
 import Icons from "unplugin-icons/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import SvgImporter from "vite-svg-loader";
-import fs from "fs";
 import pkg from "./package.json";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -36,9 +36,6 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: "hidden",
-    },
-    server: {
-      port: 5006,
     },
     css: {
       postcss: {
