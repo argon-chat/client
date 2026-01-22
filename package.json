@@ -44,6 +44,7 @@
     "@vueuse/motion": "^3.0.3",
     "@vueuse/rxjs": "^14.0.0",
     "base-x": "^5.0.1",
+    "baseline-browser-mapping": "^2.9.17",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
