@@ -124,15 +124,6 @@ const renderMode = ref<'tiles' | 'full'>('tiles')
 const recoveryInterval = ref(5) // seconds, 0 = disabled
 let stopCapture: (() => void) | null = null
 
-function uint8ToBase64(data: Uint8Array): string {
-    let binary = ''
-    const len = data.length
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(data[i])
-    }
-    return btoa(binary)
-}
-
 async function start() {
     if (!props.renderer || !isNativeAvailable.value) return
     
@@ -157,7 +148,7 @@ async function start() {
                         y: tile.y,
                         w: tile.width,
                         h: tile.height,
-                        data: uint8ToBase64(tile.data)
+                        data: tile.data
                     }))
                     
                     // Count tiles (transparent tiles now have real data, not empty)
@@ -233,7 +224,7 @@ function startFullFrameCapture(): () => void {
                         y: 0,
                         w: width,
                         h: height,
-                        data: uint8ToBase64(new Uint8Array(imageData.data.buffer))
+                        data: new Uint8Array(imageData.data.buffer)
                     }]
                 }
                 

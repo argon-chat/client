@@ -29,7 +29,8 @@ import {
   IonClientContext,
   IonRequest,
   IonWsClient,
-  IonInterceptor
+  IonInterceptor,
+  bytes
 } from "@argon-chat/ion.webcore";
 
 type guid = Guid;
@@ -314,7 +315,7 @@ export interface BridgeDirtyTile {
   y: i4;
   w: i4;
   h: i4;
-  data: string;
+  data: bytes;
 };
 
 
@@ -1391,7 +1392,7 @@ IonFormatterStorage.register("BridgeDirtyTile", {
     const y = IonFormatterStorage.get<i4>('i4').read(reader);
     const w = IonFormatterStorage.get<i4>('i4').read(reader);
     const h = IonFormatterStorage.get<i4>('i4').read(reader);
-    const data = IonFormatterStorage.get<string>('string').read(reader);
+    const data = IonFormatterStorage.get<bytes>('bytes').read(reader);
     reader.readEndArrayAndSkip(arraySize - 7);
     return { tx, ty, x, y, w, h, data };
   },
@@ -1403,7 +1404,7 @@ IonFormatterStorage.register("BridgeDirtyTile", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.y);
     IonFormatterStorage.get<i4>('i4').write(writer, value.w);
     IonFormatterStorage.get<i4>('i4').write(writer, value.h);
-    IonFormatterStorage.get<string>('string').write(writer, value.data);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, value.data);
     writer.writeEndArray();
   }
 });
