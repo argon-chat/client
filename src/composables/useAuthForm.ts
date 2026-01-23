@@ -1,6 +1,7 @@
 import { ref, computed, watch } from "vue";
 import { useAuthStore } from "@/store/authStore";
 import { DateOnly } from "@argon-chat/ion.webcore";
+import type { DateValue } from "reka-ui";
 
 export type TabType =
   | "login"
@@ -24,7 +25,7 @@ export function useAuthForm() {
   const password = ref("");
   const username = ref("");
   const displayName = ref("");
-  const brithDate = ref(0);
+  const brithDate = ref<DateValue | undefined>();
   const allowSendMeOptionalEmails = ref(false);
   const agreeTos = ref(false);
   const otpCode = ref("");
@@ -32,12 +33,13 @@ export function useAuthForm() {
 
 
   const decomposeDateOfBirth = (): DateOnly => {
-    const d = new Date(brithDate.value);
-
+    if (!brithDate.value) {
+      throw new Error("Birth date is required");
+    }
     return {
-      year: d.getUTCFullYear(),
-      month: d.getUTCMonth() + 1,
-      day: d.getUTCDate(),
+      year: brithDate.value.year,
+      month: brithDate.value.month,
+      day: brithDate.value.day,
     };
   };
 

@@ -22,6 +22,7 @@
     "./checkbox": "./src/checkbox/index.ts",
     "./command": "./src/command/index.ts",
     "./context-menu": "./src/context-menu/index.ts",
+    "./date-picker": "./src/date-picker/index.ts",
     "./dialog": "./src/dialog/index.ts",
     "./drawer": "./src/drawer/index.ts",
     "./dropdown-menu": "./src/dropdown-menu/index.ts",
@@ -61,8 +62,10 @@
   },
   "dependencies": {
     "@argon/core": "workspace:*",
+    "@internationalized/date": "^3.5.0",
     "class-variance-authority": "^0.7.1",
     "radix-vue": "1.9.17",
+    "reka-ui": "^2.6.0",
     "vaul-vue": "^0.4.1",
     "lucide-vue-next": "^0.548.0"
   },

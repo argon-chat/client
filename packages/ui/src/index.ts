@@ -15,6 +15,7 @@ export * from "./card";
 export * from "./checkbox";
 export * from "./command";
 export * from "./context-menu";
+export * from "./date-picker";
 export * from "./dialog";
 export * from "./drawer";
 export * from "./dropdown-menu";

@@ -66,6 +66,8 @@
     "qr-code-styling": "^1.9.2",
     "radix-icons": "^1.0.0",
     "radix-vue": "1.9.17",
+    "reka-ui": "^2.6.0",
+    "@internationalized/date": "^3.5.0",
     "rxjs": "^7.8.2",
     "shadcn-vue": "^0.11.3",
     "superjson": "^2.2.2",

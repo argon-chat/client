@@ -61,7 +61,7 @@ const config = computed<Options>(() => {
       }
     },
     backgroundOptions: {
-      color: isLightTheme ? "#ffffff" : "#000000"
+      color: "transparent"
     },
     cornersSquareOptions: {
       type: "dot",
