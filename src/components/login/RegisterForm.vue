@@ -183,7 +183,6 @@ const steps = computed(() => [
                 </div>
 
                 <CardContent class="pt-2">
-                        <!-- Step 1: Email & Display Name -->
                         <Transition name="slide" mode="out-in">
                             <div v-if="currentStep === 1" key="step1" class="space-y-5">
                                 <div class="input-group">
