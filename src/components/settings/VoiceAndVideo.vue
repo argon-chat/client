@@ -329,7 +329,7 @@ const playTestSound = async () => {
   
   try {
     isPlayingTest.value = true;
-    const audioContext = new AudioContext();
+    const audioContext = audio.getCurrentAudioContext();
     const masterGain = audioContext.createGain();
     masterGain.connect(audioContext.destination);
     
