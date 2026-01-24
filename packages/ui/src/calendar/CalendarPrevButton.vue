@@ -1,39 +1,31 @@
 <script lang="ts" setup>
-import { buttonVariants } from "../button";
+import type { CalendarPrevProps } from "reka-ui"
+import type { HTMLAttributes } from "vue"
+import { reactiveOmit } from "@vueuse/core"
+import { ChevronLeft } from "lucide-vue-next"
+import { CalendarPrev, useForwardProps } from "reka-ui"
 import { cn } from "@argon/core";
-import { ChevronLeft } from "lucide-vue-next";
-import {
-  CalendarPrev,
-  type CalendarPrevProps,
-  useForwardProps,
-} from "radix-vue";
-import { computed, type HTMLAttributes } from "vue";
+import { buttonVariants } from "../button"
 
-const props = defineProps<
-  CalendarPrevProps & { class?: HTMLAttributes["class"] }
->();
+const props = defineProps<CalendarPrevProps & { class?: HTMLAttributes["class"] }>()
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
+const delegatedProps = reactiveOmit(props, "class")
 
-  return delegated;
-});
-
-const forwardedProps = useForwardProps(delegatedProps);
+const forwardedProps = useForwardProps(delegatedProps)
 </script>
 
 <template>
   <CalendarPrev
+    data-slot="calendar-prev-button"
     :class="cn(
       buttonVariants({ variant: 'outline' }),
-      'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
+      'size-7 bg-transparent p-0 opacity-50 hover:opacity-100',
       props.class,
     )"
     v-bind="forwardedProps"
   >
     <slot>
-      <ChevronLeft class="h-4 w-4" />
+      <ChevronLeft class="size-4" />
     </slot>
   </CalendarPrev>
 </template>
-

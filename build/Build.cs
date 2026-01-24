@@ -60,7 +60,7 @@ class Build : NukeBuild
     Target FrontendRestore => _ => _
         .Executes(() =>
         {
-            Bun("install", workingDirectory: FrontendDir);
+            Bun("install --frozen-lockfile", workingDirectory: FrontendDir);
         });
 
     Target UpdatePackageJson => _ => _

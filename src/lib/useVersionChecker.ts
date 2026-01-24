@@ -13,6 +13,7 @@ export function useVersionChecker(intervalMs = 120_000) {
 
   async function check() {
     try {
+      return;
       const res = await fetch("/tag.json", { cache: "no-cache" });
       const data = await res.json();
 
@@ -29,7 +30,7 @@ export function useVersionChecker(intervalMs = 120_000) {
 
   onMounted(() => {
     check();
-    timer = window.setInterval(check, intervalMs);
+    //timer = window.setInterval(check, intervalMs);
   });
 
   onUnmounted(() => {
