@@ -13,7 +13,7 @@ import {
 } from "livekit-client";
 import { ref, reactive, computed } from "vue";
 
-import { audio } from "@/lib/audio/AudioManager";
+import { audio, type RemoteAudioGraph } from "@/lib/audio/AudioManager";
 import { useApi } from "./apiStore";
 import { usePoolStore } from "./poolStore";
 import { useTone } from "./toneStore";
@@ -74,7 +74,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         mutedAll: boolean;
         screencast: boolean;
         volume: number[];
-        gain: GainNode | null;
+        audioGraph: RemoteAudioGraph | null;
       }
     >
   >({});
@@ -372,7 +372,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       displayName,
       muted: isInitiallyMuted,
       volume: [savedVolume],
-      gain: null,
+      audioGraph: null,
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
     };
@@ -814,7 +814,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         displayName: info?.displayName ?? "User",
         muted: pub.isMuted,
         volume: [savedVolume],
-        gain: null,
+        audioGraph: null,
         mutedAll: false,
         screencast: false,
       };
@@ -828,7 +828,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (track.kind === Track.Kind.Audio) {
       // Check if audio graph already exists for this user
       const existing = participants[uid];
-      if (existing?.gain) {
+      if (existing?.audioGraph) {
         logger.warn(`[CALL] Audio graph already exists for ${uid}, skipping duplicate setup`);
         return;
       }
@@ -852,116 +852,64 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     if (track.kind === "audio") {
       track.detach();
+      // Dispose audio graph if exists
+      const pdata = participants[uid];
+      if (pdata?.audioGraph) {
+        pdata.audioGraph.dispose();
+        pdata.audioGraph = null;
+      }
     }
   }
 
   function setupAudioGraph(userId: string, track: RemoteTrack) {
     const pdata = participants[userId];
-    if (pdata?.gain) {
-      logger.error(`[CALL] setupAudioGraph called for ${userId} but gain already exists! Preventing duplicate.`);
+    if (pdata?.audioGraph) {
+      logger.error(`[CALL] setupAudioGraph called for ${userId} but audioGraph already exists! Preventing duplicate.`);
       return new Subscription(() => {}); // Return empty subscription
     }
     
-    const audioCtx = audio.getCurrentAudioContext();
+    // Get saved volume and mute state
+    const savedVolume = userVolume.getUserVolume(userId);
+    const isMutedAll = sys.headphoneMuted;
 
-    const el = document.createElement("audio");
-    el.autoplay = true;
-    el.muted = true;
-    el.style.display = "none";
-
-    const mediaStream = new MediaStream([(track as any).mediaStreamTrack]);
-    el.srcObject = mediaStream;
-    document.body.appendChild(el);
-
-    const gain = audioCtx.createGain();
-    gain.gain.value = 1;
-
-    const src = (() => {
-      try {
-        return audioCtx.createMediaStreamSource(mediaStream);
-      } catch {
-        return audioCtx.createMediaElementSource(el);
-      }
-    })();
-
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-
-    const buffer = new Float32Array(analyser.fftSize);
-
-    src.connect(analyser).connect(gain).connect(audioCtx.destination);
-
-    // pdata already declared at the top of the function
-    if (pdata) {
-      pdata.gain = gain;
-
-      // Apply saved volume from localStorage
-      const savedVolume = userVolume.getUserVolume(userId);
-      const isMutedAll = sys.headphoneMuted;
-
-      if (isMutedAll) {
-        gain.gain.setValueAtTime(0, gain.context.currentTime);
-      } else {
-        const g = Math.max(0, Math.min(savedVolume / 100, 2.0));
-        gain.gain.setValueAtTime(g, gain.context.currentTime);
-        pdata.volume = [savedVolume];
-
-        // Update volume in realtimeStore for UI sync
-        if (targetId.value) {
-          realtimeStore.setUserProperty(targetId.value, userId, (user) => {
-            user.volume = [savedVolume];
-          });
-        }
-      }
-    }
-
-    let speakingState = false;
-    let stopped = false;
-    const threshold = 0.001;
-
-    function detect() {
-      if (stopped) return;
-
-      analyser.getFloatTimeDomainData(buffer);
-
-      let sum = 0;
-      for (let i = 0; i < buffer.length; i++) {
-        const v = buffer[i];
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / buffer.length);
-
-      const newState = rms > threshold;
-
-      if (newState !== speakingState) {
-        speakingState = newState;
-        if (speakingState) {
+    // Use AudioManager to create the audio graph
+    const audioGraph = audio.createRemoteAudioGraph({
+      track: (track as any).mediaStreamTrack,
+      initialVolume: isMutedAll ? 0 : savedVolume,
+      isMutedAll,
+      onSpeakingChange: (isSpeaking) => {
+        if (isSpeaking) {
           speaking.add(userId);
         } else {
           speaking.delete(userId);
         }
-      }
+      },
+    });
 
-      requestAnimationFrame(detect);
+    // Store the audio graph
+    if (pdata) {
+      pdata.audioGraph = audioGraph;
+      pdata.volume = [savedVolume];
+
+      // Update volume in realtimeStore for UI sync
+      if (targetId.value) {
+        realtimeStore.setUserProperty(targetId.value, userId, (user) => {
+          user.volume = [savedVolume];
+        });
+      }
     }
 
-    detect();
-
     return new Subscription(() => {
-      stopped = true;
       speaking.delete(userId);
-      try {
-        el.remove();
-      } catch {}
+      audioGraph.dispose();
     });
   }
 
   function setVolume(userId: string, vol: number, skipSave = false) {
     const u = participants[userId];
-    if (!u || !u.gain) return;
+    if (!u || !u.audioGraph) return;
 
-    const g = Math.max(0, Math.min(vol / 100, 2.0));
-    u.gain.gain.setValueAtTime(g, u.gain.context.currentTime);
+    u.audioGraph.setVolume(vol);
     u.volume = [vol];
 
     if (!skipSave) {

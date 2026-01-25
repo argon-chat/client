@@ -36,12 +36,50 @@ export interface DeviceInfo {
   kind: MediaDeviceKind;
 }
 
+/**
+ * Options and result for remote participant audio graph
+ */
+export interface RemoteAudioGraphOptions {
+  /** The MediaStreamTrack from remote participant */
+  track: MediaStreamTrack;
+  /** Label for this audio source (e.g., participant name) */
+  label?: string;
+  /** Initial volume (0-200), default 100 */
+  initialVolume?: number;
+  /** Whether headphones are muted (applies 0 volume) */
+  isMutedAll?: boolean;
+  /** Callback when speaking state changes */
+  onSpeakingChange?: (isSpeaking: boolean) => void;
+  /** Speaking detection threshold (RMS), default 0.001 */
+  speakingThreshold?: number;
+}
+
+export interface RemoteAudioGraph {
+  /** Unique ID for this audio graph */
+  graphId: string;
+  /** The gain node for volume control */
+  gainNode: GainNode;
+  /** Set volume (0-200) */
+  setVolume: (volume: number) => void;
+  /** Get current volume */
+  getVolume: () => number;
+  /** Dispose the audio graph */
+  dispose: () => void;
+}
+
+/** Info about a tracked remote audio graph */
+export interface RemoteAudioGraphInfo {
+  label: string;
+  volume: number;
+  speaking: boolean;
+}
+
 export interface IAudioManagement {
   // Device management
   getOutputDevice(): Ref<DeviceId>;
   getInputDevice(): Ref<DeviceId>;
   setInputDevice(deviceId: DeviceId): Promise<void>;
-  setOutputDevice(deviceId: DeviceId): void;
+  setOutputDevice(deviceId: DeviceId): Promise<void>;
   enumerateDevicesByKind(kind: "audioinput" | "videoinput" | "audiooutput"): Promise<MediaDeviceInfo[]>;
   
   // Volume control
@@ -70,9 +108,14 @@ export interface IAudioManagement {
   createAudioElement(stream?: MediaStream): Promise<Disposable<HTMLAudioElement>>;
   createVideoElement(): Promise<Disposable<HTMLVideoElement>>;
   
+  // Remote participant audio
+  createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph;
+  
   // VU Meters
   createVUMeterLight(stream: MediaStream, onLevel: (level: number) => void): Promise<Disposable<AudioWorkletNode>>;
   createVirtualVUMeter(onLevel: (level: number) => void): Promise<Disposable<AudioWorkletNode>>;
+  createVUMeterStereo(stream: MediaStream, onLevel: (left: number, right: number) => void): Promise<Disposable<AudioWorkletNode>>;
+  createVirtualVUMeterStereo(onLevel: (left: number, right: number) => void): Promise<Disposable<AudioWorkletNode>>;
   
   // Events
   onInputDeviceChanged(on: (devId: DeviceId) => void): Subscription;
@@ -83,6 +126,7 @@ export interface IAudioManagement {
   onOutputMutedChanged(on: (muted: boolean) => void): Subscription;
   onDevicesChanged(on: (devices: MediaDeviceInfo[]) => void): Subscription;
   onInputLevelChanged(on: (level: number) => void): Subscription;
+  onOutputLevelChanged(on: (level: number) => void): Subscription;
   
   // Testing
   playTestSound(frequency?: number, duration?: number): Promise<void>;
@@ -94,10 +138,25 @@ export interface IAudioManagement {
   volumeColor(volume: number): string;
   getCurrentAudioContext(): AudioContext;
   
+  // Output destination (for routing audio through master gain)
+  getOutputDestination(): AudioNode;
+  
+  // Level reporting
+  reportOutputLevel(level: number): void;
+  
+  // State
+  isVirtualStreamInitialized(): boolean;
+  isVirtualOutputInitialized(): boolean;
+  
   // Worklets
   addWorkletModule(workletPath: WorkletPath, name: WorkletId): Promise<void>;
   getOrCreateWorkletModule(name: WorkletId, options: AudioWorkletNodeOptions): Promise<Disposable<AudioWorkletNode>>;
   workletBranchByOrderConnect(worklets: AudioWorkletNode[]): void;
+  getActiveWorklets(): Map<string, AudioWorkletNode>;
+  
+  // Audio graph inspection
+  getRemoteAudioGraphs(): Map<string, RemoteAudioGraphInfo>;
+  getMediaElements(): Set<HTMLMediaElement>;
   
   // Lifecycle
   dispose(): void;
@@ -110,6 +169,8 @@ export interface AudioManagerConfig {
   sampleRate?: number;
   /** Enable input level monitoring by default. Default: false */
   enableInputLevelMonitoring?: boolean;
+  /** Automatically initialize virtual input stream on startup. Default: true */
+  autoInitialize?: boolean;
 }
 
 export class AudioManagement implements IAudioManagement {
@@ -146,6 +207,7 @@ export class AudioManagement implements IAudioManagement {
   private outputMuted$ = new BehaviorSubject<boolean>(false);
   private devices$ = new Subject<MediaDeviceInfo[]>();
   private inputLevel$ = new BehaviorSubject<number>(0);
+  private outputLevel$ = new BehaviorSubject<number>(0);
 
   private config: Required<AudioManagerConfig>;
 
@@ -157,29 +219,46 @@ export class AudioManagement implements IAudioManagement {
   private virtualStreamInitialized = false;
   private virtualStreamInitPromise: Promise<MediaStream> | null = null;
   
-  // Output gain control
+  // Virtual output stream architecture
+  private outputAnalyserNode: AnalyserNode | null = null;
   private masterGainNode: GainNode | null = null;
+  private virtualOutputInitialized = false;
+  private outputLevelAnimationFrame: number | null = null;
   
   // Input level monitoring
   private inputLevelMonitorDisposable: Disposable<AudioWorkletNode> | null = null;
   
   // Device change listener
   private deviceChangeHandler: (() => void) | null = null;
+  
+  // Audio element monitoring
+  private audioElementObserver: MutationObserver | null = null;
+  private trackedAudioElements = new WeakSet<HTMLAudioElement>();
+  
+  // Remote audio graphs tracking
+  private remoteAudioGraphs = new Map<string, { label: string; volume: number; speaking: boolean }>();
 
   constructor(config: AudioManagerConfig = {}) {
     this.config = {
       workletBasePath: config.workletBasePath ?? '/audio',
       sampleRate: config.sampleRate ?? 48000,
       enableInputLevelMonitoring: config.enableInputLevelMonitoring ?? false,
+      autoInitialize: config.autoInitialize ?? true,
     };
     this.audioCtx = new AudioContext({ sampleRate: this.config.sampleRate });
     this.loadSavedSettings();
     this.setupDeviceChangeListener();
+    this.setupAudioElementMonitor();
     
-    // Create master gain node for output volume control
-    this.masterGainNode = this.audioCtx.createGain();
-    this.masterGainNode.connect(this.audioCtx.destination);
-    this.applyOutputVolume();
+    // Initialize virtual output stream (synchronous, no permissions needed)
+    this.initVirtualOutputStream();
+    
+    // Auto-initialize virtual input stream if enabled
+    if (this.config.autoInitialize) {
+      this.initVirtualStream().catch(err => {
+        logger.warn('[AudioManagement] Auto-init of virtual stream failed (will retry on first use):', err);
+      });
+    }
   }
 
   /** Get the base path for worklet files */
@@ -198,25 +277,43 @@ export class AudioManagement implements IAudioManagement {
     this.outputMuted$.complete();
     this.devices$.complete();
     this.inputLevel$.complete();
+    this.outputLevel$.complete();
     
     // Remove device change listener
     if (this.deviceChangeHandler) {
       navigator.mediaDevices.removeEventListener('devicechange', this.deviceChangeHandler);
     }
     
+    // Cleanup audio element observer
+    if (this.audioElementObserver) {
+      this.audioElementObserver.disconnect();
+      this.audioElementObserver = null;
+    }
+    
     // Cleanup input level monitor
     this.inputLevelMonitorDisposable?.dispose();
     
-    // Cleanup virtual stream
+    // Cleanup output level monitor
+    if (this.outputLevelAnimationFrame) {
+      cancelAnimationFrame(this.outputLevelAnimationFrame);
+      this.outputLevelAnimationFrame = null;
+    }
+    
+    // Cleanup virtual input stream
     this.cleanupCurrentMicSource();
     this.virtualStreamDestination?.disconnect();
     this.inputGainNode?.disconnect();
-    this.masterGainNode?.disconnect();
     this.virtualStreamDestination = null;
     this.inputGainNode = null;
-    this.masterGainNode = null;
     this.virtualStreamInitialized = false;
     this.virtualStreamInitPromise = null;
+    
+    // Cleanup virtual output stream
+    this.masterGainNode?.disconnect();
+    this.outputAnalyserNode?.disconnect();
+    this.masterGainNode = null;
+    this.outputAnalyserNode = null;
+    this.virtualOutputInitialized = false;
     
     for (const worklet of this.worklets.values()) {
       worklet.disconnect();
@@ -281,6 +378,77 @@ export class AudioManagement implements IAudioManagement {
 
   // ==================== DEVICE MANAGEMENT ====================
 
+  private setupAudioElementMonitor() {
+    // Scan for existing audio elements
+    document.querySelectorAll('audio').forEach(audio => {
+      this.trackAudioElement(audio as HTMLAudioElement, 'existing');
+    });
+    
+    // Watch for new audio elements
+    this.audioElementObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLAudioElement) {
+            this.trackAudioElement(node, 'added');
+          }
+          // Also check children of added nodes
+          if (node instanceof HTMLElement) {
+            node.querySelectorAll('audio').forEach(audio => {
+              this.trackAudioElement(audio as HTMLAudioElement, 'added-child');
+            });
+          }
+        }
+        for (const node of mutation.removedNodes) {
+          if (node instanceof HTMLAudioElement) {
+            logger.warn('[AudioManagement] 🔇 Audio element removed:', {
+              src: node.src || node.currentSrc,
+              id: node.id,
+            });
+          }
+        }
+      }
+    });
+    
+    this.audioElementObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+    
+    logger.info('[AudioManagement] 👀 Audio element monitor started');
+  }
+  
+  private trackAudioElement(audio: HTMLAudioElement, source: string) {
+    if (this.trackedAudioElements.has(audio)) return;
+    if (this.mediaElements.has(audio)) return; // Ignore our own elements
+    
+    this.trackedAudioElements.add(audio);
+    
+    const info = {
+      source,
+      src: audio.src || audio.currentSrc || '<no src>',
+      id: audio.id || '<no id>',
+      className: audio.className || '<no class>',
+      autoplay: audio.autoplay,
+      muted: audio.muted,
+      volume: audio.volume,
+      paused: audio.paused,
+    };
+    
+    logger.warn('[AudioManagement] 🔊 External <audio> detected:', info);
+    console.warn('🔊 EXTERNAL AUDIO ELEMENT:', audio, info);
+    
+    // Track state changes
+    audio.addEventListener('play', () => {
+      logger.warn('[AudioManagement] 🔊 External audio PLAY:', audio.src || audio.currentSrc);
+    });
+    audio.addEventListener('pause', () => {
+      logger.info('[AudioManagement] 🔇 External audio PAUSE:', audio.src || audio.currentSrc);
+    });
+    audio.addEventListener('loadstart', () => {
+      logger.warn('[AudioManagement] 🔊 External audio LOADSTART:', audio.src || audio.currentSrc);
+    });
+  }
+
   private setupDeviceChangeListener() {
     this.deviceChangeHandler = async () => {
       logger.info("[AudioManagement] Device change detected");
@@ -305,7 +473,7 @@ export class AudioManagement implements IAudioManagement {
         const outputExists = audioOutputs.some(d => d.deviceId === this.outputDeviceId.value);
         if (!outputExists) {
           logger.warn("[AudioManagement] Output device removed, switching to default");
-          this.setOutputDevice('default');
+          await this.setOutputDevice('default');
         }
       }
     };
@@ -354,16 +522,27 @@ export class AudioManagement implements IAudioManagement {
     this.inputDevice$.next(deviceId);
   }
 
-  setOutputDevice(deviceId: DeviceId) {
+  async setOutputDevice(deviceId: DeviceId): Promise<void> {
     logger.info("[AudioManagement] setOutputDevice:", deviceId);
     this.outputDeviceId.value = deviceId;
-    this.outputDevice$.next(deviceId);
     localStorage.setItem(STORAGE_KEYS.OUTPUT_DEVICE, deviceId);
     
-    // Apply to all existing media elements
+    // Use AudioContext.setSinkId if available (Chrome 110+)
+    if ('setSinkId' in this.audioCtx) {
+      try {
+        await (this.audioCtx as any).setSinkId(deviceId);
+        logger.info("[AudioManagement] AudioContext.setSinkId applied:", deviceId);
+      } catch (err) {
+        logger.warn("[AudioManagement] AudioContext.setSinkId failed:", err);
+      }
+    }
+    
+    // Also apply to all media elements (for incoming streams, etc.)
     for (const el of this.mediaElements) {
       this.applySinkIdToElement(el);
     }
+    
+    this.outputDevice$.next(deviceId);
   }
 
   // ==================== VOLUME CONTROL ====================
@@ -378,7 +557,6 @@ export class AudioManagement implements IAudioManagement {
 
   setInputVolume(volume: number): void {
     const clampedVolume = Math.max(0, Math.min(100, volume));
-    logger.info("[AudioManagement] setInputVolume:", clampedVolume);
     
     this.inputVolume.value = clampedVolume;
     this.inputVolume$.next(clampedVolume);
@@ -389,7 +567,6 @@ export class AudioManagement implements IAudioManagement {
 
   setOutputVolume(volume: number): void {
     const clampedVolume = Math.max(0, Math.min(100, volume));
-    logger.info("[AudioManagement] setOutputVolume:", clampedVolume);
     
     this.outputVolume.value = clampedVolume;
     this.outputVolume$.next(clampedVolume);
@@ -598,6 +775,78 @@ export class AudioManagement implements IAudioManagement {
     }
   }
 
+  // ==================== VIRTUAL OUTPUT STREAM ====================
+
+  /**
+   * Initialize the virtual output stream.
+   * This creates a permanent audio pipeline:
+   * masterGainNode -> analyser -> destination
+   * 
+   * All sounds should connect to getOutputDestination() to respect volume/mute settings.
+   * Output device is changed via AudioContext.setSinkId() (Chrome 110+).
+   */
+  private initVirtualOutputStream(): void {
+    if (this.virtualOutputInitialized) return;
+    
+    const ctx = this.audioCtx;
+    
+    // Create analyser node for output level monitoring
+    this.outputAnalyserNode = ctx.createAnalyser();
+    this.outputAnalyserNode.fftSize = 256;
+    this.outputAnalyserNode.smoothingTimeConstant = 0.3;
+    this.outputAnalyserNode.connect(ctx.destination);
+    
+    // Create master gain node for volume control
+    this.masterGainNode = ctx.createGain();
+    this.masterGainNode.connect(this.outputAnalyserNode);
+    this.applyOutputVolume();
+    
+    // Apply saved output device via AudioContext.setSinkId
+    if ('setSinkId' in ctx && this.outputDeviceId.value && this.outputDeviceId.value !== 'default') {
+      (ctx as any).setSinkId(this.outputDeviceId.value).catch((err: any) => {
+        logger.warn('[AudioManagement] Initial setSinkId failed:', err);
+      });
+    }
+    
+    // Start output level monitoring using analyser
+    this.startOutputLevelMonitoring();
+    
+    this.virtualOutputInitialized = true;
+    logger.info('[AudioManagement] Virtual output stream initialized');
+  }
+
+  private startOutputLevelMonitoring(): void {
+    if (this.outputLevelAnimationFrame || !this.outputAnalyserNode) return;
+    
+    const analyser = this.outputAnalyserNode;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    const updateLevel = () => {
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate RMS level
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const level = Math.min(100, (rms / 128) * 100);
+      
+      this.outputLevel$.next(Math.round(level));
+      
+      this.outputLevelAnimationFrame = requestAnimationFrame(updateLevel);
+    };
+    
+    this.outputLevelAnimationFrame = requestAnimationFrame(updateLevel);
+  }
+
+  /**
+   * Check if virtual output stream is initialized
+   */
+  isVirtualOutputInitialized(): boolean {
+    return this.virtualOutputInitialized;
+  }
+
   // ==================== INPUT LEVEL MONITORING ====================
 
   private async startInputLevelMonitoring(): Promise<void> {
@@ -619,6 +868,24 @@ export class AudioManagement implements IAudioManagement {
       this.startInputLevelMonitoring();
     }
     return this.inputLevel$.subscribe(on);
+  }
+
+  onOutputLevelChanged(on: (level: number) => void): Subscription {
+    return this.outputLevel$.subscribe(on);
+  }
+
+  /**
+   * Report output level (called by external audio playback systems)
+   */
+  reportOutputLevel(level: number): void {
+    this.outputLevel$.next(level);
+  }
+
+  /**
+   * Check if virtual input stream is initialized
+   */
+  isVirtualStreamInitialized(): boolean {
+    return this.virtualStreamInitialized;
   }
 
   // ==================== MEDIA ELEMENTS ====================
@@ -684,6 +951,136 @@ export class AudioManagement implements IAudioManagement {
     return new Disposable(el, dispose);
   }
 
+  // ==================== REMOTE PARTICIPANT AUDIO ====================
+
+  /**
+   * Create an audio graph for a remote participant.
+   * Routes audio through master gain for volume/mute control.
+   * Includes speaking detection via analyser node.
+   */
+  createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph {
+    const {
+      track,
+      label = 'Remote Audio',
+      initialVolume = 100,
+      isMutedAll = false,
+      onSpeakingChange,
+      speakingThreshold = 0.001,
+    } = options;
+
+    const graphId = v4();
+    const ctx = this.getCurrentAudioContext();
+    const mediaStream = new MediaStream([track]);
+
+    // Register this graph
+    this.remoteAudioGraphs.set(graphId, { label, volume: initialVolume, speaking: false });
+
+    // Create hidden audio element for playback (needed for some browsers)
+    const el = document.createElement('audio');
+    el.autoplay = true;
+    el.muted = true; // Muted because we route through Web Audio API
+    el.style.display = 'none';
+    el.srcObject = mediaStream;
+    el.dataset.weakSlaveTrack = v4();
+    document.body.appendChild(el);
+    this.mediaElements.add(el);
+
+    // Create audio graph nodes
+    const gainNode = ctx.createGain();
+    
+    // Try MediaStreamSource first, fall back to MediaElementSource
+    let sourceNode: AudioNode;
+    try {
+      sourceNode = ctx.createMediaStreamSource(mediaStream);
+    } catch {
+      sourceNode = ctx.createMediaElementSource(el);
+    }
+
+    // Create analyser for speaking detection
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    const buffer = new Float32Array(analyser.fftSize);
+
+    // Connect: source -> analyser -> gain -> masterGain (output destination)
+    sourceNode.connect(analyser);
+    analyser.connect(gainNode);
+    gainNode.connect(this.getOutputDestination());
+
+    // Apply initial volume
+    let currentVolume = initialVolume;
+    const applyVolume = (vol: number) => {
+      const g = isMutedAll ? 0 : Math.max(0, Math.min(vol / 100, 2.0));
+      gainNode.gain.setValueAtTime(g, ctx.currentTime);
+    };
+    applyVolume(initialVolume);
+
+    // Speaking detection
+    let speakingState = false;
+    let stopped = false;
+
+    const detect = () => {
+      if (stopped) return;
+
+      analyser.getFloatTimeDomainData(buffer);
+
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        const v = buffer[i];
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buffer.length);
+      const newState = rms > speakingThreshold;
+
+      if (newState !== speakingState) {
+        speakingState = newState;
+        // Update tracking
+        const graphInfo = this.remoteAudioGraphs.get(graphId);
+        if (graphInfo) graphInfo.speaking = speakingState;
+        onSpeakingChange?.(speakingState);
+      }
+
+      requestAnimationFrame(detect);
+    };
+
+    // Always run detection to track speaking state
+    detect();
+
+    const setVolume = (volume: number) => {
+      currentVolume = volume;
+      applyVolume(volume);
+      // Update tracking
+      const graphInfo = this.remoteAudioGraphs.get(graphId);
+      if (graphInfo) graphInfo.volume = volume;
+    };
+
+    const getVolume = () => currentVolume;
+
+    const dispose = () => {
+      stopped = true;
+      // Remove from tracking
+      this.remoteAudioGraphs.delete(graphId);
+      try {
+        gainNode.disconnect();
+        analyser.disconnect();
+        sourceNode.disconnect();
+        el.pause();
+        el.srcObject = null;
+        this.mediaElements.delete(el);
+        el.remove();
+      } catch (err) {
+        logger.warn('[AudioManagement] Error disposing remote audio graph:', err);
+      }
+    };
+
+    return {
+      graphId,
+      gainNode,
+      setVolume,
+      getVolume,
+      dispose,
+    };
+  }
+
   // ==================== VU METERS ====================
 
   async createVUMeterLight(
@@ -729,6 +1126,61 @@ export class AudioManagement implements IAudioManagement {
   ): Promise<Disposable<AudioWorkletNode>> {
     const virtualStream = await this.getVirtualInputStream();
     return this.createVUMeterLight(virtualStream, onLevel);
+  }
+
+  /**
+   * Create a stereo VU meter that reports separate left and right channel levels.
+   * Uses vu-meter-processor.js worklet.
+   */
+  async createVUMeterStereo(
+    stream: MediaStream,
+    onLevel: (left: number, right: number) => void
+  ): Promise<Disposable<AudioWorkletNode>> {
+    const ctx = this.getCurrentAudioContext();
+    
+    // Add worklet module if not already added
+    if (!this.workletPaths.has('vu-meter-processor')) {
+      const workletPath = `${this.config.workletBasePath}/vu-meter-processor.js`;
+      await ctx.audioWorklet.addModule(workletPath);
+      this.workletPaths.set('vu-meter-processor', workletPath);
+    }
+    
+    const sourceNode = ctx.createMediaStreamSource(stream);
+    const vuMeter = new AudioWorkletNode(ctx, 'vu-meter-processor');
+    
+    vuMeter.port.onmessage = (event) => {
+      const data = event.data as Float32Array;
+      // data[0] = left channel, data[1] = right channel
+      const left = Math.min(100, data[0] * 150);
+      const right = Math.min(100, data[1] * 150);
+      onLevel(Math.round(left), Math.round(right));
+    };
+    
+    sourceNode.connect(vuMeter);
+    
+    const dispose = async (node: AudioWorkletNode) => {
+      logger.debug('[AudioManagement] Disposing stereo VU meter');
+      node.port.close();
+      node.disconnect();
+      sourceNode.disconnect();
+      // Don't stop tracks if using virtual stream - it's shared!
+      const isVirtualStream = this.virtualStreamDestination?.stream === stream;
+      if (!isVirtualStream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+    
+    return new Disposable(vuMeter, dispose);
+  }
+
+  /**
+   * Create a stereo VU meter on the virtual input stream.
+   */
+  async createVirtualVUMeterStereo(
+    onLevel: (left: number, right: number) => void
+  ): Promise<Disposable<AudioWorkletNode>> {
+    const virtualStream = await this.getVirtualInputStream();
+    return this.createVUMeterStereo(virtualStream, onLevel);
   }
 
   // ==================== EVENTS ====================
@@ -891,6 +1343,14 @@ export class AudioManagement implements IAudioManagement {
     return this.audioCtx;
   }
 
+  /**
+   * Get the output destination node.
+   * All audio that should respect output volume/mute should connect to this node.
+   */
+  getOutputDestination(): AudioNode {
+    return this.masterGainNode ?? this.audioCtx.destination;
+  }
+
   // ==================== WORKLETS ====================
 
   async addWorkletModule(
@@ -935,5 +1395,23 @@ export class AudioManagement implements IAudioManagement {
     for (let i = 0; i < worklets.length - 1; i++) {
       worklets[i].connect(worklets[i + 1]);
     }
+  }
+
+  getActiveWorklets(): Map<string, AudioWorkletNode> {
+    return new Map(this.worklets);
+  }
+
+  /**
+   * Get all tracked remote audio graphs
+   */
+  getRemoteAudioGraphs(): Map<string, { label: string; volume: number; speaking: boolean }> {
+    return new Map(this.remoteAudioGraphs);
+  }
+
+  /**
+   * Get all tracked media elements
+   */
+  getMediaElements(): Set<HTMLMediaElement> {
+    return new Set(this.mediaElements);
   }
 }

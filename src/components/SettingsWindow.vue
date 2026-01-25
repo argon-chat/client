@@ -53,13 +53,12 @@ import {
 import { Button } from "@argon/ui/button";
 import { useWindow } from "@/store/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
-import VoiceVideoSettings from "@/components/settings/VoiceAndVideo.vue";
 import ProfileSettings from "@/components/settings/ProfileSettings.vue";
 import ConnectedDevices from "@/components/settings/ConnectedDevices.vue";
 import ApplicationSettings from "./settings/ApplicationSettings.vue";
 import HotKeySettings from "./settings/HotKeySettings.vue";
 import LanguageSettings from "./settings/LanguageSettings.vue";
-import SoundSettings from "./settings/SoundSettings.vue";
+import AudioSettings from "./settings/AudioSettings.vue";
 import AppearanceSettings from "./settings/AppearanceSettings.vue";
 import { useLocale } from "@/store/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
@@ -85,10 +84,9 @@ const CATEGORY_CONFIG: Category[] = [
     { id: "account" },
     { id: "appearance" },
     { id: "application" },
-    { id: "voice_video" },
+    { id: "audio" },
     { id: "hotkeys" },
     { id: "languages" },
-    { id: "sounds" },
     { id: "storages" },
     { id: "activity", disabled: false }
 ];
@@ -110,11 +108,10 @@ const categoryComponents: Record<string, any> = {
     account: ProfileSettings,
     devices: ConnectedDevices,
     appearance: AppearanceSettings,
-    voice_video: VoiceVideoSettings,
+    audio: AudioSettings,
     application: ApplicationSettings,
     hotkeys: HotKeySettings,
     languages: LanguageSettings,
-    sounds: SoundSettings,
     storages: StorageSettings,
     activity: ActivityLog
 };

@@ -62,7 +62,7 @@ export function createDTMFPlayer(audio: IAudioManagement) {
     oscHigh.connect(panHigh).connect(gain);
 
     gain.connect(filter);
-    filter.connect(audioCtx.destination);
+    filter.connect(audio.getOutputDestination());
 
     oscLow.start(now);
     oscHigh.start(now);
@@ -87,7 +87,7 @@ export function createDTMFPlayer(audio: IAudioManagement) {
 
     osc1.connect(gain);
     osc2.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(audio.getOutputDestination());
 
     osc1.start();
     osc2.start();

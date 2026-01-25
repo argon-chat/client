@@ -253,7 +253,7 @@ function playUiBeep(
     osc2.connect(filter);
     filter.connect(compressor);
     compressor.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(audio.getOutputDestination());
 
     osc1.start(now);
     osc2.start(now);

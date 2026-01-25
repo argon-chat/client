@@ -2,7 +2,7 @@
 import { Button } from '@argon/ui/button';
 import ControlBar from './../ControlBar.vue';
 import UserBar from './../UserBar.vue';
-import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification, IconDialpad } from "@tabler/icons-vue"
+import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification, IconDialpad, IconHeadphones } from "@tabler/icons-vue"
 import { computed, onMounted, PropType, ref, onUnmounted } from 'vue';
 import { useLocale } from "@/store/localeStore";
 import { Separator } from '@argon/ui/separator';
@@ -26,7 +26,7 @@ import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug'>('tab', {
     default: 'dashboard'
 });
 const recentStore = useRecentChatsStore();
@@ -39,7 +39,7 @@ const softphoneOpened = ref(false);
 const notifications = useNotifications();
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug'): void
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug'): void
 }>();
 
 async function loadChats() {
@@ -140,6 +140,12 @@ onUnmounted(() => {
                 class="justify-start">
                 <IconNotification class="w-6 h-6 mr-2" />
                 Overlay Debug
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+            </Button>
+            <Button @click="emit('select', 'audioDebug')" :variant="tab == 'audioDebug' ? 'outline' : 'ghost'"
+                class="justify-start">
+                <IconHeadphones class="w-6 h-6 mr-2" />
+                Audio Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"

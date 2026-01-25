@@ -216,6 +216,7 @@ import {
 } from "lucide-vue-next";
 import { nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { Switch } from "@argon/ui/switch";
+import type { Subscription } from "rxjs";
 const { t } = useLocale();
 
 const preferenceStore = usePreference();
@@ -254,13 +255,21 @@ const startVideoPreview = async () => {
 
 watch(selectedAudioOutput, async (x) => {
   logger.info("selectedAudioOutput ", x);
-  //await (audio.getCurrentAudioContext() as any).setSinkId(x);
+  try {
+    await audio.setOutputDevice(x);
+  } catch (err) {
+    logger.error("Failed to set output device:", err);
+  }
 });
 watch(selectedMicrophone, async (x) => {
   logger.info("selectedMicrophone ", x);
-  audio.getInputDevice().value = x;
-  stopMonitoring();
-  startMonitoring();
+  try {
+    await audio.setInputDevice(x);
+    stopMonitoring();
+    await startMonitoring();
+  } catch (err) {
+    logger.error("Failed to set input device:", err);
+  }
 });
 
 const updateVideoStream = async () => {
@@ -329,67 +338,10 @@ const playTestSound = async () => {
   
   try {
     isPlayingTest.value = true;
-    const audioContext = audio.getCurrentAudioContext();
-    const masterGain = audioContext.createGain();
-    masterGain.connect(audioContext.destination);
-    
-    // Pleasant chord progression: C -> E -> G
-    const notes = [
-      { freq: 523.25, start: 0, duration: 0.25 },      // C5
-      { freq: 659.25, start: 0.25, duration: 0.25 },   // E5
-      { freq: 783.99, start: 0.5, duration: 0.4 }      // G5
-    ];
-    
-    notes.forEach(({ freq, start, duration }) => {
-      // Main oscillator with soft timbre
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      const filter = audioContext.createBiquadFilter();
-      
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      
-      // Soft low-pass filter for warmth
-      filter.type = 'lowpass';
-      filter.frequency.value = 2000;
-      filter.Q.value = 1;
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(masterGain);
-      
-      const startTime = audioContext.currentTime + start;
-      const endTime = startTime + duration;
-      
-      // Smooth envelope
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, endTime);
-      
-      osc.start(startTime);
-      osc.stop(endTime);
-      
-      // Add subtle harmonic for richness
-      const harmonic = audioContext.createOscillator();
-      const harmonicGain = audioContext.createGain();
-      
-      harmonic.type = 'sine';
-      harmonic.frequency.value = freq * 2;
-      harmonic.connect(harmonicGain);
-      harmonicGain.connect(masterGain);
-      
-      harmonicGain.gain.setValueAtTime(0, startTime);
-      harmonicGain.gain.linearRampToValueAtTime(0.03, startTime + 0.05);
-      harmonicGain.gain.exponentialRampToValueAtTime(0.001, endTime);
-      
-      harmonic.start(startTime);
-      harmonic.stop(endTime);
-    });
-    
+    await audio.playTestChord();
     setTimeout(() => {
       isPlayingTest.value = false;
-      audioContext.close();
-    }, 1200);
+    }, 1000);
   } catch (error) {
     logger.error('Error playing test sound:', error);
     isPlayingTest.value = false;
@@ -404,14 +356,38 @@ onBeforeUnmount(() => {
   }
 });
 
-onMounted(async () => {
+// Device change subscriptions
+const deviceSubscriptions: Subscription[] = [];
+
+async function refreshDeviceLists() {
   audioDevices.value = await audio.enumerateDevicesByKind("audioinput");
   videoDevices.value = await audio.enumerateDevicesByKind("videoinput");
   audioOutputs.value = await audio.enumerateDevicesByKind("audiooutput");
+}
+
+onMounted(async () => {
+  await refreshDeviceLists();
 
   selectedMicrophone.value = audio.getInputDevice().value ?? "default";
   selectedAudioOutput.value = audio.getOutputDevice().value ?? "default";
   selectedCamera.value = preferenceStore.defaultVideoDevice || (videoDevices.value[0]?.deviceId ?? "");
+
+  // Subscribe to device changes
+  deviceSubscriptions.push(
+    audio.onDevicesChanged(() => {
+      refreshDeviceLists();
+    }),
+    audio.onInputDeviceChanged((deviceId) => {
+      if (deviceId !== selectedMicrophone.value) {
+        selectedMicrophone.value = deviceId;
+      }
+    }),
+    audio.onOutputDeviceChanged((deviceId) => {
+      if (deviceId !== selectedAudioOutput.value) {
+        selectedAudioOutput.value = deviceId;
+      }
+    }),
+  );
 
   loaded.value = true;
 
@@ -549,6 +525,9 @@ function stopMonitoring() {
 
 onUnmounted(() => {
   stopMonitoring();
+  // Cleanup device subscriptions
+  deviceSubscriptions.forEach(sub => sub.unsubscribe());
+  deviceSubscriptions.length = 0;
 });
 </script>
 

@@ -42,8 +42,8 @@ const inputDevice = audio.getInputDevice()
 const outputDevice = audio.getOutputDevice()
 
 // Change devices
-audio.setInputDevice('device-id')
-audio.setOutputDevice('device-id')
+await audio.setInputDevice('device-id')
+await audio.setOutputDevice('device-id')
 
 // Subscribe to device changes
 const unsub = audio.onInputDeviceChanged((deviceId) => {

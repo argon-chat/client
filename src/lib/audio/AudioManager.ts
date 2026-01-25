@@ -2,7 +2,7 @@
 import { AudioManagement as BaseAudioManagement, type IAudioManagement, createDTMFPlayer } from "@argon/audio";
 import { WebRTCProcessor } from "./WebRTCProcessor";
 
-export type { IAudioManagement, DeviceId, WorkletPath, WorkletId, AudioManagerConfig, DTMFPlayer } from "@argon/audio";
+export type { IAudioManagement, DeviceId, WorkletPath, WorkletId, AudioManagerConfig, DTMFPlayer, RemoteAudioGraph, RemoteAudioGraphOptions } from "@argon/audio";
 
 // Extended AudioManagement with app-specific features
 class AppAudioManagement extends BaseAudioManagement {
