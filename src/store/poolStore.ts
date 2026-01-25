@@ -1,6 +1,6 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, onScopeDispose } from "vue";
 import { useApi } from "./apiStore";
 import { useBus } from "./busStore";
 import { useUserStore } from "./userStore";
@@ -13,6 +13,7 @@ import { db } from "./db/dexie";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
 import { ChannelType, UserStatus, type ArgonSpaceBase, type ArgonUser, type RealtimeChannel, type RealtimeServerMember } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
+import { liveQuery, type Subscription } from "dexie";
 
 /**
  * Refactored Pool Store - coordinator between specialized stores
@@ -388,9 +389,24 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     // Servers
     useAllServers: () => {
-      const obs = ref<any[]>([]);
-      db.servers.toArray().then(servers => obs.value = servers);
-      return obs;
+      const result = ref<ArgonSpaceBase[]>([]);
+      
+      const subscription = liveQuery(() => db.servers.toArray()).subscribe({
+        next: (servers) => {
+          result.value = servers;
+        },
+        error: (err) => {
+          logger.error("[PoolStore] Error in useAllServers liveQuery:", err);
+          result.value = [];
+        }
+      });
+
+      // Cleanup subscription when component is unmounted
+      onScopeDispose(() => {
+        subscription.unsubscribe();
+      });
+
+      return result;
     },
     trackServer: async (server: any) => {
       await db.servers.put(server, server.spaceId);
