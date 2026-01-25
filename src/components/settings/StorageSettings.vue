@@ -1,5 +1,5 @@
 <template>
-    <div class="space-y-6" v-if="me.me">
+    <div class="space-y-6 storage-settings" v-if="me.me">
         <!-- Storage Usage Card -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
@@ -257,6 +257,11 @@ onMounted(async () => {
 });
 </script>
 <style scoped>
+
+.storage-settings {
+    @apply max-w-5xl mx-auto;
+}
+
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
 }

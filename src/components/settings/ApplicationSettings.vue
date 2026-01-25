@@ -248,9 +248,9 @@ const pruneDatabases = async (pruneLocalStorage = true) => {
 </script>
 <style scoped>
 .profile-settings {
-    max-width: 600px;
-    margin: 0 auto;
+    @apply max-w-5xl mx-auto space-y-6;
 }
+
 
 .focus\:ring-ring:focus {
     --tw-ring-color: hsl(0deg 0% 0% / 0%);

@@ -43,6 +43,9 @@ export const useUserStore = defineStore("user", () => {
   let activeRequests = 0;
   const requestQueue: Array<() => void> = [];
 
+  // Ignored users - users that failed to fetch from server
+  const ignoredUsers = new Set<Guid>();
+
   // Diagnostics - make reactive!
   const diagnostics = reactive({
     totalSubscriptionsCreated: 0,
@@ -460,6 +463,11 @@ export const useUserStore = defineStore("user", () => {
    * Update user status
    */
   const updateUserStatus = async (userId: Guid, status: UserStatus) => {
+    // Skip ignored users
+    if (ignoredUsers.has(userId)) {
+      return;
+    }
+
     const updated = await db.users.update(userId, (user) => {
       user.status = status;
       if (status === UserStatus.Offline && user.activity) {
@@ -467,7 +475,34 @@ export const useUserStore = defineStore("user", () => {
       }
     });
     if (updated === 0) {
-      logger.warn(`User ${userId} not found for status update`);
+      logger.warn(`User ${userId} not found for status update, fetching from server...`);
+      
+      // Try to fetch user from server (parallel requests, limit to first 5 servers)
+      try {
+        const servers = await db.servers.limit(5).toArray();
+        
+        // Parallel fetch from multiple servers
+        const results = await Promise.allSettled(
+          servers.map(server => api.serverInteraction.PrefetchUser(server.spaceId, userId))
+        );
+        
+        // Find first successful result
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          if (result.status === 'fulfilled' && result.value) {
+            await trackUser(result.value, status);
+            logger.info(`Successfully fetched and updated user ${userId} from server ${servers[i].spaceId}`);
+            return;
+          }
+        }
+        
+        // Failed to fetch - ignore this user in future
+        logger.error(`Failed to fetch user ${userId} from any server, ignoring future updates`);
+        ignoredUsers.add(userId);
+      } catch (err) {
+        logger.error(`Error fetching user ${userId}:`, err);
+        ignoredUsers.add(userId);
+      }
     }
   };
 

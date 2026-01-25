@@ -1,5 +1,5 @@
 <template>
-    <div class="space-y-6">
+    <div class="space-y-6 appearance-container">
         <h2 class="text-2xl font-bold mb-6">{{ t("appearance") }}</h2>
 
         <!-- Theme Selection -->
@@ -560,6 +560,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.appearance-container {
+    @apply max-w-5xl mx-auto;
+}
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
 }

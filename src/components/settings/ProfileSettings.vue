@@ -295,7 +295,7 @@
 
     <!-- Add Passkey Dialog -->
     <Dialog v-model:open="showAddPasskeyDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("add_passkey") }}</DialogTitle>
         </DialogHeader>
@@ -318,7 +318,7 @@
 
     <!-- OTP Setup Dialog -->
     <Dialog v-model:open="showOTPDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("setup_two_factor") }}</DialogTitle>
         </DialogHeader>
@@ -359,7 +359,7 @@
 
     <!-- Disable OTP Dialog -->
     <Dialog v-model:open="showDisableOTPDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("disable_two_factor") }}</DialogTitle>
         </DialogHeader>
@@ -394,7 +394,7 @@
 
     <!-- Change Password Dialog -->
     <Dialog v-model:open="showChangePasswordDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("change_password") }}</DialogTitle>
         </DialogHeader>
@@ -437,7 +437,7 @@
 
     <!-- Change Email Dialog -->
     <Dialog v-model:open="showChangeEmailDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("change_email") }}</DialogTitle>
         </DialogHeader>
@@ -472,7 +472,7 @@
 
     <!-- Email Verification Dialog -->
     <Dialog v-model:open="showEmailVerificationDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("verify_email") }}</DialogTitle>
         </DialogHeader>
@@ -499,7 +499,7 @@
 
     <!-- Change Phone Dialog -->
     <Dialog v-model:open="showChangePhoneDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ userPhone ? t("change_phone") : t("add_phone") }}</DialogTitle>
         </DialogHeader>
@@ -533,7 +533,7 @@
 
     <!-- Phone Verification Dialog -->
     <Dialog v-model:open="showPhoneVerificationDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("verify_phone") }}</DialogTitle>
         </DialogHeader>
@@ -560,7 +560,7 @@
 
     <!-- Remove Phone Dialog -->
     <Dialog v-model:open="showRemovePhoneDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("remove_phone") }}</DialogTitle>
         </DialogHeader>

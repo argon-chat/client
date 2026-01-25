@@ -1,5 +1,5 @@
 <template>
-    <div class="space-y-6">
+    <div class="space-y-6 language-settings">
         <h2 class="text-2xl font-bold mb-6">{{ t("app_language") }}</h2>
 
         <!-- Language Selection Card -->
@@ -65,6 +65,10 @@ watch(locale, (newLocale) => {
 </script>
 
 <style scoped>
+.language-settings {
+    @apply max-w-5xl mx-auto;
+}
+
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
 }
