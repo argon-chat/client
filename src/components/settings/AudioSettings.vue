@@ -1,5 +1,5 @@
 <template>
-    <div v-if="loaded" class="space-y-6">
+    <div v-if="loaded" class="settings-container">
         <h2 class="text-2xl font-bold mb-6">{{ t("audio_system") }}</h2>
 
         <!-- Master Volume Card -->
@@ -119,14 +119,14 @@
                     <Switch :checked="preferenceStore.forceToMono" @update:checked="onChangeForceToMono" />
                 </div>
                 
-                <div class="setting-item opacity-50">
+                <div class="setting-item">
                     <div class="flex-1">
                         <div class="text-sm font-medium">{{ t("noise_sup") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("noise_sup_desc") }}</div>
                     </div>
                     <Switch 
-                        disabled 
                         :checked="preferenceStore.noiseSuppression" 
+                        @update:checked="onChangeNoiseSuppression"
                     />
                 </div>
             </div>
@@ -567,6 +567,17 @@ async function onChangeForceToMono(x: boolean) {
     }
 }
 
+// Noise suppression
+async function onChangeNoiseSuppression(x: boolean) {
+    preferenceStore.noiseSuppression = x;
+    await audio.setAudioConstraints({ noiseSuppression: x });
+    // Restart input monitoring to apply changes
+    if (isInputVUEnabled.value) {
+        stopInputMonitoring();
+        await startInputMonitoring();
+    }
+}
+
 // Test sound
 const playTestSound = async () => {
     isPlayingSound.value = true;
@@ -683,6 +694,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.settings-container {
+    @apply max-w-5xl mx-auto space-y-6;
+}
+
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
 }

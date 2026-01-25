@@ -5,7 +5,6 @@ import {
   RemoteTrackPublication,
   RemoteParticipant,
   LocalVideoTrack,
-  createLocalAudioTrack,
   ScreenShareCaptureOptions,
   Track,
   LocalAudioTrack,
@@ -603,9 +602,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       logger.warn("LiveKit connecting...", opts.rts.endpoint);
       await r.connect(opts.rts.endpoint, opts.token, {
         rtcConfig: {
-          bundlePolicy: "max-bundle",
-          iceTransportPolicy: "all",
-          rtcpMuxPolicy: "require",
           iceServers: [
             ...opts.rts.ices.map((x) => ({
               urls: x.endpoint,
@@ -623,32 +619,42 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     try {
       const audioCtx = audio.getCurrentAudioContext();
-      const mic = await createLocalAudioTrack({
-        deviceId: audio.getInputDevice().value ?? undefined,
-        noiseSuppression: false,
-        echoCancellation: false,
-        autoGainControl: false,
-        voiceIsolation: false,
-        channelCount: 2,
-      });
-
-      mic.setAudioContext(audioCtx);
+      
+      // Use virtual input stream from AudioManager - it already handles:
+      // - Device selection & switching
+      // - Input volume control via inputGainNode
+      // - Audio processing chain
+      const virtualStream = await audio.getVirtualInputStream();
+      const virtualTrack = virtualStream.getAudioTracks()[0];
+      
+      if (!virtualTrack) {
+        throw new Error("No audio track in virtual input stream");
+      }
+      
+      // Clone the track for LiveKit - this way if LiveKit stops the track on disconnect,
+      // it won't affect our original virtual stream
+      const clonedTrackForLiveKit = virtualTrack.clone();
+      
+      // Create LocalAudioTrack from cloned track
+      // userProvidedTrack=true tells LiveKit not to manage this track internally
+      const mic = new LocalAudioTrack(clonedTrackForLiveKit, undefined, true, audioCtx);
+      mic.source = Track.Source.Microphone;
       
       const shouldMuteMic = sys.microphoneMuted;
       
-      logger.info(`[CALL] Publishing track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`);
+      logger.info(`[CALL] Publishing virtual mic track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`);
       
       await r.localParticipant.publishTrack(mic, {
         red: true,
         simulcast: true,
-        stopMicTrackOnMute: false, // Changed to false so track keeps sending data
+        stopMicTrackOnMute: false,
         audioPreset: AudioPresets.musicStereo,
         forceStereo: true,
         degradationPreference: "maintain-resolution"
       });
 
-      // Setup speaking detector AFTER publish
-      disposables.addSubscription(setupLocalSpeakingDetector(mic.mediaStreamTrack, opts.selfId));
+      // Setup speaking detector using VU meter from AudioManager (runs in AudioWorklet thread)
+      disposables.addSubscription(await setupLocalSpeakingDetector(opts.selfId));
 
       // Mute IMMEDIATELY after publishing if needed (before attributes)
       if (shouldMuteMic) {
@@ -663,6 +669,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       });
       
       logger.info(`[CALL] Local participant published with muted=${mic.isMuted}, attributes set`);
+      
       const mutedSub = sys.muteEvent.subscribe((x) => {
         if (x) mic.mute();
         else mic.unmute();
@@ -677,42 +684,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         applyMuteAllToExistingParticipants(x);
       });
 
-      mic.setProcessor(audio.createRtcProcessor());
+      // No need to set processor - virtual stream already goes through AudioManager's processing chain
+      // No need to handle device changes - AudioManager handles it internally and virtual stream stays the same
 
-      const onIdc = audio.onInputDeviceChanged(async (devId) => {
-        logger.warn("audio input device has changed");
-
-        const localParticipant = r.localParticipant;
-        const publication = Array.from(
-          localParticipant.trackPublications.values()
-        )
-          .filter((x) => x.source == Track.Source.Microphone)
-          .at(0);
-
-        const newTrack = await createLocalAudioTrack({
-          deviceId: devId,
-          noiseSuppression: false,
-          echoCancellation: false,
-          autoGainControl: false,
-          voiceIsolation: false,
-          channelCount: 2,
-        });
-        newTrack.setAudioContext(audio.getCurrentAudioContext());
-        newTrack.setProcessor(audio.createRtcProcessor());
-
-        if (publication?.track instanceof LocalAudioTrack) {
-          try {
-            await publication.track.replaceTrack(newTrack.mediaStreamTrack);
-            logger.info("Microphone successfully replaced");
-          } catch (err) {
-            console.error("Failed to replace microphone", err);
-          }
-        } else {
-          await localParticipant.publishTrack(newTrack);
-        }
-      });
-
-      disposables.addSubscription(onIdc);
       disposables.addSubscription(mutedSub);
       disposables.addSubscription(mutedAllSub);
     } catch (err) {
@@ -732,56 +706,23 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
   }
 
-  function setupLocalSpeakingDetector(rawTrack: MediaStreamTrack, userId: string) {
-    const audioCtx = audio.getCurrentAudioContext();
-    const mediaStream = new MediaStream([rawTrack]);
-
-    const src = audioCtx.createMediaStreamSource(mediaStream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-
-    const buffer = new Float32Array(analyser.fftSize);
-
-    const threshold = 0.001;
-
-    src.connect(analyser);
-
-    let speakingState = false;
-    let stopped = false;
-
-    function detect() {
-      if (stopped) return;
-
-      analyser.getFloatTimeDomainData(buffer);
-
-      let sum = 0;
-      for (let i = 0; i < buffer.length; i++) {
-        sum += buffer[i] * buffer[i];
-      }
-      const rms = Math.sqrt(sum / buffer.length);
-
-      // Check if microphone is muted - if so, don't show speaking indicator
+  async function setupLocalSpeakingDetector(userId: string): Promise<Subscription> {
+    // Use VU meter from AudioManager - it runs in AudioWorklet thread (much cheaper than AnalyserNode on main thread)
+    const vuMeter = await audio.createVirtualVUMeter((level) => {
+      // level is 0-100, threshold ~5 for speaking
       const isMicMuted = sys.microphoneMuted;
-      const newState = !isMicMuted && rms > threshold;
-
-      if (newState !== speakingState) {
-        speakingState = newState;
-
-        if (speakingState) {
-          speaking.add(userId);
-        } else {
-          speaking.delete(userId);
-        }
+      const isSpeaking = !isMicMuted && level > 5;
+      
+      if (isSpeaking) {
+        speaking.add(userId);
+      } else {
+        speaking.delete(userId);
       }
-
-      requestAnimationFrame(detect);
-    }
-
-    detect();
-
+    });
+    
     return new Subscription(() => {
-      stopped = true;
       speaking.delete(userId);
+      vuMeter.dispose();
     });
   }
 

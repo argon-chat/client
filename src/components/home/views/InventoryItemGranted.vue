@@ -1,7 +1,7 @@
 <template>
   <Dialog v-model:open="open">
     <DialogContent 
-      class="!w-[720px] max-w-[95vw] overflow-hidden border-0 bg-transparent p-0 shadow-none"
+      class="w-[520px] max-w-[720px] overflow-hidden border-0 bg-transparent p-0 shadow-none"
       @escape-key-down="onEscape"
     >
       <!-- Accessibility: Hidden title and description for screen readers -->

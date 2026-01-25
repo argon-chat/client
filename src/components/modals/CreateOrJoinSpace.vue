@@ -112,6 +112,8 @@ async function createServerCmd() {
 
         spaceName.value = ''
         open.value = false
+        
+        await poolStore.refershDatas()
     } catch (e: any) {
         createError.value = humanizeError(e)
     } finally {
@@ -142,8 +144,6 @@ const join = async (code: string) => {
         }
         inviteCode.value = "";
         open.value = false;
-
-        poolStore.refershDatas();
         
     } finally {
         e[Symbol.dispose]();

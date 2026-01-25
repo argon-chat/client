@@ -164,7 +164,7 @@ function removeHotkey(id: string) {
 <style scoped>
 /* Layout */
 .hotkey-settings {
-  @apply space-y-6;
+  @apply space-y-6 max-w-5xl mx-auto;
 }
 
 .settings-header {
