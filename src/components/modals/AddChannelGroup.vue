@@ -1,5 +1,6 @@
 <template>
   <Dialog v-model:open="open">
+    <template #default="{ close }">
     <DialogContent
       class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8"
     >
@@ -41,7 +42,7 @@
       </div>
       <div class="relative space-y-3">
         <Button
-          @click="addGroup"
+          @click="addGroup(close)"
           :disabled="isLoading"
           class="w-full font-semibold rounded-xl transition-all"
         >
@@ -51,6 +52,7 @@
         </Button>
       </div>
     </DialogContent>
+    </template>
   </Dialog>
 </template>
 
@@ -60,7 +62,7 @@ import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
 import { Input } from "@argon/ui/input";
-import { shallowRef, onUnmounted, nextTick } from "vue";
+import { shallowRef, onUnmounted } from "vue";
 import { logger } from "@argon/core";
 import { Label } from "@argon/ui/label";
 import { useApi } from "@/store/apiStore";
@@ -80,7 +82,7 @@ const selectedSpaceId = defineModel<string>("selectedSpace", {
   required: true,
 });
 
-const addGroup = async () => {
+const addGroup = async (close: () => void) => {
   if (!groupName.value.trim()) {
     logger.warn("Group name cannot be empty");
     addGroupError.value = t('group_name_required');
@@ -103,8 +105,7 @@ const addGroup = async () => {
     groupDescription.value = "";
     addGroupError.value = "";
     
-    await nextTick();
-    open.value = false;
+    close();
   } catch (error) {
     logger.error(`Failed to create channel group: ${error}`);
     addGroupError.value = String(error);

@@ -127,6 +127,7 @@ export interface IAudioManagement {
   onDevicesChanged(on: (devices: MediaDeviceInfo[]) => void): Subscription;
   onInputLevelChanged(on: (level: number) => void): Subscription;
   onOutputLevelChanged(on: (level: number) => void): Subscription;
+  onOutputLevelStereoChanged(callback: (left: number, right: number) => void): { dispose: () => void };
   
   // Testing
   playTestSound(frequency?: number, duration?: number): Promise<void>;
@@ -221,9 +222,13 @@ export class AudioManagement implements IAudioManagement {
   
   // Virtual output stream architecture
   private outputAnalyserNode: AnalyserNode | null = null;
+  private outputAnalyserLeft: AnalyserNode | null = null;
+  private outputAnalyserRight: AnalyserNode | null = null;
+  private outputSplitter: ChannelSplitterNode | null = null;
   private masterGainNode: GainNode | null = null;
   private virtualOutputInitialized = false;
   private outputLevelAnimationFrame: number | null = null;
+  private outputStereoCallbacks: Set<(left: number, right: number) => void> = new Set();
   
   // Input level monitoring
   private inputLevelMonitorDisposable: Disposable<AudioWorkletNode> | null = null;
@@ -312,8 +317,15 @@ export class AudioManagement implements IAudioManagement {
     // Cleanup virtual output stream
     this.masterGainNode?.disconnect();
     this.outputAnalyserNode?.disconnect();
+    this.outputAnalyserLeft?.disconnect();
+    this.outputAnalyserRight?.disconnect();
+    this.outputSplitter?.disconnect();
     this.masterGainNode = null;
     this.outputAnalyserNode = null;
+    this.outputAnalyserLeft = null;
+    this.outputAnalyserRight = null;
+    this.outputSplitter = null;
+    this.outputStereoCallbacks.clear();
     this.virtualOutputInitialized = false;
     
     for (const worklet of this.worklets.values()) {
@@ -741,44 +753,18 @@ export class AudioManagement implements IAudioManagement {
         },
       });
       
-      // Validate sample rate compatibility before creating source
+      // Log sample rate info (browser will handle resampling automatically)
       const streamTrack = this.currentMicStream.getAudioTracks()[0];
       const streamSettings = streamTrack.getSettings();
       const streamSampleRate = streamSettings.sampleRate;
       
       if (streamSampleRate && streamSampleRate !== ctx.sampleRate) {
-        logger.error(`[AudioManagement] ❌ Sample rate mismatch detected!`);
-        logger.error(`[AudioManagement] MediaStream: ${streamSampleRate}Hz, AudioContext: ${ctx.sampleRate}Hz`);
-        logger.error(`[AudioManagement] This will cause "NotSupportedError: different sample-rate" error`);
-        
-        // Try to recreate AudioContext with correct sample rate
-        logger.warn(`[AudioManagement] Attempting to recreate AudioContext with ${streamSampleRate}Hz...`);
-        
-        // Close old context
-        const oldContext = this.audioCtx;
-        await oldContext.close();
-        
-        // Create new context with correct sample rate
-        this.audioCtx = new AudioContext({ sampleRate: streamSampleRate });
-        this.config.sampleRate = streamSampleRate;
-        
-        // Reinitialize virtual output stream
-        this.virtualOutputInitialized = false;
-        this.initVirtualOutputStream();
-        
-        // Update ctx reference
-        const newCtx = this.audioCtx;
-        
-        // Recreate nodes with new context
-        this.virtualStreamDestination = newCtx.createMediaStreamDestination();
-        this.inputGainNode = newCtx.createGain();
-        this.inputGainNode.connect(this.virtualStreamDestination);
-        this.applyInputVolume();
-        
-        logger.info(`[AudioManagement] ✅ AudioContext recreated with ${streamSampleRate}Hz`);
+        logger.info(`[AudioManagement] Microphone sample rate: ${streamSampleRate}Hz, AudioContext: ${ctx.sampleRate}Hz`);
+        logger.info(`[AudioManagement] Browser will resample automatically to ${ctx.sampleRate}Hz`);
       }
       
       // Create source and connect to gain node
+      // The Web Audio API automatically resamples the input to match AudioContext sample rate
       this.currentMicSource = ctx.createMediaStreamSource(this.currentMicStream);
       
       if (this.inputGainNode) {
@@ -843,15 +829,29 @@ export class AudioManagement implements IAudioManagement {
     
     const ctx = this.audioCtx;
     
-    // Create analyser node for output level monitoring
+    // Create analyser node for output level monitoring (mono, for backward compatibility)
     this.outputAnalyserNode = ctx.createAnalyser();
     this.outputAnalyserNode.fftSize = 256;
     this.outputAnalyserNode.smoothingTimeConstant = 0.3;
     this.outputAnalyserNode.connect(ctx.destination);
     
+    // Create stereo analysers for left/right channel monitoring
+    this.outputSplitter = ctx.createChannelSplitter(2);
+    this.outputAnalyserLeft = ctx.createAnalyser();
+    this.outputAnalyserLeft.fftSize = 256;
+    this.outputAnalyserLeft.smoothingTimeConstant = 0.3;
+    this.outputAnalyserRight = ctx.createAnalyser();
+    this.outputAnalyserRight.fftSize = 256;
+    this.outputAnalyserRight.smoothingTimeConstant = 0.3;
+    
+    // Connect splitter to stereo analysers
+    this.outputSplitter.connect(this.outputAnalyserLeft, 0);
+    this.outputSplitter.connect(this.outputAnalyserRight, 1);
+    
     // Create master gain node for volume control
     this.masterGainNode = ctx.createGain();
     this.masterGainNode.connect(this.outputAnalyserNode);
+    this.masterGainNode.connect(this.outputSplitter);
     this.applyOutputVolume();
     
     // Apply saved output device via AudioContext.setSinkId
@@ -872,20 +872,38 @@ export class AudioManagement implements IAudioManagement {
     if (this.outputLevelAnimationFrame || !this.outputAnalyserNode) return;
     
     const analyser = this.outputAnalyserNode;
+    const analyserLeft = this.outputAnalyserLeft;
+    const analyserRight = this.outputAnalyserRight;
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const dataArrayLeft = analyserLeft ? new Uint8Array(analyserLeft.frequencyBinCount) : null;
+    const dataArrayRight = analyserRight ? new Uint8Array(analyserRight.frequencyBinCount) : null;
+    
+    const calculateLevel = (arr: Uint8Array): number => {
+      let sum = 0;
+      for (let i = 0; i < arr.length; i++) {
+        sum += arr[i] * arr[i];
+      }
+      const rms = Math.sqrt(sum / arr.length);
+      return Math.min(100, (rms / 128) * 100);
+    };
     
     const updateLevel = () => {
+      // Mono level (backward compatibility)
       analyser.getByteFrequencyData(dataArray);
-      
-      // Calculate RMS level
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i] * dataArray[i];
-      }
-      const rms = Math.sqrt(sum / dataArray.length);
-      const level = Math.min(100, (rms / 128) * 100);
-      
+      const level = calculateLevel(dataArray);
       this.outputLevel$.next(Math.round(level));
+      
+      // Stereo levels
+      if (analyserLeft && analyserRight && dataArrayLeft && dataArrayRight && this.outputStereoCallbacks.size > 0) {
+        analyserLeft.getByteFrequencyData(dataArrayLeft);
+        analyserRight.getByteFrequencyData(dataArrayRight);
+        const leftLevel = Math.round(calculateLevel(dataArrayLeft));
+        const rightLevel = Math.round(calculateLevel(dataArrayRight));
+        
+        for (const callback of this.outputStereoCallbacks) {
+          callback(leftLevel, rightLevel);
+        }
+      }
       
       this.outputLevelAnimationFrame = requestAnimationFrame(updateLevel);
     };
@@ -898,6 +916,19 @@ export class AudioManagement implements IAudioManagement {
    */
   isVirtualOutputInitialized(): boolean {
     return this.virtualOutputInitialized;
+  }
+
+  /**
+   * Subscribe to stereo output level changes.
+   * Returns a dispose function to unsubscribe.
+   */
+  onOutputLevelStereoChanged(callback: (left: number, right: number) => void): { dispose: () => void } {
+    this.outputStereoCallbacks.add(callback);
+    return {
+      dispose: () => {
+        this.outputStereoCallbacks.delete(callback);
+      }
+    };
   }
 
   // ==================== INPUT LEVEL MONITORING ====================

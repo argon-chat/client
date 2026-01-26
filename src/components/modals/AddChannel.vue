@@ -1,5 +1,6 @@
 <template>
   <Dialog v-model:open="open">
+    <template #default="{ close }">
     <DialogContent
       class="sm:max-w-[600px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-6"
     >
@@ -85,7 +86,7 @@
       
       <div class="relative pt-2">
         <Button
-          @click="addChannel"
+          @click="addChannel(close)"
           :disabled="isLoading"
           class="w-full h-12 font-semibold rounded-xl transition-all text-base"
         >
@@ -95,6 +96,7 @@
         </Button>
       </div>
     </DialogContent>
+    </template>
   </Dialog>
 </template>
 
@@ -103,7 +105,7 @@ import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
-import { computed, shallowRef, onUnmounted, nextTick } from "vue";
+import { computed, shallowRef, onUnmounted } from "vue";
 import { logger } from "@argon/core";
 import { useSpaceStore } from "@/store/serverStore";
 import { ChannelType } from "@argon/glue";
@@ -150,7 +152,7 @@ const channelTypes = computed(() => [
   },
 ]);
 
-const addChannel = async () => {
+const addChannel = async (close: () => void) => {
   if (!channelName.value.trim()) {
     logger.warn("Channel name cannot be empty");
     addChannelError.value = t('channel_name_required')
@@ -187,8 +189,7 @@ const addChannel = async () => {
     addChannelError.value = ""
     channelType.value = "Text"
     
-    await nextTick();
-    open.value = false;
+    close();
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
     addChannelError.value = String(error);

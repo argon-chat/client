@@ -539,12 +539,11 @@ let outputVUMeter: { dispose: () => void } | null = null;
 
 async function startOutputMonitoring() {
     try {
-        const vuMeter = await audio.createVirtualVUMeterStereo((left, right) => {
+        // Use stereo output level monitoring from master output
+        outputVUMeter = audio.onOutputLevelStereoChanged((left, right) => {
             outputLeftVolume.value = left;
             outputRightVolume.value = right;
         });
-
-        outputVUMeter = vuMeter;
     } catch (err) {
         logger.error("Output monitoring error:", err);
     }
