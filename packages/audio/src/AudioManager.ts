@@ -246,6 +246,7 @@ export class AudioManagement implements IAudioManagement {
       autoInitialize: config.autoInitialize ?? true,
     };
     this.audioCtx = new AudioContext({ sampleRate: this.config.sampleRate });
+    this.validateAndAdaptConfig();
     this.loadSavedSettings();
     this.setupDeviceChangeListener();
     this.setupAudioElementMonitor();
@@ -322,6 +323,20 @@ export class AudioManagement implements IAudioManagement {
     if (this.audioCtx.state !== "closed") {
       this.audioCtx.close();
     }
+  }
+
+  // ==================== CONFIG VALIDATION ====================
+
+  private validateAndAdaptConfig(): void {
+    const actualSampleRate = this.audioCtx.sampleRate;
+    
+    if (actualSampleRate !== this.config.sampleRate) {
+      logger.warn(`[AudioManagement] ⚠️ Sample rate mismatch! Requested: ${this.config.sampleRate}Hz, Got: ${actualSampleRate}Hz`);
+      logger.warn('[AudioManagement] Adapting to system sample rate...');
+      this.config.sampleRate = actualSampleRate;
+    }
+    
+    logger.info(`[AudioManagement] AudioContext initialized with sample rate: ${actualSampleRate}Hz`);
   }
 
   // ==================== SETTINGS PERSISTENCE ====================
@@ -714,6 +729,7 @@ export class AudioManagement implements IAudioManagement {
     
     try {
       // Get new microphone stream with current constraints
+      // Note: Don't enforce exact sampleRate to avoid mismatches with AudioContext
       this.currentMicStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 2,
@@ -721,9 +737,46 @@ export class AudioManagement implements IAudioManagement {
           noiseSuppression: this.audioConstraints.noiseSuppression,
           autoGainControl: this.audioConstraints.autoGainControl,
           deviceId: deviceId && deviceId !== 'default' ? { exact: deviceId } : undefined,
-          sampleRate: this.config.sampleRate,
+          sampleRate: { ideal: this.config.sampleRate },
         },
       });
+      
+      // Validate sample rate compatibility before creating source
+      const streamTrack = this.currentMicStream.getAudioTracks()[0];
+      const streamSettings = streamTrack.getSettings();
+      const streamSampleRate = streamSettings.sampleRate;
+      
+      if (streamSampleRate && streamSampleRate !== ctx.sampleRate) {
+        logger.error(`[AudioManagement] ❌ Sample rate mismatch detected!`);
+        logger.error(`[AudioManagement] MediaStream: ${streamSampleRate}Hz, AudioContext: ${ctx.sampleRate}Hz`);
+        logger.error(`[AudioManagement] This will cause "NotSupportedError: different sample-rate" error`);
+        
+        // Try to recreate AudioContext with correct sample rate
+        logger.warn(`[AudioManagement] Attempting to recreate AudioContext with ${streamSampleRate}Hz...`);
+        
+        // Close old context
+        const oldContext = this.audioCtx;
+        await oldContext.close();
+        
+        // Create new context with correct sample rate
+        this.audioCtx = new AudioContext({ sampleRate: streamSampleRate });
+        this.config.sampleRate = streamSampleRate;
+        
+        // Reinitialize virtual output stream
+        this.virtualOutputInitialized = false;
+        this.initVirtualOutputStream();
+        
+        // Update ctx reference
+        const newCtx = this.audioCtx;
+        
+        // Recreate nodes with new context
+        this.virtualStreamDestination = newCtx.createMediaStreamDestination();
+        this.inputGainNode = newCtx.createGain();
+        this.inputGainNode.connect(this.virtualStreamDestination);
+        this.applyInputVolume();
+        
+        logger.info(`[AudioManagement] ✅ AudioContext recreated with ${streamSampleRate}Hz`);
+      }
       
       // Create source and connect to gain node
       this.currentMicSource = ctx.createMediaStreamSource(this.currentMicStream);
@@ -766,7 +819,7 @@ export class AudioManagement implements IAudioManagement {
           noiseSuppression: this.audioConstraints.noiseSuppression,
           autoGainControl: this.audioConstraints.autoGainControl,
           deviceId: this.getInputDevice().value,
-          sampleRate: this.config.sampleRate,
+          sampleRate: { ideal: this.config.sampleRate },
         },
       });
     } catch (err) {
