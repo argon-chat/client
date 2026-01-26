@@ -7,7 +7,6 @@ import { UserStatus } from "@argon/glue";
 import { native } from "@argon/glue/native";
 
 export const useIdleStore = defineStore("idle", () => {
-  const savedStatus = ref<UserStatus>(UserStatus.Online);
   const subscription = ref<Subscription | null>(null);
   const isAutoAway = ref(false); // Track if Away was set automatically
 
@@ -20,19 +19,28 @@ export const useIdleStore = defineStore("idle", () => {
 
     if (!currentStatus) return;
 
-    // Don't auto-change status if user manually set DoNotDisturb or TouchGrass
-    const isProtectedStatus = currentStatus === UserStatus.DoNotDisturb || currentStatus === UserStatus.TouchGrass;
+    // Don't do anything if DoNotDisturb or TouchGrass is set
+    if (currentStatus === UserStatus.DoNotDisturb || currentStatus === UserStatus.TouchGrass) {
+      return;
+    }
+
+    // Reset auto-away flag if user manually changed status while auto-away was active
+    if (isAutoAway.value && currentStatus !== UserStatus.Away) {
+      isAutoAway.value = false;
+      return;
+    }
     
-    const shouldGoAway = !isProtectedStatus && !isAutoAway.value && currentStatus !== UserStatus.Away && inactiveSeconds > IDLE_TIME_SECONDS;
+    // Only go Away from Online
+    const shouldGoAway = inactiveSeconds >= IDLE_TIME_SECONDS && currentStatus === UserStatus.Online;
+    // Only come back if it was auto-away
     const shouldComeBack = isAutoAway.value && currentStatus === UserStatus.Away && inactiveSeconds < IDLE_TIME_SECONDS;
 
     if (shouldGoAway) {
-      savedStatus.value = currentStatus;
       isAutoAway.value = true;
       me.changeStatusTo(UserStatus.Away);
     } else if (shouldComeBack) {
       isAutoAway.value = false;
-      me.changeStatusTo(savedStatus.value);
+      me.changeStatusTo(UserStatus.Online);
     }
   }
 

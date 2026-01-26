@@ -82,13 +82,11 @@ watch(
 
 const onTypingEvent = () => {
     if (!channelData.value) return;
-    logger.log("Sending IAmTypingEvent with channelId:", channelData.value.channelId);
-    bus.sendEventAsync(new IAmTypingEvent(channelData.value.channelId));
+    bus.IAmTypingEvent(channelData.value.channelId);
 };
 const onStopTypingEvent = () => {
     if (!channelData.value) return;
-    logger.log("Sending IAmStopTypingEvent with channelId:", channelData.value.channelId);
-    bus.sendEventAsync(new IAmStopTypingEvent(channelData.value.channelId));
+    bus.IAmStopTypingEvent(channelData.value.channelId);
 };
 
 function scheduleTypingTimeout(userId: string) {

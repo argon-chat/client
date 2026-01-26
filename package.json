@@ -31,6 +31,8 @@
     "@argon/ui": "workspace:*",
     "@floating-ui/vue": "^1.1.6",
     "@internationalized/date": "^3.5.0",
+    "@microsoft/signalr": "^10.0.0",
+    "@microsoft/signalr-protocol-msgpack": "^10.0.0",
     "@phosphor-icons/vue": "^2.2.1",
     "@radix-icons/vue": "^1.0.0",
     "@sentry/vue": "^10.36.0",

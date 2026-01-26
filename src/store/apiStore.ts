@@ -48,6 +48,8 @@ export const useApi = defineStore("api", () => {
     createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy)])
   );
 
+  const apiEndpoint = computed(() => cfg.apiEndpoint);
+
   const userInteraction = computed(() => rpcClient.value.UserInteraction);
   const securityInteraction = computed(() => rpcClient.value.SecurityInteraction);
   const identityInteraction = computed(
@@ -73,6 +75,7 @@ export const useApi = defineStore("api", () => {
   (window as any).callInteraction = callInteraction;
 
   return {
+    apiEndpoint,
     userInteraction,
     securityInteraction,
     serverInteraction,

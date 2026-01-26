@@ -10,6 +10,7 @@ import { native } from "@argon/glue/native";
 import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/DiagnosticsOverlay.vue";
+import ReconnectOverlay from "./components/ReconnectOverlay.vue";
 import { useTheme } from "@/composables/useTheme";
 import { logger } from "@argon/core";
 
@@ -59,16 +60,8 @@ const reloadPage = () => {
   <RouterView />
   <IncomingCallOverlay />
   <DiagnosticsOverlay v-if="showDiagnostics" />
+  <ReconnectOverlay />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
-
-  <!-- Long reconnect overlay -->
-  <div v-if="sys.isLongReconnecting" class="reconnect-overlay">
-    <div class="reconnect-content">
-      <div class="reconnect-spinner"></div>
-      <h2 class="reconnect-title">Connection Lost</h2>
-      <p class="reconnect-message">Reconnecting to Argon...</p>
-    </div>
-  </div>
 
   <!-- Loading overlay -->
   <div v-if="appState.isInitializing" class="loading-overlay">
@@ -485,51 +478,5 @@ const reloadPage = () => {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
-}
-
-/* Reconnect overlay styles */
-.reconnect-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9998;
-}
-
-.reconnect-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 2rem;
-}
-
-.reconnect-spinner {
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(239, 68, 68, 0.1);
-  border-top-color: #ef4444;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.reconnect-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #fafafa;
-  margin: 0;
-}
-
-.reconnect-message {
-  font-size: 0.875rem;
-  color: #a1a1aa;
-  margin: 0;
-  text-align: center;
 }
 </style>

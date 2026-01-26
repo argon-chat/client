@@ -1,10 +1,11 @@
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useTone } from "@/store/toneStore";
 import { Subject, Subscription } from "rxjs";
 import { useHotkeys } from "./hotKeyStore";
 import { IonWsClient } from "@argon-chat/ion.webcore";
 import { HotkeyPhase } from "@argon/glue/ipc";
+import { useBus } from "./busStore";
 
 const LONG_RECONNECT_TIMEOUT = 5000; // 5 seconds
 
@@ -114,6 +115,49 @@ export const useSystemStore = defineStore("system", () => {
   async function toggleHeadphoneMute() {
     await setHeadphoneMuted(!headphoneMuted.value);
   }
+
+  const bus = useBus();
+  
+  // Watch SignalR reconnecting status
+  watch(() => bus.isSignalRReconnecting, (isReconnecting) => {
+    if (isReconnecting) {
+      if (!hasRequestRetry("signalr", "connection")) {
+        startRequestRetry("signalr", "connection");
+      }
+      
+      // Start timer for long reconnect
+      if (!reconnectTimer) {
+        reconnectTimer = setTimeout(() => {
+          isLongReconnecting.value = true;
+        }, LONG_RECONNECT_TIMEOUT);
+      }
+    } else {
+      // Clear timer
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+
+      if (hasRequestRetry("signalr", "connection")) {
+        stopRequestRetry("signalr", "connection");
+      }
+
+      // If it was a long reconnect, reload server data
+      if (isLongReconnecting.value) {
+        (async () => {
+          try {
+            const { usePoolStore } = await import("./poolStore");
+            const poolStore = usePoolStore();
+            await poolStore.loadServerDetails();
+          } catch (e) {
+            console.error("Failed to reload server details after reconnect:", e);
+          } finally {
+            isLongReconnecting.value = false;
+          }
+        })();
+      }
+    }
+  });
 
   IonWsClient.on("reconnecting", (x, t) => {
     if (!hasRequestRetry("ws", "ws")) {
