@@ -29,7 +29,6 @@ export const useIdleStore = defineStore("idle", () => {
       isAutoAway.value = false;
       return;
     }
-    
     // Only go Away from Online
     const shouldGoAway = inactiveSeconds >= IDLE_TIME_SECONDS && currentStatus === UserStatus.Online;
     // Only come back if it was auto-away
