@@ -103,7 +103,7 @@ import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
-import { computed, shallowRef, onUnmounted, nextTick } from "vue";
+import { computed, shallowRef, onUnmounted, nextTick, watch } from "vue";
 import { logger } from "@argon/core";
 import { useSpaceStore } from "@/store/serverStore";
 import { ChannelType } from "@argon/glue";
@@ -197,10 +197,19 @@ const addChannel = async () => {
   }
 };
 
+watch(open, (isOpen) => {
+  if (!isOpen) {
+    setTimeout(() => {
+      document.body.style.pointerEvents = "";
+    }, 200);
+  }
+});
+
 onUnmounted(() => {
   channelName.value = "";
   addChannelError.value = "";
   channelType.value = "Text";
   isLoading.value = false;
+  document.body.style.pointerEvents = "";
 });
 </script>

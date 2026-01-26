@@ -60,7 +60,7 @@ import { useLocale } from "@/store/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
 import { Input } from "@argon/ui/input";
-import { shallowRef, onUnmounted, nextTick } from "vue";
+import { shallowRef, onUnmounted, nextTick, watch } from "vue";
 import { logger } from "@argon/core";
 import { Label } from "@argon/ui/label";
 import { useApi } from "@/store/apiStore";
@@ -113,10 +113,19 @@ const addGroup = async () => {
   }
 };
 
+watch(open, (isOpen) => {
+  if (!isOpen) {
+    setTimeout(() => {
+      document.body.style.pointerEvents = "";
+    }, 200);
+  }
+});
+
 onUnmounted(() => {
   groupName.value = "";
   groupDescription.value = "";
   addGroupError.value = "";
   isLoading.value = false;
+  document.body.style.pointerEvents = "";
 });
 </script>
