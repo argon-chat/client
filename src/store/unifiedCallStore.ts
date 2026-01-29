@@ -631,21 +631,20 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
 
     try {
-
       const stunServers: RTCIceServer[] = opts.rts.ices.flatMap((x) =>
         normalizeUrls(x.endpoint)
           .filter(isStun)
           .map((url) => ({ urls: url })),
       );
 
-      // Check TURN servers in parallel (non-blocking)
+      // Check TURN servers aggressively in parallel
       const turnServers: RTCIceServer[] = [];
       const turnConfigs = opts.rts.ices.filter((x) =>
         normalizeUrls(x.endpoint).some(isTurn),
       );
 
       if (turnConfigs.length > 0) {
-        logger.info(`[CALL] Probing ${turnConfigs.length} TURN servers in parallel...`);
+        logger.info(`[CALL] Testing ${turnConfigs.length} TURN servers...`);
 
         const probePromises = turnConfigs.flatMap((turnConfig) => {
           const turnUrls = normalizeUrls(turnConfig.endpoint).filter(isTurn);
@@ -656,18 +655,18 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
                 username: turnConfig.username || "",
                 password: turnConfig.password || "",
               },
-              1500, // Shorter timeout for parallel probing
+              2000, // 2s timeout for real data transfer test
             );
 
             if (isAlive) {
-              logger.info(`[CALL] TURN server alive: ${turnUrl}`);
+              logger.info(`[CALL] ✓ TURN OK: ${turnUrl}`);
               return {
                 urls: turnUrl,
                 username: turnConfig.username,
                 credential: turnConfig.password,
               };
             } else {
-              logger.warn(`[CALL] TURN server dead, skipping: ${turnUrl}`);
+              logger.warn(`[CALL] ✗ TURN DEAD: ${turnUrl}`);
               return null;
             }
           });
@@ -679,6 +678,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
             turnServers.push(result.value);
           }
         });
+
+        logger.info(`[CALL] TURN results: ${turnServers.length}/${turnConfigs.length} alive`);
       }
 
       const allIceServers = [...stunServers, ...turnServers];
@@ -686,12 +687,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       logger.warn("LiveKit connecting...", opts.rts.endpoint, {
         stun: stunServers.length,
         turn: turnServers.length,
-        iceServers: allIceServers,
       });
 
       await r.connect(opts.rts.endpoint, opts.token, {
         rtcConfig: {
           iceServers: allIceServers,
+          iceCandidatePoolSize: 10,
+          iceTransportPolicy: "all",
         },
       });
     } catch (err) {
@@ -810,80 +812,122 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     },
     timeoutMs = 3000,
   ): Promise<boolean> {
-    return new Promise<boolean>(async (resolve) => {
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          {
-            urls: turn.endpoint,
-            username: turn.username,
-            credential: turn.password,
-          },
-        ],
-        iceTransportPolicy: "relay",
-        bundlePolicy: "max-bundle",
-      });
-
+    return new Promise<boolean>((resolve) => {
+      let pc1: RTCPeerConnection | null = null;
+      let pc2: RTCPeerConnection | null = null;
       let settled = false;
-      let hasRelayCandidates = false;
+      let dataReceived = false;
+
+      const cleanup = () => {
+        if (pc1) pc1.close();
+        if (pc2) pc2.close();
+        pc1 = null;
+        pc2 = null;
+      };
 
       const fail = () => {
         if (settled) return;
         settled = true;
-        pc.close();
+        cleanup();
         resolve(false);
       };
 
       const ok = () => {
         if (settled) return;
         settled = true;
-        pc.close();
+        cleanup();
         resolve(true);
       };
 
-      // Check for relay candidates (means TURN is working)
-      pc.onicecandidate = (event) => {
-        if (event.candidate?.type === "relay") {
-          hasRelayCandidates = true;
-          logger.info(`[TURN] Relay candidate found for ${turn.endpoint}`);
-          ok();
-        }
-      };
+      try {
+        // Create two peer connections - both forced to use TURN relay only
+        const config = {
+          iceServers: [
+            {
+              urls: turn.endpoint,
+              username: turn.username,
+              credential: turn.password,
+            },
+          ],
+          iceTransportPolicy: "relay" as RTCIceTransportPolicy,
+        };
 
-      // Monitor ICE gathering state
-      pc.onicegatheringstatechange = () => {
-        if (pc.iceGatheringState === "complete") {
-          if (hasRelayCandidates) {
-            ok();
-          } else {
-            logger.warn(`[TURN] No relay candidates found for ${turn.endpoint}`);
+        pc1 = new RTCPeerConnection(config);
+        pc2 = new RTCPeerConnection(config);
+
+        // Setup data channel
+        const dc = pc1.createDataChannel("probe");
+        const testMessage = "ping";
+
+        dc.onopen = () => {
+          try {
+            dc.send(testMessage);
+          } catch (err) {
             fail();
           }
-        }
-      };
+        };
 
-      // Monitor connection state
-      pc.oniceconnectionstatechange = () => {
-        if (pc.iceConnectionState === "failed") {
-          fail();
-        } else if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
-          ok();
-        }
-      };
+        dc.onerror = fail;
 
-      try {
-        const offer = await pc.createOffer({ offerToReceiveAudio: true });
-        await pc.setLocalDescription(offer);
+        // Receive data on pc2
+        pc2.ondatachannel = (event) => {
+          const remoteChannel = event.channel;
+          remoteChannel.onmessage = (msg) => {
+            if (msg.data === testMessage) {
+              dataReceived = true;
+              ok(); // Real data transfer successful!
+            }
+          };
+          remoteChannel.onerror = fail;
+        };
+
+        // ICE candidate exchange
+        pc1.onicecandidate = (e) => {
+          if (e.candidate) {
+            pc2.addIceCandidate(e.candidate).catch(fail);
+          }
+        };
+
+        pc2.onicecandidate = (e) => {
+          if (e.candidate) {
+            pc1.addIceCandidate(e.candidate).catch(fail);
+          }
+        };
+
+        // Monitor connection state
+        pc1.oniceconnectionstatechange = () => {
+          if (pc1!.iceConnectionState === "failed") {
+            fail();
+          }
+        };
+
+        pc2.oniceconnectionstatechange = () => {
+          if (pc2!.iceConnectionState === "failed") {
+            fail();
+          }
+        };
+
+        // Start signaling
+        pc1
+          .createOffer()
+          .then((offer) => pc1!.setLocalDescription(offer))
+          .then(() => pc2!.setRemoteDescription(pc1!.localDescription!))
+          .then(() => pc2!.createAnswer())
+          .then((answer) => pc2!.setLocalDescription(answer))
+          .then(() => pc1!.setRemoteDescription(pc2!.localDescription!))
+          .catch(fail);
+
+        // Timeout
+        setTimeout(() => {
+          if (!settled) {
+            if (!dataReceived) {
+              fail();
+            }
+          }
+        }, timeoutMs);
       } catch (err) {
-        logger.error(`[TURN] Failed to create offer for ${turn.endpoint}`, err);
         fail();
       }
-
-      setTimeout(() => {
-        if (!settled) {
-          logger.warn(`[TURN] Probe timeout for ${turn.endpoint}`);
-          fail();
-        }
-      }, timeoutMs);
     });
   }
 
