@@ -22,7 +22,12 @@ import { useBus } from "./busStore";
 import { useUserVolumeStore } from "./userVolumeStore";
 import { useRealtimeStore } from "./realtimeStore";
 
-import { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
+import {
+  CallIncoming,
+  CallFinished,
+  CallAccepted,
+  RtcEndpoint,
+} from "@argon/glue";
 import { startTimer } from "@argon/core";
 import { useSystemStore } from "./systemStore";
 import { DisposableBag } from "@argon/core";
@@ -141,7 +146,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isConnected.value = false;
     isReconnecting.value = false;
 
-    Object.keys(participants).forEach(key => delete participants[key]);
+    Object.keys(participants).forEach((key) => delete participants[key]);
     videoTracks.clear();
     speaking.clear();
     incoming.value = null;
@@ -260,7 +265,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     await joinLiveKit({
       token: join.token,
       callId: callId.value!,
-      selfId: me.me!.userId, 
+      selfId: me.me!.userId,
       rts: join.rtc,
     });
 
@@ -314,43 +319,47 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   async function addParticipant(p: RemoteParticipant) {
     const uid = p.identity;
-    
+
     // Skip if already added
     if (participants[uid]) {
       logger.warn(`[CALL] Participant ${uid} already exists, updating state`);
     }
 
     // Check if this is a guest user (GUID starts with ccccfcfa)
-    const isGuest = uid.toLowerCase().startsWith('ccccfcfa') || uid.toLowerCase().startsWith('guest-');
-    
+    const isGuest =
+      uid.toLowerCase().startsWith("ccccfcfa") ||
+      uid.toLowerCase().startsWith("guest-");
+
     let displayName: string;
     if (isGuest) {
       // For guest users, use name from LiveKit participant metadata or default
       displayName = p.name || p.metadata || `Guest ${uid.substring(0, 8)}`;
-      logger.info(`[CALL] Adding guest participant ${uid} with name: ${displayName}`);
+      logger.info(
+        `[CALL] Adding guest participant ${uid} with name: ${displayName}`,
+      );
     } else {
       // For regular users, fetch from pool
       const info = await pool.getUser(uid);
       displayName = info?.displayName ?? "Unknown User";
     }
-    
+
     const savedVolume = userVolume.getUserVolume(uid);
 
     // Read initial muted state from tracks
     const audioPub = Array.from(p.trackPublications.values()).find(
-      (t) => t.kind === Track.Kind.Audio
+      (t) => t.kind === Track.Kind.Audio,
     );
-    
+
     // Check both publication and actual track if subscribed
     let isInitiallyMuted = audioPub?.isMuted ?? false;
     if (audioPub?.track) {
       isInitiallyMuted = audioPub.track.isMuted;
     }
-    
+
     logger.info(`[CALL] Reading initial mute state for ${uid}:`, {
       pubMuted: audioPub?.isMuted,
       trackMuted: audioPub?.track?.isMuted,
-      finalMuted: isInitiallyMuted
+      finalMuted: isInitiallyMuted,
     });
 
     // Read initial attributes
@@ -363,7 +372,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
       attributes: p.attributes,
-      displayName
+      displayName,
     });
 
     participants[uid] = {
@@ -375,7 +384,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
     };
-    
+
     // Add guest user to realtime channel if in channel mode
     if (isGuest && mode.value === "channel" && connectedVoiceChannelId.value) {
       // Create a mock user object for guest
@@ -390,9 +399,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       pool._realtimeStore.addUserToChannel(
         connectedVoiceChannelId.value,
         uid,
-        guestUser as any
+        guestUser as any,
       );
-      logger.info(`[CALL] Added guest ${uid} to realtime channel ${connectedVoiceChannelId.value}`);
+      logger.info(
+        `[CALL] Added guest ${uid} to realtime channel ${connectedVoiceChannelId.value}`,
+      );
     }
 
     const isMutedAll = sys.headphoneMuted;
@@ -413,7 +424,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         }
       }
     });
-    
+
     p.on("trackUnmuted", (pub) => {
       if (pub.kind === Track.Kind.Audio) {
         const pm = participants[uid];
@@ -423,16 +434,18 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         }
       }
     });
-    
+
     p.setAudioContext(audio.getCurrentAudioContext());
-    
+
     p.on("attributesChanged", (x) => {
       logger.info("attributesChanged", uid, x);
       const pm = participants[uid];
       if (pm) {
         pm.mutedAll = x.isMutedAll === "true";
         pm.screencast = x.isScreencast === "true";
-        logger.info(`[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`);
+        logger.info(
+          `[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`,
+        );
       }
     });
   }
@@ -554,8 +567,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     const r = new Room({
       loggerName: `${callId.value}-room`,
       webAudioMix: {
-        audioContext: audio.getCurrentAudioContext()
-      }
+        audioContext: audio.getCurrentAudioContext(),
+      },
     });
     room.value = r;
 
@@ -569,14 +582,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       delete participants[uid];
       speaking.delete(uid);
       if (videoTracks.has(uid)) videoTracks.delete(uid);
-      
+
       // Remove guest user from realtime channel
-      const isGuest = uid.toLowerCase().startsWith('fafccccc');
-      if (isGuest && mode.value === "channel" && connectedVoiceChannelId.value) {
-        pool._realtimeStore.removeUserFromChannel(connectedVoiceChannelId.value, uid);
+      const isGuest = uid.toLowerCase().startsWith("fafccccc");
+      if (
+        isGuest &&
+        mode.value === "channel" &&
+        connectedVoiceChannelId.value
+      ) {
+        pool._realtimeStore.removeUserFromChannel(
+          connectedVoiceChannelId.value,
+          uid,
+        );
         logger.info(`[CALL] Removed guest ${uid} from realtime channel`);
       }
-      
+
       tone.playSoftLeaveSound();
     });
     r.on("participantActive", (p) => {
@@ -598,17 +618,80 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       stopTimerRTT();
     });
 
+    function isStun(url: string) {
+      return url.startsWith("stun:");
+    }
+
+    function isTurn(url: string) {
+      return url.startsWith("turn:");
+    }
+
+    function normalizeUrls(urls: string | string[]) {
+      return Array.isArray(urls) ? urls : [urls];
+    }
+
     try {
-      logger.warn("LiveKit connecting...", opts.rts.endpoint);
+
+      const stunServers: RTCIceServer[] = opts.rts.ices.flatMap((x) =>
+        normalizeUrls(x.endpoint)
+          .filter(isStun)
+          .map((url) => ({ urls: url })),
+      );
+
+      // Check TURN servers in parallel (non-blocking)
+      const turnServers: RTCIceServer[] = [];
+      const turnConfigs = opts.rts.ices.filter((x) =>
+        normalizeUrls(x.endpoint).some(isTurn),
+      );
+
+      if (turnConfigs.length > 0) {
+        logger.info(`[CALL] Probing ${turnConfigs.length} TURN servers in parallel...`);
+
+        const probePromises = turnConfigs.flatMap((turnConfig) => {
+          const turnUrls = normalizeUrls(turnConfig.endpoint).filter(isTurn);
+          return turnUrls.map(async (turnUrl) => {
+            const isAlive = await probeTurn(
+              {
+                endpoint: turnUrl,
+                username: turnConfig.username || "",
+                password: turnConfig.password || "",
+              },
+              1500, // Shorter timeout for parallel probing
+            );
+
+            if (isAlive) {
+              logger.info(`[CALL] TURN server alive: ${turnUrl}`);
+              return {
+                urls: turnUrl,
+                username: turnConfig.username,
+                credential: turnConfig.password,
+              };
+            } else {
+              logger.warn(`[CALL] TURN server dead, skipping: ${turnUrl}`);
+              return null;
+            }
+          });
+        });
+
+        const results = await Promise.allSettled(probePromises);
+        results.forEach((result) => {
+          if (result.status === "fulfilled" && result.value) {
+            turnServers.push(result.value);
+          }
+        });
+      }
+
+      const allIceServers = [...stunServers, ...turnServers];
+
+      logger.warn("LiveKit connecting...", opts.rts.endpoint, {
+        stun: stunServers.length,
+        turn: turnServers.length,
+        iceServers: allIceServers,
+      });
+
       await r.connect(opts.rts.endpoint, opts.token, {
         rtcConfig: {
-          iceServers: [
-            ...opts.rts.ices.map((x) => ({
-              urls: x.endpoint,
-              username: x.username,
-              credential: x.password,
-            })),
-          ],
+          iceServers: allIceServers,
         },
       });
     } catch (err) {
@@ -619,42 +702,51 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     try {
       const audioCtx = audio.getCurrentAudioContext();
-      
+
       // Use virtual input stream from AudioManager - it already handles:
       // - Device selection & switching
       // - Input volume control via inputGainNode
       // - Audio processing chain
       const virtualStream = await audio.getVirtualInputStream();
       const virtualTrack = virtualStream.getAudioTracks()[0];
-      
+
       if (!virtualTrack) {
         throw new Error("No audio track in virtual input stream");
       }
-      
+
       // Clone the track for LiveKit - this way if LiveKit stops the track on disconnect,
       // it won't affect our original virtual stream
       const clonedTrackForLiveKit = virtualTrack.clone();
-      
+
       // Create LocalAudioTrack from cloned track
       // userProvidedTrack=true tells LiveKit not to manage this track internally
-      const mic = new LocalAudioTrack(clonedTrackForLiveKit, undefined, true, audioCtx);
+      const mic = new LocalAudioTrack(
+        clonedTrackForLiveKit,
+        undefined,
+        true,
+        audioCtx,
+      );
       mic.source = Track.Source.Microphone;
-      
+
       const shouldMuteMic = sys.microphoneMuted;
-      
-      logger.info(`[CALL] Publishing virtual mic track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`);
-      
+
+      logger.info(
+        `[CALL] Publishing virtual mic track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`,
+      );
+
       await r.localParticipant.publishTrack(mic, {
         red: true,
         simulcast: true,
         stopMicTrackOnMute: false,
         audioPreset: AudioPresets.musicStereo,
         forceStereo: true,
-        degradationPreference: "maintain-resolution"
+        degradationPreference: "maintain-resolution",
       });
 
       // Setup speaking detector using VU meter from AudioManager (runs in AudioWorklet thread)
-      disposables.addSubscription(await setupLocalSpeakingDetector(opts.selfId));
+      disposables.addSubscription(
+        await setupLocalSpeakingDetector(opts.selfId),
+      );
 
       // Mute IMMEDIATELY after publishing if needed (before attributes)
       if (shouldMuteMic) {
@@ -667,9 +759,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         isMutedAll: sys.headphoneMuted ? "true" : "false",
         isScreencast: "false",
       });
-      
-      logger.info(`[CALL] Local participant published with muted=${mic.isMuted}, attributes set`);
-      
+
+      logger.info(
+        `[CALL] Local participant published with muted=${mic.isMuted}, attributes set`,
+      );
+
       const mutedSub = sys.muteEvent.subscribe((x) => {
         if (x) mic.mute();
         else mic.unmute();
@@ -700,26 +794,115 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     tone.playSoftEnterSound();
 
     // Process already connected participants
-    logger.info(`[CALL] Processing ${r.remoteParticipants.size} already connected participants`);
+    logger.info(
+      `[CALL] Processing ${r.remoteParticipants.size} already connected participants`,
+    );
     for (const [uid, participant] of r.remoteParticipants) {
       await addParticipant(participant);
     }
   }
 
-  async function setupLocalSpeakingDetector(userId: string): Promise<Subscription> {
+  async function probeTurn(
+    turn: {
+      endpoint: string;
+      username: string;
+      password: string;
+    },
+    timeoutMs = 3000,
+  ): Promise<boolean> {
+    return new Promise<boolean>(async (resolve) => {
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          {
+            urls: turn.endpoint,
+            username: turn.username,
+            credential: turn.password,
+          },
+        ],
+        iceTransportPolicy: "relay",
+        bundlePolicy: "max-bundle",
+      });
+
+      let settled = false;
+      let hasRelayCandidates = false;
+
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        pc.close();
+        resolve(false);
+      };
+
+      const ok = () => {
+        if (settled) return;
+        settled = true;
+        pc.close();
+        resolve(true);
+      };
+
+      // Check for relay candidates (means TURN is working)
+      pc.onicecandidate = (event) => {
+        if (event.candidate?.type === "relay") {
+          hasRelayCandidates = true;
+          logger.info(`[TURN] Relay candidate found for ${turn.endpoint}`);
+          ok();
+        }
+      };
+
+      // Monitor ICE gathering state
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") {
+          if (hasRelayCandidates) {
+            ok();
+          } else {
+            logger.warn(`[TURN] No relay candidates found for ${turn.endpoint}`);
+            fail();
+          }
+        }
+      };
+
+      // Monitor connection state
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === "failed") {
+          fail();
+        } else if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+          ok();
+        }
+      };
+
+      try {
+        const offer = await pc.createOffer({ offerToReceiveAudio: true });
+        await pc.setLocalDescription(offer);
+      } catch (err) {
+        logger.error(`[TURN] Failed to create offer for ${turn.endpoint}`, err);
+        fail();
+      }
+
+      setTimeout(() => {
+        if (!settled) {
+          logger.warn(`[TURN] Probe timeout for ${turn.endpoint}`);
+          fail();
+        }
+      }, timeoutMs);
+    });
+  }
+
+  async function setupLocalSpeakingDetector(
+    userId: string,
+  ): Promise<Subscription> {
     // Use VU meter from AudioManager - it runs in AudioWorklet thread (much cheaper than AnalyserNode on main thread)
     const vuMeter = await audio.createVirtualVUMeter((level) => {
       // level is 0-100, threshold ~5 for speaking
       const isMicMuted = sys.microphoneMuted;
       const isSpeaking = !isMicMuted && level > 5;
-      
+
       if (isSpeaking) {
         speaking.add(userId);
       } else {
         speaking.delete(userId);
       }
     });
-    
+
     return new Subscription(() => {
       speaking.delete(userId);
       vuMeter.dispose();
@@ -744,7 +927,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   async function onTrackSubscribed(
     track: RemoteTrack,
     pub: RemoteTrackPublication,
-    participant: RemoteParticipant
+    participant: RemoteParticipant,
   ) {
     const uid = participant.identity;
     if (!participants[uid]) {
@@ -770,10 +953,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       // Check if audio graph already exists for this user
       const existing = participants[uid];
       if (existing?.audioGraph) {
-        logger.warn(`[CALL] Audio graph already exists for ${uid}, skipping duplicate setup`);
+        logger.warn(
+          `[CALL] Audio graph already exists for ${uid}, skipping duplicate setup`,
+        );
         return;
       }
-      
+
       logger.info(`[CALL] Setting up audio graph for ${uid}`);
       disposables.addSubscription(setupAudioGraph(uid, track));
     }
@@ -782,7 +967,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   function onTrackUnsubscribed(
     track: RemoteTrack,
     pub: RemoteTrackPublication,
-    participant: RemoteParticipant
+    participant: RemoteParticipant,
   ) {
     const uid = participant.identity;
 
@@ -805,10 +990,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   function setupAudioGraph(userId: string, track: RemoteTrack) {
     const pdata = participants[userId];
     if (pdata?.audioGraph) {
-      logger.error(`[CALL] setupAudioGraph called for ${userId} but audioGraph already exists! Preventing duplicate.`);
+      logger.error(
+        `[CALL] setupAudioGraph called for ${userId} but audioGraph already exists! Preventing duplicate.`,
+      );
       return new Subscription(() => {}); // Return empty subscription
     }
-    
+
     // Get saved volume and mute state
     const savedVolume = userVolume.getUserVolume(userId);
     const isMutedAll = sys.headphoneMuted;
@@ -925,7 +1112,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   });
 
   bus.onServerEvent<CallAccepted>("CallAccepted", (ev) =>
-    logger.info("[CALL] CallAccepted", ev)
+    logger.info("[CALL] CallAccepted", ev),
   );
 
   return {

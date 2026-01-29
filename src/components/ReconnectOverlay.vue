@@ -194,6 +194,7 @@ onUnmounted(() => {
                     class="active-powerup"
                   >
                     <span class="powerup-emoji">{{ powerUp.emoji }}</span>
+                    <span v-if="powerUp.stacks && powerUp.stacks > 1" class="powerup-stacks">×{{ powerUp.stacks }}</span>
                     <span class="powerup-timer">{{ powerUp.timeLeft }}с</span>
                   </div>
                 </div>
@@ -629,6 +630,13 @@ onUnmounted(() => {
 
 .active-powerup .powerup-emoji {
   font-size: 1rem;
+}
+
+.active-powerup .powerup-stacks {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fbbf24;
+  text-shadow: 0 0 4px rgba(251, 191, 36, 0.5);
 }
 
 .active-powerup .powerup-timer {

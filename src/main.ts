@@ -63,6 +63,12 @@ Sentry.init({
       colorScheme: "dark",
       autoInject: false,
     }),
+    Sentry.createSentryPiniaPlugin({
+      attachPiniaState: true,
+      addBreadcrumbs: false,
+      actionTransformer: () => null,
+      stateTransformer: () => null,
+    })
   ],
   tracesSampleRate: 1.0,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
@@ -95,7 +101,6 @@ Sentry.init({
 Sentry.setTag("branch", pkg.branch);
 Sentry.setTag("version.full", pkg.fullVersion);
 Sentry.setTag("version.build.time", pkg.lastBuildTime);
-pinia.use(createSentryPiniaPlugin());
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);

@@ -1,5 +1,13 @@
 import { ref, type Ref } from 'vue';
 
+// ==================== AI FLAG ====================
+// Enable AI in devtools: window.SNAKE_AI = true
+declare global {
+  interface Window {
+    SNAKE_AI?: boolean;
+  }
+}
+
 // ==================== TYPES ====================
 
 interface Point {
@@ -24,6 +32,8 @@ type PowerUpType =
   | 'magnet'     // 🧲 Magnet - attracts nearby items
   | 'frenzy'     // 🎉 Frenzy - spawns tons of apples
   | 'mystery'    // 📦 Mystery box - random buff or debuff
+  | 'scissors'   // ✂️ Scissors - cut snake body (buff)
+  | 'shield'     // 🛡️ Shield - resist debuffs
   // Debuffs
   | 'skull'      // 💀 Skull - lose a life
   | 'bomb'       // 💣 Bomb - explodes, clears nearby powerups
@@ -56,6 +66,7 @@ interface ActivePowerUp {
   type: string;
   emoji: string;
   timeLeft: number;
+  stacks?: number; // For additive effects
 }
 
 export type SnakeGameState = 'menu' | 'playing' | 'paused' | 'gameover';
@@ -63,23 +74,25 @@ export type SnakeGameState = 'menu' | 'playing' | 'paused' | 'gameover';
 // ==================== CONSTANTS ====================
 
 const GRID_SIZE = 20;
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 480;
+const CANVAS_WIDTH = 1000;
+const CANVAS_HEIGHT = 680;
 const GRID_WIDTH = CANVAS_WIDTH / GRID_SIZE;
 const GRID_HEIGHT = CANVAS_HEIGHT / GRID_SIZE;
 
 const POWERUP_CONFIG: Record<PowerUpType, PowerUpConfig> = {
   // Buffs (higher rarity = more common)
   apple: { emoji: '🍎', color: '#ef4444', rarity: 40, points: 10, description: 'Points +10' },
-  golden: { emoji: '🌟', color: '#fbbf24', rarity: 15, points: 25, effectDuration: 5000, description: 'Ghost 5s' },
+  golden: { emoji: '🌟', color: '#fbbf24', rarity: 15, points: 25, effectDuration: 5000, description: 'Ghost 5s (Stacks!)' },
   heart: { emoji: '❤️', color: '#ec4899', rarity: 12, points: 5, description: 'Life +1' },
-  lightning: { emoji: '⚡', color: '#3b82f6', rarity: 18, points: 15, effectDuration: 4000, description: 'Speed boost 4s' },
+  lightning: { emoji: '⚡', color: '#3b82f6', rarity: 18, points: 15, effectDuration: 4000, description: 'Speed 4s (Stacks!)' },
   snail: { emoji: '🐌', color: '#84cc16', rarity: 18, points: 20, effectDuration: 5000, description: 'Slow down 5s' },
-  diamond: { emoji: '💎', color: '#8b5cf6', rarity: 14, points: 30, effectDuration: 8000, description: 'x2 points 8s' },
+  diamond: { emoji: '💎', color: '#8b5cf6', rarity: 14, points: 30, effectDuration: 8000, description: 'x2 points 8s (Stacks!)' },
   fire: { emoji: '🔥', color: '#f97316', rarity: 12, points: 0, description: 'Shorten -3' },
-  magnet: { emoji: '🧲', color: '#06b6d4', rarity: 14, points: 15, effectDuration: 6000, description: 'Magnet 6s' },
+  magnet: { emoji: '🧲', color: '#06b6d4', rarity: 14, points: 15, effectDuration: 6000, description: 'Magnet 6s (Stacks!)' },
   frenzy: { emoji: '🎉', color: '#f472b6', rarity: 2, points: 50, effectDuration: 6000, description: 'Fruit frenzy 6s' },
   mystery: { emoji: '📦', color: '#a855f7', rarity: 10, points: 0, description: 'Random effect!' },
+  scissors: { emoji: '✂️', color: '#10b981', rarity: 13, points: 20, description: 'Cut -5 length' },
+  shield: { emoji: '🛡️', color: '#eab308', rarity: 8, points: 15, effectDuration: 10000, description: 'Debuff resist 10s' },
   // Debuffs (lower rarity = less common)
   skull: { emoji: '💀', color: '#71717a', rarity: 3, points: -20, description: '-1 life', isDebuff: true },
   bomb: { emoji: '💣', color: '#1f2937', rarity: 4, points: 0, description: 'Explosion!', isDebuff: true },
@@ -108,20 +121,29 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
   let powerUps: PowerUp[] = [];
   let particles: Particle[] = [];
   let baseSpeed = 120;
+  
+  // Performance optimization
+  let gridCanvas: HTMLCanvasElement | null = null;
+  let gridCtx: CanvasRenderingContext2D | null = null;
+  const MAX_PARTICLES = 50;
   let currentSpeed = 120;
   let lastMoveTime = 0;
 
   // Active effects
   let isGhostMode = false;
   let ghostModeEndTime = 0;
+  let ghostModeStacks = 0; // Additive effect
   let isSpeedBoost = false;
   let speedBoostEndTime = 0;
+  let speedBoostStacks = 0; // Additive effect
   let isSlowMode = false;
   let slowModeEndTime = 0;
   let isDoublePoints = false;
   let doublePointsEndTime = 0;
+  let doublePointsStacks = 0; // Additive effect
   let isMagnetMode = false;
   let magnetModeEndTime = 0;
+  let magnetModeStacks = 0; // Additive effect
   let isFrenzyMode = false;
   let frenzyModeEndTime = 0;
   let frenzyUsedThisGame = false;
@@ -129,7 +151,234 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
   let reverseControlsEndTime = 0;
   let isBlindMode = false;
   let blindModeEndTime = 0;
+  let isShieldMode = false;
+  let shieldModeEndTime = 0;
   let invincibilityEndTime = 0;
+
+  // AI state
+  let aiEnabled = false;
+  let lastAIDirection: Point | null = null;
+
+  // ==================== AI LOGIC ====================
+
+  function isAIEnabled(): boolean {
+    return typeof window !== 'undefined' && window.SNAKE_AI === true;
+  }
+
+  // Build a Set of snake body positions for O(1) lookup
+  function buildSnakeBodySet(): Set<string> {
+    const bodySet = new Set<string>();
+    // Skip head (index 0), include all body segments
+    for (let i = 1; i < snake.length; i++) {
+      bodySet.add(`${snake[i].x},${snake[i].y}`);
+    }
+    return bodySet;
+  }
+
+  function posKey(x: number, y: number): string {
+    return `${x},${y}`;
+  }
+
+  // Flood fill to count reachable cells from a position
+  function floodFillCount(startX: number, startY: number, bodySet: Set<string>, maxCount: number): number {
+    const visited = new Set<string>();
+    const queue: Point[] = [{ x: startX, y: startY }];
+    let count = 0;
+    let iterations = 0;
+    const maxIterations = 200; // Safety limit
+
+    while (queue.length > 0 && count < maxCount && iterations < maxIterations) {
+      iterations++;
+      const current = queue.shift()!;
+      const key = posKey(current.x, current.y);
+      
+      if (visited.has(key)) continue;
+      if (bodySet.has(key)) continue;
+      
+      visited.add(key);
+      count++;
+
+      // Add neighbors
+      const neighbors = [
+        { x: (current.x + 1) % GRID_WIDTH, y: current.y },
+        { x: (current.x - 1 + GRID_WIDTH) % GRID_WIDTH, y: current.y },
+        { x: current.x, y: (current.y + 1) % GRID_HEIGHT },
+        { x: current.x, y: (current.y - 1 + GRID_HEIGHT) % GRID_HEIGHT },
+      ];
+
+      for (const n of neighbors) {
+        const nKey = posKey(n.x, n.y);
+        if (!visited.has(nKey) && !bodySet.has(nKey)) {
+          queue.push(n);
+        }
+      }
+    }
+
+    return count;
+  }
+
+  function getAIDirection(): Point {
+    const head = snake[0];
+    const bodySet = isGhostMode ? new Set<string>() : buildSnakeBodySet();
+    
+    const allMoves: Point[] = [
+      { x: 0, y: -1 }, // up
+      { x: 0, y: 1 },  // down  
+      { x: -1, y: 0 }, // left
+      { x: 1, y: 0 },  // right
+    ];
+    
+    // Filter out 180-degree turns
+    const validMoves = allMoves.filter(m => 
+      !(m.x === -direction.x && m.y === -direction.y)
+    );
+    
+    // Find the best target
+    const target = findBestTarget(head);
+    
+    // Score each move
+    let bestMove = direction; // Default: keep going
+    let bestScore = -Infinity;
+
+    for (const move of validMoves) {
+      const newX = (head.x + move.x + GRID_WIDTH) % GRID_WIDTH;
+      const newY = (head.y + move.y + GRID_HEIGHT) % GRID_HEIGHT;
+      
+      let score = 0;
+      
+      // Check for immediate collision (CRITICAL)
+      if (!isGhostMode && bodySet.has(posKey(newX, newY))) {
+        score -= 100000; // Instant death
+      } else {
+        // Check space available (flood fill)
+        if (!isGhostMode) {
+          const tempBody = new Set(bodySet);
+          // Tail moves unless eating
+          const willEat = powerUps.some(p => p.x === newX && p.y === newY);
+          if (!willEat && snake.length > 1) {
+            tempBody.delete(posKey(snake[snake.length - 1].x, snake[snake.length - 1].y));
+          }
+          
+          const space = floodFillCount(newX, newY, tempBody, snake.length + 5);
+          if (space < snake.length) {
+            score -= 50000; // Death trap
+          } else if (space < snake.length + 3) {
+            score -= 5000; // Tight
+          } else {
+            score += space * 10;
+          }
+        }
+        
+        // Distance to target
+        if (target) {
+          const currentDist = getWrappedDistance(head.x, head.y, target.x, target.y);
+          const newDist = getWrappedDistance(newX, newY, target.x, target.y);
+          
+          // Getting closer is good!
+          if (newDist < currentDist) {
+            score += 1000;
+          } else if (newDist > currentDist) {
+            score -= 100;
+          }
+        }
+        
+        // Direct powerup collection
+        const directPowerup = powerUps.find(p => p.x === newX && p.y === newY);
+        if (directPowerup) {
+          const config = POWERUP_CONFIG[directPowerup.type];
+          if (config.isDebuff) {
+            score -= 5000;
+          } else {
+            score += 2000;
+          }
+        }
+        
+        // Avoid nearby debuffs
+        for (const p of powerUps) {
+          if (POWERUP_CONFIG[p.type].isDebuff) {
+            const dist = getWrappedDistance(newX, newY, p.x, p.y);
+            if (dist <= 2) {
+              score -= 500 * (3 - dist);
+            }
+          }
+        }
+      }
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+    }
+
+    return bestMove;
+  }
+  
+  function getWrappedDistance(x1: number, y1: number, x2: number, y2: number): number {
+    const dx = Math.min(Math.abs(x1 - x2), GRID_WIDTH - Math.abs(x1 - x2));
+    const dy = Math.min(Math.abs(y1 - y2), GRID_HEIGHT - Math.abs(y1 - y2));
+    return dx + dy;
+  }
+
+  function findBestTarget(head: Point): Point | null {
+    if (powerUps.length === 0) return null;
+
+    let bestTarget: PowerUp | null = null;
+    let bestScore = -Infinity;
+
+    for (const p of powerUps) {
+      const config = POWERUP_CONFIG[p.type];
+      const distance = getWrappedDistance(head.x, head.y, p.x, p.y);
+      
+      let score = 100 - distance;
+      
+      // Buff bonuses
+      if (p.type === 'apple') score += 50;
+      if (p.type === 'golden') score += 80;
+      if (p.type === 'heart') score += 70;
+      if (p.type === 'diamond') score += 40;
+      if (p.type === 'shield') score += 60;
+      if (p.type === 'scissors') score += 50;
+      if (p.type === 'fire') score += 40;
+      if (p.type === 'frenzy') score += 90;
+      
+      // Debuff penalty
+      if (config.isDebuff) score -= 500;
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = p;
+      }
+    }
+
+    return bestTarget;
+  }
+
+  function updateAI() {
+    if (!isAIEnabled()) {
+      if (aiEnabled) {
+        aiEnabled = false;
+        console.log('🐍 Snake AI disabled');
+      }
+      return;
+    }
+
+    if (!aiEnabled) {
+      aiEnabled = true;
+      console.log('🐍 Snake AI enabled!');
+    }
+
+    // Calculate best direction
+    const aiDir = getAIDirection();
+    
+    // Only change if different from current direction
+    if (aiDir.x !== direction.x || aiDir.y !== direction.y) {
+      // Clear queue and set new direction
+      inputQueue.length = 0;
+      inputQueue.push(aiDir);
+    }
+    
+    lastAIDirection = aiDir;
+  }
 
   // ==================== INITIALIZATION ====================
 
@@ -140,6 +389,30 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
     ctx = canvas.getContext('2d');
+    
+    // Create cached grid canvas
+    gridCanvas = document.createElement('canvas');
+    gridCanvas.width = CANVAS_WIDTH;
+    gridCanvas.height = CANVAS_HEIGHT;
+    gridCtx = gridCanvas.getContext('2d');
+    
+    // Draw grid once
+    if (gridCtx) {
+      gridCtx.fillStyle = '#0a0a0a';
+      gridCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      gridCtx.strokeStyle = 'rgba(63, 63, 70, 0.3)';
+      gridCtx.lineWidth = 0.5;
+      gridCtx.beginPath();
+      for (let x = 0; x <= GRID_WIDTH; x++) {
+        gridCtx.moveTo(x * GRID_SIZE, 0);
+        gridCtx.lineTo(x * GRID_SIZE, CANVAS_HEIGHT);
+      }
+      for (let y = 0; y <= GRID_HEIGHT; y++) {
+        gridCtx.moveTo(0, y * GRID_SIZE);
+        gridCtx.lineTo(CANVAS_WIDTH, y * GRID_SIZE);
+      }
+      gridCtx.stroke();
+    }
 
     // Load high score
     const saved = localStorage.getItem('argon-snake-highscore');
@@ -176,10 +449,15 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
     // Reset effects
     isGhostMode = false;
+    ghostModeStacks = 0;
     isSpeedBoost = false;
+    speedBoostStacks = 0;
     isSlowMode = false;
     isDoublePoints = false;
+    doublePointsStacks = 0;
     isMagnetMode = false;
+    magnetModeStacks = 0;
+    isShieldMode = false;
 
     baseSpeed = Math.max(60, 130 - (level.value - 1) * 10);
     currentSpeed = baseSpeed;
@@ -285,7 +563,7 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     }
 
     // Debug hotkeys (Numpad 7, 8, 9)
-    /*if (e.key === '7' || e.code === 'Numpad7') {
+    if (e.key === '7' || e.code === 'Numpad7') {
       e.preventDefault();
       spawnPowerUp('magnet');
     }
@@ -296,7 +574,11 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     if (e.key === '9' || e.code === 'Numpad9') {
       e.preventDefault();
       spawnPowerUp('lightning');
-    }*/
+    }
+    if (e.key === '4' || e.code === 'Numpad4') {
+      e.preventDefault();
+      spawnPowerUp('heart');
+    }
   }
 
   // ==================== POWER-UPS ====================
@@ -384,7 +666,10 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
       case 'golden':
         isGhostMode = true;
-        ghostModeEndTime = timestamp + (config.effectDuration || 5000);
+        ghostModeStacks++;
+        // Each stack adds duration (max 5 stacks)
+        const goldenDuration = Math.min(ghostModeStacks, 5) * (config.effectDuration || 5000);
+        ghostModeEndTime = timestamp + goldenDuration;
         break;
 
       case 'heart':
@@ -393,8 +678,11 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
       case 'lightning':
         isSpeedBoost = true;
-        speedBoostEndTime = timestamp + (config.effectDuration || 4000);
+        speedBoostStacks++;
         isSlowMode = false;
+        // Each stack adds duration (max 5 stacks)
+        const lightningDuration = Math.min(speedBoostStacks, 5) * (config.effectDuration || 4000);
+        speedBoostEndTime = timestamp + lightningDuration;
         break;
 
       case 'snail':
@@ -405,7 +693,10 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
       case 'diamond':
         isDoublePoints = true;
-        doublePointsEndTime = timestamp + (config.effectDuration || 8000);
+        doublePointsStacks++;
+        // Each stack adds duration (max 5 stacks)
+        const diamondDuration = Math.min(doublePointsStacks, 5) * (config.effectDuration || 8000);
+        doublePointsEndTime = timestamp + diamondDuration;
         break;
 
       case 'fire':
@@ -417,7 +708,10 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
       case 'magnet':
         isMagnetMode = true;
-        magnetModeEndTime = timestamp + (config.effectDuration || 6000);
+        magnetModeStacks++;
+        // Each stack adds duration (max 5 stacks)
+        const magnetDuration = Math.min(magnetModeStacks, 5) * (config.effectDuration || 6000);
+        magnetModeEndTime = timestamp + magnetDuration;
         break;
 
       case 'frenzy':
@@ -439,11 +733,25 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
         handlePowerUp(fakePowerUp, timestamp);
         return;
 
+      case 'scissors':
+        const cutCount = Math.min(5, snake.length - 3);
+        for (let i = 0; i < cutCount; i++) {
+          snake.pop();
+        }
+        break;
+
+      case 'shield':
+        isShieldMode = true;
+        shieldModeEndTime = timestamp + (config.effectDuration || 10000);
+        break;
+
       case 'skull':
-        lives.value = Math.max(0, lives.value - 1);
-        if (lives.value <= 0) {
-          handleDeath();
-          return;
+        if (!isShieldMode) {
+          lives.value = Math.max(0, lives.value - 1);
+          if (lives.value <= 0) {
+            handleDeath();
+            return;
+          }
         }
         break;
 
@@ -455,7 +763,7 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
         }
         powerUps = powerUps.filter(p => {
           const dist = Math.abs(p.x - bombX) + Math.abs(p.y - bombY);
-          if (dist < 4) {
+          if (dist < 6) {
             createParticles(p.x * GRID_SIZE + GRID_SIZE / 2, p.y * GRID_SIZE + GRID_SIZE / 2, '#f97316');
             return false;
           }
@@ -464,19 +772,25 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
         break;
 
       case 'reverse':
-        isReverseControls = true;
-        reverseControlsEndTime = timestamp + (config.effectDuration || 5000);
+        if (!isShieldMode) {
+          isReverseControls = true;
+          reverseControlsEndTime = timestamp + (config.effectDuration || 5000);
+        }
         break;
 
       case 'blind':
-        isBlindMode = true;
-        blindModeEndTime = timestamp + (config.effectDuration || 4000);
+        if (!isShieldMode) {
+          isBlindMode = true;
+          blindModeEndTime = timestamp + (config.effectDuration || 4000);
+        }
         break;
 
       case 'grow':
-        for (let i = 0; i < 5; i++) {
-          const tail = snake[snake.length - 1];
-          snake.push({ ...tail });
+        if (!isShieldMode) {
+          for (let i = 0; i < 5; i++) {
+            const tail = snake[snake.length - 1];
+            snake.push({ ...tail });
+          }
         }
         break;
     }
@@ -510,6 +824,12 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
 
     if (elapsed >= currentSpeed) {
       lastMoveTime = timestamp;
+      
+      // AI decides BEFORE the move
+      if (isAIEnabled()) {
+        updateAI();
+      }
+      
       update(timestamp);
     }
 
@@ -549,15 +869,27 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     const activeEffects: ActivePowerUp[] = [];
 
     if (isGhostMode && timestamp < ghostModeEndTime) {
-      activeEffects.push({ type: 'ghost', emoji: '🌟', timeLeft: Math.ceil((ghostModeEndTime - timestamp) / 1000) });
+      activeEffects.push({ 
+        type: 'ghost', 
+        emoji: '🌟', 
+        timeLeft: Math.ceil((ghostModeEndTime - timestamp) / 1000),
+        stacks: ghostModeStacks
+      });
     } else {
       isGhostMode = false;
+      ghostModeStacks = 0;
     }
 
     if (isSpeedBoost && timestamp < speedBoostEndTime) {
-      activeEffects.push({ type: 'speed', emoji: '⚡', timeLeft: Math.ceil((speedBoostEndTime - timestamp) / 1000) });
+      activeEffects.push({ 
+        type: 'speed', 
+        emoji: '⚡', 
+        timeLeft: Math.ceil((speedBoostEndTime - timestamp) / 1000),
+        stacks: speedBoostStacks
+      });
     } else {
       isSpeedBoost = false;
+      speedBoostStacks = 0;
     }
 
     if (isSlowMode && timestamp < slowModeEndTime) {
@@ -567,15 +899,27 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     }
 
     if (isDoublePoints && timestamp < doublePointsEndTime) {
-      activeEffects.push({ type: 'double', emoji: '💎', timeLeft: Math.ceil((doublePointsEndTime - timestamp) / 1000) });
+      activeEffects.push({ 
+        type: 'double', 
+        emoji: '💎', 
+        timeLeft: Math.ceil((doublePointsEndTime - timestamp) / 1000),
+        stacks: doublePointsStacks
+      });
     } else {
       isDoublePoints = false;
+      doublePointsStacks = 0;
     }
 
     if (isMagnetMode && timestamp < magnetModeEndTime) {
-      activeEffects.push({ type: 'magnet', emoji: '🧲', timeLeft: Math.ceil((magnetModeEndTime - timestamp) / 1000) });
+      activeEffects.push({ 
+        type: 'magnet', 
+        emoji: '🧲', 
+        timeLeft: Math.ceil((magnetModeEndTime - timestamp) / 1000),
+        stacks: magnetModeStacks
+      });
     } else {
       isMagnetMode = false;
+      magnetModeStacks = 0;
     }
 
     if (isFrenzyMode && timestamp < frenzyModeEndTime) {
@@ -596,8 +940,14 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
       isBlindMode = false;
     }
 
+    if (isShieldMode && timestamp < shieldModeEndTime) {
+      activeEffects.push({ type: 'shield', emoji: '🛡️', timeLeft: Math.ceil((shieldModeEndTime - timestamp) / 1000) });
+    } else {
+      isShieldMode = false;
+    }
+
     if (timestamp < invincibilityEndTime) {
-      activeEffects.push({ type: 'invincible', emoji: '🛡️', timeLeft: Math.ceil((invincibilityEndTime - timestamp) / 1000) });
+      activeEffects.push({ type: 'invincible', emoji: '⭐', timeLeft: Math.ceil((invincibilityEndTime - timestamp) / 1000) });
     }
 
     activePowerUps.value = activeEffects;
@@ -625,13 +975,19 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
     if (newHead.y >= GRID_HEIGHT) newHead.y = 0;
 
     if (isMagnetMode) {
+      // Optimized magnet: only check nearby powerups
+      const magnetRadius = 5;
       powerUps.forEach(p => {
         const dx = newHead.x - p.x;
         const dy = newHead.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 5 && dist > 0) {
-          p.x += Math.sign(dx);
-          p.y += Math.sign(dy);
+        // Fast distance check using Manhattan distance first
+        const manhattanDist = Math.abs(dx) + Math.abs(dy);
+        if (manhattanDist < magnetRadius * 1.5) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < magnetRadius && dist > 0) {
+            p.x += Math.sign(dx);
+            p.y += Math.sign(dy);
+          }
         }
       });
     }
@@ -689,19 +1045,27 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
       inputQueue = [];
 
       isGhostMode = false;
+      ghostModeStacks = 0;
       isSpeedBoost = false;
+      speedBoostStacks = 0;
       isSlowMode = false;
       isMagnetMode = false;
+      magnetModeStacks = 0;
       isReverseControls = false;
       isBlindMode = false;
+      isShieldMode = false;
     }
   }
 
   // ==================== PARTICLES ====================
 
   function createParticles(x: number, y: number, color: string) {
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8;
+    // Limit particle creation if at max
+    if (particles.length > MAX_PARTICLES) return;
+    
+    const count = particles.length > MAX_PARTICLES - 8 ? 4 : 8;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
       particles.push({
         x,
         y,
@@ -716,14 +1080,21 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
   }
 
   function updateParticles() {
-    particles.forEach(p => {
+    // Faster update with early exit
+    if (particles.length === 0) return;
+    
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
       p.vx *= 0.95;
       p.vy *= 0.95;
       p.life -= 0.03;
-    });
-    particles = particles.filter(p => p.life > 0);
+      
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+      }
+    }
   }
 
   // ==================== RENDERING ====================
@@ -731,44 +1102,39 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
   function render() {
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Draw grid
-    ctx.strokeStyle = 'rgba(63, 63, 70, 0.3)';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= GRID_WIDTH; x++) {
-      ctx.beginPath();
-      ctx.moveTo(x * GRID_SIZE, 0);
-      ctx.lineTo(x * GRID_SIZE, CANVAS_HEIGHT);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= GRID_HEIGHT; y++) {
-      ctx.beginPath();
-      ctx.moveTo(0, y * GRID_SIZE);
-      ctx.lineTo(CANVAS_WIDTH, y * GRID_SIZE);
-      ctx.stroke();
+    // Use cached grid (much faster)
+    if (gridCanvas) {
+      ctx.drawImage(gridCanvas, 0, 0);
+    } else {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
-    // Draw power-ups
+    // Draw power-ups (optimized)
+    const now = performance.now();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
     powerUps.forEach(p => {
       const config = POWERUP_CONFIG[p.type];
       const x = p.x * GRID_SIZE + GRID_SIZE / 2;
       const y = p.y * GRID_SIZE + GRID_SIZE / 2;
 
-      const glowColor = config.isDebuff ? '#ef4444' : config.color;
-      const gradient = ctx!.createRadialGradient(x, y, 0, x, y, GRID_SIZE);
-      gradient.addColorStop(0, glowColor + '40');
-      gradient.addColorStop(1, 'transparent');
-      ctx!.fillStyle = gradient;
-      ctx!.fillRect(p.x * GRID_SIZE - 5, p.y * GRID_SIZE - 5, GRID_SIZE + 10, GRID_SIZE + 10);
+      // Simplified glow - only for important items
+      if (config.rarity < 10 || config.isDebuff) {
+        const glowColor = config.isDebuff ? '#ef4444' : config.color;
+        const gradient = ctx!.createRadialGradient(x, y, 0, x, y, GRID_SIZE);
+        gradient.addColorStop(0, glowColor + '40');
+        gradient.addColorStop(1, 'transparent');
+        ctx!.fillStyle = gradient;
+        ctx!.fillRect(p.x * GRID_SIZE - 5, p.y * GRID_SIZE - 5, GRID_SIZE + 10, GRID_SIZE + 10);
+      }
 
       const pulseSpeed = config.isDebuff ? 100 : 200;
-      const pulse = 1 + Math.sin(performance.now() / pulseSpeed) * 0.1;
+      const pulse = 1 + Math.sin(now / pulseSpeed) * 0.1;
 
       if (config.isDebuff) {
-        ctx!.strokeStyle = `rgba(239, 68, 68, ${0.3 + Math.sin(performance.now() / 150) * 0.3})`;
+        ctx!.strokeStyle = `rgba(239, 68, 68, ${0.3 + Math.sin(now / 150) * 0.3})`;
         ctx!.lineWidth = 2;
         ctx!.beginPath();
         ctx!.arc(x, y, GRID_SIZE * 0.6, 0, Math.PI * 2);
@@ -776,24 +1142,30 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
       }
 
       ctx!.font = `${14 * pulse}px sans-serif`;
-      ctx!.textAlign = 'center';
-      ctx!.textBaseline = 'middle';
       ctx!.fillText(config.emoji, x, y);
     });
 
-    // Draw snake
-    const isInvincible = performance.now() < invincibilityEndTime;
+    // Draw snake (optimized)
+    const isInvincible = now < invincibilityEndTime;
+    const invincibleBlink = isInvincible && Math.floor(now / 100) % 2 === 0;
+    const ghostAlpha = isGhostMode ? 0.6 + Math.sin(now / 100) * 0.2 : 1;
+    
     snake.forEach((segment, index) => {
       const x = segment.x * GRID_SIZE;
       const y = segment.y * GRID_SIZE;
       const size = GRID_SIZE - 2;
 
-      if (isInvincible && Math.floor(performance.now() / 100) % 2 === 0) {
-        ctx!.globalAlpha = 0.3;
-      }
+      // Set alpha once per segment
+      ctx!.globalAlpha = invincibleBlink ? 0.3 : ghostAlpha;
 
-      if (isGhostMode) {
-        ctx!.globalAlpha = 0.6 + Math.sin(performance.now() / 100) * 0.2;
+      // Shield effect - golden glow (only on head)
+      if (isShieldMode && index === 0) {
+        const shieldPulse = 0.5 + Math.sin(now / 200) * 0.3;
+        ctx!.strokeStyle = `rgba(234, 179, 8, ${shieldPulse})`;
+        ctx!.lineWidth = 3;
+        ctx!.beginPath();
+        ctx!.arc(x + size / 2 + 1, y + size / 2 + 1, size * 0.6, 0, Math.PI * 2);
+        ctx!.stroke();
       }
 
       if (index === 0) {
@@ -809,7 +1181,7 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
         ctx!.roundRect(x + 1, y + 1, size, size, 6);
         ctx!.fill();
 
-        // Eyes
+        // Eyes (batched fillRect calls)
         ctx!.fillStyle = '#fff';
         const eyeOffset = 4;
         const eyeSize = 3;
@@ -839,19 +1211,30 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
         ctx!.roundRect(x + 2, y + 2, size - 2, size - 2, 4);
         ctx!.fill();
       }
-
-      ctx!.globalAlpha = 1;
-    });
-
-    // Draw particles
-    particles.forEach(p => {
-      ctx!.globalAlpha = p.life;
-      ctx!.fillStyle = p.color;
-      ctx!.beginPath();
-      ctx!.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx!.fill();
     });
     ctx!.globalAlpha = 1;
+
+    // Draw particles (batched by color)
+    if (particles.length > 0) {
+      const particlesByColor = new Map<string, Particle[]>();
+      particles.forEach(p => {
+        if (!particlesByColor.has(p.color)) {
+          particlesByColor.set(p.color, []);
+        }
+        particlesByColor.get(p.color)!.push(p);
+      });
+      
+      particlesByColor.forEach((parts, color) => {
+        ctx!.fillStyle = color;
+        parts.forEach(p => {
+          ctx!.globalAlpha = p.life;
+          ctx!.beginPath();
+          ctx!.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+          ctx!.fill();
+        });
+      });
+      ctx!.globalAlpha = 1;
+    }
 
     // Draw blind mode fog
     if (isBlindMode) {
@@ -869,11 +1252,22 @@ export function useSnakeGame(canvasRef: Ref<HTMLCanvasElement | null>) {
       ctx!.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
+    // Draw AI indicator
+    if (isAIEnabled()) {
+      ctx!.fillStyle = 'rgba(139, 92, 246, 0.8)';
+      ctx!.font = 'bold 14px system-ui, sans-serif';
+      ctx!.textAlign = 'left';
+      ctx!.textBaseline = 'top';
+      ctx!.fillText('🤖 AI MODE', 10, 10);
+    }
+
     // Draw overlays
     if (gameState.value === 'menu') {
       drawOverlay('Snake Game 🐍', 'Press SPACE or ENTER to start', [
         'Controls: ← ↑ → ↓ or WASD',
         'ESC / P - pause',
+        '',
+        '💡 DevTools: window.SNAKE_AI = true',
       ]);
     } else if (gameState.value === 'paused') {
       drawOverlay('PAUSED', 'Press ESC or P to continue');
