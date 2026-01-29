@@ -884,13 +884,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         // ICE candidate exchange
         pc1.onicecandidate = (e) => {
           if (e.candidate) {
-            pc2.addIceCandidate(e.candidate).catch(fail);
+            pc2?.addIceCandidate(e.candidate).catch(fail);
           }
         };
 
         pc2.onicecandidate = (e) => {
           if (e.candidate) {
-            pc1.addIceCandidate(e.candidate).catch(fail);
+            pc1?.addIceCandidate(e.candidate).catch(fail);
           }
         };
 
