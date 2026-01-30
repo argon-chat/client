@@ -66,6 +66,12 @@ const routes = [
               import("@/components/home/views/overlay/AudioDebugView.vue"),
           },
           {
+            path: "nv12Debug",
+            name: "HomeNV12Debug",
+            component: () =>
+              import("@/components/home/views/overlay/nv12Debug/Nv12DebugView.vue"),
+          },
+          {
             path: "chat/:userId",
             name: "HomeChat",
             component: () => import("@/components/home/views/ChatShell.vue"),

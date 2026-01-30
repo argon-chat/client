@@ -1446,6 +1446,7 @@ export interface IHostProc extends IIonService
   startStreaming(parameters: StreamBegin): Promise<void>;
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
+  startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
 }
 
 
@@ -1500,6 +1501,7 @@ export interface IHostProc extends IIonService
   startStreaming(parameters: StreamBegin): Promise<void>;
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
+  startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
 }
 
 
@@ -1971,6 +1973,21 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeEndArray();
           
     return await req.callAsyncT<IValidatePasskeyResult>("IValidatePasskeyResult", writer.data, this.signal);
+  }
+  async startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string> {
+    const req = new IonRequest(this.ctx, "IHostProc", "startSharedTextureWithStreamingByMonitor");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, displayIndex);
+    IonFormatterStorage.get<i4>('i4').write(writer, textureWidth);
+    IonFormatterStorage.get<i4>('i4').write(writer, textureHeight);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
   }
 
 }

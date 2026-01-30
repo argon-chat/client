@@ -26,7 +26,7 @@ import { useNotifications } from '@/composables/useNotifications';
 
 const { t } = useLocale();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'>('tab', {
     default: 'dashboard'
 });
 const recentStore = useRecentChatsStore();
@@ -39,7 +39,7 @@ const softphoneOpened = ref(false);
 const notifications = useNotifications();
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug'): void
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'): void
 }>();
 
 async function loadChats() {
@@ -146,6 +146,12 @@ onUnmounted(() => {
                 class="justify-start">
                 <IconHeadphones class="w-6 h-6 mr-2" />
                 Audio Debug
+                <NBadge :value="0" :max="50" :offset="[10, -8]" />
+            </Button>
+            <Button @click="emit('select', 'nv12Debug')" :variant="tab == 'nv12Debug' ? 'outline' : 'ghost'"
+                class="justify-start">
+                <IconHeadphones class="w-6 h-6 mr-2" />
+                NV12 Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
             <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"
