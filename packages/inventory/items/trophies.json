@@ -1,29 +1,29 @@
 [
     {
         "id": "trophy_coin_argxstaff",
-        "desc": "trophy_desc",
-        "name": "trophy_name",
+        "desc": "trophy_coin_argxstaff_desc",
+        "name": "trophy_coin_argxstaff_name",
         "class": "relic",
         "size": 512
     },
     {
         "id": "trophy_coin_argon_contributor",
-        "desc": "trophy_desc",
-        "name": "trophy_name",
+        "desc": "trophy_coin_argon_contributor_desc",
+        "name": "trophy_coin_argon_contributor_name",
         "class": "relic",
         "size": 512
     },
     {
         "id": "trophy_coin_year_2026_coin",
-        "desc": "trophy_desc",
-        "name": "trophy_name",
+        "desc": "trophy_coin_year_2026_coin_desc",
+        "name": "trophy_coin_year_2026_coin_name",
         "class": "relic",
         "size": 512
     },
     {
         "id": "trophy_coin_secret_impact_1",
-        "desc": "trophy_desc",
-        "name": "trophy_name",
+        "desc": "trophy_coin_secret_impact_1_desc",
+        "name": "trophy_coin_secret_impact_1_name",
         "class": "relic",
         "size": 512
     }

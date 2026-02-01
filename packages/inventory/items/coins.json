@@ -14,13 +14,6 @@
         "size": 512
     },
     {
-        "id": "coin_argon_contributor",
-        "desc": "item_coin_argon_contributor_desc",
-        "name": "item_coin_argon_contributor_name",
-        "class": "rare",
-        "size": 512
-    },
-    {
         "id": "coin_argon_secret_impact_1",
         "desc": "item_coin_argon_secret_impact_1_desc",
         "name": "item_coin_argon_secret_impact_1_name",
