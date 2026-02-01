@@ -1,0 +1,65 @@
+[
+    {
+        "id": "coin_argxstaff",
+        "desc": "item_coin_argxstaff_desc",
+        "name": "item_coin_argxstaff_name",
+        "class": "relic",
+        "size": 512
+    },
+    {
+        "id": "coin_argon_contributor",
+        "desc": "item_coin_argon_contributor_desc",
+        "name": "item_coin_argon_contributor_name",
+        "class": "rare",
+        "size": 512
+    },
+    {
+        "id": "coin_argon_contributor",
+        "desc": "item_coin_argon_contributor_desc",
+        "name": "item_coin_argon_contributor_name",
+        "class": "rare",
+        "size": 512
+    },
+    {
+        "id": "coin_argon_secret_impact_1",
+        "desc": "item_coin_argon_secret_impact_1_desc",
+        "name": "item_coin_argon_secret_impact_1_name",
+        "class": "relic",
+        "size": 512
+    },
+    {
+        "id": "coin_year_2026_lvl1",
+        "desc": "item_coin_year_2026_lvl1_desc",
+        "name": "item_coin_year_2026_lvl1_name",
+        "class": "common",
+        "size": 512
+    },
+    {
+        "id": "coin_year_2026_lvl2",
+        "desc": "item_coin_year_2026_lvl2_desc",
+        "name": "item_coin_year_2026_lvl2_name",
+        "class": "rare",
+        "size": 512
+    },
+    {
+        "id": "coin_year_2026_lvl3",
+        "desc": "item_coin_year_2026_lvl3_desc",
+        "name": "item_coin_year_2026_lvl3_name",
+        "class": "rare",
+        "size": 512
+    },
+    {
+        "id": "coin_year_2026_lvl4",
+        "desc": "item_coin_year_2026_lvl4_desc",
+        "name": "item_coin_year_2026_lvl4_name",
+        "class": "legendary",
+        "size": 512
+    },
+    {
+        "id": "coin_year_2026_lvl5",
+        "desc": "item_coin_year_2026_lvl5_desc",
+        "name": "item_coin_year_2026_lvl5_name",
+        "class": "relic",
+        "size": 512
+    }
+]

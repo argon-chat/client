@@ -1,0 +1,30 @@
+[
+    {
+        "id": "box_common",
+        "desc": "item_box_common_desc",
+        "name": "item_box_common_name",
+        "class": "common",
+        "size": 512
+    },
+    {
+        "id": "box_rare",
+        "desc": "item_box_rare_desc",
+        "name": "item_box_rare_name",
+        "class": "rare",
+        "size": 512
+    },
+    {
+        "id": "box_legendary",
+        "desc": "item_box_legendary_desc",
+        "name": "item_box_legendary_name",
+        "class": "legendary",
+        "size": 512
+    },
+    {
+        "id": "box_relic",
+        "desc": "item_box_relic_desc",
+        "name": "item_box_relic_name",
+        "class": "relic",
+        "size": 512
+    }
+]

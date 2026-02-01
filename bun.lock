@@ -12,6 +12,7 @@
         "@argon/core": "workspace:*",
         "@argon/glue": "workspace:*",
         "@argon/i18n": "workspace:*",
+        "@argon/inventory": "workspace:*",
         "@argon/passkey": "workspace:*",
         "@argon/softphone": "workspace:*",
         "@argon/soundfx": "workspace:*",
@@ -176,6 +177,10 @@
         "vue": "^3.5.0",
       },
     },
+    "packages/inventory": {
+      "name": "@argon/inventory",
+      "version": "1.0.0",
+    },
     "packages/passkey": {
       "name": "@argon/passkey",
       "version": "1.0.0",
@@ -276,6 +281,8 @@
     "@argon/glue": ["@argon/glue@workspace:packages/glue"],
 
     "@argon/i18n": ["@argon/i18n@workspace:packages/i18n"],
+
+    "@argon/inventory": ["@argon/inventory@workspace:packages/inventory"],
 
     "@argon/passkey": ["@argon/passkey@workspace:packages/passkey"],
 

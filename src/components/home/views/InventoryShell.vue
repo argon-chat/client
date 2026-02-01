@@ -5,7 +5,7 @@ import InventoryItemGranted from './InventoryItemGranted.vue';
 import { useApi } from '@/store/apiStore';
 import { logger } from '@argon/core';
 import { InventoryItem, RedeemError } from '@argon/glue';
-import itemsData from "@argon/assets/icons/inventory/items.json";
+import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from '@argon/ui/context-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconFilter, IconSortAscending, IconSparkles } from '@tabler/icons-vue';
@@ -14,17 +14,6 @@ import { Button } from '@argon/ui/button';
 import { useLocale } from '@/store/localeStore';
 import { useToast } from '@argon/ui/toast';
 import { useNotifications } from '@/composables/useNotifications';
-
-const effects = import.meta.glob('/packages/assets/icons/inventory/*.webm', { eager: true, import: 'default' }) as Record<string, string>;
-const icons = import.meta.glob('/packages/assets/icons/inventory/*.png', { eager: true, import: 'default' }) as Record<string, string>;
-
-export interface ItemDef {
-  id: string;
-  desc: string;
-  name: string;
-  class: "common" | "rare" | "legendary" | "relic" | string;
-  size: number;
-}
 
 export type InventoryItemView = InventoryItem & ItemDef & {
   icon: string;
@@ -44,8 +33,8 @@ const isDevMode = computed(() => {
   return configStore.devModeEnabled;
 });
 
-const allItems = ref<InventoryItemView[]>([]);
-const itemsByInstanceId = computed(() => new Map(allItems.value.map(i => [i.instanceId, i])));
+const myInventoryItems = ref<InventoryItemView[]>([]);
+const itemsByInstanceId = computed(() => new Map(myInventoryItems.value.map(i => [i.instanceId, i])));
 
 const grantQueue = ref<InventoryItemView[]>([]);
 const loading = ref(true);
@@ -59,10 +48,8 @@ const selected = ref<InventoryItemView | null>(null);
 const selectedRarity = ref<string | null>(null);
 const sortBy = ref<'name' | 'rarity' | 'recent'>('recent');
 
-const rarities = ['common', 'rare', 'legendary', 'relic'] as const;
-
 const filteredItems = computed(() => {
-  let items = [...allItems.value];
+  let items = [...myInventoryItems.value];
   
   // Apply rarity filter
   if (selectedRarity.value) {
@@ -87,28 +74,6 @@ const filteredItems = computed(() => {
   return items;
 });
 
-const getVideoForItem = (item: InventoryItemView | null) => {
-  return effects[`/packages/assets/icons/inventory/effect_${item?.class}.webm`];
-}
-
-const getIconForItem = (item: ItemDef | null): string => {
-  return icons[`/packages/assets/icons/inventory/${item?.id}.png`];
-}
-
-const rarityClasses = {
-  common: "bg-gradient-to-r from-gray-400 via-gray-300 via-50% via-gray-500 to-gray-400 font-bold bg-clip-text text-transparent",
-  rare: "bg-gradient-to-r from-blue-400 via-cyan-300 via-50% via-blue-500 to-blue-400 font-bold bg-clip-text text-transparent",
-  legendary: "bg-gradient-to-r from-amber-400 via-yellow-300 via-50% via-amber-500 to-amber-400 font-bold bg-clip-text text-transparent",
-  relic: "bg-gradient-to-r from-purple-400 via-pink-300 via-50% via-red-400 to-purple-400 font-bold bg-clip-text text-transparent",
-} as Record<string, string>;
-
-const rarityClassesCards = {
-  common: "border-gray-400 hover:border-gray-300 hover:shadow-gray-400/50",
-  rare: "border-blue-500 hover:border-blue-400 hover:shadow-blue-500/50",
-  legendary: "border-amber-500 hover:border-amber-400 hover:shadow-amber-500/50",
-  relic: "border-purple-500 hover:border-purple-400 hover:shadow-purple-500/50",
-} as Record<string, string>;
-
 onMounted(async () => {
   await reloadData();
 });
@@ -121,12 +86,12 @@ async function reloadData() {
       inventory.value.GetNotifications()
     ]);
 
-    allItems.value = myItems.map(it => {
-      const meta = (itemsData.items as ItemDef[]).find(x => x.id === it.id);
+    myInventoryItems.value = myItems.map(it => {
+      const meta = itemsById[it.id];
       const baseItem = {
         ...it,
-        ...(meta ?? { id: it.id, desc: "", name: it.id, class: "", size: 0 }),
-        icon: getIconForItem(meta ?? null),
+        ...(meta ?? { id: it.id, desc: "", name: it.id, class: "common" as ItemQuality, size: 0 }),
+        icon: meta ? (getItemIcon(meta.id) ?? '') : '',
       };
       
       // Translate name and desc using locale keys
@@ -256,13 +221,7 @@ watch(open, (v) => {
 
 // Debug function to test item grant effects
 function debugGrantTestItem() {
-  const testItems: ItemDef[] = [
-    { id: 'magic_coal', desc: 'item_magic_coal_desc', name: 'item_magic_coal_name', class: 'rare', size: 1 },
-    { id: 'box_legendary', desc: 'item_box_legendary_desc', name: 'item_box_legendary_name', class: 'legendary', size: 1 },
-    { id: 'coin_argxstaff', desc: 'item_coin_argxstaff_desc', name: 'item_coin_argxstaff_name', class: 'relic', size: 1 },
-  ];
-  
-  const randomItem = testItems[Math.floor(Math.random() * testItems.length)];
+  const randomItem = allItems[Math.floor(Math.random() * allItems.length)];
   const testItem: InventoryItemView = {
     instanceId: `debug-${Date.now()}`,
     giftable: true,
@@ -271,7 +230,7 @@ function debugGrantTestItem() {
     usableVector: null,
     receivedFrom: null,
     ttl: null,
-    icon: getIconForItem(randomItem),
+    icon: getItemIcon(randomItem.id) ?? '',
     ...randomItem,
     // Translate name and desc for test items
     name: t(randomItem.name),
@@ -423,8 +382,7 @@ function debugGrantTestItem() {
     @primary="onGrantedClose" 
     @secondary="share"
     :primary-action="t('inventory_claim')" 
-    :getCardClass="i => rarityClasses[i ?? 'rare']" 
-    :video-src="getVideoForItem(selected)" 
+    :getCardClass="(i: string | null) => rarityClasses[(i as ItemQuality) ?? 'rare']" 
   />
 
   <InventoryItemGranted 
@@ -433,7 +391,7 @@ function debugGrantTestItem() {
     @primary="useItem()"
     :primary-action="selected?.usable ? t('inventory_use') : undefined" 
     :title="t('inventory_item_details')"
-    :getCardClass="i => rarityClasses[i ?? 'rare']" 
+    :getCardClass="(i: string | null) => rarityClasses[(i as ItemQuality) ?? 'rare']" 
   />
 </template>
 

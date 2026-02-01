@@ -29,6 +29,7 @@
     "@argon/storage": "workspace:*",
     "@argon/theme": "workspace:*",
     "@argon/ui": "workspace:*",
+    "@argon/inventory": "workspace:*",
     "@floating-ui/vue": "^1.1.6",
     "@internationalized/date": "^3.5.0",
     "@microsoft/signalr": "^10.0.0",
