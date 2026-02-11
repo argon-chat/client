@@ -1,0 +1,18 @@
+{
+  "name": "@argon/playframe",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "happy-dom": "^20.6.0"
+  }
+}

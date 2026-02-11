@@ -1,0 +1,162 @@
+/**
+ * @argon/playframe
+ * 
+ * Shared protocol definitions and utilities for Argon PlayFrame.
+ * This package is used by both the host (playframe-host) and SDK (playframe-sdk).
+ */
+
+// Protocol
+export {
+  PROTOCOL_VERSION,
+  PROTOCOL_MIN_VERSION,
+  PROTOCOL_MAX_VERSION,
+  CURRENT_PROTOCOL,
+  type ProtocolVersion,
+  type MessageEnvelope,
+  type ResponseEnvelope,
+  type MessageType,
+  type ProtocolError,
+  type ErrorCode,
+  generateMessageId,
+  createMessage,
+  createResponse,
+  isValidMessage,
+  isResponse,
+  isVersionCompatible,
+} from './protocol';
+
+// Types
+export type {
+  EphemeralUser,
+  ParticipantRole,
+  ParticipantState,
+  EphemeralSpace,
+  SpaceType,
+  GameContext,
+  GameInfo,
+  SessionInfo,
+  SessionState,
+  LayoutConfig,
+  LayoutMode,
+  AspectRatio,
+  Dimensions,
+  LayoutState,
+  Insets,
+  Permission,
+  GrantedPermissions,
+  PermissionRequest,
+  HostCapabilities,
+  InputType,
+  AudioState,
+  AudioContextRequest,
+  InputCapabilities,
+  GamepadInfo,
+  HeartbeatData,
+  DiagnosticLog,
+  // WebRTC P2P
+  IceServer,
+  IceServersConfig,
+  RtcSignalType,
+  RtcIceCandidate,
+  RtcSignalMessage,
+  RtcPeerConnectionState,
+  RtcPeerState,
+  RtcDataChannelConfig,
+} from './types';
+
+export { BLOCKED_KEYS, BLOCKED_COMBINATIONS, RTC_CHANNEL_PRESETS } from './types';
+
+// Messages
+export type {
+  HandshakePayload,
+  HandshakeAckPayload,
+  ReadyPayload,
+  PausePayload,
+  PauseReason,
+  ResumePayload,
+  TerminatePayload,
+  TerminateReason,
+  GetContextPayload,
+  GetContextResponse,
+  GetUserPayload,
+  GetUserResponse,
+  GetParticipantsPayload,
+  GetParticipantsResponse,
+  LayoutRequestPayload,
+  LayoutRequestResponse,
+  LayoutUpdatePayload,
+  ResizeRequestPayload,
+  ResizeRequestResponse,
+  InputCapabilitiesPayload,
+  InputCapabilitiesResponse,
+  PointerLockRequestPayload,
+  PointerLockResponse,
+  KeyboardFocusRequestPayload,
+  KeyboardFocusResponse,
+  GamepadRequestPayload,
+  GamepadResponse,
+  AudioContextRequestPayload,
+  AudioContextResponse,
+  AudioStatePayload,
+  // WebRTC P2P
+  RtcGetIceServersPayload,
+  RtcGetIceServersResponse,
+  RtcSignalPayload,
+  RtcSignalResponse,
+  RtcPeerStatePayload,
+  // Other
+  PingPayload,
+  PongPayload,
+  ErrorPayload,
+  LogPayload,
+  MessagePayloadMap,
+  ResponsePayloadMap,
+  TypedMessage,
+  TypedResponse,
+} from './messages';
+
+// Constants
+export {
+  PLAYFRAME_PROTOCOL_ID,
+  MESSAGE_CHANNEL,
+  DEFAULT_HEARTBEAT_INTERVAL,
+  HEARTBEAT_TIMEOUT,
+  HANDSHAKE_TIMEOUT,
+  REQUEST_TIMEOUT,
+  DEFAULT_SANDBOX_FLAGS,
+  OPTIONAL_SANDBOX_FLAGS,
+  BASE_CSP_DIRECTIVES,
+  ASPECT_RATIOS,
+  MIN_GAME_SIZE,
+  MAX_GAME_SIZE,
+  ALWAYS_BLOCKED_KEYS,
+  ALWAYS_BLOCKED_COMBOS,
+  GAME_RELEVANT_KEYS,
+  DEFAULT_SAMPLE_RATE,
+  DEFAULT_LATENCY_HINT,
+  BACKGROUND_FPS_LIMIT,
+  DEFAULT_FPS_LIMIT,
+  MAX_FPS_LIMIT,
+  MIN_FRAME_TIME,
+} from './constants';
+
+// Utilities
+export {
+  isPlayFrameMessage,
+  RequestTracker,
+  type PendingRequest,
+  calculateAspectFitDimensions,
+  calculatePixelPerfectDimensions,
+  clampDimensions,
+  shouldBlockKey,
+  normalizeKeyEvent,
+  type NormalizedKeyEvent,
+  buildCspHeader,
+  parseCspHeader,
+  mergeCspDirectives,
+  createFrameLimiter,
+  debounce,
+  throttle,
+  EventEmitter,
+  type EventHandler,
+} from './utils';
