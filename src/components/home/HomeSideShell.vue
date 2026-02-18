@@ -127,7 +127,7 @@ onUnmounted(() => {
                 {{ t("friends") }}
                 <NBadge :value="notifications.pendingFriendRequestsCount.value" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
+            <Button v-if="inventoryActive" @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
                 {{ t("inventory") }}

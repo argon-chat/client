@@ -173,7 +173,7 @@
             </div>
 
             <!-- Passkeys Section -->
-            <div class="rounded-lg border p-4 space-y-4">
+            <div v-if="passkeyActive" class="rounded-lg border p-4 space-y-4">
               <div class="flex items-center justify-between">
                 <div class="space-y-0.5">
                   <div class="text-sm font-medium flex items-center gap-2">
@@ -243,7 +243,7 @@
 
           <div class="space-y-3">
             <!-- Auto-delete account -->
-            <div class="flex flex-row items-center justify-between rounded-lg border border-destructive/30 p-4">
+            <div v-if="autoDeleteAccountActive" class="flex flex-row items-center justify-between rounded-lg border border-destructive/30 p-4">
               <div class="space-y-0.5 flex-1">
                 <div class="text-sm font-medium">{{ t("auto_delete_account") }}</div>
                 <div class="text-xs text-muted-foreground">
@@ -625,6 +625,7 @@ import { logger } from "@argon/core";
 import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@argon/glue";
 import { useBus } from "@/store/busStore";
 import { PasskeyManager, type PasskeyApiCallbacks } from "@argon/passkey";
+import { useFeatureFlags } from "@/store/featureFlagsStore";
 
 // Import badge icons
 const badgeIcons = import.meta.glob('/packages/assets/icons/inventory/*-64px.png', { eager: true, import: 'default' }) as Record<string, string>;
@@ -636,6 +637,7 @@ const { toast } = useToast();
 
 const api = useApi();
 const bus = useBus();
+const { passkeyActive, autoDeleteAccountActive } = useFeatureFlags();
 
 // Create API callbacks for PasskeyManager
 const passkeyApiCallbacks: PasskeyApiCallbacks = {

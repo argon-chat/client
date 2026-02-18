@@ -23,10 +23,10 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const api = useApi();
 
   const flags = ref<Record<string, boolean>>({
-    [FeatureFlagKeys.DASHBOARD_DIALPAD_ACTIVE]: false,
-    [FeatureFlagKeys.INVENTORY_ACTIVE]: false,
-    [FeatureFlagKeys.PROFILE_COINS_ACTIVE]: false,
-    [FeatureFlagKeys.LEVELING_ACTIVE]: false,
+    [FeatureFlagKeys.DASHBOARD_DIALPAD_ACTIVE]: true,
+    [FeatureFlagKeys.INVENTORY_ACTIVE]: true,
+    [FeatureFlagKeys.PROFILE_COINS_ACTIVE]: true,
+    [FeatureFlagKeys.LEVELING_ACTIVE]: true,
     [FeatureFlagKeys.NOTIFICATION_ACTIVE]: false,
     [FeatureFlagKeys.PLAYFRAME_ACTIVE]: false,
     [FeatureFlagKeys.USER_SETTINGS_PASSKEY_ACTIVE]: false,
