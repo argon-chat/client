@@ -114,6 +114,15 @@
                     <CameraIcon class="w-5 h-5" />
                 </button>
 
+                <button 
+                    @click="activity.openPicker()" 
+                    :disabled="!isConnected"
+                    :class="{ active: activity.isActive }"
+                    :title="isConnected ? 'Start Activity' : 'Join voice to start activity'"
+                >
+                    <Gamepad2 class="w-5 h-5" />
+                </button>
+
                 <button @click="toggleDoNotDistrurb">
                     <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
                     <OctagonMinusIcon v-else class="w-5 h-5" />
@@ -184,6 +193,7 @@ import {
     ScreenShare,
     CameraIcon,
     OctagonMinusIcon,
+    Gamepad2,
 } from "lucide-vue-next";
 import { useMe } from "@/store/meStore";
 import { useSystemStore } from "@/store/systemStore";
@@ -211,6 +221,7 @@ import { useLocale } from "@/store/localeStore";
 import { UserStatus } from "@argon/glue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useApi } from "@/store/apiStore";
+import { usePlayFrameActivity } from "@/store/playframeStore";
 import { usePoolStore } from "@/store/poolStore";
 import { computedAsync } from "@vueuse/core";
 import Counter from "./motionCounter/Counter.vue";
@@ -221,6 +232,7 @@ import { native } from "@argon/glue/native";
 const voice = useUnifiedCall();
 const api = useApi();
 const pool = usePoolStore();
+const activity = usePlayFrameActivity();
 
 const { t } = useLocale();
 const me = useMe();

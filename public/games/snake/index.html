@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake - Argon Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    canvas {
+      display: block;
+      border: 2px solid #333;
+      border-radius: 4px;
+    }
+    #loading {
+      position: absolute;
+      color: white;
+      font-size: 24px;
+    }
+    #ui {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 24px;
+      font-family: monospace;
+    }
+    #gameover {
+      position: absolute;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      color: white;
+    }
+    #gameover h1 {
+      font-size: 48px;
+      color: #f00;
+    }
+    #gameover button {
+      padding: 10px 30px;
+      font-size: 18px;
+      background: #0f0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #gameover button:hover {
+      background: #0c0;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Connecting to Argon...</div>
+  <div id="ui">Score: <span id="score">0</span></div>
+  <canvas id="game"></canvas>
+  <div id="gameover">
+    <h1>Game Over</h1>
+    <p>Final Score: <span id="finalScore">0</span></p>
+    <button onclick="restartGame()">Play Again</button>
+  </div>
+  
+  <script type="module">
+    // Simple PlayFrame SDK mock for standalone testing
+    const isInPlayFrame = window.parent !== window;
+    
+    class MockPlayFrameClient {
+      constructor(config) {
+        this.config = config;
+        this.connected = false;
+        this.listeners = new Map();
+      }
+      
+      async connect() {
+        if (isInPlayFrame) {
+          return this.connectToHost();
+        }
+        return this.mockConnect();
+      }
+      
+      async connectToHost() {
+        return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn('PlayFrame handshake timeout, running standalone');
+            this.mockConnect().then(resolve);
+          }, 3000);
+          
+          window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (data?.protocol === 'argon-playframe' && data?.type === 'handshake-ack') {
+              clearTimeout(timeout);
+              this.connected = true;
+              this.context = data.payload;
+              resolve(this.context);
+            }
+          });
+          
+          window.parent.postMessage({
+            protocol: 'argon-playframe',
+            version: 1,
+            type: 'handshake',
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            payload: {
+              protocolVersion: 1,
+              game: this.config.game,
+              requestedPermissions: this.config.permissions || [],
+              preferredLayout: { mode: 'game-focused', aspectRatio: '16:9' },
+              userAgent: navigator.userAgent,
+            }
+          }, '*');
+        });
+      }
+      
+      async mockConnect() {
+        this.connected = true;
+        this.context = {
+          user: { displayName: 'Player 1', ephemeralId: '1' },
+          space: { name: 'Test Room' },
+          permissions: { keyboard: true },
+        };
+        return this.context;
+      }
+      
+      log(level, message, data) {
+        console[level](`[Game] ${message}`, data || '');
+      }
+    }
+    
+    // Game constants
+    const GRID_SIZE = 20;
+    const INITIAL_SPEED = 150;
+    const SPEED_INCREMENT = 5;
+    const MIN_SPEED = 50;
+    
+    // Game state
+    const state = {
+      snake: [],
+      direction: { x: 1, y: 0 },
+      nextDirection: { x: 1, y: 0 },
+      food: { x: 0, y: 0 },
+      score: 0,
+      gameOver: false,
+      speed: INITIAL_SPEED,
+      gridWidth: 0,
+      gridHeight: 0,
+    };
+    
+    // Elements
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const loading = document.getElementById('loading');
+    const scoreEl = document.getElementById('score');
+    const gameoverEl = document.getElementById('gameover');
+    const finalScoreEl = document.getElementById('finalScore');
+    
+    function resize() {
+      const size = Math.min(window.innerWidth - 40, window.innerHeight - 100, 600);
+      canvas.width = size;
+      canvas.height = size;
+      state.gridWidth = Math.floor(size / GRID_SIZE);
+      state.gridHeight = Math.floor(size / GRID_SIZE);
+    }
+    
+    function initSnake() {
+      const centerX = Math.floor(state.gridWidth / 2);
+      const centerY = Math.floor(state.gridHeight / 2);
+      state.snake = [
+        { x: centerX, y: centerY },
+        { x: centerX - 1, y: centerY },
+        { x: centerX - 2, y: centerY },
+      ];
+      state.direction = { x: 1, y: 0 };
+      state.nextDirection = { x: 1, y: 0 };
+    }
+    
+    function spawnFood() {
+      let pos;
+      do {
+        pos = {
+          x: Math.floor(Math.random() * state.gridWidth),
+          y: Math.floor(Math.random() * state.gridHeight),
+        };
+      } while (state.snake.some(s => s.x === pos.x && s.y === pos.y));
+      state.food = pos;
+    }
+    
+    function update() {
+      if (state.gameOver) return;
+      
+      state.direction = state.nextDirection;
+      
+      const head = state.snake[0];
+      const newHead = {
+        x: head.x + state.direction.x,
+        y: head.y + state.direction.y,
+      };
+      
+      // Wrap around
+      if (newHead.x < 0) newHead.x = state.gridWidth - 1;
+      if (newHead.x >= state.gridWidth) newHead.x = 0;
+      if (newHead.y < 0) newHead.y = state.gridHeight - 1;
+      if (newHead.y >= state.gridHeight) newHead.y = 0;
+      
+      // Check self collision
+      if (state.snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
+        endGame();
+        return;
+      }
+      
+      state.snake.unshift(newHead);
+      
+      // Check food
+      if (newHead.x === state.food.x && newHead.y === state.food.y) {
+        state.score += 10;
+        scoreEl.textContent = state.score;
+        state.speed = Math.max(MIN_SPEED, state.speed - SPEED_INCREMENT);
+        spawnFood();
+      } else {
+        state.snake.pop();
+      }
+    }
+    
+    function draw() {
+      // Clear
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw grid (subtle)
+      ctx.strokeStyle = '#1a1a1a';
+      for (let x = 0; x <= state.gridWidth; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * GRID_SIZE, 0);
+        ctx.lineTo(x * GRID_SIZE, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= state.gridHeight; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * GRID_SIZE);
+        ctx.lineTo(canvas.width, y * GRID_SIZE);
+        ctx.stroke();
+      }
+      
+      // Draw food
+      ctx.fillStyle = '#f00';
+      ctx.beginPath();
+      ctx.arc(
+        state.food.x * GRID_SIZE + GRID_SIZE / 2,
+        state.food.y * GRID_SIZE + GRID_SIZE / 2,
+        GRID_SIZE / 2 - 2,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      
+      // Draw snake
+      state.snake.forEach((segment, i) => {
+        const brightness = 1 - (i / state.snake.length) * 0.5;
+        ctx.fillStyle = `rgb(0, ${Math.floor(255 * brightness)}, 0)`;
+        ctx.fillRect(
+          segment.x * GRID_SIZE + 1,
+          segment.y * GRID_SIZE + 1,
+          GRID_SIZE - 2,
+          GRID_SIZE - 2
+        );
+      });
+    }
+    
+    function endGame() {
+      state.gameOver = true;
+      finalScoreEl.textContent = state.score;
+      gameoverEl.style.display = 'flex';
+    }
+    
+    window.restartGame = function() {
+      state.score = 0;
+      state.gameOver = false;
+      state.speed = INITIAL_SPEED;
+      scoreEl.textContent = '0';
+      gameoverEl.style.display = 'none';
+      resize();
+      initSnake();
+      spawnFood();
+    };
+    
+    let lastUpdate = 0;
+    function gameLoop(timestamp) {
+      if (timestamp - lastUpdate >= state.speed) {
+        update();
+        lastUpdate = timestamp;
+      }
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // Input handling
+    window.addEventListener('keydown', (e) => {
+      switch (e.code) {
+        case 'ArrowUp':
+        case 'KeyW':
+          if (state.direction.y !== 1) {
+            state.nextDirection = { x: 0, y: -1 };
+          }
+          break;
+        case 'ArrowDown':
+        case 'KeyS':
+          if (state.direction.y !== -1) {
+            state.nextDirection = { x: 0, y: 1 };
+          }
+          break;
+        case 'ArrowLeft':
+        case 'KeyA':
+          if (state.direction.x !== 1) {
+            state.nextDirection = { x: -1, y: 0 };
+          }
+          break;
+        case 'ArrowRight':
+        case 'KeyD':
+          if (state.direction.x !== -1) {
+            state.nextDirection = { x: 1, y: 0 };
+          }
+          break;
+      }
+    });
+    
+    window.addEventListener('resize', resize);
+    
+    // Start game
+    async function init() {
+      const client = new MockPlayFrameClient({
+        game: {
+          id: 'snake',
+          version: '1.0.0',
+          title: 'Snake',
+        },
+        permissions: ['keyboard'],
+      });
+      
+      try {
+        const context = await client.connect();
+        console.log('Connected to PlayFrame:', context);
+        loading.style.display = 'none';
+        resize();
+        initSnake();
+        spawnFood();
+        requestAnimationFrame(gameLoop);
+      } catch (e) {
+        console.error('Failed to connect:', e);
+        loading.textContent = 'Failed to connect';
+      }
+    }
+    
+    init();
+  </script>
+</body>
+</html>

@@ -1,6 +1,33 @@
 <template>
-    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-6 transition-all duration-300">
-        <Transition name="stream-layout" mode="out-in">
+    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full rounded-lg bg-neutral-900/90 backdrop-blur-sm p-4 transition-all duration-300 gap-3">
+        <!-- Activity Mode: Game + participants below -->
+        <template v-if="activity.isActive">
+            <PlayFramePanel class="flex-1 min-h-0" />
+            
+            <!-- Participants row below game -->
+            <div class="flex flex-row gap-2 overflow-x-auto w-full shrink-0" style="max-height: 8rem;">
+                <ParticipantCard
+                    v-for="[userId, user] in allUsers"
+                    :key="userId"
+                    :user-id="userId"
+                    :display-name="user.User.displayName"
+                    :is-speaking="isSpeaking(userId)"
+                    :is-muted="isMuted(userId)"
+                    :is-headphone-muted="isHeadphoneMuted(userId)"
+                    :has-video="hasVideo(userId)"
+                    :is-playing="isPlayingActivity(userId)"
+                    :avatar-size="60"
+                    :icon-size="16"
+                    class-name="flex-shrink-0"
+                    :custom-style="{ width: '10rem', height: '6rem' }"
+                    name-class="text-xs"
+                    icon-position="top-1 right-1"
+                    @video-ref="setVideoRef" />
+            </div>
+        </template>
+        
+        <!-- Normal Voice Channel View -->
+        <Transition v-else name="stream-layout" mode="out-in">
             <!-- Stream Mode: Main video + horizontal thumbnails -->
             <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0 items-center justify-center">
                 <ParticipantCard
@@ -90,11 +117,14 @@ import ParticipantCard from "./home/views/ParticipantCard.vue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useSystemStore } from "@/store/systemStore";
 import { useMe } from "@/store/meStore";
+import { usePlayFrameActivity } from "@/store/playframeStore";
+import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 
 const pool = usePoolStore();
 const voice = useUnifiedCall();
 const sys = useSystemStore();
 const me = useMe();
+const activity = usePlayFrameActivity();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
@@ -200,6 +230,12 @@ const isMuted = (uid: Guid) => {
 
 const isHeadphoneMuted = (uid: Guid) => {
     return muteStates.value.get(uid)?.headphoneMuted ?? false;
+};
+
+const isPlayingActivity = (uid: Guid) => {
+    if (!activity.isActive) return false;
+    // Check if user is in activity participants
+    return activity.participants.some(p => p.displayName === users.value.get(uid)?.User.displayName);
 };
 
 const toggleFocus = (userId: Guid) => {

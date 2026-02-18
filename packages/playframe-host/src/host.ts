@@ -245,17 +245,18 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     // Parse game origin
     this.gameOrigin = new URL(this.config.gameUrl).origin;
     
-    // Create iframe
+    // Create iframe (defer src until handlers are set up)
     this.iframe = createGameIframe({
       src: this.config.gameUrl,
       container: this.config.container,
       permissions: Array.from(this.grantedPermissions),
       sandboxConfig: this.config.sandboxConfig,
-      cspConfig: this.config.devConfig?.disableCsp ? undefined : this.config.cspConfig,
+      cspConfig: this.config.devConfig?.disableCsp ? null : this.config.cspConfig,
       styles: {
         width: '100%',
         height: '100%',
       },
+      deferSrc: true,
     });
     
     // Setup message listener
@@ -267,13 +268,17 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     // Setup input listeners
     this.setupInputListeners();
     
-    // Wait for iframe to load
+    // Setup handshake promise BEFORE setting src (game may send handshake immediately after load)
+    this.state = 'handshaking';
+    const handshakePromise = this.waitForHandshake();
+    
+    // NOW set src and wait for load (handlers are ready)
+    this.iframe.src = this.config.gameUrl;
     await this.waitForLoad();
     this.emit('load', undefined);
     
-    // Wait for handshake
-    this.state = 'handshaking';
-    const context = await this.waitForHandshake();
+    // Wait for handshake to complete
+    const context = await handshakePromise;
     
     // Setup watchdog
     if (!this.config.devConfig?.disableWatchdog) {
@@ -945,6 +950,14 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   // Private: Sending Messages
   // ==========================================================================
 
+  private getPostMessageTarget(): string {
+    // In dev mode, use '*' to avoid sandbox origin issues
+    if (this.config.devConfig?.enabled) {
+      return '*';
+    }
+    return this.gameOrigin!;
+  }
+
   private send<T>(type: MessageType, payload: T): void {
     if (!this.iframe?.contentWindow) return;
     
@@ -953,7 +966,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     this.messageLogger?.logOutgoing(type, payload);
     this.emit('message', { direction: 'out', type, payload });
     
-    this.iframe.contentWindow.postMessage(message, this.gameOrigin!);
+    this.iframe.contentWindow.postMessage(message, this.getPostMessageTarget());
   }
 
   private sendResponse<T>(requestId: string, type: MessageType, payload: T): void {
@@ -964,7 +977,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     this.messageLogger?.logOutgoing(type, payload);
     this.emit('message', { direction: 'out', type, payload });
     
-    this.iframe.contentWindow.postMessage(response, this.gameOrigin!);
+    this.iframe.contentWindow.postMessage(response, this.getPostMessageTarget());
   }
 
   private sendError(requestId: string, code: ProtocolError['code'], message: string): void {
@@ -973,7 +986,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     const error: ProtocolError = { code, message };
     const response = createResponse(requestId, 'error', { error, fatal: false }, false, error);
     
-    this.iframe.contentWindow.postMessage(response, this.gameOrigin!);
+    this.iframe.contentWindow.postMessage(response, this.getPostMessageTarget());
   }
 
   // ==========================================================================

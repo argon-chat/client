@@ -147,12 +147,14 @@ export interface CreateIframeOptions {
   permissions: Permission[];
   /** Sandbox configuration */
   sandboxConfig?: SandboxConfig;
-  /** CSP configuration */
-  cspConfig?: CspConfig;
+  /** CSP configuration (null to disable) */
+  cspConfig?: CspConfig | null;
   /** Additional iframe attributes */
   attributes?: Record<string, string>;
   /** CSS styles for the iframe */
   styles?: Partial<CSSStyleDeclaration>;
+  /** If true, don't set src yet - caller will set it after setting up handlers */
+  deferSrc?: boolean;
 }
 
 /**
@@ -165,9 +167,12 @@ export function createGameIframe(options: CreateIframeOptions): HTMLIFrameElemen
   iframe.sandbox.value = buildSandboxAttribute(options.permissions, options.sandboxConfig);
   
   // CSP via csp attribute (supported in some browsers)
-  const gameOrigin = new URL(options.src).origin;
-  const csp = buildGameCsp(gameOrigin, options.cspConfig);
-  iframe.setAttribute('csp', csp);
+  // Skip if cspConfig is explicitly null (dev mode)
+  if (options.cspConfig !== null) {
+    const gameOrigin = new URL(options.src).origin;
+    const csp = buildGameCsp(gameOrigin, options.cspConfig);
+    iframe.setAttribute('csp', csp);
+  }
   
   // Feature policy / Permissions policy
   iframe.allow = buildPermissionsPolicy(options.permissions);
@@ -193,11 +198,13 @@ export function createGameIframe(options: CreateIframeOptions): HTMLIFrameElemen
     Object.assign(iframe.style, options.styles);
   }
   
-  // Set source last
-  iframe.src = options.src;
-  
-  // Append to container
+  // Append to container first
   options.container.appendChild(iframe);
+  
+  // Set source (unless deferred for handler setup)
+  if (!options.deferSrc) {
+    iframe.src = options.src;
+  }
   
   return iframe;
 }
@@ -232,13 +239,13 @@ function buildPermissionsPolicy(permissions: Permission[]): string {
     policies.push(`microphone ${sameOrigin}`);
   }
   
-  // Deny dangerous features
-  policies.push('camera ()');
-  policies.push('payment ()');
-  policies.push('usb ()');
-  policies.push('bluetooth ()');
-  policies.push('serial ()');
-  policies.push('midi ()');
+  // Deny dangerous features (use 'none' for iframe allow attribute)
+  policies.push("camera 'none'");
+  policies.push("payment 'none'");
+  policies.push("usb 'none'");
+  policies.push("bluetooth 'none'");
+  policies.push("serial 'none'");
+  policies.push("midi 'none'");
   
   return policies.join('; ');
 }

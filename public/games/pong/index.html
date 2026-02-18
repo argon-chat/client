@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong - Argon Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    #loading {
+      position: absolute;
+      color: white;
+      font-size: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Connecting to Argon...</div>
+  <canvas id="game"></canvas>
+  
+  <script type="module">
+    // Simple PlayFrame SDK mock for standalone testing
+    const isInPlayFrame = window.parent !== window;
+    
+    class MockPlayFrameClient {
+      constructor(config) {
+        this.config = config;
+        this.connected = false;
+        this.listeners = new Map();
+      }
+      
+      async connect() {
+        // If in PlayFrame, use postMessage
+        if (isInPlayFrame) {
+          return this.connectToHost();
+        }
+        // Otherwise, mock connection
+        return this.mockConnect();
+      }
+      
+      async connectToHost() {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.warn('PlayFrame handshake timeout, running standalone');
+            this.mockConnect().then(resolve);
+          }, 3000);
+          
+          window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (data?.protocol === 'argon-playframe' && data?.type === 'handshake-ack') {
+              clearTimeout(timeout);
+              this.connected = true;
+              this.context = data.payload;
+              resolve(this.context);
+            }
+          });
+          
+          // Send handshake
+          window.parent.postMessage({
+            protocol: 'argon-playframe',
+            version: 1,
+            type: 'handshake',
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+            payload: {
+              protocolVersion: 1,
+              game: this.config.game,
+              requestedPermissions: this.config.permissions || [],
+              preferredLayout: { mode: 'game-focused', aspectRatio: '16:9' },
+              userAgent: navigator.userAgent,
+            }
+          }, '*');
+        });
+      }
+      
+      async mockConnect() {
+        this.connected = true;
+        this.context = {
+          user: { displayName: 'Player 1', ephemeralId: '1' },
+          space: { name: 'Test Room' },
+          permissions: { keyboard: true, audio: true },
+        };
+        return this.context;
+      }
+      
+      on(event, handler) {
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, new Set());
+        }
+        this.listeners.get(event).add(handler);
+      }
+      
+      emit(event, data) {
+        const handlers = this.listeners.get(event);
+        if (handlers) {
+          handlers.forEach(h => h(data));
+        }
+      }
+      
+      log(level, message, data) {
+        console[level](`[Game] ${message}`, data || '');
+      }
+    }
+    
+    // Game state
+    const state = {
+      paddleHeight: 80,
+      paddleWidth: 10,
+      ballSize: 10,
+      player1Y: 0,
+      player2Y: 0,
+      ballX: 0,
+      ballY: 0,
+      ballVX: 5,
+      ballVY: 3,
+      score1: 0,
+      score2: 0,
+      keys: new Set(),
+    };
+    
+    // Initialize
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const loading = document.getElementById('loading');
+    
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      state.player1Y = canvas.height / 2 - state.paddleHeight / 2;
+      state.player2Y = canvas.height / 2 - state.paddleHeight / 2;
+      state.ballX = canvas.width / 2;
+      state.ballY = canvas.height / 2;
+    }
+    
+    function resetBall() {
+      state.ballX = canvas.width / 2;
+      state.ballY = canvas.height / 2;
+      state.ballVX = (Math.random() > 0.5 ? 1 : -1) * 5;
+      state.ballVY = (Math.random() - 0.5) * 6;
+    }
+    
+    function update() {
+      // Player 1 movement (W/S keys)
+      if (state.keys.has('KeyW') || state.keys.has('ArrowUp')) {
+        state.player1Y = Math.max(0, state.player1Y - 8);
+      }
+      if (state.keys.has('KeyS') || state.keys.has('ArrowDown')) {
+        state.player1Y = Math.min(canvas.height - state.paddleHeight, state.player1Y + 8);
+      }
+      
+      // Simple AI for player 2
+      const targetY = state.ballY - state.paddleHeight / 2;
+      const diff = targetY - state.player2Y;
+      state.player2Y += Math.sign(diff) * Math.min(Math.abs(diff), 4);
+      state.player2Y = Math.max(0, Math.min(canvas.height - state.paddleHeight, state.player2Y));
+      
+      // Ball movement
+      state.ballX += state.ballVX;
+      state.ballY += state.ballVY;
+      
+      // Top/bottom bounce
+      if (state.ballY <= 0 || state.ballY >= canvas.height - state.ballSize) {
+        state.ballVY *= -1;
+      }
+      
+      // Paddle collision
+      // Player 1 paddle
+      if (state.ballX <= 30 + state.paddleWidth &&
+          state.ballY >= state.player1Y &&
+          state.ballY <= state.player1Y + state.paddleHeight) {
+        state.ballVX = Math.abs(state.ballVX) * 1.05;
+        const hitPos = (state.ballY - state.player1Y) / state.paddleHeight - 0.5;
+        state.ballVY = hitPos * 10;
+      }
+      
+      // Player 2 paddle
+      if (state.ballX >= canvas.width - 30 - state.paddleWidth - state.ballSize &&
+          state.ballY >= state.player2Y &&
+          state.ballY <= state.player2Y + state.paddleHeight) {
+        state.ballVX = -Math.abs(state.ballVX) * 1.05;
+        const hitPos = (state.ballY - state.player2Y) / state.paddleHeight - 0.5;
+        state.ballVY = hitPos * 10;
+      }
+      
+      // Score
+      if (state.ballX < 0) {
+        state.score2++;
+        resetBall();
+      }
+      if (state.ballX > canvas.width) {
+        state.score1++;
+        resetBall();
+      }
+      
+      // Speed limit
+      state.ballVX = Math.sign(state.ballVX) * Math.min(Math.abs(state.ballVX), 15);
+    }
+    
+    function draw() {
+      // Clear
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Center line
+      ctx.strokeStyle = '#333';
+      ctx.setLineDash([10, 10]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Paddles
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(20, state.player1Y, state.paddleWidth, state.paddleHeight);
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(canvas.width - 20 - state.paddleWidth, state.player2Y, state.paddleWidth, state.paddleHeight);
+      
+      // Ball
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(state.ballX, state.ballY, state.ballSize, state.ballSize);
+      
+      // Score
+      ctx.fillStyle = '#fff';
+      ctx.font = '48px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(state.score1.toString(), canvas.width / 4, 60);
+      ctx.fillText(state.score2.toString(), canvas.width * 3 / 4, 60);
+      
+      // Instructions
+      ctx.fillStyle = '#666';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('W/S or ↑/↓ to move', canvas.width / 4, canvas.height - 20);
+    }
+    
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // Input handling
+    window.addEventListener('keydown', (e) => {
+      state.keys.add(e.code);
+    });
+    
+    window.addEventListener('keyup', (e) => {
+      state.keys.delete(e.code);
+    });
+    
+    window.addEventListener('resize', resize);
+    
+    // Start game
+    async function init() {
+      const client = new MockPlayFrameClient({
+        game: {
+          id: 'pong',
+          version: '1.0.0',
+          title: 'Pong',
+        },
+        permissions: ['keyboard', 'audio'],
+      });
+      
+      try {
+        const context = await client.connect();
+        console.log('Connected to PlayFrame:', context);
+        loading.style.display = 'none';
+        resize();
+        gameLoop();
+      } catch (e) {
+        console.error('Failed to connect:', e);
+        loading.textContent = 'Failed to connect';
+      }
+    }
+    
+    init();
+  </script>
+</body>
+</html>

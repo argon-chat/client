@@ -1,6 +1,5 @@
 <template>
   <div class="w-full h-full bg-black absolute">
-    <canvas ref="canvas" class="w-full h-full"></canvas>
   </div>
 </template>
 

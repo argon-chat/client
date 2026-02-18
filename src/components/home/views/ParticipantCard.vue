@@ -1,7 +1,7 @@
 <template>
     <div 
         class="relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group transition-all duration-300 cursor-pointer"
-        :class="className"
+        :class="[className, { 'ring-2 ring-emerald-500/70': isPlaying }]"
         :style="customStyle"
         @click="$emit('click', userId)">
         
@@ -30,6 +30,7 @@
         </div>
 
         <div class="absolute flex gap-1" :class="iconPosition">
+            <Gamepad2Icon v-if="isPlaying" :width="iconSize" :height="iconSize" class="text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
             <MicOffIcon v-if="isMuted" :width="iconSize" :height="iconSize" :class="mutedIconClass" />
             <HeadphoneOffIcon v-if="isHeadphoneMuted" :width="iconSize" :height="iconSize" :class="mutedIconClass" />
         </div>
@@ -39,7 +40,7 @@
 <script setup lang="ts">
 import type { Guid } from "@argon-chat/ion.webcore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { MicOffIcon, HeadphoneOffIcon } from "lucide-vue-next";
+import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon } from "lucide-vue-next";
 
 interface Props {
     userId: Guid;
@@ -49,6 +50,7 @@ interface Props {
     isHeadphoneMuted?: boolean;
     hasVideo?: boolean;
     isScreenSharing?: boolean;
+    isPlaying?: boolean;
     avatarSize?: number;
     iconSize?: number;
     className?: string;
@@ -64,6 +66,7 @@ withDefaults(defineProps<Props>(), {
     isHeadphoneMuted: false,
     hasVideo: false,
     isScreenSharing: false,
+    isPlaying: false,
     avatarSize: 120,
     iconSize: 24,
     className: '',

@@ -11,6 +11,7 @@ import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/DiagnosticsOverlay.vue";
 import ReconnectOverlay from "./components/ReconnectOverlay.vue";
+import GamePicker from "./components/playframe/GamePicker.vue";
 import { useTheme } from "@/composables/useTheme";
 import { logger } from "@argon/core";
 
@@ -61,6 +62,7 @@ const reloadPage = () => {
   <IncomingCallOverlay />
   <DiagnosticsOverlay v-if="showDiagnostics" />
   <ReconnectOverlay />
+  <GamePicker />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
 
   <!-- Loading overlay -->
