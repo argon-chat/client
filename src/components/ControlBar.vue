@@ -114,7 +114,7 @@
                     <CameraIcon class="w-5 h-5" />
                 </button>
 
-                <button 
+                <button v-if="playframeActive"
                     @click="activity.openPicker()" 
                     :disabled="!isConnected"
                     :class="{ active: activity.isActive }"
@@ -228,11 +228,13 @@ import Counter from "./motionCounter/Counter.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import { Screen } from "@argon/glue/ipc";
 import { native } from "@argon/glue/native";
+import { useFeatureFlags } from "@/store/featureFlagsStore";
 
 const voice = useUnifiedCall();
 const api = useApi();
 const pool = usePoolStore();
 const activity = usePlayFrameActivity();
+const { playframeActive } = useFeatureFlags();
 
 const { t } = useLocale();
 const me = useMe();

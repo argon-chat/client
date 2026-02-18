@@ -227,6 +227,14 @@ export enum ChannelMemberState
 }
 
 
+export interface FeatureFlagData {
+  flagId: string;
+  isEnabled: bool;
+  variant: string | null;
+  scope: i4;
+};
+
+
 export interface UserBlock {
   userId: guid;
   blockedId: guid;
@@ -305,7 +313,7 @@ export interface InventoryItem {
 
 export interface DetailedInventoryItem {
   item: InventoryItem;
-  containedItem: InventoryItem | null;
+  containedItems: IonArray<InventoryItem>;
 };
 
 
@@ -6249,6 +6257,26 @@ IonFormatterStorage.register("StartStreamError", {
   }
 });
 
+IonFormatterStorage.register("FeatureFlagData", {
+  read(reader: CborReader): FeatureFlagData {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const flagId = IonFormatterStorage.get<string>('string').read(reader);
+    const isEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
+    const variant = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const scope = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { flagId, isEnabled, variant, scope };
+  },
+  write(writer: CborWriter, value: FeatureFlagData): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.flagId);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isEnabled);
+    IonFormatterStorage.writeNullable<string>(writer, value.variant, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.scope);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UserBlock", {
   read(reader: CborReader): UserBlock {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -6409,14 +6437,14 @@ IonFormatterStorage.register("DetailedInventoryItem", {
   read(reader: CborReader): DetailedInventoryItem {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const item = IonFormatterStorage.get<InventoryItem>('InventoryItem').read(reader);
-    const containedItem = IonFormatterStorage.readNullable<InventoryItem>(reader, 'InventoryItem');
+    const containedItems = IonFormatterStorage.readArray<InventoryItem>(reader, 'InventoryItem');
     reader.readEndArrayAndSkip(arraySize - 2);
-    return { item, containedItem };
+    return { item, containedItems };
   },
   write(writer: CborWriter, value: DetailedInventoryItem): void {
     writer.writeStartArray(2);
     IonFormatterStorage.get<InventoryItem>('InventoryItem').write(writer, value.item);
-    IonFormatterStorage.writeNullable<InventoryItem>(writer, value.containedItem, 'InventoryItem');
+    IonFormatterStorage.writeArray<InventoryItem>(writer, value.containedItems, 'InventoryItem');
     writer.writeEndArray();
   }
 });
@@ -7230,6 +7258,14 @@ export interface IEventBus extends IIonService
 
 
 
+export interface IFeatureFlagInteractions extends IIonService
+{
+  GetMyFeatureFlags(): Promise<IonArray<FeatureFlagData>>;
+}
+
+
+
+
 export interface IFriendsInteraction extends IIonService
 {
   GetBlockList(limit: i4, offset: i4): Promise<IonArray<UserBlock>>;
@@ -7429,6 +7465,14 @@ export interface IEventBus extends IIonService
   Dispatch(ev: IArgonClientEvent): Promise<void>;
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
+}
+
+
+
+
+export interface IFeatureFlagInteractions extends IIonService
+{
+  GetMyFeatureFlags(): Promise<IonArray<FeatureFlagData>>;
 }
 
 
@@ -8044,6 +8088,30 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class FeatureFlagInteractions_Executor extends ServiceExecutor<IFeatureFlagInteractions> implements IFeatureFlagInteractions {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetMyFeatureFlags(): Promise<IonArray<FeatureFlagData>> {
+    const req = new IonRequest(this.ctx, "IFeatureFlagInteractions", "GetMyFeatureFlags");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<FeatureFlagData>>("IonArray<FeatureFlagData>", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IFeatureFlagInteractions>('FeatureFlagInteractions', FeatureFlagInteractions_Executor);
 
 export class FriendsInteraction_Executor extends ServiceExecutor<IFriendsInteraction> implements IFriendsInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -9361,6 +9429,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
@@ -9380,6 +9449,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     ArchetypeInteraction: IArchetypeInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;
     UserChatInteractions: IUserChatInteractions;
     IdentityInteraction: IIdentityInteraction;

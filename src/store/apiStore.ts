@@ -69,6 +69,7 @@ export const useApi = defineStore("api", () => {
   );
   const channelInteraction = computed(() => rpcClient.value.ChannelInteraction);
   const eventBus = computed(() => rpcClient.value.EventBus);
+  const featureFlagInteraction = computed(() => rpcClient.value.FeatureFlagInteractions);
 
   const getRawClient = () => rpcClient;
 
@@ -88,5 +89,6 @@ export const useApi = defineStore("api", () => {
     eventBus,
     getRawClient,
     callInteraction,
+    featureFlagInteraction
   };
 });

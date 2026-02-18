@@ -5,6 +5,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useApi } from "./apiStore";
 import { useBus } from "./busStore";
+import { useFeatureFlags } from "./featureFlagsStore";
 import {
   ArgonUser,
   ArgonUserProfile,
@@ -23,6 +24,7 @@ export type ExtendedUser = {
 export const useMe = defineStore("me", () => {
   const api = useApi();
   const bus = useBus();
+  const featureFlags = useFeatureFlags();
   const me = ref(null as ExtendedUser | null);
   const meProfile = ref(null as ArgonUserProfile | null);
 
@@ -95,6 +97,9 @@ export const useMe = defineStore("me", () => {
     meProfile.value = await getMeProfile();
     logger.info("Received user info ", me.value);
     logger.info("Received user profile ", meProfile.value);
+    
+    await featureFlags.loadFeatureFlags();
+    
     WelcomeCommanderHasReceived.value = true;
 
     setUser({ id: me.value.userId, username: me.value.username });

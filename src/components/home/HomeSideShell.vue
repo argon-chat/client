@@ -23,8 +23,11 @@ import { useMe } from '@/store/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { logger } from '@argon/core';
 import { useNotifications } from '@/composables/useNotifications';
+import { useFeatureFlags } from '@/store/featureFlagsStore';
 
 const { t } = useLocale();
+
+const { dialpadActive, echoActive, dmActive, inventoryActive, notificationActive } = useFeatureFlags();
 
 const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'>('tab', {
     default: 'dashboard'
@@ -130,37 +133,37 @@ onUnmounted(() => {
                 {{ t("inventory") }}
                 <NBadge :value="notifications.newInventoryItemsCount.value" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
+            <Button v-if="notificationActive" @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconNotification class="w-6 h-6 mr-2" />
                 {{ t("notifications") }}
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'overlayDebug')" :variant="tab == 'overlayDebug' ? 'outline' : 'ghost'"
+            <Button v-if="false" @click="emit('select', 'overlayDebug')" :variant="tab == 'overlayDebug' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconNotification class="w-6 h-6 mr-2" />
                 Overlay Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'audioDebug')" :variant="tab == 'audioDebug' ? 'outline' : 'ghost'"
+            <Button v-if="false" @click="emit('select', 'audioDebug')" :variant="tab == 'audioDebug' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconHeadphones class="w-6 h-6 mr-2" />
                 Audio Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="emit('select', 'nv12Debug')" :variant="tab == 'nv12Debug' ? 'outline' : 'ghost'"
+            <Button v-if="false" @click="emit('select', 'nv12Debug')" :variant="tab == 'nv12Debug' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconHeadphones class="w-6 h-6 mr-2" />
                 NV12 Debug
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Button @click="softphoneOpened = !softphoneOpened" :variant="'link'"
+            <Button v-if="dialpadActive" @click="softphoneOpened = !softphoneOpened" :variant="'link'"
                 class="justify-start">
                 <IconDialpad class="w-6 h-6 mr-2" />
                 {{ t("dial_pad") }}
                 <NBadge :value="0" :max="50" :offset="[10, -8]" />
             </Button>
-            <Separator class="space-y-4" v-if="false"/>
+            <Separator class="space-y-4" v-if="false" />
             <div class="quick-actions flex flex-row justify-between gap-2 py-1" v-if="false">
                 <Button @click="softphoneOpened = !softphoneOpened" variant="ghost"
                     class="h-10 w-10 p-0 flex items-center justify-center rounded-lg">
@@ -180,7 +183,7 @@ onUnmounted(() => {
                 </Button>
             </div>
             <Separator />
-            <div ref="listEl"
+            <div ref="listEl" v-if="dmActive"
                 class="recent-users-list flex flex-col gap-1 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 <RecentUserItem v-for="u in recentUsers" :key="u.peerId" :user-id="u.peerId"
                     :display-name="u.displayName" :last-message="u.lastMsg" @open="openChat" />
