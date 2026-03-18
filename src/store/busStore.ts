@@ -4,7 +4,6 @@ import { catchError, filter, repeat, switchMap } from "rxjs/operators";
 import { useApi } from "./apiStore";
 import { logger } from "@argon/core";
 import { ref } from "vue";
-import { useLocalStorage } from "@vueuse/core";
 import { IArgonEvent, UserStatus } from "@argon/glue";
 import * as signalR from "@microsoft/signalr";
 import { CborReader, Guid, IonFormatterStorage } from "@argon-chat/ion.webcore";
@@ -18,11 +17,6 @@ export const useBus = defineStore("bus", () => {
   const isSignalRReconnecting = ref(false);
   const nextReconnectAttempt = ref<number | null>(null);
   const reconnectAttemptCount = ref(0);
-  const preferredStatus = useLocalStorage<UserStatus>(
-    "preferredStatus",
-    UserStatus.Online,
-    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true },
-  );
 
   const controller = new AbortController();
   const { signal } = controller;
@@ -166,7 +160,11 @@ export const useBus = defineStore("bus", () => {
 
   async function sendHeartbeat() {
     if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("Heartbeat", preferredStatus.value);
+      // Import dynamically to avoid circular dependency
+      const { useMe } = await import("./meStore");
+      const me = useMe();
+      const status = me.me?.currentStatus ?? UserStatus.Online;
+      await hubConnection.invoke("Heartbeat", status);
     }
   }
 

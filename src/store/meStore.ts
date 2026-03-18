@@ -41,10 +41,13 @@ export const useMe = defineStore("me", () => {
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
     UserStatus.Online,
-    { initOnMounted: true, listenToStorageChanges: true, writeDefaults: true }
+    { listenToStorageChanges: true, writeDefaults: true }
   );
 
-  preferredStatus.value = UserStatus.Online;
+  // Away shouldn't be persisted - it's only for automatic idle detection
+  if (preferredStatus.value === UserStatus.Away) {
+    preferredStatus.value = UserStatus.Online;
+  }
 
   const WelcomeCommanderHasReceived = ref(false);
 
@@ -55,9 +58,23 @@ export const useMe = defineStore("me", () => {
     return await api.userInteraction.GetMyProfile();
   }
 
+  // For automatic status changes (idle detection) - doesn't touch preferredStatus
+  function setTemporaryStatus(status: UserStatus) {
+    if (me.value?.currentStatus === status) return;
+    if (me.value) me.value.currentStatus = status;
+  }
+
+  // For user-initiated status changes - only updates preferredStatus for DND/TouchGrass
   async function changeStatusTo(status: UserStatus) {
     if (me.value?.currentStatus === status) return;
-    preferredStatus.value = status;
+    // Only persist DoNotDisturb and TouchGrass to preferredStatus
+    // Online/Away are managed automatically by idle detection
+    if (status === UserStatus.DoNotDisturb || status === UserStatus.TouchGrass) {
+      preferredStatus.value = status;
+    } else if (preferredStatus.value === UserStatus.DoNotDisturb || preferredStatus.value === UserStatus.TouchGrass) {
+      // Coming back from DND/TouchGrass - reset to Online
+      preferredStatus.value = UserStatus.Online;
+    }
     if (me.value) me.value.currentStatus = status;
   }
 
@@ -131,6 +148,7 @@ export const useMe = defineStore("me", () => {
     completeInit,
     WelcomeCommanderHasReceived,
     changeStatusTo,
+    setTemporaryStatus,
     statusClass,
     isPremium,
     limitation,

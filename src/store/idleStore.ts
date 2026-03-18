@@ -36,10 +36,10 @@ export const useIdleStore = defineStore("idle", () => {
 
     if (shouldGoAway) {
       isAutoAway.value = true;
-      me.changeStatusTo(UserStatus.Away);
+      me.setTemporaryStatus(UserStatus.Away);
     } else if (shouldComeBack) {
       isAutoAway.value = false;
-      me.changeStatusTo(UserStatus.Online);
+      me.setTemporaryStatus(UserStatus.Online);
     }
   }
 
