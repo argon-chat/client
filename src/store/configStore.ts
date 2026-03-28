@@ -54,10 +54,10 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const load = async () => {
-    if (!argon.isArgonHost) {
+    //if (!argon.isArgonHost) {
       loaded.value = true;
       return;
-    }
+    //}
 
     const raw = await native.hostProc.getConfig();
 
