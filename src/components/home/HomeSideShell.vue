@@ -113,7 +113,7 @@ onUnmounted(() => {
 
 
 <template>
-    <div class="channel-container flex flex-col justify-end rounded-xl space-y-3 min-w-0 max-w-60">
+    <div class="channel-container flex flex-col justify-between rounded-xl space-y-3 w-55 min-w-60">
         <div class="item-slot flex flex-1 justify-start items-stretch flex-col overflow-hidden gap-1 h-full rounded-xl"
             style="border-radius: 15px;">
             <Button @click="emit('select', 'dashboard')" :variant="tab == 'dashboard' ? 'outline' : 'ghost'"

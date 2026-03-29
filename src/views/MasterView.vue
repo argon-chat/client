@@ -3,7 +3,11 @@
     <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
       :spaces="spaces" />
 
-    <RouterView />
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="shell-switch" mode="out-in">
+        <component :is="Component" :key="route.matched[1]?.name ?? route.path" />
+      </Transition>
+    </RouterView>
 
     <SettingsWindow />
     <ServerSettingsWindow />
@@ -41,6 +45,22 @@ body {
   height: 100%;
   width: 100%;
   background-color: #202225;
+}
+
+/* Shell switch transition */
+.shell-switch-enter-active,
+.shell-switch-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.shell-switch-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.shell-switch-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
 }
 
 @keyframes marquee {
