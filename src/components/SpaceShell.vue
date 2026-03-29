@@ -43,7 +43,7 @@ const selectedChannelId = computed({
 <template>
     <div class="server-workspace flex flex-1 gap-4" v-if="selectedSpace">
         <SpaceSideShell v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" />
-        <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 min-w-0 flex-col rounded-xl shadow-md justify-between overflow-hidden" />
+        <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 min-w-0 flex-col rounded-xl justify-between overflow-hidden" />
         <LeftSideUserList v-model:selected-space="selectedSpace"/>
     </div>
 </template>
@@ -52,6 +52,5 @@ const selectedChannelId = computed({
 .chat-container {
   background-color: transparent;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

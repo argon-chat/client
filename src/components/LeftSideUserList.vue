@@ -1,19 +1,25 @@
 <template>
-  <div
-    class="user-list-container rounded-xl p-4 shadow-md w-56 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-    <div v-for="group in groupedUsers" :key="group.archetype.id" class="mb-4">
-      <h4 class="text-sm font-semibold text-muted-foreground tracking-wide mb-2 flex items-center space-x-1">
-        <span v-if="group.archetype.iconFileId">
-          <img :src="`/api/icons/${group.archetype.iconFileId}`" class="w-4 h-4 inline-block mr-1" />
-        </span>
-        <span :style="{ color: formatColour(group.archetype.colour) }">{{ group.archetype.name }}</span>
-      </h4>
-      <ul class="text-muted-foreground space-y-2">
-        <li v-for="user in group.users" :key="user.userId"
-          class="flex items-center space-x-3 hover:text-foreground user-item">
-          <UserInListSideElement :user="user" />
-        </li>
-      </ul>
+  <div class="user-list-outer rounded-xl w-56 flex flex-col overflow-hidden">
+    <!-- Scrollable list -->
+    <div class="user-list-scroll">
+      <div v-for="group in filteredGroups" :key="group.archetype.id" class="mb-2 last:mb-0">
+        <button class="group-header" @click="toggleGroup(group.archetype.id)">
+          <IconChevronDown class="group-chevron" :class="{ 'group-chevron--collapsed': isCollapsed(group.archetype.id) }" />
+          <img v-if="group.archetype.iconFileId" :src="`/api/icons/${group.archetype.iconFileId}`" class="w-3.5 h-3.5" />
+          <span :style="{ color: formatColour(group.archetype.colour) }">{{ group.archetype.name }}</span>
+          <span class="group-count">&mdash; {{ group.users.length }}</span>
+        </button>
+        <Transition name="group-collapse">
+          <ul v-show="!isCollapsed(group.archetype.id)" class="space-y-0.5">
+            <li v-for="user in group.users" :key="user.userId" class="user-item">
+              <UserInListSideElement :user="user" />
+            </li>
+          </ul>
+        </Transition>
+      </div>
+      <div v-if="filteredGroups.length === 0" class="empty-state">
+        {{ searchQuery ? t("no_results") : t("no_members_online") }}
+      </div>
     </div>
   </div>
 </template>
@@ -21,24 +27,55 @@
 import { useLocale } from "@/store/localeStore";
 import { usePoolStore } from "@/store/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
-import { watch, computed } from "vue";
+import { computed, ref, reactive } from "vue";
 import { persistedValue } from "@argon/storage";
+import { IconChevronDown } from "@tabler/icons-vue";
 
 const model = defineModel<string | null>('selectedSpace', {
     type: String, required: true
 });
 
-
-
 const dataPool = usePoolStore();
-
-
 const groupedUsers = dataPool.useGroupedServerUsers(model);
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
 
 const { t } = useLocale();
+
+// Search
+const searchQuery = ref('');
+
+// Collapsed groups
+const collapsedGroups = reactive(new Set<string>());
+
+function toggleGroup(id: string) {
+  if (collapsedGroups.has(id)) collapsedGroups.delete(id);
+  else collapsedGroups.add(id);
+}
+
+function isCollapsed(id: string) {
+  return collapsedGroups.has(id);
+}
+
+// Filtered groups
+const filteredGroups = computed(() => {
+  if (!groupedUsers.value) return [];
+  if (!searchQuery.value.trim()) return groupedUsers.value;
+  const q = searchQuery.value.toLowerCase();
+  return groupedUsers.value
+    .map(g => ({
+      ...g,
+      users: g.users.filter(u => u.displayName.toLowerCase().includes(q))
+    }))
+    .filter(g => g.users.length > 0);
+});
+
+// Total count
+const totalCount = computed(() => {
+  if (!groupedUsers.value) return 0;
+  return groupedUsers.value.reduce((sum, g) => sum + g.users.length, 0);
+});
 
 // Calculate relative luminance
 const getLuminance = (r: number, g: number, b: number) => {
@@ -80,18 +117,123 @@ const formatColour = (argb: number) => {
 </script>
 
 <style lang="css" scoped>
-.user-list-container {
+.user-list-outer {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.5);
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.user-item {
-  white-space: nowrap;
+/* Scrollable list */
+.user-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 8px 8px;
+  scrollbar-width: none;
+}
+
+.user-list-scroll:hover {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+.user-list-scroll::-webkit-scrollbar {
+  width: 0;
+}
+
+.user-list-scroll:hover::-webkit-scrollbar {
+  width: 5px;
+}
+
+.user-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.user-list-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 8px;
+}
+
+/* Group header */
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground) / 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+  padding: 4px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.group-header:hover {
+  color: hsl(var(--muted-foreground));
+}
+
+.group-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  opacity: 0.5;
+}
+
+.group-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+.group-count {
+  font-weight: 400;
+  opacity: 0.5;
+}
+
+/* Group collapse animation */
+.group-collapse-enter-active,
+.group-collapse-leave-active {
+  transition: all 0.2s ease;
   overflow: hidden;
-  text-overflow: ellipsis;
-  position: relative;
-  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+.group-collapse-enter-from,
+.group-collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.group-collapse-enter-to,
+.group-collapse-leave-from {
+  opacity: 1;
+  max-height: 1000px;
+}
+
+/* User item */
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  overflow: hidden;
+}
+
+.user-item:hover {
+  background: hsl(var(--accent));
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  color: hsl(var(--muted-foreground) / 0.5);
+  font-size: 0.78rem;
+  text-align: center;
 }
 </style>

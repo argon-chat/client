@@ -1,34 +1,40 @@
 <template>
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
-    <PopoverContent style="width: 19rem;min-height: 25rem;"
+    <PopoverContent style="width: 19rem; min-height: 25rem;"
       class="p-0 rounded-2xl shadow-xl border overflow-hidden">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
     </PopoverContent>
     <PopoverTrigger as-child>
-      <div class="relative" style="width: 35px; height: 40px;">
-        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-          :overridedSize="35" />
-        <span :class="me.statusClass(user.status)"
-          class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
+      <div class="user-element">
+        <div class="user-avatar-wrap">
+          <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
+            :overridedSize="34" />
+          <span :class="me.statusClass(user.status)" class="status-dot"></span>
+        </div>
+        <div class="user-text">
+          <span class="user-name">{{ user.displayName }}</span>
+          <span class="user-activity" v-if="user.activity && props.showActivity">
+            {{ t(getTextForActivityKind(user.activity.kind)) }}
+            <span class="font-semibold">{{ user.activity.titleName }}</span>
+          </span>
+        </div>
       </div>
     </PopoverTrigger>
   </Popover>
 
-  <div v-else class="relative" style="width: 40px; height: 45px;">
-    <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-      :overridedSize="40" />
-    <span :class="me.statusClass(user.status)"
-      class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
-  </div>
-  <div class="flex flex-col items-start overflow-hidden shrink-0">
-    <span class="font-bold">{{ user.displayName }}</span>
-    <span class="text-[10px] flex" v-if="user.activity && props.showActivity">
-      {{ t(getTextForActivityKind(user.activity.kind)) }}
-      <span class="font-bold pl-1">
-        {{ user.activity.titleName }}
+  <div v-else class="user-element">
+    <div class="user-avatar-wrap">
+      <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
+        :overridedSize="34" />
+      <span :class="me.statusClass(user.status)" class="status-dot"></span>
+    </div>
+    <div class="user-text">
+      <span class="user-name">{{ user.displayName }}</span>
+      <span class="user-activity" v-if="user.activity && props.showActivity">
+        {{ t(getTextForActivityKind(user.activity.kind)) }}
+        <span class="font-semibold">{{ user.activity.titleName }}</span>
       </span>
-    </span>
-
+    </div>
   </div>
 </template>
 <script setup lang="ts">
@@ -72,3 +78,54 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
   }
 };
 </script>
+
+<style scoped>
+.user-element {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.user-avatar-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 13px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 2px solid hsl(var(--card));
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-activity {
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
