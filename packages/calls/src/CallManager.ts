@@ -8,7 +8,6 @@ import {
   RemoteParticipant,
   LocalVideoTrack,
   createLocalAudioTrack,
-  ScreenShareCaptureOptions,
   Track,
   LocalAudioTrack,
   AudioPresets,
@@ -734,34 +733,42 @@ export function createCallManager(config: CallManagerConfig): CallManager {
   async function startScreenShare(opts: {
     deviceId: string | null;
     systemAudio: "include" | "exclude";
+    width?: number;
+    height?: number;
+    frameRate?: number;
+    maxBitrate?: number;
   }) {
     if (!room.value) return;
 
-    let videoConstraints: any = {};
+    const fr = opts.frameRate ?? 30;
 
-    if (opts.deviceId) {
-      videoConstraints = {
-        mandatory: {
-          chromeMediaSource: "desktop",
-          chromeMediaSourceId: opts.deviceId,
-        },
-      };
-    } else {
-      videoConstraints = true;
+    // In Electron, tell the main process which source to provide
+    // before calling getDisplayMedia (intercepted by setDisplayMediaRequestHandler)
+    if (opts.deviceId && (window as any).argonIpc) {
+      await (window as any).argonIpc.invoke("HostProc", "setPendingScreenSource", [
+        opts.deviceId,
+        opts.systemAudio === "include",
+      ]);
     }
 
-    const capture: ScreenShareCaptureOptions = {
-      video: videoConstraints,
-      audio: false,
-      systemAudio: opts.systemAudio,
-    };
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: opts.systemAudio === "include",
+    });
 
-    const stream = await navigator.mediaDevices.getDisplayMedia(capture);
-
-    const vid = new LocalVideoTrack(stream.getTracks()[0]);
+    const vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
     vid.source = Track.Source.ScreenShare;
 
-    screenTrackPub = await room.value.localParticipant.publishTrack(vid);
+    screenTrackPub = await room.value.localParticipant.publishTrack(vid, {
+      videoEncoding: {
+        maxBitrate: opts.maxBitrate ?? 5_000_000,
+        maxFramerate: fr,
+      },
+      screenShareEncoding: {
+        maxBitrate: opts.maxBitrate ?? 5_000_000,
+        maxFramerate: fr,
+      },
+    });
     isSharing.value = true;
 
     screenTrackPub.once("ended", () => stopScreenShare());

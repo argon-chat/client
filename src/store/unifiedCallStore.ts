@@ -5,7 +5,6 @@ import {
   RemoteTrackPublication,
   RemoteParticipant,
   LocalVideoTrack,
-  ScreenShareCaptureOptions,
   Track,
   LocalAudioTrack,
   AudioPresets,
@@ -1099,34 +1098,42 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   async function startScreenShare(opts: {
     deviceId: string | null;
     systemAudio: "include" | "exclude";
+    width?: number;
+    height?: number;
+    frameRate?: number;
+    maxBitrate?: number;
   }) {
     if (!room.value) return;
 
-    let oo = {};
+    const fr = opts.frameRate ?? 30;
 
-    if (opts.deviceId) {
-      oo = {
-        mandatory: {
-          chromeMediaSource: "desktop",
-          chromeMediaSourceId: opts.deviceId,
-        },
-      } as any;
-    } else {
-      oo = true;
+    // In Electron, tell the main process which source to provide
+    // before calling getDisplayMedia (intercepted by setDisplayMediaRequestHandler)
+    if (opts.deviceId && (window as any).argonIpc) {
+      await (window as any).argonIpc.invoke("HostProc", "setPendingScreenSource", [
+        opts.deviceId,
+        opts.systemAudio === "include",
+      ]);
     }
 
-    const capture: ScreenShareCaptureOptions = {
-      video: oo as any,
-      audio: false,
-      systemAudio: opts.systemAudio,
-    };
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: opts.systemAudio === "include",
+    });
 
-    const stream = await navigator.mediaDevices.getDisplayMedia(capture);
-
-    const vid = new LocalVideoTrack(stream.getTracks()[0]);
+    const vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
     vid.source = Track.Source.ScreenShare;
 
-    screenTrackPub = await room.value.localParticipant.publishTrack(vid);
+    screenTrackPub = await room.value.localParticipant.publishTrack(vid, {
+      videoEncoding: {
+        maxBitrate: opts.maxBitrate ?? 5_000_000,
+        maxFramerate: fr,
+      },
+      screenShareEncoding: {
+        maxBitrate: opts.maxBitrate ?? 5_000_000,
+        maxFramerate: fr,
+      },
+    });
     isSharing.value = true;
 
     screenTrackPub.once("ended", () => stopScreenShare());

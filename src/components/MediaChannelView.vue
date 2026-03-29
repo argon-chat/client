@@ -21,8 +21,17 @@
 
         <!-- Content area -->
         <div class="media-content">
+            <!-- Empty state: no one in the channel -->
+            <div v-if="allUsers.length === 0" class="empty-state">
+                <div class="empty-state-icon">
+                    <Users2 class="w-10 h-10" />
+                </div>
+                <span class="empty-state-title">{{ t("empty_channel") }}</span>
+                <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
+            </div>
+
             <!-- Activity Mode: Game + participants below -->
-            <template v-if="activity.isActive">
+            <template v-else-if="activity.isActive">
                 <PlayFramePanel class="flex-1 min-h-0" />
                 
                 <div class="flex flex-row gap-2 overflow-x-auto w-full shrink-0" style="max-height: 8rem;">
@@ -35,6 +44,7 @@
                         :is-muted="isMuted(userId)"
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
+                        :is-screen-sharing="isScreenSharing(userId)"
                         :is-playing="isPlayingActivity(userId)"
                         :avatar-size="60"
                         :icon-size="16"
@@ -56,7 +66,7 @@
                         :is-speaking="isSpeaking(mainStreamer.User.userId)"
                         :is-muted="isMuted(mainStreamer.User.userId)"
                         :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
-                        :is-screen-sharing="mainStreamer.isScreenShare"
+                        :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                         :has-video="hasVideo(mainStreamer.User.userId)"
                         :avatar-size="180"
                         class="flex-1 min-h-0"
@@ -76,6 +86,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="90"
                             :icon-size="18"
                             class-name="flex-shrink-0"
@@ -100,6 +111,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :is-screen-sharing="isScreenSharing(userId)"
                             class-name="flex-shrink-0"
                             :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }"
                             @click="toggleFocus"
@@ -119,6 +131,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :is-screen-sharing="isScreenSharing(userId)"
                             class-name="w-full"
                             :custom-style="gridCardStyle(allUsers.length)"
                             @click="toggleFocus"
@@ -178,6 +191,7 @@ import { useMe } from "@/store/meStore";
 import { useApi } from "@/store/apiStore";
 import { usePlayFrameActivity } from "@/store/playframeStore";
 import { useFeatureFlags } from "@/store/featureFlagsStore";
+import { useLocale } from "@/store/localeStore";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import {
@@ -193,6 +207,7 @@ const me = useMe();
 const api = useApi();
 const activity = usePlayFrameActivity();
 const { playframeActive } = useFeatureFlags();
+const { t } = useLocale();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
@@ -290,6 +305,13 @@ const isSpeaking = (uid: Guid) => {
 };
 const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
 
+const isScreenSharing = (uid: Guid) => {
+    const myId = me.me?.userId;
+    if (uid === myId) return voice.isSharing;
+    const user = users.value.get(uid);
+    return user?.isScreenShare ?? false;
+};
+
 const isMuted = (uid: Guid) => {
     return muteStates.value.get(uid)?.muted ?? false;
 };
@@ -334,6 +356,7 @@ const toggleScreenCast = () => {
     if (voice.isSharing) {
         voice.stopScreenShare();
     } else {
+        // Open the share picker in ControlBar via the same flow
         voice.startScreenShare({ deviceId: null, systemAudio: "exclude" });
     }
 };
@@ -378,6 +401,43 @@ onUnmounted(() => {
     min-height: 0;
     padding: 1rem;
     gap: 0.75rem;
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    user-select: none;
+}
+
+.empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: hsl(var(--muted) / 0.5);
+    color: hsl(var(--muted-foreground) / 0.5);
+    margin-bottom: 4px;
+}
+
+.empty-state-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: hsl(var(--foreground) / 0.6);
+}
+
+.empty-state-sub {
+    font-size: 12px;
+    color: hsl(var(--muted-foreground) / 0.6);
+    text-align: center;
+    max-width: 220px;
+    line-height: 1.4;
 }
 
 /* Top info bar */

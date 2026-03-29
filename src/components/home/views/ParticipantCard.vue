@@ -1,7 +1,7 @@
 <template>
     <div 
         class="participant-card group"
-        :class="[className, { 'participant-card--playing': isPlaying, 'participant-card--speaking': isSpeaking }]"
+        :class="[className, { 'participant-card--playing': isPlaying, 'participant-card--speaking': isSpeaking, 'participant-card--streaming': isScreenSharing }]"
         :style="customStyle"
         @click="$emit('click', userId)">
         
@@ -27,9 +27,12 @@
             <span class="participant-name" :class="nameClass">
                 {{ displayName }}
             </span>
-            <span v-if="isScreenSharing" class="screen-share-badge">
-                📺 Screen
-            </span>
+        </div>
+
+        <!-- Streaming badge -->
+        <div v-if="isScreenSharing" class="streaming-badge">
+            <ScreenShareIcon class="w-3 h-3" />
+            <span>LIVE</span>
         </div>
 
         <!-- Status icons -->
@@ -50,7 +53,7 @@
 <script setup lang="ts">
 import type { Guid } from "@argon-chat/ion.webcore";
 import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon } from "lucide-vue-next";
+import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon } from "lucide-vue-next";
 
 interface Props {
     userId: Guid;
@@ -119,6 +122,11 @@ defineEmits<{
     box-shadow: 0 0 0 2px hsl(160 84% 39% / 0.1);
 }
 
+.participant-card--streaming {
+    border-color: hsl(0 84% 60% / 0.5);
+    box-shadow: 0 0 12px hsl(0 84% 60% / 0.2);
+}
+
 .participant-video {
     width: 100%;
     height: 100%;
@@ -148,10 +156,29 @@ defineEmits<{
     text-overflow: ellipsis;
 }
 
-.screen-share-badge {
-    font-size: 0.65rem;
-    color: hsl(142 71% 45%);
-    white-space: nowrap;
+/* Streaming badge */
+.streaming-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: hsl(0 84% 50%);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    animation: streaming-pulse 2s ease-in-out infinite;
+    z-index: 5;
+}
+
+@keyframes streaming-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 /* Status icons */
