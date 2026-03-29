@@ -1,5 +1,5 @@
 <template>
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col overflow-hidden bg-card/50 rounded-xl">
         <ScrollArea class="flex-1 rounded border p-2">
             <div v-if="items.length > 0" class="space-y-1">
                 <FriendListItem 

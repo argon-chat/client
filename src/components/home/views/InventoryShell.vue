@@ -6,7 +6,7 @@ import { useApi } from '@/store/apiStore';
 import { logger } from '@argon/core';
 import { InventoryItem, RedeemError } from '@argon/glue';
 import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from '@argon/ui/context-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@argon/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconFilter, IconSortAscending, IconSparkles } from '@tabler/icons-vue';
 import { useConfigStore } from '@/store/configStore';
@@ -271,20 +271,18 @@ function debugGrantTestItem() {
       </Button>
       
       <!-- Rarity Filter Dropdown -->
-      <ContextMenu>
-        <ContextMenuTrigger as-child>
-          <button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button variant="outline" size="sm" class="gap-2">
             <IconFilter class="w-4 h-4" />
-            <span class="text-sm font-medium">
-              {{ selectedRarity ? selectedRarity.charAt(0).toUpperCase() + selectedRarity.slice(1) : t('inventory_filter_all') }}
-            </span>
-          </button>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem @click="selectedRarity = null">
+            {{ selectedRarity ? selectedRarity.charAt(0).toUpperCase() + selectedRarity.slice(1) : t('inventory_filter_all') }}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem @click="selectedRarity = null">
             <span :class="!selectedRarity ? 'font-bold' : ''">{{ t('inventory_filter_all_items') }}</span>
-          </ContextMenuItem>
-          <ContextMenuItem 
+          </DropdownMenuItem>
+          <DropdownMenuItem 
             v-for="rarity in rarities" 
             :key="rarity"
             @click="selectedRarity = rarity"
@@ -292,32 +290,30 @@ function debugGrantTestItem() {
             <span :class="[rarityClasses[rarity], selectedRarity === rarity ? 'font-bold' : '']">
               {{ rarity.charAt(0).toUpperCase() + rarity.slice(1) }}
             </span>
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <!-- Sort Dropdown -->
-      <ContextMenu>
-        <ContextMenuTrigger as-child>
-          <button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button variant="outline" size="sm" class="gap-2">
             <IconSortAscending class="w-4 h-4" />
-            <span class="text-sm font-medium">
-              {{ sortBy === 'name' ? t('inventory_sort_name') : sortBy === 'rarity' ? t('inventory_sort_rarity') : t('inventory_recent') }}
-            </span>
-          </button>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem @click="sortBy = 'recent'">
+            {{ sortBy === 'name' ? t('inventory_sort_name') : sortBy === 'rarity' ? t('inventory_sort_rarity') : t('inventory_recent') }}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem @click="sortBy = 'recent'">
             <span :class="sortBy === 'recent' ? 'font-bold' : ''">{{ t('inventory_sort_recent') }}</span>
-          </ContextMenuItem>
-          <ContextMenuItem @click="sortBy = 'name'">
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="sortBy = 'name'">
             <span :class="sortBy === 'name' ? 'font-bold' : ''">{{ t('inventory_sort_name') }}</span>
-          </ContextMenuItem>
-          <ContextMenuItem @click="sortBy = 'rarity'">
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="sortBy = 'rarity'">
             <span :class="sortBy === 'rarity' ? 'font-bold' : ''">{{ t('inventory_sort_rarity') }}</span>
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </template>
 
     <template #item="{ index }">

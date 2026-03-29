@@ -7,7 +7,7 @@
 
     <RouterView v-slot="{ Component, route }">
       <Transition name="shell-switch" mode="out-in">
-        <component :is="Component" :key="route.matched[1]?.name ?? route.path" />
+        <component :is="Component" :key="getTransitionKey(route)" />
       </Transition>
     </RouterView>
 
@@ -31,6 +31,14 @@ import { computed, ref } from "vue";
 
 const showDevolutionTitlebar = computed(() => (window as any).devolution_titlebar === 0x1);
 const feedbackOpened = ref(false);
+
+function getTransitionKey(route: any): string {
+  const name = route.matched[1]?.name;
+  if (name === 'SpaceShellView' || name === 'SpaceChannel') {
+    return `space-${route.params.id}`;
+  }
+  return name ?? route.path;
+}
 
 const dataPool = usePoolStore();
 

@@ -1,16 +1,27 @@
 <template>
     <div v-bind="$attrs" class="flex flex-col h-full space-y-4">
 
-        <div class="flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <IconCookieManFilled class="text-primary w-6 h-6" />
-                <span class="text-2xl font-bold">{{ t("friends") }}</span>
-            </div>
+        <div class="flex items-center justify-between gap-4">
+            <Alert class="flex-1 flex justify-between items-center h-auto shadow-sm">
+                <AlertTitle class="flex items-center gap-3 text-xl font-bold">
+                    <div class="p-2 rounded-lg bg-primary/10">
+                        <IconCookieManFilled class="w-6 h-6" />
+                    </div>
+                    <div class="flex flex-col">
+                        <span>{{ t("friends") }}</span>
+                        <span class="text-xs font-normal text-muted-foreground">
+                            {{ friends.length }} {{ t("friends_list").toLowerCase() }}
+                        </span>
+                    </div>
+                </AlertTitle>
 
-            <Button variant="default" size="sm" @click="openAddFriend" :disabled="loading">
-                <IconUserPlus class="w-4 h-4 mr-1" />
-                {{ t("add_friend") }}
-            </Button>
+                <AlertDescription class="ml-auto flex gap-2">
+                    <Button variant="default" size="sm" @click="openAddFriend" :disabled="loading">
+                        <IconUserPlus class="w-4 h-4 mr-1" />
+                        {{ t("add_friend") }}
+                    </Button>
+                </AlertDescription>
+            </Alert>
         </div>
 
         <div class="flex gap-2 items-center">
@@ -87,7 +98,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { Input } from "@argon/ui/input";
-
+import { Alert, AlertTitle, AlertDescription } from "@argon/ui/alert";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 

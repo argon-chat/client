@@ -106,9 +106,8 @@ watch(email, (newVal, oldVal) => {
                     placeholder="example@email.com" 
                     :disabled="isLoading" 
                     id="email"
-                    class="input-styled pl-10"
+                    class="input-styled"
                   />
-                  <MailIcon class="absolute left-3 top-[14px] w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -140,10 +139,9 @@ watch(email, (newVal, oldVal) => {
                     v-model="password" 
                     :type="showPassword ? 'text' : 'password'" 
                     placeholder="••••••••" 
-                    class="input-styled pl-10 pr-10"
+                    class="input-styled pr-10"
                     :disabled="isLoading" 
                   />
-                  <LockIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <button 
                     type="button" 
                     @click="showPassword = !showPassword"
