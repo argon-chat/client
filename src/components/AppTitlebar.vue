@@ -56,7 +56,7 @@ const isHome = computed(() => route.path.includes('/home'));
 watch(
   () => pool.selectedServer,
   async (id) => {
-    if (!id) { currentServerName.value = null; return; }
+    if (!id) return;
     const server = await pool.getServer(id);
     currentServerName.value = server?.name ?? null;
   },
