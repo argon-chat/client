@@ -9,6 +9,7 @@ import { native } from "@argon/glue/native";
 export const useIdleStore = defineStore("idle", () => {
   const subscription = ref<Subscription | null>(null);
   const isAutoAway = ref(false); // Track if Away was set automatically
+  const idleSeconds = ref(0);
 
   const IDLE_TIME_SECONDS = 60 * 3; // 3 minutes
   const CHECK_INTERVAL_MS = 2000; // 2 seconds
@@ -44,6 +45,7 @@ export const useIdleStore = defineStore("idle", () => {
   }
 
   async function init() {
+    console.log("[IdleStore] Initializing idle tracking...");
     // Clean up previous subscription if exists
     if (subscription.value) {
       subscription.value.unsubscribe();
@@ -54,6 +56,7 @@ export const useIdleStore = defineStore("idle", () => {
         .pipe(
           switchMap(async () => {
             const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
+            idleSeconds.value = inactiveSeconds;
             handleStatusChange(inactiveSeconds);
           }),
         )
@@ -68,6 +71,7 @@ export const useIdleStore = defineStore("idle", () => {
             const inactiveSeconds = Math.floor(
               (now.value - lastActive.value) / 1000,
             );
+            idleSeconds.value = inactiveSeconds;
             handleStatusChange(inactiveSeconds);
           }),
         )
@@ -83,6 +87,7 @@ export const useIdleStore = defineStore("idle", () => {
   }
 
   return {
+    idleSeconds,
     init,
     cleanup,
   };
