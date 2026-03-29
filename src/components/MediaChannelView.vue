@@ -7,8 +7,15 @@
                 <Users2 class="w-3.5 h-3.5" />
                 <span>{{ allUsers.length }}</span>
             </div>
-            <div v-if="isConnected" class="info-pill" :class="'quality-' + qualityConnection.toLowerCase()">
+            <div v-if="isConnected" class="info-pill info-pill--clickable ping-pill-wrapper" :class="'quality-' + qualityConnection.toLowerCase()" @click.stop="openPingDetails = !openPingDetails">
                 <Signal class="w-3.5 h-3.5" />
+                <PingDetailsPopup
+                    :is-open="openPingDetails"
+                    :current-ping="voice.ping"
+                    :average-ping="voice.averagePing"
+                    :ping-history="voice.pingHistory"
+                    :quality-connection="qualityConnection"
+                />
             </div>
         </div>
 
@@ -172,6 +179,7 @@ import { useApi } from "@/store/apiStore";
 import { usePlayFrameActivity } from "@/store/playframeStore";
 import { useFeatureFlags } from "@/store/featureFlagsStore";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
+import PingDetailsPopup from "./PingDetailsPopup.vue";
 import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
@@ -191,6 +199,7 @@ const selectedChannelId = defineModel<string | null>("selectedChannelId", { type
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const focusedUserId = ref<Guid | null>(null);
 const mediaChannelContainer = ref<HTMLElement | null>(null);
+const openPingDetails = ref(false);
 
 // Computed properties
 const users = computed(() => {
@@ -394,6 +403,26 @@ onUnmounted(() => {
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
+}
+
+.info-pill--clickable {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.info-pill--clickable:hover {
+    background: hsl(var(--card));
+}
+
+.ping-pill-wrapper {
+    position: relative;
+}
+
+.ping-pill-wrapper :deep(.ping-popup) {
+    bottom: auto;
+    top: calc(100% + 8px);
+    left: 0;
+    transform: none;
 }
 
 .info-pill.quality-green { color: #22c55e; }

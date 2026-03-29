@@ -5,18 +5,49 @@ import { usePoolStore } from '@/store/poolStore';
 import { useLocale } from '@/store/localeStore';
 import { useVersionChecker } from '@/lib/useVersionChecker';
 import { useNotifications } from '@/composables/useNotifications';
+import { useUnifiedCall } from '@/store/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport } from '@tabler/icons-vue';
+import { Signal } from 'lucide-vue-next';
 import { NBadge } from 'naive-ui';
+import Counter from './motionCounter/Counter.vue';
+import { computedAsync } from '@vueuse/core';
 
 const { t } = useLocale();
 const route = useRoute();
 const router = useRouter();
 const pool = usePoolStore();
 const isMaximized = ref(false);
-const isMac = computed(() => !navigator.userAgent.includes('Mac'));
+const isMac = computed(() => navigator.userAgent.includes('Mac'));
 const { needsUpdate, doUpdate } = useVersionChecker();
 const { totalNotifications } = useNotifications();
+const voice = useUnifiedCall();
+
+const isVoiceConnected = computed(() => voice.isConnected);
+const isVoiceConnecting = computed(() => voice.isConnecting);
+const isVoiceReconnecting = computed(() => voice.isReconnecting);
+
+const voiceQuality = computed<'NONE' | 'GREEN' | 'ORANGE' | 'RED'>(() => {
+  if (!isVoiceConnected.value) return 'NONE';
+  const ms = parseInt(String(voice.ping).replace('ms', '').trim(), 10);
+  if (!ms || ms <= 0) return 'NONE';
+  if (ms < 50) return 'GREEN';
+  if (ms < 100) return 'ORANGE';
+  return 'RED';
+});
+
+const callTitle = computedAsync(async () => {
+  if (!isVoiceConnected.value && !isVoiceConnecting.value) return '';
+  if (voice.mode === 'dm' && voice.targetId) {
+    const u = await pool.getUser(voice.targetId);
+    return u?.displayName ?? 'Direct call';
+  }
+  if (voice.mode === 'channel' && voice.targetId) {
+    const c = await pool.getChannel(voice.targetId);
+    return c?.name ?? '';
+  }
+  return '';
+});
 
 // Current context breadcrumb
 const currentServerName = ref<string | null>(null);
@@ -94,6 +125,27 @@ const windowClose = () => {
       <span v-else-if="currentServerName" :key="currentServerName" class="breadcrumb">
         {{ currentServerName }}
       </span>
+    </Transition>
+
+    <!-- Voice connection status -->
+    <Transition name="breadcrumb-fade" mode="out-in">
+      <div v-if="isVoiceConnected || isVoiceConnecting" class="voice-status">
+        <Signal class="w-3 h-3" :class="{
+          'text-green-500': voiceQuality === 'GREEN',
+          'text-orange-500': voiceQuality === 'ORANGE',
+          'text-red-500': voiceQuality === 'RED',
+          'text-muted-foreground': voiceQuality === 'NONE'
+        }" />
+        <span class="voice-title">{{ callTitle }}</span>
+        <span v-if="isVoiceConnected" class="voice-timer">
+          <Counter :value="voice.interval.min" :gap="1" :places="[10, 1]" :font-size="9" :textColor="'hsl(var(--muted-foreground))'" />
+          <Counter :value="voice.interval.sec" :gap="1" :places="[10, 1]" :font-size="9" :textColor="'hsl(var(--muted-foreground))'" />
+        </span>
+        <span class="voice-dot" :class="{
+          'bg-lime-400': isVoiceConnected && !isVoiceReconnecting,
+          'bg-orange-400': (isVoiceConnecting && !isVoiceReconnecting) || isVoiceReconnecting
+        }"></span>
+      </div>
     </Transition>
 
     <div class="titlebar-drag-region"></div>
@@ -243,6 +295,42 @@ const windowClose = () => {
 .breadcrumb-fade-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+/* Voice connection status */
+.voice-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: hsl(var(--foreground) / 0.04);
+  border: 1px solid hsl(var(--border) / 0.3);
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+
+.voice-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.voice-timer {
+  display: flex;
+  align-items: center;
+}
+
+.voice-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .titlebar-drag-region {

@@ -1,27 +1,26 @@
 <template>
-    <div class="relative" style="z-index: 1;" v-if="me.me">
-        <div class="control-bar">
-            <div class="controls">
-                <button :disabled="!isConnected" @click="endActiveCall" class="active">
-                    <PhoneOffIcon class="w-5 h-5" />
-                </button>
+    <div v-if="me.me" class="control-bar">
+        <div class="controls">
+            <button :disabled="!isConnected" @click="endActiveCall" class="active">
+                <PhoneOffIcon class="w-5 h-5" />
+            </button>
 
-                <button @click="toggleMic" :class="{ active: isMicMuted }">
-                    <MicOff v-if="isMicMuted" class="w-5 h-5" />
-                    <Mic v-else class="w-5 h-5" />
-                </button>
+            <button @click="toggleMic" :class="{ active: isMicMuted }">
+                <MicOff v-if="isMicMuted" class="w-5 h-5" />
+                <Mic v-else class="w-5 h-5" />
+            </button>
 
-                <button @click="sys.toggleHeadphoneMute" :class="{ active: sys.headphoneMuted }">
-                    <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
-                    <Headphones v-else class="w-5 h-5" />
-                </button>
+            <button @click="sys.toggleHeadphoneMute" :class="{ active: sys.headphoneMuted }">
+                <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
+                <Headphones v-else class="w-5 h-5" />
+            </button>
 
-                <button @click="toggleScreenCast" :class="{ active: voice.isSharing }" :disabled="!isConnected">
-                    <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
-                    <ScreenShare v-else class="w-5 h-5" />
-                </button>
+            <button @click="toggleScreenCast" :class="{ active: voice.isSharing }" :disabled="!isConnected">
+                <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
+                <ScreenShare v-else class="w-5 h-5" />
+            </button>
 
-                <Dialog style="min-width: 620px !important" v-model:open="openShareSettings">
+            <Dialog style="min-width: 620px !important" v-model:open="openShareSettings">
                     <DialogContent class="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>{{ t("screencast") }}</DialogTitle>
@@ -128,56 +127,6 @@
                     <OctagonMinusIcon v-else class="w-5 h-5" />
                 </button>
             </div>
-        </div>
-
-        <div>
-            <div v-show="isConnected || isConnecting" v-motion-slide-visible-bottom
-                class="connection-card absolute text-foreground rounded-t-lg p-3 shadow-2xl flex flex-col items-center z-[-1]"
-                style="bottom: 100%; margin-bottom: -5px;">
-                <div class="flex items-center space-x-2 relative">
-                    <button @click="openPingDetails = !openPingDetails" class="ping-button">
-                        <Signal class="w-4 h-4 text-green-500" v-if="qualityConnection === 'GREEN'" />
-                        <Signal class="w-4 h-4 text-orange-500"
-                            v-else-if="qualityConnection === 'ORANGE'" />
-                        <Signal class="w-4 h-4 text-red-500" v-else-if="qualityConnection === 'RED'" />
-                        <Signal class="w-4 h-4 text-gray-500" v-else />
-                    </button>
-                    
-                    <PingDetailsPopup
-                        :is-open="openPingDetails"
-                        :current-ping="voice.ping"
-                        :average-ping="voice.averagePing"
-                        :ping-history="voice.pingHistory"
-                        :quality-connection="qualityConnection"
-                    />
-
-                    <span class="font-semibold marquee">
-                        {{ callTitle }}
-                    </span>
-                </div>
-
-                <span v-if="isConnected" class="text-timer text-[#a2a6a8]">
-                    <Counter v-if="voice.interval.day != 0" :value="voice.interval.day" :gap="2" :places="[10, 1]"
-                        :font-size="11" :textColor="'#999'" />
-                    <Counter :value="voice.interval.hor" :gap="1" :places="[10, 1]" :font-size="11"
-                        :textColor="'#999'" />
-                    <Counter :value="voice.interval.min" :gap="1" :places="[10, 1]" :font-size="11"
-                        :textColor="'#999'" />
-                    <Counter :value="voice.interval.sec" :gap="1" :places="[10, 1]" :font-size="11"
-                        :textColor="'#999'" />
-                </span>
-
-                <span class="text-xs text-lime-400 mt-1" v-if="isConnected && !isReconnecting">
-                    {{ t("connected") }}
-                </span>
-                <span class="text-xs text-orange-400 mt-1" v-else-if="isConnecting && !isReconnecting">
-                    {{ t("connecting") }}...
-                </span>
-                <span class="text-xs text-orange-400 mt-1" v-else-if="isReconnecting">
-                    {{ t("reconnect") }}...
-                </span>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -187,7 +136,6 @@ import {
     MicOff,
     HeadphoneOff,
     Headphones,
-    Signal,
     PhoneOffIcon,
     ScreenShareOff,
     ScreenShare,
@@ -216,23 +164,19 @@ import {
     SelectValue,
 } from "@argon/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@argon/ui/tabs";
-import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, watch } from "vue";
 import { useLocale } from "@/store/localeStore";
 import { UserStatus } from "@argon/glue";
 import { useUnifiedCall } from "@/store/unifiedCallStore";
 import { useApi } from "@/store/apiStore";
 import { usePlayFrameActivity } from "@/store/playframeStore";
-import { usePoolStore } from "@/store/poolStore";
-import { computedAsync } from "@vueuse/core";
-import Counter from "./motionCounter/Counter.vue";
-import PingDetailsPopup from "./PingDetailsPopup.vue";
+
 import { Screen } from "@argon/glue/ipc";
 import { native } from "@argon/glue/native";
 import { useFeatureFlags } from "@/store/featureFlagsStore";
 
 const voice = useUnifiedCall();
 const api = useApi();
-const pool = usePoolStore();
 const activity = usePlayFrameActivity();
 const { playframeActive } = useFeatureFlags();
 
@@ -267,7 +211,6 @@ const allFps = [
     { title: "165fps", value: "165" },
 ];
 
-const openPingDetails = ref(false);
 const openShareSettings = ref(false);
 const includeAudio = ref(false);
 const quality = ref(allSizes.at(0)?.title);
@@ -345,29 +288,6 @@ watch(openShareSettings, async (isOpen) => {
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);
-const isReconnecting = computed(() => voice.isReconnecting);
-
-const qualityConnection = computed<"NONE" | "GREEN" | "ORANGE" | "RED">(() => {
-    if (!isConnected.value) return "NONE";
-    const ms = parseInt(String(voice.ping).replace("ms", "").trim(), 10);
-    if (!ms || ms <= 0) return "NONE";
-    if (ms < 50) return "GREEN";
-    if (ms < 100) return "ORANGE";
-    return "RED";
-});
-
-const callTitle = computedAsync(async () => {
-    if (!isConnected.value && !isConnecting.value) return "";
-    if (voice.mode === "dm" && voice.targetId) {
-        const u = await pool.getUser(voice.targetId);
-        return u?.displayName ?? "Direct call";
-    }
-    if (voice.mode === "channel" && voice.targetId) {
-        const c = await pool.getChannel(voice.targetId);
-        return c?.name ?? "Unknown Channel";
-    }
-    return "";
-});
 
 const isMicMuted = computed(() => {
     return sys.microphoneMuted;
@@ -418,25 +338,6 @@ async function goShare() {
         });
     }
 }
-
-// Close ping popup when clicking outside
-const handleClickOutside = (event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    const pingPopup = target.closest('.ping-popup');
-    const pingButton = target.closest('.ping-button');
-    
-    if (!pingPopup && !pingButton && openPingDetails.value) {
-        openPingDetails.value = false;
-    }
-};
-
-onMounted(() => {
-    document.addEventListener('click', handleClickOutside);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('click', handleClickOutside);
-});
 </script>
 
 <style scoped>
@@ -447,9 +348,15 @@ onBeforeUnmount(() => {
     padding: 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    position: relative;
+    justify-content: center;
+}
+
+/* Control buttons */
+.controls {
+    justify-content: center;
+    display: flex;
+    gap: 6px;
+    flex: auto;
 }
 
 .controls button {
@@ -458,16 +365,8 @@ onBeforeUnmount(() => {
     color: hsl(var(--foreground));
     font-size: 16px;
     cursor: pointer;
-    margin-left: 5px;
-    transition: color 0.3s;
-    margin: 5px;
-}
-
-.controls {
-    justify-content: center;
-    display: flex;
-    gap: 6px;
-    flex: auto;
+    transition: color 0.2s;
+    padding: 5px;
 }
 
 .controls button:hover {
@@ -479,17 +378,8 @@ onBeforeUnmount(() => {
 }
 
 .controls button:disabled {
-    color: hsl(var(--muted-foreground) / 0.5);
+    color: hsl(var(--muted-foreground) / 0.35);
     cursor: not-allowed;
-}
-
-.connection-card {
-    background-color: hsl(var(--muted));
-    text-align: center;
-    margin-bottom: -5px;
-    left: 10%;
-    bottom: 100%;
-    width: calc(100% - 50px);
 }
 
 .previewSelected {
@@ -499,27 +389,6 @@ onBeforeUnmount(() => {
 .preview {
     cursor: pointer;
     border: 2px solid #00ffae00;
-}
-
-.marquee {
-    white-space: nowrap;
-    display: inline-block;
-}
-
-.ping-button {
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.ping-button:hover {
-    background-color: hsl(var(--muted) / 0.5);
 }
 </style>
 

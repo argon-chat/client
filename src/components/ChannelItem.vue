@@ -13,7 +13,7 @@
     class="channel-item"
   >
     <div 
-      class="px-2 mx-2 py-1.5 hover:bg-gray-700/30 cursor-pointer rounded-md transition-all duration-150"
+      class="px-2 mx-2 py-1.5 hover:bg-foreground/[0.06] cursor-pointer rounded-lg transition-all duration-150"
       @click="emit('select', channel.channelId)"
       @dblclick="emit('switch-voice', channel.channelId)"
     >
@@ -25,10 +25,10 @@
               class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
               @click.stop="openMeetingDetails"
             />
-            <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-gray-400']" />
-            <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-gray-400 flex-shrink-0" />
-            <span class="text-gray-400 font-medium truncate">{{ channel?.name }}</span>
+            <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
+            <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <span class="text-muted-foreground font-medium truncate">{{ channel?.name }}</span>
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
           </div>
         </ContextMenuTrigger>
@@ -197,13 +197,13 @@ const openMeetingDetails = () => {
 }
 
 .channel-active > div {
-  background-color: rgba(88, 101, 242, 0.1) !important;
-  color: white;
+  background-color: hsl(var(--primary) / 0.1) !important;
+  color: hsl(var(--foreground));
 }
 
 .channel-connected > div {
-  background-color: rgba(34, 197, 94, 0.1) !important;
-  border-left: 2px solid rgb(34, 197, 94);
+  background-color: hsl(142 71% 45% / 0.08) !important;
+  border-left: 2px solid hsl(142 71% 45%);
 }
 
 .drag-over {
@@ -217,7 +217,7 @@ const openMeetingDetails = () => {
   left: 8px;
   right: 8px;
   height: 2px;
-  background: #5865f2;
+  background: hsl(var(--primary));
   border-radius: 1px;
 }
 

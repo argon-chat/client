@@ -5,7 +5,8 @@
     
     <!-- Text and icon on top of divider -->
     <div 
-      class="relative inline-flex items-center gap-1.5 px-2 bg-card text-xs font-semibold text-muted-foreground uppercase hover:text-foreground transition-colors duration-150"
+      class="relative inline-flex items-center gap-1.5 px-2 text-xs font-semibold text-muted-foreground uppercase hover:text-foreground transition-colors duration-150"
+      style="background-color: hsl(var(--card));"
       @click="emit('toggle', group.groupId)"
     >
       <ChevronRightIcon v-if="group.isCollapsed" class="w-3 h-3 transition-transform duration-150" />

@@ -1,20 +1,20 @@
 <template>
-  <li class="flex items-center mt-1 text-gray-400 hover:text-white">
+  <li class="flex items-center mt-1 py-0.5 px-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors duration-150">
     <ArgonAvatar 
       :fallback="user.User.displayName" 
       :fileId="user.User.avatarFileId" 
       :userId="user.userId"
       :class="[
-        'w-7 h-7 rounded-full mr-3 transition-all duration-300 ease-in-out',
+        'w-7 h-7 rounded-full mr-3 transition-all duration-300 ease-in-out flex-shrink-0',
         { 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
       ]"
     />
-    <span>{{ user.User.displayName }}</span>
-    <div class="flex items-center gap-1" style="margin-left: auto;">
-      <MicOffIcon v-if="isMuted" class="w-5 h-5"  />
-      <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-5 h-5" />
-      <ScreenShare v-if="user.isScreenShare" class="w-5 h-5" />
-      <RadiusIcon v-if="user.isRecording" class="w-5 h-5" style="color: red;" />
+    <span class="text-sm truncate">{{ user.User.displayName }}</span>
+    <div class="flex items-center gap-1 ml-auto flex-shrink-0">
+      <MicOffIcon v-if="isMuted" class="w-4 h-4 text-destructive/70" />
+      <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-4 h-4 text-destructive/70" />
+      <ScreenShare v-if="user.isScreenShare" class="w-4 h-4 text-primary" />
+      <RadiusIcon v-if="user.isRecording" class="w-4 h-4 text-destructive" />
     </div>
   </li>
 </template>

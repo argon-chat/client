@@ -1,6 +1,6 @@
 <template>
-  <div class="chat-list rounded-xl scroll-smooth overflow-y-auto flex flex-col">
-    <div class="py-2 overflow-x-hidden" style="text-overflow: ellipsis;">
+  <div class="chat-list flex flex-col">
+    <div class="chat-list-scroll">
       <ChannelItem
         v-for="(channel, index) in sortedUngroupedChannels"
         :key="channel.channelId"
@@ -223,31 +223,42 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 .chat-list {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.5);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 15px;
   height: 100%;
+  overflow: hidden;
 }
 
-/* Chrome, Edge, Safari */
-.chat-list::-webkit-scrollbar {
-  width: 4px !important;
+.chat-list-scroll {
+  overflow-y: scroll;
+  overflow-x: hidden;
+  height: 100%;
+  padding: 6px 0;
 }
 
-.chat-list::-webkit-scrollbar-track {
+.chat-list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-list-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.chat-list::-webkit-scrollbar-thumb {
-  background: #3d3d3d;
+.chat-list-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.08);
   border-radius: 8px;
+  transition: background 0.2s;
 }
 
-.chat-list::-webkit-scrollbar-thumb:active {
-  background: #555;
+.chat-list:hover .chat-list-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.15);
 }
 
-/* Firefox */
-.chat-list {
+.chat-list-scroll::-webkit-scrollbar-thumb:active {
+  background: hsl(var(--foreground) / 0.25);
+}
+
+.chat-list-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #3d3d3d transparent;
+  scrollbar-color: hsl(var(--foreground) / 0.08) transparent;
 }
 </style>
