@@ -81,3 +81,11 @@ button:focus-visible {
 .focus-visible\:ring-ring:focus-visible {
   --tw-ring-color: hsl(0deg 0% 0% / 0%);
 }
+
+body:has([data-vaul-drawer][data-state="open"]) {
+  overflow: hidden !important;
+}
+
+[vaul-drawer-wrapper] {
+  overflow: hidden !important;
+}

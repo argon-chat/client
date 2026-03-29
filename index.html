@@ -156,6 +156,15 @@
 body {
   font-family: 'Inter', sans-serif;
 }
+
+body:has([data-vaul-drawer]) {
+  overflow: hidden !important;
+}
+
+[vaul-drawer-wrapper] {
+  overflow: hidden !important;
+}
+
 .stacked-fractions {
   font-feature-settings: "frac";
 }
