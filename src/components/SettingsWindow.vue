@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import {
     Drawer,
     DrawerContent,
@@ -136,12 +136,19 @@ const handleEscape = (event: KeyboardEvent) => {
 };
 
 // Lifecycle
+watch(() => windows.settingsOpen, (open) => {
+    document.documentElement.style.overflow = open ? 'hidden' : '';
+    document.body.style.overflow = open ? 'hidden' : '';
+}, { immediate: true });
+
 onMounted(() => {
     window.addEventListener("keydown", handleEscape);
 });
 
 onUnmounted(() => {
     window.removeEventListener("keydown", handleEscape);
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
 });
 </script>
 

@@ -1,7 +1,7 @@
 <template>
     <div
         class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px] shrink-0">
-        <div class="flex-1 w-full overflow-y-auto flex flex-col gap-2 px-2"
+        <div class="flex-1 w-full overflow-y-auto flex flex-col gap-2 px-3 pt-1"
             @dragover.prevent="onDragOverUncategorized"
             @drop="onDropToUncategorized">
             <!-- Pinned Servers -->
@@ -9,7 +9,7 @@
                 <div v-for="server in pinnedServers" :key="server.spaceId" class="relative group">
                     <Button :variant="'secondary'" size="icon"
                         :aria-current="isSelected(server.spaceId)" 
-                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto" 
+                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto overflow-visible" 
                         :class="[isSelected(server.spaceId) ? 'rounded-2xl' : 'rounded-full']" 
                         draggable="true"
                         @dragstart="onDragStart($event, server.spaceId)"
@@ -26,7 +26,7 @@
                         />
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
-                        <IconPinFilled class="absolute -top-1 -right-1 w-3 h-3 text-primary" />
+                        <IconPinFilled class="absolute -top-1 -right-1 w-3 h-3 text-primary z-10" />
                     </Button>
                 </div>
                 <Separator class="my-2" />

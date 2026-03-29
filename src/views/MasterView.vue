@@ -37,6 +37,8 @@ const dataPool = usePoolStore();
 const spaces = dataPool.useAllServers();
 
 function selectServer(id: Guid) {
+  const current = router.currentRoute.value;
+  if (String(current.params.id) === String(id)) return;
   router.push({ name: "SpaceShellView", params: { id } });
 }
 
