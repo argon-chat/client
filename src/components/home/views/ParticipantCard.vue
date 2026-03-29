@@ -1,7 +1,7 @@
 <template>
     <div 
-        class="relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group transition-all duration-300 cursor-pointer"
-        :class="[className, { 'ring-2 ring-emerald-500/70': isPlaying }]"
+        class="participant-card group"
+        :class="[className, { 'participant-card--playing': isPlaying, 'participant-card--speaking': isSpeaking }]"
         :style="customStyle"
         @click="$emit('click', userId)">
         
@@ -11,28 +11,38 @@
             autoplay 
             playsinline 
             muted 
-            class="w-full h-full object-cover" />
+            class="participant-video" />
 
         <SmartArgonAvatar 
             v-else 
             :user-id="userId" 
             :overrided-size="avatarSize"
             :class="[
-                'transition-all duration-300 ease-in-out group-hover:scale-110',
-                { 'ring-4 ring-lime-400/80 rounded-full shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
+                'rounded-full transition-all duration-300 ease-in-out group-hover:scale-105',
+                { 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
             ]" />
 
-        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-card/90 via-card/60 to-transparent py-2 px-2" :class="{ 'text-center': centered }">
-            <span class="text-foreground font-semibold truncate block drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" :class="nameClass">
+        <!-- Bottom name overlay -->
+        <div class="participant-overlay" :class="{ 'text-center': centered }">
+            <span class="participant-name" :class="nameClass">
                 {{ displayName }}
-                <span v-if="isScreenSharing" class="text-xs text-lime-400 ml-2">📺 Sharing screen</span>
+            </span>
+            <span v-if="isScreenSharing" class="screen-share-badge">
+                📺 Screen
             </span>
         </div>
 
-        <div class="absolute flex gap-1" :class="iconPosition">
-            <Gamepad2Icon v-if="isPlaying" :width="iconSize" :height="iconSize" class="text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.6)]" />
-            <MicOffIcon v-if="isMuted" :width="iconSize" :height="iconSize" :class="mutedIconClass" />
-            <HeadphoneOffIcon v-if="isHeadphoneMuted" :width="iconSize" :height="iconSize" :class="mutedIconClass" />
+        <!-- Status icons -->
+        <div class="participant-icons" :class="iconPosition">
+            <span v-if="isPlaying" class="status-icon status-icon--playing">
+                <Gamepad2Icon :width="iconSize" :height="iconSize" />
+            </span>
+            <span v-if="isMuted" class="status-icon status-icon--muted">
+                <MicOffIcon :width="iconSize" :height="iconSize" />
+            </span>
+            <span v-if="isHeadphoneMuted" class="status-icon status-icon--muted">
+                <HeadphoneOffIcon :width="iconSize" :height="iconSize" />
+            </span>
         </div>
     </div>
 </template>
@@ -79,6 +89,93 @@ defineEmits<{
     (e: 'click', userId: Guid): void;
     (e: 'video-ref', el: any, userId: Guid): void;
 }>();
-
-const mutedIconClass = 'text-red-400 drop-shadow-[0_0_4px_rgba(255,0,0,0.6)]';
 </script>
+
+<style scoped>
+.participant-card {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.participant-card:hover {
+    border-color: hsl(var(--border));
+}
+
+.participant-card--speaking {
+    border-color: rgba(132, 255, 90, 0.4);
+    box-shadow: 0 0 16px rgba(132, 255, 90, 0.3);
+}
+
+.participant-card--playing {
+    border-color: hsl(160 84% 39% / 0.5);
+    box-shadow: 0 0 0 2px hsl(160 84% 39% / 0.1);
+}
+
+.participant-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+
+
+/* Bottom overlay */
+.participant-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, hsl(var(--card) / 0.9), hsl(var(--card) / 0.5) 60%, transparent);
+    padding: 1.5rem 0.5rem 0.375rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+}
+
+.participant-name {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.screen-share-badge {
+    font-size: 0.65rem;
+    color: hsl(142 71% 45%);
+    white-space: nowrap;
+}
+
+/* Status icons */
+.participant-icons {
+    position: absolute;
+    display: flex;
+    gap: 3px;
+}
+
+.status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border-radius: 6px;
+    background: hsl(var(--card) / 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.status-icon--muted {
+    color: hsl(0 84% 60%);
+}
+
+.status-icon--playing {
+    color: hsl(160 84% 39%);
+}
+</style>

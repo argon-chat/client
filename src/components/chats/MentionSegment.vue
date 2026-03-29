@@ -1,7 +1,7 @@
 <template>
     <Popover v-model:open="isOpened">
-        <PopoverContent style="width: 19rem;min-height: 25rem;"
-            class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
+        <PopoverContent style="width: 21rem;"
+            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
             <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
         </PopoverContent>
         <PopoverTrigger>

@@ -1,50 +1,51 @@
 <template>
   <div class="chat-container" :style="{ '--chat-width': chatWidth + 'px' }">
-    <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
-      <!-- Sticky header -->
-      <div class="sticky-header">
-        <div class="header-top-bar">
-          <h2 class="channel-header">
-            <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="channel-icon" />
-            <span>{{ channelName }}</span>
-          </h2>
-          <div class="header-actions">
-            <button class="notification-btn" title="Notification settings">
-              <BellIcon class="w-5 h-5" />
-            </button>
-            <div class="search-input-wrapper">
-              <SearchIcon class="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search messages..." 
-                class="search-input"
-              />
-            </div>
+    <!-- Sticky header -->
+    <div class="sticky-header">
+      <div class="header-top-bar">
+        <h2 class="channel-header">
+          <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="channel-icon" />
+          <span>{{ channelName }}</span>
+        </h2>
+        <div class="header-actions">
+          <button class="notification-btn" title="Notification settings">
+            <BellIcon class="w-4.5 h-4.5" />
+          </button>
+          <div class="search-input-wrapper">
+            <SearchIcon class="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search messages..." 
+              class="search-input"
+            />
           </div>
         </div>
-        <Transition name="typing-slide">
-          <div v-if="typingUsers && typingUsers.length > 0"
-            class="typing-indicator">
-            <div class="typing-bubble">
-              <span>
-                {{
-                  typingUsers.length === 1
-                    ? t("typing.one", { name: typingUsers[0].displayName })
-                    : typingUsers.length <= 3 ? t("typing.few", {
-                        names: typingUsers.map(u => u.displayName).join(", ")
-                      }) : t("typing.many")
-                }}
-              </span>
-              <span class="inline-flex gap-[1px] ml-1">
-                <span class="dot"></span>
-                <span class="dot dot2"></span>
-                <span class="dot dot3"></span>
-              </span>
-            </div>
-          </div>
-        </Transition>
       </div>
-      
+      <Transition name="typing-slide">
+        <div v-if="typingUsers && typingUsers.length > 0"
+          class="typing-indicator">
+          <div class="typing-bubble">
+            <span>
+              {{
+                typingUsers.length === 1
+                  ? t("typing.one", { name: typingUsers[0].displayName })
+                  : typingUsers.length <= 3 ? t("typing.few", {
+                      names: typingUsers.map(u => u.displayName).join(", ")
+                    }) : t("typing.many")
+              }}
+            </span>
+            <span class="inline-flex gap-[1px] ml-1">
+              <span class="dot"></span>
+              <span class="dot dot2"></span>
+              <span class="dot dot3"></span>
+            </span>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- Messages scroll area -->
+    <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
       <!-- Loading indicator at top -->
       <div v-if="isLoadingOlder" class="loading-indicator top">
         <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
@@ -80,16 +81,18 @@
           />
         </div>
       </div>
-
-      <!-- Empty state -->
-      <div v-if="!isLoading && messages.length === 0" class="flex flex-col items-center justify-center h-full text-muted-foreground">
-        <MessageSquareIcon class="w-12 h-12 mb-4 opacity-50" />
-        <p>{{ t('no_messages_yet') }}</p>
-      </div>
     </div>
 
-    <!-- Scroll to bottom button - outside scroll container -->
-    <Transition name="fade">
+    <!-- Empty state - outside scroll area -->
+    <div v-if="!isLoading && messages.length === 0" class="empty-chat-state">
+      <div class="empty-chat-icon">
+        <MessageSquareIcon class="w-7 h-7" />
+      </div>
+      <p class="empty-chat-text">{{ t('no_messages_yet') }}</p>
+    </div>
+
+    <!-- Scroll to bottom button -->
+    <Transition name="scroll-btn">
       <button 
         v-if="isScrolledUp" 
         @click="onScrollToBottomClick" 
@@ -492,57 +495,56 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: hsl(var(--card));
 }
 
 .chat-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto; 
+  overflow-y: scroll;
   position: relative;
   padding: 0 2.25rem 8px 2.25rem;
-  background: hsl(var(--card));
 }
 
 /* Sticky header */
 .sticky-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
-  background: hsl(var(--card) / 0.85);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-radius: 0.5rem 0.5rem 0 0;
-  margin: 0 -2.25rem;
+  background: hsl(var(--card));
+  border-radius: 15px 15px 0 0;
   padding: 0 2.25rem;
+  flex-shrink: 0;
 }
 
 .header-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 0;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  padding: 0.75rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.35);
 }
 
 .channel-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   line-height: 1;
+  color: hsl(var(--foreground));
 }
 
 .channel-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.1rem;
+  height: 1.1rem;
   flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .search-input-wrapper {
@@ -553,48 +555,50 @@ onUnmounted(() => {
 
 .search-icon {
   position: absolute;
-  left: 0.75rem;
-  width: 1rem;
-  height: 1rem;
+  left: 0.625rem;
+  width: 0.875rem;
+  height: 0.875rem;
   color: hsl(var(--muted-foreground));
   pointer-events: none;
 }
 
 .search-input {
-  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  padding: 0.375rem 0.625rem 0.375rem 2rem;
   background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
+  font-size: 0.8rem;
   color: hsl(var(--foreground));
   outline: none;
-  transition: border-color 0.2s ease;
-  width: 200px;
+  transition: border-color 0.2s ease, width 0.2s ease;
+  width: 160px;
 }
 
 .search-input:focus {
-  border-color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.6);
+  width: 200px;
 }
 
 .search-input::placeholder {
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground) / 0.7);
 }
 
 .notification-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.375rem;
   background: transparent;
-  border-radius: 0.375rem;
-  color: hsl(var(--foreground));
+  border: none;
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .notification-btn:hover {
   background: hsl(var(--accent));
-  border-color: hsl(var(--accent-foreground) / 0.2);
+  color: hsl(var(--foreground));
 }
 
 .typing-indicator {
@@ -607,18 +611,19 @@ onUnmounted(() => {
 
 .typing-bubble {
   backdrop-filter: blur(8px);
-  background: hsl(var(--foreground) / 0.1);
-  border-radius: 0 0 0.5rem 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  color: hsl(var(--foreground));
+  background: hsl(var(--card) / 0.92);
+  border: 1px solid hsl(var(--border) / 0.3);
+  border-radius: 0 0 8px 8px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
   white-space: nowrap;
 }
 
 .dot {
   display: inline-block;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   background: currentColor;
   border-radius: 50%;
   animation: dot-flash 1.5s infinite;
@@ -634,78 +639,114 @@ onUnmounted(() => {
 
 .typing-slide-enter-active,
 .typing-slide-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .typing-slide-enter-from,
 .typing-slide-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(-10px);
+  transform: translateX(-50%) translateY(-6px);
 }
 
 .chat-message {
   word-wrap: break-word;
 }
 
+/* Scrollbar — always reserved space, subtle appearance */
 .messages::-webkit-scrollbar {
   width: 6px;
 }
 
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .messages::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.2);
+  background-color: hsl(var(--foreground) / 0.08);
   border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.messages:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.18);
 }
 
 .messages::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--foreground) / 0.3);
 }
 
-/* Scroll to bottom button - fixed within container */
+/* Empty state */
+.empty-chat-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.empty-chat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: hsl(var(--muted) / 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+
+.empty-chat-text {
+  font-size: 0.82rem;
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
+/* Scroll to bottom */
 .scroll-to-bottom-btn {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 16px;
+  right: 24px;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  border: none;
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border) / 0.5);
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
 }
 
 .scroll-to-bottom-btn:hover {
-  transform: scale(1.1);
-  background-color: hsl(var(--primary) / 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.12);
 }
 
 .scroll-to-bottom-btn .arrow-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .new-messages-count {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
   background-color: hsl(var(--destructive));
   color: hsl(var(--destructive-foreground));
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Loading indicator */
@@ -721,17 +762,22 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   z-index: 5;
-  background: linear-gradient(to bottom, hsl(var(--background)), transparent);
+  background: linear-gradient(to bottom, hsl(var(--card)), transparent);
 }
 
-/* Fade transition */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+/* Scroll button transition */
+.scroll-btn-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
-.fade-enter-from,
-.fade-leave-to {
+.scroll-btn-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.scroll-btn-enter-from {
   opacity: 0;
+  transform: translateY(8px);
+}
+.scroll-btn-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
 }
 </style>
