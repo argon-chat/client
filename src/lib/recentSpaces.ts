@@ -108,3 +108,29 @@ export function setViewMode(mode: 'list' | 'grid') {
         console.error('Failed to save view mode:', e);
     }
 }
+
+// Last channel per space
+const LAST_CHANNEL_KEY = 'argon_last_channels';
+
+function loadLastChannels(): Record<string, string> {
+    try {
+        const stored = localStorage.getItem(LAST_CHANNEL_KEY);
+        return stored ? JSON.parse(stored) : {};
+    } catch {
+        return {};
+    }
+}
+
+export function setLastChannel(spaceId: string, channelId: string) {
+    const map = loadLastChannels();
+    map[spaceId] = channelId;
+    try {
+        localStorage.setItem(LAST_CHANNEL_KEY, JSON.stringify(map));
+    } catch (e) {
+        console.error('Failed to save last channel:', e);
+    }
+}
+
+export function getLastChannel(spaceId: string): string | null {
+    return loadLastChannels()[spaceId] ?? null;
+}

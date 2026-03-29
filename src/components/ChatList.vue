@@ -89,6 +89,7 @@ import ChannelGroupHeader from './ChannelGroupHeader.vue';
 import AddChannel from './modals/AddChannel.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
+import { setLastChannel } from '@/lib/recentSpaces';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { IRealtimeChannel } from '@/store/realtimeStore';
 
@@ -166,6 +167,11 @@ async function channelSelect(channelId: string) {
 
   // Always update selected channel for view switching
   selectedChannelId.value = channelId;
+
+  // Remember last visited channel for this space
+  if (selectedSpaceId.value) {
+    setLastChannel(selectedSpaceId.value, channelId);
+  }
 
   // Handle different channel types
   switch (channel.type) {

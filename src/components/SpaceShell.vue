@@ -6,6 +6,7 @@ import SpaceSideShell from './SpaceSideShell.vue';
 import { computed, watch } from 'vue';
 import { logger } from '@argon/core';
 import { useRoute, useRouter } from 'vue-router';
+import { getLastChannel } from '@/lib/recentSpaces';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,6 +39,24 @@ const selectedChannelId = computed({
     }
   }
 });
+
+// Auto-select last visited channel (or first available) when navigating to a space without a channel
+const channelList = pool.useActiveServerChannels(selectedSpace);
+
+watch(
+  [selectedSpace, channelList],
+  ([spaceId, channels]) => {
+    if (!spaceId || selectedChannelId.value || channels.length === 0) return;
+
+    const lastId = getLastChannel(spaceId);
+    if (lastId && channels.some(c => c.channelId === lastId)) {
+      selectedChannelId.value = lastId;
+    } else {
+      selectedChannelId.value = channels[0].channelId;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
