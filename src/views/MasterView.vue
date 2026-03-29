@@ -1,6 +1,8 @@
 <template>
-  <div class="app-container flex h-screen gap-4 pt-7 pb-7 pr-4 pl-4" style="width: 100svw; height: 100svh;">
-    <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
+  <div class="app-container flex flex-col h-screen" style="width: 100svw; height: 100svh;">
+    <AppTitlebar v-if="showDevolutionTitlebar" @home="selectHome" @feedback="feedbackOpened = true" />
+    <div class="flex flex-1 gap-4 min-h-0 pb-4 pr-4 pl-4" :class="showDevolutionTitlebar ? 'pt-2' : 'pt-7'">
+    <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer"
       :spaces="spaces" />
 
     <RouterView v-slot="{ Component, route }">
@@ -11,16 +13,24 @@
 
     <SettingsWindow />
     <ServerSettingsWindow />
+    <SendUserFeedback v-model:open="feedbackOpened" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import SettingsWindow from "@/components/SettingsWindow.vue";
 import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
+import SendUserFeedback from "@/components/modals/SendUserFeedback.vue";
 import { usePoolStore } from "@/store/poolStore";
 import ServerSelector from "@/components/ServerSelector.vue";
+import AppTitlebar from "@/components/AppTitlebar.vue";
 import { Guid } from "@argon-chat/ion.webcore";
 import router from "@/router";
+import { computed, ref } from "vue";
+
+const showDevolutionTitlebar = computed(() => (window as any).devolution_titlebar === 0x1);
+const feedbackOpened = ref(false);
 
 const dataPool = usePoolStore();
 

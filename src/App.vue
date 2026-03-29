@@ -23,20 +23,7 @@ const showDiagnostics = ref(false);
 const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
 
-// Devolution titlebar controls
-const showDevolutionTitlebar = computed(() => (window as any).devolution_titlebar === 0x1);
-const isMaximized = ref(false);
 
-const windowMinimize = () => {
-  (window as any).windowManagement?.minimize?.();
-};
-const windowMaximize = async () => {
-  (window as any).windowManagement?.maximize?.();
-  isMaximized.value = await (window as any).windowManagement.isMaximized();
-};
-const windowClose = () => {
-  (window as any).windowManagement?.close?.();
-};
 
 const wakeWatcher = useSleepWatcher(async () => {
   logger.error("THROW WAKE RELOAD");
@@ -79,33 +66,6 @@ const reloadPage = () => {
   <ReconnectOverlay />
   <GamePicker />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
-
-  <!-- Devolution Titlebar Controls -->
-  <div v-if="showDevolutionTitlebar" class="devolution-titlebar">
-    <div class="devolution-drag-region"></div>
-    <div class="devolution-controls">
-      <button class="devolution-btn devolution-minimize" @click="windowMinimize" title="Minimize">
-        <svg width="10" height="1" viewBox="0 0 10 1">
-          <rect width="10" height="1" fill="currentColor"/>
-        </svg>
-      </button>
-      <button class="devolution-btn devolution-maximize" @click="windowMaximize" :title="isMaximized ? 'Restore' : 'Maximize'">
-        <svg v-if="!isMaximized" width="10" height="10" viewBox="0 0 10 10">
-          <rect x="0" y="0" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1"/>
-        </svg>
-        <svg v-else width="10" height="10" viewBox="0 0 10 10">
-          <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1"/>
-          <rect x="0" y="2" width="8" height="8" fill="var(--bg-color, #1a1a1a)" stroke="currentColor" stroke-width="1"/>
-        </svg>
-      </button>
-      <button class="devolution-btn devolution-close" @click="windowClose" title="Close">
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" stroke-width="1.2"/>
-          <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" stroke-width="1.2"/>
-        </svg>
-      </button>
-    </div>
-  </div>
 
   <!-- Loading overlay -->
   <div v-if="appState.isInitializing" class="loading-overlay">
@@ -166,64 +126,7 @@ const reloadPage = () => {
 </style>
 
 <style scoped>
-/* Devolution Titlebar Controls */
-.devolution-titlebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  z-index: 99999;
-  -webkit-app-region: drag;
-}
-
-.devolution-drag-region {
-  flex: 1;
-  height: 100%;
-  -webkit-app-region: drag;
-}
-
-.devolution-controls {
-  display: flex;
-  height: 100%;
-  -webkit-app-region: no-drag;
-}
-
-.devolution-btn {
-  width: 46px;
-  height: 100%;
-  border: none;
-  background: transparent;
-  color: #a0a0a0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
-  -webkit-app-region: no-drag;
-}
-
-.devolution-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.devolution-btn:active {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.devolution-close:hover {
-  background: #e81123;
-  color: #ffffff;
-}
-
-.devolution-close:active {
-  background: #bf0f1d;
-}
-
+/* Window chrome */
 .warn-text {
   position: fixed;
   bottom: 10px;

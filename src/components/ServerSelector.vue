@@ -1,14 +1,6 @@
 <template>
     <div
         class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px] shrink-0">
-        <Button variant="ghost" size="icon" class="relative w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
-            @click="emit('home')">
-            <IconSw class="w-8 h-8 fill-blue-500" />
-            <span v-if="totalNotifications > 0" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-card"></span>
-        </Button>
-
-        <Separator class="my-3" />
-
         <div class="flex-1 w-full overflow-y-auto flex flex-col gap-2 px-2"
             @dragover.prevent="onDragOverUncategorized"
             @drop="onDropToUncategorized">
@@ -96,39 +88,9 @@
             @click="createSpaceOpened = true">
             <Plus class="w-4 h-4" />
         </Button>
-
-        <TooltipProvider v-if="needsUpdate">
-            <Tooltip>
-                <TooltipTrigger>
-                    <Button variant="default" style="background-color: #48bf32; color: white;" size="icon"
-                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200" @click="doUpdate">
-                        <ArrowBigDown class="w-4 h-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{{t("update_is_ready")}}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger>
-                    <Button variant="outline" size="icon"
-                        class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
-                        @click="feedbackOpened = true">
-                        <PaintbrushIcon class="w-4 h-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{{ t("send_feedback") }}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
     </div>
 
     <CreateOrJoinSpace v-model:open="createSpaceOpened" />
-    <SendUserFeedback v-model:open="feedbackOpened" />
     <CreateSpaceDetailed v-model:open="openDetailed"/>
 
     <!-- Folder Popup -->
@@ -184,29 +146,22 @@ import { computed, ref, onMounted, onUnmounted } from "vue"
 import { Button } from "@argon/ui/button"
 import { Separator } from "@argon/ui/separator"
 import ArgonAvatar from "./ArgonAvatar.vue"
-import { Plus, ArrowBigDown, PaintbrushIcon } from "lucide-vue-next"
-import { IconChevronRight, IconDots, IconPin, IconPinFilled, IconFolderPlus } from '@tabler/icons-vue'
-import IconSw from "@argon/assets/icons/icon_cat.svg"
+import { Plus } from "lucide-vue-next"
+import { IconPin, IconPinFilled } from '@tabler/icons-vue'
 import { ArgonSpaceBase } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/localeStore"
 import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
-import { useVersionChecker } from "@/lib/useVersionChecker"
-import SendUserFeedback from "./modals/SendUserFeedback.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
 import { useNotifications } from "@/composables/useNotifications"
 
 const { t } = useLocale();
-const { totalNotifications, initialize, cleanup } = useNotifications();
+const { initialize, cleanup } = useNotifications();
 
 const createSpaceOpened = ref(false);
-const feedbackOpened = ref(false);
 const openDetailed = ref(false);
-
-const { needsUpdate, doUpdate } = useVersionChecker();
 
 const { 
     organization: org, 
@@ -228,7 +183,6 @@ const model = defineModel<string | null>('selectedSpace', {
 })
 
 const emit = defineEmits<{
-    (e: 'home'): void
     (e: 'select', id: Guid): void
 }>()
 
@@ -432,6 +386,5 @@ onUnmounted(() => {
     background-color: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>
