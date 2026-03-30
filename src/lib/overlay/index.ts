@@ -4,7 +4,7 @@
  */
 
 export * from './types'
-export * from './OverlayRenderer'
+export { OverlayRenderer } from './OverlayRenderer'
 export * from './BaseWidget'
 export * from './TextRenderer'
 export * from './VoiceMembersWidget'

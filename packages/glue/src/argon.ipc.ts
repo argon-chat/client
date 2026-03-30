@@ -29,8 +29,7 @@ import {
   IonClientContext,
   IonRequest,
   IonWsClient,
-  IonInterceptor,
-  bytes
+  IonInterceptor
 } from "@argon-chat/ion.webcore";
 
 type guid = Guid;
@@ -38,6 +37,7 @@ type timeonly = TimeOnly;
 type duration = Duration;
 type datetime = DateTimeOffset;
 type dateonly = DateOnly;
+type bytes = Uint8Array;
 
 declare type bool = boolean;
 
@@ -58,6 +58,15 @@ declare type u16 = bigint;
 declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
+
+export interface ScreenSourceInfo {
+  id: string;
+  name: string;
+  thumbnailDataUrl: string;
+  appIconDataUrl: string | null;
+  displayId: string;
+};
+
 
 export interface PasskeyUser {
   id: string;
@@ -840,6 +849,28 @@ IonFormatterStorage.register("OverlayEnded", {
 
 
 
+IonFormatterStorage.register("ScreenSourceInfo", {
+  read(reader: CborReader): ScreenSourceInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const thumbnailDataUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const appIconDataUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const displayId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { id, name, thumbnailDataUrl, appIconDataUrl, displayId };
+  },
+  write(writer: CborWriter, value: ScreenSourceInfo): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<string>('string').write(writer, value.id);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.thumbnailDataUrl);
+    IonFormatterStorage.writeNullable<string>(writer, value.appIconDataUrl, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.displayId);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("PasskeyUser", {
   read(reader: CborReader): PasskeyUser {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -1447,6 +1478,8 @@ export interface IHostProc extends IIonService
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
   startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
+  getScreenSources(types: IonArray<string>): Promise<IonArray<ScreenSourceInfo>>;
+  setPendingScreenSource(sourceId: string, includeAudio: bool): Promise<bool>;
 }
 
 
@@ -1502,6 +1535,8 @@ export interface IHostProc extends IIonService
   createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): Promise<ICreatePasskeyResult>;
   validatePasskey(challenge: string, allowedCredentials: IonArray<PasskeyCredential>, rpId: string): Promise<IValidatePasskeyResult>;
   startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
+  getScreenSources(types: IonArray<string>): Promise<IonArray<ScreenSourceInfo>>;
+  setPendingScreenSource(sourceId: string, includeAudio: bool): Promise<bool>;
 }
 
 
@@ -1988,6 +2023,33 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
     writer.writeEndArray();
           
     return await req.callAsyncT<string>("string", writer.data, this.signal);
+  }
+  async getScreenSources(types: IonArray<string>): Promise<IonArray<ScreenSourceInfo>> {
+    const req = new IonRequest(this.ctx, "IHostProc", "getScreenSources");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.writeArray<string>(writer, types, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ScreenSourceInfo>>("IonArray<ScreenSourceInfo>", writer.data, this.signal);
+  }
+  async setPendingScreenSource(sourceId: string, includeAudio: bool): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "setPendingScreenSource");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, sourceId);
+    IonFormatterStorage.get<bool>('bool').write(writer, includeAudio);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
 
 }

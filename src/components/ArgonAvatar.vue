@@ -88,7 +88,7 @@ if (isSmartMode.value) {
 }
 
 // --- Direct mode: when fileId is provided ---
-const fileIdRef = toRef(props, "fileId");
+const fileIdRef = computed(() => props.fileId ?? null);
 
 const ownerId = computed(() => {
   if (props.spaceId) return props.spaceId;

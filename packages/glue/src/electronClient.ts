@@ -1,21 +1,5 @@
 import type { IHostProc, IOverlayController } from "./argon.ipc";
 
-// Electron-specific extensions to IHostProc (not in auto-generated .ion types)
-declare module "./argon.ipc" {
-  interface IHostProc {
-    getScreenSources(types: string[]): Promise<ScreenSourceInfo[]>;
-    setPendingScreenSource(sourceId: string, includeAudio: boolean): Promise<boolean>;
-  }
-}
-
-export interface ScreenSourceInfo {
-  id: string;
-  name: string;
-  thumbnailDataUrl: string;
-  appIconDataUrl: string | null;
-  displayId: string;
-}
-
 interface ArgonIpcBridge {
   invoke(service: string, method: string, args: any[]): Promise<any>;
   onEvent(callback: (event: any) => void): void;

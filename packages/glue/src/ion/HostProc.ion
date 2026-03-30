@@ -1,0 +1,289 @@
+service HostProc() {
+    listenSessionMusic(): bool;
+    listenActivity(): bool;
+
+    allocatePinnedFn(name: string): PinnedFn;
+
+
+    onGameActivityDetected(fn: PinnedFn): bool;
+    onGameActivityTerminated(fn: PinnedFn): bool;
+    onMusicSessionPlayStateChanged(fn: PinnedFn): bool;
+    onMusicSessionStopStateChanged(fn: PinnedFn): bool;
+
+
+
+    dsn(): string;
+
+
+    getHostKind(): HostKind;
+
+
+    getDisplays(): Screen[];
+    getHWNDs(): WindowInfo[];
+
+    allocConsole(): bool;
+
+
+    toggleDevTools(): bool;
+
+
+    getCurrentChannel(): Channel;
+    setCurrentChannel(c: Channel);
+
+
+
+    getIdleTimeSeconds(): i4;
+
+
+    openUrl(url: string): bool;
+
+    clipboardRead(): string;
+    clipboardWrite(val: string): bool;
+
+
+    renderDiagnostic(i: i4): bool;
+
+    getStorageSpace(): StorageInfo;
+
+
+    getActivityDiagnostic(activityKind: ActivityKind, limit: i4, offset: i4, search: string?): ActivityLogEntity[];
+
+
+    getConfig(): ConfigSectionMetadata_Value[];
+    setConfigValue(set: SetRequest): SetResult;
+
+
+
+    hotkeyRegister(desc: HotkeyDescriptor);
+    hotkeyUnregister(id: string);
+    hotkeyCaptureOnce(): HotkeyChord;
+    hotkeyPause();
+    hotkeyResume();
+    hotkeyFired(fn: PinnedFn): bool;
+
+    startStreaming(parameters: StreamBegin);
+
+    createPasskey(passkeyId: string, challenge: string, user: PasskeyUser, rpName: string, rpId: string): CreatePasskeyResult;
+    validatePasskey(challenge: string, allowedCredentials: PasskeyCredential[], rpId: string): ValidatePasskeyResult;
+
+
+
+    startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): string;
+
+
+    getScreenSources(types: string[]): ScreenSourceInfo[];
+    setPendingScreenSource(sourceId: string, includeAudio: bool): bool;
+}
+
+
+msg ScreenSourceInfo {
+    id: string;
+    name: string;
+    thumbnailDataUrl: string;
+    appIconDataUrl: string?;
+    displayId: string;
+}
+
+union CreatePasskeyResult {
+    SuccessCreatePasskey(cert: string),
+    ErrorCreatePasskey(errorMessage: string)
+}
+
+union ValidatePasskeyResult {
+    SuccessValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string),
+    ErrorValidatePasskey(errorMessage: string)
+}
+
+msg PasskeyUser {
+    id: string;
+    name: string;
+    displayName: string;
+}
+
+msg PasskeyCredential {
+    id: string;
+    publicKey: string;
+}
+
+msg IceServerCred {
+    url: string;
+    pass: string;
+    user: string;
+}
+
+msg StreamBegin {
+    whipUrl: string; 
+    iceServers: IceServerCred[];
+    outputIndex: i4;
+    fps: i4;
+    targetWidth: i4;
+    targetHeight: i4;
+}
+
+msg SetResult {
+    value: ConfigKeyMetadata_Value?;
+}
+
+enum ActivityKind {
+    GameActivity,
+    MusicActivity,
+    HotKeysActivity,
+    SystemActivity,
+    NetworkActivity
+}
+
+enum ActivityLogLevel {
+    Info,
+    Warn,
+    Error
+}
+msg ActivityLogEntity {
+    logLevel: ActivityLogLevel;
+    template: string;
+    args: string[];
+    time: datetime;
+}
+
+enum Channel {
+    live,
+    beta,
+    canary
+}
+msg StorageInfo {
+    totalSize: string;
+    availableFreeSpace: string;
+}
+
+msg Screen {
+    displayIndex: i4;
+    width: i4;
+    height: i4;
+    left: i4;
+    top: i4;
+    isPrimary: bool;
+    freq: i4;
+}
+
+msg WindowInfo {
+    deviceId: string;
+    title: string;
+}
+
+msg PinnedFn {
+    id: i4;
+}
+
+
+enum HostKind {
+    WindowsDesktop,
+    MacOs
+}
+
+union NativeEvent {
+    AudioPlaying(sessionId: string, titleName: string, author: string),
+    AudioPlayingEnd(sessionId: string),
+    ProcessPlaying(appIcon: string, name: string, pid: i4, hash: string, kind: i4),
+    ProcessEnd(pid: i4),
+    ActivityLog(logLevel: i4, text: string, args: string[], time: datetime),
+    HotKeyTriggered(hotkeyId: string, phase: HotkeyPhase),
+    OverlayStarted(sessionId: string, pid: i4, kind: OverlayKind),
+    OverlayEnded(sessionId: string, pid: i4, kind: OverlayKind)
+}
+
+enum OverlayKind {
+    GameOverlay,
+    VrOverlay
+}
+
+msg ConfigKeyMetadata {
+    key: string;
+    type: ConfigPrimitiveType;
+    requiredToRestartApp: bool;
+    onlyForDevMode: bool;
+}
+
+msg ConfigSectionMetadata {
+    section: string;
+    keys: ConfigKeyMetadata[];
+}
+
+msg SetRequest {
+    key: string;
+    section: string;
+    valueB: bool?;
+    valueStr: string?;
+    valueNum: i8?;
+    valueEnum: string?;
+    valueF: f8?;
+}
+
+msg ConfigSectionMetadata_Value {
+    section: string;
+    keys: ConfigKeyMetadata_Value[];
+}
+msg ConfigKeyMetadata_Value {
+    key: string;
+    type: ConfigPrimitiveType;
+    requiredToRestartApp: bool;
+    onlyForDevMode: bool;
+    valueB: bool?;
+    valueStr: string?;
+    valueNum: i8?;
+    valueEnum: string?;
+    valueEnumVariants: string[];
+    valueF: f8?;
+}
+
+enum ConfigPrimitiveType {
+    Boolean,
+    Number,
+    String,
+    Enum,
+    Double
+}
+
+
+
+
+enum HotkeyDevice {
+    Keyboard,
+    Mouse
+}
+
+
+enum HotkeyActionType {
+    Trigger,
+    Hold,
+    Toggle
+}
+
+msg HotkeyButton {
+    device: HotkeyDevice;
+    code: i4;
+}
+
+msg HotkeyChord {
+    buttons: HotkeyButton[];
+}
+
+msg HotkeyDescriptor {
+    id: string;
+    chord: HotkeyChord;
+    action: HotkeyActionType;
+    suppress: bool;
+    triggerCooldownMs: i4;
+}
+
+msg HotkeyEvent {
+    hotkeyId: string;
+    phase: HotkeyPhase;
+    timestamp: datetime;
+}
+
+
+enum HotkeyPhase
+{
+    Started,
+    Triggered,
+    Ended
+}

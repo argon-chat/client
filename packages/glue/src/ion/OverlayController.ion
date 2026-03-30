@@ -1,0 +1,48 @@
+service OverlayController() {
+    init(cfg: InitCfg);
+    sendFullFrame(frame: FrameData);
+    sendDelta(deltaFrame: FrameDataDelta);
+    clear();
+    resize(width: i4, height: i4, tileSize: i4, tilesX: i4, tilesY: i4);
+    sendStats(stats: OverlayStats);
+    dispose();
+}
+
+msg InitCfg {
+    width: i4;
+    height: i4;
+    tileSize: i4;
+    tilesX: i4;
+    tilesY: i4;
+}
+
+msg FrameData {
+    timestamp: i4;
+    width: i4;
+    height: i4;
+    tiles: BridgeDirtyTile[];
+}
+
+msg FrameDataDelta {
+    timestamp: i4;
+    tiles: BridgeDirtyTile[];
+    skippedTransparent: i4;
+}
+
+msg OverlayStats {
+    fps: i4;
+    captureTimeMs: i4;
+    bytesThisFrame: i4;
+    tileCount: i4;
+    transparentSkipped: i4;
+}
+
+msg BridgeDirtyTile {
+    tx: i4;
+    ty: i4;
+    x: i4;
+    y: i4;
+    w: i4;
+    h: i4;
+    data: bytes;
+}

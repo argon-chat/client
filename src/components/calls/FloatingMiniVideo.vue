@@ -45,7 +45,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  subs?.unsubscribe();
+  // TODO: clean up subscriptions when voice API is ready
+  subs = null;
 });
 
 const toggleFullscreen = () => {

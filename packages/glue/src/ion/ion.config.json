@@ -1,0 +1,11 @@
+{
+    "name": "IPC",
+    "features": [
+        "std"
+    ],
+    "generators": {
+        "browser": {
+            "outputFile": "./../argon.ipc.ts"
+        }
+    }
+}   
