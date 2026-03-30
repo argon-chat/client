@@ -304,7 +304,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from "vue";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { Button } from "@argon/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
 import { Slider } from "@argon/ui/slider";

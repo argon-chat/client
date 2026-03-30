@@ -129,8 +129,8 @@
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { useToast } from '@argon/ui/toast';
 import { LockdownReason, LockdownSeverity } from '@argon/glue';
-import { useAuthStore } from '@/store/authStore';
-import { useMe } from '@/store/meStore';
+import { useAuthStore } from '@/store/auth/authStore';
+import { useMe } from '@/store/auth/meStore';
 
 const me = useMe();
 const toast = useToast();

@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { computed } from 'vue';
 import { ChartPieIcon, DatabaseIcon, CheckCircle2Icon, PercentIcon } from 'lucide-vue-next';
 

@@ -201,8 +201,8 @@ import { audio } from "@/lib/audio/AudioManager";
 import { worklets } from "@/lib/audio/WorkletBase";
 import { DisposableBag } from "@argon/core";
 import { logger } from "@argon/core";
-import { useLocale } from "@/store/localeStore";
-import { usePreference } from "@/store/preferenceStore";
+import { useLocale } from "@/store/system/localeStore";
+import { usePreference } from "@/store/ui/preferenceStore";
 import { 
   MicIcon, 
   SpeakerIcon, 

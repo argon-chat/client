@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useLocale } from "@/store/localeStore";
-import { useHotkeys } from "@/store/hotKeyStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useHotkeys } from "@/store/ui/hotKeyStore";
 import {
   HotkeyActionType,
   type HotkeyChord,

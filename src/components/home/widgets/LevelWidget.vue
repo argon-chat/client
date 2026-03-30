@@ -73,10 +73,10 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconCoin, IconQuestionMark } from '@tabler/icons-vue';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { useApi } from '@/store/apiStore';
+import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 
 const { t } = useLocale();

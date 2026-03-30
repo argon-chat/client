@@ -82,10 +82,10 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff } from '@tabler/icons-vue';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { useSystemStore } from '@/store/systemStore';
+import { useSystemStore } from '@/store/system/systemStore';
 import { audio } from '@/lib/audio/AudioManager';
 import { logger } from '@argon/core';
 import type { Disposable } from '@argon/core';

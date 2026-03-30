@@ -6,10 +6,10 @@
 </template>
 
 <script setup lang="ts">
-import { IRealtimeChannelUserWithData } from "@/store/poolStore";
+import { IRealtimeChannelUserWithData } from "@/store/data/poolStore";
 import { computed } from "vue";
-import { useUnifiedCall } from "@/store/unifiedCallStore";
-import { useSystemStore } from "@/store/systemStore";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { useSystemStore } from "@/store/system/systemStore";
 import { Slider } from "@argon/ui/slider";
 
 const props = defineProps<{ user: IRealtimeChannelUserWithData }>();

@@ -604,8 +604,8 @@ import {
 import AvatarUploader from "./AvatarUploader.vue";
 import ProfileHeaderUploader from "./ProfileHeaderUploader.vue";
 import QRStyled from "../login/QRStyled.vue";
-import { useMe } from "@/store/meStore";
-import { useLocale } from "@/store/localeStore";
+import { useMe } from "@/store/auth/meStore";
+import { useLocale } from "@/store/system/localeStore";
 import {
   UserIcon,
   ShieldIcon,
@@ -619,13 +619,13 @@ import {
 } from "lucide-vue-next";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem } from "@argon/ui/select";
 import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@argon/ui/pin-input";
-import { useApi } from "@/store/apiStore";
+import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated } from "@argon/glue";
-import { useBus } from "@/store/busStore";
+import { useBus } from "@/store/realtime/busStore";
 import { PasskeyManager, type PasskeyApiCallbacks } from "@argon/passkey";
-import { useFeatureFlags } from "@/store/featureFlagsStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 // Import badge icons
 const badgeIcons = import.meta.glob('/packages/assets/icons/inventory/*-64px.png', { eager: true, import: 'default' }) as Record<string, string>;

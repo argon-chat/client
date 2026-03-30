@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from "vue";
-import { useAppState } from "@/store/appState";
+import { useAppState } from "@/store/system/appState";
 import { useWebGLBackground } from "@/composables/useWebGLBackground";
 import { generateFragmentShader } from "@/lib/shaders/backgroundShader";
 

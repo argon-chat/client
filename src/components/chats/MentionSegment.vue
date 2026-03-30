@@ -14,8 +14,8 @@
 </template>
 <script setup lang="ts" generic="T extends MessageEntityMention">
 import type { RealtimeUser } from "@/store/db/dexie";
-import { useMe } from "@/store/meStore";
-import { usePoolStore } from "@/store/poolStore";
+import { useMe } from "@/store/auth/meStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import { computed, ref } from "vue";
 import UserProfilePopover from "../popovers/UserProfilePopover.vue";
 import {

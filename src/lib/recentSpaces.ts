@@ -14,9 +14,12 @@ interface RecentSpace {
 }
 
 const recentSpaces = ref<RecentSpace[]>([]);
+let _loaded = false;
 
 // Load from localStorage
 function loadRecentSpaces() {
+    if (_loaded) return;
+    _loaded = true;
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -39,6 +42,7 @@ function saveRecentSpaces() {
 
 // Add or update recent space
 export function addRecentSpace(space: ArgonSpaceBase) {
+    loadRecentSpaces();
     const existingIndex = recentSpaces.value.findIndex(s => s.spaceId === space.spaceId);
     const existingSpace = existingIndex !== -1 ? recentSpaces.value[existingIndex] : null;
     
@@ -71,9 +75,7 @@ export function addRecentSpace(space: ArgonSpaceBase) {
 
 // Get recent spaces
 export function useRecentSpaces() {
-    if (recentSpaces.value.length === 0) {
-        loadRecentSpaces();
-    }
+    loadRecentSpaces();
     
     return {
         recentSpaces,

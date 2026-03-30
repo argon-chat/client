@@ -46,11 +46,11 @@ import {
 } from "lucide-vue-next";
 
 
-import { useTone } from "@/store/toneStore";
-import { useLocale } from "@/store/localeStore";
-import { useMe } from "@/store/meStore";
-import { useWindow } from "@/store/windowStore";
-import { usePexStore } from "@/store/permissionStore";
+import { useTone } from "@/store/media/toneStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useMe } from "@/store/auth/meStore";
+import { useWindow } from "@/store/ui/windowStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import { shallowRef, onUnmounted } from "vue";
 import AddChannel from "./modals/AddChannel.vue";
 import AddChannelGroup from "./modals/AddChannelGroup.vue";

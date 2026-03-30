@@ -1,5 +1,5 @@
 import { ref, watch, computed, type Ref } from 'vue';
-import { usePoolStore } from '@/store/poolStore';
+import { usePoolStore } from '@/store/data/poolStore';
 import type { ChannelGroup } from '@argon/glue';
 import type { Guid } from '@argon-chat/ion.webcore';
 

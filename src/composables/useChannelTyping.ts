@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, ref, watch, type Ref } from "vue";
-import { usePoolStore } from "@/store/poolStore";
-import { useBus } from "@/store/busStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useBus } from "@/store/realtime/busStore";
 import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "rxjs";
 import { ArgonChannel, UserStopTypingEvent, UserTypingEvent } from "@argon/glue";

@@ -58,8 +58,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { usePlayFrameActivity, type GameManifest } from "@/store/playframeStore";
-import { useLocale } from "@/store/localeStore";
+import { usePlayFrameActivity, type GameManifest } from "@/store/features/playframeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import {

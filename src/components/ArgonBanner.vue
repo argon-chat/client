@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, type HTMLAttributes } from "vue";
-import { useFileStorage } from "@/store/fileStorage";
+import { useFileStorage } from "@/store/system/fileStorage";
 import { logger } from "@argon/core";
 const loaded = ref(false);
 const loading = ref(true);

@@ -5,8 +5,8 @@ import { Input } from "@argon/ui/input";
 import { Label } from "@argon/ui/label";
 import { computed, onMounted, ref, watch } from "vue";
 import QRStyled from "./QRStyled.vue";
-import { useApi } from "@/store/apiStore";
-import { useLocale } from "@/store/localeStore";
+import { useApi } from "@/store/system/apiStore";
+import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { 
     MailIcon, 

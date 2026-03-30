@@ -142,7 +142,7 @@ import { Button } from '@argon/ui/button'
 import Kbd from '@/components/kbd/Kbd.vue'
 import KbdGroup from '@/components/kbd/KbdGroup.vue'
 import ItemGrantEffect from './ItemGrantEffect.vue'
-import { useLocale } from '@/store/localeStore'
+import { useLocale } from '@/store/system/localeStore'
 
 export interface ItemDef { 
   id: string; 

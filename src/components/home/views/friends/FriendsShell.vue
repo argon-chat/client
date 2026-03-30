@@ -105,15 +105,15 @@ import { Badge } from "@argon/ui/badge";
 import { IconCookieManFilled, IconUserPlus } from "@tabler/icons-vue";
 import FriendList from "./FriendList.vue";
 
-import { useLocale } from "@/store/localeStore";
-import { useApi } from "@/store/apiStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 
 import { FriendRequest, Friendship, SendFriendStatus, UserBlock } from "@argon/glue";
 import AddFriendModal from "@/components/modals/AddFriendModal.vue";
-import { useBus } from "@/store/busStore";
+import { useBus } from "@/store/realtime/busStore";
 import { useFriendEvents } from "@/composables/useFriendEvents";
-import { useMe } from "@/store/meStore";
+import { useMe } from "@/store/auth/meStore";
 import type { FriendListItemVm } from "./FriendListItem.vue";
 import { useNotifications } from "@/composables/useNotifications";
 

@@ -108,382 +108,126 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, computed, onUnmounted, nextTick } from "vue";
 import {
-  ref,
-  onMounted,
-  onUnmounted,
-  nextTick,
-  watch,
-  computed,
-  shallowRef,
-} from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
-import { AntennaIcon, BellIcon, CircleArrowDown, HashIcon, Loader2Icon, MessageSquareIcon, SearchIcon } from "lucide-vue-next";
+  AntennaIcon,
+  BellIcon,
+  CircleArrowDown,
+  HashIcon,
+  Loader2Icon,
+  MessageSquareIcon,
+  SearchIcon,
+} from "lucide-vue-next";
 
 import MessageItem from "@/components/MessageItem.vue";
-
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityMention } from "@argon/glue";
-import { Guid } from "@argon-chat/ion.webcore";
-
-import { useApi } from "@/store/apiStore";
-import { usePoolStore } from "@/store/poolStore";
-import { useMe } from "@/store/meStore";
-import { useTone } from "@/store/toneStore";
-import { useLocale } from "@/store/localeStore";
+import { type ArgonMessage } from "@argon/glue";
+import type { Guid } from "@argon-chat/ion.webcore";
+import { useLocale } from "@/store/system/localeStore";
 import { cn } from "@argon/core";
-import { logger } from "@argon/core";
+import { useChatMessages } from "@/composables/useChatMessages";
+import { useChatScroll } from "@/composables/useChatScroll";
 
-import type { Subscription } from "rxjs";
-
-const MESSAGES_PER_LOAD = 50;
-const SCROLL_THRESHOLD = 150;
-const MESSAGE_HEIGHT_ESTIMATE = 72;
-
-const api = useApi();
-const pool = usePoolStore();
-const me = useMe();
-const tone = useTone();
 const { t } = useLocale();
 
 const props = defineProps<{
   channelId: Guid;
   spaceId?: Guid;
   channelName?: string;
-  channelType?: 'text' | 'announcement';
+  channelType?: "text" | "announcement";
   typingUsers?: { displayName: string }[];
   class?: string;
 }>();
 
 const classes = computed(() => props.class);
-const parentRef = ref<HTMLElement>();
-const messages = shallowRef<ArgonMessage[]>([]);
-const hasReachedEnd = ref(false);
-const subs = ref<Subscription | null>(null);
-const isScrolledUp = ref(false);
-const newMessagesCount = ref(0);
-const chatWidth = ref(0);
-const isLoading = ref(false);
-const isLoadingOlder = ref(false);
-const isRestoringScroll = ref(false);
-const measuredItems = new Set<number>();
 
-// Get the oldest message ID for pagination
-const oldestMessageId = computed(() => {
-  if (messages.value.length === 0) return null;
-  return messages.value[0].messageId;
+const {
+  messages,
+  hasReachedEnd,
+  isLoading,
+  isLoadingOlder,
+  isRestoringScroll,
+  newMessagesCount,
+  isScrolledUp,
+  loadOlderMessages,
+  loadInitialMessages,
+  subscribeToNewMessages,
+  getMessageById,
+  cleanup: cleanupMessages,
+} = useChatMessages(
+  () => props.channelId,
+  () => props.spaceId,
+);
+
+const {
+  parentRef,
+  chatWidth,
+  virtualizer,
+  virtualItems,
+  measureItem,
+  shiftMeasuredIndices,
+  scrollToBottomImmediate,
+  scrollToBottom,
+  scrollToIndex,
+  handleScroll: rawHandleScroll,
+  onScrollNearTop,
+  resetMeasurements,
+} = useChatScroll(
+  () => messages.value,
+  () => isRestoringScroll.value,
+);
+
+// Wire up scroll-near-top to load older messages
+onScrollNearTop(() => {
+  if (!isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
+    loadOlderMessages((count) => {
+      shiftMeasuredIndices(count);
+      nextTick(() => scrollToIndex(count));
+    });
+  }
 });
 
-const virtualizerOptions = computed(() => ({
-  count: messages.value.length,
-  getScrollElement: () => parentRef.value ?? null,
-  estimateSize: () => MESSAGE_HEIGHT_ESTIMATE,
-  overscan: 50,
-  getItemKey: (index: number) => messages.value[index]?.messageId?.toString() ?? index,
-}));
-
-const virtualizer = useVirtualizer(virtualizerOptions);
-const virtualItems = computed(() => virtualizer.value.getVirtualItems());
-
-// Measure item only once to avoid jitter
-const measureItem = (el: HTMLElement | null, index: number) => {
-  if (!el || measuredItems.has(index)) return;
-  measuredItems.add(index);
-  virtualizer.value.measureElement(el);
-};
-
-// Debounced scroll trigger
-let scrollLoadTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// Load older messages (scrolling up) 
-const loadOlderMessages = async () => {
-  if (isLoadingOlder.value || hasReachedEnd.value || !props.spaceId || isRestoringScroll.value) return;
-  
-  isLoadingOlder.value = true;
-  isRestoringScroll.value = true;
-  
-  try {
-    const fromId = oldestMessageId.value;
-    if (!fromId) {
-      hasReachedEnd.value = true;
-      return;
-    }
-
-    // First, try to load from cache
-    const cachedOlder = await pool.loadOlderCachedMessages(
-      props.spaceId,
-      props.channelId,
-      fromId,
-      MESSAGES_PER_LOAD
-    );
-
-    if (cachedOlder.length >= MESSAGES_PER_LOAD) {
-      // We have enough cached messages
-      const addedCount = cachedOlder.length;
-      
-      // Shift measured indices since we're prepending
-      const shiftedMeasured = new Set<number>();
-      measuredItems.forEach(idx => shiftedMeasured.add(idx + addedCount));
-      measuredItems.clear();
-      shiftedMeasured.forEach(idx => measuredItems.add(idx));
-      
-      messages.value = [...cachedOlder, ...messages.value];
-
-      await nextTick();
-      virtualizer.value.scrollToIndex(addedCount, { align: 'start', behavior: 'auto' });
-
-      isLoadingOlder.value = false;
-      setTimeout(() => {
-        isRestoringScroll.value = false;
-      }, 200);
-      return;
-    }
-
-    // Not enough in cache, fetch from server
-    const olderMessages = await api.channelInteraction.QueryMessages(
-      props.spaceId,
-      props.channelId,
-      fromId,
-      MESSAGES_PER_LOAD
-    );
-
-    if (!olderMessages || olderMessages.length === 0) {
-      hasReachedEnd.value = true;
-      return;
-    }
-
-    // Cache older messages to Dexie
-    await pool.cacheMessages(olderMessages);
-    
-    // Sort and prepend older messages
-    const sortedOlder = [...olderMessages].sort((a, b) => 
-      Number(a.messageId - b.messageId)
-    );
-    
-    const addedCount = sortedOlder.length;
-    
-    // Shift measured indices since we're prepending
-    const shiftedMeasured = new Set<number>();
-    measuredItems.forEach(idx => shiftedMeasured.add(idx + addedCount));
-    measuredItems.clear();
-    shiftedMeasured.forEach(idx => measuredItems.add(idx));
-    
-    messages.value = [...sortedOlder, ...messages.value];
-
-    // Wait for DOM update then scroll to maintain position
-    await nextTick();
-    
-    // Scroll to the message that was at top (now at index = addedCount)
-    virtualizer.value.scrollToIndex(addedCount, { align: 'start', behavior: 'auto' });
-
-    if (olderMessages.length < MESSAGES_PER_LOAD) {
-      hasReachedEnd.value = true;
-    }
-  } catch (error) {
-    logger.error('Failed to load older messages:', error);
-  } finally {
-    isLoadingOlder.value = false;
-    // Delay to prevent immediate re-trigger
-    setTimeout(() => {
-      isRestoringScroll.value = false;
-    }, 200);
-  }
-};
-
-// Initial message load
-const loadInitialMessages = async () => {
-  if (!props.spaceId) return;
-  
-  isLoading.value = true;
-  messages.value = [];
-  measuredItems.clear();
-  hasReachedEnd.value = false;
-  newMessagesCount.value = 0;
-  isScrolledUp.value = false;
-
-  try {
-    // First, load cached messages from Dexie
-    const cachedMessages = await pool.loadCachedMessages(props.spaceId, props.channelId);
-
-    if (cachedMessages.length > 0) {
-      messages.value = cachedMessages;
-      
-      await nextTick();
-      setTimeout(() => {
-        scrollToBottomImmediate();
-      }, 100);
-    }
-
-    // Then fetch fresh messages from server
-    const initialMessages = await api.channelInteraction.QueryMessages(
-      props.spaceId,
-      props.channelId,
-      null,
-      MESSAGES_PER_LOAD
-    );
-
-    if (initialMessages && initialMessages.length > 0) {
-      // Bulk add new messages to Dexie cache
-      await pool.cacheMessages(initialMessages);
-
-      messages.value = [...initialMessages].sort((a, b) => 
-        Number(a.messageId - b.messageId)
-      );
-
-      if (initialMessages.length < MESSAGES_PER_LOAD) {
-        hasReachedEnd.value = true;
-      }
-
-      await nextTick();
-      setTimeout(() => {
-        scrollToBottomImmediate();
-      }, 100);
-    } else if (cachedMessages.length === 0) {
-      // No cached or fresh messages
-      await nextTick();
-    }
-  } catch (error) {
-    logger.error('Failed to load initial messages:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// Handle scroll events with debounce
-const handleScroll = () => {
+// Track scroll position for "scrolled up" state
+const onScroll = () => {
   if (!parentRef.value || isRestoringScroll.value) return;
-
   const { scrollTop, scrollHeight, clientHeight } = parentRef.value;
-  
-  // Check if scrolled up from bottom
   const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
   const wasScrolledUp = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
-  
-  // Reset new messages count when scrolled to bottom
+
   if (wasScrolledUp && !isScrolledUp.value) {
     newMessagesCount.value = 0;
   }
 
-  // Debounce load trigger to prevent rapid firing
-  if (scrollLoadTimeout) clearTimeout(scrollLoadTimeout);
-  
-  scrollLoadTimeout = setTimeout(() => {
-    if (scrollTop < SCROLL_THRESHOLD && !isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
-      loadOlderMessages();
-    }
-  }, 100);
+  rawHandleScroll();
 };
 
-const scrollToBottomImmediate = () => {
-  if (messages.value.length === 0) return;
-  
-  const lastIndex = messages.value.length - 1;
-  
-  // Multiple attempts to ensure scroll lands at bottom after measurements
-  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-  
-  requestAnimationFrame(() => {
-    virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-    
-    // Final fallback after elements are measured
-    setTimeout(() => {
-      if (parentRef.value) {
-        parentRef.value.scrollTop = parentRef.value.scrollHeight;
-      }
-      newMessagesCount.value = 0;
-      isScrolledUp.value = false;
-    }, 50);
-  });
-};
+// Replace the raw scroll with our enhanced one
+if (parentRef.value) {
+  parentRef.value.removeEventListener("scroll", rawHandleScroll as any);
+  parentRef.value.addEventListener("scroll", onScroll, { passive: true });
+}
 
-const scrollToBottom = () => {
-  if (messages.value.length === 0) return;
-  
-  const lastIndex = messages.value.length - 1;
-  
-  // Use auto behavior - smooth is not supported with dynamic sizes
-  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-  
-  // Fallback: directly scroll the container to bottom
-  requestAnimationFrame(() => {
-    if (parentRef.value) {
-      parentRef.value.scrollTop = parentRef.value.scrollHeight;
-    }
-  });
-  
+const onScrollToBottomClick = () => {
+  scrollToBottom();
   newMessagesCount.value = 0;
   isScrolledUp.value = false;
 };
 
-const onScrollToBottomClick = () => scrollToBottom();
-
-const getMessageById = (messageId: bigint | null): ArgonMessage => {
-  return messages.value.find((x) => x.messageId === (messageId ?? 0n)) ?? ({} as ArgonMessage);
-};
-
 const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
 
-const filterMention = (e: IMessageEntity): e is MessageEntityMention => {
-  return e.type === EntityType.Mention;
-};
-
-const updateChatWidth = () => {
-  if (parentRef.value) {
-    chatWidth.value = parentRef.value.offsetWidth;
-  }
-};
-
-// Watch for channel changes
+// Watch for channel changes — reload messages and subscribe
 watch(
   () => props.channelId,
   async (newChannelId) => {
-    subs.value?.unsubscribe();
-
-    await loadInitialMessages();
-
-    subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
-      if (newChannelId === e.channelId) {
-        // Add new message to Dexie cache
-        await pool.cacheMessage(e);
-
-        messages.value = [...messages.value, e];
-
-        // Play notification if mentioned
-        if (e.entities.filter(filterMention).find((x) => x.userId === me.me?.userId)) {
-          tone.playNotificationSound();
-        }
-
-        // Auto-scroll or increment counter
-        if (e.sender === me.me?.userId) {
-          nextTick(() => scrollToBottomImmediate());
-        } else if (isScrolledUp.value) {
-          newMessagesCount.value++;
-        } else {
-          nextTick(() => scrollToBottomImmediate());
-        }
-      }
-    });
+    resetMeasurements();
+    await loadInitialMessages(() => scrollToBottomImmediate());
+    subscribeToNewMessages(newChannelId, () => scrollToBottomImmediate());
   },
-  { immediate: true }
+  { immediate: true },
 );
 
-onMounted(() => {
-  nextTick(() => {
-    if (parentRef.value) {
-      parentRef.value.addEventListener("scroll", handleScroll, { passive: true });
-      chatWidth.value = parentRef.value.offsetWidth;
-    }
-  });
-  window.addEventListener("resize", updateChatWidth);
-});
-
 onUnmounted(() => {
-  subs.value?.unsubscribe();
-  if (scrollLoadTimeout) clearTimeout(scrollLoadTimeout);
-  if (parentRef.value) {
-    parentRef.value.removeEventListener("scroll", handleScroll);
-  }
-  window.removeEventListener("resize", updateChatWidth);
+  cleanupMessages();
 });
 </script>
 

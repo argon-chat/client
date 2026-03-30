@@ -51,7 +51,7 @@ import {
     DrawerDescription,
 } from "@argon/ui/drawer";
 import { Button } from "@argon/ui/button";
-import { useWindow } from "@/store/windowStore";
+import { useWindow } from "@/store/ui/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
 import ProfileSettings from "@/components/settings/ProfileSettings.vue";
 import ConnectedDevices from "@/components/settings/ConnectedDevices.vue";
@@ -60,10 +60,10 @@ import HotKeySettings from "./settings/HotKeySettings.vue";
 import LanguageSettings from "./settings/LanguageSettings.vue";
 import AudioSettings from "./settings/AudioSettings.vue";
 import AppearanceSettings from "./settings/AppearanceSettings.vue";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
-import { useConfigStore } from "@/store/configStore";
+import { useConfigStore } from "@/store/ui/configStore";
 
 // Stores
 const { t } = useLocale();

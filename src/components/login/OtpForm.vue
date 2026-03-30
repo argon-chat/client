@@ -9,7 +9,7 @@ import {
     MailCheckIcon,
 } from "lucide-vue-next";
 import { ref, computed } from "vue";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();

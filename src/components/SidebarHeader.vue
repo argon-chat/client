@@ -32,8 +32,8 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { delay } from "@argon/core";
 import { computedAsync } from "@vueuse/core";
-import { usePoolStore } from "@/store/poolStore";
-import { useFileStorage } from "@/store/fileStorage";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useFileStorage } from "@/store/system/fileStorage";
 import img0 from "@argon/assets/image0.jpg";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";

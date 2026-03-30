@@ -77,9 +77,9 @@ import {
 } from '@argon/ui/dialog';
 import { Button } from '@argon/ui/button';
 import { Input } from '@argon/ui/input';
-import { useLocale } from '@/store/localeStore';
-import { usePexStore } from '@/store/permissionStore';
-import { useApi } from '@/store/apiStore';
+import { useLocale } from '@/store/system/localeStore';
+import { usePexStore } from '@/store/data/permissionStore';
+import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 import type { LinkedMeetingInfo } from '@argon/glue';
 import type { DateTimeOffset, Guid } from '@argon-chat/ion.webcore';

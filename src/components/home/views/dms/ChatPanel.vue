@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onUnmounted, shallowRef, toRef, triggerRef } from "vue";
-import { usePoolStore } from "@/store/poolStore";
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
-import { useUnifiedCall } from "@/store/unifiedCallStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { PhPhoneDisconnect } from "@phosphor-icons/vue";
 import { HeadphoneOffIcon, MicOffIcon, MaximizeIcon, Minimize2Icon } from "lucide-vue-next";
-import { useSystemStore } from "@/store/systemStore";
+import { useSystemStore } from "@/store/system/systemStore";
 
 const emit = defineEmits<{ (e: "end"): void }>();
 
@@ -147,7 +147,7 @@ onUnmounted(() => {
                     :ref="el => activeStream && setVideoRef(el, activeStream.userId)"
                     autoplay playsinline class="w-full h-full object-contain" />
 
-                <SmartArgonAvatar v-else-if="activeStream" :user-id="activeStream.userId" :overrided-size="120"
+                <ArgonAvatar v-else-if="activeStream" :user-id="activeStream.userId" :overrided-size="120"
                     class="transition-transform duration-200 group-hover:scale-110" />
 
                 <div v-if="activeStream" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/70 to-transparent py-2 px-3">
@@ -178,7 +178,7 @@ onUnmounted(() => {
                     <video v-if="hasVideo(p.userId)" :ref="el => setVideoRef(el, p.userId)" autoplay playsinline
                         class="w-full h-full object-cover" />
 
-                    <SmartArgonAvatar v-else :user-id="p.userId" :overrided-size="60"
+                    <ArgonAvatar v-else :user-id="p.userId" :overrided-size="60"
                         class="transition-transform duration-200 group-hover:scale-110" />
 
                     <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/70 to-transparent py-1 px-2">
@@ -206,7 +206,7 @@ onUnmounted(() => {
                 <video v-if="hasVideo(p.userId)" :ref="el => setVideoRef(el, p.userId)" autoplay playsinline
                     class="w-full h-full object-cover" />
 
-                <SmartArgonAvatar v-else :user-id="p.userId" :overrided-size="80"
+                <ArgonAvatar v-else :user-id="p.userId" :overrided-size="80"
                     class="transition-transform duration-200 group-hover:scale-110" />
 
                 <div class="absolute bottom-0 left-0 right-0 text-center bg-gradient-to-t from-background/70 to-transparent py-1">

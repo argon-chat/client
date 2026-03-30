@@ -30,7 +30,7 @@
 import { ScrollArea } from "@argon/ui/scroll-area";
 import FriendListItem from "./FriendListItem.vue";
 import type { FriendListItemVm } from "./FriendListItem.vue";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();
 

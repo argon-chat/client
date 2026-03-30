@@ -77,16 +77,16 @@ import MessageItem from "@/components/MessageItem.vue";
 import { DirectMessage, EntityType, IMessageEntity, MessageEntityMention, ArgonMessage, DirectMessageSent } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 
-import { useApi } from "@/store/apiStore";
-import { usePoolStore } from "@/store/poolStore";
-import { useMe } from "@/store/meStore";
-import { useTone } from "@/store/toneStore";
-import { useLocale } from "@/store/localeStore";
+import { useApi } from "@/store/system/apiStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useMe } from "@/store/auth/meStore";
+import { useTone } from "@/store/media/toneStore";
+import { useLocale } from "@/store/system/localeStore";
 import { cn } from "@argon/core";
 import { logger } from "@argon/core";
 
 import type { Subscription } from "rxjs";
-import { useBus } from "@/store/busStore";
+import { useBus } from "@/store/realtime/busStore";
 
 const MESSAGES_PER_LOAD = 50;
 const SCROLL_THRESHOLD = 150;

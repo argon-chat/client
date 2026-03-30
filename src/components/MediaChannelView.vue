@@ -182,16 +182,15 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
-import { IRealtimeChannelUserWithData, usePoolStore } from "@/store/poolStore";
 import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
-import { useUnifiedCall } from "@/store/unifiedCallStore";
-import { useSystemStore } from "@/store/systemStore";
-import { useMe } from "@/store/meStore";
-import { useApi } from "@/store/apiStore";
-import { usePlayFrameActivity } from "@/store/playframeStore";
-import { useFeatureFlags } from "@/store/featureFlagsStore";
-import { useLocale } from "@/store/localeStore";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { useSystemStore } from "@/store/system/systemStore";
+import { useApi } from "@/store/system/apiStore";
+import { usePlayFrameActivity } from "@/store/features/playframeStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import {
@@ -200,10 +199,8 @@ import {
     CameraIcon, Gamepad2, Signal, Users2,
 } from "lucide-vue-next";
 
-const pool = usePoolStore();
 const voice = useUnifiedCall();
 const sys = useSystemStore();
-const me = useMe();
 const api = useApi();
 const activity = usePlayFrameActivity();
 const { playframeActive } = useFeatureFlags();
@@ -212,138 +209,29 @@ const { t } = useLocale();
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
-const focusedUserId = ref<Guid | null>(null);
 const mediaChannelContainer = ref<HTMLElement | null>(null);
 const openPingDetails = ref(false);
 
-// Computed properties
-const users = computed(() => {
-    const ch = selectedChannelId.value ? pool.realtimeChannelUsers.get(selectedChannelId.value) : null;
-    return ch?.Users ?? new Map<Guid, IRealtimeChannelUserWithData>();
-});
+const {
+    allUsers,
+    mainStreamer,
+    otherUsers,
+    hasActiveStream,
+    gridClasses,
+    gridCardStyle,
+    isSpeaking,
+    hasVideo,
+    isScreenSharing,
+    isMuted,
+    isHeadphoneMuted,
+    isPlayingActivity,
+    toggleFocus,
+    qualityConnection,
+} = useMediaLayout(() => selectedChannelId.value);
 
-const allUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() =>
-    Array.from(users.value as Map<Guid, IRealtimeChannelUserWithData>)
-);
-
-const mainStreamer = computed<IRealtimeChannelUserWithData | null>(() => {
-    // Priority: focusedUserId -> screencast -> first video
-    if (focusedUserId.value) {
-        const user = users.value.get(focusedUserId.value);
-        if (user) return user as IRealtimeChannelUserWithData;
-    }
-    
-    for (const [userId, user] of users.value) {
-        if (user.isScreenShare) return user as IRealtimeChannelUserWithData;
-    }
-    
-    for (const [userId] of voice.videoTracks) {
-        const user = users.value.get(userId);
-        if (user) return user as IRealtimeChannelUserWithData;
-    }
-    
-    return null;
-});
-
-const otherUsers = computed<[Guid, IRealtimeChannelUserWithData][]>(() => {
-    if (!mainStreamer.value) return allUsers.value;
-    const mainId = mainStreamer.value.User.userId;
-    return allUsers.value.filter(([id]) => id !== mainId);
-});
-
-const hasActiveStream = computed(() => !!mainStreamer.value);
-
-const gridClasses = computed(() => ({
-    'grid-cols-1': allUsers.value.length === 1,
-    'grid-cols-2': allUsers.value.length >= 3 && allUsers.value.length <= 4,
-    'grid-cols-3': allUsers.value.length > 4
-}));
-
-const gridCardStyle = (userCount: number) => ({
-    aspectRatio: '16/9',
-    maxHeight: userCount === 1 ? '25rem' : '19rem',
-    minWidth: userCount === 1 ? '28rem' : '20rem',
-    minHeight: userCount === 1 ? '15.75rem' : '11.25rem'
-});
-
-const muteStates = computed(() => {
-    const states = new Map<Guid, { muted: boolean; headphoneMuted: boolean }>();
-    
-    const myId = me.me?.userId;
-    
-    // Explicitly read reactive values to ensure Vue tracks them
-    const sysMicMuted = sys.microphoneMuted;
-    const sysHeadMuted = sys.headphoneMuted;
-    
-    // First, add local participant with sys values (like in ChatPanel)
-    if (myId) {
-        states.set(myId, {
-            muted: sysMicMuted,
-            headphoneMuted: sysHeadMuted
-        });
-    }
-    
-    // Then add all remote participants from voice.participants
-    for (const uid of Object.keys(voice.participants)) {
-        // Skip if already added as local user
-        if (uid === myId) continue;
-        
-        const participant = voice.participants[uid];
-        states.set(uid, {
-            muted: participant.muted,   
-            headphoneMuted: participant.mutedAll
-        });
-    }
-    
-    return states;
-});
-
-const isSpeaking = (uid: Guid) => {
-    // Explicitly track speaking.size to ensure Vue detects changes in the Set
-    const _ = voice.speaking.size;
-    return voice.speaking.has(uid);
-};
-const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
-
-const isScreenSharing = (uid: Guid) => {
-    const myId = me.me?.userId;
-    if (uid === myId) return voice.isSharing;
-    const user = users.value.get(uid);
-    return user?.isScreenShare ?? false;
-};
-
-const isMuted = (uid: Guid) => {
-    return muteStates.value.get(uid)?.muted ?? false;
-};
-
-const isHeadphoneMuted = (uid: Guid) => {
-    return muteStates.value.get(uid)?.headphoneMuted ?? false;
-};
-
-const isPlayingActivity = (uid: Guid) => {
-    if (!activity.isActive) return false;
-    // Check if user is in activity participants
-    return activity.participants.some(p => p.displayName === users.value.get(uid)?.User.displayName);
-};
-
-const toggleFocus = (userId: Guid) => {
-    focusedUserId.value = focusedUserId.value === userId ? null : userId;
-};
-
-// Connection state
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);
 
-const qualityConnection = computed<"NONE" | "GREEN" | "ORANGE" | "RED">(() => {
-    if (!isConnected.value) return "NONE";
-    const ms = parseInt(String(voice.ping).replace("ms", "").trim(), 10);
-    if (!ms || ms <= 0) return "NONE";
-    if (ms < 50) return "GREEN";
-    if (ms < 100) return "ORANGE";
-    return "RED";
-});
-
-// Control actions
 async function endActiveCall() {
     if (voice.mode === "dm" && voice.callId) {
         try { await api.callInteraction.HangupCall(voice.callId); } catch {}
@@ -356,7 +244,6 @@ const toggleScreenCast = () => {
     if (voice.isSharing) {
         voice.stopScreenShare();
     } else {
-        // Open the share picker in ControlBar via the same flow
         voice.startScreenShare({ deviceId: null, systemAudio: "exclude" });
     }
 };
@@ -376,7 +263,6 @@ const setVideoRef = (el: Element | null | any, userId: Guid) => {
     }
 };
 
-// Cleanup
 onUnmounted(() => {
     voice.videoTracks.forEach((track, userId) => {
         const el = videoRefs.value.get(userId);

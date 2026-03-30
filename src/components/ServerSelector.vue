@@ -150,7 +150,7 @@ import { Plus } from "lucide-vue-next"
 import { IconPin, IconPinFilled } from '@tabler/icons-vue'
 import { ArgonSpaceBase } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
-import { useLocale } from "@/store/localeStore"
+import { useLocale } from "@/store/system/localeStore"
 import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"

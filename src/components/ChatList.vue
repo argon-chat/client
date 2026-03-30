@@ -69,12 +69,12 @@
 
 <script setup lang="ts">
 import { computed, ref as vueRef, watch } from 'vue';
-import { useSpaceStore } from '@/store/serverStore';
-import { usePoolStore } from '@/store/poolStore';
-import { useLocale } from '@/store/localeStore';
-import { usePexStore } from '@/store/permissionStore';
-import { useApi } from '@/store/apiStore';
-import { useUnifiedCall } from '@/store/unifiedCallStore';
+import { useSpaceStore } from '@/store/data/serverStore';
+import { usePoolStore } from '@/store/data/poolStore';
+import { useLocale } from '@/store/system/localeStore';
+import { usePexStore } from '@/store/data/permissionStore';
+import { useApi } from '@/store/system/apiStore';
+import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -91,7 +91,7 @@ import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import { setLastChannel } from '@/lib/recentSpaces';
 import type { Guid } from '@argon-chat/ion.webcore';
-import type { IRealtimeChannel } from '@/store/realtimeStore';
+import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
 
 const servers = useSpaceStore();
 const pool = usePoolStore();

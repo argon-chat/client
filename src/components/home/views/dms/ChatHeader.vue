@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { RealtimeUser } from "@/store/db/dexie";
-import { usePoolStore } from "@/store/poolStore";
-import { useCallManager } from "@/store/callManagerStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useCallManager } from "@/store/media/callManagerStore";
 import { IconPhone } from "@tabler/icons-vue";
 import { onUnmounted, shallowRef, watch, computed } from "vue";
 
@@ -50,7 +50,7 @@ onUnmounted(() => {
         <div class="flex items-center gap-3">
             <div
                 class="w-10 h-10 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground font-semibold">
-                <SmartArgonAvatar :user-id="userId" />
+                <ArgonAvatar :user-id="userId" />
             </div>
 
             <div class="font-bold text-lg">

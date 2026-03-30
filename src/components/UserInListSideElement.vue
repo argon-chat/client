@@ -39,8 +39,8 @@
 </template>
 <script setup lang="ts">
 import type { RealtimeUser } from "@/store/db/dexie";
-import { useLocale } from "@/store/localeStore";
-import { useMe } from "@/store/meStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import {
   Popover,

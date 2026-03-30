@@ -58,14 +58,14 @@
 
 <script setup lang="ts">
 import { Dialog, DialogContent } from "@argon/ui/dialog";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
 import { Input } from "@argon/ui/input";
 import { shallowRef, onUnmounted } from "vue";
 import { logger } from "@argon/core";
 import { Label } from "@argon/ui/label";
-import { useApi } from "@/store/apiStore";
+import { useApi } from "@/store/system/apiStore";
 import { v7 } from "uuid";
 
 const { t } = useLocale();

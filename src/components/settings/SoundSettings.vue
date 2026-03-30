@@ -74,8 +74,8 @@
 </template>
 
 <script setup lang="ts">
-import { usePreference } from "@/store/preferenceStore";
-import { useLocale } from "@/store/localeStore";
+import { usePreference } from "@/store/ui/preferenceStore";
+import { useLocale } from "@/store/system/localeStore";
 import { ref } from "vue";
 import { Slider } from "@argon/ui/slider";
 import { watchArray } from "@vueuse/core";
@@ -89,7 +89,7 @@ import {
 } from "lucide-vue-next";
 import { Switch } from "@argon/ui/switch";
 import { Button } from "@argon/ui/button";
-import { useTone } from "@/store/toneStore";
+import { useTone } from "@/store/media/toneStore";
 
 const { t } = useLocale();
 const tone = useTone();

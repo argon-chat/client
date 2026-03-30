@@ -2,16 +2,23 @@
     <div class="channel-chat flex flex-col h-full overflow-hidden relative">
         <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
             class="messages-scroll flex-1">
-            <ChatView :channel-id="selectedChannelId" :space-id="selectedSpaceId" :channel-name="channelData.name" :typing-users="typingUsers" @select-reply="onReplySelect" />
+            <ChatView 
+                :channel-id="selectedChannelId" 
+                :space-id="selectedSpaceId" 
+                :channel-name="channelData.name" 
+                :channel-type="isAnnouncement ? 'announcement' : undefined"
+                :typing-users="typingUsers" 
+                @select-reply="onReplySelect" 
+            />
         </div>
 
         <div v-if="!channelData" class="empty-state">
             <div class="empty-state-inner">
                 <div class="empty-state-icon">
-                    <RadioIcon class="h-8 w-8" />
+                    <component :is="emptyIcon" class="h-8 w-8" />
                 </div>
                 <h3 class="empty-state-title">
-                    {{ t("no_text_channel_found") }}
+                    {{ t(isAnnouncement ? "no_announcement_channel_found" : "no_text_channel_found") }}
                 </h3>
                 <p class="empty-state-desc">
                     {{ t("you_not_access_to_channel_or_not_found_channels") }}
@@ -19,23 +26,40 @@
             </div>
         </div>
 
-        <div v-if="channelData" class="message-input-area">
+        <div v-if="channelData && canInput" class="message-input-area">
             <EnterText :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTyping"
                 @stop_typing="onStopTyping" />
+        </div>
+
+        <div v-else-if="channelData && isAnnouncement" class="announcement-footer">
+            <div class="announcement-footer-inner">
+                <BellIcon class="h-4 w-4" />
+                <span>{{ t("follow_to_get_updates") }}</span>
+            </div>
         </div>
     </div>
 </template>
 <script setup lang="ts">
-import { RadioIcon } from "lucide-vue-next";
-import { ref } from "vue";
-import { useLocale } from "@/store/localeStore";
+import { RadioIcon, AntennaIcon, BellIcon } from "lucide-vue-next";
+import { computed, ref } from "vue";
+import { useLocale } from "@/store/system/localeStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import EnterText from "./chats/EnterText.vue";
 import ChatView from "./ChatView.vue";
 import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
 import { ArgonMessage } from "@argon/glue";
 
+const props = withDefaults(defineProps<{
+    channelType?: 'text' | 'announcement';
+}>(), { channelType: 'text' });
+
 const { t } = useLocale();
+const pex = usePexStore();
+
+const isAnnouncement = computed(() => props.channelType === 'announcement');
+const emptyIcon = computed(() => isAnnouncement.value ? AntennaIcon : RadioIcon);
+const canInput = computed(() => !isAnnouncement.value || pex.has('ManageChannels'));
 
 const replyTo = ref<ArgonMessage | null>(null);
 
@@ -120,5 +144,23 @@ const { typingUsers, onTyping, onStopTyping } = useChannelTyping(selectedChannel
     padding: 1.25rem;
     flex-shrink: 0;
     border-top: 1px solid hsl(var(--border) / 0.3);
+}
+
+/* Announcement footer */
+.announcement-footer {
+    background: hsl(var(--card));
+    border-radius: 0 0 15px 15px;
+    padding: 0.875rem 1.25rem;
+    flex-shrink: 0;
+    border-top: 1px solid hsl(var(--border) / 0.3);
+}
+
+.announcement-footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: hsl(var(--muted-foreground));
 }
 </style>

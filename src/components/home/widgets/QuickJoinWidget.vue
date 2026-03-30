@@ -28,11 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconBolt } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
-import { useSpaceStore } from '@/store/serverStore';
-import { usePoolStore } from '@/store/poolStore';
+import { useSpaceStore } from '@/store/data/serverStore';
+import { usePoolStore } from '@/store/data/poolStore';
 import { DeferFlag } from '@argon/core';
 import { logger } from '@argon/core';
 

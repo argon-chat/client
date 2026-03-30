@@ -34,7 +34,7 @@ import {
   DialogTitle 
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 interface Props {
   open: boolean;

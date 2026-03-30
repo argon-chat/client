@@ -23,11 +23,11 @@
 import { computed } from 'vue';
 import { MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon } from 'lucide-vue-next';
 import ArgonAvatar from './../ArgonAvatar.vue';
-import { useUnifiedCall } from '@/store/unifiedCallStore';
-import { useSystemStore } from '@/store/systemStore';
-import { useMe } from '@/store/meStore';
+import { useUnifiedCall } from '@/store/media/unifiedCallStore';
+import { useSystemStore } from '@/store/system/systemStore';
+import { useMe } from '@/store/auth/meStore';
 import type { Guid } from '@argon-chat/ion.webcore';
-import type { IRealtimeChannelUser } from '@/store/realtimeStore';
+import type { IRealtimeChannelUser } from '@/store/realtime/realtimeStore';
 
 const props = defineProps<{
   user: IRealtimeChannelUser;

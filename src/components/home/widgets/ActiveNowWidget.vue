@@ -29,7 +29,7 @@
             <div v-else v-for="friend in onlineFriends" :key="friend.id"
                 class="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer group">
                 <div class="relative shrink-0">
-                    <SmartArgonAvatar :user-id="friend.id" :overrided-size="40" class="rounded-full" />
+                    <ArgonAvatar :user-id="friend.id" :overrided-size="40" class="rounded-full" />
                     <div :class="[
                         'absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card',
                         friend.user?.status === 1 ? 'bg-green-500' :
@@ -52,16 +52,16 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconUsers, IconUserOff, IconPhoneCall } from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useApi } from '@/store/apiStore';
-import { usePoolStore } from '@/store/poolStore';
-import { useMe } from '@/store/meStore';
-import { useCallManager } from '@/store/callManagerStore';
+import { useApi } from '@/store/system/apiStore';
+import { usePoolStore } from '@/store/data/poolStore';
+import { useMe } from '@/store/auth/meStore';
+import { useCallManager } from '@/store/media/callManagerStore';
 import { UserStatus } from '@argon/glue';
 import type { RealtimeUser } from '@/store/db/dexie';
-import SmartArgonAvatar from '@/components/SmartArgonAvatar.vue';
+import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { logger } from '@argon/core';
 import { db } from '@/store/db/dexie';
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { usePoolStore } from '@/store/poolStore';
-import { useLocale } from '@/store/localeStore';
-import { useVersionChecker } from '@/lib/useVersionChecker';
+import { usePoolStore } from '@/store/data/poolStore';
+import { useLocale } from '@/store/system/localeStore';
+import { useVersionChecker } from '@/composables/useVersionChecker';
 import { useNotifications } from '@/composables/useNotifications';
-import { useUnifiedCall } from '@/store/unifiedCallStore';
+import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport } from '@tabler/icons-vue';
 import { Signal } from 'lucide-vue-next';

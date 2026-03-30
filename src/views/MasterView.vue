@@ -22,7 +22,7 @@
 import SettingsWindow from "@/components/SettingsWindow.vue";
 import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
 import SendUserFeedback from "@/components/modals/SendUserFeedback.vue";
-import { usePoolStore } from "@/store/poolStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import ServerSelector from "@/components/ServerSelector.vue";
 import AppTitlebar from "@/components/AppTitlebar.vue";
 import { Guid } from "@argon-chat/ion.webcore";

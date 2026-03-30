@@ -53,12 +53,12 @@ import { CameraIcon, ImageIcon } from "lucide-vue-next";
 import ProfileHeaderCropDialog from "./ProfileHeaderCropDialog.vue";
 import BuyPremium from "../modals/BuyPremium.vue";
 import { useToast } from "@argon/ui/toast";
-import { useMe } from "@/store/meStore";
-import { useApi } from "@/store/apiStore";
-import { useFileStorage } from "@/store/fileStorage";
+import { useMe } from "@/store/auth/meStore";
+import { useApi } from "@/store/system/apiStore";
+import { useFileStorage } from "@/store/system/fileStorage";
 import { UploadFileError } from "@argon/glue";
 import { v7 } from "uuid";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 interface Props {
   headerFileId?: string | null;

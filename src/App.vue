@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { Toaster } from "@argon/ui/toast";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
-import { useSystemStore } from "./store/systemStore";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
 import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
 import { native } from "@argon/glue/native";
-import { useAppState } from "./store/appState";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
-import DiagnosticsOverlay from "./components/DiagnosticsOverlay.vue";
-import ReconnectOverlay from "./components/ReconnectOverlay.vue";
-import DvdBounce from "./components/DvdBounce.vue";
+import DiagnosticsOverlay from "./components/overlays/DiagnosticsOverlay.vue";
+import ReconnectOverlay from "./components/overlays/ReconnectOverlay.vue";
+import DvdBounce from "./components/overlays/DvdBounce.vue";
 import GamePicker from "./components/playframe/GamePicker.vue";
 import { useTheme } from "@/composables/useTheme";
 import { logger } from "@argon/core";
+import { useAppState, useSystemStore } from "./store";
 
 const sys = useSystemStore();
 const appState = useAppState();

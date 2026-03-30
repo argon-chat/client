@@ -147,11 +147,11 @@ import {
   TooltipTrigger,
 } from "@argon/ui/tooltip";
 import { Separator } from "@argon/ui/separator";
-import { useApi } from "@/store/apiStore";
-import { usePoolStore } from "@/store/poolStore";
+import { useApi } from "@/store/system/apiStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import { db, type RealtimeUser } from "@/store/db/dexie";
-import { useMe } from "@/store/meStore";
-import { useLocale } from "@/store/localeStore";
+import { useMe } from "@/store/auth/meStore";
+import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
 import ArgonBanner from "./../ArgonBanner.vue";
 import IconCat from "@argon/assets/icons/icon_cat.svg";

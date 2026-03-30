@@ -140,14 +140,14 @@
 </template>
 
 <script setup lang="ts">
-import { useMe } from "@/store/meStore";
-import { useLocale } from "@/store/localeStore";
+import { useMe } from "@/store/auth/meStore";
+import { useLocale } from "@/store/system/localeStore";
 import { logger } from "@argon/core";
 import { useToast } from "@argon/ui/toast";
 import { Button } from "@argon/ui/button";
 import UsageStatus from "./UsageStatus.vue";
 import { onMounted, ref } from "vue";
-import { getStorageUsageReport, StorageUsageReport, pruneCache, pruneIndexDb, pruneAll } from "@/store/fileStorage";
+import { getStorageUsageReport, StorageUsageReport, pruneCache, pruneIndexDb, pruneAll } from "@/store/system/fileStorage";
 import { native } from "@argon/glue/native";
 import {
     HardDriveIcon,

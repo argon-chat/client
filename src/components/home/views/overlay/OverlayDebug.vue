@@ -100,11 +100,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useUnifiedCall } from '@/store/unifiedCallStore'
-import { useRealtimeStore } from '@/store/realtimeStore'
-import { useUserColors } from '@/store/userColors'
-import { useSystemStore } from '@/store/systemStore'
-import { useMe } from '@/store/meStore'
+import { useUnifiedCall } from '@/store/media/unifiedCallStore'
+import { useRealtimeStore } from '@/store/realtime/realtimeStore'
+import { useUserColors } from '@/store/chat/userColors'
+import { useSystemStore } from '@/store/system/systemStore'
+import { useMe } from '@/store/auth/meStore'
 import { OverlayRenderer, VoiceMembersWidget, type VoiceMember, type CanvasSizeMode, type OverlayDiagnostics, type IOverlayRenderer, type WidgetAnchor } from '@/lib/overlay'
 
 // Components

@@ -20,8 +20,12 @@ const organization = ref<ServerOrganization>({
     folders: []
 });
 
+let _loaded = false;
+
 // Load from localStorage
 function loadOrganization() {
+    if (_loaded) return;
+    _loaded = true;
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -36,8 +40,9 @@ function loadOrganization() {
     }
 }
 
-// Load on module initialization
-loadOrganization();
+function ensureLoaded() {
+    loadOrganization();
+}
 
 // Save to localStorage
 function saveOrganization() {
@@ -50,6 +55,7 @@ function saveOrganization() {
 
 // Toggle pin for a server
 export function toggleServerPin(serverId: string) {
+    ensureLoaded();
     const index = organization.value.pinnedServerIds.indexOf(serverId);
     if (index !== -1) {
         organization.value.pinnedServerIds.splice(index, 1);
@@ -61,11 +67,13 @@ export function toggleServerPin(serverId: string) {
 
 // Check if server is pinned
 export function isServerPinned(serverId: string): boolean {
+    ensureLoaded();
     return organization.value.pinnedServerIds.includes(serverId);
 }
 
 // Create new folder with servers
 export function createFolderWithServers(serverIds: string[]): ServerFolder {
+    ensureLoaded();
     const folder: ServerFolder = {
         id: `folder_${Date.now()}`,
         name: `Folder ${organization.value.folders.length + 1}`,
@@ -86,6 +94,7 @@ export function createFolderWithServers(serverIds: string[]): ServerFolder {
 
 // Create new folder
 export function createFolder(name: string, color?: string): ServerFolder {
+    ensureLoaded();
     const folder: ServerFolder = {
         id: `folder_${Date.now()}`,
         name,

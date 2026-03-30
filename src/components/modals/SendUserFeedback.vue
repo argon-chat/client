@@ -71,9 +71,9 @@ import { Dialog, DialogContent } from '@argon/ui/dialog'
 import { Button } from '@argon/ui/button'
 import { Label } from '@argon/ui/label'
 import { ref } from 'vue'
-import { useLocale } from '@/store/localeStore'
+import { useLocale } from '@/store/system/localeStore'
 import { captureFeedback } from "@sentry/vue";
-import { useMe } from '@/store/meStore'
+import { useMe } from '@/store/auth/meStore'
 
 const me = useMe();
 const { t } = useLocale()

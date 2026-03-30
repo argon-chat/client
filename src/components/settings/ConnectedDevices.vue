@@ -23,7 +23,7 @@
 import { ref } from "vue";
 import { Button } from "@argon/ui/button";
 import { CirclePower } from "lucide-vue-next";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
 const devices = ref([
   {

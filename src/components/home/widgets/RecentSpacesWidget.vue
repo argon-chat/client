@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconHistory, IconClock, IconChevronRight, IconLayoutGrid, IconList, IconPin, IconPinFilled } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 import { useRecentSpaces, getViewMode, setViewMode } from '@/lib/recentSpaces';

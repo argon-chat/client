@@ -20,7 +20,7 @@ import {
     EyeOffIcon,
     AtSignIcon,
 } from "lucide-vue-next";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { today, getLocalTimeZone } from "@internationalized/date";
 import { ref, computed, watch } from "vue";
 

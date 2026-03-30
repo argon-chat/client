@@ -83,7 +83,7 @@
 import { Alert, AlertDescription, AlertTitle } from '@argon/ui/alert';
 import { Card, CardContent } from '@argon/ui/card'
 import { Input } from '@argon/ui/input';
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { IconBasket } from '@tabler/icons-vue';
 import { computed, CSSProperties, ref } from 'vue'
 

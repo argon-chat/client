@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { usePoolStore } from '@/store/poolStore';
+import { usePoolStore } from '@/store/data/poolStore';
 import ChannelChat from './ChannelChat.vue';
 import LeftSideUserList from './LeftSideUserList.vue';
 import SpaceSideShell from './SpaceSideShell.vue';

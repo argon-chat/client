@@ -46,7 +46,7 @@
                 'flex items-center gap-3 px-3 py-2 cursor-pointer',
                 i === mention.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
             ]" @mousedown.prevent="selectMention(user)">
-                <SmartArgonAvatar :user-id="user.id" :overrided-size="32" />
+                <ArgonAvatar :user-id="user.id" :overrided-size="32" />
                 <span>{{ user.displayName }}</span>
                 <span class="text-muted-foreground"> @{{ user.username }}</span>
             </li>
@@ -63,14 +63,14 @@ import {
 } from "@argon/ui/popover";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
 import { logger } from "@argon/core";
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
-import { useApi } from "@/store/apiStore";
-import { type MentionUser, usePoolStore } from "@/store/poolStore";
+import { useApi } from "@/store/system/apiStore";
+import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
 import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
 const { t } = useLocale();
 

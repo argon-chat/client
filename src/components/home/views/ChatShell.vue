@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useCallManager } from "@/store/callManagerStore";
+import { useCallManager } from "@/store/media/callManagerStore";
 import DmChatView from "./dms/DmChatView.vue";
 import ChatInput from "./dms/ChatInput.vue";
 import ChatPanel from "./dms/ChatPanel.vue";
 import ChatHeader from "./dms/ChatHeader.vue";
-import { useUnifiedCall } from "@/store/unifiedCallStore";
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { DirectMessage } from "@argon/glue";
-import { usePoolStore } from "@/store/poolStore";
+import { usePoolStore } from "@/store/data/poolStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -95,7 +95,7 @@ onUnmounted(() => {
                     class="w-80 min-w-[20rem] max-w-[20rem] flex flex-col border-l border-border bg-card">
 
                     <div class="p-4 overflow-y-auto flex flex-col gap-3">
-                        <SmartArgonAvatar :user-id="userId!" class="w-20 h-20 rounded-full" />
+                        <ArgonAvatar :user-id="userId!" class="w-20 h-20 rounded-full" />
 
                         <div class="text-xl font-semibold">
                             123

@@ -1,11 +1,11 @@
-import { useMe } from "@/store/meStore";
+import { useMe } from "@/store/auth/meStore";
 import { IUssdCommand } from "@argon/softphone";
 import { LocalUssdTransport } from "@argon/softphone";
 import { UssdClient } from "@argon/softphone";
 import { HybridUssdTransport } from "@argon/softphone";
 import { ServerUssdTransport } from "./ServerUssdTransport";
 import JsBarcode from "jsbarcode";
-import { useConfigStore } from "@/store/configStore";
+import { useConfigStore } from "@/store/ui/configStore";
 
 async function getBatteryLevel() {
   if ("getBattery" in navigator) {

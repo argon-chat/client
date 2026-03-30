@@ -1,6 +1,6 @@
 import { DisposableBag } from "@argon/core";
 import { FriendRequestAcceptedEvent, FriendRequestCanceledEvent, FriendRequestDeclinedEvent, FriendRequestReceivedEvent, FriendRequestSentEvent, FriendshipRemovedEvent, UserBlockedEvent, UserUnblockedEvent } from "@argon/glue";
-import { useBus } from "@/store/busStore";
+import { useBus } from "@/store/realtime/busStore";
 import { onUnmounted } from "vue";
 
 export const FriendEventNames = {

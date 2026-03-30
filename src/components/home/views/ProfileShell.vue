@@ -111,11 +111,11 @@
     </div>
 </template>
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { onMounted, ref } from 'vue';
-import { useApi } from '@/store/apiStore';
+import { useApi } from '@/store/system/apiStore';
 import { ArgonUserProfile } from '@argon/glue';
-import { useMe } from '@/store/meStore';
+import { useMe } from '@/store/auth/meStore';
 import ProfileBanner from './ProfileBanner.vue';
 import ProfileAvatar from './ProfileAvatar.vue';
 import ProfileBadges from './ProfileBadges.vue';

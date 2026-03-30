@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted, ref, watch, type Ref } from "vue";
-import { usePoolStore } from "@/store/poolStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import type { Subscription } from "rxjs";
 import { type ArgonChannel } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";

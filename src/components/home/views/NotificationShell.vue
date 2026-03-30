@@ -56,7 +56,7 @@
 import { Alert, AlertTitle } from '@argon/ui/alert'
 import { Card, CardContent } from '@argon/ui/card'
 import { IconMail } from "@tabler/icons-vue"
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
 export interface NotificationItem {
     id: string

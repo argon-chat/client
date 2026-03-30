@@ -1,6 +1,6 @@
 // Re-export from @argon/theme with app-specific config
 import { useTheme as useBaseTheme, type ThemeId, accentColors, hexToHSL } from "@argon/theme";
-import { useConfigStore } from "@/store/configStore";
+import { useConfigStore } from "@/store/ui/configStore";
 
 export type { ThemeId };
 export { accentColors, hexToHSL };

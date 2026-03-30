@@ -24,8 +24,8 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useLocale } from "@/store/localeStore";
-import { usePoolStore } from "@/store/poolStore";
+import { useLocale } from "@/store/system/localeStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
 import { computed, ref, reactive } from "vue";
 import { persistedValue } from "@argon/storage";

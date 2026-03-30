@@ -4,7 +4,7 @@ import { Button } from "@argon/ui/button";
 import { Input } from "@argon/ui/input";
 import { Label } from "@argon/ui/label";
 import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@argon/ui/pin-input";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { 
     KeyRoundIcon, 
     ArrowLeftIcon, 

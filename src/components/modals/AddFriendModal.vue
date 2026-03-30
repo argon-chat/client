@@ -52,8 +52,8 @@ import { Button } from "@argon/ui/button";
 import { Label } from "@argon/ui/label";
 import InputWithError from "@/components/shared/InputWithError.vue";
 
-import { useLocale } from "@/store/localeStore";
-import { useApi } from "@/store/apiStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useApi } from "@/store/system/apiStore";
 import { SendFriendStatus } from "@argon/glue";
 
 const { t } = useLocale();

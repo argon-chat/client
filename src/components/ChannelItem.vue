@@ -124,17 +124,17 @@ import {
   ContextMenuLabel,
 } from '@argon/ui/context-menu';
 import { ChannelType } from '@argon/glue';
-import { usePexStore } from '@/store/permissionStore';
-import { useLocale } from '@/store/localeStore';
-import { useMe } from '@/store/meStore';
-import { useUnifiedCall } from '@/store/unifiedCallStore';
+import { usePexStore } from '@/store/data/permissionStore';
+import { useLocale } from '@/store/system/localeStore';
+import { useMe } from '@/store/auth/meStore';
+import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
 import MeetingDetailsModal from './modals/MeetingDetailsModal.vue';
-import { useApi } from '@/store/apiStore';
+import { useApi } from '@/store/system/apiStore';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
-import type { IRealtimeChannel } from '@/store/realtimeStore';
+import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
 
 const props = defineProps<{
   channel: ArgonChannel;

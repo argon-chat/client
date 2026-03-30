@@ -2,7 +2,7 @@
     <div v-if="caller" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-lg flex items-center justify-center">
         <Card class="w-[320px] p-6 space-y-5 animate-in fade-in zoom-in duration-200">
             <div class="flex flex-col items-center gap-4">
-                <SmartArgonAvatar :overrided-size="120" :user-id="caller.userId" />
+                <ArgonAvatar :overrided-size="120" :user-id="caller.userId" />
 
                 <div class="text-center">
                     <h2 class="text-xl font-bold">Incoming Call</h2>
@@ -41,11 +41,11 @@
 
 
 <script setup lang="ts">
-import SmartArgonAvatar from './../SmartArgonAvatar.vue';
+import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { PhPhoneIncoming, PhPhoneSlash } from "@phosphor-icons/vue"
-import { useCallManager } from '@/store/callManagerStore';
+import { useCallManager } from '@/store/media/callManagerStore';
 import { computed } from 'vue';
-import { usePoolStore } from '@/store/poolStore';
+import { usePoolStore } from '@/store/data/poolStore';
 import { Guid } from '@argon-chat/ion.webcore';
 import { Card } from '@argon/ui/card';
 

@@ -170,8 +170,8 @@ import {
 import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
 import { Switch } from "@argon/ui/switch";
-import { usePoolStore } from "@/store/poolStore";
-import { useLiveQuery } from "@/lib/useLiveQuery";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useLiveQuery } from "@/composables/useLiveQuery";
 import {
   extractEntitlements,
   ArgonEntitlementGroups,
@@ -179,14 +179,14 @@ import {
   type ArgonEntitlementFlagDefinition,
   extractEntitlementStrict,
 } from "@/lib/rbac/ArgonEntitlement";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { delay } from "@argon/core";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
 import { Button } from "@argon/ui/button";
 import { PlusCircleIcon, BanIcon } from "lucide-vue-next";
 import { Input } from "@argon/ui/input";
 import { watchDebounced } from "@vueuse/core";
-import { useApi } from "@/store/apiStore";
+import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { Textarea } from "@argon/ui/textarea";

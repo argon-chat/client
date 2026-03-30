@@ -1,18 +1,14 @@
 <template>
   <Transition name="channel-switch" mode="out-in">
-    <component :is="channelComponent" :key="channelComponentKey" v-bind="{
-      selectedSpace,
-      selectedChannelId
-    }" />
+    <component :is="channelComponent" :key="channelComponentKey" v-bind="channelProps" />
   </Transition>
 </template>
 
 <script setup lang="ts">
 import { ref, shallowRef, watch, type Component, computed } from "vue";
-import { usePoolStore } from "@/store/poolStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import TextChannelView from "./TextChannelView.vue";
 import MediaChannelView from "./MediaChannelView.vue";
-import AnnouncementChannelView from "./AnnouncementChannelView.vue";
 import { ArgonChannel, ChannelType } from "@argon/glue";
 
 const pool = usePoolStore();
@@ -23,17 +19,25 @@ const selectedChannelId = defineModel<string | null>('selectedChannelId', { type
 const channelData = ref<ArgonChannel | null>(null);
 const channelComponent = shallowRef<Component>(TextChannelView);
 const channelComponentKey = ref(0);
+const channelType = ref<'text' | 'announcement'>('text');
 
 const channelViewMap: Record<ChannelType, Component> = {
   [ChannelType.Text]: TextChannelView,
   [ChannelType.Voice]: MediaChannelView,
-  [ChannelType.Announcement]: AnnouncementChannelView,
+  [ChannelType.Announcement]: TextChannelView,
 };
+
+const channelProps = computed(() => ({
+  selectedSpace: selectedSpace.value,
+  selectedChannelId: selectedChannelId.value,
+  ...(channelComponent.value === TextChannelView ? { channelType: channelType.value } : {}),
+}));
 
 watch(selectedChannelId, async (id) => {
   if (!id) {
     channelData.value = null;
     channelComponent.value = TextChannelView;
+    channelType.value = 'text';
     return;
   }
   
@@ -41,9 +45,11 @@ watch(selectedChannelId, async (id) => {
 
   if (!channelData.value) {
     channelComponent.value = TextChannelView;
+    channelType.value = 'text';
     return;
   }
 
+  channelType.value = channelData.value.type === ChannelType.Announcement ? 'announcement' : 'text';
   const newComponent = channelViewMap[channelData.value.type] ?? TextChannelView;
   if (channelComponent.value !== newComponent) {
     channelComponent.value = newComponent;

@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { RadioGroup, RadioGroupItem } from "@argon/ui/radio-group";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { availableLanguages } from "@/lib/languages";
 import { useLanguageSelection } from "@/composables/useLanguageSelection";
 import { LanguagesIcon } from "lucide-vue-next";

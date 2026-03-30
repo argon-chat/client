@@ -154,10 +154,10 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
-import { usePoolStore } from "@/store/poolStore";
-import { useMe } from "@/store/meStore";
-import { useLocale } from "@/store/localeStore";
-import { useApi } from "@/store/apiStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useMe } from "@/store/auth/meStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import {
   UserIcon,

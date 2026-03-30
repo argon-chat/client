@@ -13,7 +13,7 @@
             muted 
             class="participant-video" />
 
-        <SmartArgonAvatar 
+        <ArgonAvatar 
             v-else 
             :user-id="userId" 
             :overrided-size="avatarSize"
@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import type { Guid } from "@argon-chat/ion.webcore";
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon } from "lucide-vue-next";
 
 interface Props {

@@ -108,7 +108,7 @@
 import { computed, ref } from "vue"
 import { Dialog, DialogContent } from "@argon/ui/dialog"
 import { Button } from "@argon/ui/button"
-import { useLocale } from "@/store/localeStore"
+import { useLocale } from "@/store/system/localeStore"
 
 const { t } = useLocale()
 const open = defineModel<boolean>("open", { type: Boolean, default: false })

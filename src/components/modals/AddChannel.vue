@@ -102,12 +102,12 @@
 
 <script setup lang="ts">
 import { Dialog, DialogContent } from "@argon/ui/dialog";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
 import { computed, shallowRef, onUnmounted } from "vue";
 import { logger } from "@argon/core";
-import { useSpaceStore } from "@/store/serverStore";
+import { useSpaceStore } from "@/store/data/serverStore";
 import { ChannelType } from "@argon/glue";
 import { Label } from "@argon/ui/label";
 import { Hash, Megaphone, Mic } from "lucide-vue-next";

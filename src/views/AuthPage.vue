@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import PixelCard from "@/components/shared/PixelCard.vue";
 import router from "@/router";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/store/auth/authStore";
 import { computed, onMounted } from "vue";
-import { useConfig } from "@/store/remoteConfig";
+import { useConfig } from "@/store/system/remoteConfig";
 import AuthTabs from "@/components/login/AuthTabs.vue";
 import IconSw from "@argon/assets/icons/icon_cat.svg"
 

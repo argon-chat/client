@@ -1,6 +1,6 @@
 <template>
     <div class="shrink-0 relative">
-        <SmartArgonAvatar :overrided-size="96" :user-id="userId"
+        <ArgonAvatar :overrided-size="96" :user-id="userId"
             class="w-24 h-24 border-4 border-background shadow-md" />
         <svg class="pointer-events-none absolute inset-0 -m-[4px] w-[calc(100%+6px)] h-[calc(100%+5px)] animate-spin-slow"
             viewBox="0 0 100 100" aria-hidden="true">
@@ -16,7 +16,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import SmartArgonAvatar from '@/components/SmartArgonAvatar.vue';
+import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import { Guid } from '@argon-chat/ion.webcore';
 
 const props = defineProps<{

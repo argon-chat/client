@@ -4,26 +4,26 @@ import ControlBar from './../ControlBar.vue';
 import UserBar from './../UserBar.vue';
 import { IconCookieManFilled, IconTriangleInvertedFilled, IconUserScan, IconNotification, IconDialpad, IconHeadphones } from "@tabler/icons-vue"
 import { computed, onMounted, PropType, ref, onUnmounted } from 'vue';
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { Separator } from '@argon/ui/separator';
 import RecentUserItem from './views/RecentUserItem.vue';
 import router from '@/router';
-import { useRecentChatsStore } from '@/store/useRecentChatsStore';
-import { useApi } from "@/store/apiStore";
+import { useRecentChatsStore } from '@/store/chat/useRecentChatsStore';
+import { useApi } from "@/store/system/apiStore";
 import type {
     RecentChatUpdatedEvent,
     ChatPinnedEvent,
     ChatUnpinnedEvent,
     ChatReadEvent,
 } from "@argon/glue";
-import { useBus } from '@/store/busStore';
+import { useBus } from '@/store/realtime/busStore';
 import { DisposableBag } from '@argon/core';
 import { NBadge } from 'naive-ui';
-import { useMe } from '@/store/meStore';
+import { useMe } from '@/store/auth/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { logger } from '@argon/core';
 import { useNotifications } from '@/composables/useNotifications';
-import { useFeatureFlags } from '@/store/featureFlagsStore';
+import { useFeatureFlags } from '@/store/features/featureFlagsStore';
 
 const { t } = useLocale();
 

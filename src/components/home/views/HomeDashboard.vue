@@ -75,9 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { useLocale } from '@/store/localeStore';
-import { useMe } from '@/store/meStore';
-import { useWidgetStore } from '@/store/widgetStore';
+import { useLocale } from '@/store/system/localeStore';
+import { useMe } from '@/store/auth/meStore';
+import { useWidgetStore } from '@/store/ui/widgetStore';
 import { GridLayout, GridItem } from 'grid-layout-plus';
 import { IconEdit, IconRefresh } from '@tabler/icons-vue';
 

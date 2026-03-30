@@ -69,8 +69,8 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { usePlayFrameActivity } from "@/store/playframeStore";
-import { useLocale } from "@/store/localeStore";
+import { usePlayFrameActivity } from "@/store/features/playframeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import {

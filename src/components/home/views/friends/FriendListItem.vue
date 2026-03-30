@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import UserProfilePopover from "@/components/popovers/UserProfilePopover.vue";
-import { useLocale } from "@/store/localeStore";
-import { usePoolStore } from "@/store/poolStore";
-import { useMe } from "@/store/meStore";
+import { useLocale } from "@/store/system/localeStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useMe } from "@/store/auth/meStore";
 import { ref, computed } from "vue";
 import { ActivityPresenceKind } from "@argon/glue";
 
@@ -79,7 +79,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
                 :class="{ 'opacity-50 pointer-events-none': disabled }">
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div class="relative">
-                        <SmartArgonAvatar :user-id="user.userId" :overrided-size="40" />
+                        <ArgonAvatar :user-id="user.userId" :overrided-size="40" />
                         <span :class="me.statusClass(user.status)"
                             class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
                     </div>
@@ -108,7 +108,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     <div v-else-if="user" class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors"
         :class="{ 'opacity-50 pointer-events-none': disabled }">
         <div class="flex items-center gap-3 flex-1 min-w-0">
-            <SmartArgonAvatar :user-id="user.userId" :overrided-size="40" />
+            <ArgonAvatar :user-id="user.userId" :overrided-size="40" />
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-sm font-medium truncate">{{ user.displayName }}</span>
                 <Badge v-if="item.kind === 'incoming'" variant="default" class="shrink-0 text-xs">

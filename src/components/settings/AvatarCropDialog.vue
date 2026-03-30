@@ -36,8 +36,8 @@ import {
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { useToast } from "@argon/ui/toast";
-import { useLocale } from "@/store/localeStore";
-import { useApi } from "@/store/apiStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useApi } from "@/store/system/apiStore";
 import { UploadFileError } from "@argon/glue";
 import { v7 } from "uuid";
 

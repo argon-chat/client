@@ -19,6 +19,6 @@
 
 <script setup lang="ts">
 import { Switch } from "@argon/ui/switch";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
 </script>

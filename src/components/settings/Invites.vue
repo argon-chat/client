@@ -32,12 +32,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { Button } from "@argon/ui/button";
-import { useSpaceStore } from "@/store/serverStore";
+import { useSpaceStore } from "@/store/data/serverStore";
 //@ts-ignore
 import { AtomSpinner } from "epic-spinners";
 import { Input } from "@argon/ui/input";
-import { useLocale } from "@/store/localeStore";
-import { usePexStore } from "@/store/permissionStore";
+import { useLocale } from "@/store/system/localeStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import { InviteCodeEntity } from "@argon/glue";
 
 const { t } = useLocale();

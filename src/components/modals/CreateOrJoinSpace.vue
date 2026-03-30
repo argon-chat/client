@@ -69,14 +69,14 @@ import { Dialog, DialogContent } from '@argon/ui/dialog'
 import { Button } from '@argon/ui/button'
 import { Label } from '@argon/ui/label'
 import { ref } from 'vue'
-import { useLocale } from '@/store/localeStore'
-import { useApi } from '@/store/apiStore'
+import { useLocale } from '@/store/system/localeStore'
+import { useApi } from '@/store/system/apiStore'
 import { CreateSpaceError } from '@argon/glue'
 import InputWithError from '../shared/InputWithError.vue'
 import { logger } from '@argon/core'
 import { DeferFlag } from '@argon/core'
-import { useSpaceStore } from '@/store/serverStore'
-import { usePoolStore } from '@/store/poolStore'
+import { useSpaceStore } from '@/store/data/serverStore'
+import { usePoolStore } from '@/store/data/poolStore'
 
 const { t } = useLocale()
 

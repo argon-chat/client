@@ -22,11 +22,11 @@
 </template>
 
 <script setup lang="ts">
-import { useMe } from "@/store/meStore";
+import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
-import { useWindow } from "@/store/windowStore";
+import { useWindow } from "@/store/ui/windowStore";
 import { Settings } from "lucide-vue-next";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();
 const windows = useWindow();

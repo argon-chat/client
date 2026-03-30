@@ -1,4 +1,4 @@
-import { usePreference } from "@/store/preferenceStore";
+import { usePreference } from "@/store/ui/preferenceStore";
 import type {
   AudioProcessorOptions,
   Room,

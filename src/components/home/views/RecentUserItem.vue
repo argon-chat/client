@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import SmartArgonAvatar from "@/components/SmartArgonAvatar.vue";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { UserStatus, ActivityPresenceKind } from "@argon/glue";
-import { useMe } from "@/store/meStore";
-import { usePoolStore } from "@/store/poolStore";
-import { useLocale } from "@/store/localeStore";
+import { useMe } from "@/store/auth/meStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useLocale } from "@/store/system/localeStore";
 import { computed } from "vue";
 
 const me = useMe();
@@ -63,7 +63,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     <div class="recent-user flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-accent/50 min-w-0"
         @click="emit('open', userId)">
         <div class="relative w-[40px] h-[40px] shrink-0">
-            <SmartArgonAvatar :user-id="userId" :overrided-size="40" />
+            <ArgonAvatar :user-id="userId" :overrided-size="40" />
 
             <span :class="me.statusClass(displayStatus)"
                 class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>

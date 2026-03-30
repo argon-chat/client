@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useLocale } from "@/store/localeStore";
-import { useHotkeys, availableActions } from "@/store/hotKeyStore";
+import { useLocale } from "@/store/system/localeStore";
+import { useHotkeys, availableActions } from "@/store/ui/hotKeyStore";
 import { native } from "@argon/glue/native";
 import {
     HotkeyActionType,

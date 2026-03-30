@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue';
-import { usePexStore } from '@/store/permissionStore';
-import { useApi } from '@/store/apiStore';
+import { usePexStore } from '@/store/data/permissionStore';
+import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 import type { Guid } from '@argon-chat/ion.webcore';
 

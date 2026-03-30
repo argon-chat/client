@@ -10,7 +10,7 @@ import {
     Loader2Icon,
     SendIcon,
 } from "lucide-vue-next";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();

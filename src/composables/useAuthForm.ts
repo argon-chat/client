@@ -1,5 +1,5 @@
 import { ref, computed, watch } from "vue";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/store/auth/authStore";
 import { DateOnly } from "@argon-chat/ion.webcore";
 import type { DateValue } from "reka-ui";
 

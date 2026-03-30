@@ -1,10 +1,10 @@
 import { createRouter, createMemoryHistory } from "vue-router";
-import { useAuthStore } from "../store/authStore";
 import LoginPage from "../views/AuthPage.vue";
 import MasterView from "../views/MasterView.vue";
 import Entry from "@/views/Entry.vue";
-import { useAppState } from "@/store/appState";
+import { useAppState } from "@/store/system/appState";
 import LockdownView from "@/views/LockdownView.vue";
+import { useAuthStore } from "@/store";
 const routes = [
   {
     path: "/",

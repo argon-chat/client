@@ -2,16 +2,16 @@
 import { onMounted, ref, computed, watch } from 'vue';
 import InventoryView from './InventoryView.vue';
 import InventoryItemGranted from './InventoryItemGranted.vue';
-import { useApi } from '@/store/apiStore';
+import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 import { InventoryItem, RedeemError } from '@argon/glue';
 import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@argon/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconFilter, IconSortAscending, IconSparkles } from '@tabler/icons-vue';
-import { useConfigStore } from '@/store/configStore';
+import { useConfigStore } from '@/store/ui/configStore';
 import { Button } from '@argon/ui/button';
-import { useLocale } from '@/store/localeStore';
+import { useLocale } from '@/store/system/localeStore';
 import { useToast } from '@argon/ui/toast';
 import { useNotifications } from '@/composables/useNotifications';
 

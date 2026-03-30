@@ -39,12 +39,12 @@ import {
     DrawerDescription,
 } from "@argon/ui/drawer";
 import { Button } from "@argon/ui/button";
-import { useWindow } from "@/store/windowStore";
+import { useWindow } from "@/store/ui/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
 import Invites from "@/components/settings/Invites.vue";
 import RolesSettings from "./settings/spaces/RolesSettings.vue";
 import ServerProfile from "./settings/spaces/ServerProfile.vue";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 
 const windows = useWindow();
 

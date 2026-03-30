@@ -295,9 +295,9 @@ import {
 import { audio } from "@/lib/audio/AudioManager";
 import { worklets } from "@/lib/audio/WorkletBase";
 import { DisposableBag, logger } from "@argon/core";
-import { useLocale } from "@/store/localeStore";
-import { usePreference } from "@/store/preferenceStore";
-import { useTone } from "@/store/toneStore";
+import { useLocale } from "@/store/system/localeStore";
+import { usePreference } from "@/store/ui/preferenceStore";
+import { useTone } from "@/store/media/toneStore";
 import { 
     MicIcon, 
     HeadphonesIcon,

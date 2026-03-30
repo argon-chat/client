@@ -5,7 +5,7 @@
 <script setup lang="ts" generic="T extends MessageEntityUrl">
 import { MessageEntityUrl } from "@argon/glue";
 import { useToast } from "@argon/ui/toast";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { native } from "@argon/glue/native";
 const { t } = useLocale();
 

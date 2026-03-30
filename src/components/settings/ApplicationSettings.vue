@@ -145,10 +145,10 @@
 </template>
 
 <script setup lang="ts">
-import { useMe } from "@/store/meStore";
-import { usePreference } from "@/store/preferenceStore";
+import { useMe } from "@/store/auth/meStore";
+import { usePreference } from "@/store/ui/preferenceStore";
 import { Switch } from "@argon/ui/switch";
-import { useLocale } from "@/store/localeStore";
+import { useLocale } from "@/store/system/localeStore";
 import { onMounted, ref, watch } from "vue";
 import { logger } from "@argon/core";
 import {
@@ -160,10 +160,10 @@ import {
     SelectValue,
 } from "@argon/ui/select";
 import { useToast } from "@argon/ui/toast";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/store/auth/authStore";
 import { native } from "@argon/glue/native";
 import { Channel, ConfigKeyMetadata_Value, ConfigPrimitiveType, ConfigSectionMetadata_Value, SetRequest } from "@argon/glue/ipc";
-import { useConfigStore } from "@/store/configStore";
+import { useConfigStore } from "@/store/ui/configStore";
 const { t } = useLocale();
 const toast = useToast();
 

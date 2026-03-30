@@ -114,10 +114,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, Ref } from "vue";
-import { usePoolStore } from "@/store/poolStore";
+import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+import { usePoolStore } from "@/store/data/poolStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
-import { useMe } from "@/store/meStore";
+import { useMe } from "@/store/auth/meStore";
 import emojiRegex from "emoji-regex";
 import { cn } from "@argon/core";
 import {
@@ -127,7 +127,7 @@ import {
   TooltipTrigger,
 } from "@argon/ui/tooltip";
 import { useDateFormat } from "@vueuse/core";
-import { useUserColors } from "@/store/userColors";
+import { useUserColors } from "@/store/chat/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import {
@@ -135,14 +135,17 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@argon/ui/popover";
-import { ArgonMessage, IMessageEntity, EntityType, MessageEntitySystemCallStarted, MessageEntitySystemCallEnded, MessageEntitySystemCallTimeout, MessageEntitySystemUserJoined } from "@argon/glue";
-import { useLocale } from "@/store/localeStore";
+import type { ArgonMessage } from "@argon/glue";
+import { useLocale } from "@/store/system/localeStore";
 import { CopyIcon, ReplyIcon } from "lucide-vue-next";
+import {
+  useMessageContent,
+  fragmentMessageText,
+  type IFrag,
+} from "@/composables/useMessageContent";
 
 const { t } = useLocale();
 const isOpened = ref(false);
-
-const SYSTEM_USER_ID = "11111111-2222-1111-2222-111111111111";
 
 const props = defineProps<{
   message: ArgonMessage;
@@ -153,62 +156,7 @@ const pool = usePoolStore();
 const me = useMe();
 const userColors = useUserColors();
 
-const isSystemMessage = computed(() => {
-  return props.message.sender === SYSTEM_USER_ID;
-});
-
-const systemMessageText = computed(() => {
-  if (!isSystemMessage.value || !props.message.entities || props.message.entities.length === 0) {
-    return "";
-  }
-
-  const entity = props.message.entities[0];
-  
-  if (entity.type === EntityType.SystemCallStarted) {
-    const callEntity = entity as MessageEntitySystemCallStarted;
-    const caller = pool.getUserReactive(ref(callEntity.callerId));
-    return `${caller.value?.displayName || "User"} started a call`;
-  }
-  
-  if (entity.type === EntityType.SystemCallEnded) {
-    const callEntity = entity as MessageEntitySystemCallEnded;
-    const caller = pool.getUserReactive(ref(callEntity.callerId));
-    const duration = formatCallDuration(callEntity.durationSeconds);
-    return `Call ended • ${duration}`;
-  }
-  
-  if (entity.type === EntityType.SystemCallTimeout) {
-    const callEntity = entity as MessageEntitySystemCallTimeout;
-    const caller = pool.getUserReactive(ref(callEntity.callerId));
-    return `Call timeout • No answer`;
-  }
-  
-  if (entity.type === EntityType.SystemUserJoined) {
-    const joinEntity = entity as MessageEntitySystemUserJoined;
-    const user = pool.getUserReactive(ref(joinEntity.userId));
-    if (joinEntity.inviterId) {
-      const inviter = pool.getUserReactive(ref(joinEntity.inviterId));
-      return `${user.value?.displayName || "User"} joined (invited by ${inviter.value?.displayName || "User"})`;
-    }
-    return `${user.value?.displayName || "User"} joined`;
-  }
-  
-  return "";
-});
-
-function formatCallDuration(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) {
-    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-}
+const { isSystemMessage, systemMessageText } = useMessageContent(() => props.message);
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
@@ -220,52 +168,10 @@ const backgroundOffset = ref(0);
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
 
-interface IFrag {
-  entity?: IMessageEntity;
-  text: string;
-}
-
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
-
 const isIncoming = computed(() => props.message.sender !== me.me?.userId);
-
 const renderedMessage = ref([] as IFrag[]);
 
-function fragmentMessageText(
-  text: string,
-  entities: IMessageEntity[],
-): IFrag[] {
-  const fragments: IFrag[] = [];
-  let cursor = 0;
-
-  const sorted = [...entities].sort((a, b) => a.offset - b.offset);
-
-  for (const entity of sorted) {
-    const start = entity.offset;
-    const end = entity.offset + entity.length;
-
-    if (cursor < start) {
-      fragments.push({
-        text: text.slice(cursor, start),
-      });
-    }
-
-    fragments.push({
-      text: text.slice(start, end),
-      entity,
-    });
-
-    cursor = end;
-  }
-
-  if (cursor < (text?.length ?? 0)) {
-    fragments.push({
-      text: text.slice(cursor),
-    });
-  }
-
-  return fragments;
-}
 const replyMessage = computed(() => {
   if (!props.message.replyId) return null;
   return props.getMsgById(props.message.replyId);
@@ -302,7 +208,7 @@ const formattedTime = computed(() => {
     const minutes = date.getMinutes().toString().padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
+    hours = hours ? hours : 12;
     return `${hours}:${minutes} ${ampm}`;
   }
   
