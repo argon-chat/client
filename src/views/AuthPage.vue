@@ -5,7 +5,10 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { computed, onMounted } from "vue";
 import { useConfig } from "@/store/system/remoteConfig";
 import AuthTabs from "@/components/login/AuthTabs.vue";
+import AppTitlebar from "@/components/AppTitlebar.vue";
 import IconSw from "@argon/assets/icons/icon_cat.svg"
+
+const showDevolutionTitlebar = computed(() => (window as any).devolution_titlebar === 0x1);
 
 const cfg = useConfig();
 const authStore = useAuthStore();
@@ -28,8 +31,9 @@ const changeEndpoint = () => {
 </script>
 
 <template>
-  <div v-motion-slide-visible-once-top :duration="200" style="overflow: hidden;"
-    class="container relative hidden h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-1 lg:px-0">
+  <div v-motion-slide-visible-once-top :duration="200" style="overflow: hidden; width: 100svw; height: 100svh;"
+    class="container relative hidden flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-1 lg:px-0">
+    <AppTitlebar v-if="showDevolutionTitlebar" />
     <div class="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
 
       <PixelCard class="absolute inset-0 bg-zinc-900 " id="background" style="position: absolute;" />
