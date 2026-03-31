@@ -37,7 +37,6 @@ type timeonly = TimeOnly;
 type duration = Duration;
 type datetime = DateTimeOffset;
 type dateonly = DateOnly;
-type bytes = Uint8Array;
 
 declare type bool = boolean;
 
@@ -324,7 +323,7 @@ export interface BridgeDirtyTile {
   y: i4;
   w: i4;
   h: i4;
-  data: bytes;
+  data: string;
 };
 
 
@@ -1423,7 +1422,7 @@ IonFormatterStorage.register("BridgeDirtyTile", {
     const y = IonFormatterStorage.get<i4>('i4').read(reader);
     const w = IonFormatterStorage.get<i4>('i4').read(reader);
     const h = IonFormatterStorage.get<i4>('i4').read(reader);
-    const data = IonFormatterStorage.get<bytes>('bytes').read(reader);
+    const data = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 7);
     return { tx, ty, x, y, w, h, data };
   },
@@ -1435,7 +1434,7 @@ IonFormatterStorage.register("BridgeDirtyTile", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.y);
     IonFormatterStorage.get<i4>('i4').write(writer, value.w);
     IonFormatterStorage.get<i4>('i4').write(writer, value.h);
-    IonFormatterStorage.get<bytes>('bytes').write(writer, value.data);
+    IonFormatterStorage.get<string>('string').write(writer, value.data);
     writer.writeEndArray();
   }
 });
@@ -1480,6 +1479,9 @@ export interface IHostProc extends IIonService
   startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
   getScreenSources(types: IonArray<string>): Promise<IonArray<ScreenSourceInfo>>;
   setPendingScreenSource(sourceId: string, includeAudio: bool): Promise<bool>;
+  isPermissionGranted(permission: string): Promise<bool>;
+  requestPermission(permission: string): Promise<bool>;
+  setWindowMaterial(material: string): Promise<bool>;
 }
 
 
@@ -1537,6 +1539,9 @@ export interface IHostProc extends IIonService
   startSharedTextureWithStreamingByMonitor(displayIndex: i4, textureWidth: i4, textureHeight: i4): Promise<string>;
   getScreenSources(types: IonArray<string>): Promise<IonArray<ScreenSourceInfo>>;
   setPendingScreenSource(sourceId: string, includeAudio: bool): Promise<bool>;
+  isPermissionGranted(permission: string): Promise<bool>;
+  requestPermission(permission: string): Promise<bool>;
+  setWindowMaterial(material: string): Promise<bool>;
 }
 
 
@@ -2046,6 +2051,45 @@ export class HostProc_Executor extends ServiceExecutor<IHostProc> implements IHo
           
     IonFormatterStorage.get<string>('string').write(writer, sourceId);
     IonFormatterStorage.get<bool>('bool').write(writer, includeAudio);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async isPermissionGranted(permission: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "isPermissionGranted");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, permission);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async requestPermission(permission: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "requestPermission");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, permission);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async setWindowMaterial(material: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IHostProc", "setWindowMaterial");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, material);
       
     writer.writeEndArray();
           

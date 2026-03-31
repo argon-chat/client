@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useHotkeys } from "@/store/ui/hotKeyStore";
 import {
   HotkeyActionType,
   type HotkeyChord,
 } from "@argon/glue/ipc";
+import { native } from "@argon/glue/native";
 import { Button } from "@argon/ui/button";
 import KbdGroup from "@/components/kbd/KbdGroup.vue";
 import Kbd from "@/components/kbd/Kbd.vue";
 import { keyCodeToFormatterSymbolsOrNames } from "@/lib/keyCodes";
 import AddHotkeyModal from "../modals/AddHotkeyModal.vue";
 import { Badge } from "@argon/ui/badge";
-import { PlusIcon, TrashIcon, KeyboardIcon } from "lucide-vue-next";
+import { PlusIcon, TrashIcon, KeyboardIcon, ShieldAlertIcon } from "lucide-vue-next";
 
 // Stores
 const { t } = useLocale();
@@ -27,6 +28,25 @@ const captureError = ref<string | null>(null);
 
 // Constants
 const MODIFIER_ORDER = ["Ctrl", "Alt", "Shift", "Win"];
+
+const isMac = computed(() => navigator.userAgent.includes('Mac'));
+const accessibilityGranted = ref(true);
+
+onMounted(async () => {
+  if (!argon.isArgonHost || !isMac.value) return;
+  accessibilityGranted.value = await native.hostProc.isPermissionGranted('accessibility');
+});
+
+const needsAccessibility = computed(() => isMac.value && argon.isArgonHost && !accessibilityGranted.value);
+
+async function requestAccessibility() {
+  if (!argon.isArgonHost) return;
+  const granted = await native.hostProc.requestPermission('accessibility');
+  accessibilityGranted.value = granted;
+  if (granted) {
+    await hotkeys.syncAll();
+  }
+}
 
 const HOTKEY_ACTION_LABELS: Record<HotkeyActionType, string> = {
   [HotkeyActionType.Trigger]: "Trigger",
@@ -82,6 +102,20 @@ function removeHotkey(id: string) {
         <PlusIcon class="w-4 h-4" />
         {{ t("add_hotkey") }}
       </Button>
+    </div>
+
+    <!-- Accessibility Permission Banner (macOS) -->
+    <div v-if="needsAccessibility" class="accessibility-banner">
+      <div class="flex items-center gap-3">
+        <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-yellow-200">{{ t("hotkeys_accessibility_required") }}</p>
+          <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("hotkeys_accessibility_description") }}</p>
+        </div>
+        <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10" @click="requestAccessibility">
+          {{ t("hotkeys_grant_access") }}
+        </Button>
+      </div>
     </div>
 
     <!-- Hotkeys List -->
@@ -169,6 +203,10 @@ function removeHotkey(id: string) {
 
 .settings-header {
   @apply flex items-start justify-between gap-4 mb-6;
+}
+
+.accessibility-banner {
+  @apply rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-5 py-4;
 }
 
 .hotkeys-list {

@@ -73,6 +73,11 @@ service HostProc() {
 
     getScreenSources(types: string[]): ScreenSourceInfo[];
     setPendingScreenSource(sourceId: string, includeAudio: bool): bool;
+
+
+    isPermissionGranted(permission: string): bool;
+    requestPermission(permission: string): bool;
+    setWindowMaterial(material: string): bool;
 }
 
 

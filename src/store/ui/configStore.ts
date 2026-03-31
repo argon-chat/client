@@ -53,6 +53,19 @@ export const useConfigStore = defineStore("nativeConfig", () => {
       });
   };
 
+  const setWindowMaterial = async (material: string) => {
+    if (argon.isArgonHost)
+      await setValue_raw({
+        key: "WindowMaterial",
+        section: "appearance",
+        valueB: null,
+        valueEnum: material,
+        valueNum: null,
+        valueStr: null,
+        valueF: null,
+      });
+  };
+
   const load = async () => {
     if (!argon.isArgonHost) {
       loaded.value = true;
@@ -153,5 +166,6 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     setValue,
     getKey,
     setTheme,
+    setWindowMaterial,
   };
 });

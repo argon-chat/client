@@ -25,6 +25,35 @@
             </div>
         </div>
 
+        <!-- Window Material -->
+        <div class="setting-card">
+            <div class="flex items-center gap-2 mb-4">
+                <GlassWaterIcon class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold">{{ t("window_material") }}</h3>
+            </div>
+            <p class="text-xs text-muted-foreground mb-4">{{ t("window_material_desc") }}</p>
+
+            <div class="grid gap-3" :class="materialOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'">
+                <div v-for="mat in materialOptions" :key="mat.id" class="material-card"
+                    :class="{ 'material-selected': windowMaterial === mat.id, 'material-disabled': isOled }"
+                    @click="!isOled && selectMaterial(mat.id)">
+                    <div class="material-preview" :style="mat.previewStyle">
+                        <div class="material-preview-stripe" />
+                        <div class="material-preview-stripe material-preview-stripe-2" />
+                    </div>
+                    <div class="text-center mt-2.5">
+                        <div class="text-sm font-medium">{{ mat.name }}</div>
+                        <div class="text-xs text-muted-foreground mt-0.5">{{ mat.description }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="isOled" class="mt-3 flex items-center gap-2 text-xs text-yellow-400/80 bg-yellow-400/5 rounded-lg px-3 py-2 border border-yellow-400/10">
+                <InfoIcon class="w-3.5 h-3.5 flex-shrink-0" />
+                {{ t("window_material_oled_note") }}
+            </div>
+        </div>
+
         <!-- Font Settings -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
@@ -303,7 +332,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from "vue";
+import { ref, watch, onMounted, nextTick, computed } from "vue";
 import { useLocale } from "@/store/system/localeStore";
 import { Button } from "@argon/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
@@ -325,15 +354,20 @@ import {
     MaximizeIcon,
     MinimizeIcon,
     ShrinkIcon,
-    EyeIcon
+    EyeIcon,
+    GlassWaterIcon,
+    InfoIcon,
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, type ThemeId } from "@/composables/useTheme";
+import { native } from "@argon/glue/native";
+import { useConfigStore } from "@/store/ui/configStore";
 
 const { t } = useLocale();
 const toast = useToast();
 const { applyTheme: applyThemeController, applyAppearanceSettings: applyAppearanceSettingsController } = useTheme();
+const configStore = useConfigStore();
 
 // Theme definitions
 const themes = [
@@ -423,8 +457,84 @@ const accentColors = [
     { id: "rose", name: t("color_rose"), value: "#f43f5e" }
 ];
 
+// Window material options (platform-specific)
+const isMac = navigator.userAgent.includes('Mac');
+const isLinux = navigator.userAgent.includes('Linux') && !navigator.userAgent.includes('Android');
+const isWindows = navigator.userAgent.includes('Win');
+
+const defaultMaterial = isWindows ? 'acrylic' : isMac ? 'glass' : 'solid';
+
+type MaterialOption = { id: string; name: string; description: string; previewStyle: Record<string, string> };
+
+const materialOptions = computed(() => {
+    if (isWindows) return [
+        {
+            id: 'acrylic',
+            name: t('material_acrylic'),
+            description: t('material_acrylic_desc'),
+            previewStyle: {
+                background: 'linear-gradient(135deg, rgba(30,30,50,0.6) 0%, rgba(60,60,90,0.4) 100%)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
+            },
+        },
+        {
+            id: 'mica',
+            name: t('material_mica'),
+            description: t('material_mica_desc'),
+            previewStyle: {
+                background: 'linear-gradient(135deg, rgba(40,40,55,0.85) 0%, rgba(50,50,70,0.75) 100%)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255,255,255,0.06)',
+            },
+        },
+        {
+            id: 'solid',
+            name: t('material_solid'),
+            description: t('material_solid_desc'),
+            previewStyle: {
+                background: '#202225',
+                border: '1px solid rgba(255,255,255,0.04)',
+            },
+        },
+    ];
+    if (isMac) return [
+        {
+            id: 'glass',
+            name: t('material_glass'),
+            description: t('material_glass_desc'),
+            previewStyle: {
+                background: 'linear-gradient(135deg, rgba(30,30,50,0.5) 0%, rgba(80,80,120,0.3) 100%)',
+                backdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255,255,255,0.12)',
+            },
+        },
+        {
+            id: 'solid',
+            name: t('material_solid'),
+            description: t('material_solid_desc'),
+            previewStyle: {
+                background: '#202225',
+                border: '1px solid rgba(255,255,255,0.04)',
+            },
+        },
+    ];
+    return [
+        {
+            id: 'solid',
+            name: t('material_solid'),
+            description: t('material_solid_desc'),
+            previewStyle: {
+                background: '#202225',
+                border: '1px solid rgba(255,255,255,0.04)',
+            },
+        },
+    ];
+});
+
 // Persisted settings
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
+const windowMaterial = persistedValue<string>("appearance.windowMaterial", defaultMaterial);
 const fontFamily = persistedValue<string>("appearance.fontFamily", "Inter, sans-serif");
 const fontSize = persistedValue<number>("appearance.fontSize", 14);
 const lineHeight = persistedValue<number>("appearance.lineHeight", 1.5);
@@ -463,6 +573,28 @@ const enableTransitions = () =>
     window.matchMedia('(prefers-reduced-motion: no-preference)').matches &&
     enableAnimations.value &&
     !reduceMotion.value;
+
+// OLED check — forces solid material
+const isOled = computed(() => currentTheme.value === 'oled');
+
+// Material selection
+const selectMaterial = async (materialId: string) => {
+    if (isOled.value) return;
+    windowMaterial.value = materialId;
+    await applyMaterial(materialId);
+};
+
+const applyMaterial = async (materialId: string) => {
+    if (!argon.isArgonHost) return;
+    const mat = isOled.value ? 'solid' : materialId;
+    const nativeMat = mat === 'solid' ? 'none' : mat; // 'none' for Electron's backgroundMaterial
+    try {
+        await native.hostProc.setWindowMaterial(nativeMat);
+        await configStore.setWindowMaterial(mat);
+    } catch (e) {
+        console.warn('Failed to set window material:', e);
+    }
+};
 
 // Apply theme function with View Transition animation
 const selectTheme = async (themeId: string, event: MouseEvent) => {
@@ -520,9 +652,19 @@ watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, borderRadius, 
     applyAppearanceSettingsController();
 });
 
+// OLED → force solid material; leaving OLED → restore saved material
+watch(currentTheme, (newTheme, oldTheme) => {
+    if (newTheme === 'oled') {
+        applyMaterial('solid');
+    } else if (oldTheme === 'oled') {
+        applyMaterial(windowMaterial.value);
+    }
+});
+
 // Reset to defaults
 const resetToDefaults = () => {
     currentTheme.value = "dark";
+    windowMaterial.value = defaultMaterial;
     fontFamily.value = "Inter, sans-serif";
     fontSize.value = 14;
     lineHeight.value = 1.5;
@@ -547,6 +689,8 @@ const resetToDefaults = () => {
     // uiScaleArray.value = [100];
     borderRadiusArray.value = [0.75];
 
+    applyMaterial(defaultMaterial);
+
     toast.toast({
         title: t("settings_reset"),
         description: t("appearance_reset_desc"),
@@ -565,6 +709,33 @@ onMounted(() => {
 }
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
+}
+
+/* Material cards */
+.material-card {
+    @apply p-3 rounded-lg border-2 border-border cursor-pointer transition-all hover:scale-105 hover:shadow-lg;
+}
+
+.material-selected {
+    @apply border-primary shadow-lg shadow-primary/10;
+}
+
+.material-disabled {
+    @apply opacity-40 cursor-not-allowed hover:scale-100 hover:shadow-none;
+}
+
+.material-preview {
+    @apply w-full h-20 rounded-lg overflow-hidden relative;
+}
+
+.material-preview-stripe {
+    @apply absolute inset-y-0 w-[40%] right-0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03) 40%, rgba(255,255,255,0.06));
+}
+
+.material-preview-stripe-2 {
+    @apply absolute inset-y-0 w-[25%] left-[10%];
+    background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04), transparent);
 }
 
 .setting-item {

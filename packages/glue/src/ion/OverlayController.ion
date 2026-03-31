@@ -44,5 +44,5 @@ msg BridgeDirtyTile {
     y: i4;
     w: i4;
     h: i4;
-    data: bytes;
+    data: string;
 }
