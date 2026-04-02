@@ -44,7 +44,7 @@ app.use(i18n);
 
 Sentry.init({
   app,
-  dsn: await native.dsn,
+  dsn: "https://9d074ba73b580b47cdcc16adf72f523d@sentry.argon.gl/22",
   integrations: [
     Sentry.browserTracingIntegration({ router }),
     Sentry.replayIntegration({

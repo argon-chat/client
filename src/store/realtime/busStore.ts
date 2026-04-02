@@ -59,7 +59,7 @@ export const useBus = defineStore("bus", () => {
           const reader = new CborReader(u8);
           const event =
             IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
-          if (event.UnionKey !== "UserChangedStatus")
+          //if (event.UnionKey !== "UserChangedStatus")
             logger.log(`Received forSelf event, ${event.UnionKey}`, event);
           requestAnimationFrame(() => {
             argonEventBus.next(event);

@@ -29,7 +29,7 @@ enum ProcessKind {
   SOFTWARE = 1,
 }
 
-const ACTIVITY_PUBLISH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const ACTIVITY_PUBLISH_INTERVAL_MS = 30 * 1000; // 30 seconds
 const ACTIVITY_DEBOUNCE_MS = 1000; // 1 second
 
 export const useActivity = defineStore("activity", () => {
