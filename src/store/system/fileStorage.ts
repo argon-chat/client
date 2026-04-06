@@ -282,11 +282,21 @@ export const useFileStorage = defineStore("files", () => {
     });
   }
 
+  async function fetchAttachmentByFileId(fileId: string): Promise<string> {
+    return fetchByFileId({
+      fileId,
+      cache: filesCache.value,
+      fileUrlBuilder: (x) => `https://cdn.argon.gl/${x}`,
+      allowFallback: false,
+    });
+  }
+
   return {
     initStorages,
     fetchServerAvatar,
     fetchUserAvatar,
     fetchImageByFileId,
+    fetchAttachmentByFileId,
     FAILED_ADDRESS,
   };
 });

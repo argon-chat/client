@@ -1,8 +1,18 @@
 <template>
-    <div class="channel-chat flex flex-col h-full overflow-hidden relative">
+    <div class="channel-chat flex flex-col h-full overflow-hidden relative"
+         @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+        <!-- Chat-wide drag overlay -->
+        <div v-if="isDragging" class="chat-drag-overlay">
+            <div class="chat-drag-content">
+                <PaperclipIcon class="w-10 h-10" />
+                <span class="text-base font-medium">{{ t('drop_files_here') || 'Drop files here' }}</span>
+            </div>
+        </div>
+
         <div v-if="channelData && selectedChannelId && selectedSpaceId" ref="messageContainer"
             class="messages-scroll flex-1">
-            <ChatView 
+            <ChatView
+                ref="chatViewRef" 
                 :channel-id="selectedChannelId" 
                 :space-id="selectedSpaceId" 
                 :channel-name="channelData.name" 
@@ -27,8 +37,10 @@
         </div>
 
         <div v-if="channelData && canInput" class="message-input-area">
-            <EnterText :reply-to="replyTo" :space-id="selectedSpaceId!" @clear-reply="replyTo = null" @typing="onTyping"
-                @stop_typing="onStopTyping" />
+            <EnterText ref="enterTextRef" :reply-to="replyTo" :space-id="selectedSpaceId!" :channel-id="selectedChannelId!" @clear-reply="replyTo = null" @typing="onTyping"
+                @stop_typing="onStopTyping"
+                @add-optimistic="onAddOptimistic"
+                @mark-optimistic-failed="onMarkOptimisticFailed" />
         </div>
 
         <div v-else-if="channelData && isAnnouncement" class="announcement-footer">
@@ -40,8 +52,8 @@
     </div>
 </template>
 <script setup lang="ts">
-import { RadioIcon, AntennaIcon, BellIcon } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { RadioIcon, AntennaIcon, BellIcon, PaperclipIcon } from "lucide-vue-next";
+import { computed, ref, nextTick } from "vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import EnterText from "./chats/EnterText.vue";
@@ -49,6 +61,10 @@ import ChatView from "./ChatView.vue";
 import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
 import { ArgonMessage } from "@argon/glue";
+
+const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null);
+const enterTextRef = ref<InstanceType<typeof EnterText> | null>(null);
+const isDragging = ref(false);
 
 const props = withDefaults(defineProps<{
     channelType?: 'text' | 'announcement';
@@ -77,6 +93,33 @@ const selectedChannelId = defineModel<string | null>('selectedChannelId', {
 
 const { channelData } = useChannelData(selectedChannelId);
 const { typingUsers, onTyping, onStopTyping } = useChannelTyping(selectedChannelId, channelData);
+
+function onAddOptimistic(msg: ArgonMessage, randomId: bigint) {
+    chatViewRef.value?.addOptimisticMessage(msg, randomId);
+    nextTick(() => chatViewRef.value?.scrollToBottomImmediate());
+}
+
+function onMarkOptimisticFailed(randomId: bigint, error: string) {
+    chatViewRef.value?.markOptimisticFailed(randomId, error);
+}
+
+function onDragOver() {
+    isDragging.value = true;
+}
+
+function onDragLeave(e: DragEvent) {
+    // Only leave if exiting the container
+    const related = e.relatedTarget as HTMLElement | null;
+    if (related && (e.currentTarget as HTMLElement)?.contains(related)) return;
+    isDragging.value = false;
+}
+
+async function onDrop(e: DragEvent) {
+    isDragging.value = false;
+    if (e.dataTransfer?.files?.length && enterTextRef.value) {
+        enterTextRef.value.handleExternalFiles(e.dataTransfer.files);
+    }
+}
 </script>
 
 <style scoped>
@@ -84,6 +127,27 @@ const { typingUsers, onTyping, onStopTyping } = useChannelTyping(selectedChannel
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 15px;
     background: hsl(var(--card));
+}
+
+.chat-drag-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: hsl(var(--primary) / 0.06);
+    border: 2px dashed hsl(var(--primary));
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.chat-drag-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: hsl(var(--primary));
 }
 
 .messages-scroll {

@@ -1,27 +1,44 @@
 <template>
     <div class="enter-text-wrapper">
-        <div v-if="replyTo" class="reply-banner">
+        <div v-if="replyTo && !captionMode" class="reply-banner">
             <div class="reply-info">
                 <strong>{{ t("replying_to") }}</strong> {{ replyTo.text }}
             </div>
             <X class="text-red-600 cursor-pointer flex-shrink-0" @click="$emit('clear-reply')" />
         </div>
 
-        <div class="relative">
-            <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
+        <div class="relative" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+            <!-- Drag overlay -->
+            <div v-if="isDragging && !captionMode" class="drag-overlay">
+                <div class="drag-overlay-content">
+                    <PaperclipIcon class="w-8 h-8" />
+                    <span class="text-sm font-medium">{{ t('drop_files_here') || 'Drop files here' }}</span>
+                </div>
+            </div>
+
+            <div :class="captionMode ? 'flex items-end gap-1' : 'flex items-end gap-2 p-2 border rounded-lg bg-background'">
                 <!-- Attach file button -->
-                <Button variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5" title="Attach file">
+                <Button v-if="!captionMode" variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon />
                 </Button>
+                <input
+                    v-if="!captionMode"
+                    ref="fileInputRef"
+                    type="file"
+                    multiple
+                    class="hidden"
+                    @change="onFileInputChange"
+                />
 
                 <!-- Textarea message area -->
                 <textarea
                     ref="editorRef"
                     v-model="messageText"
                     class="flex-1 text-sm min-h-[36px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none py-2 scrollbar-thin"
-                    :placeholder="t('enter_some_text')"
+                    :placeholder="captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
+                    @paste="onPaste"
                     rows="1"
                 ></textarea>
 
@@ -41,6 +58,7 @@
             
             <!-- Help button -->
             <Button 
+                v-if="!captionMode"
                 variant="ghost" 
                 size="sm" 
                 class="absolute -bottom-2 -right-2 h-6 w-6 p-0 z-10 opacity-50 hover:opacity-100 bg-background"
@@ -65,7 +83,7 @@
         </ul>
 
         <!-- Formatting Help Dialog -->
-        <Dialog v-model:open="showFormatHelp" class="w-max">
+        <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
             <DialogContent class="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{{ t('formatting_help') || 'Message Formatting' }}</DialogTitle>
@@ -159,6 +177,19 @@
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <!-- Attachment Dialog -->
+        <AttachmentDialog
+            v-if="!captionMode"
+            :files="attachments.pendingFiles.value"
+            :open="showAttachmentDialog"
+            :space-id="spaceId"
+            @send="onAttachmentDialogSend"
+            @close="showAttachmentDialog = false"
+            @add-more="openFilePicker"
+            @remove="attachments.removeFile"
+            @add-files="onDialogAddFiles"
+        />
     </div>
 </template>
 <script setup lang="ts">
@@ -197,16 +228,24 @@ import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEnt
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
+import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
+import { useMe } from "@/store/auth/meStore";
+import AttachmentDialog from "./AttachmentDialog.vue";
 const { t } = useLocale();
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light" : "dark");
 
 const editorRef = ref<HTMLTextAreaElement | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const messageText = ref("");
 const showFormatHelp = ref(false);
+const showAttachmentDialog = ref(false);
+const isDragging = ref(false);
 const api = useApi();
 const pool = usePoolStore();
+const me = useMe();
+const attachments = useAttachmentUpload();
 
 // Mock entities for formatting examples
 const mockBoldEntity = new MessageEntityBold(EntityType.Bold, 0, 9, 1);
@@ -243,6 +282,8 @@ watch(debouncedQuery, async (query) => {
 const props = defineProps<{
   replyTo: ArgonMessage | null;
   spaceId: Guid;
+  channelId?: Guid;
+  captionMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -250,6 +291,9 @@ const emit = defineEmits<{
   (e: "send", html: string, rawText: string): void;
   (e: "typing"): void;
   (e: "stop_typing"): void;
+  (e: "add-optimistic", msg: ArgonMessage, randomId: bigint): void;
+  (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
+  (e: "submit"): void;
 }>();
 
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -288,7 +332,7 @@ interface ReplacementRecord {
 }
 let lastReplacement: ReplacementRecord | null = null;
 
-let typingTimeout: NodeJS.Timeout | undefined;
+let typingTimeout: ReturnType<typeof setTimeout> | undefined;
 let lastTypingSent = 0;
 
 function onEditorInput() {
@@ -306,8 +350,9 @@ function onEditorInput() {
 
   // Auto-resize textarea
   if (editorRef.value) {
+    const maxH = props.captionMode ? 80 : 200;
     editorRef.value.style.height = "auto";
-    editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, 200)}px`;
+    editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, maxH)}px`;
   }
 
   // Auto-replacements
@@ -417,6 +462,10 @@ async function onEditorKeydown(e: KeyboardEvent) {
     if (e.altKey) return;
     if (e.key !== "Enter") return;
     e.preventDefault();
+    if (props.captionMode) {
+      emit("submit");
+      return;
+    }
     await handleSend();
     return;
   }
@@ -467,7 +516,9 @@ function selectMention(user: MentionUser) {
 
 
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
+  if (!props.captionMode) {
+    window.addEventListener("keydown", handleKeyDown);
+  }
 });
 
 onUnmounted(() => {
@@ -717,48 +768,168 @@ function parseMessageContent(): ParsedMessage {
   return { text: cleanText, entities };
 }
 
-const handleSend = async () => {
-  if (!pool.selectedTextChannel) {
+// --- Attachment handlers ---
+
+function openFilePicker() {
+  fileInputRef.value?.click();
+}
+
+async function onFileInputChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (input.files?.length) {
+    const errors = await attachments.addFiles(input.files);
+    for (const err of errors) logger.warn(err);
+    if (attachments.hasFiles.value) {
+      showAttachmentDialog.value = true;
+    }
+  }
+  input.value = "";
+}
+
+function onDragOver() {
+  isDragging.value = true;
+}
+
+function onDragLeave() {
+  isDragging.value = false;
+}
+
+async function onDrop(e: DragEvent) {
+  isDragging.value = false;
+  if (e.dataTransfer?.files?.length) {
+    const errors = await attachments.addFiles(e.dataTransfer.files);
+    for (const err of errors) logger.warn(err);
+    if (attachments.hasFiles.value) {
+      showAttachmentDialog.value = true;
+    }
+  }
+}
+
+async function onPaste(e: ClipboardEvent) {
+  const files = e.clipboardData?.files;
+  if (files?.length) {
+    e.preventDefault();
+    const errors = await attachments.addFiles(files);
+    for (const err of errors) logger.warn(err);
+    if (attachments.hasFiles.value) {
+      showAttachmentDialog.value = true;
+    }
+  }
+}
+
+function onAttachmentDialogSend(text: string, entities: IMessageEntity[]) {
+  showAttachmentDialog.value = false;
+  handleSend({ text, entities });
+}
+
+async function onDialogAddFiles(files: FileList) {
+  const errors = await attachments.addFiles(files);
+  for (const err of errors) logger.warn(err);
+}
+
+// --- Send handler ---
+
+const handleSend = async (captionContent?: { text: string; entities: IMessageEntity[] }) => {
+  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  if (!resolvedChannelId) {
     logger.warn("selected text channel is not defined");
     return;
   }
 
-  const { text: plainText, entities } = parseMessageContent();
+  const { text: plainText, entities } = captionContent ?? parseMessageContent();
+  const hasAttachments = attachments.hasFiles.value;
 
-  if (entities.length === 0 && plainText.length === 0) return;
+  if (entities.length === 0 && plainText.length === 0 && !hasAttachments) return;
 
   // Generate random message ID as bigint
   const randomId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+  const channelId = resolvedChannelId;
+  const spaceId = props.spaceId;
+  const replyTo = props.replyTo?.messageId ?? null;
 
-  logger.log("Sending message", {
-    plainText,
-    entities,
-    replyTo: props.replyTo?.messageId ?? null,
-  });
+  // Build optimistic attachment entities (with placeholder fileId + real thumbHash)
+  const optimisticAttachEntities = hasAttachments
+    ? attachments.buildOptimisticEntities()
+    : [];
 
-  await api.channelInteraction.SendMessage(
-    props.spaceId,
-    pool.selectedTextChannel,
-    plainText,
-    entities,
-    randomId,
-    props.replyTo?.messageId ?? null,
-  );
+  // Create optimistic message — appears in chat immediately
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: replyTo,
+    channelId,
+    spaceId,
+    text: plainText,
+    entities: [...entities, ...optimisticAttachEntities],
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me!.userId,
+  } as ArgonMessage;
 
+  emit("add-optimistic", optimisticMsg, randomId);
+
+  // Clear UI immediately
   emit("stop_typing");
   if (props.replyTo) {
     emit("clear-reply");
   }
-  
-  // Clear editor
   messageText.value = "";
   if (editorRef.value) {
     editorRef.value.style.height = "auto";
   }
-  
-  // Clear mention registry after send
   mentionRegistry.clear();
+
+  // Capture attachment state before clearing
+  const pendingAttachments = hasAttachments;
+  const attachUploader = attachments;
+
+  // Fire-and-forget: upload + send in background
+  (async () => {
+    try {
+      let finalEntities = [...entities];
+
+      // Upload attachments if any
+      if (pendingAttachments) {
+        const realAttachEntities = await attachUploader.uploadAll(spaceId, channelId);
+
+        if (attachUploader.hasErrors()) {
+          emit("mark-optimistic-failed", randomId, "Failed to upload attachments");
+          return;
+        }
+
+        finalEntities.push(...realAttachEntities);
+      }
+
+      // Send to server
+      await api.channelInteraction.SendMessageWithReadback(
+        spaceId,
+        channelId,
+        plainText,
+        finalEntities,
+        randomId,
+        replyTo,
+      );
+
+      attachUploader.clear();
+    } catch (e: any) {
+      logger.error("Failed to send message:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+    }
+  })();
 };
+
+async function handleExternalFiles(files: FileList) {
+  const errors = await attachments.addFiles(files);
+  for (const err of errors) logger.warn(err);
+  if (attachments.hasFiles.value) {
+    showAttachmentDialog.value = true;
+  }
+}
+
+defineExpose({
+  handleExternalFiles,
+  getParsedContent: parseMessageContent,
+  focus: () => editorRef.value?.focus(),
+  clear: () => { messageText.value = ''; mentionRegistry.clear(); },
+});
 </script>
 <style lang="css" scoped>
 .enter-text-wrapper {
@@ -840,5 +1011,26 @@ textarea::-webkit-scrollbar-thumb:hover {
     text-overflow: ellipsis;
     flex: 1;
     min-width: 0;
+}
+
+.drag-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: hsl(var(--primary) / 0.08);
+    border: 2px dashed hsl(var(--primary));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.drag-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: hsl(var(--primary));
 }
 </style>

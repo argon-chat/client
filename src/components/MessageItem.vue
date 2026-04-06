@@ -9,7 +9,9 @@
     <!-- Regular message -->
     <div v-else class="message-item" :class="{
         incoming: isIncoming,
-        outgoing: !isIncoming
+        outgoing: !isIncoming,
+        'is-optimistic': isOptimistic && !isFailed,
+        'is-failed': isFailed,
     }" v-if="user">
 
         <Popover v-model:open="isOpened">
@@ -43,30 +45,59 @@
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+
+                <!-- Optimistic status indicators -->
+                <Loader2Icon v-if="isOptimistic && !isFailed" class="w-3.5 h-3.5 animate-spin text-muted-foreground status-icon" />
+                <TooltipProvider v-if="isFailed">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button class="failed-badge" @click="retryMessage">
+                                <AlertCircleIcon class="w-3.5 h-3.5" />
+                                <RefreshCwIcon class="w-3 h-3 retry-icon" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p>{{ failedError || t('send_failed') || 'Failed to send' }} — {{ t('click_to_retry') || 'click to retry' }}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             <template v-if="!isRequiredUpperVersionMessage">
                 <div class="bubble-wrapper">
-                    <div class="bubble flex" style="flex-flow: column;" v-if="!isSingleEmojiMessage" :style="{
-                        backgroundPositionY: backgroundOffset + 'px',
-                    }" ref="bubble">
-                        <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                            'reply-preview inline-table',
-                            'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                            ">
-                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                                replyUser?.displayName || t("unknown_display_name")}}</div>
-                            <div class="reply-text">{{ replyMessage.text }}</div>
-                        </div>
-                        <div>
-                            <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true"  />
+                    <!-- Telegram-style: images above the bubble -->
+                    <div class="media-message-container" v-if="!isSingleEmojiMessage">
+                        <AttachmentImageGrid v-if="imageAttachments.length" :images="imageAttachments" class="media-block" />
+                        <div class="bubble flex" style="flex-flow: column;" v-if="!hasOnlyImages" :style="{
+                            backgroundPositionY: backgroundOffset + 'px',
+                        }" ref="bubble" :class="{ 'bubble-below-media': imageAttachments.length > 0 }">
+                            <div v-if="replyMessage" style="display: inline-table;" :class="cn(
+                                'reply-preview inline-table',
+                                'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
+                                ">
+                                <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                                    replyUser?.displayName || t("unknown_display_name")}}</div>
+                                <div class="reply-text">{{ replyMessage.text }}</div>
+                            </div>
+                            <div v-if="renderedMessage.length">
+                                <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
+                            </div>
+                            <AttachmentFileCard
+                                v-for="(file, i) in fileAttachments"
+                                :key="i"
+                                :file-id="file.fileId"
+                                :file-name="file.fileName"
+                                :file-size="file.fileSize"
+                                :content-type="file.contentType"
+                            />
                         </div>
                     </div>
+                    <!-- Single emoji -->
                     <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
                         <div v-if="replyMessage" style="display: inline-table;" :class="cn(
                             'reply-preview inline-table',
                             'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
                             ">
-                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
+                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{ 
                                 replyUser?.displayName || t("unknown_display_name") }}</div>
                             <div class="reply-text">{{ replyMessage.text }}</div>
                         </div>
@@ -74,7 +105,7 @@
                             <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
                         </div>
                     </div>
-                    
+
                     <!-- Hover actions -->
                     <div class="message-actions">
                         <TooltipProvider>
@@ -129,6 +160,8 @@ import {
 import { useDateFormat } from "@vueuse/core";
 import { useUserColors } from "@/store/chat/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
+import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
+import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import {
   Popover,
@@ -136,8 +169,9 @@ import {
   PopoverContent,
 } from "@argon/ui/popover";
 import type { ArgonMessage } from "@argon/glue";
+import { EntityType, type MessageEntityAttachment } from "@argon/glue";
 import { useLocale } from "@/store/system/localeStore";
-import { CopyIcon, ReplyIcon } from "lucide-vue-next";
+import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon, CheckIcon } from "lucide-vue-next";
 import {
   useMessageContent,
   fragmentMessageText,
@@ -160,6 +194,7 @@ const { isSystemMessage, systemMessageText } = useMessageContent(() => props.mes
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
+  (e: "retry", message: ArgonMessage): void;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);
@@ -167,6 +202,31 @@ const bubble = ref<HTMLElement | null>(null);
 const backgroundOffset = ref(0);
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
+
+const messageAttachments = computed(() =>
+  (props.message.entities ?? []).filter(
+    (e): e is MessageEntityAttachment => e.type === EntityType.Attachment,
+  ),
+);
+
+const imageAttachments = computed(() =>
+  messageAttachments.value.filter((a) => a.contentType.startsWith("image/")),
+);
+
+const fileAttachments = computed(() =>
+  messageAttachments.value.filter((a) => !a.contentType.startsWith("image/")),
+);
+
+const hasOnlyImages = computed(() =>
+  messageAttachments.value.length > 0 &&
+  fileAttachments.value.length === 0 &&
+  renderedMessage.value.length === 0 &&
+  !props.message.text?.trim(),
+);
+
+const isOptimistic = computed(() => (props.message as any)._optimistic === true);
+const isFailed = computed(() => (props.message as any)._failed === true);
+const failedError = computed(() => (props.message as any)._error as string | undefined);
 
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 const isIncoming = computed(() => props.message.sender !== me.me?.userId);
@@ -228,6 +288,10 @@ function copyMessage() {
 
 function replyToMessage() {
   emit("reply", props.message);
+}
+
+function retryMessage() {
+  emit("retry", props.message);
 }
 
 function getColorByUserId(userId: string): string {
@@ -372,5 +436,91 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 .action-btn:hover {
     background: hsl(var(--muted));
     color: hsl(var(--foreground));
+}
+
+/* Telegram-style media container */
+.media-message-container {
+    display: flex;
+    flex-direction: column;
+    width: 420px;
+    max-width: 100%;
+}
+
+.media-block {
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+}
+
+/* When only images, no text bubble below — fully rounded */
+.media-message-container > .media-block:last-child {
+    border-radius: 18px;
+}
+
+.media-block :deep(.image-grid) {
+    max-width: none;
+    width: 100%;
+    border-radius: 0;
+}
+
+.media-message-container .bubble-below-media {
+    border-radius: 0 0 18px 18px;
+    margin-top: 0;
+}
+
+/* Optimistic (sending) state */
+.message-item.is-optimistic {
+    opacity: 0.7;
+}
+
+.message-item.is-optimistic .bubble {
+    opacity: 0.8;
+}
+
+/* Failed state */
+.message-item.is-failed {
+    opacity: 1;
+}
+
+.message-item.is-failed .bubble {
+    border: 1px solid hsl(var(--destructive) / 0.3);
+}
+
+.message-item.is-failed .media-block {
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    border-bottom: none;
+}
+
+/* Status icon next to time */
+.status-icon {
+    flex-shrink: 0;
+}
+
+.failed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: hsl(var(--destructive));
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.failed-badge:hover {
+    opacity: 0.7;
+}
+
+.failed-badge .retry-icon {
+    display: none;
+}
+
+.failed-badge:hover .retry-icon {
+    display: block;
+}
+
+.failed-badge:hover > .lucide-alert-circle {
+    display: none;
 }
 </style>

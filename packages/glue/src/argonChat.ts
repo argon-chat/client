@@ -138,6 +138,22 @@ export interface RealtimeChannelUser {
 };
 
 
+export interface AttachmentInfo {
+  fileId: guid;
+  fileName: string;
+  fileSize: i8;
+  contentType: string;
+};
+
+
+export interface SendMessageReadback {
+  messageId: i8;
+  channelId: guid;
+  spaceId: guid;
+  randomId: i8;
+};
+
+
 export interface NotificationCounterKv {
   counterType: string;
   count: i8;
@@ -196,6 +212,7 @@ export enum EntityType
   SystemCallEnded = 15,
   SystemCallTimeout = 16,
   SystemUserJoined = 17,
+  Attachment = 18,
 }
 
 
@@ -842,6 +859,9 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntitySystemUserJoined(): this is MessageEntitySystemUserJoined {
     return this.UnionKey === "MessageEntitySystemUserJoined";
   }
+  public isMessageEntityAttachment(): this is MessageEntityAttachment {
+    return this.UnionKey === "MessageEntityAttachment";
+  }
 
 }
 
@@ -990,6 +1010,14 @@ export class MessageEntitySystemUserJoined extends IMessageEntity
   UnionIndex: number = 17;
 }
 
+export class MessageEntityAttachment extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public fileId: guid, public fileName: string, public fileSize: i8, public contentType: string, public width: i4 | null, public height: i4 | null, public thumbHash: string | null) { super(); }
+
+  UnionKey: string = "MessageEntityAttachment";
+  UnionIndex: number = 18;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
@@ -1036,6 +1064,8 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntitySystemCallTimeout>("MessageEntitySystemCallTimeout").read(reader);
     else if (unionIndex == 17)
       value = IonFormatterStorage.get<MessageEntitySystemUserJoined>("MessageEntitySystemUserJoined").read(reader);
+    else if (unionIndex == 18)
+      value = IonFormatterStorage.get<MessageEntityAttachment>("MessageEntityAttachment").read(reader);
 
     else throw new Error();
   
@@ -1100,6 +1130,9 @@ IonFormatterStorage.register("IMessageEntity", {
     }
     else if (value.UnionIndex == 17) {
         IonFormatterStorage.get<MessageEntitySystemUserJoined>("MessageEntitySystemUserJoined").write(writer, value as MessageEntitySystemUserJoined);
+    }
+    else if (value.UnionIndex == 18) {
+        IonFormatterStorage.get<MessageEntityAttachment>("MessageEntityAttachment").write(writer, value as MessageEntityAttachment);
     }
   
     else throw new Error();
@@ -1500,6 +1533,40 @@ IonFormatterStorage.register("MessageEntitySystemUserJoined", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.version);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<guid>(writer, value.inviterId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityAttachment", {
+  read(reader: CborReader): MessageEntityAttachment {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileName = IonFormatterStorage.get<string>('string').read(reader);
+    const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const contentType = IonFormatterStorage.get<string>('string').read(reader);
+    const width = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const height = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const thumbHash = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return new MessageEntityAttachment(type, offset, length, version, fileId, fileName, fileSize, contentType, width, height, thumbHash);
+  },
+  write(writer: CborWriter, value: MessageEntityAttachment): void {
+    writer.writeStartArray(11);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileName);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
+    IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    IonFormatterStorage.writeNullable<i4>(writer, value.width, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.height, 'i4');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
     writer.writeEndArray();
   }
 });
@@ -6155,6 +6222,46 @@ IonFormatterStorage.register("RealtimeChannelUser", {
   }
 });
 
+IonFormatterStorage.register("AttachmentInfo", {
+  read(reader: CborReader): AttachmentInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileName = IonFormatterStorage.get<string>('string').read(reader);
+    const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const contentType = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { fileId, fileName, fileSize, contentType };
+  },
+  write(writer: CborWriter, value: AttachmentInfo): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileName);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
+    IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SendMessageReadback", {
+  read(reader: CborReader): SendMessageReadback {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const randomId = IonFormatterStorage.get<i8>('i8').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { messageId, channelId, spaceId, randomId };
+  },
+  write(writer: CborWriter, value: SendMessageReadback): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.randomId);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("NotificationCounterKv", {
   read(reader: CborReader): NotificationCounterKv {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -7236,6 +7343,7 @@ export interface IChannelInteraction extends IIonService
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
+  SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -7244,6 +7352,8 @@ export interface IChannelInteraction extends IIonService
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
   CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
   EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
+  BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
+  CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
 }
 
 
@@ -7448,6 +7558,7 @@ export interface IChannelInteraction extends IIonService
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
+  SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -7456,6 +7567,8 @@ export interface IChannelInteraction extends IIonService
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
   CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
   EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
+  BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
+  CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
 }
 
 
@@ -7907,6 +8020,24 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<i8>("i8", writer.data, this.signal);
   }
+  async SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "SendMessageWithReadback");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(6);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
+    IonFormatterStorage.get<i8>('i8').write(writer, randomId);
+    IonFormatterStorage.writeNullable<i8>(writer, replyTo, 'i8');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SendMessageReadback>("SendMessageReadback", writer.data, this.signal);
+  }
   async DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DisconnectFromVoiceChannel");
           
@@ -8020,6 +8151,35 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  async BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "BeginUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CompleteUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<AttachmentInfo>("AttachmentInfo", writer.data, this.signal);
   }
 
 }

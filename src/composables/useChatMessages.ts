@@ -41,6 +41,9 @@ export function useChatMessages(
   const isScrolledUp = ref(false);
   const subs = ref<Subscription | null>(null);
 
+  // Track optimistic messages by randomId for dedup
+  const optimisticRandomIds = new Set<bigint>();
+
   const oldestMessageId = computed(() => {
     if (messages.value.length === 0) return null;
     return messages.value[0].messageId;
@@ -166,6 +169,24 @@ export function useChatMessages(
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
       if (chId === e.channelId) {
+        // Dedup: if this is our own message, check for optimistic placeholder
+        if (e.sender === me.me?.userId) {
+          // Try to find and replace optimistic message
+          const idx = messages.value.findIndex(
+            (m) => (m as any)._optimistic && optimisticRandomIds.has(m.messageId),
+          );
+          if (idx !== -1) {
+            const replaced = [...messages.value];
+            const oldMsg = replaced[idx];
+            optimisticRandomIds.delete(oldMsg.messageId);
+            replaced[idx] = e;
+            messages.value = replaced;
+            await pool.cacheMessage(e);
+            nextTick(onNewMessage);
+            return;
+          }
+        }
+
         await pool.cacheMessage(e);
         messages.value = [...messages.value, e];
 
@@ -184,12 +205,38 @@ export function useChatMessages(
     });
   };
 
+  const addOptimisticMessage = (msg: ArgonMessage, randomId: bigint) => {
+    (msg as any)._optimistic = true;
+    optimisticRandomIds.add(randomId);
+    messages.value = [...messages.value, msg];
+  };
+
+  const removeOptimisticMessage = (randomId: bigint) => {
+    optimisticRandomIds.delete(randomId);
+    messages.value = messages.value.filter(
+      (m) => !((m as any)._optimistic && m.messageId === randomId),
+    );
+  };
+
+  const markOptimisticFailed = (randomId: bigint, error: string) => {
+    const idx = messages.value.findIndex(
+      (m) => (m as any)._optimistic && m.messageId === randomId,
+    );
+    if (idx !== -1) {
+      const updated = [...messages.value];
+      (updated[idx] as any)._failed = true;
+      (updated[idx] as any)._error = error;
+      messages.value = updated;
+    }
+  };
+
   const getMessageById = (messageId: bigint | null): ArgonMessage => {
     return messages.value.find((x) => x.messageId === (messageId ?? 0n)) ?? ({} as ArgonMessage);
   };
 
   const cleanup = () => {
     subs.value?.unsubscribe();
+    optimisticRandomIds.clear();
   };
 
   return {
@@ -204,6 +251,9 @@ export function useChatMessages(
     loadInitialMessages,
     subscribeToNewMessages,
     getMessageById,
+    addOptimisticMessage,
+    removeOptimisticMessage,
+    markOptimisticFailed,
     cleanup,
   };
 }

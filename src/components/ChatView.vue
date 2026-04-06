@@ -152,6 +152,9 @@ const {
   loadInitialMessages,
   subscribeToNewMessages,
   getMessageById,
+  addOptimisticMessage,
+  removeOptimisticMessage,
+  markOptimisticFailed,
   cleanup: cleanupMessages,
 } = useChatMessages(
   () => props.channelId,
@@ -214,6 +217,12 @@ const onScrollToBottomClick = () => {
 };
 
 const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
+
+defineExpose({
+  addOptimisticMessage,
+  markOptimisticFailed,
+  scrollToBottomImmediate,
+});
 
 // Watch for channel changes — reload messages and subscribe
 watch(

@@ -67,7 +67,12 @@ export function fragmentMessageText(
   const fragments: IFrag[] = [];
   let cursor = 0;
 
-  const sorted = [...entities].sort((a, b) => a.offset - b.offset);
+  // Filter out attachment entities — they are rendered separately, not inline
+  const inlineEntities = entities.filter(
+    (e) => e.type !== EntityType.Attachment,
+  );
+
+  const sorted = [...inlineEntities].sort((a, b) => a.offset - b.offset);
 
   for (const entity of sorted) {
     const start = entity.offset;
