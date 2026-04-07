@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
 import { useVersionChecker } from '@/composables/useVersionChecker';
+import { useLinuxUpdateChecker } from '@/composables/useLinuxUpdateChecker';
 import { useNotificationStore } from '@/store/data/notificationStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
-import { IconArrowBigDownFilled, IconHome, IconMessageReport } from '@tabler/icons-vue';
+import { IconArrowBigDownFilled, IconHome, IconMessageReport, IconDownload } from '@tabler/icons-vue';
+import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import { NBadge } from 'naive-ui';
 import Counter from './motionCounter/Counter.vue';
@@ -20,6 +22,7 @@ const pool = usePoolStore();
 const isMaximized = ref(false);
 const isMac = computed(() => navigator.userAgent.includes('Mac'));
 const { needsUpdate, doUpdate } = useVersionChecker();
+const linux = useLinuxUpdateChecker();
 const ntf = useNotificationStore();
 const voice = useUnifiedCall();
 
@@ -158,6 +161,20 @@ const windowClose = () => {
           <span class="update-label">{{ t("update_is_ready") }}</span>
         </button>
       </Transition>
+
+      <Transition name="update-pop">
+        <button v-if="linux.hasUpdate.value" class="update-btn linux-update-btn" @click="linux.showModal.value = true" :title="t('linux_update_available')">
+          <IconDownload class="w-3.5 h-3.5" />
+          <span class="update-label">{{ t("linux_update_available") }}</span>
+        </button>
+      </Transition>
+
+      <LinuxUpdateModal
+        v-model:open="linux.showModal.value"
+        :current-version="linux.currentVersion.value"
+        :latest-version="linux.latestVersion.value"
+        :command="linux.downloadCommand.value"
+      />
 
       <button class="action-btn" @click="emit('feedback')" :title="t('send_feedback')">
         <IconMessageReport class="w-4 h-4" />

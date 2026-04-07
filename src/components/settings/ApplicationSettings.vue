@@ -122,6 +122,22 @@
                     {{ t("open_dev_tools") }}
                 </button>
             </div>
+            <div v-if="configStore.devModeEnabled" class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">Linux Update Modal</div>
+                    <div class="text-sm text-muted-foreground">Show Linux update dialog for testing</div>
+                </div>
+                <button @click="showLinuxUpdateModal = true"
+                    class="button bg-emerald-500 text-white rounded px-4 py-2 hover:bg-emerald-600">
+                    Show
+                </button>
+            </div>
+            <LinuxUpdateModal
+                v-model:open="showLinuxUpdateModal"
+                :current-version="host_version || '0.0.1'"
+                latest-version="99.0.0"
+                command="curl -fSL -o /tmp/argon-desktop.deb &quot;https://cdn.argon.gl/runtime/core-linux/99.0.0/argon-desktop.deb&quot; && sudo dpkg -i /tmp/argon-desktop.deb"
+            />
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
@@ -164,10 +180,12 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { native } from "@argon/glue/native";
 import { Channel, ConfigKeyMetadata_Value, ConfigPrimitiveType, ConfigSectionMetadata_Value, SetRequest } from "@argon/glue/ipc";
 import { useConfigStore } from "@/store/ui/configStore";
+import LinuxUpdateModal from "@/components/modals/LinuxUpdateModal.vue";
 const { t } = useLocale();
 const toast = useToast();
 
 const me = useMe();
+const showLinuxUpdateModal = ref(false);
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
 const host_version = ref((window as any).argon_host_version_full as string);
