@@ -92,6 +92,12 @@ export const useAppState = defineStore("app", () => {
       loadingStep.value = "Loading spaces and channels...";
       loadingProgress.value = 9;
       await poolStore.loadServerDetails();
+
+      // Load notification badges after auth + server data
+      const { useNotificationStore } = await import("@/store/data/notificationStore");
+      const notificationStore = useNotificationStore();
+      await notificationStore.initFromGlobalBadges();
+
       await delay(100);
 
       await me.completeInit();

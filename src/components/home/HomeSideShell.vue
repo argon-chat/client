@@ -22,7 +22,7 @@ import { NBadge } from 'naive-ui';
 import { useMe } from '@/store/auth/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { logger } from '@argon/core';
-import { useNotifications } from '@/composables/useNotifications';
+import { useNotificationStore } from '@/store/data/notificationStore';
 import { useFeatureFlags } from '@/store/features/featureFlagsStore';
 
 const { t } = useLocale();
@@ -39,7 +39,7 @@ const bus = useBus();
 const me = useMe();
 const recentUsers = computed(() => recentStore.recent);
 const softphoneOpened = ref(false);
-const notifications = useNotifications();
+const ntf = useNotificationStore();
 
 const emit = defineEmits<{
     (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'): void
@@ -53,7 +53,6 @@ async function loadChats() {
 onMounted(() => {
     loadChats();
     subscribeEvents();
-    notifications.initialize();
 });
 
 // --------------------------
@@ -107,7 +106,6 @@ function subscribeEvents() {
 
 onUnmounted(() => {
     subs.dispose();
-    notifications.cleanup();
 });
 </script>
 
@@ -125,13 +123,13 @@ onUnmounted(() => {
                 class="justify-start">
                 <IconCookieManFilled class="w-6 h-6 mr-2" />
                 {{ t("friends") }}
-                <NBadge :value="notifications.pendingFriendRequestsCount.value" :max="50" :offset="[10, -8]" />
+                <NBadge :value="ntf.notifications.friendRequests" :max="50" :offset="[10, -8]" />
             </Button>
             <Button v-if="inventoryActive" @click="emit('select', 'inventory')" :variant="tab == 'inventory' ? 'outline' : 'ghost'"
                 class="justify-start">
                 <IconTriangleInvertedFilled class="w-6 h-6 mr-2" />
                 {{ t("inventory") }}
-                <NBadge :value="notifications.newInventoryItemsCount.value" :max="50" :offset="[10, -8]" />
+                <NBadge :value="ntf.notifications.inventory" :max="50" :offset="[10, -8]" />
             </Button>
             <Button v-if="notificationActive" @click="emit('select', 'notifications')" :variant="tab == 'notifications' ? 'outline' : 'ghost'"
                 class="justify-start">
@@ -186,7 +184,7 @@ onUnmounted(() => {
             <div ref="listEl" v-if="dmActive"
                 class="recent-users-list flex flex-col gap-1 overflow-y-auto scrollbar-thin scrollbar-hide scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                 <RecentUserItem v-for="u in recentUsers" :key="u.peerId" :user-id="u.peerId"
-                    :display-name="u.displayName" :last-message="u.lastMsg" @open="openChat" />
+                    :display-name="u.displayName" :last-message="u.lastMsg" :unread-count="u.unreadCount" @open="openChat" />
                 <div v-if="false" class="text-gray-400 text-xs py-2 text-center">
                     ...
                 </div>

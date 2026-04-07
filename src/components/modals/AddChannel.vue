@@ -105,7 +105,7 @@ import { Dialog, DialogContent } from "@argon/ui/dialog";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
-import { computed, shallowRef, onUnmounted } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { logger } from "@argon/core";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { ChannelType } from "@argon/glue";
@@ -130,6 +130,22 @@ const groupId = defineModel<string | null>("groupId", {
   type: String,
   default: null,
 });
+
+// Reset form state when modal opens
+watch(open, (isOpen) => {
+  if (isOpen) {
+    channelName.value = "";
+    channelType.value = "Text";
+    addChannelError.value = "";
+    isLoading.value = false;
+  }
+});
+
+const channelTypeMap: Record<string, ChannelType> = {
+  Text: ChannelType.Text,
+  Voice: ChannelType.Voice,
+  Announcement: ChannelType.Announcement,
+};
 
 const channelTypes = computed(() => [
   {
@@ -159,36 +175,23 @@ const addChannel = async (close: () => void) => {
     return;
   }
 
+  const resolvedType = channelTypeMap[channelType.value];
+  if (resolvedType === undefined) {
+    logger.error(`Unknown channel type: ${channelType.value}`);
+    return;
+  }
+
   isLoading.value = true
   logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
 
   try {
-    if (channelType.value === "Text")
-      await servers.addChannelToServer(
-        selectedSpaceId.value,
-        channelName.value,
-        ChannelType.Text,
-        groupId.value
-      );
-    else if (channelType.value === "Voice")
-      await servers.addChannelToServer(
-        selectedSpaceId.value,
-        channelName.value,
-        ChannelType.Voice,
-        groupId.value
-      );
-    else if (channelType.value === "Announcement")
-      await servers.addChannelToServer(
-        selectedSpaceId.value,
-        channelName.value,
-        ChannelType.Announcement,
-        groupId.value
-      );
+    await servers.addChannelToServer(
+      selectedSpaceId.value,
+      channelName.value,
+      resolvedType,
+      groupId.value
+    );
 
-    channelName.value = ""
-    addChannelError.value = ""
-    channelType.value = "Text"
-    
     close();
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
@@ -197,11 +200,4 @@ const addChannel = async (close: () => void) => {
     isLoading.value = false
   }
 };
-
-onUnmounted(() => {
-  channelName.value = "";
-  addChannelError.value = "";
-  channelType.value = "Text";
-  isLoading.value = false;
-});
 </script>

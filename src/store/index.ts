@@ -12,6 +12,7 @@ export { usePoolStore } from './data/poolStore';
 export { useArchetypeStore } from './data/archetypeStore';
 export { useSpaceStore } from './data/serverStore';
 export { usePexStore } from './data/permissionStore';
+export { useNotificationStore } from './data/notificationStore';
 
 // Realtime
 export { useBus } from './realtime/busStore';

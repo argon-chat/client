@@ -19,9 +19,36 @@
               @keydown.escape="collapseSearch"
             />
           </div>
-          <button class="header-btn" title="Notification settings">
-            <BellIcon class="btn-icon" />
-          </button>
+          <Popover>
+            <PopoverTrigger as-child>
+              <button class="header-btn" :title="t('notification_settings') || 'Notification settings'">
+                <BellIcon class="btn-icon" :class="{ 'text-muted-foreground/40': channelMuted }" />
+                <span v-if="channelMuted" class="absolute w-1 h-4 bg-muted-foreground/60 rotate-45 rounded-full" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent class="w-56 p-2" align="end">
+              <div class="flex flex-col gap-1">
+                <button class="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent w-full text-left"
+                  @click="ntf.muteTarget(channelId, MuteTargetKind.Channel, MuteLevelType.None, false, null)">
+                  <BellIcon class="w-4 h-4" />
+                  {{ t('unmuted') || 'All notifications' }}
+                  <span v-if="!channelMuted" class="ml-auto text-primary">✓</span>
+                </button>
+                <button class="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent w-full text-left"
+                  @click="ntf.muteTarget(channelId, MuteTargetKind.Channel, MuteLevelType.OnlyMentions, false, null)">
+                  <BellIcon class="w-4 h-4 opacity-60" />
+                  {{ t('only_mentions') || 'Only @mentions' }}
+                  <span v-if="ntf.effectiveMuteLevel(channelId, spaceId ?? '') === MuteLevelType.OnlyMentions" class="ml-auto text-primary">✓</span>
+                </button>
+                <button class="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent w-full text-left"
+                  @click="ntf.muteTarget(channelId, MuteTargetKind.Channel, MuteLevelType.All, false, null)">
+                  <BellIcon class="w-4 h-4 opacity-30" />
+                  {{ t('mute_all') || 'Mute channel' }}
+                  <span v-if="ntf.effectiveMuteLevel(channelId, spaceId ?? '') === MuteLevelType.All" class="ml-auto text-primary">✓</span>
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       <Transition name="typing-slide">
@@ -140,8 +167,30 @@ import { useLocale } from "@/store/system/localeStore";
 import { cn } from "@argon/core";
 import { useChatMessages } from "@/composables/useChatMessages";
 import { useChatScroll } from "@/composables/useChatScroll";
+import { useNotificationStore } from "@/store/data/notificationStore";
+import { MuteLevelType, MuteTargetKind } from "@argon/glue";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@argon/ui/popover";
 
 const { t } = useLocale();
+const ntf = useNotificationStore();
+
+const channelMuted = computed(() => {
+  if (!props.channelId || !props.spaceId) return false;
+  return ntf.effectiveMuteLevel(props.channelId, props.spaceId) !== MuteLevelType.None;
+});
+
+function toggleChannelMute() {
+  if (!props.spaceId) return;
+  if (channelMuted.value) {
+    ntf.unmuteTarget(props.channelId);
+  } else {
+    ntf.muteTarget(props.channelId, MuteTargetKind.Channel, MuteLevelType.All, false, null);
+  }
+}
 
 // Search expand/collapse
 const searchExpanded = ref(false);
@@ -270,6 +319,14 @@ onScrollState(({ distanceFromBottom }) => {
   if (wasScrolledUp && !isScrolledUp.value) {
     newMessagesCount.value = 0;
   }
+
+  // ACK: when user is scrolled to bottom, ack the last message
+  if (distanceFromBottom <= 100 && messages.value.length > 0) {
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (lastMsg && !lastMsg._optimistic) {
+      ntf.scheduleAck(props.channelId, lastMsg.messageId, props.spaceId);
+    }
+  }
 });
 
 const onScrollToBottomClick = () => {
@@ -290,15 +347,31 @@ defineExpose({
 // Watch for channel changes — subscribe first (step 8), then load
 watch(
   () => props.channelId,
-  async (newChannelId) => {
+  async (newChannelId, oldChannelId) => {
+    // Flush ACK for previous channel
+    if (oldChannelId) {
+      ntf.flushAcksImmediate();
+    }
+
     // Subscribe BEFORE loading so events during load are captured
     subscribeToNewMessages(newChannelId, () => scrollToBottomImmediate());
     await loadInitialMessages(() => scrollToBottomImmediate());
+
+    // ACK last message immediately when opening a channel
+    nextTick(() => {
+      if (messages.value.length > 0 && !isScrolledUp.value) {
+        const lastMsg = messages.value[messages.value.length - 1];
+        if (lastMsg && !lastMsg._optimistic) {
+          ntf.scheduleAck(props.channelId, lastMsg.messageId, props.spaceId);
+        }
+      }
+    });
   },
   { immediate: true },
 );
 
 onUnmounted(() => {
+  ntf.flushAcksImmediate();
   cleanupMessages();
 });
 </script>

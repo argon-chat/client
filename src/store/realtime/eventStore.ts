@@ -35,7 +35,13 @@ import {
   SpaceDetailsUpdated,
   type MeetingCreatedFor,
   type MeetingDeletedFor,
+  type ReadStateUpdated,
+  type SystemNotificationReceived,
+  type MuteSettingsChanged,
+  type BatchMentionOccurred,
+  type DirectMessageSent,
 } from "@argon/glue";
+import { useNotificationStore } from "@/store/data/notificationStore";
 
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();
@@ -93,6 +99,9 @@ export const useEventStore = defineStore("events", () => {
   };
 
   const subscribeToEvents = () => {
+    const notificationStore = useNotificationStore();
+    notificationStore.subscribeToEvents();
+
     bus.onServerEvent<ChannelCreated>("ChannelCreated", (x) => {
       void (async () => {
         try {

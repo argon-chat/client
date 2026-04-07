@@ -149,6 +149,10 @@ export const useSystemStore = defineStore("system", () => {
             const { usePoolStore } = await import("../");
             const poolStore = usePoolStore();
             await poolStore.loadServerDetails();
+
+            const { useNotificationStore } = await import("../data/notificationStore");
+            const notificationStore = useNotificationStore();
+            await notificationStore.initFromGlobalBadges();
           } catch (e) {
             console.error("Failed to reload server details after reconnect:", e);
           } finally {
@@ -189,6 +193,10 @@ export const useSystemStore = defineStore("system", () => {
         const { usePoolStore } = await import("../");
         const poolStore = usePoolStore();
         await poolStore.loadServerDetails();
+
+        const { useNotificationStore } = await import("../data/notificationStore");
+        const notificationStore = useNotificationStore();
+        await notificationStore.initFromGlobalBadges();
       } catch (e) {
         console.error("Failed to reload server details after reconnect:", e);
       } finally {

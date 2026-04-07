@@ -87,6 +87,8 @@ import { logger } from "@argon/core";
 
 import type { Subscription } from "rxjs";
 import { useBus } from "@/store/realtime/busStore";
+import { useNotificationStore } from "@/store/data/notificationStore";
+import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 
 const MESSAGES_PER_LOAD = 50;
 const SCROLL_THRESHOLD = 150;
@@ -97,6 +99,8 @@ const pool = usePoolStore();
 const me = useMe();
 const tone = useTone();
 const bus = useBus();
+const ntf = useNotificationStore();
+const recentChats = useRecentChatsStore();
 const { t } = useLocale();
 
 const props = defineProps<{
@@ -290,6 +294,12 @@ const handleScroll = () => {
   // Reset new messages count when scrolled to bottom
   if (wasScrolledUp && !isScrolledUp.value) {
     newMessagesCount.value = 0;
+  }
+
+  // Mark DM as read when scrolled to bottom
+  if (distanceFromBottom <= 100) {
+    recentChats.markRead(props.peerId);
+    ntf.decrementDmUnread();
   }
 
   // Debounce load trigger to prevent rapid firing

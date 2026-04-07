@@ -1,49 +1,34 @@
 <template>
   <div class="chat-list flex flex-col">
     <div class="chat-list-scroll">
-      <ChannelItem
-        v-for="(channel, index) in sortedUngroupedChannels"
-        :key="channel.channelId"
-        :channel="channel"
-        :group-id="null"
-        :index="index"
-        :is-active="selectedChannelId === channel.channelId"
-        :is-drag-over="dragOverChannel === channel.channelId"
-        :voice-users="voiceChannelUsers.get(channel.channelId)"
-        @select="channelSelect"
-        @switch-voice="switchVoiceChannel"
-        @delete="channelDelete"
-        @dragstart="onDragStart"
-        @dragover="onDragOver"
-        @drop="onDrop"
-        @dragend="onDragEnd"
-        @kick-member="kickMember"
-      />
-      <div v-for="group in sortedGroups" :key="group.groupId">
-        <ContextMenu>
-          <ContextMenuTrigger>
-            <ChannelGroupHeader 
-              :group="group" 
-              @toggle="toggleGroup"
-            />
-          </ContextMenuTrigger>
-          <ContextMenuContent class="w-64">
-            <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="openAddChannelForGroup(group.groupId)">
-              {{ t("add_channel") }}
-              <ContextMenuShortcut>⌘+</ContextMenuShortcut>
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-        
-        <div v-if="!group.isCollapsed">
+      <!-- Empty state -->
+      <div v-if="channelLists.length === 0" class="empty-state">
+        <div class="empty-state-icon">
+          <HashIcon class="w-8 h-8 text-muted-foreground/40" />
+        </div>
+        <p class="text-sm text-muted-foreground/60">{{ t("no_channels") || "No channels yet" }}</p>
+        <button 
+          v-if="pex.has('ManageChannels')"
+          class="empty-state-btn"
+          @click="openAddChannelForGroup(null)"
+        >
+          <PlusIcon class="w-4 h-4" />
+          {{ t("add_channel") }}
+        </button>
+      </div>
+
+      <template v-else>
+        <!-- Ungrouped channels -->
+        <TransitionGroup name="channel-list" tag="div">
           <ChannelItem
-            v-for="(channel, index) in getGroupChannels(group.groupId)"
+            v-for="(channel, index) in sortedUngroupedChannels"
             :key="channel.channelId"
             :channel="channel"
-            :group-id="group.groupId"
+            :group-id="null"
             :index="index"
             :is-active="selectedChannelId === channel.channelId"
             :is-drag-over="dragOverChannel === channel.channelId"
+            :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
             :voice-users="voiceChannelUsers.get(channel.channelId)"
             @select="channelSelect"
             @switch-voice="switchVoiceChannel"
@@ -54,8 +39,70 @@
             @dragend="onDragEnd"
             @kick-member="kickMember"
           />
+        </TransitionGroup>
+
+        <!-- Ungrouped tail drop zone -->
+        <div
+          v-if="draggedChannel && sortedUngroupedChannels.length > 0"
+          class="tail-drop-zone"
+          @dragover.prevent
+          @drop="onTailDrop(null, $event)"
+        />
+
+        <!-- Groups -->
+        <div v-for="group in sortedGroups" :key="group.groupId">
+          <ContextMenu>
+            <ContextMenuTrigger>
+              <ChannelGroupHeader 
+                :group="group"
+                :is-drag-over="dragOverGroupId === group.groupId"
+                @toggle="toggleGroup"
+                @group-dragover="onGroupDragOver"
+                @group-dragleave="onGroupDragLeave"
+                @group-drop="onGroupDrop"
+              />
+            </ContextMenuTrigger>
+            <ContextMenuContent class="w-64">
+              <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="openAddChannelForGroup(group.groupId)">
+                {{ t("add_channel") }}
+                <ContextMenuShortcut>⌘+</ContextMenuShortcut>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+          
+          <div v-if="!group.isCollapsed">
+            <TransitionGroup name="channel-list" tag="div">
+              <ChannelItem
+                v-for="(channel, index) in getGroupChannels(group.groupId)"
+                :key="channel.channelId"
+                :channel="channel"
+                :group-id="group.groupId"
+                :index="index"
+                :is-active="selectedChannelId === channel.channelId"
+                :is-drag-over="dragOverChannel === channel.channelId"
+                :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
+                :voice-users="voiceChannelUsers.get(channel.channelId)"
+                @select="channelSelect"
+                @switch-voice="switchVoiceChannel"
+                @delete="channelDelete"
+                @dragstart="onDragStart"
+                @dragover="onDragOver"
+                @drop="onDrop"
+                @dragend="onDragEnd"
+                @kick-member="kickMember"
+              />
+            </TransitionGroup>
+
+            <!-- Group tail drop zone -->
+            <div
+              v-if="draggedChannel && getGroupChannels(group.groupId).length > 0"
+              class="tail-drop-zone"
+              @dragover.prevent
+              @drop="onTailDrop(group.groupId, $event)"
+            />
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 
@@ -68,7 +115,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref as vueRef, watch } from 'vue';
+import { computed, ref as vueRef, watch, TransitionGroup } from 'vue';
+import { HashIcon, PlusIcon } from 'lucide-vue-next';
 import { useSpaceStore } from '@/store/data/serverStore';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
@@ -141,8 +189,20 @@ const getGroupChannels = (groupId: Guid) => {
   return sortByFractionalIndex(channels);
 };
 
-// https://github.com/microsoft/microsoft-ui-xaml/issues/10576
-const { dragOverChannel, onDragStart, onDragOver, onDrop, onDragEnd } = useChannelDragDrop(
+const {
+  draggedChannel,
+  dragOverChannel,
+  dropPosition,
+  dragOverGroupId,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onGroupDrop,
+  onGroupDragOver,
+  onGroupDragLeave,
+  onTailDrop,
+  onDragEnd
+} = useChannelDragDrop(
   selectedSpaceId,
   sortedUngroupedChannels,
   getGroupChannels
@@ -151,7 +211,7 @@ const { dragOverChannel, onDragStart, onDragOver, onDrop, onDragEnd } = useChann
 const addChannelInGroupOpened = vueRef(false);
 const selectedGroupId = vueRef<Guid | null>(null);
 
-const openAddChannelForGroup = (groupId: Guid) => {
+const openAddChannelForGroup = (groupId: Guid | null) => {
   selectedGroupId.value = groupId;
   addChannelInGroupOpened.value = true;
 };
@@ -177,16 +237,13 @@ async function channelSelect(channelId: string) {
   switch (channel.type) {
     case ChannelType.Text:
     case ChannelType.Announcement:
-      // Text and Announcement channels just open the view
       pool.selectedTextChannel = channel.channelId;
       break;
 
     case ChannelType.Voice:
-      // Voice channel: join only if not already connected to any voice channel
       if (!voice.isConnected) {
         await voice.joinVoiceChannel(channelId);
       }
-      // If already connected, just switch the view (selectedChannelId already set above)
       break;
   }
 
@@ -200,12 +257,10 @@ async function switchVoiceChannel(channelId: string) {
     return;
   }
 
-  // Only switch if it's a different voice channel
   if (voice.connectedVoiceChannelId === channelId) {
     return;
   }
 
-  // Leave current voice channel and join the new one
   if (voice.isConnected) {
     await voice.leave();
   }
@@ -266,5 +321,83 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 .chat-list-scroll {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--foreground) / 0.08) transparent;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  gap: 12px;
+  height: 100%;
+  min-height: 120px;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: hsl(var(--muted) / 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.1);
+  border: none;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.empty-state-btn:hover {
+  background-color: hsl(var(--primary) / 0.2);
+}
+
+/* Tail drop zone — invisible target at end of each list */
+.tail-drop-zone {
+  height: 24px;
+  margin: 0 8px;
+  border-radius: 6px;
+  border: 2px dashed transparent;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.tail-drop-zone:hover {
+  border-color: hsl(var(--primary) / 0.4);
+  background-color: hsl(var(--primary) / 0.05);
+}
+
+/* Channel list TransitionGroup animations */
+.channel-list-enter-active {
+  transition: all 200ms ease-out;
+}
+
+.channel-list-leave-active {
+  transition: all 150ms ease-in;
+}
+
+.channel-list-enter-from {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.channel-list-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.channel-list-move {
+  transition: transform 250ms ease;
 }
 </style>

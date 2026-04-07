@@ -6,7 +6,9 @@ import type { Guid } from '@argon-chat/ion.webcore';
 export function useChannelGroups(selectedSpaceId: Ref<string>) {
   const pool = usePoolStore();
   const channelGroups = ref<ChannelGroup[]>([]);
-  const collapsedGroups = ref<Set<Guid>>(new Set());
+  // Stores local overrides: true = collapsed, false = expanded
+  // If a groupId is NOT in this map, we use the server's isCollapsed value
+  const localCollapseOverrides = ref<Map<Guid, boolean>>(new Map());
 
   const updateGroups = async () => {
     if (!selectedSpaceId.value) {
@@ -32,25 +34,30 @@ export function useChannelGroups(selectedSpaceId: Ref<string>) {
   const sortedGroups = computed(() => {
     const groups = channelGroups.value;
     const sorted = sortByFractionalIndex(groups);
-    return sorted.map(group => ({
-      ...group,
-      isCollapsed: group.isCollapsed || collapsedGroups.value.has(group.groupId)
-    }));
+    return sorted.map(group => {
+      const localOverride = localCollapseOverrides.value.get(group.groupId);
+      return {
+        ...group,
+        isCollapsed: localOverride !== undefined ? localOverride : !!group.isCollapsed
+      };
+    });
   });
 
   const toggleGroup = (groupId: Guid) => {
-    if (collapsedGroups.value.has(groupId)) {
-      collapsedGroups.value.delete(groupId);
-    } else {
-      collapsedGroups.value.add(groupId);
-    }
+    const currentGroup = sortedGroups.value.find(g => g.groupId === groupId);
+    if (!currentGroup) return;
+    // Toggle: set the local override to the opposite of the current resolved state
+    localCollapseOverrides.value.set(groupId, !currentGroup.isCollapsed);
   };
 
-  watch(selectedSpaceId, updateGroups, { immediate: true });
+  // Reset local overrides when switching spaces
+  watch(selectedSpaceId, () => {
+    localCollapseOverrides.value.clear();
+    updateGroups();
+  }, { immediate: true });
 
   return {
     channelGroups,
-    collapsedGroups,
     sortedGroups,
     toggleGroup,
     updateGroups,

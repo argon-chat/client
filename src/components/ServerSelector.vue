@@ -27,6 +27,14 @@
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
                         <IconPinFilled class="absolute -top-1 -right-1 w-3 h-3 text-primary z-10" />
+                        <!-- Mention badge -->
+                        <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
+                            class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
+                            {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
+                        </span>
+                        <!-- Unread dot -->
+                        <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
+                            class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
                     </Button>
                 </div>
                 <Separator class="my-2" />
@@ -35,7 +43,7 @@
             <!-- Folders -->
             <div v-for="folder in org.folders" :key="folder.id" class="relative">
                 <Button variant="secondary" size="icon"
-                    class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto rounded-full" 
+                    class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto rounded-full overflow-visible" 
                     @click="toggleFolderPopup(folder.id, $event)"
                     @dragover.prevent="onDragOverFolder($event, folder.id)"
                     @drop="onDropToFolder($event, folder.id)">
@@ -52,6 +60,14 @@
                             />
                         </div>
                     </div>
+                    <!-- Folder combined mention badge -->
+                    <span v-if="folderTotalMentions(folder) > 0"
+                        class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
+                        {{ folderTotalMentions(folder) }}
+                    </span>
+                    <!-- Folder unread dot -->
+                    <span v-else-if="folderHasUnread(folder)"
+                        class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
                 </Button>
             </div>
 
@@ -60,7 +76,7 @@
                 <div v-for="server in uncategorizedServers" :key="server.spaceId" class="relative">
                     <Button :variant="'secondary'" size="icon"
                         :aria-current="isSelected(server.spaceId)" 
-                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto" 
+                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto overflow-visible" 
                         :class="[isSelected(server.spaceId) ? 'rounded-2xl' : 'rounded-full']"
                         draggable="true"
                         @dragstart="onDragStart($event, server.spaceId)"
@@ -77,6 +93,14 @@
                         />
                         <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
                             :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
+                        <!-- Mention badge -->
+                        <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
+                            class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
+                            {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
+                        </span>
+                        <!-- Unread dot -->
+                        <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
+                            class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
                     </Button>
                 </div>
             </div>
@@ -116,6 +140,14 @@
                     :space-id="server.spaceId"
                     :fallback="initials(server.name)"
                 />
+                <!-- Mention badge -->
+                <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
+                    class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
+                    {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
+                </span>
+                <!-- Unread dot -->
+                <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
+                    class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
             </Button>
         </div>
     </div>
@@ -155,10 +187,11 @@ import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
-import { useNotifications } from "@/composables/useNotifications"
+import { useNotificationStore } from "@/store/data/notificationStore"
+import { MuteLevelType } from "@argon/glue"
 
 const { t } = useLocale();
-const { initialize, cleanup } = useNotifications();
+const ntf = useNotificationStore();
 
 const createSpaceOpened = ref(false);
 const openDetailed = ref(false);
@@ -219,6 +252,21 @@ const uncategorizedServers = computed(() => {
 // Get servers in folder
 const getFolderServers = (folder: any) => {
     return props.spaces.filter(s => folder.serverIds.includes(s.spaceId));
+};
+
+// Folder badge aggregation
+const folderTotalMentions = (folder: any) => {
+    return getFolderServers(folder).reduce((sum, s) => {
+        if (ntf.isTargetMuted(s.spaceId)) return sum;
+        return sum + (ntf.getSpaceBadge(s.spaceId)?.totalMentions ?? 0);
+    }, 0);
+};
+
+const folderHasUnread = (folder: any) => {
+    return getFolderServers(folder).some(s => {
+        if (ntf.isTargetMuted(s.spaceId)) return false;
+        return (ntf.getSpaceBadge(s.spaceId)?.unreadChannelCount ?? 0) > 0;
+    });
 };
 
 // Servers for current folder popup
@@ -373,12 +421,10 @@ function closeAll() {
 
 onMounted(() => {
     document.addEventListener('click', closeAll);
-    initialize();
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', closeAll);
-    cleanup();
 });
 </script>
 <style lang="css" scoped>

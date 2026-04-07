@@ -1,5 +1,5 @@
 <template>
-  <li class="flex items-center mt-1 py-0.5 px-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors duration-150">
+  <div class="flex items-center py-0.5 px-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors duration-150">
     <ArgonAvatar 
       :fallback="user.User.displayName" 
       :fileId="user.User.avatarFileId" 
@@ -9,14 +9,14 @@
         { 'ring-2 ring-lime-400/80 shadow-[0_0_20px_rgba(132,255,90,0.6)]': isSpeaking }
       ]"
     />
-    <span class="text-sm truncate">{{ user.User.displayName }}</span>
+    <span class="text-sm truncate" :title="user.User.displayName">{{ user.User.displayName }}</span>
     <div class="flex items-center gap-1 ml-auto flex-shrink-0">
       <MicOffIcon v-if="isMuted" class="w-4 h-4 text-destructive/70" />
       <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-4 h-4 text-destructive/70" />
       <ScreenShare v-if="user.isScreenShare" class="w-4 h-4 text-primary" />
       <RadiusIcon v-if="user.isRecording" class="w-4 h-4 text-destructive" />
     </div>
-  </li>
+  </div>
 </template>
 
 <script setup lang="ts">

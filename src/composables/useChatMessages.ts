@@ -15,6 +15,8 @@ import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useTone } from "@/store/media/toneStore";
+import { useNotificationStore } from "@/store/data/notificationStore";
+import { MuteLevelType } from "@argon/glue";
 import { logger } from "@argon/core";
 import type { Subscription } from "rxjs";
 
@@ -36,6 +38,7 @@ export function useChatMessages(
   const pool = usePoolStore();
   const me = useMe();
   const tone = useTone();
+  const ntf = useNotificationStore();
 
   const messages = shallowRef<ChatMessage[]>([]);
   const hasReachedEnd = ref(false);
@@ -280,8 +283,13 @@ export function useChatMessages(
       // Normal new message from others or self (not yet resolved by readback)
       await pool.cacheMessage(e);
 
-      if (e.entities?.filter(filterMention).find((x) => x.userId === me.me?.userId)) {
-        tone.playNotificationSound();
+      // Play mention sound only if channel is not muted
+      const sid = spaceId();
+      const muteLevel = sid ? ntf.effectiveMuteLevel(e.channelId, sid) : MuteLevelType.None;
+      if (muteLevel !== MuteLevelType.All) {
+        if (e.entities?.filter(filterMention).find((x) => x.userId === me.me?.userId)) {
+          tone.playNotificationSound();
+        }
       }
 
       // Batch incoming messages to avoid multiple array rebuilds per frame

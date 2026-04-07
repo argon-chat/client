@@ -15,6 +15,7 @@ const props = defineProps<{
     displayName: string;
     lastMessage?: string | null;
     status?: UserStatus;
+    unreadCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -67,6 +68,10 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 
             <span :class="me.statusClass(displayStatus)"
                 class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
+            <span v-if="unreadCount && unreadCount > 0"
+                class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
+                {{ unreadCount }}
+            </span>
         </div>
 
         <div class="flex flex-col flex-1 overflow-hidden min-w-0">

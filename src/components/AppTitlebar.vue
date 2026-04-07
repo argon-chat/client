@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
 import { useVersionChecker } from '@/composables/useVersionChecker';
-import { useNotifications } from '@/composables/useNotifications';
+import { useNotificationStore } from '@/store/data/notificationStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport } from '@tabler/icons-vue';
@@ -20,7 +20,7 @@ const pool = usePoolStore();
 const isMaximized = ref(false);
 const isMac = computed(() => navigator.userAgent.includes('Mac'));
 const { needsUpdate, doUpdate } = useVersionChecker();
-const { totalNotifications } = useNotifications();
+const ntf = useNotificationStore();
 const voice = useUnifiedCall();
 
 const isVoiceConnected = computed(() => voice.isConnected);
@@ -112,7 +112,7 @@ const windowClose = () => {
     <!-- App icon (home) + breadcrumb -->
     <button class="titlebar-brand" @click="goHome" :title="t('dashboard')">
       <IconSw class="brand-icon" :class="{ 'brand-icon--active': isHome }" />
-      <span v-if="totalNotifications > 0" class="brand-badge"></span>
+      <span v-if="ntf.totalSystemBadge > 0" class="brand-badge"></span>
     </button>
 
     <div class="titlebar-separator"></div>
