@@ -286,6 +286,59 @@ export function useAttachmentUpload() {
     );
   }
 
+  /**
+   * Detach current pending files from the composable for background upload.
+   * Returns a standalone uploader that owns the snapshot.
+   * The composable is cleared immediately so new files can be added.
+   */
+  function detach() {
+    const snapshot = [...pendingFiles.value];
+    // Clear composable without revoking previewUrls (snapshot still needs them)
+    pendingFiles.value = [];
+
+    return {
+      files: snapshot,
+      hasFiles: snapshot.length > 0,
+      async uploadAll(spaceId: Guid, channelId: Guid): Promise<IMessageEntity[]> {
+        const pending = snapshot.filter((f) => f.status !== "done");
+        await Promise.all(
+          pending.map((entry) => uploadSingleFile(entry, spaceId, channelId)),
+        );
+
+        const entities: IMessageEntity[] = [];
+        for (const entry of snapshot) {
+          if (entry.status !== "done" || !entry.result) continue;
+          entities.push(
+            new MessageEntityAttachment(
+              EntityType.Attachment,
+              0,
+              0,
+              1,
+              entry.result.fileId,
+              entry.result.fileName,
+              entry.result.fileSize,
+              entry.result.contentType,
+              entry.width,
+              entry.height,
+              entry.thumbHash,
+            ),
+          );
+        }
+        return entities;
+      },
+      hasErrors(): boolean {
+        return snapshot.some((f) => f.status === "error");
+      },
+      cleanup() {
+        for (const entry of snapshot) {
+          if (entry.previewUrl) {
+            URL.revokeObjectURL(entry.previewUrl);
+          }
+        }
+      },
+    };
+  }
+
   return {
     pendingFiles,
     hasFiles,
@@ -296,5 +349,6 @@ export function useAttachmentUpload() {
     clear,
     hasErrors,
     buildOptimisticEntities,
+    detach,
   };
 }

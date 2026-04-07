@@ -1,7 +1,18 @@
 <template>
-  <div class="image-grid" :class="gridClass">
-    <template v-for="(img, i) in visibleImages" :key="i">
-      <div class="grid-cell" :class="cellClass(i)">
+  <div class="image-grid">
+    <div
+      v-for="(row, ri) in rows"
+      :key="ri"
+      class="grid-row"
+      :style="{ height: rowHeight + 'px' }"
+    >
+      <div
+        v-for="(img, ci) in row"
+        :key="ci"
+        class="grid-cell"
+        :style="{ flex: cellFlex(img) }"
+        @click="emit('open-lightbox', flatIndex(ri, ci))"
+      >
         <AttachmentImage
           :file-id="img.fileId"
           :file-name="img.fileName"
@@ -9,12 +20,8 @@
           :height="img.height"
           :thumb-hash="img.thumbHash"
         />
-        <!-- "+N more" overlay on last visible cell -->
-        <div v-if="i === visibleImages.length - 1 && overflowCount > 0" class="overflow-overlay">
-          <span class="overflow-count">+{{ overflowCount }}</span>
-        </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -27,119 +34,109 @@ const props = defineProps<{
   images: MessageEntityAttachment[];
 }>();
 
-const MAX_VISIBLE = 4;
+const emit = defineEmits<{
+  (e: "open-lightbox", index: number): void;
+}>();
 
-const visibleImages = computed(() => props.images.slice(0, MAX_VISIBLE));
-const overflowCount = computed(() =>
-  Math.max(0, props.images.length - MAX_VISIBLE),
-);
+/**
+ * Split images into rows.
+ * Strategy: distribute N images into rows of 2-3 to keep cells roughly square.
+ * 1 → [1], 2 → [2], 3 → [3], 4 → [2,2], 5 → [3,2], 6 → [3,3],
+ * 7 → [3,2,2], 8 → [3,3,2], 9 → [3,3,3], 10 → [3,3,4]
+ */
+function layoutRows(n: number): number[] {
+  if (n <= 0) return [];
+  if (n === 1) return [1];
+  if (n === 2) return [2];
+  if (n === 3) return [3];
+  if (n === 4) return [2, 2];
 
-const gridClass = computed(() => {
-  const count = Math.min(props.images.length, MAX_VISIBLE);
-  return `grid-${count}`;
+  // For 5+: fill rows of 3, handle remainder
+  const result: number[] = [];
+  let remaining = n;
+  while (remaining > 0) {
+    if (remaining === 2) { result.push(2); remaining = 0; }
+    else if (remaining === 4) { result.push(2, 2); remaining = 0; }
+    else { result.push(Math.min(3, remaining)); remaining -= Math.min(3, remaining); }
+  }
+  return result;
+}
+
+const rowLayout = computed(() => layoutRows(props.images.length));
+
+const rows = computed(() => {
+  const result: MessageEntityAttachment[][] = [];
+  let offset = 0;
+  for (const count of rowLayout.value) {
+    result.push(props.images.slice(offset, offset + count));
+    offset += count;
+  }
+  return result;
 });
 
-function cellClass(index: number): string {
-  const count = Math.min(props.images.length, MAX_VISIBLE);
-  if (count === 3 && index === 0) return "cell-tall";
-  return "";
+const ROW_HEIGHT_SINGLE = 300;
+const ROW_HEIGHT_DEFAULT = 160;
+const ROW_HEIGHT_MANY = 120;
+
+const rowHeight = computed(() => {
+  const n = props.images.length;
+  if (n === 1) return ROW_HEIGHT_SINGLE;
+  if (n <= 4) return ROW_HEIGHT_DEFAULT;
+  return ROW_HEIGHT_MANY;
+});
+
+function cellFlex(img: MessageEntityAttachment): string {
+  const w = img.width ?? 1;
+  const h = img.height ?? 1;
+  // Use aspect ratio as flex basis so wider images take more space
+  return `${Math.max(0.5, Math.min(3, w / h))} 1 0%`;
+}
+
+function flatIndex(rowIndex: number, colIndex: number): number {
+  let idx = 0;
+  for (let r = 0; r < rowIndex; r++) {
+    idx += rows.value[r].length;
+  }
+  return idx + colIndex;
 }
 </script>
 
 <style scoped>
 .image-grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 2px;
   width: 100%;
+  max-width: 420px;
   border-radius: 8px;
   overflow: hidden;
 }
 
-/* 1 image — single column, natural aspect ratio, max 340px tall */
-.grid-1 {
-  grid-template-columns: 1fr;
-}
-
-.grid-1 .grid-cell :deep(.attachment-image) {
-  max-height: 340px;
-}
-
-/* 2 images — side by side, fixed ~200px tall */
-.grid-2 {
-  grid-template-columns: 1fr 1fr;
-  height: 200px;
-}
-
-.grid-2 .grid-cell {
-  height: 100%;
-}
-
-.grid-2 .grid-cell :deep(.attachment-image) {
-  aspect-ratio: auto;
-  height: 100%;
-}
-
-/* 3 images — left large + right column of 2 small */
-.grid-3 {
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  height: 300px;
-}
-
-.grid-3 .cell-tall {
-  grid-row: 1 / -1;
-}
-
-.grid-3 .grid-cell {
-  height: 100%;
-}
-
-.grid-3 .grid-cell :deep(.attachment-image) {
-  aspect-ratio: auto;
-  height: 100%;
-}
-
-/* 4+ images — 2×2 grid */
-.grid-4 {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  height: 300px;
-}
-
-.grid-4 .grid-cell {
-  height: 100%;
-}
-
-.grid-4 .grid-cell :deep(.attachment-image) {
-  aspect-ratio: auto;
-  height: 100%;
+.grid-row {
+  display: flex;
+  gap: 2px;
 }
 
 .grid-cell {
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  min-width: 0;
 }
 
-.grid-cell :deep(.attachment-image) {
-  max-width: none;
-  width: 100%;
-  border-radius: 0;
-  min-height: 100%;
-}
-
-.overflow-overlay {
+.grid-cell:hover::after {
+  content: "";
   position: absolute;
   inset: 0;
-  background: hsl(0 0% 0% / 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: hsl(0 0% 100% / 0.08);
   pointer-events: none;
 }
 
-.overflow-count {
-  font-size: 24px;
-  font-weight: 600;
-  color: white;
+.grid-cell :deep(.attachment-image) {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  min-height: 100%;
 }
 </style>

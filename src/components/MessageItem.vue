@@ -66,7 +66,14 @@
                 <div class="bubble-wrapper">
                     <!-- Telegram-style: images above the bubble -->
                     <div class="media-message-container" v-if="!isSingleEmojiMessage">
-                        <AttachmentImageGrid v-if="imageAttachments.length" :images="imageAttachments" class="media-block" />
+                        <AttachmentImageGrid v-if="imageAttachments.length" :images="imageAttachments" class="media-block" @open-lightbox="openLightbox" />
+                        <ImageLightbox
+                          :images="imageAttachments"
+                          :initial-index="lightboxIndex"
+                          :is-open="lightboxOpen"
+                          :time-sent="props.message.timeSent?.date ?? null"
+                          @close="lightboxOpen = false"
+                        />
                         <div class="bubble flex" style="flex-flow: column;" v-if="!hasOnlyImages" :style="{
                             backgroundPositionY: backgroundOffset + 'px',
                         }" ref="bubble" :class="{ 'bubble-below-media': imageAttachments.length > 0 }">
@@ -162,6 +169,7 @@ import { useUserColors } from "@/store/chat/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
 import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
+import ImageLightbox from "./chats/ImageLightbox.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import {
   Popover,
@@ -169,6 +177,7 @@ import {
   PopoverContent,
 } from "@argon/ui/popover";
 import type { ArgonMessage } from "@argon/glue";
+import type { ChatMessage } from "@/composables/useChatMessages";
 import { EntityType, type MessageEntityAttachment } from "@argon/glue";
 import { useLocale } from "@/store/system/localeStore";
 import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon, CheckIcon } from "lucide-vue-next";
@@ -182,7 +191,7 @@ const { t } = useLocale();
 const isOpened = ref(false);
 
 const props = defineProps<{
-  message: ArgonMessage;
+  message: ChatMessage;
   getMsgById: (replyId: bigint | null) => ArgonMessage;
 }>();
 
@@ -209,12 +218,19 @@ const messageAttachments = computed(() =>
   ),
 );
 
+function isImageAttachment(a: MessageEntityAttachment): boolean {
+  if (a.contentType?.startsWith("image/")) return true;
+  // Fallback: check file extension when contentType is missing/empty
+  const ext = a.fileName?.split(".").pop()?.toLowerCase();
+  return !!ext && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext);
+}
+
 const imageAttachments = computed(() =>
-  messageAttachments.value.filter((a) => a.contentType.startsWith("image/")),
+  messageAttachments.value.filter(isImageAttachment),
 );
 
 const fileAttachments = computed(() =>
-  messageAttachments.value.filter((a) => !a.contentType.startsWith("image/")),
+  messageAttachments.value.filter((a) => !isImageAttachment(a)),
 );
 
 const hasOnlyImages = computed(() =>
@@ -224,9 +240,17 @@ const hasOnlyImages = computed(() =>
   !props.message.text?.trim(),
 );
 
-const isOptimistic = computed(() => (props.message as any)._optimistic === true);
-const isFailed = computed(() => (props.message as any)._failed === true);
-const failedError = computed(() => (props.message as any)._error as string | undefined);
+const isOptimistic = computed(() => props.message._optimistic === true);
+const isFailed = computed(() => props.message._failed === true);
+const failedError = computed(() => props.message._error);
+
+const lightboxOpen = ref(false);
+const lightboxIndex = ref(0);
+
+function openLightbox(index: number) {
+  lightboxIndex.value = index;
+  lightboxOpen.value = true;
+}
 
 const isSingleEmojiMessage = isUpEmojisOnly(props.message);
 const isIncoming = computed(() => props.message.sender !== me.me?.userId);

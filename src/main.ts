@@ -1,7 +1,7 @@
 import "vue-advanced-cropper/dist/style.css";
-import "vue3-emoji-picker/css";
 import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
+//@ts-ignore
 import "@argon/assets/styles";
 
 import "@argon/glue";
@@ -95,7 +95,7 @@ Sentry.init({
     'Failed to fetch',
     'ResizeObserver loop',
   ],
-  ...(import.meta.env.PROD ? { tunnel: "https://api.argon.gl/k" } : {}),
+  ...{ tunnel: "https://api.argon.gl/k" },
 });
 
 Sentry.setTag("branch", pkg.branch);

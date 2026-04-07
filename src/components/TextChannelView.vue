@@ -40,6 +40,7 @@
             <EnterText ref="enterTextRef" :reply-to="replyTo" :space-id="selectedSpaceId!" :channel-id="selectedChannelId!" @clear-reply="replyTo = null" @typing="onTyping"
                 @stop_typing="onStopTyping"
                 @add-optimistic="onAddOptimistic"
+                @resolve-optimistic="onResolveOptimistic"
                 @mark-optimistic-failed="onMarkOptimisticFailed" />
         </div>
 
@@ -97,6 +98,10 @@ const { typingUsers, onTyping, onStopTyping } = useChannelTyping(selectedChannel
 function onAddOptimistic(msg: ArgonMessage, randomId: bigint) {
     chatViewRef.value?.addOptimisticMessage(msg, randomId);
     nextTick(() => chatViewRef.value?.scrollToBottomImmediate());
+}
+
+function onResolveOptimistic(randomId: bigint, readback: { messageId: bigint; channelId: string; spaceId: string }) {
+    chatViewRef.value?.resolveOptimisticMessage(randomId, readback);
 }
 
 function onMarkOptimisticFailed(randomId: bigint, error: string) {

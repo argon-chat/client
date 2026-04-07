@@ -104,6 +104,20 @@ watch(
     renderThumbHash();
   },
 );
+
+// When fileId changes (e.g. server event replaces placeholder with real fileId),
+// fetch the actual image from CDN
+watch(
+  () => props.fileId,
+  async (newFileId) => {
+    if (newFileId === PLACEHOLDER_FILE_ID) return;
+    loaded.value = false;
+    const url = await fileStorage.fetchAttachmentByFileId(newFileId);
+    if (url && url !== fileStorage.FAILED_ADDRESS) {
+      imageSrc.value = url;
+    }
+  },
+);
 </script>
 
 <style scoped>

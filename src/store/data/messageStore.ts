@@ -1,39 +1,38 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
-import { db } from "@/store/db/dexie";
+import { db, toStoredMessage } from "@/store/db/dexie";
 import { type ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**
- * Store for managing messages and their caching
+ * Store for managing messages and their caching.
+ * Messages are stored with a numeric _msgId (Number(messageId)) because
+ * IndexedDB keys don't support bigint.
  */
 export const useMessageStore = defineStore("message", () => {
-  /**
-   * Load cached messages from Dexie for a specific channel
-   */
   const loadCachedMessages = async (
     spaceId: Guid,
-    channelId: Guid
+    channelId: Guid,
+    limit: number = 50
   ): Promise<ArgonMessage[]> => {
     try {
       const messages = await db.messages
-        .where("[spaceId+channelId+messageId]")
+        .where("[spaceId+channelId+_msgId]")
         .between(
           [spaceId, channelId, 0],
-          [spaceId, channelId, Number.MAX_SAFE_INTEGER]
+          [spaceId, channelId, Infinity]
         )
+        .reverse()
+        .limit(limit)
         .toArray();
 
-      return messages;
+      return messages.reverse();
     } catch (error) {
       logger.error("Failed to load cached messages:", error);
       return [];
     }
   };
 
-  /**
-   * Load older cached messages from Dexie (for pagination/scroll up)
-   */
   const loadOlderCachedMessages = async (
     spaceId: Guid,
     channelId: Guid,
@@ -42,10 +41,12 @@ export const useMessageStore = defineStore("message", () => {
   ): Promise<ArgonMessage[]> => {
     try {
       const messages = await db.messages
-        .where("[spaceId+channelId+messageId]")
+        .where("[spaceId+channelId+_msgId]")
         .between(
           [spaceId, channelId, 0],
-          [spaceId, channelId, Number(beforeMessageId)]
+          [spaceId, channelId, Number(beforeMessageId)],
+          false,
+          false
         )
         .reverse()
         .limit(limit)
@@ -58,54 +59,42 @@ export const useMessageStore = defineStore("message", () => {
     }
   };
 
-  /**
-   * Cache multiple messages to Dexie
-   */
   const cacheMessages = async (messages: ArgonMessage[]): Promise<void> => {
     try {
       if (messages.length === 0) return;
-      await db.messages.bulkPut(messages);
+      await db.messages.bulkPut(messages.map(toStoredMessage));
     } catch (error) {
       logger.error("Failed to cache messages:", error);
     }
   };
 
-  /**
-   * Cache a single message to Dexie
-   */
   const cacheMessage = async (message: ArgonMessage): Promise<void> => {
     try {
-      await db.messages.put(message);
+      await db.messages.put(toStoredMessage(message));
     } catch (error) {
       logger.error("Failed to cache message:", error);
     }
   };
 
-  /**
-   * Get message by ID from cache
-   */
   const getMessageById = async (messageId: bigint): Promise<ArgonMessage | undefined> => {
     try {
-      return await db.messages.where("messageId").equals(Number(messageId)).first();
+      return await db.messages.get(Number(messageId));
     } catch (error) {
       logger.error("Failed to get message by ID:", error);
       return undefined;
     }
   };
 
-  /**
-   * Delete all messages for a specific channel (useful for cleanup)
-   */
   const clearChannelMessages = async (
     spaceId: Guid,
     channelId: Guid
   ): Promise<void> => {
     try {
       await db.messages
-        .where("[spaceId+channelId+messageId]")
+        .where("[spaceId+channelId+_msgId]")
         .between(
           [spaceId, channelId, 0],
-          [spaceId, channelId, Number.MAX_SAFE_INTEGER]
+          [spaceId, channelId, Infinity]
         )
         .delete();
     } catch (error) {
@@ -113,19 +102,16 @@ export const useMessageStore = defineStore("message", () => {
     }
   };
 
-  /**
-   * Get message count for a channel
-   */
   const getChannelMessageCount = async (
     spaceId: Guid,
     channelId: Guid
   ): Promise<number> => {
     try {
       return await db.messages
-        .where("[spaceId+channelId+messageId]")
+        .where("[spaceId+channelId+_msgId]")
         .between(
           [spaceId, channelId, 0],
-          [spaceId, channelId, Number.MAX_SAFE_INTEGER]
+          [spaceId, channelId, Infinity]
         )
         .count();
     } catch (error) {

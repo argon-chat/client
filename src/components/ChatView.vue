@@ -78,6 +78,7 @@
             :get-msg-by-id="getMessageById"
             @dblclick="() => emit('select-reply', messages[item.index])"
             @reply="(msg) => emit('select-reply', msg)"
+            @retry="retryMessage"
           />
         </div>
       </div>
@@ -153,8 +154,10 @@ const {
   subscribeToNewMessages,
   getMessageById,
   addOptimisticMessage,
+  resolveOptimisticMessage,
   removeOptimisticMessage,
   markOptimisticFailed,
+  retryMessage,
   cleanup: cleanupMessages,
 } = useChatMessages(
   () => props.channelId,
@@ -220,17 +223,19 @@ const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
 
 defineExpose({
   addOptimisticMessage,
+  resolveOptimisticMessage,
   markOptimisticFailed,
   scrollToBottomImmediate,
 });
 
-// Watch for channel changes — reload messages and subscribe
+// Watch for channel changes — subscribe first (step 8), then load
 watch(
   () => props.channelId,
   async (newChannelId) => {
     resetMeasurements();
-    await loadInitialMessages(() => scrollToBottomImmediate());
+    // Subscribe BEFORE loading so events during load are captured
     subscribeToNewMessages(newChannelId, () => scrollToBottomImmediate());
+    await loadInitialMessages(() => scrollToBottomImmediate());
   },
   { immediate: true },
 );

@@ -20,7 +20,7 @@ export function useChatScroll(
     count: messages().length,
     getScrollElement: () => parentRef.value ?? null,
     estimateSize: () => MESSAGE_HEIGHT_ESTIMATE,
-    overscan: 50,
+    overscan: 10,
     getItemKey: (index: number) => messages()[index]?.messageId?.toString() ?? index,
   }));
 

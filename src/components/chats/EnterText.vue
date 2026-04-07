@@ -292,6 +292,7 @@ const emit = defineEmits<{
   (e: "typing"): void;
   (e: "stop_typing"): void;
   (e: "add-optimistic", msg: ArgonMessage, randomId: bigint): void;
+  (e: "resolve-optimistic", randomId: bigint, readback: { messageId: bigint; channelId: Guid; spaceId: Guid }): void;
   (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
   (e: "submit"): void;
 }>();
@@ -841,8 +842,9 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
   if (entities.length === 0 && plainText.length === 0 && !hasAttachments) return;
 
-  // Generate random message ID as bigint
-  const randomId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+  // Step 3: Crypto-grade random ID — no collisions even at rapid sends
+  // Mask top bit: server expects signed Int64 (max 2^63-1)
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
   const channelId = resolvedChannelId;
   const spaceId = props.spaceId;
   const replyTo = props.replyTo?.messageId ?? null;
@@ -851,6 +853,10 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   const optimisticAttachEntities = hasAttachments
     ? attachments.buildOptimisticEntities()
     : [];
+
+  // Detach files from composable BEFORE creating optimistic message
+  // This gives us a standalone uploader snapshot and frees the composable for new files
+  const detachedUploader = hasAttachments ? attachments.detach() : null;
 
   // Create optimistic message — appears in chat immediately
   const optimisticMsg = {
@@ -877,21 +883,18 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   }
   mentionRegistry.clear();
 
-  // Capture attachment state before clearing
-  const pendingAttachments = hasAttachments;
-  const attachUploader = attachments;
-
   // Fire-and-forget: upload + send in background
   (async () => {
     try {
       let finalEntities = [...entities];
 
       // Upload attachments if any
-      if (pendingAttachments) {
-        const realAttachEntities = await attachUploader.uploadAll(spaceId, channelId);
+      if (detachedUploader) {
+        const realAttachEntities = await detachedUploader.uploadAll(spaceId, channelId);
 
-        if (attachUploader.hasErrors()) {
+        if (detachedUploader.hasErrors()) {
           emit("mark-optimistic-failed", randomId, "Failed to upload attachments");
+          detachedUploader.cleanup();
           return;
         }
 
@@ -899,7 +902,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
       }
 
       // Send to server
-      await api.channelInteraction.SendMessageWithReadback(
+      const readback = await api.channelInteraction.SendMessageWithReadback(
         spaceId,
         channelId,
         plainText,
@@ -908,10 +911,14 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
         replyTo,
       );
 
-      attachUploader.clear();
+      // Step 1: Resolve optimistic → replace placeholder with real messageId
+      emit("resolve-optimistic", randomId, readback);
+
+      detachedUploader?.cleanup();
     } catch (e: any) {
       logger.error("Failed to send message:", e);
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+      detachedUploader?.cleanup();
     }
   })();
 };
