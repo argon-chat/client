@@ -58,8 +58,6 @@ import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon } f
 import type { MessageEntityAttachment } from "@argon/glue";
 import { useFileStorage } from "@/store/system/fileStorage";
 
-const isElectron = typeof window !== "undefined" && !!(window as any).windowManagement;
-
 const props = defineProps<{
   images: MessageEntityAttachment[];
   initialIndex?: number;
@@ -113,27 +111,6 @@ async function loadImage(fileId: string) {
 
 watch(() => props.isOpen, async (open) => {
   if (open) {
-    // In Electron, open a separate window via IPC
-    if (isElectron) {
-      const ipc = (window as any).argonIpc;
-      if (ipc) {
-        const data = {
-          images: props.images.map(img => ({
-            fileId: img.fileId,
-            fileName: img.fileName,
-            contentType: img.contentType,
-            fileSize: img.fileSize ? Number(img.fileSize) : 0,
-          })),
-          index: props.initialIndex ?? 0,
-          timeSent: props.timeSent?.toISOString() ?? null,
-        };
-        await ipc.invoke("lightbox", "open", [data]);
-      }
-      emit("close");
-      return;
-    }
-
-    // Web fallback: in-process overlay
     currentIndex.value = props.initialIndex ?? 0;
     imageLoaded.value = false;
     if (currentImage.value) await loadImage(currentImage.value.fileId);
