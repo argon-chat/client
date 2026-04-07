@@ -12,26 +12,33 @@
         outgoing: !isIncoming,
         'is-optimistic': isOptimistic && !isFailed,
         'is-failed': isFailed,
+        'is-grouped': isGrouped,
+        'is-first': isFirstInGroup,
     }" v-if="user">
 
-        <Popover v-model:open="isOpened">
-            <PopoverContent style="width: 21rem;"
-                class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
-                <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
-            </PopoverContent>
-            <PopoverTrigger>
-                <ArgonAvatar 
-                    :file-id="user.avatarFileId" 
-                    :fallback="user.displayName"
-                    :userId="user.userId"
-                    :overrided-size="36"
-                    class="avatar" 
-                />
-            </PopoverTrigger>
-        </Popover>
+        <!-- Avatar: full component on first-in-group, bare spacer otherwise -->
+        <div v-if="isFirstInGroup" class="avatar-col">
+            <Popover v-model:open="isOpened">
+                <PopoverContent style="width: 21rem;"
+                    class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
+                    <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
+                </PopoverContent>
+                <PopoverTrigger>
+                    <ArgonAvatar 
+                        :file-id="user.avatarFileId" 
+                        :fallback="user.displayName"
+                        :userId="user.userId"
+                        :overrided-size="36"
+                        class="avatar" 
+                    />
+                </PopoverTrigger>
+            </Popover>
+        </div>
+        <div v-else class="avatar-spacer" />
 
         <div class="message-content">
-            <div class="meta">
+            <!-- Meta: only for first in group -->
+            <div v-if="isFirstInGroup" class="meta">
                 <span class="username" :data-user-id="user.userId"
                     :style="{ 'color': getColorByUserId(user.userId) }">{{ user?.displayName || t("unknown_display_name") }}</span>
 
@@ -74,19 +81,18 @@
                           :time-sent="props.message.timeSent?.date ?? null"
                           @close="lightboxOpen = false"
                         />
-                        <div class="bubble flex" style="flex-flow: column;" v-if="!hasOnlyImages" :style="{
-                            backgroundPositionY: backgroundOffset + 'px',
-                        }" ref="bubble" :class="{ 'bubble-below-media': imageAttachments.length > 0 }">
-                            <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                                'reply-preview inline-table',
-                                'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                                ">
-                                <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{
-                                    replyUser?.displayName || t("unknown_display_name")}}</div>
-                                <div class="reply-text">{{ replyMessage.text }}</div>
+                        <div class="bubble" :class="[bubbleRadiusClass, { 'bubble-below-media': imageAttachments.length > 0 }]" v-if="!hasOnlyImages" ref="bubble">
+                            <!-- Reply preview -->
+                            <div v-if="replyMessage" class="reply-preview" @click="$emit('reply', replyMessage)">
+                                <div class="reply-accent" :style="{ backgroundColor: getColorByUserId(replyMessage.sender) }" />
+                                <div class="reply-body">
+                                    <span class="reply-username" :style="{ color: getColorByUserId(replyMessage.sender) }">{{ replyUser?.displayName || t("unknown_display_name") }}</span>
+                                    <span class="reply-text">{{ replyMessage.text }}</span>
+                                </div>
                             </div>
-                            <div v-if="renderedMessage.length">
+                            <div v-if="renderedMessage.length" class="message-text">
                                 <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
+                                <span v-if="isGrouped" class="inline-time">{{ formattedTime }}</span>
                             </div>
                             <AttachmentFileCard
                                 v-for="(file, i) in fileAttachments"
@@ -96,30 +102,34 @@
                                 :file-size="file.fileSize"
                                 :content-type="file.contentType"
                             />
+                            <!-- Inline time for grouped messages without text -->
+                            <span v-if="isGrouped && renderedMessage.length === 0" class="inline-time standalone">{{ formattedTime }}</span>
                         </div>
+                        <!-- Images-only: inline time overlay -->
+                        <span v-if="hasOnlyImages && isGrouped" class="image-time-overlay">{{ formattedTime }}</span>
                     </div>
                     <!-- Single emoji -->
-                    <div v-if="isSingleEmojiMessage" class="flex" style="font-size: xxx-large; flex-flow: column;">
-                        <div v-if="replyMessage" style="display: inline-table;" :class="cn(
-                            'reply-preview inline-table',
-                            'group relative inline-flex h-11 items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-primary-foreground')
-                            ">
-                            <div class="reply-username" :style="{ 'color': getColorByUserId(user.userId) }">{{ 
-                                replyUser?.displayName || t("unknown_display_name") }}</div>
-                            <div class="reply-text">{{ replyMessage.text }}</div>
+                    <div v-if="isSingleEmojiMessage" class="single-emoji">
+                        <!-- Reply preview for emoji -->
+                        <div v-if="replyMessage" class="reply-preview" @click="$emit('reply', replyMessage)">
+                            <div class="reply-accent" :style="{ backgroundColor: getColorByUserId(replyMessage.sender) }" />
+                            <div class="reply-body">
+                                <span class="reply-username" :style="{ color: getColorByUserId(replyMessage.sender) }">{{ replyUser?.displayName || t("unknown_display_name") }}</span>
+                                <span class="reply-text">{{ replyMessage.text }}</span>
+                            </div>
                         </div>
                         <div>
                             <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
                         </div>
                     </div>
 
-                    <!-- Hover actions -->
+                    <!-- Hover actions — absolute overlay -->
                     <div class="message-actions">
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <button class="action-btn" @click="copyMessage">
-                                        <CopyIcon class="w-4 h-4" />
+                                        <CopyIcon class="w-3.5 h-3.5" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
@@ -131,7 +141,7 @@
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <button class="action-btn" @click="replyToMessage">
-                                        <ReplyIcon class="w-4 h-4" />
+                                        <ReplyIcon class="w-3.5 h-3.5" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
@@ -143,9 +153,8 @@
                 </div>
             </template>
             <template v-else>
-                <div class="rounded-r-lg border-red-500 border-l-4 bg-destructive/10 italic text-sm p-4" v-html="t('not_supported_message_please_update')">
+                <div class="unsupported-message" v-html="t('not_supported_message_please_update')">
                 </div>
-
             </template>
         </div>
     </div>
@@ -157,7 +166,6 @@ import { usePoolStore } from "@/store/data/poolStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useMe } from "@/store/auth/meStore";
 import emojiRegex from "emoji-regex";
-import { cn } from "@argon/core";
 import {
   Tooltip,
   TooltipContent,
@@ -180,7 +188,7 @@ import type { ArgonMessage } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { EntityType, type MessageEntityAttachment } from "@argon/glue";
 import { useLocale } from "@/store/system/localeStore";
-import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon, CheckIcon } from "lucide-vue-next";
+import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon } from "lucide-vue-next";
 import {
   useMessageContent,
   fragmentMessageText,
@@ -193,6 +201,9 @@ const isOpened = ref(false);
 const props = defineProps<{
   message: ChatMessage;
   getMsgById: (replyId: bigint | null) => ArgonMessage;
+  isGrouped?: boolean;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
 }>();
 
 const pool = usePoolStore();
@@ -208,7 +219,6 @@ const emit = defineEmits<{
 
 const isRequiredUpperVersionMessage = ref(false);
 const bubble = ref<HTMLElement | null>(null);
-const backgroundOffset = ref(0);
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
 
@@ -264,23 +274,23 @@ const replyMessage = computed(() => {
 const replyUserIdRef = computed(() => replyMessage.value?.sender);
 const replyUser = pool.getUserReactive(replyUserIdRef);
 
-const updateBackground = () => {
-  if (!bubble.value) return;
-  const rect = bubble.value.getBoundingClientRect();
-  backgroundOffset.value = rect.top;
-};
+// Directional bubble radius based on group position
+const bubbleRadiusClass = computed(() => {
+  if (props.isFirstInGroup && props.isLastInGroup) return 'bubble-single';
+  if (props.isFirstInGroup) return 'bubble-first';
+  if (props.isLastInGroup) return 'bubble-last';
+  return 'bubble-middle';
+});
 
 onMounted(async () => {
   renderedMessage.value = fragmentMessageText(
     props.message.text,
     props.message.entities,
   );
-  updateBackground();
-  window.addEventListener("scroll", updateBackground, { passive: true });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("scroll", updateBackground);
+  // cleanup if needed
 });
 
 const formattedTime = computed(() => {
@@ -333,109 +343,239 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 </script>
 
 <style scoped>
+/* ─── System message ─── */
 .system-message {
     display: flex;
     justify-content: center;
-    padding: 8px 0;
+    padding: 16px 0;
     width: 100%;
+    contain: layout style;
 }
 
 .system-message-content {
     padding: 6px 12px;
-    border-radius: 12px;
+    border-radius: var(--radius);
     background: hsl(var(--muted) / 0.5);
     color: hsl(var(--muted-foreground));
-    font-size: 13px;
+    font-size: 12px;
     text-align: center;
     max-width: 80%;
 }
 
+/* ─── Message item ─── */
 .message-item {
     display: flex;
     align-items: flex-start;
     gap: 8px;
+    padding: 6px 0 0;
+    contain: layout style;
+}
+
+.message-item.is-first {
+    padding-top: 12px;
+}
+
+.message-item.is-grouped {
+    padding-top: 2px;
+}
+
+/* Avatar */
+.avatar-col {
+    width: 36px;
+    flex-shrink: 0;
 }
 
 .avatar {
     width: 36px;
     height: 36px;
     border-radius: 50%;
+    cursor: pointer;
+}
+
+.avatar-spacer {
+    width: 36px;
     flex-shrink: 0;
 }
 
 .message-content {
-    max-width: 60%;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    max-width: 85%;
 }
 
+/* ─── Meta (username + time) ─── */
 .meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    margin-bottom: 2px;
 }
 
 .meta .time {
-    font-size: 12px;
-    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    color: hsl(var(--muted-foreground) / 0.7);
 }
 
 .meta .username {
     font-size: 13px;
     font-weight: 600;
-    color: hsl(var(--foreground) / 0.8);
-    margin-bottom: 2px;
+    line-height: 1;
 }
+
+/* ─── Bubble ─── */
 .bubble {
-    padding: 10px;
-    border-radius: 4px 18px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
     color: hsl(var(--foreground));
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.45;
     word-break: break-word;
     white-space: pre-wrap;
     background-color: hsl(var(--muted));
+    max-width: 520px;
 }
 
+/* Directional radius — avatar is at top, so tail points top-left on first */
+.bubble-single {
+    border-radius: 4px 18px 18px 18px;
+}
+
+.bubble-first {
+    border-radius: 4px 18px 18px 4px;
+}
+
+.bubble-middle {
+    border-radius: 4px 18px 18px 4px;
+}
+
+.bubble-last {
+    border-radius: 4px 18px 18px 18px;
+}
+
+/* ─── Message text ─── */
+.message-text {
+    position: relative;
+}
+
+/* ─── Inline time (grouped messages) ─── */
+.inline-time {
+    float: right;
+    font-size: 11px;
+    color: hsl(var(--muted-foreground) / 0.5);
+    margin-left: 8px;
+    margin-top: 4px;
+    line-height: 1;
+    user-select: none;
+}
+
+.inline-time.standalone {
+    float: none;
+    text-align: right;
+}
+
+.image-time-overlay {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 11px;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ─── Reply preview (Telegram-style) ─── */
 .reply-preview {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
     margin-bottom: 6px;
-    color: hsl(var(--foreground) / 0.85);
-    background-color: hsl(var(--muted) / 0.7);
-    white-space: nowrap;
+    border-radius: 4px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    cursor: pointer;
+    background: hsl(var(--muted) / 0.5);
+    transition: background 0.15s ease;
+    font-size: 13px;
+}
+
+.reply-preview:hover {
+    background: hsl(var(--muted) / 0.8);
+}
+
+.reply-accent {
+    width: 3px;
+    flex-shrink: 0;
+    border-radius: 3px 0 0 3px;
+}
+
+.reply-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 4px 10px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .reply-username {
-    font-weight: 800;
-    margin-bottom: 2px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
 }
 
-/* Hover actions */
+.reply-text {
+    font-size: 12px;
+    color: hsl(var(--foreground) / 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* ─── Single emoji ─── */
+.single-emoji {
+    display: flex;
+    flex-direction: column;
+    font-size: xxx-large;
+    line-height: 1.2;
+}
+
+/* ─── Unsupported message ─── */
+.unsupported-message {
+    border-radius: 0 var(--radius) var(--radius) var(--radius);
+    border-left: 4px solid hsl(var(--destructive));
+    background: hsl(var(--destructive) / 0.1);
+    font-style: italic;
+    font-size: 14px;
+    padding: 12px 16px;
+}
+
+/* ─── Hover actions (overlay) ─── */
 .bubble-wrapper {
     position: relative;
     display: inline-flex;
-    align-items: flex-start;
-    gap: 4px;
+    flex-direction: column;
 }
 
 .message-actions {
+    position: absolute;
+    top: -4px;
+    right: -4px;
     display: flex;
-    gap: 2px;
+    gap: 1px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     background: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 6px;
+    border: 1px solid hsl(var(--border) / 0.4);
+    border-radius: 8px;
     padding: 2px;
-    box-shadow: 0 2px 8px hsl(var(--background) / 0.5);
-    flex-shrink: 0;
-    align-self: flex-start;
+    box-shadow: 0 2px 8px hsl(var(--background) / 0.4);
+    z-index: 5;
 }
 
 .bubble-wrapper:hover .message-actions {
@@ -447,12 +587,12 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border: none;
     background: transparent;
     color: hsl(var(--muted-foreground));
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
 }
@@ -462,12 +602,17 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     color: hsl(var(--foreground));
 }
 
-/* Telegram-style media container */
+.action-btn:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 1px;
+}
+
+/* ─── Media container ─── */
 .media-message-container {
     display: flex;
     flex-direction: column;
-    width: 420px;
-    max-width: 100%;
+    max-width: calc(var(--chat-width, 600px) * 0.8);
+    position: relative;
 }
 
 .media-block {
@@ -475,7 +620,6 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     overflow: hidden;
 }
 
-/* When only images, no text bubble below — fully rounded */
 .media-message-container > .media-block:last-child {
     border-radius: 18px;
 }
@@ -486,21 +630,26 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     border-radius: 0;
 }
 
+.media-block :deep(.single-image-wrapper) {
+    max-width: none;
+    width: 100%;
+    border-radius: 0;
+}
+
 .media-message-container .bubble-below-media {
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18px 18px !important;
     margin-top: 0;
 }
 
-/* Optimistic (sending) state */
+/* ─── Optimistic / Failed states ─── */
 .message-item.is-optimistic {
-    opacity: 0.7;
+    opacity: 0.6;
 }
 
 .message-item.is-optimistic .bubble {
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
-/* Failed state */
 .message-item.is-failed {
     opacity: 1;
 }
@@ -514,7 +663,7 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     border-bottom: none;
 }
 
-/* Status icon next to time */
+/* ─── Status indicators ─── */
 .status-icon {
     flex-shrink: 0;
 }

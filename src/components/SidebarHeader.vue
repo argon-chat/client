@@ -33,13 +33,12 @@ import { computed, onMounted, ref, watch } from "vue";
 import { delay } from "@argon/core";
 import { computedAsync } from "@vueuse/core";
 import { usePoolStore } from "@/store/data/poolStore";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 import img0 from "@argon/assets/image0.jpg";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 
 const pool = usePoolStore();
-const fileStorage = useFileStorage();
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
   type: String, required: true
@@ -75,12 +74,7 @@ const loadHeaderImage = async () => {
 
   try {
     isLoadingHeader.value = true;
-    const url = await fileStorage.fetchServerAvatar(space.topBannerFileId, space.spaceId);
-    if (url !== fileStorage.FAILED_ADDRESS) {
-      headerImageUrl.value = url;
-    } else {
-      headerImageUrl.value = null;
-    }
+    headerImageUrl.value = cdnUrl(space.topBannerFileId);
   } catch (error) {
     console.error("Failed to load header image:", error);
     headerImageUrl.value = null;

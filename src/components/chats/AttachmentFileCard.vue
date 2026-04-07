@@ -25,7 +25,7 @@ import {
   DownloadIcon,
   Loader2Icon,
 } from "lucide-vue-next";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   fileId: string;
@@ -34,7 +34,6 @@ const props = defineProps<{
   contentType: string;
 }>();
 
-const fileStorage = useFileStorage();
 const downloading = ref(false);
 
 const PLACEHOLDER_FILE_ID = "00000000-0000-0000-0000-000000000000";
@@ -62,8 +61,12 @@ async function download() {
   if (isPlaceholder.value) return;
   downloading.value = true;
   try {
-    const blobUrl = await fileStorage.fetchAttachmentByFileId(props.fileId);
-    if (!blobUrl || blobUrl === fileStorage.FAILED_ADDRESS) return;
+    const url = cdnUrl(props.fileId);
+
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = blobUrl;
@@ -71,6 +74,7 @@ async function download() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
   } finally {
     downloading.value = false;
   }

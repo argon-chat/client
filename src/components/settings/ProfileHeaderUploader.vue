@@ -55,7 +55,7 @@ import BuyPremium from "../modals/BuyPremium.vue";
 import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/auth/meStore";
 import { useApi } from "@/store/system/apiStore";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 import { UploadFileError } from "@argon/glue";
 import { v7 } from "uuid";
 import { useLocale } from "@/store/system/localeStore";
@@ -76,7 +76,6 @@ const { t } = useLocale();
 const toast = useToast();
 const me = useMe();
 const api = useApi();
-const fileStorage = useFileStorage();
 
 const showCropDialog = ref(false);
 const showPremiumDialog = ref(false);
@@ -91,10 +90,7 @@ watch(
     if (!props.userId) return;
     if (!props.headerFileId) return;
 
-    blobSrc.value = await fileStorage.fetchUserAvatar(
-      props.headerFileId,
-      props.userId,
-    );
+    blobSrc.value = cdnUrl(props.headerFileId);
     loaded.value = true;
   },
 );
@@ -103,19 +99,11 @@ onMounted(async () => {
   if (props.userId) {
     if (!props.headerFileId) {
       loaded.value = false;
-      blobSrc.value = fileStorage.FAILED_ADDRESS;
       return;
     }
 
-    blobSrc.value = await fileStorage.fetchUserAvatar(
-      props.headerFileId,
-      props.userId,
-    );
-    if (blobSrc.value === fileStorage.FAILED_ADDRESS) {
-      loaded.value = false;
-    } else {
-      loaded.value = true;
-    }
+    blobSrc.value = cdnUrl(props.headerFileId);
+    loaded.value = true;
   }
 });
 

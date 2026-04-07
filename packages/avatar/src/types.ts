@@ -3,6 +3,8 @@ import type { InjectionKey, Ref } from "vue";
 export interface IAvatarFileStorage {
   fetchUserAvatar(fileId: string, userId: string): Promise<string>;
   fetchServerAvatar(fileId: string, serverId: string): Promise<string>;
+  fetchUserAvatarUrl(fileId: string): string;
+  fetchServerAvatarUrl(fileId: string): string;
   FAILED_ADDRESS: string;
 }
 

@@ -31,7 +31,7 @@
 import { ref, onMounted, watch, nextTick, computed } from "vue";
 import { Loader2Icon } from "lucide-vue-next";
 import { thumbHashToRGBA } from "thumbhash";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   fileId: string;
@@ -41,7 +41,6 @@ const props = defineProps<{
   thumbHash: string | null;
 }>();
 
-const fileStorage = useFileStorage();
 const placeholderCanvas = ref<HTMLCanvasElement | null>(null);
 const imageSrc = ref<string | null>(null);
 const loaded = ref(false);
@@ -83,18 +82,26 @@ const PLACEHOLDER_FILE_ID = "00000000-0000-0000-0000-000000000000";
 
 const isPlaceholder = computed(() => props.fileId === PLACEHOLDER_FILE_ID);
 
+// Use requestIdleCallback to defer thumbhash rendering — avoids blocking
+// the main thread when prepending many messages with images at once
+const scheduleRender = (fn: () => void) => {
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(fn, { timeout: 200 });
+  } else {
+    setTimeout(fn, 16);
+  }
+};
+
 onMounted(async () => {
   await nextTick();
-  renderThumbHash();
+  scheduleRender(renderThumbHash);
 
   // Don't fetch from CDN for optimistic placeholder attachments
   if (isPlaceholder.value) return;
 
   // Fetch the actual image
-  const url = await fileStorage.fetchAttachmentByFileId(props.fileId);
-  if (url && url !== fileStorage.FAILED_ADDRESS) {
-    imageSrc.value = url;
-  }
+  const url = cdnUrl(props.fileId);
+  imageSrc.value = url;
 });
 
 watch(
@@ -112,10 +119,7 @@ watch(
   async (newFileId) => {
     if (newFileId === PLACEHOLDER_FILE_ID) return;
     loaded.value = false;
-    const url = await fileStorage.fetchAttachmentByFileId(newFileId);
-    if (url && url !== fileStorage.FAILED_ADDRESS) {
-      imageSrc.value = url;
-    }
+    imageSrc.value = cdnUrl(newFileId);
   },
 );
 </script>

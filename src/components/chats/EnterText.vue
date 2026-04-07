@@ -1,26 +1,31 @@
 <template>
     <div class="enter-text-wrapper">
+        <!-- Reply banner -->
         <div v-if="replyTo && !captionMode" class="reply-banner">
+            <div class="reply-accent-bar" />
             <div class="reply-info">
-                <strong>{{ t("replying_to") }}</strong> {{ replyTo.text }}
+                <span class="reply-label">{{ t("replying_to") }}</span>
+                <span class="reply-preview-text">{{ replyTo.text }}</span>
             </div>
-            <X class="text-red-600 cursor-pointer flex-shrink-0" @click="$emit('clear-reply')" />
+            <button class="reply-close" @click="$emit('clear-reply')">
+                <X class="w-4 h-4" />
+            </button>
         </div>
 
-        <div class="relative" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+        <div class="input-area" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
             <!-- Drag overlay -->
             <div v-if="isDragging && !captionMode" class="drag-overlay">
                 <div class="drag-overlay-content">
-                    <PaperclipIcon class="w-8 h-8" />
-                    <span class="text-sm font-medium">{{ t('drop_files_here') || 'Drop files here' }}</span>
+                    <PaperclipIcon class="w-7 h-7" />
+                    <span>{{ t('drop_files_here') || 'Drop files here' }}</span>
                 </div>
             </div>
 
-            <div :class="captionMode ? 'flex items-end gap-1' : 'flex items-end gap-2 p-2 border rounded-lg bg-background'">
+            <div :class="captionMode ? 'input-row caption-mode' : 'input-row'">
                 <!-- Attach file button -->
-                <Button v-if="!captionMode" variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5" title="Attach file" @click="openFilePicker">
-                    <PaperclipIcon />
-                </Button>
+                <button v-if="!captionMode" class="input-icon-btn" title="Attach file" @click="openFilePicker">
+                    <PaperclipIcon class="w-5 h-5" />
+                </button>
                 <input
                     v-if="!captionMode"
                     ref="fileInputRef"
@@ -30,11 +35,11 @@
                     @change="onFileInputChange"
                 />
 
-                <!-- Textarea message area -->
+                <!-- Textarea -->
                 <textarea
                     ref="editorRef"
                     v-model="messageText"
-                    class="flex-1 text-sm min-h-[36px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none py-2 scrollbar-thin"
+                    class="message-textarea"
                     :placeholder="captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
@@ -45,42 +50,42 @@
                 <!-- Emoji picker -->
                 <Popover>
                     <PopoverTrigger>
-                        <Button variant="ghost" size="sm" class="h-9 w-9 p-0 flex-shrink-0 mb-0.5">
-                            <SmileIcon />
-                        </Button>
+                        <button class="input-icon-btn">
+                            <SmileIcon class="w-5 h-5" />
+                        </button>
                     </PopoverTrigger>
                     <PopoverContent class="w-auto p-0">
                         <EmojiPicker :native="true" :disable-skin-tones="true" :theme="emojiPickerTheme"
                             @select="(e: EmojiExt) => onEmojiClick(e)" />
                     </PopoverContent>
                 </Popover>
+
+                <!-- Send button -->
+                <Transition name="send-btn">
+                    <button v-if="hasContent" class="send-btn" @click="captionMode ? $emit('submit') : handleSend()" :title="t('send') || 'Send'">
+                        <SendHorizonalIcon class="w-5 h-5" />
+                    </button>
+                </Transition>
             </div>
-            
-            <!-- Help button -->
-            <Button 
-                v-if="!captionMode"
-                variant="ghost" 
-                size="sm" 
-                class="absolute -bottom-2 -right-2 h-6 w-6 p-0 z-10 opacity-50 hover:opacity-100 bg-background"
-                @click="showFormatHelp = true"
-                title="Formatting help"
-            >
-                <HelpCircleIcon class="h-3 w-3" />
-            </Button>
         </div>
 
         <!-- Mentions dropdown -->
+        <Transition name="mention-pop">
         <ul v-if="mention.show && mention.candidates.length"
-            class="absolute bottom-full mb-1 w-500 max-h-40 overflow-y-auto text-sm border rounded bg-popover text-popover-foreground shadow z-50 scrollbar-thin">
+            class="mention-dropdown">
             <li v-for="(user, i) in mention.candidates" :key="user.id" :class="[
-                'flex items-center gap-3 px-3 py-2 cursor-pointer',
-                i === mention.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-            ]" @mousedown.prevent="selectMention(user)">
-                <ArgonAvatar :user-id="user.id" :overrided-size="32" />
-                <span>{{ user.displayName }}</span>
-                <span class="text-muted-foreground"> @{{ user.username }}</span>
+                'mention-item',
+                i === mention.index ? 'mention-item-active' : '',
+            ]" @mousedown.prevent="selectMention(user)"
+               @mouseenter="mention.index = i">
+                <ArgonAvatar :user-id="user.id" :overrided-size="28" class="mention-avatar" />
+                <div class="mention-info">
+                    <span class="mention-name">{{ user.displayName }}</span>
+                    <span class="mention-username">@{{ user.username }}</span>
+                </div>
             </li>
         </ul>
+        </Transition>
 
         <!-- Formatting Help Dialog -->
         <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
@@ -194,7 +199,6 @@
 </template>
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref, watch, nextTick, computed } from "vue";
-import { Button } from "@argon/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -208,6 +212,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
 import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -220,7 +225,7 @@ import CapitalizedSegment from "./CapitalizedSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
-import { SendHorizonalIcon, SmileIcon, X, PaperclipIcon, HelpCircleIcon } from "lucide-vue-next";
+import { SendHorizonalIcon, SmileIcon, X, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
@@ -246,6 +251,8 @@ const api = useApi();
 const pool = usePoolStore();
 const me = useMe();
 const attachments = useAttachmentUpload();
+
+const hasContent = computed(() => messageText.value.trim().length > 0 || attachments.hasFiles.value);
 
 // Mock entities for formatting examples
 const mockBoldEntity = new MessageEntityBold(EntityType.Bold, 0, 9, 1);
@@ -947,86 +954,319 @@ defineExpose({
     overflow: visible;
 }
 
-textarea {
-    font-family: inherit;
-    line-height: 1.5;
-    color: hsl(var(--foreground));
-}
-
-textarea::placeholder {
-    color: hsl(var(--muted-foreground));
-}
-
-textarea::-webkit-scrollbar {
-    width: 6px;
-}
-
-textarea::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-textarea::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
-}
-
-textarea::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
-}
-
-.reply-preview {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 6px;
-    color: hsl(var(--foreground) / 0.85);
-    background-color: hsl(var(--muted));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border: 1px solid hsl(var(--border) / 0.5);
-}
-
+/* Reply banner — Telegram style */
 .reply-banner {
-    background-color: hsl(var(--muted));
-    border-left: 3px solid hsl(var(--border));
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    border-radius: 6px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 8px;
-    max-width: 100%;
+    padding: 6px 12px;
+    margin-bottom: 4px;
+    background: hsl(var(--muted));
+    border-radius: var(--radius) var(--radius) 0 0;
     overflow: hidden;
 }
 
-.clear-reply {
-    background: transparent;
-    border: none;
-    color: hsl(var(--muted-foreground));
-    cursor: pointer;
-    white-space: nowrap;
+.reply-accent-bar {
+    width: 3px;
+    min-height: 28px;
+    border-radius: 2px;
+    background: hsl(var(--primary));
     flex-shrink: 0;
 }
 
 .reply-info {
-    color: hsl(var(--foreground) / 0.85);
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.reply-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: hsl(var(--primary));
+    line-height: 1.2;
+}
+
+.reply-preview-text {
+    font-size: 13px;
+    color: hsl(var(--foreground) / 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.reply-close {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+    cursor: pointer;
+    transition: background 150ms, color 150ms;
+}
+
+.reply-close:hover {
+    background: hsl(var(--muted-foreground) / 0.15);
+    color: hsl(var(--foreground));
+}
+
+/* Input area */
+.input-area {
+    position: relative;
+}
+
+.input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 6px 8px;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    transition: border-color 150ms;
+}
+
+.input-row:focus-within {
+    border-color: hsl(var(--ring));
+}
+
+.input-row.caption-mode {
+    border: none;
+    padding: 4px 0;
+    gap: 4px;
+}
+
+/* Icon buttons (attach, emoji) */
+.input-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms, color 150ms;
+}
+
+.input-icon-btn:hover {
+    background: hsl(var(--muted-foreground) / 0.12);
+    color: hsl(var(--foreground));
+}
+
+.input-icon-btn:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+}
+
+/* Textarea */
+.message-textarea {
+    flex: 1;
+    min-height: 36px;
+    max-height: 200px;
+    padding: 6px 4px;
+    border: none;
+    outline: none;
+    background: transparent;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    color: hsl(var(--foreground));
+    overflow-y: auto;
+}
+
+.message-textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+}
+
+.message-textarea::-webkit-scrollbar {
+    width: 6px;
+}
+
+.message-textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.message-textarea::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+}
+
+.message-textarea::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Send button */
+.send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms, transform 150ms;
+}
+
+.send-btn:hover {
+    background: hsl(var(--primary) / 0.85);
+}
+
+.send-btn:active {
+    transform: scale(0.92);
+}
+
+.send-btn:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+/* Send button enter/leave transition */
+.send-btn-enter-active,
+.send-btn-leave-active {
+    transition: opacity 150ms, transform 150ms;
+}
+
+.send-btn-enter-from {
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+.send-btn-leave-to {
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+/* Mention dropdown */
+.mention-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    max-width: min(100%, 340px);
+    max-height: 200px;
+    margin-bottom: 4px;
+    overflow-y: auto;
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 4px 24px hsl(0 0% 0% / 0.18);
+    z-index: 50;
+    list-style: none;
+    padding: 4px;
+    margin: 0 0 4px;
+}
+
+.mention-dropdown::-webkit-scrollbar {
+    width: 5px;
+}
+
+.mention-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mention-dropdown::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+}
+
+.mention-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: calc(var(--radius) - 2px);
+    cursor: pointer;
+    transition: background 100ms;
+}
+
+.mention-item:hover {
+    background: hsl(var(--muted));
+}
+
+.mention-item-active {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.mention-item-active .mention-username {
+    color: hsl(var(--primary-foreground) / 0.7);
+}
+
+.mention-item-active:hover {
+    background: hsl(var(--primary) / 0.9);
+}
+
+.mention-avatar {
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.mention-info {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.mention-name {
+    font-weight: 500;
     font-size: 13px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
 }
 
+.mention-username {
+    color: hsl(var(--muted-foreground));
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mention transition */
+.mention-pop-enter-active,
+.mention-pop-leave-active {
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.mention-pop-enter-from {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.mention-pop-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+/* Drag overlay */
 .drag-overlay {
     position: absolute;
     inset: 0;
     z-index: 20;
     background: hsl(var(--primary) / 0.08);
     border: 2px dashed hsl(var(--primary));
-    border-radius: 8px;
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1039,5 +1279,7 @@ textarea::-webkit-scrollbar-thumb:hover {
     align-items: center;
     gap: 4px;
     color: hsl(var(--primary));
+    font-size: 13px;
+    font-weight: 500;
 }
 </style>

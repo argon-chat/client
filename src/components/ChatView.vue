@@ -3,28 +3,36 @@
     <!-- Sticky header -->
     <div class="sticky-header">
       <div class="header-top-bar">
-        <h2 class="channel-header">
+        <div class="header-left">
           <component :is="channelType === 'announcement' ? AntennaIcon : HashIcon" class="channel-icon" />
-          <span>{{ channelName }}</span>
-        </h2>
+          <h2 class="channel-name">{{ channelName }}</h2>
+        </div>
         <div class="header-actions">
-          <button class="notification-btn" title="Notification settings">
-            <BellIcon class="w-4.5 h-4.5" />
-          </button>
-          <div class="search-input-wrapper">
-            <SearchIcon class="search-icon" />
+          <div class="search-input-wrapper" :class="{ expanded: searchExpanded }">
+            <SearchIcon class="search-icon-inline" @click="expandSearch" />
             <input 
+              ref="searchInputRef"
               type="text" 
-              placeholder="Search messages..." 
+              :placeholder="t('search_messages') || 'Search...'" 
               class="search-input"
+              @blur="collapseSearch"
+              @keydown.escape="collapseSearch"
             />
           </div>
+          <button class="header-btn" title="Notification settings">
+            <BellIcon class="btn-icon" />
+          </button>
         </div>
       </div>
       <Transition name="typing-slide">
         <div v-if="typingUsers && typingUsers.length > 0"
           class="typing-indicator">
           <div class="typing-bubble">
+            <span class="inline-flex gap-[1px] mr-1.5">
+              <span class="dot"></span>
+              <span class="dot dot2"></span>
+              <span class="dot dot3"></span>
+            </span>
             <span>
               {{
                 typingUsers.length === 1
@@ -34,11 +42,6 @@
                     }) : t("typing.many")
               }}
             </span>
-            <span class="inline-flex gap-[1px] ml-1">
-              <span class="dot"></span>
-              <span class="dot dot2"></span>
-              <span class="dot dot3"></span>
-            </span>
           </div>
         </div>
       </Transition>
@@ -46,11 +49,6 @@
 
     <!-- Messages scroll area -->
     <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
-      <!-- Loading indicator at top -->
-      <div v-if="isLoadingOlder" class="loading-indicator top">
-        <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-
       <div
         v-if="virtualizer?.getTotalSize"
         :style="{
@@ -59,11 +57,10 @@
           position: 'relative',
         }"
       >
+        <!-- Outer div: always updates translateY position. Inner div: v-memo prevents MessageItem re-render on pure scroll -->
         <div
           v-for="item in virtualItems"
           :key="String(item.key)"
-          :ref="(el) => measureItem(el as HTMLElement, item.index)"
-          :data-index="item.index"
           :style="{
             position: 'absolute',
             top: 0,
@@ -73,16 +70,32 @@
           }"
           class="chat-message"
         >
-          <MessageItem
-            :message="messages[item.index]"
-            :get-msg-by-id="getMessageById"
-            @dblclick="() => emit('select-reply', messages[item.index])"
-            @reply="(msg) => emit('select-reply', msg)"
-            @retry="retryMessage"
-          />
+          <div
+            :ref="(el) => measureItem(el as HTMLElement, item.index)"
+            :data-index="item.index"
+            v-memo="[item.key, messages[item.index]?._failed, messages[item.index]?._optimistic, groupingMap[item.index]?.isFirstInGroup, groupingMap[item.index]?.isLastInGroup]"
+          >
+            <MessageItem
+              :message="messages[item.index]"
+              :get-msg-by-id="getMessageById"
+              :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
+              :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
+              :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
+              @dblclick="() => emit('select-reply', messages[item.index])"
+              @reply="(msg) => emit('select-reply', msg)"
+              @retry="retryMessage"
+            />
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Loading older indicator — absolute overlay, not in scroll flow -->
+    <Transition name="scroll-btn">
+      <div v-if="isLoadingOlder" class="loading-indicator-top">
+        <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    </Transition>
 
     <!-- Empty state - outside scroll area -->
     <div v-if="!isLoading && messages.length === 0" class="empty-chat-state">
@@ -130,6 +143,66 @@ import { useChatScroll } from "@/composables/useChatScroll";
 
 const { t } = useLocale();
 
+// Search expand/collapse
+const searchExpanded = ref(false);
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
+const expandSearch = () => {
+  searchExpanded.value = true;
+  nextTick(() => searchInputRef.value?.focus());
+};
+
+const collapseSearch = () => {
+  searchExpanded.value = false;
+};
+
+const GROUP_TIME_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+interface GroupInfo {
+  isGrouped: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+}
+
+// Pre-computed grouping map — recalculates only when messages array changes
+const groupingMap = computed(() => {
+  const msgs = messages.value;
+  const map: GroupInfo[] = new Array(msgs.length);
+
+  for (let i = 0; i < msgs.length; i++) {
+    const msg = msgs[i];
+    if (!msg?.sender) {
+      map[i] = { isGrouped: false, isFirstInGroup: true, isLastInGroup: true };
+      continue;
+    }
+
+    const prev = i > 0 ? msgs[i - 1] : null;
+    const next = i < msgs.length - 1 ? msgs[i + 1] : null;
+
+    const sameSenderAsPrev = !!(prev
+      && prev.sender
+      && prev.sender === msg.sender
+      && !prev._optimistic
+      && msg.timeSent?.date && prev.timeSent?.date
+      && Math.abs(msg.timeSent.date.getTime() - prev.timeSent.date.getTime()) < GROUP_TIME_THRESHOLD_MS);
+
+    const sameSenderAsNext = !!(next
+      && next.sender
+      && next.sender === msg.sender
+      && !msg._optimistic
+      && msg.timeSent?.date && next.timeSent?.date
+      && Math.abs(next.timeSent.date.getTime() - msg.timeSent.date.getTime()) < GROUP_TIME_THRESHOLD_MS);
+
+    map[i] = {
+      isGrouped: sameSenderAsPrev,
+      isFirstInGroup: !sameSenderAsPrev,
+      isLastInGroup: !sameSenderAsNext,
+    };
+  }
+
+  return map;
+});
+
 const props = defineProps<{
   channelId: Guid;
   spaceId?: Guid;
@@ -170,13 +243,11 @@ const {
   virtualizer,
   virtualItems,
   measureItem,
-  shiftMeasuredIndices,
   scrollToBottomImmediate,
   scrollToBottom,
   scrollToIndex,
-  handleScroll: rawHandleScroll,
   onScrollNearTop,
-  resetMeasurements,
+  onScroll: onScrollState,
 } = useChatScroll(
   () => messages.value,
   () => isRestoringScroll.value,
@@ -186,32 +257,20 @@ const {
 onScrollNearTop(() => {
   if (!isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
     loadOlderMessages((count) => {
-      shiftMeasuredIndices(count);
       nextTick(() => scrollToIndex(count));
     });
   }
 });
 
-// Track scroll position for "scrolled up" state
-const onScroll = () => {
-  if (!parentRef.value || isRestoringScroll.value) return;
-  const { scrollTop, scrollHeight, clientHeight } = parentRef.value;
-  const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+// Unified scroll state tracking via the composable's callback
+onScrollState(({ distanceFromBottom }) => {
   const wasScrolledUp = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
 
   if (wasScrolledUp && !isScrolledUp.value) {
     newMessagesCount.value = 0;
   }
-
-  rawHandleScroll();
-};
-
-// Replace the raw scroll with our enhanced one
-if (parentRef.value) {
-  parentRef.value.removeEventListener("scroll", rawHandleScroll as any);
-  parentRef.value.addEventListener("scroll", onScroll, { passive: true });
-}
+});
 
 const onScrollToBottomClick = () => {
   scrollToBottom();
@@ -232,7 +291,6 @@ defineExpose({
 watch(
   () => props.channelId,
   async (newChannelId) => {
-    resetMeasurements();
     // Subscribe BEFORE loading so events during load are captured
     subscribeToNewMessages(newChannelId, () => scrollToBottomImmediate());
     await loadInitialMessages(() => scrollToBottomImmediate());
@@ -264,13 +322,12 @@ onUnmounted(() => {
   padding: 0 2.25rem 8px 2.25rem;
 }
 
-/* Sticky header */
+/* ─── Sticky header ─── */
 .sticky-header {
   position: relative;
   z-index: 10;
   background: hsl(var(--card));
-  border-radius: 15px 15px 0 0;
-  padding: 0 2.25rem;
+  padding: 0 1.5rem;
   flex-shrink: 0;
 }
 
@@ -278,74 +335,51 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid hsl(var(--border) / 0.35);
+  height: 48px;
+  gap: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.25);
 }
 
-.channel-header {
+/* Left: icon + channel name */
+.header-left {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1;
-  color: hsl(var(--foreground));
+  min-width: 0;
 }
 
 .channel-icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground) / 0.65);
 }
 
+.channel-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Right: actions */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 0.625rem;
-  width: 0.875rem;
-  height: 0.875rem;
-  color: hsl(var(--muted-foreground));
-  pointer-events: none;
-}
-
-.search-input {
-  padding: 0.375rem 0.625rem 0.375rem 2rem;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: hsl(var(--foreground));
-  outline: none;
-  transition: border-color 0.2s ease, width 0.2s ease;
-  width: 160px;
-}
-
-.search-input:focus {
-  border-color: hsl(var(--primary) / 0.6);
-  width: 200px;
-}
-
-.search-input::placeholder {
-  color: hsl(var(--muted-foreground) / 0.7);
-}
-
-.notification-btn {
+/* Unified icon button */
+.header-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem;
+  width: 32px;
+  height: 32px;
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -354,11 +388,81 @@ onUnmounted(() => {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.notification-btn:hover {
+.header-btn:hover {
   background: hsl(var(--accent));
   color: hsl(var(--foreground));
 }
 
+.header-btn:active {
+  background: hsl(var(--accent) / 0.7);
+}
+
+.btn-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ─── Expandable search ─── */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: width 0.25s ease, background-color 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.search-input-wrapper.expanded {
+  width: 200px;
+  background: hsl(var(--background));
+  border-color: hsl(var(--border) / 0.45);
+  cursor: default;
+}
+
+.search-icon-inline {
+  position: absolute;
+  left: 0.5rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: hsl(var(--muted-foreground) / 0.6);
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+  cursor: pointer;
+}
+
+.search-input-wrapper:not(.expanded):hover .search-icon-inline {
+  color: hsl(var(--foreground));
+}
+
+.search-input-wrapper:not(.expanded):hover {
+  background: hsl(var(--accent));
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem 0.35rem 1.85rem;
+  background: transparent;
+  border: none;
+  font-size: 0.8rem;
+  color: hsl(var(--foreground));
+  outline: none;
+  opacity: 0;
+  transition: opacity 0.15s ease 0.1s;
+}
+
+.search-input-wrapper.expanded .search-input {
+  opacity: 1;
+}
+
+.search-input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* ─── Typing indicator ─── */
 .typing-indicator {
   position: absolute;
   top: 100%;
@@ -368,49 +472,56 @@ onUnmounted(() => {
 }
 
 .typing-bubble {
-  backdrop-filter: blur(8px);
-  background: hsl(var(--card) / 0.92);
-  border: 1px solid hsl(var(--border) / 0.3);
-  border-radius: 0 0 8px 8px;
-  padding: 0.375rem 0.875rem;
-  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: hsl(var(--card) / 0.88);
+  border: 1px solid hsl(var(--border) / 0.2);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.04);
 }
 
 .dot {
   display: inline-block;
-  width: 3px;
-  height: 3px;
+  width: 3.5px;
+  height: 3.5px;
   background: currentColor;
   border-radius: 50%;
-  animation: dot-flash 1.5s infinite;
+  animation: dot-flash 1.4s infinite;
 }
 
-.dot2 { animation-delay: 0.3s; }
-.dot3 { animation-delay: 0.6s; }
+.dot2 { animation-delay: 0.25s; }
+.dot3 { animation-delay: 0.5s; }
 
 @keyframes dot-flash {
-  0%, 100% { opacity: 0; }
-  20% { opacity: 1; }
+  0%, 80%, 100% { opacity: 0.15; }
+  40% { opacity: 1; }
 }
 
 .typing-slide-enter-active,
 .typing-slide-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .typing-slide-enter-from,
 .typing-slide-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(-6px);
+  transform: translateX(-50%) translateY(-4px);
 }
 
+/* ─── Messages ─── */
 .chat-message {
   word-wrap: break-word;
+  contain: layout style;
 }
 
-/* Scrollbar — always reserved space, subtle appearance */
+/* Scrollbar */
 .messages::-webkit-scrollbar {
   width: 6px;
 }
@@ -420,20 +531,20 @@ onUnmounted(() => {
 }
 
 .messages::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.08);
+  background-color: hsl(var(--foreground) / 0.06);
   border-radius: 3px;
   transition: background-color 0.2s;
 }
 
 .messages:hover::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.18);
+  background-color: hsl(var(--foreground) / 0.14);
 }
 
 .messages::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--foreground) / 0.3);
+  background-color: hsl(var(--foreground) / 0.25);
 }
 
-/* Empty state */
+/* ─── Empty state ─── */
 .empty-chat-state {
   flex: 1;
   display: flex;
@@ -445,22 +556,22 @@ onUnmounted(() => {
 }
 
 .empty-chat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: hsl(var(--muted) / 0.3);
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: hsl(var(--muted) / 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: hsl(var(--muted-foreground) / 0.6);
+  color: hsl(var(--muted-foreground) / 0.45);
 }
 
 .empty-chat-text {
   font-size: 0.82rem;
-  color: hsl(var(--muted-foreground) / 0.7);
+  color: hsl(var(--muted-foreground) / 0.6);
 }
 
-/* Scroll to bottom */
+/* ─── Scroll to bottom ─── */
 .scroll-to-bottom-btn {
   position: absolute;
   bottom: 16px;
@@ -469,20 +580,22 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background-color: hsl(var(--card));
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground) / 0.7);
+  border: 1px solid hsl(var(--border) / 0.35);
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, color 0.15s ease;
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.07);
 }
 
 .scroll-to-bottom-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.12);
+  box-shadow: 0 4px 16px hsl(var(--foreground) / 0.12);
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
 }
 
 .scroll-to-bottom-btn .arrow-icon {
@@ -492,8 +605,8 @@ onUnmounted(() => {
 
 .new-messages-count {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -5px;
+  right: -5px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -507,23 +620,21 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Loading indicator */
-.loading-indicator {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-}
-
-.loading-indicator.top {
-  position: sticky;
+/* ─── Loading overlay ─── */
+.loading-indicator-top {
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
   z-index: 5;
   background: linear-gradient(to bottom, hsl(var(--card)), transparent);
+  pointer-events: none;
 }
 
-/* Scroll button transition */
+/* ─── Transitions ─── */
 .scroll-btn-enter-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -532,10 +643,10 @@ onUnmounted(() => {
 }
 .scroll-btn-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(8px) scale(0.9);
 }
 .scroll-btn-leave-to {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(4px) scale(0.95);
 }
 </style>

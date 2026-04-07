@@ -40,7 +40,6 @@ export { useActivity } from './features/activityStore';
 // System
 export { useAppState } from './system/appState';
 export { useConfig } from './system/remoteConfig';
-export { useFileStorage } from './system/fileStorage';
 export { useLocale } from './system/localeStore';
 export { useSystemStore } from './system/systemStore';
 export { useApi } from './system/apiStore';

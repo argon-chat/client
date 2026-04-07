@@ -5,7 +5,6 @@ import { delay } from "@argon/core";
 import { ref } from "vue";
 import { useTone } from "@/store/media/toneStore";
 import { useAuthStore } from "@/store/auth/authStore";
-import { useFileStorage } from "@/store/system/fileStorage";
 import { useMe } from "@/store/auth/meStore";
 import { usePredictor } from "@/store/media/predictorStore";
 import { useIdleStore } from "@/store/ui/idleStore";
@@ -65,14 +64,8 @@ export const useAppState = defineStore("app", () => {
     await worklets.init();
     await delay(100);
 
-    loadingStep.value = "Creating file storage...";
-    loadingProgress.value = 5;
-    logger.info("Create buckets...");
-    await useFileStorage().initStorages();
-    await delay(100);
-
     loadingStep.value = "Loading configurations...";
-    loadingProgress.value = 6;
+    loadingProgress.value = 5;
     logger.info("Load configurations...");
     await useConfigStore().load();
     await delay(100);

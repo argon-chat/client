@@ -1,5 +1,22 @@
 <template>
-  <div class="image-grid">
+  <!-- Single image: Telegram-style adaptive container, no cropping -->
+  <div
+    v-if="isSingle"
+    class="single-image-wrapper"
+    :style="singleImageStyle"
+    @click="emit('open-lightbox', 0)"
+  >
+    <AttachmentImage
+      :file-id="images[0].fileId"
+      :file-name="images[0].fileName"
+      :width="images[0].width"
+      :height="images[0].height"
+      :thumb-hash="images[0].thumbHash"
+    />
+  </div>
+
+  <!-- Multi-image grid -->
+  <div v-else class="image-grid">
     <div
       v-for="(row, ri) in rows"
       :key="ri"
@@ -38,7 +55,39 @@ const emit = defineEmits<{
   (e: "open-lightbox", index: number): void;
 }>();
 
-/**
+const isSingle = computed(() => props.images.length === 1);
+
+// ─── Single image: Telegram-style sizing ───
+// Container adapts to the image's natural aspect ratio, constrained by max bounds.
+const MAX_SINGLE_HEIGHT = 550;
+
+const singleImageStyle = computed(() => {
+  if (!isSingle.value) return {} as Record<string, string>;
+  const img = props.images[0];
+  const natW = img.width || 300;
+  const natH = img.height || 200;
+  const ar = natW / natH;
+
+  // Compute width so that height stays within MAX_SINGLE_HEIGHT.
+  // Parent already constrains horizontal size (80 % of chat via max-width),
+  // so we only need to handle the height overflow here.
+  let w = natW;
+  let h = w / ar;
+
+  if (h > MAX_SINGLE_HEIGHT) {
+    h = MAX_SINGLE_HEIGHT;
+    w = h * ar;
+  }
+
+  return {
+    width: Math.round(w) + 'px',
+    maxWidth: '100%',
+    aspectRatio: `${natW} / ${natH}`,
+    maxHeight: MAX_SINGLE_HEIGHT + 'px',
+  };
+});
+
+/* ─── Multi-image grid ───
  * Split images into rows.
  * Strategy: distribute N images into rows of 2-3 to keep cells roughly square.
  * 1 → [1], 2 → [2], 3 → [3], 4 → [2,2], 5 → [3,2], 6 → [3,3],
@@ -102,12 +151,42 @@ function flatIndex(rowIndex: number, colIndex: number): number {
 </script>
 
 <style scoped>
+/* ─── Single image: adaptive, no crop ─── */
+.single-image-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.single-image-wrapper:hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: hsl(0 0% 100% / 0.08);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.single-image-wrapper :deep(.attachment-image) {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  min-height: auto;
+}
+
+.single-image-wrapper :deep(.actual-image) {
+  object-fit: contain;
+}
+
+/* ─── Multi-image grid ─── */
 .image-grid {
   display: flex;
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  max-width: 420px;
+  max-width: calc(var(--chat-width, 600px) * 0.8);
   border-radius: 8px;
   overflow: hidden;
 }

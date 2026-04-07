@@ -56,7 +56,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityAttachment } from "@argon/glue";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   images: MessageEntityAttachment[];
@@ -69,7 +69,6 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const fileStorage = useFileStorage();
 const overlayRef = ref<HTMLElement | null>(null);
 const currentIndex = ref(props.initialIndex ?? 0);
 const imageLoaded = ref(false);
@@ -102,11 +101,9 @@ async function loadImage(fileId: string) {
   }
   currentSrc.value = null;
   imageLoaded.value = false;
-  const url = await fileStorage.fetchAttachmentByFileId(fileId);
-  if (url && url !== fileStorage.FAILED_ADDRESS) {
-    srcCache.set(fileId, url);
-    currentSrc.value = url;
-  }
+  const url = cdnUrl(fileId);
+  srcCache.set(fileId, url);
+  currentSrc.value = url;
 }
 
 watch(() => props.isOpen, async (open) => {

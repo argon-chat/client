@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { Avatar, AvatarFallback } from "@argon/ui/avatar";
 import { Skeleton } from "@argon/ui/skeleton";
-import { computed, toRef, inject, type HTMLAttributes } from "vue";
-import { useAvatarBlob } from "./useAvatarBlob";
-import { AvatarFileStorageKey } from "./types";
+import { computed, ref, type HTMLAttributes } from "vue";
+
+const isNative = typeof window !== "undefined" && "argonIpc" in window;
+function cdnUrl(fileId: string): string {
+  if (isNative) return `app://cdn/${fileId}`;
+  return `https://cdn.argon.gl/${fileId}`;
+}
 
 const props = withDefaults(
   defineProps<{
@@ -20,31 +24,13 @@ const props = withDefaults(
   },
 );
 
-const fileIdRef = toRef(props, "fileId");
-const userIdRef = toRef(props, "userId");
-const spaceIdRef = toRef(props, "spaceId");
-
-// Determine the owner ID and type based on what's provided
-const ownerId = computed(() => {
-  if (props.spaceId) return props.spaceId;
-  if (props.userId) return props.userId;
-  if (props.serverId) return props.serverId;
-  return null;
+const avatarSrc = computed(() => {
+  if (!props.fileId) return null;
+  return cdnUrl(props.fileId);
 });
 
-const avatarType = computed<"user" | "server">(() => {
-  if (props.spaceId || props.serverId) return "server";
-  return "user";
-});
-
-const fileStorage = inject(AvatarFileStorageKey);
-
-const { loaded, loading, blobSrc } = useAvatarBlob(
-  fileIdRef,
-  ownerId,
-  avatarType,
-  fileStorage,
-);
+const loaded = ref(false);
+const loading = computed(() => !!avatarSrc.value && !loaded.value);
 
 const size = computed(() =>
   props.overridedSize ? `${props.overridedSize}px` : null,
@@ -72,9 +58,8 @@ const avatarStyle = computed(() => {
 <template>
   <keep-alive :max="10" :key="props.fileId!">
     <Avatar :class="['!bg-transparent', props.class]" :key="props.fileId!" :style="{ width: size, height: size, ...avatarStyle }">
-      <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
-      <video v-else-if="loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc" disablePictureInPicture
-        controlslist="nodownload nofullscreen noremoteplayback" />
+      <Skeleton v-if="loading && !loaded" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
+      <img v-else-if="avatarSrc" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" />
       <AvatarFallback v-else>
         {{ emojiFallback }}
       </AvatarFallback>

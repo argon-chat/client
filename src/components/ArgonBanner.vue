@@ -11,12 +11,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, type HTMLAttributes } from "vue";
-import { useFileStorage } from "@/store/system/fileStorage";
-import { logger } from "@argon/core";
+import { cdnUrl } from "@/store/system/fileStorage";
 const loaded = ref(false);
 const loading = ref(true);
 const blobSrc = ref("");
-const fileStorage = useFileStorage();
 const props = withDefaults(
   defineProps<{
     class?: HTMLAttributes["class"];
@@ -32,10 +30,7 @@ watch(
     if (!props.userId) return;
     if (!props.fileId) return;
 
-    blobSrc.value = await fileStorage.fetchUserAvatar(
-      props.fileId,
-      props.userId,
-    );
+    blobSrc.value = cdnUrl(props.fileId);
     loaded.value = true;
   },
 );
@@ -45,24 +40,14 @@ onMounted(async () => {
     if (!props.fileId) {
       loading.value = false;
       loaded.value = false;
-      blobSrc.value = fileStorage.FAILED_ADDRESS;
       return;
     }
 
-    blobSrc.value = await fileStorage.fetchUserAvatar(
-      props.fileId,
-      props.userId,
-    );
-    if (blobSrc.value === fileStorage.FAILED_ADDRESS) {
-      loading.value = false;
-      loaded.value = false;
-    } else {
-      loading.value = false;
-      loaded.value = true;
-    }
+    blobSrc.value = cdnUrl(props.fileId);
+    loading.value = false;
+    loaded.value = true;
     return;
   }
-  logger.error("no no no mister fish");
 });
 </script>
 <style scoped></style>

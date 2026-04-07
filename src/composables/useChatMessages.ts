@@ -54,6 +54,38 @@ export function useChatMessages(
   // Timers for orphaned optimistic cleanup
   const optimisticTimers = new Map<bigint, ReturnType<typeof setTimeout>>();
 
+  // Batch incoming messages to avoid multiple array rebuilds per frame
+  let pendingIncoming: { msg: ArgonMessage; onNewMessage: () => void }[] = [];
+  let batchFlushScheduled = false;
+
+  const flushPendingMessages = () => {
+    batchFlushScheduled = false;
+    if (pendingIncoming.length === 0) return;
+
+    const batch = pendingIncoming.splice(0);
+    const newMsgs = batch.map((b) => b.msg);
+    messages.value = [...messages.value, ...newMsgs];
+
+    // Handle scroll/notification for the last message in batch
+    const lastEntry = batch[batch.length - 1];
+    const lastMsg = lastEntry.msg;
+    if (lastMsg.sender === me.me?.userId) {
+      nextTick(lastEntry.onNewMessage);
+    } else if (isScrolledUp.value) {
+      newMessagesCount.value += batch.filter((b) => b.msg.sender !== me.me?.userId).length;
+    } else {
+      nextTick(lastEntry.onNewMessage);
+    }
+  };
+
+  const queueIncomingMessage = (msg: ArgonMessage, onNewMessage: () => void) => {
+    pendingIncoming.push({ msg, onNewMessage });
+    if (!batchFlushScheduled) {
+      batchFlushScheduled = true;
+      requestAnimationFrame(flushPendingMessages);
+    }
+  };
+
   const oldestMessageId = computed(() => {
     if (messages.value.length === 0) return null;
     return messages.value[0].messageId;
@@ -91,7 +123,9 @@ export function useChatMessages(
         messages.value = [...cachedOlder, ...messages.value];
         onPrepend(cachedOlder.length);
         isLoadingOlder.value = false;
-        setTimeout(() => { isRestoringScroll.value = false; }, 200);
+        nextTick(() => {
+          requestAnimationFrame(() => { isRestoringScroll.value = false; });
+        });
         return;
       }
 
@@ -123,7 +157,9 @@ export function useChatMessages(
       logger.error("Failed to load older messages:", error);
     } finally {
       isLoadingOlder.value = false;
-      setTimeout(() => { isRestoringScroll.value = false; }, 200);
+      nextTick(() => {
+        requestAnimationFrame(() => { isRestoringScroll.value = false; });
+      });
     }
   };
 
@@ -243,19 +279,13 @@ export function useChatMessages(
 
       // Normal new message from others or self (not yet resolved by readback)
       await pool.cacheMessage(e);
-      messages.value = [...messages.value, e];
 
       if (e.entities?.filter(filterMention).find((x) => x.userId === me.me?.userId)) {
         tone.playNotificationSound();
       }
 
-      if (e.sender === me.me?.userId) {
-        nextTick(onNewMessage);
-      } else if (isScrolledUp.value) {
-        newMessagesCount.value++;
-      } else {
-        nextTick(onNewMessage);
-      }
+      // Batch incoming messages to avoid multiple array rebuilds per frame
+      queueIncomingMessage(e, onNewMessage);
     });
   };
 

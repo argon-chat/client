@@ -1,13 +1,11 @@
 <script setup lang="ts">
 // Unified avatar component: supports both direct fileId and userId-based auto-fetch
-import { Avatar, AvatarFallback, AvatarImage } from "@argon/ui/avatar";
+import { Avatar, AvatarFallback } from "@argon/ui/avatar";
 import { Skeleton } from "@argon/ui/skeleton";
 import { computed, ref, toRef, watch, type HTMLAttributes } from "vue";
-import { useAvatarBlob } from "@argon/avatar";
-import { useFileStorage } from "@/store/system/fileStorage";
+import { cdnUrl } from "@/store/system/fileStorage";
 import { useUserColors } from "@/store/chat/userColors";
 import { usePoolStore } from "@/store/data/poolStore";
-import { logger } from "@argon/core";
 
 const props = withDefaults(
   defineProps<{
@@ -26,18 +24,12 @@ const props = withDefaults(
   },
 );
 
-const fileStorage = useFileStorage();
 const userColors = useUserColors();
 const pool = usePoolStore();
 
 // --- Smart mode: when only userId is provided (no fileId) ---
 const isSmartMode = computed(() => props.userId && props.fileId === undefined);
 const user = isSmartMode.value ? pool.getUserReactive(toRef(props, "userId")) : ref(null);
-
-const smartLoading = ref(isSmartMode.value);
-const smartLoaded = ref(false);
-const smartBlobSrc = ref("");
-const smartFallbackLetter = ref("?");
 
 const isCallUser = computed(() =>
   props.userId?.toLocaleUpperCase()?.startsWith("CFFFFFFF") ?? false
@@ -49,81 +41,45 @@ const isGuestUser = computed(() =>
 
 const isSipUser = computed(() => isCallUser.value);
 
-if (isSmartMode.value) {
-  watch(
-    () => user.value?.avatarFileId,
-    async (fileId) => {
-      smartLoading.value = true;
-      smartLoaded.value = false;
+// --- Build avatar src directly from fileId ---
+const avatarFileId = computed(() => {
+  if (isSmartMode.value) return user.value?.avatarFileId ?? null;
+  return props.fileId ?? null;
+});
 
-      if (!fileId) {
-        smartBlobSrc.value = fileStorage.FAILED_ADDRESS;
-        smartFallbackLetter.value =
-          user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
-        smartLoading.value = false;
-        return;
-      }
+const avatarSrc = computed(() => {
+  if (!avatarFileId.value) return null;
+  return cdnUrl(avatarFileId.value);
+});
 
-      try {
-        smartFallbackLetter.value = isGuestUser.value
-          ? "👤"
-          : isCallUser.value
-            ? "📞"
-            : (user.value?.displayName?.at(0)?.toUpperCase() ?? "?");
+const loaded = ref(false);
+const loading = computed(() => !!avatarFileId.value && !loaded.value);
 
-        const src = await fileStorage.fetchUserAvatar(fileId, props.userId!);
-        smartBlobSrc.value = src;
-        smartLoaded.value = src !== fileStorage.FAILED_ADDRESS;
-      } catch (e) {
-        logger.error("Error loading avatar:", e);
-        smartBlobSrc.value = fileStorage.FAILED_ADDRESS;
-        smartFallbackLetter.value = isGuestUser.value ? "👤" : isCallUser.value ? "📞" : "?";
-        smartLoaded.value = false;
-      } finally {
-        smartLoading.value = false;
-      }
-    },
-    { immediate: true },
-  );
+// Reset loaded state when src changes
+watch(avatarSrc, () => { loaded.value = false; imgFailed.value = false; });
+
+const imgFailed = ref(false);
+function onImgError() {
+  imgFailed.value = true;
+  loaded.value = false;
 }
-
-// --- Direct mode: when fileId is provided ---
-const fileIdRef = computed(() => props.fileId ?? null);
-
-const ownerId = computed(() => {
-  if (props.spaceId) return props.spaceId;
-  if (props.userId) return props.userId;
-  if (props.serverId) return props.serverId;
-  return null;
-});
-
-const avatarType = computed<"user" | "server">(() => {
-  if (props.spaceId || props.serverId) return "server";
-  return "user";
-});
-
-const directBlob = !isSmartMode.value
-  ? useAvatarBlob(fileIdRef, ownerId, avatarType, fileStorage)
-  : { loaded: ref(false), loading: ref(false), blobSrc: ref("") };
-
-// --- Unified API ---
-const loading = computed(() => isSmartMode.value ? smartLoading.value : directBlob.loading.value);
-const loaded = computed(() => isSmartMode.value ? smartLoaded.value : directBlob.loaded.value);
-const blobSrc = computed(() => isSmartMode.value ? smartBlobSrc.value : directBlob.blobSrc.value);
 
 const size = computed(() =>
   props.overridedSize ? (props.overridedSize === 'auto' ? 'auto' : `${props.overridedSize}px`) : null,
 );
 
 const fallbackLetter = computed(() => {
-  if (isSmartMode.value) return smartFallbackLetter.value;
+  if (isSmartMode.value) {
+    if (isGuestUser.value) return "👤";
+    if (isCallUser.value) return "📞";
+    return user.value?.displayName?.at(0)?.toUpperCase() ?? "?";
+  }
   if (isSipUser.value) return "📞";
   return props.fallback?.at(0)?.toUpperCase() ?? "?";
 });
 
 const avatarRootStyle = computed(() => {
   if (loading.value || loaded.value) {
-    // For smart mode: show colored bg for guest/call users even when loading
     if (isSmartMode.value) {
       if (isGuestUser.value) return { backgroundColor: "#8b5cf6", color: "white" };
       if (isCallUser.value) return { backgroundColor: "#ff8b00", color: "white" };
@@ -131,7 +87,6 @@ const avatarRootStyle = computed(() => {
     return {};
   }
 
-  // Fallback colors
   if (isGuestUser.value) return { backgroundColor: "#8b5cf6", color: "white" };
   if (isCallUser.value || isSipUser.value) return { backgroundColor: "#ff8b00", color: "white" };
 
@@ -147,9 +102,7 @@ const avatarRootStyle = computed(() => {
 <template>
   <keep-alive :max="10" :key="fileId ?? userId ?? ''">
     <Avatar :class="[props.class]" :key="fileId ?? userId ?? ''" :style="{ width: size, height: size, ...avatarRootStyle }">
-      <Skeleton v-if="loading" :class="props.class" style="height: 100%; width: 100%; background-color: #494949;" />
-      <video v-else-if="loaded" playsinline autoplay muted loop :poster="blobSrc" :src="blobSrc" disablePictureInPicture
-        controlslist="nodownload nofullscreen noremoteplayback" />
+      <img v-if="avatarSrc && !imgFailed" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
       <AvatarFallback v-else>
         {{ fallbackLetter }}
       </AvatarFallback>
