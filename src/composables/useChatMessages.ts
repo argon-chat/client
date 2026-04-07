@@ -187,14 +187,6 @@ export function useChatMessages(
         messages.value = [];
       }
 
-      // Step 10: Skip API if cache is fresh (has enough messages)
-      if (cachedMessages.length >= MESSAGES_PER_LOAD) {
-        if (cachedMessages.length < MESSAGES_PER_LOAD) {
-          hasReachedEnd.value = true;
-        }
-        return;
-      }
-
       const initialMessages = await api.channelInteraction.QueryMessages(
         spaceId()!,
         channelId(),
@@ -234,6 +226,8 @@ export function useChatMessages(
     onNewMessage: () => void,
   ) => {
     subs.value?.unsubscribe();
+    pendingIncoming = [];
+    batchFlushScheduled = false;
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
       if (chId !== e.channelId) return;

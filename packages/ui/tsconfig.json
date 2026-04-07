@@ -6,8 +6,10 @@
     "paths": {
       "@argon/core": ["../core/src"],
       "@argon/core/*": ["../core/src/*"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts", "src/**/*.vue"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "ignoreDeprecations": "6.0"
 }
