@@ -37,26 +37,39 @@ export function useLinuxUpdateChecker() {
   async function check() {
     if (!isLinux) return;
 
+    logger.log("Checking for Linux updates...");
+
     try {
       const res = await fetch(UPDATE_CHECK_URL, { cache: "no-cache" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        logger.warn(`Linux update check failed: ${res.status} ${res.statusText}`);
+        return;
+      }
 
       const text = (await res.text()).trim();
-      if (!text) return;
+      if (!text) {
+        logger.warn("Linux update check returned empty response");
+        return;
+      }
 
       latestDebPath.value = text;
       const remoteVersion = extractVersion(text);
-      if (!remoteVersion) return;
+      if (!remoteVersion) {
+        logger.warn(`Failed to extract version from deb path: ${text}`);
+        return;
+      }
+
+      logger.log(`Latest Linux version: ${remoteVersion} != ${currentVersion.value}`);
 
       latestVersion.value = remoteVersion;
 
       const local = currentVersion.value;
-      if (local && local !== "{{version}}" && local !== remoteVersion) {
+      if (local && local !== remoteVersion) {
         hasUpdate.value = true;
         logger.info(`Linux update available: ${local} → ${remoteVersion}`);
       }
     } catch (e) {
-      logger.trace("Linux update check failed", e);
+      logger.log("Linux update check failed", e);
     }
   }
 
