@@ -5,6 +5,7 @@
     "": {
       "name": "ui",
       "dependencies": {
+        "@argon-chat/emojix": "^0.2.0",
         "@argon-chat/ion.webcore": "^1.1.21",
         "@argon/assets": "workspace:*",
         "@argon/audio": "workspace:*",
@@ -295,6 +296,8 @@
     "@antfu/install-pkg": ["@antfu/install-pkg@1.1.0", "", { "dependencies": { "package-manager-detector": "^1.3.0", "tinyexec": "^1.0.1" } }, "sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ=="],
 
     "@antfu/utils": ["@antfu/utils@9.3.0", "", {}, "sha512-9hFT4RauhcUzqOE4f1+frMKLZrgNog5b06I7VmZQV1BkvwvqrbC8EBZf3L1eEL2AKb6rNKjER0sEvJiSP1FXEA=="],
+
+    "@argon-chat/emojix": ["@argon-chat/emojix@0.2.0", "", { "peerDependencies": { "vue": "^3.4.0" } }, "sha512-+z1EkO09PfZfYtgybOk8PnuCeh9EtsoHDP4PWTjB52U5GysyK07NSS8CA2rkC3lcXGnaAF1tGi2LTdyJhtYTQg=="],
 
     "@argon-chat/ion.webcore": ["@argon-chat/ion.webcore@1.1.21", "", {}, "sha512-BT5K+QRVQH+PagsGh5PLaOpeHwLbLrxIZU902EXKfRKS1RnOyXm8KNllIowOgJvpi3RsVM3CLIWkeVB4SxmqmA=="],
 

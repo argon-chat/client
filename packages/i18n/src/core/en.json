@@ -877,5 +877,24 @@
   "trophy_coin_year_2026_coin_name": "Trophy: 2026 Year Coin",
   "trophy_coin_year_2026_coin_desc": "An exclusive trophy coin awarded to its creator, commemorating their achievements in 2026.",
   "trophy_coin_secret_impact_1_name": "Trophy: Secret Impact Coin",
-  "trophy_coin_secret_impact_1_desc": "A legendary trophy coin granted to its original creator for their mysterious and impactful work."
+  "trophy_coin_secret_impact_1_desc": "A legendary trophy coin granted to its original creator for their mysterious and impactful work.",
+
+  "bots_manage": "Manage Bots",
+  "bots_manage_description": "Search, install and manage bots for your server",
+  "bots_search": "Search",
+  "bots_installed": "Installed",
+  "bots_search_placeholder": "Search bots by name...",
+  "bots_no_results": "No bots found",
+  "bots_none_installed": "No bots installed yet",
+  "bots_install": "Install",
+  "bots_uninstall": "Remove",
+  "bots_install_success": "Bot installed successfully",
+  "bots_uninstall_success": "Bot removed successfully",
+  "bots_error_not_found": "Bot not found",
+  "bots_error_already_installed": "Bot is already installed",
+  "bots_error_insufficient_permissions": "Insufficient permissions",
+  "bots_error_space_limit": "Bot has reached its server limit",
+  "bots_error_restricted": "This bot is restricted",
+  "bots_error_not_installed": "Bot is not installed",
+  "bots_error_unknown": "An unknown error occurred"
 }

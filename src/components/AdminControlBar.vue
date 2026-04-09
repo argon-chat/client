@@ -11,8 +11,8 @@
                 <button @click="addGroupOpened = true">
                     <FolderPlusIcon class="w-5 h-5" />
                 </button>
-                <button disabled>
-                    <NotebookTabsIcon class="w-5 h-5" />
+                <button @click="manageBotsOpened = true">
+                    <BotIcon class="w-5 h-5" />
                 </button>
                 <button disabled>
                     <UsersIcon class="w-5 h-5" />
@@ -33,6 +33,11 @@
       v-model:open="addGroupOpened"
       :selected-space="selectedSpaceId"
     />
+
+    <ManageBots
+      v-model:open="manageBotsOpened"
+      :selected-space="selectedSpaceId"
+    />
 </template>
 
 <script setup lang="ts">
@@ -40,7 +45,7 @@ import {
     SettingsIcon,
     CirclePlusIcon,
     ShieldCheck,
-    NotebookTabsIcon,
+    BotIcon,
     UsersIcon,
     FolderPlusIcon,
 } from "lucide-vue-next";
@@ -54,6 +59,7 @@ import { usePexStore } from "@/store/data/permissionStore";
 import { shallowRef, onUnmounted } from "vue";
 import AddChannel from "./modals/AddChannel.vue";
 import AddChannelGroup from "./modals/AddChannelGroup.vue";
+import ManageBots from "./modals/ManageBots.vue";
 
 const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
@@ -63,6 +69,7 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 const me = useMe();
 const windows = useWindow();
 const addChannelOpened = shallowRef(false);
+const manageBotsOpened = shallowRef(false);
 const addGroupOpened = shallowRef(false);
 const pex = usePexStore();
 

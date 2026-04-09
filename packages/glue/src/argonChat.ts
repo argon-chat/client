@@ -85,6 +85,61 @@ export interface Archetype {
 };
 
 
+export interface BotSearchResult {
+  appId: guid;
+  name: string;
+  username: string;
+  description: string | null;
+  avatarFileId: string | null;
+  isVerified: bool;
+  requiredScopes: IonArray<string>;
+};
+
+
+export interface BotDetails {
+  appId: guid;
+  name: string;
+  username: string;
+  description: string | null;
+  avatarFileId: string | null;
+  isVerified: bool;
+  isPublic: bool;
+  requiredScopes: IonArray<string>;
+  maxSpaces: i4;
+  teamName: string;
+};
+
+
+export interface InstalledBotInfo {
+  appId: guid;
+  name: string;
+  username: string;
+  avatarFileId: string | null;
+  isVerified: bool;
+  botUserId: guid;
+};
+
+
+export enum InstallBotError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  ALREADY_INSTALLED = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  BOT_SPACE_LIMIT = 4,
+  BOT_RESTRICTED = 5,
+}
+
+
+export enum UninstallBotError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  NOT_INSTALLED = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+}
+
+
 export interface CreateChannelRequest {
   spaceId: guid;
   name: string;
@@ -860,6 +915,210 @@ export enum DialCheckFailReason
   INSUFFICIENT_POOL = 4,
   UNKNOWN_ERROR = 5,
 }
+
+
+
+export abstract class IInstallBotResult implements IIonUnion<IInstallBotResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessInstallBot(): this is SuccessInstallBot {
+    return this.UnionKey === "SuccessInstallBot";
+  }
+  public isFailedInstallBot(): this is FailedInstallBot {
+    return this.UnionKey === "FailedInstallBot";
+  }
+
+}
+
+
+export class SuccessInstallBot extends IInstallBotResult
+{
+  constructor(public bot: InstalledBotInfo) { super(); }
+
+  UnionKey: string = "SuccessInstallBot";
+  UnionIndex: number = 0;
+}
+
+export class FailedInstallBot extends IInstallBotResult
+{
+  constructor(public error: InstallBotError) { super(); }
+
+  UnionKey: string = "FailedInstallBot";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IInstallBotResult", {
+  read(reader: CborReader): IInstallBotResult {
+    reader.readStartArray();
+    let value: IInstallBotResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessInstallBot>("SuccessInstallBot").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedInstallBot>("FailedInstallBot").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IInstallBotResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessInstallBot>("SuccessInstallBot").write(writer, value as SuccessInstallBot);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedInstallBot>("FailedInstallBot").write(writer, value as FailedInstallBot);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessInstallBot", {
+  read(reader: CborReader): SuccessInstallBot {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const bot = IonFormatterStorage.get<InstalledBotInfo>('InstalledBotInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessInstallBot(bot);
+  },
+  write(writer: CborWriter, value: SuccessInstallBot): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InstalledBotInfo>('InstalledBotInfo').write(writer, value.bot);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedInstallBot", {
+  read(reader: CborReader): FailedInstallBot {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<InstallBotError>('InstallBotError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedInstallBot(error);
+  },
+  write(writer: CborWriter, value: FailedInstallBot): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InstallBotError>('InstallBotError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUninstallBotResult implements IIonUnion<IUninstallBotResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUninstallBot(): this is SuccessUninstallBot {
+    return this.UnionKey === "SuccessUninstallBot";
+  }
+  public isFailedUninstallBot(): this is FailedUninstallBot {
+    return this.UnionKey === "FailedUninstallBot";
+  }
+
+}
+
+
+export class SuccessUninstallBot extends IUninstallBotResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessUninstallBot";
+  UnionIndex: number = 0;
+}
+
+export class FailedUninstallBot extends IUninstallBotResult
+{
+  constructor(public error: UninstallBotError) { super(); }
+
+  UnionKey: string = "FailedUninstallBot";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUninstallBotResult", {
+  read(reader: CborReader): IUninstallBotResult {
+    reader.readStartArray();
+    let value: IUninstallBotResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUninstallBot>("SuccessUninstallBot").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUninstallBot>("FailedUninstallBot").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IUninstallBotResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUninstallBot>("SuccessUninstallBot").write(writer, value as SuccessUninstallBot);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUninstallBot>("FailedUninstallBot").write(writer, value as FailedUninstallBot);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUninstallBot", {
+  read(reader: CborReader): SuccessUninstallBot {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessUninstallBot();
+  },
+  write(writer: CborWriter, value: SuccessUninstallBot): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUninstallBot", {
+  read(reader: CborReader): FailedUninstallBot {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<UninstallBotError>('UninstallBotError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUninstallBot(error);
+  },
+  write(writer: CborWriter, value: FailedUninstallBot): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UninstallBotError>('UninstallBotError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
 
 
 
@@ -6320,6 +6579,110 @@ IonFormatterStorage.register("Archetype", {
   }
 });
 
+IonFormatterStorage.register("BotSearchResult", {
+  read(reader: CborReader): BotSearchResult {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const appId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const requiredScopes = IonFormatterStorage.readArray<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { appId, name, username, description, avatarFileId, isVerified, requiredScopes };
+  },
+  write(writer: CborWriter, value: BotSearchResult): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.writeArray<string>(writer, value.requiredScopes, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BotDetails", {
+  read(reader: CborReader): BotDetails {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const appId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isPublic = IonFormatterStorage.get<bool>('bool').read(reader);
+    const requiredScopes = IonFormatterStorage.readArray<string>(reader, 'string');
+    const maxSpaces = IonFormatterStorage.get<i4>('i4').read(reader);
+    const teamName = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { appId, name, username, description, avatarFileId, isVerified, isPublic, requiredScopes, maxSpaces, teamName };
+  },
+  write(writer: CborWriter, value: BotDetails): void {
+    writer.writeStartArray(10);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isPublic);
+    IonFormatterStorage.writeArray<string>(writer, value.requiredScopes, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxSpaces);
+    IonFormatterStorage.get<string>('string').write(writer, value.teamName);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InstalledBotInfo", {
+  read(reader: CborReader): InstalledBotInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const appId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const botUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { appId, name, username, avatarFileId, isVerified, botUserId };
+  },
+  write(writer: CborWriter, value: InstalledBotInfo): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.botUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InstallBotError", {
+  read(reader: CborReader): InstallBotError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return InstallBotError[num] !== undefined ? num as InstallBotError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: InstallBotError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UninstallBotError", {
+  read(reader: CborReader): UninstallBotError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UninstallBotError[num] !== undefined ? num as UninstallBotError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UninstallBotError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ChannelType", {
   read(reader: CborReader): ChannelType {
     const num = (IonFormatterStorage.get<u2>('u2').read(reader))
@@ -7726,6 +8089,18 @@ export interface IArchetypeInteraction extends IIonService
 
 
 
+export interface IBotManagementInteraction extends IIonService
+{
+  SearchBots(spaceId: guid, query: string): Promise<IonArray<BotSearchResult>>;
+  GetBotDetails(spaceId: guid, botAppId: guid): Promise<BotDetails>;
+  GetInstalledBots(spaceId: guid): Promise<IonArray<InstalledBotInfo>>;
+  InstallBot(spaceId: guid, botAppId: guid): Promise<IInstallBotResult>;
+  UninstallBot(spaceId: guid, botAppId: guid): Promise<IUninstallBotResult>;
+}
+
+
+
+
 export interface IChannelInteraction extends IIonService
 {
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
@@ -7942,6 +8317,18 @@ export interface IArchetypeInteraction extends IIonService
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
+}
+
+
+
+
+export interface IBotManagementInteraction extends IIonService
+{
+  SearchBots(spaceId: guid, query: string): Promise<IonArray<BotSearchResult>>;
+  GetBotDetails(spaceId: guid, botAppId: guid): Promise<BotDetails>;
+  GetInstalledBots(spaceId: guid): Promise<IonArray<InstalledBotInfo>>;
+  InstallBot(spaceId: guid, botAppId: guid): Promise<IInstallBotResult>;
+  UninstallBot(spaceId: guid, botAppId: guid): Promise<IUninstallBotResult>;
 }
 
 
@@ -8261,6 +8648,86 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
 }
 
 IonFormatterStorage.registerClientExecutor<IArchetypeInteraction>('ArchetypeInteraction', ArchetypeInteraction_Executor);
+
+export class BotManagementInteraction_Executor extends ServiceExecutor<IBotManagementInteraction> implements IBotManagementInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async SearchBots(spaceId: guid, query: string): Promise<IonArray<BotSearchResult>> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "SearchBots");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, query);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<BotSearchResult>>("IonArray<BotSearchResult>", writer.data, this.signal);
+  }
+  async GetBotDetails(spaceId: guid, botAppId: guid): Promise<BotDetails> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "GetBotDetails");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, botAppId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<BotDetails>("BotDetails", writer.data, this.signal);
+  }
+  async GetInstalledBots(spaceId: guid): Promise<IonArray<InstalledBotInfo>> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "GetInstalledBots");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<InstalledBotInfo>>("IonArray<InstalledBotInfo>", writer.data, this.signal);
+  }
+  async InstallBot(spaceId: guid, botAppId: guid): Promise<IInstallBotResult> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "InstallBot");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, botAppId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IInstallBotResult>("IInstallBotResult", writer.data, this.signal);
+  }
+  async UninstallBot(spaceId: guid, botAppId: guid): Promise<IUninstallBotResult> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "UninstallBot");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, botAppId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUninstallBotResult>("IUninstallBotResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IBotManagementInteraction>('BotManagementInteraction', BotManagementInteraction_Executor);
 
 export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInteraction> implements IChannelInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -10078,6 +10545,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
       get(_target, propKey) {
         if (typeof propKey !== "string") return undefined;
         if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, controller.signal);
+        if (propKey === "BotManagementInteraction") return IonFormatterStorage.createExecutor("BotManagementInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
@@ -10098,6 +10566,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     }
   ) as {
     ArchetypeInteraction: IArchetypeInteraction;
+    BotManagementInteraction: IBotManagementInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
     FeatureFlagInteractions: IFeatureFlagInteractions;

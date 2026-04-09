@@ -854,6 +854,24 @@
   "item_coin_argxstaff_name": "Монета: Argon Staff",
   "item_coin_argxstaff_desc": "Знак верности, вручаемый тем, кто связал свою судьбу с Великой Компанией. Его блеск не тускнеет даже в глубочайшей тьме.",
   "item_coin_argon_contributor_name": "Монета: Argon Contributor",
-  "item_coin_argon_contributor_desc": "Знак тех, чьи строки стали кирпичами фундамента."
+  "item_coin_argon_contributor_desc": "Знак тех, чьи строки стали кирпичами фундамента.",
 
+  "bots_manage": "Управление ботами",
+  "bots_manage_description": "Поиск, установка и управление ботами сервера",
+  "bots_search": "Поиск",
+  "bots_installed": "Установленные",
+  "bots_search_placeholder": "Поиск ботов по имени...",
+  "bots_no_results": "Боты не найдены",
+  "bots_none_installed": "Пока нет установленных ботов",
+  "bots_install": "Установить",
+  "bots_uninstall": "Удалить",
+  "bots_install_success": "Бот успешно установлен",
+  "bots_uninstall_success": "Бот успешно удалён",
+  "bots_error_not_found": "Бот не найден",
+  "bots_error_already_installed": "Бот уже установлен",
+  "bots_error_insufficient_permissions": "Недостаточно прав",
+  "bots_error_space_limit": "Бот достиг лимита серверов",
+  "bots_error_restricted": "Этот бот ограничен",
+  "bots_error_not_installed": "Бот не установлен",
+  "bots_error_unknown": "Произошла неизвестная ошибка"
 }
