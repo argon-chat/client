@@ -202,6 +202,56 @@ export interface AttachmentInfo {
 };
 
 
+export interface SlashCommandOption {
+  name: string;
+  value: string;
+};
+
+
+export interface ModalSubmitValue {
+  customId: string;
+  value: string;
+};
+
+
+export interface IonModalSelectOption {
+  label: string;
+  value: string;
+  description: string | null;
+  emoji: string | null;
+};
+
+
+export interface IonModalComponent {
+  type: IonModalComponentType;
+  customId: string;
+  label: string;
+  style: IonTextInputStyle | null;
+  placeholder: string | null;
+  minLength: i4 | null;
+  maxLength: i4 | null;
+  required: bool | null;
+  value: string | null;
+  options: MultipleModalSelectOption | null;
+  minValues: i4 | null;
+  maxValues: i4 | null;
+  defaultChecked: bool | null;
+  description: string | null;
+};
+
+
+export interface MultipleModalSelectOption {
+  options: IonArray<IonModalSelectOption>;
+};
+
+
+export interface IonModalDefinition {
+  customId: string;
+  title: string;
+  components: IonArray<IonModalComponent>;
+};
+
+
 export interface SendMessageReadback {
   messageId: i8;
   channelId: guid;
@@ -319,11 +369,79 @@ export enum EntityType
 }
 
 
+export enum InvokeSlashCommandError
+{
+  NONE = 0,
+  COMMAND_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  BOT_NOT_CONNECTED = 3,
+}
+
+
+export enum InteractWithControlError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  CONTROL_NOT_FOUND = 2,
+  CONTROL_DISABLED = 3,
+  BOT_NOT_CONNECTED = 4,
+  ARCHETYPE_REQUIRED = 5,
+}
+
+
+export enum InteractWithSelectError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  CONTROL_NOT_FOUND = 2,
+  CONTROL_DISABLED = 3,
+  NOT_A_SELECT = 4,
+  INVALID_VALUES = 5,
+  BOT_NOT_CONNECTED = 6,
+  ARCHETYPE_REQUIRED = 7,
+}
+
+
+export enum SubmitModalError
+{
+  NONE = 0,
+  INTERACTION_NOT_FOUND = 1,
+  INTERACTION_EXPIRED = 2,
+}
+
+
+export enum IonTextInputStyle
+{
+  Short = 0,
+  Paragraph = 1,
+}
+
+
+export enum IonModalComponentType
+{
+  TextInput = 0,
+  StringSelect = 1,
+  UserSelect = 2,
+  ArchetypeSelect = 3,
+  ChannelSelect = 4,
+  Checkbox = 5,
+}
+
+
 export enum StartStreamError
 {
   NONE = 0,
   BAD_PARAMS = 1,
   INTERNAL_ERROR = 2,
+}
+
+
+export enum TypingKind
+{
+  TYPING = 0,
+  THINKING = 1,
+  UPLOADING = 2,
+  SEARCHING = 3,
 }
 
 
@@ -651,6 +769,7 @@ export interface ArgonUser {
   username: string;
   displayName: string;
   avatarFileId: string | null;
+  flags: UserFlag;
 };
 
 
@@ -661,7 +780,6 @@ export interface ArgonUserProfile {
   bannerFileID: string | null;
   dateOfBirth: dateonly | null;
   bio: string | null;
-  isPremium: bool;
   badges: IonArray<string>;
   archetypes: IonArray<SpaceMemberArchetype>;
 };
@@ -712,6 +830,18 @@ export enum ArgonEntitlement
   ManageEvents = 9007199254740992n as any,
   ManageBehaviour = 18014398509481984n as any,
   ManageServer = 36028797018963968n as any,
+}
+
+
+export enum UserFlag
+{
+  NONE = 0,
+  BOT = 1,
+  SYSTEM = 2,
+  VERIFIED = 4,
+  PREMIUM = 8,
+  BANNED = 16,
+  DELETED = 32,
 }
 
 
@@ -1976,6 +2106,414 @@ IonFormatterStorage.register("MessageEntityAttachment", {
 
 
 
+export abstract class IInvokeSlashCommandResult implements IIonUnion<IInvokeSlashCommandResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessInvokeSlashCommand(): this is SuccessInvokeSlashCommand {
+    return this.UnionKey === "SuccessInvokeSlashCommand";
+  }
+  public isFailedInvokeSlashCommand(): this is FailedInvokeSlashCommand {
+    return this.UnionKey === "FailedInvokeSlashCommand";
+  }
+
+}
+
+
+export class SuccessInvokeSlashCommand extends IInvokeSlashCommandResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessInvokeSlashCommand";
+  UnionIndex: number = 0;
+}
+
+export class FailedInvokeSlashCommand extends IInvokeSlashCommandResult
+{
+  constructor(public error: InvokeSlashCommandError) { super(); }
+
+  UnionKey: string = "FailedInvokeSlashCommand";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IInvokeSlashCommandResult", {
+  read(reader: CborReader): IInvokeSlashCommandResult {
+    reader.readStartArray();
+    let value: IInvokeSlashCommandResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessInvokeSlashCommand>("SuccessInvokeSlashCommand").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedInvokeSlashCommand>("FailedInvokeSlashCommand").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IInvokeSlashCommandResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessInvokeSlashCommand>("SuccessInvokeSlashCommand").write(writer, value as SuccessInvokeSlashCommand);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedInvokeSlashCommand>("FailedInvokeSlashCommand").write(writer, value as FailedInvokeSlashCommand);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessInvokeSlashCommand", {
+  read(reader: CborReader): SuccessInvokeSlashCommand {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessInvokeSlashCommand();
+  },
+  write(writer: CborWriter, value: SuccessInvokeSlashCommand): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedInvokeSlashCommand", {
+  read(reader: CborReader): FailedInvokeSlashCommand {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<InvokeSlashCommandError>('InvokeSlashCommandError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedInvokeSlashCommand(error);
+  },
+  write(writer: CborWriter, value: FailedInvokeSlashCommand): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InvokeSlashCommandError>('InvokeSlashCommandError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IInteractWithControlResult implements IIonUnion<IInteractWithControlResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessInteractWithControl(): this is SuccessInteractWithControl {
+    return this.UnionKey === "SuccessInteractWithControl";
+  }
+  public isFailedInteractWithControl(): this is FailedInteractWithControl {
+    return this.UnionKey === "FailedInteractWithControl";
+  }
+
+}
+
+
+export class SuccessInteractWithControl extends IInteractWithControlResult
+{
+  constructor(public interactionId: guid) { super(); }
+
+  UnionKey: string = "SuccessInteractWithControl";
+  UnionIndex: number = 0;
+}
+
+export class FailedInteractWithControl extends IInteractWithControlResult
+{
+  constructor(public error: InteractWithControlError) { super(); }
+
+  UnionKey: string = "FailedInteractWithControl";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IInteractWithControlResult", {
+  read(reader: CborReader): IInteractWithControlResult {
+    reader.readStartArray();
+    let value: IInteractWithControlResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessInteractWithControl>("SuccessInteractWithControl").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedInteractWithControl>("FailedInteractWithControl").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IInteractWithControlResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessInteractWithControl>("SuccessInteractWithControl").write(writer, value as SuccessInteractWithControl);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedInteractWithControl>("FailedInteractWithControl").write(writer, value as FailedInteractWithControl);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessInteractWithControl", {
+  read(reader: CborReader): SuccessInteractWithControl {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessInteractWithControl(interactionId);
+  },
+  write(writer: CborWriter, value: SuccessInteractWithControl): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedInteractWithControl", {
+  read(reader: CborReader): FailedInteractWithControl {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<InteractWithControlError>('InteractWithControlError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedInteractWithControl(error);
+  },
+  write(writer: CborWriter, value: FailedInteractWithControl): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InteractWithControlError>('InteractWithControlError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IInteractWithSelectResult implements IIonUnion<IInteractWithSelectResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessInteractWithSelect(): this is SuccessInteractWithSelect {
+    return this.UnionKey === "SuccessInteractWithSelect";
+  }
+  public isFailedInteractWithSelect(): this is FailedInteractWithSelect {
+    return this.UnionKey === "FailedInteractWithSelect";
+  }
+
+}
+
+
+export class SuccessInteractWithSelect extends IInteractWithSelectResult
+{
+  constructor(public interactionId: guid) { super(); }
+
+  UnionKey: string = "SuccessInteractWithSelect";
+  UnionIndex: number = 0;
+}
+
+export class FailedInteractWithSelect extends IInteractWithSelectResult
+{
+  constructor(public error: InteractWithSelectError) { super(); }
+
+  UnionKey: string = "FailedInteractWithSelect";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IInteractWithSelectResult", {
+  read(reader: CborReader): IInteractWithSelectResult {
+    reader.readStartArray();
+    let value: IInteractWithSelectResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessInteractWithSelect>("SuccessInteractWithSelect").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedInteractWithSelect>("FailedInteractWithSelect").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IInteractWithSelectResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessInteractWithSelect>("SuccessInteractWithSelect").write(writer, value as SuccessInteractWithSelect);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedInteractWithSelect>("FailedInteractWithSelect").write(writer, value as FailedInteractWithSelect);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessInteractWithSelect", {
+  read(reader: CborReader): SuccessInteractWithSelect {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessInteractWithSelect(interactionId);
+  },
+  write(writer: CborWriter, value: SuccessInteractWithSelect): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedInteractWithSelect", {
+  read(reader: CborReader): FailedInteractWithSelect {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<InteractWithSelectError>('InteractWithSelectError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedInteractWithSelect(error);
+  },
+  write(writer: CborWriter, value: FailedInteractWithSelect): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InteractWithSelectError>('InteractWithSelectError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISubmitModalResult implements IIonUnion<ISubmitModalResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSubmitModal(): this is SuccessSubmitModal {
+    return this.UnionKey === "SuccessSubmitModal";
+  }
+  public isFailedSubmitModal(): this is FailedSubmitModal {
+    return this.UnionKey === "FailedSubmitModal";
+  }
+
+}
+
+
+export class SuccessSubmitModal extends ISubmitModalResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessSubmitModal";
+  UnionIndex: number = 0;
+}
+
+export class FailedSubmitModal extends ISubmitModalResult
+{
+  constructor(public error: SubmitModalError) { super(); }
+
+  UnionKey: string = "FailedSubmitModal";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISubmitModalResult", {
+  read(reader: CborReader): ISubmitModalResult {
+    reader.readStartArray();
+    let value: ISubmitModalResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSubmitModal>("SuccessSubmitModal").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSubmitModal>("FailedSubmitModal").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ISubmitModalResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSubmitModal>("SuccessSubmitModal").write(writer, value as SuccessSubmitModal);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSubmitModal>("FailedSubmitModal").write(writer, value as FailedSubmitModal);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSubmitModal", {
+  read(reader: CborReader): SuccessSubmitModal {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessSubmitModal();
+  },
+  write(writer: CborWriter, value: SuccessSubmitModal): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSubmitModal", {
+  read(reader: CborReader): FailedSubmitModal {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SubmitModalError>('SubmitModalError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSubmitModal(error);
+  },
+  write(writer: CborWriter, value: FailedSubmitModal): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SubmitModalError>('SubmitModalError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IInterlinkResult implements IIonUnion<IInterlinkResult>
 {
   abstract UnionKey: string;
@@ -2239,6 +2777,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isMessageSent(): this is MessageSent {
     return this.UnionKey === "MessageSent";
   }
+  public isMessageEdited(): this is MessageEdited {
+    return this.UnionKey === "MessageEdited";
+  }
   public isServerModified(): this is ServerModified {
     return this.UnionKey === "ServerModified";
   }
@@ -2338,6 +2879,18 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isMeetingDeletedFor(): this is MeetingDeletedFor {
     return this.UnionKey === "MeetingDeletedFor";
   }
+  public isLeavedFromServerUser(): this is LeavedFromServerUser {
+    return this.UnionKey === "LeavedFromServerUser";
+  }
+  public isInteractionAcked(): this is InteractionAcked {
+    return this.UnionKey === "InteractionAcked";
+  }
+  public isInteractionDeferred(): this is InteractionDeferred {
+    return this.UnionKey === "InteractionDeferred";
+  }
+  public isShowModal(): this is ShowModal {
+    return this.UnionKey === "ShowModal";
+  }
 
 }
 
@@ -2384,7 +2937,7 @@ export class ChannelRemoved extends IArgonEvent
 
 export class UserTypingEvent extends IArgonEvent
 {
-  constructor(public spaceId: guid, public channelId: guid, public userId: guid) { super(); }
+  constructor(public spaceId: guid, public channelId: guid, public userId: guid, public kind: TypingKind | null) { super(); }
 
   UnionKey: string = "UserTypingEvent";
   UnionIndex: number = 5;
@@ -2462,12 +3015,20 @@ export class MessageSent extends IArgonEvent
   UnionIndex: number = 14;
 }
 
+export class MessageEdited extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public text: string | null, public updatedAt: datetime) { super(); }
+
+  UnionKey: string = "MessageEdited";
+  UnionIndex: number = 15;
+}
+
 export class ServerModified extends IArgonEvent
 {
   constructor(public spaceId: guid, public bag: IonArray<string>) { super(); }
 
   UnionKey: string = "ServerModified";
-  UnionIndex: number = 15;
+  UnionIndex: number = 16;
 }
 
 export class RecordStarted extends IArgonEvent
@@ -2475,7 +3036,7 @@ export class RecordStarted extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public byUserId: guid) { super(); }
 
   UnionKey: string = "RecordStarted";
-  UnionIndex: number = 16;
+  UnionIndex: number = 17;
 }
 
 export class RecordEnded extends IArgonEvent
@@ -2483,7 +3044,7 @@ export class RecordEnded extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid) { super(); }
 
   UnionKey: string = "RecordEnded";
-  UnionIndex: number = 17;
+  UnionIndex: number = 18;
 }
 
 export class CallIncoming extends IArgonEvent
@@ -2491,7 +3052,7 @@ export class CallIncoming extends IArgonEvent
   constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
 
   UnionKey: string = "CallIncoming";
-  UnionIndex: number = 18;
+  UnionIndex: number = 19;
 }
 
 export class CallFinished extends IArgonEvent
@@ -2499,7 +3060,7 @@ export class CallFinished extends IArgonEvent
   constructor(public userId: guid, public callId: guid) { super(); }
 
   UnionKey: string = "CallFinished";
-  UnionIndex: number = 19;
+  UnionIndex: number = 20;
 }
 
 export class CallAccepted extends IArgonEvent
@@ -2507,7 +3068,7 @@ export class CallAccepted extends IArgonEvent
   constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
 
   UnionKey: string = "CallAccepted";
-  UnionIndex: number = 20;
+  UnionIndex: number = 21;
 }
 
 export class CallRejected extends IArgonEvent
@@ -2515,7 +3076,7 @@ export class CallRejected extends IArgonEvent
   constructor(public userId: guid, public callId: guid, public fromId: guid) { super(); }
 
   UnionKey: string = "CallRejected";
-  UnionIndex: number = 21;
+  UnionIndex: number = 22;
 }
 
 export class FriendRequestReceivedEvent extends IArgonEvent
@@ -2523,7 +3084,7 @@ export class FriendRequestReceivedEvent extends IArgonEvent
   constructor(public requesterId: guid, public requestDate: datetime) { super(); }
 
   UnionKey: string = "FriendRequestReceivedEvent";
-  UnionIndex: number = 22;
+  UnionIndex: number = 23;
 }
 
 export class FriendRequestSentEvent extends IArgonEvent
@@ -2531,7 +3092,7 @@ export class FriendRequestSentEvent extends IArgonEvent
   constructor(public targetId: guid, public requestDate: datetime) { super(); }
 
   UnionKey: string = "FriendRequestSentEvent";
-  UnionIndex: number = 23;
+  UnionIndex: number = 24;
 }
 
 export class FriendRequestAcceptedEvent extends IArgonEvent
@@ -2539,7 +3100,7 @@ export class FriendRequestAcceptedEvent extends IArgonEvent
   constructor(public userId: guid, public friendAt: datetime) { super(); }
 
   UnionKey: string = "FriendRequestAcceptedEvent";
-  UnionIndex: number = 24;
+  UnionIndex: number = 25;
 }
 
 export class FriendRequestDeclinedEvent extends IArgonEvent
@@ -2547,7 +3108,7 @@ export class FriendRequestDeclinedEvent extends IArgonEvent
   constructor(public targetId: guid) { super(); }
 
   UnionKey: string = "FriendRequestDeclinedEvent";
-  UnionIndex: number = 25;
+  UnionIndex: number = 26;
 }
 
 export class FriendRequestCanceledEvent extends IArgonEvent
@@ -2555,7 +3116,7 @@ export class FriendRequestCanceledEvent extends IArgonEvent
   constructor(public requesterId: guid) { super(); }
 
   UnionKey: string = "FriendRequestCanceledEvent";
-  UnionIndex: number = 26;
+  UnionIndex: number = 27;
 }
 
 export class FriendshipRemovedEvent extends IArgonEvent
@@ -2563,7 +3124,7 @@ export class FriendshipRemovedEvent extends IArgonEvent
   constructor(public userId: guid) { super(); }
 
   UnionKey: string = "FriendshipRemovedEvent";
-  UnionIndex: number = 27;
+  UnionIndex: number = 28;
 }
 
 export class UserBlockedEvent extends IArgonEvent
@@ -2571,7 +3132,7 @@ export class UserBlockedEvent extends IArgonEvent
   constructor(public blockId: guid) { super(); }
 
   UnionKey: string = "UserBlockedEvent";
-  UnionIndex: number = 28;
+  UnionIndex: number = 29;
 }
 
 export class UserUnblockedEvent extends IArgonEvent
@@ -2579,7 +3140,7 @@ export class UserUnblockedEvent extends IArgonEvent
   constructor(public blockId: guid) { super(); }
 
   UnionKey: string = "UserUnblockedEvent";
-  UnionIndex: number = 29;
+  UnionIndex: number = 30;
 }
 
 export class RecentChatUpdatedEvent extends IArgonEvent
@@ -2587,7 +3148,7 @@ export class RecentChatUpdatedEvent extends IArgonEvent
   constructor(public peerId: guid, public userId: guid, public lastMessage: string | null, public lastMessageAt: datetime) { super(); }
 
   UnionKey: string = "RecentChatUpdatedEvent";
-  UnionIndex: number = 30;
+  UnionIndex: number = 31;
 }
 
 export class ChatPinnedEvent extends IArgonEvent
@@ -2595,7 +3156,7 @@ export class ChatPinnedEvent extends IArgonEvent
   constructor(public peerId: guid, public pinnedAt: datetime) { super(); }
 
   UnionKey: string = "ChatPinnedEvent";
-  UnionIndex: number = 31;
+  UnionIndex: number = 32;
 }
 
 export class ChatUnpinnedEvent extends IArgonEvent
@@ -2603,7 +3164,7 @@ export class ChatUnpinnedEvent extends IArgonEvent
   constructor(public peerId: guid) { super(); }
 
   UnionKey: string = "ChatUnpinnedEvent";
-  UnionIndex: number = 32;
+  UnionIndex: number = 33;
 }
 
 export class ChatReadEvent extends IArgonEvent
@@ -2611,7 +3172,7 @@ export class ChatReadEvent extends IArgonEvent
   constructor(public peerId: guid) { super(); }
 
   UnionKey: string = "ChatReadEvent";
-  UnionIndex: number = 33;
+  UnionIndex: number = 34;
 }
 
 export class ChannelGroupCreated extends IArgonEvent
@@ -2619,7 +3180,7 @@ export class ChannelGroupCreated extends IArgonEvent
   constructor(public spaceId: guid, public data: ChannelGroup) { super(); }
 
   UnionKey: string = "ChannelGroupCreated";
-  UnionIndex: number = 34;
+  UnionIndex: number = 35;
 }
 
 export class ChannelGroupModified extends IArgonEvent
@@ -2627,7 +3188,7 @@ export class ChannelGroupModified extends IArgonEvent
   constructor(public spaceId: guid, public groupId: guid, public data: ChannelGroup) { super(); }
 
   UnionKey: string = "ChannelGroupModified";
-  UnionIndex: number = 35;
+  UnionIndex: number = 36;
 }
 
 export class ChannelGroupRemoved extends IArgonEvent
@@ -2635,7 +3196,7 @@ export class ChannelGroupRemoved extends IArgonEvent
   constructor(public spaceId: guid, public groupId: guid) { super(); }
 
   UnionKey: string = "ChannelGroupRemoved";
-  UnionIndex: number = 36;
+  UnionIndex: number = 37;
 }
 
 export class ChannelGroupReordered extends IArgonEvent
@@ -2643,7 +3204,7 @@ export class ChannelGroupReordered extends IArgonEvent
   constructor(public spaceId: guid, public groupId: guid, public fractionalIndex: string) { super(); }
 
   UnionKey: string = "ChannelGroupReordered";
-  UnionIndex: number = 37;
+  UnionIndex: number = 38;
 }
 
 export class ChannelReordered extends IArgonEvent
@@ -2651,7 +3212,7 @@ export class ChannelReordered extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public targetGroupId: guid | null, public fractionalIndex: string) { super(); }
 
   UnionKey: string = "ChannelReordered";
-  UnionIndex: number = 38;
+  UnionIndex: number = 39;
 }
 
 export class DirectMessageSent extends IArgonEvent
@@ -2659,7 +3220,7 @@ export class DirectMessageSent extends IArgonEvent
   constructor(public senderId: guid, public receiverId: guid, public message: DirectMessage) { super(); }
 
   UnionKey: string = "DirectMessageSent";
-  UnionIndex: number = 39;
+  UnionIndex: number = 40;
 }
 
 export class ReadStateUpdated extends IArgonEvent
@@ -2667,7 +3228,7 @@ export class ReadStateUpdated extends IArgonEvent
   constructor(public userId: guid, public channelId: guid, public spaceId: guid | null, public lastReadMessageId: i8, public mentionCount: i4) { super(); }
 
   UnionKey: string = "ReadStateUpdated";
-  UnionIndex: number = 40;
+  UnionIndex: number = 41;
 }
 
 export class SystemNotificationReceived extends IArgonEvent
@@ -2675,7 +3236,7 @@ export class SystemNotificationReceived extends IArgonEvent
   constructor(public userId: guid, public notification: SystemNotificationDto) { super(); }
 
   UnionKey: string = "SystemNotificationReceived";
-  UnionIndex: number = 41;
+  UnionIndex: number = 42;
 }
 
 export class MuteSettingsChanged extends IArgonEvent
@@ -2683,7 +3244,7 @@ export class MuteSettingsChanged extends IArgonEvent
   constructor(public userId: guid, public targetId: guid, public muteLevel: MuteLevelType) { super(); }
 
   UnionKey: string = "MuteSettingsChanged";
-  UnionIndex: number = 42;
+  UnionIndex: number = 43;
 }
 
 export class BatchMentionOccurred extends IArgonEvent
@@ -2691,7 +3252,7 @@ export class BatchMentionOccurred extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public mentionType: MentionTargetType) { super(); }
 
   UnionKey: string = "BatchMentionOccurred";
-  UnionIndex: number = 43;
+  UnionIndex: number = 44;
 }
 
 export class UserSecurityDetailsUpdated extends IArgonEvent
@@ -2699,7 +3260,7 @@ export class UserSecurityDetailsUpdated extends IArgonEvent
   constructor(public userId: guid, public details: SecurityDetails) { super(); }
 
   UnionKey: string = "UserSecurityDetailsUpdated";
-  UnionIndex: number = 44;
+  UnionIndex: number = 45;
 }
 
 export class SpaceDetailsUpdated extends IArgonEvent
@@ -2707,7 +3268,7 @@ export class SpaceDetailsUpdated extends IArgonEvent
   constructor(public spaceId: guid, public details: ArgonSpaceBase) { super(); }
 
   UnionKey: string = "SpaceDetailsUpdated";
-  UnionIndex: number = 45;
+  UnionIndex: number = 46;
 }
 
 export class MeetingCreatedFor extends IArgonEvent
@@ -2715,7 +3276,7 @@ export class MeetingCreatedFor extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
 
   UnionKey: string = "MeetingCreatedFor";
-  UnionIndex: number = 46;
+  UnionIndex: number = 47;
 }
 
 export class MeetingDeletedFor extends IArgonEvent
@@ -2723,7 +3284,39 @@ export class MeetingDeletedFor extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
 
   UnionKey: string = "MeetingDeletedFor";
-  UnionIndex: number = 47;
+  UnionIndex: number = 48;
+}
+
+export class LeavedFromServerUser extends IArgonEvent
+{
+  constructor(public spaceId: guid, public userId: guid) { super(); }
+
+  UnionKey: string = "LeavedFromServerUser";
+  UnionIndex: number = 49;
+}
+
+export class InteractionAcked extends IArgonEvent
+{
+  constructor(public interactionId: guid) { super(); }
+
+  UnionKey: string = "InteractionAcked";
+  UnionIndex: number = 50;
+}
+
+export class InteractionDeferred extends IArgonEvent
+{
+  constructor(public interactionId: guid) { super(); }
+
+  UnionKey: string = "InteractionDeferred";
+  UnionIndex: number = 51;
+}
+
+export class ShowModal extends IArgonEvent
+{
+  constructor(public interactionId: guid, public modal: IonModalDefinition) { super(); }
+
+  UnionKey: string = "ShowModal";
+  UnionIndex: number = 52;
 }
 
 
@@ -2767,71 +3360,81 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (unionIndex == 14)
       value = IonFormatterStorage.get<MessageSent>("MessageSent").read(reader);
     else if (unionIndex == 15)
-      value = IonFormatterStorage.get<ServerModified>("ServerModified").read(reader);
+      value = IonFormatterStorage.get<MessageEdited>("MessageEdited").read(reader);
     else if (unionIndex == 16)
-      value = IonFormatterStorage.get<RecordStarted>("RecordStarted").read(reader);
+      value = IonFormatterStorage.get<ServerModified>("ServerModified").read(reader);
     else if (unionIndex == 17)
-      value = IonFormatterStorage.get<RecordEnded>("RecordEnded").read(reader);
+      value = IonFormatterStorage.get<RecordStarted>("RecordStarted").read(reader);
     else if (unionIndex == 18)
-      value = IonFormatterStorage.get<CallIncoming>("CallIncoming").read(reader);
+      value = IonFormatterStorage.get<RecordEnded>("RecordEnded").read(reader);
     else if (unionIndex == 19)
-      value = IonFormatterStorage.get<CallFinished>("CallFinished").read(reader);
+      value = IonFormatterStorage.get<CallIncoming>("CallIncoming").read(reader);
     else if (unionIndex == 20)
-      value = IonFormatterStorage.get<CallAccepted>("CallAccepted").read(reader);
+      value = IonFormatterStorage.get<CallFinished>("CallFinished").read(reader);
     else if (unionIndex == 21)
-      value = IonFormatterStorage.get<CallRejected>("CallRejected").read(reader);
+      value = IonFormatterStorage.get<CallAccepted>("CallAccepted").read(reader);
     else if (unionIndex == 22)
-      value = IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").read(reader);
+      value = IonFormatterStorage.get<CallRejected>("CallRejected").read(reader);
     else if (unionIndex == 23)
-      value = IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").read(reader);
+      value = IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").read(reader);
     else if (unionIndex == 24)
-      value = IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").read(reader);
+      value = IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").read(reader);
     else if (unionIndex == 25)
-      value = IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").read(reader);
+      value = IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").read(reader);
     else if (unionIndex == 26)
-      value = IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").read(reader);
+      value = IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").read(reader);
     else if (unionIndex == 27)
-      value = IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").read(reader);
+      value = IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").read(reader);
     else if (unionIndex == 28)
-      value = IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").read(reader);
+      value = IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").read(reader);
     else if (unionIndex == 29)
-      value = IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").read(reader);
+      value = IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").read(reader);
     else if (unionIndex == 30)
-      value = IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").read(reader);
+      value = IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").read(reader);
     else if (unionIndex == 31)
-      value = IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").read(reader);
+      value = IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").read(reader);
     else if (unionIndex == 32)
-      value = IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").read(reader);
+      value = IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").read(reader);
     else if (unionIndex == 33)
-      value = IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").read(reader);
+      value = IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").read(reader);
     else if (unionIndex == 34)
-      value = IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").read(reader);
+      value = IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").read(reader);
     else if (unionIndex == 35)
-      value = IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").read(reader);
+      value = IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").read(reader);
     else if (unionIndex == 36)
-      value = IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").read(reader);
+      value = IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").read(reader);
     else if (unionIndex == 37)
-      value = IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").read(reader);
+      value = IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").read(reader);
     else if (unionIndex == 38)
-      value = IonFormatterStorage.get<ChannelReordered>("ChannelReordered").read(reader);
+      value = IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").read(reader);
     else if (unionIndex == 39)
-      value = IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").read(reader);
+      value = IonFormatterStorage.get<ChannelReordered>("ChannelReordered").read(reader);
     else if (unionIndex == 40)
-      value = IonFormatterStorage.get<ReadStateUpdated>("ReadStateUpdated").read(reader);
+      value = IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").read(reader);
     else if (unionIndex == 41)
-      value = IonFormatterStorage.get<SystemNotificationReceived>("SystemNotificationReceived").read(reader);
+      value = IonFormatterStorage.get<ReadStateUpdated>("ReadStateUpdated").read(reader);
     else if (unionIndex == 42)
-      value = IonFormatterStorage.get<MuteSettingsChanged>("MuteSettingsChanged").read(reader);
+      value = IonFormatterStorage.get<SystemNotificationReceived>("SystemNotificationReceived").read(reader);
     else if (unionIndex == 43)
-      value = IonFormatterStorage.get<BatchMentionOccurred>("BatchMentionOccurred").read(reader);
+      value = IonFormatterStorage.get<MuteSettingsChanged>("MuteSettingsChanged").read(reader);
     else if (unionIndex == 44)
-      value = IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").read(reader);
+      value = IonFormatterStorage.get<BatchMentionOccurred>("BatchMentionOccurred").read(reader);
     else if (unionIndex == 45)
-      value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
+      value = IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").read(reader);
     else if (unionIndex == 46)
-      value = IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").read(reader);
+      value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
     else if (unionIndex == 47)
+      value = IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").read(reader);
+    else if (unionIndex == 48)
       value = IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").read(reader);
+    else if (unionIndex == 49)
+      value = IonFormatterStorage.get<LeavedFromServerUser>("LeavedFromServerUser").read(reader);
+    else if (unionIndex == 50)
+      value = IonFormatterStorage.get<InteractionAcked>("InteractionAcked").read(reader);
+    else if (unionIndex == 51)
+      value = IonFormatterStorage.get<InteractionDeferred>("InteractionDeferred").read(reader);
+    else if (unionIndex == 52)
+      value = IonFormatterStorage.get<ShowModal>("ShowModal").read(reader);
 
     else throw new Error();
   
@@ -2889,103 +3492,118 @@ IonFormatterStorage.register("IArgonEvent", {
         IonFormatterStorage.get<MessageSent>("MessageSent").write(writer, value as MessageSent);
     }
     else if (value.UnionIndex == 15) {
-        IonFormatterStorage.get<ServerModified>("ServerModified").write(writer, value as ServerModified);
+        IonFormatterStorage.get<MessageEdited>("MessageEdited").write(writer, value as MessageEdited);
     }
     else if (value.UnionIndex == 16) {
-        IonFormatterStorage.get<RecordStarted>("RecordStarted").write(writer, value as RecordStarted);
+        IonFormatterStorage.get<ServerModified>("ServerModified").write(writer, value as ServerModified);
     }
     else if (value.UnionIndex == 17) {
-        IonFormatterStorage.get<RecordEnded>("RecordEnded").write(writer, value as RecordEnded);
+        IonFormatterStorage.get<RecordStarted>("RecordStarted").write(writer, value as RecordStarted);
     }
     else if (value.UnionIndex == 18) {
-        IonFormatterStorage.get<CallIncoming>("CallIncoming").write(writer, value as CallIncoming);
+        IonFormatterStorage.get<RecordEnded>("RecordEnded").write(writer, value as RecordEnded);
     }
     else if (value.UnionIndex == 19) {
-        IonFormatterStorage.get<CallFinished>("CallFinished").write(writer, value as CallFinished);
+        IonFormatterStorage.get<CallIncoming>("CallIncoming").write(writer, value as CallIncoming);
     }
     else if (value.UnionIndex == 20) {
-        IonFormatterStorage.get<CallAccepted>("CallAccepted").write(writer, value as CallAccepted);
+        IonFormatterStorage.get<CallFinished>("CallFinished").write(writer, value as CallFinished);
     }
     else if (value.UnionIndex == 21) {
-        IonFormatterStorage.get<CallRejected>("CallRejected").write(writer, value as CallRejected);
+        IonFormatterStorage.get<CallAccepted>("CallAccepted").write(writer, value as CallAccepted);
     }
     else if (value.UnionIndex == 22) {
-        IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").write(writer, value as FriendRequestReceivedEvent);
+        IonFormatterStorage.get<CallRejected>("CallRejected").write(writer, value as CallRejected);
     }
     else if (value.UnionIndex == 23) {
-        IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").write(writer, value as FriendRequestSentEvent);
+        IonFormatterStorage.get<FriendRequestReceivedEvent>("FriendRequestReceivedEvent").write(writer, value as FriendRequestReceivedEvent);
     }
     else if (value.UnionIndex == 24) {
-        IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").write(writer, value as FriendRequestAcceptedEvent);
+        IonFormatterStorage.get<FriendRequestSentEvent>("FriendRequestSentEvent").write(writer, value as FriendRequestSentEvent);
     }
     else if (value.UnionIndex == 25) {
-        IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").write(writer, value as FriendRequestDeclinedEvent);
+        IonFormatterStorage.get<FriendRequestAcceptedEvent>("FriendRequestAcceptedEvent").write(writer, value as FriendRequestAcceptedEvent);
     }
     else if (value.UnionIndex == 26) {
-        IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").write(writer, value as FriendRequestCanceledEvent);
+        IonFormatterStorage.get<FriendRequestDeclinedEvent>("FriendRequestDeclinedEvent").write(writer, value as FriendRequestDeclinedEvent);
     }
     else if (value.UnionIndex == 27) {
-        IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").write(writer, value as FriendshipRemovedEvent);
+        IonFormatterStorage.get<FriendRequestCanceledEvent>("FriendRequestCanceledEvent").write(writer, value as FriendRequestCanceledEvent);
     }
     else if (value.UnionIndex == 28) {
-        IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").write(writer, value as UserBlockedEvent);
+        IonFormatterStorage.get<FriendshipRemovedEvent>("FriendshipRemovedEvent").write(writer, value as FriendshipRemovedEvent);
     }
     else if (value.UnionIndex == 29) {
-        IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").write(writer, value as UserUnblockedEvent);
+        IonFormatterStorage.get<UserBlockedEvent>("UserBlockedEvent").write(writer, value as UserBlockedEvent);
     }
     else if (value.UnionIndex == 30) {
-        IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").write(writer, value as RecentChatUpdatedEvent);
+        IonFormatterStorage.get<UserUnblockedEvent>("UserUnblockedEvent").write(writer, value as UserUnblockedEvent);
     }
     else if (value.UnionIndex == 31) {
-        IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").write(writer, value as ChatPinnedEvent);
+        IonFormatterStorage.get<RecentChatUpdatedEvent>("RecentChatUpdatedEvent").write(writer, value as RecentChatUpdatedEvent);
     }
     else if (value.UnionIndex == 32) {
-        IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").write(writer, value as ChatUnpinnedEvent);
+        IonFormatterStorage.get<ChatPinnedEvent>("ChatPinnedEvent").write(writer, value as ChatPinnedEvent);
     }
     else if (value.UnionIndex == 33) {
-        IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").write(writer, value as ChatReadEvent);
+        IonFormatterStorage.get<ChatUnpinnedEvent>("ChatUnpinnedEvent").write(writer, value as ChatUnpinnedEvent);
     }
     else if (value.UnionIndex == 34) {
-        IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").write(writer, value as ChannelGroupCreated);
+        IonFormatterStorage.get<ChatReadEvent>("ChatReadEvent").write(writer, value as ChatReadEvent);
     }
     else if (value.UnionIndex == 35) {
-        IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").write(writer, value as ChannelGroupModified);
+        IonFormatterStorage.get<ChannelGroupCreated>("ChannelGroupCreated").write(writer, value as ChannelGroupCreated);
     }
     else if (value.UnionIndex == 36) {
-        IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").write(writer, value as ChannelGroupRemoved);
+        IonFormatterStorage.get<ChannelGroupModified>("ChannelGroupModified").write(writer, value as ChannelGroupModified);
     }
     else if (value.UnionIndex == 37) {
-        IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").write(writer, value as ChannelGroupReordered);
+        IonFormatterStorage.get<ChannelGroupRemoved>("ChannelGroupRemoved").write(writer, value as ChannelGroupRemoved);
     }
     else if (value.UnionIndex == 38) {
-        IonFormatterStorage.get<ChannelReordered>("ChannelReordered").write(writer, value as ChannelReordered);
+        IonFormatterStorage.get<ChannelGroupReordered>("ChannelGroupReordered").write(writer, value as ChannelGroupReordered);
     }
     else if (value.UnionIndex == 39) {
-        IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").write(writer, value as DirectMessageSent);
+        IonFormatterStorage.get<ChannelReordered>("ChannelReordered").write(writer, value as ChannelReordered);
     }
     else if (value.UnionIndex == 40) {
-        IonFormatterStorage.get<ReadStateUpdated>("ReadStateUpdated").write(writer, value as ReadStateUpdated);
+        IonFormatterStorage.get<DirectMessageSent>("DirectMessageSent").write(writer, value as DirectMessageSent);
     }
     else if (value.UnionIndex == 41) {
-        IonFormatterStorage.get<SystemNotificationReceived>("SystemNotificationReceived").write(writer, value as SystemNotificationReceived);
+        IonFormatterStorage.get<ReadStateUpdated>("ReadStateUpdated").write(writer, value as ReadStateUpdated);
     }
     else if (value.UnionIndex == 42) {
-        IonFormatterStorage.get<MuteSettingsChanged>("MuteSettingsChanged").write(writer, value as MuteSettingsChanged);
+        IonFormatterStorage.get<SystemNotificationReceived>("SystemNotificationReceived").write(writer, value as SystemNotificationReceived);
     }
     else if (value.UnionIndex == 43) {
-        IonFormatterStorage.get<BatchMentionOccurred>("BatchMentionOccurred").write(writer, value as BatchMentionOccurred);
+        IonFormatterStorage.get<MuteSettingsChanged>("MuteSettingsChanged").write(writer, value as MuteSettingsChanged);
     }
     else if (value.UnionIndex == 44) {
-        IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").write(writer, value as UserSecurityDetailsUpdated);
+        IonFormatterStorage.get<BatchMentionOccurred>("BatchMentionOccurred").write(writer, value as BatchMentionOccurred);
     }
     else if (value.UnionIndex == 45) {
-        IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
+        IonFormatterStorage.get<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated").write(writer, value as UserSecurityDetailsUpdated);
     }
     else if (value.UnionIndex == 46) {
-        IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").write(writer, value as MeetingCreatedFor);
+        IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
     }
     else if (value.UnionIndex == 47) {
+        IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").write(writer, value as MeetingCreatedFor);
+    }
+    else if (value.UnionIndex == 48) {
         IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").write(writer, value as MeetingDeletedFor);
+    }
+    else if (value.UnionIndex == 49) {
+        IonFormatterStorage.get<LeavedFromServerUser>("LeavedFromServerUser").write(writer, value as LeavedFromServerUser);
+    }
+    else if (value.UnionIndex == 50) {
+        IonFormatterStorage.get<InteractionAcked>("InteractionAcked").write(writer, value as InteractionAcked);
+    }
+    else if (value.UnionIndex == 51) {
+        IonFormatterStorage.get<InteractionDeferred>("InteractionDeferred").write(writer, value as InteractionDeferred);
+    }
+    else if (value.UnionIndex == 52) {
+        IonFormatterStorage.get<ShowModal>("ShowModal").write(writer, value as ShowModal);
     }
   
     else throw new Error();
@@ -3082,14 +3700,16 @@ IonFormatterStorage.register("UserTypingEvent", {
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return new UserTypingEvent(spaceId, channelId, userId);
+    const kind = IonFormatterStorage.readNullable<TypingKind>(reader, 'TypingKind');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new UserTypingEvent(spaceId, channelId, userId, kind);
   },
   write(writer: CborWriter, value: UserTypingEvent): void {
-    writer.writeStartArray(3);
+    writer.writeStartArray(4);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<TypingKind>(writer, value.kind, 'TypingKind');
     writer.writeEndArray();
   }
 });
@@ -3246,6 +3866,28 @@ IonFormatterStorage.register("MessageSent", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEdited", {
+  read(reader: CborReader): MessageEdited {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const text = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const updatedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return new MessageEdited(spaceId, channelId, messageId, text, updatedAt);
+  },
+  write(writer: CborWriter, value: MessageEdited): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.writeNullable<string>(writer, value.text, 'string');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.updatedAt);
     writer.writeEndArray();
   }
 });
@@ -3796,6 +4438,66 @@ IonFormatterStorage.register("MeetingDeletedFor", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LeavedFromServerUser", {
+  read(reader: CborReader): LeavedFromServerUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new LeavedFromServerUser(spaceId, userId);
+  },
+  write(writer: CborWriter, value: LeavedFromServerUser): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InteractionAcked", {
+  read(reader: CborReader): InteractionAcked {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new InteractionAcked(interactionId);
+  },
+  write(writer: CborWriter, value: InteractionAcked): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("InteractionDeferred", {
+  read(reader: CborReader): InteractionDeferred {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new InteractionDeferred(interactionId);
+  },
+  write(writer: CborWriter, value: InteractionDeferred): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ShowModal", {
+  read(reader: CborReader): ShowModal {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const modal = IonFormatterStorage.get<IonModalDefinition>('IonModalDefinition').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ShowModal(interactionId, modal);
+  },
+  write(writer: CborWriter, value: ShowModal): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
+    IonFormatterStorage.get<IonModalDefinition>('IonModalDefinition').write(writer, value.modal);
     writer.writeEndArray();
   }
 });
@@ -6857,6 +7559,141 @@ IonFormatterStorage.register("AttachmentInfo", {
   }
 });
 
+IonFormatterStorage.register("SlashCommandOption", {
+  read(reader: CborReader): SlashCommandOption {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { name, value };
+  },
+  write(writer: CborWriter, value: SlashCommandOption): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ModalSubmitValue", {
+  read(reader: CborReader): ModalSubmitValue {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const customId = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { customId, value };
+  },
+  write(writer: CborWriter, value: ModalSubmitValue): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.customId);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IonModalSelectOption", {
+  read(reader: CborReader): IonModalSelectOption {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const label = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const emoji = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { label, value, description, emoji };
+  },
+  write(writer: CborWriter, value: IonModalSelectOption): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.label);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.emoji, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IonModalComponentType", {
+  read(reader: CborReader): IonModalComponentType {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return IonModalComponentType[num] !== undefined ? num as IonModalComponentType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: IonModalComponentType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("IonModalComponent", {
+  read(reader: CborReader): IonModalComponent {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<IonModalComponentType>('IonModalComponentType').read(reader);
+    const customId = IonFormatterStorage.get<string>('string').read(reader);
+    const label = IonFormatterStorage.get<string>('string').read(reader);
+    const style = IonFormatterStorage.readNullable<IonTextInputStyle>(reader, 'IonTextInputStyle');
+    const placeholder = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const minLength = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const maxLength = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const required = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const value = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const options = IonFormatterStorage.readNullable<MultipleModalSelectOption>(reader, 'MultipleModalSelectOption');
+    const minValues = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const maxValues = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const defaultChecked = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { type, customId, label, style, placeholder, minLength, maxLength, required, value, options, minValues, maxValues, defaultChecked, description };
+  },
+  write(writer: CborWriter, value: IonModalComponent): void {
+    writer.writeStartArray(14);
+    IonFormatterStorage.get<IonModalComponentType>('IonModalComponentType').write(writer, value.type);
+    IonFormatterStorage.get<string>('string').write(writer, value.customId);
+    IonFormatterStorage.get<string>('string').write(writer, value.label);
+    IonFormatterStorage.writeNullable<IonTextInputStyle>(writer, value.style, 'IonTextInputStyle');
+    IonFormatterStorage.writeNullable<string>(writer, value.placeholder, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.minLength, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.maxLength, 'i4');
+    IonFormatterStorage.writeNullable<bool>(writer, value.required, 'bool');
+    IonFormatterStorage.writeNullable<string>(writer, value.value, 'string');
+    IonFormatterStorage.writeNullable<MultipleModalSelectOption>(writer, value.options, 'MultipleModalSelectOption');
+    IonFormatterStorage.writeNullable<i4>(writer, value.minValues, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.maxValues, 'i4');
+    IonFormatterStorage.writeNullable<bool>(writer, value.defaultChecked, 'bool');
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MultipleModalSelectOption", {
+  read(reader: CborReader): MultipleModalSelectOption {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const options = IonFormatterStorage.readArray<IonModalSelectOption>(reader, 'IonModalSelectOption');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { options };
+  },
+  write(writer: CborWriter, value: MultipleModalSelectOption): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<IonModalSelectOption>(writer, value.options, 'IonModalSelectOption');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("IonModalDefinition", {
+  read(reader: CborReader): IonModalDefinition {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const customId = IonFormatterStorage.get<string>('string').read(reader);
+    const title = IonFormatterStorage.get<string>('string').read(reader);
+    const components = IonFormatterStorage.readArray<IonModalComponent>(reader, 'IonModalComponent');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { customId, title, components };
+  },
+  write(writer: CborWriter, value: IonModalDefinition): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.customId);
+    IonFormatterStorage.get<string>('string').write(writer, value.title);
+    IonFormatterStorage.writeArray<IonModalComponent>(writer, value.components, 'IonModalComponent');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("SendMessageReadback", {
   read(reader: CborReader): SendMessageReadback {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -7100,6 +7937,61 @@ IonFormatterStorage.register("EntityType", {
   }
 });
 
+IonFormatterStorage.register("InvokeSlashCommandError", {
+  read(reader: CborReader): InvokeSlashCommandError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return InvokeSlashCommandError[num] !== undefined ? num as InvokeSlashCommandError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: InvokeSlashCommandError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("InteractWithControlError", {
+  read(reader: CborReader): InteractWithControlError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return InteractWithControlError[num] !== undefined ? num as InteractWithControlError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: InteractWithControlError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("InteractWithSelectError", {
+  read(reader: CborReader): InteractWithSelectError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return InteractWithSelectError[num] !== undefined ? num as InteractWithSelectError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: InteractWithSelectError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SubmitModalError", {
+  read(reader: CborReader): SubmitModalError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return SubmitModalError[num] !== undefined ? num as SubmitModalError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SubmitModalError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("IonTextInputStyle", {
+  read(reader: CborReader): IonTextInputStyle {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return IonTextInputStyle[num] !== undefined ? num as IonTextInputStyle : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: IonTextInputStyle): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("StartStreamError", {
   read(reader: CborReader): StartStreamError {
     const num = (IonFormatterStorage.get<u2>('u2').read(reader))
@@ -7108,6 +8000,17 @@ IonFormatterStorage.register("StartStreamError", {
   write(writer: CborWriter, value: StartStreamError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("TypingKind", {
+  read(reader: CborReader): TypingKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return TypingKind[num] !== undefined ? num as TypingKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: TypingKind): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
 
@@ -7576,6 +8479,17 @@ IonFormatterStorage.register("SpaceMemberArchetype", {
   }
 });
 
+IonFormatterStorage.register("UserFlag", {
+  read(reader: CborReader): UserFlag {
+    const num = (IonFormatterStorage.get<i4>('i4').read(reader))
+    return num as any;
+  },
+  write(writer: CborWriter, value: UserFlag): void {
+    const casted: i4 = value as any;
+    IonFormatterStorage.get<i4>('i4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ArgonUser", {
   read(reader: CborReader): ArgonUser {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -7583,15 +8497,17 @@ IonFormatterStorage.register("ArgonUser", {
     const username = IonFormatterStorage.get<string>('string').read(reader);
     const displayName = IonFormatterStorage.get<string>('string').read(reader);
     const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { userId, username, displayName, avatarFileId };
+    const flags = IonFormatterStorage.get<UserFlag>('UserFlag').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { userId, username, displayName, avatarFileId, flags };
   },
   write(writer: CborWriter, value: ArgonUser): void {
-    writer.writeStartArray(4);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
     IonFormatterStorage.get<string>('string').write(writer, value.displayName);
     IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.get<UserFlag>('UserFlag').write(writer, value.flags);
     writer.writeEndArray();
   }
 });
@@ -7694,21 +8610,19 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const bannerFileID = IonFormatterStorage.readNullable<string>(reader, 'string');
     const dateOfBirth = IonFormatterStorage.readNullable<dateonly>(reader, 'dateonly');
     const bio = IonFormatterStorage.readNullable<string>(reader, 'string');
-    const isPremium = IonFormatterStorage.get<bool>('bool').read(reader);
     const badges = IonFormatterStorage.readArray<string>(reader, 'string');
     const archetypes = IonFormatterStorage.readArray<SpaceMemberArchetype>(reader, 'SpaceMemberArchetype');
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, isPremium, badges, archetypes };
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(8);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.bannerFileID, 'string');
     IonFormatterStorage.writeNullable<dateonly>(writer, value.dateOfBirth, 'dateonly');
     IonFormatterStorage.writeNullable<string>(writer, value.bio, 'string');
-    IonFormatterStorage.get<bool>('bool').write(writer, value.isPremium);
     IonFormatterStorage.writeArray<string>(writer, value.badges, 'string');
     IonFormatterStorage.writeArray<SpaceMemberArchetype>(writer, value.archetypes, 'SpaceMemberArchetype');
     writer.writeEndArray();
@@ -8124,6 +9038,10 @@ export interface IChannelInteraction extends IIonService
   EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
   CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
+  InvokeSlashCommand(spaceId: guid, channelId: guid, commandId: guid, options: IonArray<SlashCommandOption>): Promise<IInvokeSlashCommandResult>;
+  InteractWithControl(spaceId: guid, channelId: guid, messageId: i8, controlId: string): Promise<IInteractWithControlResult>;
+  InteractWithSelect(spaceId: guid, channelId: guid, messageId: i8, customId: string, values: IonArray<string>): Promise<IInteractWithSelectResult>;
+  SubmitModal(spaceId: guid, channelId: guid, interactionId: guid, values: IonArray<ModalSubmitValue>): Promise<ISubmitModalResult>;
 }
 
 
@@ -8357,6 +9275,10 @@ export interface IChannelInteraction extends IIonService
   EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
   CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
+  InvokeSlashCommand(spaceId: guid, channelId: guid, commandId: guid, options: IonArray<SlashCommandOption>): Promise<IInvokeSlashCommandResult>;
+  InteractWithControl(spaceId: guid, channelId: guid, messageId: i8, controlId: string): Promise<IInteractWithControlResult>;
+  InteractWithSelect(spaceId: guid, channelId: guid, messageId: i8, customId: string, values: IonArray<string>): Promise<IInteractWithSelectResult>;
+  SubmitModal(spaceId: guid, channelId: guid, interactionId: guid, values: IonArray<ModalSubmitValue>): Promise<ISubmitModalResult>;
 }
 
 
@@ -9054,6 +9976,71 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<AttachmentInfo>("AttachmentInfo", writer.data, this.signal);
+  }
+  async InvokeSlashCommand(spaceId: guid, channelId: guid, commandId: guid, options: IonArray<SlashCommandOption>): Promise<IInvokeSlashCommandResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "InvokeSlashCommand");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, commandId);
+    IonFormatterStorage.writeArray<SlashCommandOption>(writer, options, 'SlashCommandOption');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IInvokeSlashCommandResult>("IInvokeSlashCommandResult", writer.data, this.signal);
+  }
+  async InteractWithControl(spaceId: guid, channelId: guid, messageId: i8, controlId: string): Promise<IInteractWithControlResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "InteractWithControl");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<string>('string').write(writer, controlId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IInteractWithControlResult>("IInteractWithControlResult", writer.data, this.signal);
+  }
+  async InteractWithSelect(spaceId: guid, channelId: guid, messageId: i8, customId: string, values: IonArray<string>): Promise<IInteractWithSelectResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "InteractWithSelect");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<string>('string').write(writer, customId);
+    IonFormatterStorage.writeArray<string>(writer, values, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IInteractWithSelectResult>("IInteractWithSelectResult", writer.data, this.signal);
+  }
+  async SubmitModal(spaceId: guid, channelId: guid, interactionId: guid, values: IonArray<ModalSubmitValue>): Promise<ISubmitModalResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "SubmitModal");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, interactionId);
+    IonFormatterStorage.writeArray<ModalSubmitValue>(writer, values, 'ModalSubmitValue');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISubmitModalResult>("ISubmitModalResult", writer.data, this.signal);
   }
 
 }

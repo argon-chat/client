@@ -41,8 +41,8 @@
                 <div class="name-row">
                     <span class="display-name">{{ user.displayName }}</span>
 
-                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="userProfile.isPremium">
+                    <!-- <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                        v-if="userProfile.">
                         <Tooltip>
                             <TooltipTrigger>
                                 <IconDiamondFilled class="badge-icon text-violet-400" />
@@ -51,7 +51,7 @@
                                 <p>Argon Premium</p>
                             </TooltipContent>
                         </Tooltip>
-                    </TooltipProvider>
+                    </TooltipProvider> -->
                     <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
                         v-if="userProfile.badges.find(q => q == 'owner')">
                         <Tooltip>

@@ -280,19 +280,6 @@ export const useUserStore = defineStore("user", () => {
             return result;
           }
 
-          // echo bot
-          if (userId === "44444444-2222-1111-2222-444444444444") {
-            await trackUser({
-              avatarFileId: "echo-avatar.png",
-              displayName: "Echo",
-              userId: userId,
-              username: "echo",
-            });
-            const echoUser = await db.users.get(userId);
-            userCache.set(userId, { user: echoUser, timestamp: Date.now() });
-            return echoUser;
-          }
-
           return undefined;
         } catch (err) {
           logger.error(`[UserStore] 💥 Exception in getUser(${userId}):`, err);

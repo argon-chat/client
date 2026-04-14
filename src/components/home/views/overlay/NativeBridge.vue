@@ -159,12 +159,14 @@ async function start() {
                             timestamp: Math.floor(capture.timestamp),
                             width: capture.screenWidth,
                             height: capture.screenHeight,
+                            // @ts-ignore
                             tiles: bridgeTiles
                         })
                         console.log('[NativeBridge] Sent full frame:', totalTiles, 'tiles, transparent:', capture.transparentSkipped)
                     } else if (bridgeTiles.length > 0) {
                         await native.overlayController.sendDelta({
                             timestamp: Math.floor(capture.timestamp),
+                            // @ts-ignore
                             tiles: bridgeTiles,
                             skippedTransparent: capture.transparentSkipped
                         })
@@ -227,7 +229,7 @@ function startFullFrameCapture(): () => void {
                         data: new Uint8Array(imageData.data.buffer)
                     }]
                 }
-                
+                // @ts-ignore
                 native.overlayController.sendFullFrame(fullFrameData)
                     .then(() => console.log('[NativeBridge] Full frame sent:', width, 'x', height))
                     .catch((e: unknown) => console.error('[NativeBridge] Full frame error:', e))

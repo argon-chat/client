@@ -318,7 +318,7 @@ async function uninstallBot(botAppId: string) {
       uninstallMessage.value = t("bots_uninstall_success");
       uninstallMessageIsError.value = false;
       installedBots.value = installedBots.value.filter((b) => b.appId !== botAppId);
-    } else if (result.isFailedUninstallBot()) {
+    } if (result.isFailedUninstallBot()) {
       const key = uninstallErrorMap[result.error] ?? "bots_error_unknown";
       uninstallMessage.value = t(key);
       uninstallMessageIsError.value = true;
