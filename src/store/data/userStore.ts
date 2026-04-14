@@ -247,7 +247,7 @@ export const useUserStore = defineStore("user", () => {
     activeRequests++;
     
     // Timeout handler that can be cancelled
-    let timeoutId: NodeJS.Timeout | number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     
     const request = Promise.race([
       (async () => {
