@@ -70,6 +70,8 @@
                 </TooltipProvider>
             </div>
             <template v-if="!isRequiredUpperVersionMessage">
+                <ContextMenu>
+                <ContextMenuTrigger>
                 <div class="bubble-wrapper">
                     <!-- Telegram-style: images above the bubble -->
                     <div class="media-message-container" v-if="!isSingleEmojiMessage">
@@ -125,6 +127,16 @@
 
                     <!-- Hover actions — absolute overlay -->
                     <div class="message-actions">
+                        <Popover v-if="canReact" v-model:open="reactionPickerOpen">
+                            <PopoverTrigger as-child>
+                                <button class="action-btn">
+                                    <SmilePlusIcon class="w-3.5 h-3.5" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" :side-offset="4" class="reaction-picker-popover p-0 border-0 bg-transparent shadow-none w-auto">
+                                <ReactionPicker @select="onPickerSelect" />
+                            </PopoverContent>
+                        </Popover>
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -150,7 +162,32 @@
                             </Tooltip>
                         </TooltipProvider>
                     </div>
+
+                    <!-- Reaction pills -->
+                    <MessageReactions
+                      v-if="(props.message.reactions ?? []).length > 0"
+                      :reactions="props.message.reactions"
+                      :current-user-id="me.me?.userId ?? ''"
+                      :can-react="canReact"
+                      @toggle="onReactionToggle"
+                    />
                 </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent class="w-auto min-w-48">
+                    <div v-if="canReact" class="context-reaction-row">
+                        <ReactionPicker @select="onPickerSelect" />
+                    </div>
+                    <ContextMenuSeparator v-if="canReact" />
+                    <ContextMenuItem @click="copyMessage">
+                        <CopyIcon class="w-3.5 h-3.5 mr-2" />
+                        {{ t("copy") }}
+                    </ContextMenuItem>
+                    <ContextMenuItem @click="replyToMessage">
+                        <ReplyIcon class="w-3.5 h-3.5 mr-2" />
+                        {{ t("reply") }}
+                    </ContextMenuItem>
+                </ContextMenuContent>
+                </ContextMenu>
             </template>
             <template v-else>
                 <div class="unsupported-message" v-html="t('not_supported_message_please_update')">
@@ -188,12 +225,21 @@ import type { ArgonMessage } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { EntityType, type MessageEntityAttachment } from "@argon/glue";
 import { useLocale } from "@/store/system/localeStore";
-import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon } from "lucide-vue-next";
+import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon, SmilePlusIcon } from "lucide-vue-next";
 import {
   useMessageContent,
   fragmentMessageText,
   type IFrag,
 } from "@/composables/useMessageContent";
+import MessageReactions from "./chats/MessageReactions.vue";
+import ReactionPicker from "./chats/ReactionPicker.vue";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@argon/ui/context-menu";
 
 const { t } = useLocale();
 const isOpened = ref(false);
@@ -204,6 +250,8 @@ const props = defineProps<{
   isGrouped?: boolean;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  canReact?: boolean;
+  toggleReaction?: (messageId: bigint, emoji: string) => void;
 }>();
 
 const pool = usePoolStore();
@@ -332,6 +380,17 @@ function getColorByUserId(userId: string): string {
   return userColors.getColorByUserId(userId);
 }
 
+const reactionPickerOpen = ref(false);
+
+function onPickerSelect(emoji: string) {
+  reactionPickerOpen.value = false;
+  props.toggleReaction?.(props.message.messageId, emoji);
+}
+
+function onReactionToggle(emoji: string) {
+  props.toggleReaction?.(props.message.messageId, emoji);
+}
+
 function isUpEmojisOnly(message: ArgonMessage): boolean {
   if (!message.text) return false;
   const text = message.text.trim();
@@ -437,6 +496,7 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     white-space: pre-wrap;
     background-color: hsl(var(--muted));
     max-width: 520px;
+    min-width: 150px;
 }
 
 /* Directional radius — avatar is at top, so tail points top-left on first */
@@ -563,8 +623,8 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 
 .message-actions {
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: -28px;
+    right: 0;
     display: flex;
     gap: 1px;
     opacity: 0;
@@ -695,5 +755,24 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 
 .failed-badge:hover > .lucide-alert-circle {
     display: none;
+}
+
+/* ─── Context menu reaction row ─── */
+.context-reaction-row {
+    padding: 4px;
+    display: flex;
+    justify-content: center;
+}
+
+.context-reaction-row :deep(.reaction-picker) {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+}
+
+/* ─── Reaction picker popover override ─── */
+.reaction-picker-popover {
+    width: auto !important;
 }
 </style>

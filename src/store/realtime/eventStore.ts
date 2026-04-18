@@ -40,6 +40,8 @@ import {
   type MuteSettingsChanged,
   type BatchMentionOccurred,
   type DirectMessageSent,
+  type ReactionAdded,
+  type ReactionRemoved,
 } from "@argon/glue";
 import { useNotificationStore } from "@/store/data/notificationStore";
 
@@ -53,6 +55,8 @@ export const useEventStore = defineStore("events", () => {
   const realtimeStore = useRealtimeStore();
 
   const onNewMessageReceived = new Subject<ArgonMessage>();
+  const onReactionAdded = new Subject<ReactionAdded & { spaceId: string }>();
+  const onReactionRemoved = new Subject<ReactionRemoved & { spaceId: string }>();
 
   const pendingUserFetches = new Map<string, Promise<void>>();
 
@@ -368,10 +372,20 @@ export const useEventStore = defineStore("events", () => {
         }
       })();
     });
+
+    bus.onServerEvent<ReactionAdded>("ReactionAdded", (x) => {
+      onReactionAdded.next(x);
+    });
+
+    bus.onServerEvent<ReactionRemoved>("ReactionRemoved", (x) => {
+      onReactionRemoved.next(x);
+    });
   };
 
   return {
     onNewMessageReceived,
+    onReactionAdded,
+    onReactionRemoved,
     subscribeToEvents,
     isGuestUser,
   };

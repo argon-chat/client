@@ -176,6 +176,14 @@ export interface ArgonChannel {
 };
 
 
+export interface ReactionInfo {
+  emoji: string;
+  customEmojiId: guid | null;
+  count: i4;
+  userIds: IonArray<guid>;
+};
+
+
 export interface ArgonMessage {
   messageId: i8;
   replyId: i8 | null;
@@ -185,6 +193,7 @@ export interface ArgonMessage {
   entities: IonArray<IMessageEntity>;
   timeSent: datetime;
   sender: guid;
+  reactions: IonArray<ReactionInfo>;
 };
 
 
@@ -199,6 +208,12 @@ export interface AttachmentInfo {
   fileName: string;
   fileSize: i8;
   contentType: string;
+};
+
+
+export interface MessageReactionsEntry {
+  messageId: i8;
+  reactions: IonArray<ReactionInfo>;
 };
 
 
@@ -399,6 +414,24 @@ export enum InteractWithSelectError
   INVALID_VALUES = 5,
   BOT_NOT_CONNECTED = 6,
   ARCHETYPE_REQUIRED = 7,
+}
+
+
+export enum AddReactionError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  REACTION_LIMIT_REACHED = 2,
+  ALREADY_REACTED = 3,
+  INSUFFICIENT_PERMISSIONS = 4,
+}
+
+
+export enum RemoveReactionError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  REACTION_NOT_FOUND = 2,
 }
 
 
@@ -2514,6 +2547,210 @@ IonFormatterStorage.register("FailedSubmitModal", {
 
 
 
+export abstract class IAddReactionResult implements IIonUnion<IAddReactionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessAddReaction(): this is SuccessAddReaction {
+    return this.UnionKey === "SuccessAddReaction";
+  }
+  public isFailedAddReaction(): this is FailedAddReaction {
+    return this.UnionKey === "FailedAddReaction";
+  }
+
+}
+
+
+export class SuccessAddReaction extends IAddReactionResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessAddReaction";
+  UnionIndex: number = 0;
+}
+
+export class FailedAddReaction extends IAddReactionResult
+{
+  constructor(public error: AddReactionError) { super(); }
+
+  UnionKey: string = "FailedAddReaction";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IAddReactionResult", {
+  read(reader: CborReader): IAddReactionResult {
+    reader.readStartArray();
+    let value: IAddReactionResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessAddReaction>("SuccessAddReaction").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedAddReaction>("FailedAddReaction").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IAddReactionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessAddReaction>("SuccessAddReaction").write(writer, value as SuccessAddReaction);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedAddReaction>("FailedAddReaction").write(writer, value as FailedAddReaction);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessAddReaction", {
+  read(reader: CborReader): SuccessAddReaction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessAddReaction();
+  },
+  write(writer: CborWriter, value: SuccessAddReaction): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedAddReaction", {
+  read(reader: CborReader): FailedAddReaction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<AddReactionError>('AddReactionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedAddReaction(error);
+  },
+  write(writer: CborWriter, value: FailedAddReaction): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AddReactionError>('AddReactionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRemoveReactionResult implements IIonUnion<IRemoveReactionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRemoveReaction(): this is SuccessRemoveReaction {
+    return this.UnionKey === "SuccessRemoveReaction";
+  }
+  public isFailedRemoveReaction(): this is FailedRemoveReaction {
+    return this.UnionKey === "FailedRemoveReaction";
+  }
+
+}
+
+
+export class SuccessRemoveReaction extends IRemoveReactionResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRemoveReaction";
+  UnionIndex: number = 0;
+}
+
+export class FailedRemoveReaction extends IRemoveReactionResult
+{
+  constructor(public error: RemoveReactionError) { super(); }
+
+  UnionKey: string = "FailedRemoveReaction";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRemoveReactionResult", {
+  read(reader: CborReader): IRemoveReactionResult {
+    reader.readStartArray();
+    let value: IRemoveReactionResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRemoveReaction>("SuccessRemoveReaction").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRemoveReaction>("FailedRemoveReaction").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRemoveReactionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRemoveReaction>("SuccessRemoveReaction").write(writer, value as SuccessRemoveReaction);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRemoveReaction>("FailedRemoveReaction").write(writer, value as FailedRemoveReaction);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRemoveReaction", {
+  read(reader: CborReader): SuccessRemoveReaction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRemoveReaction();
+  },
+  write(writer: CborWriter, value: SuccessRemoveReaction): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRemoveReaction", {
+  read(reader: CborReader): FailedRemoveReaction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<RemoveReactionError>('RemoveReactionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRemoveReaction(error);
+  },
+  write(writer: CborWriter, value: FailedRemoveReaction): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<RemoveReactionError>('RemoveReactionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IInterlinkResult implements IIonUnion<IInterlinkResult>
 {
   abstract UnionKey: string;
@@ -2890,6 +3127,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   }
   public isShowModal(): this is ShowModal {
     return this.UnionKey === "ShowModal";
+  }
+  public isReactionAdded(): this is ReactionAdded {
+    return this.UnionKey === "ReactionAdded";
+  }
+  public isReactionRemoved(): this is ReactionRemoved {
+    return this.UnionKey === "ReactionRemoved";
   }
 
 }
@@ -3319,6 +3562,22 @@ export class ShowModal extends IArgonEvent
   UnionIndex: number = 52;
 }
 
+export class ReactionAdded extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string, public customEmojiId: guid | null) { super(); }
+
+  UnionKey: string = "ReactionAdded";
+  UnionIndex: number = 53;
+}
+
+export class ReactionRemoved extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string) { super(); }
+
+  UnionKey: string = "ReactionRemoved";
+  UnionIndex: number = 54;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -3435,6 +3694,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<InteractionDeferred>("InteractionDeferred").read(reader);
     else if (unionIndex == 52)
       value = IonFormatterStorage.get<ShowModal>("ShowModal").read(reader);
+    else if (unionIndex == 53)
+      value = IonFormatterStorage.get<ReactionAdded>("ReactionAdded").read(reader);
+    else if (unionIndex == 54)
+      value = IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").read(reader);
 
     else throw new Error();
   
@@ -3604,6 +3867,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 52) {
         IonFormatterStorage.get<ShowModal>("ShowModal").write(writer, value as ShowModal);
+    }
+    else if (value.UnionIndex == 53) {
+        IonFormatterStorage.get<ReactionAdded>("ReactionAdded").write(writer, value as ReactionAdded);
+    }
+    else if (value.UnionIndex == 54) {
+        IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").write(writer, value as ReactionRemoved);
     }
   
     else throw new Error();
@@ -4498,6 +4767,52 @@ IonFormatterStorage.register("ShowModal", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.interactionId);
     IonFormatterStorage.get<IonModalDefinition>('IonModalDefinition').write(writer, value.modal);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ReactionAdded", {
+  read(reader: CborReader): ReactionAdded {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const emoji = IonFormatterStorage.get<string>('string').read(reader);
+    const customEmojiId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new ReactionAdded(spaceId, channelId, messageId, userId, emoji, customEmojiId);
+  },
+  write(writer: CborWriter, value: ReactionAdded): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.emoji);
+    IonFormatterStorage.writeNullable<guid>(writer, value.customEmojiId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ReactionRemoved", {
+  read(reader: CborReader): ReactionRemoved {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const emoji = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return new ReactionRemoved(spaceId, channelId, messageId, userId, emoji);
+  },
+  write(writer: CborWriter, value: ReactionRemoved): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.emoji);
     writer.writeEndArray();
   }
 });
@@ -7484,6 +7799,26 @@ IonFormatterStorage.register("LinkedMeetingInfo", {
   }
 });
 
+IonFormatterStorage.register("ReactionInfo", {
+  read(reader: CborReader): ReactionInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const emoji = IonFormatterStorage.get<string>('string').read(reader);
+    const customEmojiId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const count = IonFormatterStorage.get<i4>('i4').read(reader);
+    const userIds = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { emoji, customEmojiId, count, userIds };
+  },
+  write(writer: CborWriter, value: ReactionInfo): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.emoji);
+    IonFormatterStorage.writeNullable<guid>(writer, value.customEmojiId, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.count);
+    IonFormatterStorage.writeArray<guid>(writer, value.userIds, 'guid');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ArgonMessage", {
   read(reader: CborReader): ArgonMessage {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -7495,11 +7830,12 @@ IonFormatterStorage.register("ArgonMessage", {
     const entities = IonFormatterStorage.readArray<IMessageEntity>(reader, 'IMessageEntity');
     const timeSent = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const sender = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender };
+    const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions };
   },
   write(writer: CborWriter, value: ArgonMessage): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(9);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.writeNullable<i8>(writer, value.replyId, 'i8');
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -7508,6 +7844,7 @@ IonFormatterStorage.register("ArgonMessage", {
     IonFormatterStorage.writeArray<IMessageEntity>(writer, value.entities, 'IMessageEntity');
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.timeSent);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sender);
+    IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
     writer.writeEndArray();
   }
 });
@@ -7555,6 +7892,22 @@ IonFormatterStorage.register("AttachmentInfo", {
     IonFormatterStorage.get<string>('string').write(writer, value.fileName);
     IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
     IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageReactionsEntry", {
+  read(reader: CborReader): MessageReactionsEntry {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { messageId, reactions };
+  },
+  write(writer: CborWriter, value: MessageReactionsEntry): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
     writer.writeEndArray();
   }
 });
@@ -7965,6 +8318,28 @@ IonFormatterStorage.register("InteractWithSelectError", {
     return InteractWithSelectError[num] !== undefined ? num as InteractWithSelectError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: InteractWithSelectError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("AddReactionError", {
+  read(reader: CborReader): AddReactionError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return AddReactionError[num] !== undefined ? num as AddReactionError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: AddReactionError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RemoveReactionError", {
+  read(reader: CborReader): RemoveReactionError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return RemoveReactionError[num] !== undefined ? num as RemoveReactionError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: RemoveReactionError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -9042,6 +9417,9 @@ export interface IChannelInteraction extends IIonService
   InteractWithControl(spaceId: guid, channelId: guid, messageId: i8, controlId: string): Promise<IInteractWithControlResult>;
   InteractWithSelect(spaceId: guid, channelId: guid, messageId: i8, customId: string, values: IonArray<string>): Promise<IInteractWithSelectResult>;
   SubmitModal(spaceId: guid, channelId: guid, interactionId: guid, values: IonArray<ModalSubmitValue>): Promise<ISubmitModalResult>;
+  AddReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IAddReactionResult>;
+  RemoveReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IRemoveReactionResult>;
+  BatchGetReactions(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<MessageReactionsEntry>>;
 }
 
 
@@ -9279,6 +9657,9 @@ export interface IChannelInteraction extends IIonService
   InteractWithControl(spaceId: guid, channelId: guid, messageId: i8, controlId: string): Promise<IInteractWithControlResult>;
   InteractWithSelect(spaceId: guid, channelId: guid, messageId: i8, customId: string, values: IonArray<string>): Promise<IInteractWithSelectResult>;
   SubmitModal(spaceId: guid, channelId: guid, interactionId: guid, values: IonArray<ModalSubmitValue>): Promise<ISubmitModalResult>;
+  AddReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IAddReactionResult>;
+  RemoveReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IRemoveReactionResult>;
+  BatchGetReactions(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<MessageReactionsEntry>>;
 }
 
 
@@ -10041,6 +10422,53 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<ISubmitModalResult>("ISubmitModalResult", writer.data, this.signal);
+  }
+  async AddReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IAddReactionResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "AddReaction");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<string>('string').write(writer, emoji);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAddReactionResult>("IAddReactionResult", writer.data, this.signal);
+  }
+  async RemoveReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IRemoveReactionResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "RemoveReaction");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<string>('string').write(writer, emoji);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRemoveReactionResult>("IRemoveReactionResult", writer.data, this.signal);
+  }
+  async BatchGetReactions(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<MessageReactionsEntry>> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "BatchGetReactions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.writeArray<i8>(writer, messageIds, 'i8');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<MessageReactionsEntry>>("IonArray<MessageReactionsEntry>", writer.data, this.signal);
   }
 
 }

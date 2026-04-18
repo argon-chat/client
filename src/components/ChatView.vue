@@ -100,7 +100,7 @@
           <div
             :ref="(el) => measureItem(el as HTMLElement, item.index)"
             :data-index="item.index"
-            v-memo="[item.key, messages[item.index]?._failed, messages[item.index]?._optimistic, groupingMap[item.index]?.isFirstInGroup, groupingMap[item.index]?.isLastInGroup]"
+            v-memo="[item.key, messages[item.index]?._failed, messages[item.index]?._optimistic, groupingMap[item.index]?.isFirstInGroup, groupingMap[item.index]?.isLastInGroup, messages[item.index]?.reactions?.length]"
           >
             <MessageItem
               :message="messages[item.index]"
@@ -108,6 +108,8 @@
               :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
               :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
               :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
+              :can-react="canReact"
+              :toggle-reaction="toggleReaction"
               @dblclick="() => emit('select-reply', messages[item.index])"
               @reply="(msg) => emit('select-reply', msg)"
               @retry="retryMessage"
@@ -167,6 +169,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { cn } from "@argon/core";
 import { useChatMessages } from "@/composables/useChatMessages";
 import { useChatScroll } from "@/composables/useChatScroll";
+import { useMessageReactions } from "@/composables/useMessageReactions";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { MuteLevelType, MuteTargetKind } from "@argon/glue";
 import {
@@ -287,6 +290,18 @@ const {
 );
 
 const {
+  canReact,
+  toggleReaction,
+  batchLoadReactions,
+  subscribe: subscribeReactions,
+  unsubscribe: unsubscribeReactions,
+} = useMessageReactions(
+  messages,
+  () => props.channelId,
+  () => props.spaceId,
+);
+
+const {
   parentRef,
   chatWidth,
   virtualizer,
@@ -355,7 +370,17 @@ watch(
 
     // Subscribe BEFORE loading so events during load are captured
     subscribeToNewMessages(newChannelId, () => scrollToBottomImmediate());
+    unsubscribeReactions();
+    subscribeReactions();
     await loadInitialMessages(() => scrollToBottomImmediate());
+
+    // Batch-load reactions for initially visible messages
+    if (messages.value.length > 0) {
+      const ids = messages.value
+        .filter((m) => !m._optimistic)
+        .map((m) => m.messageId);
+      void batchLoadReactions(ids);
+    }
 
     // ACK last message immediately when opening a channel
     nextTick(() => {
@@ -372,6 +397,7 @@ watch(
 
 onUnmounted(() => {
   ntf.flushAcksImmediate();
+  unsubscribeReactions();
   cleanupMessages();
 });
 </script>

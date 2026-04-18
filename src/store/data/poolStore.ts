@@ -377,6 +377,8 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     // Events
     onNewMessageReceived: eventStore.onNewMessageReceived,
+    onReactionAdded: eventStore.onReactionAdded,
+    onReactionRemoved: eventStore.onReactionRemoved,
 
     // Messages
     loadCachedMessages: messageStore.loadCachedMessages,
@@ -386,6 +388,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     getMessageById: messageStore.getMessageById,
     clearChannelMessages: messageStore.clearChannelMessages,
     getChannelMessageCount: messageStore.getChannelMessageCount,
+    updateMessageReactions: messageStore.updateMessageReactions,
 
     // Servers
     useAllServers: () => {

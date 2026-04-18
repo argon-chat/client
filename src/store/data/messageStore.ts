@@ -1,7 +1,7 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { db, toStoredMessage } from "@/store/db/dexie";
-import { type ArgonMessage } from "@argon/glue";
+import { type ArgonMessage, type ReactionInfo } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 /**
@@ -120,6 +120,22 @@ export const useMessageStore = defineStore("message", () => {
     }
   };
 
+  const updateMessageReactions = async (
+    messageId: bigint,
+    updater: (reactions: ReactionInfo[]) => ReactionInfo[],
+  ): Promise<void> => {
+    try {
+      await db.messages
+        .where("_msgId")
+        .equals(Number(messageId))
+        .modify((msg: any) => {
+          msg.reactions = updater(msg.reactions ?? []);
+        });
+    } catch (error) {
+      logger.error("Failed to update message reactions:", error);
+    }
+  };
+
   return {
     loadCachedMessages,
     loadOlderCachedMessages,
@@ -128,5 +144,6 @@ export const useMessageStore = defineStore("message", () => {
     getMessageById,
     clearChannelMessages,
     getChannelMessageCount,
+    updateMessageReactions,
   };
 });
