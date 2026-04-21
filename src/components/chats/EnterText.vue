@@ -23,7 +23,7 @@
 
             <div :class="captionMode ? 'input-row caption-mode' : 'input-row'">
                 <!-- Attach file button -->
-                <button v-if="!captionMode" class="input-icon-btn" title="Attach file" @click="openFilePicker">
+                <button v-if="!captionMode && canAttachFiles" class="input-icon-btn" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
                 </button>
                 <input
@@ -40,7 +40,8 @@
                     ref="editorRef"
                     v-model="messageText"
                     class="message-textarea"
-                    :placeholder="captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
+                    :disabled="!canSendMessages"
+                    :placeholder="!canSendMessages ? (t('no_send_permission') || 'You do not have permission to send messages') : captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
@@ -236,7 +237,12 @@ import { persistedValue } from "@argon/storage";
 import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
+import { usePexStore } from "@/store/data/permissionStore";
 const { t } = useLocale();
+
+const pex = usePexStore();
+const canSendMessages = computed(() => pex.has("SendMessages"));
+const canAttachFiles = computed(() => pex.has("AttachFiles"));
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light" : "dark");
@@ -838,6 +844,7 @@ async function onDialogAddFiles(files: FileList) {
 // --- Send handler ---
 
 const handleSend = async (captionContent?: { text: string; entities: IMessageEntity[] }) => {
+  if (!canSendMessages.value) return;
   const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
   if (!resolvedChannelId) {
     logger.warn("selected text channel is not defined");

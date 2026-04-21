@@ -1,17 +1,17 @@
 <template>
-    <div class="relative" style="z-index: 1;" v-if="me.me" v-show="pex.has('ManageServer')">
+    <div class="relative" style="z-index: 1;" v-if="me.me" v-show="pex.has('ManageServer') || pex.has('ManageChannels') || pex.has('ManageArchetype') || pex.has('ManageBots')">
         <div class="control-bar">
             <div class="controls">
-                <button @click="openServerSettings">
+                <button @click="openServerSettings" v-show="pex.has('ManageServer') || pex.has('ManageArchetype')">
                     <SettingsIcon class="w-5 h-5" />
                 </button>
                 <button @click="addChannelOpened = true" v-if="false">
                     <CirclePlusIcon class="w-5 h-5" />
                 </button>
-                <button @click="addGroupOpened = true">
+                <button @click="addGroupOpened = true" v-show="pex.has('ManageChannels')">
                     <FolderPlusIcon class="w-5 h-5" />
                 </button>
-                <button @click="manageBotsOpened = true">
+                <button @click="manageBotsOpened = true" v-show="pex.has('ManageBots')">
                     <BotIcon class="w-5 h-5" />
                 </button>
                 <button disabled>

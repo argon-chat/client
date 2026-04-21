@@ -96,14 +96,29 @@
                 <Separator class="section-sep" />
 
                 <!-- Roles -->
-                <div v-if="resolvedRoles.length > 0" class="roles-section">
+                <div class="roles-section">
                     <div class="section-label">{{ t('roles') }}</div>
                     <div class="roles-list">
                         <span v-for="role in resolvedRoles" :key="role.id" class="role-chip"
                             :style="{ '--role-color': formatColour(role.colour) }">
                             <span class="role-dot" :style="{ background: formatColour(role.colour) }"></span>
                             {{ role.name }}
+                            <button v-if="canManageRoles && !role.isLocked && !role.isDefault"
+                                class="role-remove" @click.stop="removeRole(role.id)" title="Remove role">×</button>
                         </span>
+                        <button v-if="canManageRoles" class="role-chip role-add-btn" @click="showRolePicker = !showRolePicker" title="Add role">
+                            <span>+</span>
+                        </button>
+                    </div>
+                    <div v-if="showRolePicker && canManageRoles" class="role-picker">
+                        <div v-for="role in availableRoles" :key="role.id"
+                            class="role-picker-item" @click="addRole(role.id)">
+                            <span class="role-dot" :style="{ background: formatColour(role.colour) }"></span>
+                            {{ role.name }}
+                        </div>
+                        <div v-if="availableRoles.length === 0" class="text-xs text-muted-foreground p-2">
+                            {{ t("no_roles_available") || "No roles available" }}
+                        </div>
                     </div>
                 </div>
 
@@ -158,15 +173,26 @@ import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
 import { ActivityPresenceKind, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
+import { usePexStore } from "@/store/data/permissionStore";
 
 const isLoading = ref(true);
 const api = useApi();
 const pool = usePoolStore();
+const pex = usePexStore();
 
 const userProfile = ref(null as null | ArgonUserProfile);
 const user = ref(undefined as undefined | RealtimeUser);
 const resolvedRoles = ref<Archetype[]>([]);
 const memberJoinedAt = ref<Date | null>(null);
+const showRolePicker = ref(false);
+const allSpaceRoles = ref<Archetype[]>([]);
+
+const canManageRoles = computed(() => pex.has('ManageArchetype'));
+
+const availableRoles = computed(() => {
+  const currentIds = new Set(resolvedRoles.value.map(r => r.id));
+  return allSpaceRoles.value.filter(r => !currentIds.has(r.id) && !r.isHidden && !r.isLocked);
+});
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
@@ -260,6 +286,14 @@ onMounted(async () => {
     resolvedRoles.value = archetypes;
   }
 
+  // Load all roles for this space (for add role picker)
+  if (pool.selectedServer) {
+    allSpaceRoles.value = await db.archetypes
+      .where("spaceId")
+      .equals(pool.selectedServer)
+      .toArray();
+  }
+
   // Fetch member join date
   if (pool.selectedServer) {
     const member = await db.members
@@ -282,6 +316,32 @@ onMounted(async () => {
     shouldScroll.value = text.scrollWidth > wrapper.clientWidth;
   }
 });
+
+async function addRole(archetypeId: Guid) {
+  if (!pool.selectedServer) return;
+  try {
+    const memberIds = await pool.getMemberIdsByUserIds(pool.selectedServer, [props.userId]);
+    if (!memberIds || memberIds.length === 0) return;
+    await api.archetypeInteraction.SetArchetypeToMember(pool.selectedServer, memberIds[0], archetypeId, true);
+    const role = allSpaceRoles.value.find(r => r.id === archetypeId);
+    if (role) resolvedRoles.value.push(role);
+    showRolePicker.value = false;
+  } catch (e) {
+    console.error("Failed to add role", e);
+  }
+}
+
+async function removeRole(archetypeId: Guid) {
+  if (!pool.selectedServer) return;
+  try {
+    const memberIds = await pool.getMemberIdsByUserIds(pool.selectedServer, [props.userId]);
+    if (!memberIds || memberIds.length === 0) return;
+    await api.archetypeInteraction.SetArchetypeToMember(pool.selectedServer, memberIds[0], archetypeId, false);
+    resolvedRoles.value = resolvedRoles.value.filter(r => r.id !== archetypeId);
+  } catch (e) {
+    console.error("Failed to remove role", e);
+  }
+}
 </script>
 
 <style lang="css" scoped>
@@ -465,6 +525,51 @@ onMounted(async () => {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.role-remove {
+  margin-left: 2px;
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.role-remove:hover {
+  opacity: 1;
+  color: hsl(var(--destructive));
+}
+
+.role-add-btn {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  border-style: dashed;
+}
+.role-add-btn:hover {
+  opacity: 1;
+}
+
+.role-picker {
+  margin-top: 4px;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.role-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: background 0.1s;
+}
+.role-picker-item:hover {
+  background: hsl(var(--accent));
 }
 
 /* Member since */

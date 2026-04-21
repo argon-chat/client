@@ -26,6 +26,7 @@ import {
   type UserChangedStatus,
   type UserUpdated,
   type ArchetypeCreated,
+  type ArchetypeChanged,
   type ChannelGroup,
   ChannelGroupCreated,
   ChannelGroupModified,
@@ -267,6 +268,10 @@ export const useEventStore = defineStore("events", () => {
     });
 
     bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
+      void archetypeStore.trackArchetype(x.data);
+    });
+
+    bus.onServerEvent<ArchetypeChanged>("ArchetypeChanged", (x) => {
       void archetypeStore.trackArchetype(x.data);
     });
 

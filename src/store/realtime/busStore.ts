@@ -110,7 +110,7 @@ export const useBus = defineStore("bus", () => {
 
       if (!intervalSubject.value) {
         intervalSubject.value = defer(() =>
-          timer(0, 2000).pipe(
+          timer(0, 15000).pipe(
             switchMap(() =>
               from(sendHeartbeat()).pipe(
                 catchError((err) => {

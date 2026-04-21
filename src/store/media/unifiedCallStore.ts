@@ -31,6 +31,7 @@ import { startTimer } from "@argon/core";
 import { useSystemStore } from "@/store/system/systemStore";
 import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
+import { usePexStore } from "@/store/data/permissionStore";
 
 export const useUnifiedCall = defineStore("unifiedCall", () => {
   const api = useApi();
@@ -41,6 +42,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   const sys = useSystemStore();
   const userVolume = useUserVolumeStore();
   const realtimeStore = useRealtimeStore();
+  const pex = usePexStore();
 
   const mode = ref<"none" | "dm" | "channel">("none");
 
@@ -237,6 +239,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   async function joinVoiceChannel(channelId: string) {
     logger.info("[CALL] joinVoiceChannel", channelId);
+
+    if (!pex.has("Connect")) {
+      logger.warn("[CALL] No Connect permission");
+      return;
+    }
 
     if (mode.value === "dm") await leave();
 

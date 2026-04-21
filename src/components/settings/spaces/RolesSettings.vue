@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex items-center justify-between p-4 gap-2">
-      <Button @click="addArchetype" variant="ghost" title="Add Role">
+      <Button @click="addArchetype" variant="ghost" title="Add Role" :disabled="!pex.has('ManageArchetype')">
         <PlusCircleIcon />
       </Button>
       <Input v-model="search" type="text" placeholder="Search roles..." />
@@ -99,6 +99,18 @@
                     </ul>
                   </CardContent>
                 </Card>
+
+                <!-- Danger Zone -->
+                <Card v-if="!isLockedArchetype(selectedArchetype) && !selectedArchetype.isDefault">
+                  <CardContent class="p-4 space-y-2">
+                    <div class="font-semibold text-base text-red-400">{{ t("danger_zone") || "Danger Zone" }}</div>
+                    <p class="text-muted text-sm">{{ t("delete_role_warning") || "Deleting this role will remove it from all members." }}</p>
+                    <Button variant="destructive" @click="confirmDeleteArchetype" :disabled="deletingArchetype">
+                      <Trash2Icon class="w-4 h-4 mr-2" />
+                      {{ t("delete_role") || "Delete Role" }}
+                    </Button>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="users" class="space-y-2">
@@ -133,6 +145,9 @@
               </TabsContent>
             </Tabs>
 
+          </div>
+          <div v-else class="flex items-center justify-center h-full text-muted text-sm p-8">
+            {{ t("select_role") || "Select a role to edit" }}
           </div>
         </ScrollArea>
         <div v-if="isOpen && userSearchQuery.trim().length > 0" ref="floating" :style="floatingStyles"
@@ -183,7 +198,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { delay } from "@argon/core";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
 import { Button } from "@argon/ui/button";
-import { PlusCircleIcon, BanIcon } from "lucide-vue-next";
+import { PlusCircleIcon, BanIcon, Trash2Icon } from "lucide-vue-next";
 import { Input } from "@argon/ui/input";
 import { watchDebounced } from "@vueuse/core";
 import { useApi } from "@/store/system/apiStore";
@@ -193,6 +208,7 @@ import { Textarea } from "@argon/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@argon/ui/tabs";
 import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
+import { usePexStore } from "@/store/data/permissionStore";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
 import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
@@ -222,6 +238,7 @@ function close() {
 
 
 const pool = usePoolStore();
+const pex = usePexStore();
 const selectedServer = computed(() => pool.selectedServer);
 const { t } = useLocale();
 const isLoading = ref(true);
@@ -407,15 +424,39 @@ const filteredArchetypes = computed(() => {
 
 async function addArchetype() {
   if (!selectedServer.value) return;
+  if (!pex.has('ManageArchetype')) return;
   await api.archetypeInteraction.CreateArchetype(
     selectedServer.value,
     "New Archetype",
   );
 }
 
+const deletingArchetype = ref(false);
+
+async function confirmDeleteArchetype() {
+  if (!selectedArchetype.value || !selectedServer.value) return;
+  if (isLockedArchetype(selectedArchetype.value)) return;
+  if (selectedArchetype.value.isDefault) return;
+
+  const name = selectedArchetype.value.name;
+  if (!window.confirm(`Are you sure you want to delete the role "${name}"? This will remove it from all members.`)) return;
+
+  deletingArchetype.value = true;
+  try {
+    // TODO: call DeleteArchetype API when backend supports it
+    toast.toast({
+      title: t("fail_save") || "Not yet implemented",
+      variant: "destructive",
+    });
+  } finally {
+    deletingArchetype.value = false;
+  }
+}
+
 function updateArchetypeLocal() {
   logger.info("called update archetype", selectedArchetype.value);
   if (!selectedArchetype.value) return;
+  if (isLockedArchetype(selectedArchetype.value)) return;
   try {
     const result = api.archetypeInteraction.UpdateArchetype(
       selectedArchetype.value.spaceId,
