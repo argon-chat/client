@@ -9373,6 +9373,8 @@ export interface IArchetypeInteraction extends IIonService
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
+  GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>>;
+  DeleteEntitlementForChannel(spaceId: guid, channelId: guid, entitlementOverwriteId: guid): Promise<bool>;
 }
 
 
@@ -9613,6 +9615,8 @@ export interface IArchetypeInteraction extends IIonService
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
+  GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>>;
+  DeleteEntitlementForChannel(spaceId: guid, channelId: guid, entitlementOverwriteId: guid): Promise<bool>;
 }
 
 
@@ -9946,6 +9950,35 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
     writer.writeEndArray();
           
     return await req.callAsyncT<ChannelEntitlementOverwrite | null>("ChannelEntitlementOverwrite | null", writer.data, this.signal);
+  }
+  async GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>> {
+    const req = new IonRequest(this.ctx, "IArchetypeInteraction", "GetChannelEntitlementOverwrites");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ChannelEntitlementOverwrite>>("IonArray<ChannelEntitlementOverwrite>", writer.data, this.signal);
+  }
+  async DeleteEntitlementForChannel(spaceId: guid, channelId: guid, entitlementOverwriteId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IArchetypeInteraction", "DeleteEntitlementForChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, entitlementOverwriteId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
 
 }

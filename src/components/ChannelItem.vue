@@ -10,28 +10,55 @@
     :data-drop-position="isDragOver ? dropPosition : undefined"
     class="channel-item"
   >
-    <div 
-      class="channel-inner"
-      @click="emit('select', channel.channelId)"
-      @contextmenu.prevent="onContextMenu"
-    >
-      <div class="flex items-center space-x-2">
-        <VideoIcon 
-          v-if="channelMeetingInfo" 
-          class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
-          @click.stop="openMeetingDetails"
-        />
-        <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
-        <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
-        <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
-        <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="channel?.name">{{ channel?.name }}</span>
-        <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
-          {{ channelMentions }}
-        </span>
-        <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full bg-white flex-shrink-0" />
-        <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
-      </div>
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger as-child>
+        <div 
+          class="channel-inner"
+          @click="emit('select', channel.channelId)"
+        >
+          <div class="flex items-center space-x-2">
+            <VideoIcon 
+              v-if="channelMeetingInfo" 
+              class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
+              @click.stop="openMeetingDetails"
+            />
+            <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
+            <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="channel?.name">{{ channel?.name }}</span>
+            <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
+              {{ channelMentions }}
+            </span>
+            <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full bg-white flex-shrink-0" />
+            <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent class="w-52">
+        <ContextMenuItem
+          v-if="canManageChannels"
+          @click="channelPermissionsOpen = true"
+        >
+          {{ t("edit_permissions") || "Edit Permissions" }}
+        </ContextMenuItem>
+        <ContextMenuSeparator v-if="canManageChannels" />
+        <ContextMenuItem
+          v-if="canManageChannels"
+          class="text-red-400"
+          @click="emit('delete', channel.channelId)"
+        >
+          {{ t("delete_channel") || "Delete Channel" }}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+
+    <ChannelPermissions
+      :open="channelPermissionsOpen"
+      @update:open="channelPermissionsOpen = $event"
+      :space-id="channel.spaceId"
+      :channel-id="channel.channelId"
+      :channel-name="channel.name"
+    />
 
     <!-- Voice channel users -->
     <TransitionGroup
@@ -99,6 +126,7 @@ import type { DropPosition } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
+import ChannelPermissions from '@/components/settings/channels/ChannelPermissions.vue';
 
 const props = defineProps<{
   channel: ArgonChannel;
@@ -153,15 +181,7 @@ const meetingDetailsOpened = vueRef(false);
 const currentMeetingInfo = vueRef<any>(null);
 const channelMeetingInfo = computed(() => props.voiceUsers?.meetingInfo);
 
-const contextMenuOpen = vueRef(false);
-const contextMenuStyle = vueRef<Record<string, string>>({});
-
-const onContextMenu = (e: MouseEvent) => {
-  contextMenuStyle.value = {
-    '--radix-context-menu-content-transform-origin': `${e.clientX}px ${e.clientY}px`,
-  };
-  contextMenuOpen.value = true;
-};
+const channelPermissionsOpen = vueRef(false);
 
 const createMeeting = async () => {
   try {
