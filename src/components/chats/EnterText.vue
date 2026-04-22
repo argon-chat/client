@@ -88,6 +88,24 @@
         </ul>
         </Transition>
 
+        <!-- Slash command dropdown -->
+        <Transition name="mention-pop">
+        <ul v-if="slashCmd.show && slashCmd.candidates.length"
+            class="mention-dropdown slash-dropdown">
+            <li v-for="(cmd, i) in slashCmd.candidates" :key="cmd.commandId" :class="[
+                'mention-item',
+                i === slashCmd.index ? 'mention-item-active' : '',
+            ]" @mousedown.prevent="selectSlashCommand(cmd)"
+               @mouseenter="slashCmd.index = i">
+                <div class="slash-cmd-icon">/</div>
+                <div class="mention-info">
+                    <span class="mention-name">{{ cmd.name }}</span>
+                    <span class="mention-username">{{ cmd.description }}</span>
+                </div>
+            </li>
+        </ul>
+        </Transition>
+
         <!-- Formatting Help Dialog -->
         <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
             <DialogContent class="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -238,6 +256,9 @@ import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { usePexStore } from "@/store/data/permissionStore";
+import { useSlashCommands } from "@/composables/useSlashCommands";
+import { useBotInteraction } from "@/composables/useBotInteraction";
+import type { SpaceCommand } from "@argon/glue";
 const { t } = useLocale();
 
 const pex = usePexStore();
@@ -278,6 +299,17 @@ const mention = reactive({
   index: 0,
   startOffset: 0,
 });
+
+// Slash command autocomplete
+const slashCmd = reactive({
+  show: false,
+  query: "",
+  candidates: [] as SpaceCommand[],
+  index: 0,
+});
+
+const botInteraction = useBotInteraction();
+const slashCommands = useSlashCommands(() => props.spaceId);
 
 // Map to store mention text -> userId for post-parsing
 const mentionRegistry = new Map<string, string>();
@@ -422,11 +454,36 @@ function onEditorInput() {
       mention.startOffset = atIndex;
       mention.index = 0;
       rawQuery.value = mention.query;
+      slashCmd.show = false;
       return;
     }
   }
 
   mention.show = false;
+
+  // Check for slash command trigger: "/" at start of line
+  if (text.startsWith("/") && cursorPos > 0) {
+    const query = text.slice(1, cursorPos);
+    if (/^[\w\d_-]{0,32}$/.test(query)) {
+      const filtered = slashCommands.filterCommands(query);
+      if (filtered.length > 0 || slashCommands.commands.value.length === 0) {
+        slashCmd.show = true;
+        slashCmd.query = query;
+        slashCmd.index = 0;
+        // Fetch commands lazily on first "/"
+        if (slashCommands.commands.value.length === 0) {
+          slashCommands.fetchCommands().then(() => {
+            slashCmd.candidates = slashCommands.filterCommands(slashCmd.query);
+          });
+        } else {
+          slashCmd.candidates = filtered;
+        }
+        return;
+      }
+    }
+  }
+
+  slashCmd.show = false;
 }
 
 
@@ -471,7 +528,7 @@ async function onEditorKeydown(e: KeyboardEvent) {
     lastReplacement = null;
   }
 
-  if (!mention.show) {
+  if (!mention.show && !slashCmd.show) {
     if (e.shiftKey || e.altKey || e.ctrlKey) return;
     if (e.altKey) return;
     if (e.key !== "Enter") return;
@@ -481,6 +538,23 @@ async function onEditorKeydown(e: KeyboardEvent) {
       return;
     }
     await handleSend();
+    return;
+  }
+
+  // Slash command navigation
+  if (slashCmd.show && slashCmd.candidates.length > 0) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      slashCmd.index = (slashCmd.index + 1) % slashCmd.candidates.length;
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      slashCmd.index = (slashCmd.index - 1 + slashCmd.candidates.length) % slashCmd.candidates.length;
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      selectSlashCommand(slashCmd.candidates[slashCmd.index]);
+    } else if (e.key === "Escape") {
+      slashCmd.show = false;
+    }
     return;
   }
 
@@ -528,6 +602,50 @@ function selectMention(user: MentionUser) {
   mention.show = false;
 }
 
+function selectSlashCommand(cmd: SpaceCommand) {
+  slashCmd.show = false;
+  messageText.value = "";
+
+  if (editorRef.value) {
+    editorRef.value.style.height = "auto";
+  }
+
+  // If command has no options, invoke immediately
+  if (!cmd.options || cmd.options.length === 0) {
+    const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+    if (resolvedChannelId) {
+      botInteraction.invokeSlashCommand(props.spaceId, resolvedChannelId, cmd.commandId, []);
+    }
+    return;
+  }
+
+  // If command has options, build a simple prompt string and invoke
+  // For now, show a basic prompt-based approach via the text field
+  // TODO: In the future, implement inline option inputs
+  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  if (resolvedChannelId) {
+    // Pre-fill the text with the command for user context
+    messageText.value = `/${cmd.name} `;
+    nextTick(() => {
+      if (editorRef.value) {
+        const newPos = messageText.value.length;
+        editorRef.value.setSelectionRange(newPos, newPos);
+        editorRef.value.focus();
+      }
+    });
+    // Store selected command for send interception
+    selectedSlashCommand.value = { cmd, channelId: resolvedChannelId };
+  }
+}
+
+const selectedSlashCommand = ref<{ cmd: SpaceCommand; channelId: string } | null>(null);
+
+// Watch for send with active slash command
+watch(messageText, (val: string) => {
+  if (selectedSlashCommand.value && !val.startsWith("/")) {
+    selectedSlashCommand.value = null;
+  }
+});
 
 onMounted(() => {
   if (!props.captionMode) {
@@ -848,6 +966,43 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
   if (!resolvedChannelId) {
     logger.warn("selected text channel is not defined");
+    return;
+  }
+
+  // Handle slash command invocation
+  if (selectedSlashCommand.value && messageText.value.startsWith("/")) {
+    const { cmd, channelId } = selectedSlashCommand.value;
+    const optionText = messageText.value.slice(cmd.name.length + 2).trim(); // Remove "/name "
+    const options: { name: string; value: string }[] = [];
+
+    // Parse simple "key:value" pairs from the remaining text
+    if (optionText && cmd.options?.length) {
+      // If command has a single required option, use the whole text as its value
+      if (cmd.options.length === 1) {
+        options.push({ name: cmd.options[0].name, value: optionText });
+      } else {
+        // Try to parse "key:value key2:value2" format
+        const parts = optionText.match(/(\w+):("[^"]*"|\S+)/g);
+        if (parts) {
+          for (const part of parts) {
+            const colonIdx = part.indexOf(":");
+            const key = part.slice(0, colonIdx);
+            let value = part.slice(colonIdx + 1);
+            if (value.startsWith('"') && value.endsWith('"')) {
+              value = value.slice(1, -1);
+            }
+            options.push({ name: key, value });
+          }
+        }
+      }
+    }
+
+    botInteraction.invokeSlashCommand(props.spaceId, channelId, cmd.commandId, options);
+    selectedSlashCommand.value = null;
+    messageText.value = "";
+    if (editorRef.value) {
+      editorRef.value.style.height = "auto";
+    }
     return;
   }
 
@@ -1248,6 +1403,25 @@ defineExpose({
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Slash command dropdown extras */
+.slash-dropdown {
+    max-width: min(100%, 420px);
+}
+
+.slash-cmd-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: hsl(var(--muted));
+    font-weight: 700;
+    font-size: 14px;
+    color: hsl(var(--primary));
 }
 
 /* Mention transition */

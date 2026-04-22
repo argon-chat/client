@@ -45,6 +45,7 @@ import {
   type ReactionRemoved,
 } from "@argon/glue";
 import { useNotificationStore } from "@/store/data/notificationStore";
+import { useBotInteraction } from "@/composables/useBotInteraction";
 
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();
@@ -106,6 +107,9 @@ export const useEventStore = defineStore("events", () => {
   const subscribeToEvents = () => {
     const notificationStore = useNotificationStore();
     notificationStore.subscribeToEvents();
+
+    const botInteraction = useBotInteraction();
+    botInteraction.subscribe();
 
     bus.onServerEvent<ChannelCreated>("ChannelCreated", (x) => {
       void (async () => {

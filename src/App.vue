@@ -11,6 +11,7 @@ import DiagnosticsOverlay from "./components/overlays/DiagnosticsOverlay.vue";
 import ReconnectOverlay from "./components/overlays/ReconnectOverlay.vue";
 import DvdBounce from "./components/overlays/DvdBounce.vue";
 import GamePicker from "./components/playframe/GamePicker.vue";
+import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import { useTheme } from "@/composables/useTheme";
 import { logger } from "@argon/core";
 import { useAppState, useSystemStore } from "./store";
@@ -66,6 +67,7 @@ const reloadPage = () => {
   <ReconnectOverlay />
   <GamePicker />
   <DvdBounce />
+  <BotInteractionModal />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
 
   <!-- Loading overlay -->

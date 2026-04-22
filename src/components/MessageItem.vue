@@ -163,6 +163,15 @@
                         </TooltipProvider>
                     </div>
 
+                    <!-- Bot controls (buttons, selects) -->
+                    <MessageControls
+                      v-if="(props.message.controls ?? []).length > 0"
+                      :controls="props.message.controls"
+                      :message-id="props.message.messageId"
+                      :space-id="props.message.spaceId"
+                      :channel-id="props.message.channelId"
+                    />
+
                     <!-- Reaction pills -->
                     <MessageReactions
                       v-if="(props.message.reactions ?? []).length > 0"
@@ -232,6 +241,7 @@ import {
   type IFrag,
 } from "@/composables/useMessageContent";
 import MessageReactions from "./chats/MessageReactions.vue";
+import MessageControls from "./chats/MessageControls.vue";
 import ReactionPicker from "./chats/ReactionPicker.vue";
 import {
   ContextMenu,
