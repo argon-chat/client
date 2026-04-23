@@ -113,6 +113,7 @@
               @dblclick="() => emit('select-reply', messages[item.index])"
               @reply="(msg) => emit('select-reply', msg)"
               @retry="retryMessage"
+              @open-lightbox="onOpenLightbox"
             />
           </div>
         </div>
@@ -133,6 +134,15 @@
       </div>
       <p class="empty-chat-text">{{ t('no_messages_yet') }}</p>
     </div>
+
+    <!-- Shared ImageLightbox (single instance for all messages) -->
+    <ImageLightbox
+      :images="lightboxImages"
+      :initial-index="lightboxIndex"
+      :is-open="lightboxOpen"
+      :time-sent="lightboxTimeSent"
+      @close="lightboxOpen = false"
+    />
 
     <!-- Scroll to bottom button -->
     <Transition name="scroll-btn">
@@ -163,7 +173,8 @@ import {
 } from "lucide-vue-next";
 
 import MessageItem from "@/components/MessageItem.vue";
-import { type ArgonMessage } from "@argon/glue";
+import ImageLightbox from "@/components/chats/ImageLightbox.vue";
+import { type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { cn } from "@argon/core";
@@ -177,6 +188,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@argon/ui/popover";
+
 
 const { t } = useLocale();
 const ntf = useNotificationStore();
@@ -207,6 +219,19 @@ const expandSearch = () => {
 const collapseSearch = () => {
   searchExpanded.value = false;
 };
+
+// Shared lightbox state (single instance for all messages)
+const lightboxOpen = ref(false);
+const lightboxImages = ref<MessageEntityAttachment[]>([]);
+const lightboxIndex = ref(0);
+const lightboxTimeSent = ref<Date | null>(null);
+
+function onOpenLightbox(images: MessageEntityAttachment[], index: number, timeSent: Date | null) {
+  lightboxImages.value = images;
+  lightboxIndex.value = index;
+  lightboxTimeSent.value = timeSent;
+  lightboxOpen.value = true;
+}
 
 const GROUP_TIME_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -617,7 +642,10 @@ onUnmounted(() => {
 /* ─── Messages ─── */
 .chat-message {
   word-wrap: break-word;
-  contain: layout style;
+  contain: layout style paint;
+  will-change: transform;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
 }
 
 /* Scrollbar */

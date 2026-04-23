@@ -76,13 +76,6 @@
                     <!-- Telegram-style: images above the bubble -->
                     <div class="media-message-container" v-if="!isSingleEmojiMessage">
                         <AttachmentImageGrid v-if="imageAttachments.length" :images="imageAttachments" class="media-block" @open-lightbox="openLightbox" />
-                        <ImageLightbox
-                          :images="imageAttachments"
-                          :initial-index="lightboxIndex"
-                          :is-open="lightboxOpen"
-                          :time-sent="props.message.timeSent?.date ?? null"
-                          @close="lightboxOpen = false"
-                        />
                         <div class="bubble" :class="[bubbleRadiusClass, { 'bubble-below-media': imageAttachments.length > 0 }]" v-if="!hasOnlyImages" ref="bubble">
                             <!-- Reply preview -->
                             <div v-if="replyMessage" class="reply-preview" @click="$emit('reply', replyMessage)">
@@ -133,7 +126,7 @@
                                     <SmilePlusIcon class="w-3.5 h-3.5" />
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent side="top" :side-offset="4" class="reaction-picker-popover p-0 border-0 bg-transparent shadow-none w-auto">
+                            <PopoverContent v-if="reactionPickerOpen" side="top" :side-offset="4" class="reaction-picker-popover p-0 border-0 bg-transparent shadow-none w-auto">
                                 <ReactionPicker @select="onPickerSelect" />
                             </PopoverContent>
                         </Popover>
@@ -166,7 +159,7 @@
                     <!-- Bot controls (buttons, selects) -->
                     <MessageControls
                       v-if="(props.message.controls ?? []).length > 0"
-                      :controls="props.message.controls"
+                      :controls="(props.message.controls ?? [])"
                       :message-id="props.message.messageId"
                       :space-id="props.message.spaceId"
                       :channel-id="props.message.channelId"
@@ -212,6 +205,20 @@ import { usePoolStore } from "@/store/data/poolStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useMe } from "@/store/auth/meStore";
 import emojiRegex from "emoji-regex";
+
+// Module-level caches (shared across all MessageItem instances)
+const _emojiRegex = emojiRegex();
+let _timestampFormat: string | null = null;
+function getTimestampFormat(): string {
+  if (_timestampFormat === null) {
+    _timestampFormat = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+    // Watch for changes via MutationObserver (fires rarely — only on settings change)
+    new MutationObserver(() => {
+      _timestampFormat = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-timestamp-format"] });
+  }
+  return _timestampFormat;
+}
 import {
   Tooltip,
   TooltipContent,
@@ -223,7 +230,6 @@ import { useUserColors } from "@/store/chat/userColors";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
 import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
-import ImageLightbox from "./chats/ImageLightbox.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import {
   Popover,
@@ -273,6 +279,7 @@ const { isSystemMessage, systemMessageText } = useMessageContent(() => props.mes
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
   (e: "retry", message: ArgonMessage): void;
+  (e: "open-lightbox", images: MessageEntityAttachment[], index: number, timeSent: Date | null): void;
 }>();
 
 const isRequiredUpperVersionMessage = ref(false);
@@ -312,15 +319,11 @@ const isOptimistic = computed(() => props.message._optimistic === true);
 const isFailed = computed(() => props.message._failed === true);
 const failedError = computed(() => props.message._error);
 
-const lightboxOpen = ref(false);
-const lightboxIndex = ref(0);
-
 function openLightbox(index: number) {
-  lightboxIndex.value = index;
-  lightboxOpen.value = true;
+  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.date ?? null);
 }
 
-const isSingleEmojiMessage = isUpEmojisOnly(props.message);
+const isSingleEmojiMessage = computed(() => isUpEmojisOnly(props.message));
 const isIncoming = computed(() => props.message.sender !== me.me?.userId);
 const renderedMessage = ref([] as IFrag[]);
 
@@ -353,7 +356,7 @@ onBeforeUnmount(() => {
 
 const formattedTime = computed(() => {
   const date = props.message.timeSent.date;
-  const format = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+  const format = getTimestampFormat();
   
   if (format === "12h") {
     let hours = date.getHours();
@@ -404,8 +407,7 @@ function onReactionToggle(emoji: string) {
 function isUpEmojisOnly(message: ArgonMessage): boolean {
   if (!message.text) return false;
   const text = message.text.trim();
-  const regex = emojiRegex();
-  const matches = [...text.matchAll(regex)];
+  const matches = [...text.matchAll(_emojiRegex)];
   const emojisOnly = matches.map((m) => m[0]).join("");
   return matches.length >= 1 && matches.length <= 2 && emojisOnly === text;
 }
@@ -635,11 +637,8 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
     position: absolute;
     top: -28px;
     right: 0;
-    display: flex;
+    display: none;
     gap: 1px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s ease, visibility 0.15s ease;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.4);
     border-radius: 8px;
@@ -649,8 +648,7 @@ function isUpEmojisOnly(message: ArgonMessage): boolean {
 }
 
 .bubble-wrapper:hover .message-actions {
-    opacity: 1;
-    visibility: visible;
+    display: flex;
 }
 
 .action-btn {

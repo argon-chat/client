@@ -164,6 +164,10 @@ export function useTheme(config: ThemeConfig = {}) {
     // Apply blur
     root.classList.toggle("no-blur", !enableBlur.value);
 
+    // Apply smooth scroll preference
+    const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
+    root.classList.toggle("no-smooth-scroll", !smoothScroll.value);
+
     // Apply high contrast
     root.classList.toggle("high-contrast", highContrast.value);
 

@@ -1,6 +1,7 @@
 import {
   ref,
   shallowRef,
+  triggerRef,
   computed,
   nextTick,
 } from "vue";
@@ -57,6 +58,9 @@ export function useChatMessages(
   // Timers for orphaned optimistic cleanup
   const optimisticTimers = new Map<bigint, ReturnType<typeof setTimeout>>();
 
+  // O(1) dedup: tracks all messageIds currently in the messages array
+  const messageIdSet = new Set<bigint>();
+
   // Batch incoming messages to avoid multiple array rebuilds per frame
   let pendingIncoming: { msg: ArgonMessage; onNewMessage: () => void }[] = [];
   let batchFlushScheduled = false;
@@ -67,7 +71,9 @@ export function useChatMessages(
 
     const batch = pendingIncoming.splice(0);
     const newMsgs = batch.map((b) => b.msg);
-    messages.value = [...messages.value, ...newMsgs];
+    for (const m of newMsgs) messageIdSet.add(m.messageId);
+    messages.value.push(...newMsgs);
+    triggerRef(messages);
 
     // Handle scroll/notification for the last message in batch
     const lastEntry = batch[batch.length - 1];
@@ -123,7 +129,9 @@ export function useChatMessages(
       );
 
       if (cachedOlder.length >= MESSAGES_PER_LOAD) {
-        messages.value = [...cachedOlder, ...messages.value];
+        for (const m of cachedOlder) messageIdSet.add(m.messageId);
+        messages.value.unshift(...cachedOlder);
+        triggerRef(messages);
         onPrepend(cachedOlder.length);
         isLoadingOlder.value = false;
         nextTick(() => {
@@ -150,7 +158,9 @@ export function useChatMessages(
         (a, b) => Number(a.messageId - b.messageId),
       );
 
-      messages.value = [...sortedOlder, ...messages.value];
+      for (const m of sortedOlder) messageIdSet.add(m.messageId);
+      messages.value.unshift(...sortedOlder);
+      triggerRef(messages);
       onPrepend(sortedOlder.length);
 
       if (olderMessages.length < MESSAGES_PER_LOAD) {
@@ -179,11 +189,14 @@ export function useChatMessages(
       const cachedMessages = await pool.loadCachedMessages(spaceId()!, channelId());
 
       if (cachedMessages.length > 0) {
+        messageIdSet.clear();
+        for (const m of cachedMessages) messageIdSet.add(m.messageId);
         messages.value = cachedMessages;
         await nextTick();
         onLoaded();
       } else {
         // No cache — clear old channel's messages
+        messageIdSet.clear();
         messages.value = [];
       }
 
@@ -197,9 +210,12 @@ export function useChatMessages(
       if (initialMessages && initialMessages.length > 0) {
         await pool.cacheMessages(initialMessages);
 
-        messages.value = [...initialMessages].sort(
+        const sorted = [...initialMessages].sort(
           (a, b) => Number(a.messageId - b.messageId),
         );
+        messageIdSet.clear();
+        for (const m of sorted) messageIdSet.add(m.messageId);
+        messages.value = sorted;
 
         if (initialMessages.length < MESSAGES_PER_LOAD) {
           hasReachedEnd.value = true;
@@ -239,16 +255,15 @@ export function useChatMessages(
         resolvedMessageIds.delete(e.messageId);
         const idx = messages.value.findIndex((m) => m.messageId === e.messageId);
         if (idx !== -1) {
-          const updated = [...messages.value];
-          updated[idx] = e;
-          messages.value = updated;
+          messages.value[idx] = e;
+          triggerRef(messages);
         }
         await pool.cacheMessage(e);
         return;
       }
 
-      // Step 2: Duplicate guard — skip if this messageId is already in the array
-      if (messages.value.some((m) => m.messageId === e.messageId)) return;
+      // Step 2: Duplicate guard — O(1) check via messageIdSet
+      if (messageIdSet.has(e.messageId)) return;
 
       // Step 2b: WS event arrived BEFORE readback — our own message,
       // but optimistic has randomId as messageId so duplicate guard missed it.
@@ -262,10 +277,11 @@ export function useChatMessages(
           const timer = optimisticTimers.get(randomId);
           if (timer) { clearTimeout(timer); optimisticTimers.delete(randomId); }
           optimisticRandomIds.delete(randomId);
-          // Replace optimistic with real server data
-          const updated = [...messages.value];
-          updated[optIdx] = e;
-          messages.value = updated;
+          // Replace optimistic with real server data (in-place)
+          messageIdSet.delete(optMsg.messageId);
+          messageIdSet.add(e.messageId);
+          messages.value[optIdx] = e;
+          triggerRef(messages);
           await pool.cacheMessage(e);
           // Mark as resolved so late readback is a no-op
           resolvedMessageIds.add(e.messageId);
@@ -298,7 +314,9 @@ export function useChatMessages(
   const addOptimisticMessage = (msg: ArgonMessage, randomId: bigint) => {
     const optimistic: ChatMessage = { ...msg, _optimistic: true, _randomId: randomId };
     optimisticRandomIds.add(randomId);
-    messages.value = [...messages.value, optimistic];
+    messageIdSet.add(optimistic.messageId);
+    messages.value.push(optimistic);
+    triggerRef(messages);
 
     // Step 5: Start timeout — auto-fail if not resolved within 30s
     const timer = setTimeout(() => {
@@ -339,11 +357,12 @@ export function useChatMessages(
       // Replace optimistic with a confirmed version — only update messageId + strip flags.
       // Do NOT cache: entities still have placeholder fileIds.
       // The real server event (via subscription) will cache the full message with real data.
-      const updated = [...messages.value];
-      const { _optimistic, _randomId, _failed, _error, ...rest } = updated[idx];
+      const { _optimistic, _randomId, _failed, _error, ...rest } = messages.value[idx];
       const confirmed: ChatMessage = { ...rest, messageId: readback.messageId };
-      updated[idx] = confirmed;
-      messages.value = updated;
+      messageIdSet.delete(messages.value[idx].messageId);
+      messageIdSet.add(readback.messageId);
+      messages.value[idx] = confirmed;
+      triggerRef(messages);
     }
 
     optimisticRandomIds.delete(randomId);
@@ -363,9 +382,14 @@ export function useChatMessages(
       optimisticTimers.delete(randomId);
     }
     optimisticRandomIds.delete(randomId);
-    messages.value = messages.value.filter(
-      (m) => !(m._optimistic && m.messageId === randomId),
+    const idx = messages.value.findIndex(
+      (m) => m._optimistic && m.messageId === randomId,
     );
+    if (idx !== -1) {
+      messageIdSet.delete(messages.value[idx].messageId);
+      messages.value.splice(idx, 1);
+      triggerRef(messages);
+    }
   };
 
   const markOptimisticFailed = (randomId: bigint, error: string) => {
@@ -379,9 +403,8 @@ export function useChatMessages(
       (m) => m._optimistic && m.messageId === randomId,
     );
     if (idx !== -1) {
-      const updated = [...messages.value];
-      updated[idx] = { ...updated[idx], _failed: true, _error: error };
-      messages.value = updated;
+      messages.value[idx] = { ...messages.value[idx], _failed: true, _error: error };
+      triggerRef(messages);
     }
   };
 
@@ -445,6 +468,7 @@ export function useChatMessages(
     optimisticTimers.clear();
     optimisticRandomIds.clear();
     resolvedMessageIds.clear();
+    messageIdSet.clear();
   };
 
   return {

@@ -69,7 +69,7 @@ export function useChatScroll(
     count: messages().length,
     getScrollElement: () => parentRef.value ?? null,
     estimateSize: (index: number) => estimateMessageHeight(messages()[index]),
-    overscan: 5,
+    overscan: 10,
     getItemKey: (index: number) => messages()[index]?.messageId?.toString() ?? index,
   }));
 
@@ -87,8 +87,10 @@ export function useChatScroll(
     if (messages().length === 0) return;
     const lastIndex = messages().length - 1;
     virtualizer.value.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
+    // Fallback: after measurement settles, snap via direct scrollTop for reliability
     requestAnimationFrame(() => {
-      virtualizer.value.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
+      const el = parentRef.value;
+      if (el) el.scrollTop = el.scrollHeight;
     });
   };
 

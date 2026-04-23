@@ -248,6 +248,14 @@
                     </div>
                     <Switch v-model:checked="enableBlur" />
                 </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("smooth_scroll") || 'Smooth scrolling' }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("smooth_scroll_desc") || 'Enable smooth scrolling animations in chat and lists' }}</div>
+                    </div>
+                    <Switch v-model:checked="smoothScroll" />
+                </div>
             </div>
         </div>
 
@@ -546,6 +554,7 @@ const accentColor = persistedValue<string>("appearance.accentColor", "blue");
 const enableAnimations = persistedValue<boolean>("appearance.enableAnimations", true);
 const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
 const enableBlur = persistedValue<boolean>("appearance.enableBlur", true);
+const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
 
 // Accessibility settings
 const timestampFormat = persistedValue<string>("appearance.timestampFormat", "24h");
@@ -648,7 +657,7 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
 
 // Watch all settings
 // TODO: Add uiScale back when webview2 zoom control is implemented
-watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
+watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
     applyAppearanceSettingsController();
 });
 
@@ -676,6 +685,7 @@ const resetToDefaults = () => {
     enableAnimations.value = true;
     reduceMotion.value = false;
     enableBlur.value = true;
+    smoothScroll.value = false;
 
     // Reset accessibility settings
     timestampFormat.value = "24h";

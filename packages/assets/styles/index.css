@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Disable smooth scrolling globally when user preference is off (default) */
+.no-smooth-scroll,
+.no-smooth-scroll * {
+  scroll-behavior: auto !important;
+}
+
 /* View Transition support for theme switching */
 @supports (view-transition-name: none) {
   :root {
