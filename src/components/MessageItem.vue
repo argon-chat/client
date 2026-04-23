@@ -1,264 +1,433 @@
 <template>
-    <!-- System message -->
-    <div v-if="isSystemMessage" class="system-message">
-        <div class="system-message-content">
-            {{ systemMessageText }}
-        </div>
+  <!--
+    ╔══════════════════════════════════════════════════════╗
+    ║  MessageItem — single message in the virtual list   ║
+    ║  Handles: system, regular, emoji-only, attachments  ║
+    ╚══════════════════════════════════════════════════════╝
+  -->
+
+  <!-- ── System message (call started/ended, user joined) ── -->
+  <div v-if="isSystemMessage" class="flex justify-center py-3 w-full">
+    <div
+      class="px-3 py-1.5 rounded-lg bg-muted/50 text-muted-foreground text-xs text-center max-w-[80%] select-text"
+    >
+      {{ systemMessageText }}
+    </div>
+  </div>
+
+  <!-- ── Regular message ── -->
+  <div
+    v-else-if="user"
+    class="group/msg flex items-start gap-2"
+    :class="[
+      isFirstInGroup ? 'pt-3' : 'pt-0.5',
+      isOptimistic && !isFailed ? 'opacity-50' : '',
+    ]"
+    style="contain: layout style"
+  >
+    <!-- Avatar -->
+    <div class="w-9 shrink-0">
+      <template v-if="isFirstInGroup">
+        <Popover v-model:open="profileOpen">
+          <PopoverTrigger>
+            <ArgonAvatar
+              :file-id="user.avatarFileId"
+              :fallback="user.displayName"
+              :userId="user.userId"
+              :overrided-size="36"
+              class="w-9 h-9 rounded-full cursor-pointer transition-transform hover:scale-105"
+            />
+          </PopoverTrigger>
+          <PopoverContent
+            style="width: 21rem"
+            class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden"
+          >
+            <UserProfilePopover :user-id="user!.userId" @close:pressed="profileOpen = false" />
+          </PopoverContent>
+        </Popover>
+      </template>
+      <!-- Grouped: show time on hover instead of empty space -->
+      <span
+        v-else
+        class="hidden group-hover/msg:flex items-center justify-center w-9 h-4 text-[10px] text-muted-foreground/50 select-none tabular-nums"
+      >
+        {{ formattedTime }}
+      </span>
     </div>
 
-    <!-- Regular message -->
-    <div v-else class="message-item" :class="{
-        incoming: isIncoming,
-        outgoing: !isIncoming,
-        'is-optimistic': isOptimistic && !isFailed,
-        'is-failed': isFailed,
-        'is-grouped': isGrouped,
-        'is-first': isFirstInGroup,
-    }" v-if="user">
+    <!-- Content -->
+    <div class="flex flex-col items-start min-w-0 max-w-[85%]">
 
-        <!-- Avatar: full component on first-in-group, bare spacer otherwise -->
-        <div v-if="isFirstInGroup" class="avatar-col">
-            <Popover v-model:open="isOpened">
-                <PopoverContent style="width: 21rem;"
-                    class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
-                    <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
-                </PopoverContent>
-                <PopoverTrigger>
-                    <ArgonAvatar 
-                        :file-id="user.avatarFileId" 
-                        :fallback="user.displayName"
-                        :userId="user.userId"
-                        :overrided-size="36"
-                        class="avatar" 
+      <!-- Meta row: name + time + status badges -->
+      <div v-if="isFirstInGroup" class="flex items-center gap-1.5 mb-0.5">
+        <span
+          class="text-[13px] font-semibold leading-none"
+          :style="{ color: userColor }"
+        >
+          {{ user.displayName || t('unknown_display_name') }}
+        </span>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <span class="text-[11px] text-muted-foreground/60 tabular-nums">{{ formattedTime }}</span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{{ formattedFullTime }}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <Loader2Icon
+          v-if="isOptimistic && !isFailed"
+          class="w-3.5 h-3.5 animate-spin text-muted-foreground"
+        />
+
+        <TooltipProvider v-if="isFailed">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button
+                class="inline-flex items-center gap-0.5 text-destructive p-0 border-none bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
+                @click="emit('retry', props.message)"
+              >
+                <AlertCircleIcon class="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{{ failedError || t('send_failed') || 'Failed to send' }} — {{ t('click_to_retry') || 'click to retry' }}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      <!-- Unsupported version fallback -->
+      <div
+        v-if="isUnsupported"
+        class="rounded-r-xl rounded-bl-xl border-l-4 border-destructive bg-destructive/10 italic text-sm py-3 px-4"
+        v-html="t('not_supported_message_please_update')"
+      />
+
+      <!-- Normal content -->
+      <template v-else>
+        <ContextMenu>
+          <ContextMenuTrigger>
+            <div
+              class="relative inline-flex flex-col"
+              @mouseenter="onMouseEnter"
+              @mouseleave="onMouseLeave"
+            >
+
+              <!-- ── Emoji-only message ── -->
+              <div v-if="isSingleEmoji" class="flex flex-col">
+                <ReplyPreview
+                  v-if="replyMessage"
+                  :reply-message="replyMessage"
+                  :reply-user="replyUser"
+                  @click="emit('scroll-to-message', replyMessage!.messageId)"
+                />
+                <div class="text-[2.5rem] leading-tight">
+                  <ChatSegment
+                    v-for="(seg, i) in fragments"
+                    :key="i"
+                    :entity="seg.entity"
+                    :text="seg.text"
+                    @unsupported="isUnsupported = true"
+                  />
+                </div>
+              </div>
+
+              <!-- ── Normal message (images + bubble + files) ── -->
+              <div v-else class="flex flex-col relative" :style="mediaMaxWidth">
+
+                <!-- Images above the bubble -->
+                <AttachmentImageGrid
+                  v-if="imageAttachments.length"
+                  :images="imageAttachments"
+                  class="overflow-hidden"
+                  :class="hasOnlyImages ? 'rounded-2xl' : 'rounded-t-2xl'"
+                  @open-lightbox="onImageClick"
+                />
+
+                <!-- Text/file bubble -->
+                <div
+                  v-if="!hasOnlyImages"
+                  class="flex flex-col px-3 py-2 text-foreground text-sm leading-[1.45] break-words whitespace-pre-wrap bg-muted max-w-[520px] min-w-[120px]"
+                  :class="[
+                    bubbleRadius,
+                    imageAttachments.length ? '!rounded-t-none' : '',
+                  ]"
+                >
+                  <ReplyPreview
+                    v-if="replyMessage"
+                    :reply-message="replyMessage"
+                    :reply-user="replyUser"
+                    @click="emit('scroll-to-message', replyMessage!.messageId)"
+                  />
+
+                  <!-- Text -->
+                  <div v-if="fragments.length" class="relative">
+                    <ChatSegment
+                      v-for="(seg, i) in fragments"
+                      :key="i"
+                      :entity="seg.entity"
+                      :text="seg.text"
+                      @unsupported="isUnsupported = true"
                     />
-                </PopoverTrigger>
-            </Popover>
-        </div>
-        <div v-else class="avatar-spacer" />
+                    <span
+                      v-if="isGrouped"
+                      class="float-right text-[11px] text-muted-foreground/50 ml-2 mt-1 leading-none select-none tabular-nums"
+                    >
+                      {{ formattedTime }}
+                    </span>
+                  </div>
 
-        <div class="message-content">
-            <!-- Meta: only for first in group -->
-            <div v-if="isFirstInGroup" class="meta">
-                <span class="username" :data-user-id="user.userId"
-                    :style="{ 'color': getColorByUserId(user.userId) }">{{ user?.displayName || t("unknown_display_name") }}</span>
+                  <!-- File cards -->
+                  <AttachmentFileCard
+                    v-for="(f, i) in fileAttachments"
+                    :key="i"
+                    :file-id="f.fileId"
+                    :file-name="f.fileName"
+                    :file-size="f.fileSize"
+                    :content-type="f.contentType"
+                  />
 
-                <TooltipProvider>
+                  <!-- Inline time when no text -->
+                  <span
+                    v-if="isGrouped && !fragments.length"
+                    class="text-right text-[11px] text-muted-foreground/50 leading-none select-none tabular-nums"
+                  >
+                    {{ formattedTime }}
+                  </span>
+                </div>
+
+                <!-- Image-only time overlay -->
+                <span
+                  v-if="hasOnlyImages && isGrouped"
+                  class="absolute bottom-1.5 right-2 text-[11px] text-white drop-shadow-md select-none pointer-events-none tabular-nums"
+                >
+                  {{ formattedTime }}
+                </span>
+              </div>
+
+              <!-- Failed state border -->
+              <div
+                v-if="isFailed"
+                class="absolute inset-0 rounded-2xl border border-destructive/30 pointer-events-none"
+              />
+
+              <!-- ── Hover action bar ── -->
+              <Transition
+                enter-active-class="transition duration-150 ease-out"
+                leave-active-class="transition duration-100 ease-in"
+                enter-from-class="opacity-0 scale-95"
+                leave-to-class="opacity-0 scale-95"
+              >
+                <div
+                  v-if="showActions"
+                  class="absolute -top-8 right-0 flex items-center gap-px bg-card/95 backdrop-blur-sm border border-border/50 rounded-lg p-0.5 shadow-lg z-20"
+                  @mouseenter="onMouseEnter"
+                  @mouseleave="onMouseLeave"
+                >
+                  <TooltipProvider :delay-duration="400">
+                    <Popover v-if="canReact" v-model:open="reactionPickerOpen">
+                      <PopoverTrigger as-child>
+                        <ActionBtn><SmilePlusIcon class="w-3.5 h-3.5" /></ActionBtn>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        side="top"
+                        :side-offset="6"
+                        class="p-0 border-0 bg-transparent shadow-none w-auto"
+                      >
+                        <ReactionPicker @select="onPickReaction" />
+                      </PopoverContent>
+                    </Popover>
                     <Tooltip>
-                        <TooltipTrigger>
-                            <span class="time">{{ formattedTime }}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{{ formattedFullTime }}</p>
-                        </TooltipContent>
+                      <TooltipTrigger as-child>
+                        <ActionBtn @click="copyText"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" :side-offset="4">{{ t('copy') }}</TooltipContent>
                     </Tooltip>
-                </TooltipProvider>
-
-                <!-- Optimistic status indicators -->
-                <Loader2Icon v-if="isOptimistic && !isFailed" class="w-3.5 h-3.5 animate-spin text-muted-foreground status-icon" />
-                <TooltipProvider v-if="isFailed">
                     <Tooltip>
-                        <TooltipTrigger as-child>
-                            <button class="failed-badge" @click="retryMessage">
-                                <AlertCircleIcon class="w-3.5 h-3.5" />
-                                <RefreshCwIcon class="w-3 h-3 retry-icon" />
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            <p>{{ failedError || t('send_failed') || 'Failed to send' }} — {{ t('click_to_retry') || 'click to retry' }}</p>
-                        </TooltipContent>
+                      <TooltipTrigger as-child>
+                        <ActionBtn @click="emit('reply', props.message)"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" :side-offset="4">{{ t('reply') }}</TooltipContent>
                     </Tooltip>
-                </TooltipProvider>
+                  </TooltipProvider>
+                </div>
+              </Transition>
+
+              <!-- ── Bot controls ── -->
+              <MessageControls
+                v-if="hasControls"
+                :controls="props.message.controls!"
+                :message-id="props.message.messageId"
+                :space-id="props.message.spaceId"
+                :channel-id="props.message.channelId"
+              />
+
+              <!-- ── Reactions ── -->
+              <MessageReactions
+                v-if="hasReactions"
+                :reactions="props.message.reactions"
+                :current-user-id="me.me?.userId ?? ''"
+                :can-react="canReact"
+                @toggle="onToggleReaction"
+              />
             </div>
-            <template v-if="!isRequiredUpperVersionMessage">
-                <ContextMenu>
-                <ContextMenuTrigger>
-                <div class="bubble-wrapper">
-                    <!-- Telegram-style: images above the bubble -->
-                    <div class="media-message-container" v-if="!isSingleEmojiMessage">
-                        <AttachmentImageGrid v-if="imageAttachments.length" :images="imageAttachments" class="media-block" @open-lightbox="openLightbox" />
-                        <div class="bubble" :class="[bubbleRadiusClass, { 'bubble-below-media': imageAttachments.length > 0 }]" v-if="!hasOnlyImages" ref="bubble">
-                            <!-- Reply preview -->
-                            <div v-if="replyMessage" class="reply-preview" @click="$emit('reply', replyMessage)">
-                                <div class="reply-accent" :style="{ backgroundColor: getColorByUserId(replyMessage.sender) }" />
-                                <div class="reply-body">
-                                    <span class="reply-username" :style="{ color: getColorByUserId(replyMessage.sender) }">{{ replyUser?.displayName || t("unknown_display_name") }}</span>
-                                    <span class="reply-text">{{ replyMessage.text }}</span>
-                                </div>
-                            </div>
-                            <div v-if="renderedMessage.length" class="message-text">
-                                <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
-                                <span v-if="isGrouped" class="inline-time">{{ formattedTime }}</span>
-                            </div>
-                            <AttachmentFileCard
-                                v-for="(file, i) in fileAttachments"
-                                :key="i"
-                                :file-id="file.fileId"
-                                :file-name="file.fileName"
-                                :file-size="file.fileSize"
-                                :content-type="file.contentType"
-                            />
-                            <!-- Inline time for grouped messages without text -->
-                            <span v-if="isGrouped && renderedMessage.length === 0" class="inline-time standalone">{{ formattedTime }}</span>
-                        </div>
-                        <!-- Images-only: inline time overlay -->
-                        <span v-if="hasOnlyImages && isGrouped" class="image-time-overlay">{{ formattedTime }}</span>
-                    </div>
-                    <!-- Single emoji -->
-                    <div v-if="isSingleEmojiMessage" class="single-emoji">
-                        <!-- Reply preview for emoji -->
-                        <div v-if="replyMessage" class="reply-preview" @click="$emit('reply', replyMessage)">
-                            <div class="reply-accent" :style="{ backgroundColor: getColorByUserId(replyMessage.sender) }" />
-                            <div class="reply-body">
-                                <span class="reply-username" :style="{ color: getColorByUserId(replyMessage.sender) }">{{ replyUser?.displayName || t("unknown_display_name") }}</span>
-                                <span class="reply-text">{{ replyMessage.text }}</span>
-                            </div>
-                        </div>
-                        <div>
-                            <ChatSegment v-for="(x, y) in renderedMessage" :key="y" :entity="x.entity" :text="x.text" @unsupported="isRequiredUpperVersionMessage = true" />
-                        </div>
-                    </div>
+          </ContextMenuTrigger>
 
-                    <!-- Hover actions — absolute overlay -->
-                    <div class="message-actions">
-                        <Popover v-if="canReact" v-model:open="reactionPickerOpen">
-                            <PopoverTrigger as-child>
-                                <button class="action-btn">
-                                    <SmilePlusIcon class="w-3.5 h-3.5" />
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent v-if="reactionPickerOpen" side="top" :side-offset="4" class="reaction-picker-popover p-0 border-0 bg-transparent shadow-none w-auto">
-                                <ReactionPicker @select="onPickerSelect" />
-                            </PopoverContent>
-                        </Popover>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <button class="action-btn" @click="copyMessage">
-                                        <CopyIcon class="w-3.5 h-3.5" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>{{ t("copy") }}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <button class="action-btn" @click="replyToMessage">
-                                        <ReplyIcon class="w-3.5 h-3.5" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>{{ t("reply") }}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-
-                    <!-- Bot controls (buttons, selects) -->
-                    <MessageControls
-                      v-if="(props.message.controls ?? []).length > 0"
-                      :controls="(props.message.controls ?? [])"
-                      :message-id="props.message.messageId"
-                      :space-id="props.message.spaceId"
-                      :channel-id="props.message.channelId"
-                    />
-
-                    <!-- Reaction pills -->
-                    <MessageReactions
-                      v-if="(props.message.reactions ?? []).length > 0"
-                      :reactions="props.message.reactions"
-                      :current-user-id="me.me?.userId ?? ''"
-                      :can-react="canReact"
-                      @toggle="onReactionToggle"
-                    />
-                </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent class="w-auto min-w-48">
-                    <div v-if="canReact" class="context-reaction-row">
-                        <ReactionPicker @select="onPickerSelect" />
-                    </div>
-                    <ContextMenuSeparator v-if="canReact" />
-                    <ContextMenuItem @click="copyMessage">
-                        <CopyIcon class="w-3.5 h-3.5 mr-2" />
-                        {{ t("copy") }}
-                    </ContextMenuItem>
-                    <ContextMenuItem @click="replyToMessage">
-                        <ReplyIcon class="w-3.5 h-3.5 mr-2" />
-                        {{ t("reply") }}
-                    </ContextMenuItem>
-                </ContextMenuContent>
-                </ContextMenu>
-            </template>
-            <template v-else>
-                <div class="unsupported-message" v-html="t('not_supported_message_please_update')">
-                </div>
-            </template>
-        </div>
+          <!-- ── Right-click context menu ── -->
+          <ContextMenuContent class="min-w-40">
+            <ContextMenuItem v-if="canReact" @select="openReactionFromMenu">
+              <SmilePlusIcon class="w-4 h-4 mr-2 opacity-60" />
+              {{ t('add_reaction') || 'React' }}
+            </ContextMenuItem>
+            <ContextMenuSeparator v-if="canReact" />
+            <ContextMenuItem @select="emit('reply', props.message)">
+              <ReplyIcon class="w-4 h-4 mr-2 opacity-60" />
+              {{ t('reply') }}
+            </ContextMenuItem>
+            <ContextMenuItem @select="copyText">
+              <CopyIcon class="w-4 h-4 mr-2 opacity-60" />
+              {{ t('copy') }}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </template>
     </div>
+  </div>
 </template>
 
+<!-- ─────────────────────────────────────────── -->
+<!-- Inline sub-components (no separate files)   -->
+<!-- ─────────────────────────────────────────── -->
+
+<script lang="ts">
+import { defineComponent, h } from "vue";
+
+/** Tiny action button used in the hover bar */
+const ActionBtn = defineComponent({
+  name: "ActionBtn",
+  setup(_, { slots }) {
+    return () =>
+      h(
+        "button",
+        {
+          class:
+            "flex items-center justify-center w-[26px] h-[26px] border-none bg-transparent text-muted-foreground rounded-md cursor-pointer transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1",
+        },
+        slots.default?.(),
+      );
+  },
+});
+
+export { ActionBtn };
+</script>
+
+<!-- ─────────────────────────────── -->
+<!-- Main script                     -->
+<!-- ─────────────────────────────── -->
+
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+import { ref, computed, nextTick } from "vue";
 import { usePoolStore } from "@/store/data/poolStore";
-import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useMe } from "@/store/auth/meStore";
+import { useUserColors } from "@/store/chat/userColors";
+import { useLocale } from "@/store/system/localeStore";
+import { useMessageContent, fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
+import { EntityType, type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
+import type { ChatMessage } from "@/composables/useChatMessages";
 import emojiRegex from "emoji-regex";
 
-// Module-level caches (shared across all MessageItem instances)
-const _emojiRegex = emojiRegex();
-let _timestampFormat: string | null = null;
-function getTimestampFormat(): string {
-  if (_timestampFormat === null) {
-    _timestampFormat = document.documentElement.getAttribute("data-timestamp-format") || "24h";
-    // Watch for changes via MutationObserver (fires rarely — only on settings change)
-    new MutationObserver(() => {
-      _timestampFormat = document.documentElement.getAttribute("data-timestamp-format") || "24h";
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-timestamp-format"] });
-  }
-  return _timestampFormat;
-}
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@argon/ui/tooltip";
-import { useDateFormat } from "@vueuse/core";
-import { useUserColors } from "@/store/chat/userColors";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
 import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
-import UserProfilePopover from "./popovers/UserProfilePopover.vue";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@argon/ui/popover";
-import type { ArgonMessage } from "@argon/glue";
-import type { ChatMessage } from "@/composables/useChatMessages";
-import { EntityType, type MessageEntityAttachment } from "@argon/glue";
-import { useLocale } from "@/store/system/localeStore";
-import { CopyIcon, ReplyIcon, AlertCircleIcon, Loader2Icon, RefreshCwIcon, SmilePlusIcon } from "lucide-vue-next";
-import {
-  useMessageContent,
-  fragmentMessageText,
-  type IFrag,
-} from "@/composables/useMessageContent";
 import MessageReactions from "./chats/MessageReactions.vue";
 import MessageControls from "./chats/MessageControls.vue";
 import ReactionPicker from "./chats/ReactionPicker.vue";
+
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuSeparator,
+  Popover, PopoverTrigger, PopoverContent,
+} from "@argon/ui/popover";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@argon/ui/tooltip";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem,
+  ContextMenuTrigger, ContextMenuSeparator,
 } from "@argon/ui/context-menu";
+import {
+  CopyIcon, ReplyIcon, AlertCircleIcon,
+  Loader2Icon, RefreshCwIcon, SmilePlusIcon,
+} from "lucide-vue-next";
+import { useDateFormat } from "@vueuse/core";
+
+// ── Shared singleton: timestamp format preference ──
+let _tsFmt: string | null = null;
+let _tsObs: MutationObserver | null = null;
+function tsFormat(): string {
+  if (!_tsFmt) {
+    _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+    if (!_tsObs) {
+      _tsObs = new MutationObserver(() => {
+        _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+      });
+      _tsObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-timestamp-format"] });
+    }
+  }
+  return _tsFmt;
+}
+
+// ── Shared singleton: emoji regex ──
+const emojiRx = emojiRegex();
+
+// ── Inline reply preview component ──
+const ReplyPreview = defineComponent({
+  name: "ReplyPreview",
+  props: {
+    replyMessage: { type: Object as () => ArgonMessage, required: true },
+    replyUser: { type: Object as () => { displayName?: string } | null, default: null },
+  },
+  setup(props) {
+    const userColors = useUserColors();
+    const { t } = useLocale();
+    const color = computed(() => userColors.getColorByUserId(props.replyMessage?.sender ?? ""));
+
+    return () =>
+      h(
+        "div",
+        {
+          class:
+            "flex items-stretch mb-1.5 rounded overflow-hidden cursor-pointer bg-foreground/[0.04] text-[13px] transition-colors hover:bg-foreground/[0.08]",
+        },
+        [
+          h("div", { class: "w-[3px] shrink-0 rounded-l-sm", style: { backgroundColor: color.value } }),
+          h("div", { class: "flex flex-col gap-px py-1 px-2.5 min-w-0 overflow-hidden" }, [
+            h(
+              "span",
+              { class: "font-semibold text-xs leading-tight", style: { color: color.value } },
+              props.replyUser?.displayName || t("unknown_display_name"),
+            ),
+            h(
+              "span",
+              { class: "text-xs text-foreground/60 truncate leading-snug" },
+              props.replyMessage?.text ?? "",
+            ),
+          ]),
+        ],
+      );
+  },
+});
+
+// ── Props / Emits ──
 
 const { t } = useLocale();
-const isOpened = ref(false);
+const pool = usePoolStore();
+const me = useMe();
+const userColors = useUserColors();
 
 const props = defineProps<{
   message: ChatMessage;
@@ -270,517 +439,145 @@ const props = defineProps<{
   toggleReaction?: (messageId: bigint, emoji: string) => void;
 }>();
 
-const pool = usePoolStore();
-const me = useMe();
-const userColors = useUserColors();
-
-const { isSystemMessage, systemMessageText } = useMessageContent(() => props.message);
-
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
   (e: "retry", message: ArgonMessage): void;
+  (e: "scroll-to-message", messageId: bigint): void;
   (e: "open-lightbox", images: MessageEntityAttachment[], index: number, timeSent: Date | null): void;
 }>();
 
-const isRequiredUpperVersionMessage = ref(false);
-const bubble = ref<HTMLElement | null>(null);
+// ── Reactive data ──
+
+const profileOpen = ref(false);
+const reactionPickerOpen = ref(false);
+const isUnsupported = ref(false);
+
+// ── Hover actions (JS-based with debounced leave) ──
+const isHovered = ref(false);
+let _hoverTimer: ReturnType<typeof setTimeout> | undefined;
+
+const showActions = computed(() => isHovered.value || reactionPickerOpen.value);
+
+function onMouseEnter() {
+  clearTimeout(_hoverTimer);
+  isHovered.value = true;
+}
+
+function onMouseLeave() {
+  _hoverTimer = setTimeout(() => { isHovered.value = false; }, 200);
+}
+
+function openReactionFromMenu() {
+  nextTick(() => { reactionPickerOpen.value = true; });
+}
+
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
+const userColor = computed(() => userColors.getColorByUserId(props.message.sender ?? ""));
 
-const messageAttachments = computed(() =>
+const { isSystemMessage, systemMessageText } = useMessageContent(() => props.message);
+
+// Reactive fragments — recalculates when text/entities change (fixes the stale-text bug)
+const fragments = computed<IFrag[]>(() =>
+  fragmentMessageText(props.message.text, props.message.entities),
+);
+
+// ── Attachments ──
+
+const allAttachments = computed(() =>
   (props.message.entities ?? []).filter(
     (e): e is MessageEntityAttachment => e.type === EntityType.Attachment,
   ),
 );
 
-function isImageAttachment(a: MessageEntityAttachment): boolean {
+function isImage(a: MessageEntityAttachment): boolean {
   if (a.contentType?.startsWith("image/")) return true;
-  // Fallback: check file extension when contentType is missing/empty
   const ext = a.fileName?.split(".").pop()?.toLowerCase();
   return !!ext && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext);
 }
 
-const imageAttachments = computed(() =>
-  messageAttachments.value.filter(isImageAttachment),
+const imageAttachments = computed(() => allAttachments.value.filter(isImage));
+const fileAttachments = computed(() => allAttachments.value.filter((a) => !isImage(a)));
+
+const hasOnlyImages = computed(
+  () =>
+    allAttachments.value.length > 0 &&
+    fileAttachments.value.length === 0 &&
+    !fragments.value.length &&
+    !props.message.text?.trim(),
 );
 
-const fileAttachments = computed(() =>
-  messageAttachments.value.filter((a) => !isImageAttachment(a)),
-);
+// ── Emoji-only detection ──
 
-const hasOnlyImages = computed(() =>
-  messageAttachments.value.length > 0 &&
-  fileAttachments.value.length === 0 &&
-  renderedMessage.value.length === 0 &&
-  !props.message.text?.trim(),
-);
+const isSingleEmoji = computed(() => {
+  const text = props.message.text?.trim();
+  if (!text) return false;
+  const matches = [...text.matchAll(emojiRx)];
+  return matches.length >= 1 && matches.length <= 2 && matches.map((m) => m[0]).join("") === text;
+});
+
+// ── Reply ──
+
+const replyMessage = computed(() => (props.message.replyId ? props.getMsgById(props.message.replyId) : null));
+const replyUserIdRef = computed(() => replyMessage.value?.sender);
+const replyUser = pool.getUserReactive(replyUserIdRef);
+
+// ── Status flags ──
 
 const isOptimistic = computed(() => props.message._optimistic === true);
 const isFailed = computed(() => props.message._failed === true);
 const failedError = computed(() => props.message._error);
+const hasControls = computed(() => (props.message.controls ?? []).length > 0);
+const hasReactions = computed(() => (props.message.reactions ?? []).length > 0);
 
-function openLightbox(index: number) {
-  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.date ?? null);
-}
+// ── Bubble radius (top-left is the "tail" side) ──
 
-const isSingleEmojiMessage = computed(() => isUpEmojisOnly(props.message));
-const isIncoming = computed(() => props.message.sender !== me.me?.userId);
-const renderedMessage = ref([] as IFrag[]);
-
-const replyMessage = computed(() => {
-  if (!props.message.replyId) return null;
-  return props.getMsgById(props.message.replyId);
+const bubbleRadius = computed(() => {
+  const first = props.isFirstInGroup;
+  const last = props.isLastInGroup;
+  // tail: rounded-tl-sm, everything else: rounded-*-2xl
+  if (first && last) return "rounded-tl-sm rounded-tr-2xl rounded-br-2xl rounded-bl-2xl";
+  if (first) return "rounded-tl-sm rounded-tr-2xl rounded-br-sm rounded-bl-sm";
+  if (last) return "rounded-tl-sm rounded-tr-2xl rounded-br-2xl rounded-bl-2xl";
+  return "rounded-tl-sm rounded-tr-2xl rounded-br-sm rounded-bl-sm";
 });
 
-const replyUserIdRef = computed(() => replyMessage.value?.sender);
-const replyUser = pool.getUserReactive(replyUserIdRef);
+// ── Media max-width (derived from CSS var) ──
 
-// Directional bubble radius based on group position
-const bubbleRadiusClass = computed(() => {
-  if (props.isFirstInGroup && props.isLastInGroup) return 'bubble-single';
-  if (props.isFirstInGroup) return 'bubble-first';
-  if (props.isLastInGroup) return 'bubble-last';
-  return 'bubble-middle';
-});
+const mediaMaxWidth = computed(() => ({
+  maxWidth: "calc(var(--chat-width, 600px) * 0.8)",
+}));
 
-onMounted(async () => {
-  renderedMessage.value = fragmentMessageText(
-    props.message.text,
-    props.message.entities,
-  );
-});
-
-onBeforeUnmount(() => {
-  // cleanup if needed
-});
+// ── Time formatting ──
 
 const formattedTime = computed(() => {
-  const date = props.message.timeSent.date;
-  const format = getTimestampFormat();
-  
-  if (format === "12h") {
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${hours}:${minutes} ${ampm}`;
+  const d = props.message.timeSent.date;
+  if (tsFormat() === "12h") {
+    const h = d.getHours() % 12 || 12;
+    const m = d.getMinutes().toString().padStart(2, "0");
+    return `${h}:${m} ${d.getHours() >= 12 ? "PM" : "AM"}`;
   }
-  
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
+  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 });
 
-const formattedFullTime = useDateFormat(
-  props.message.timeSent.date,
-  "YYYY-MM-DD HH:mm:ss",
-);
+const formattedFullTime = useDateFormat(props.message.timeSent.date, "YYYY-MM-DD HH:mm:ss");
 
-function copyMessage() {
+// ── Actions ──
+
+function copyText() {
   navigator.clipboard.writeText(props.message.text);
 }
 
-function replyToMessage() {
-  emit("reply", props.message);
+function onImageClick(index: number) {
+  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.date ?? null);
 }
 
-function retryMessage() {
-  emit("retry", props.message);
-}
-
-function getColorByUserId(userId: string): string {
-  return userColors.getColorByUserId(userId);
-}
-
-const reactionPickerOpen = ref(false);
-
-function onPickerSelect(emoji: string) {
+function onPickReaction(emoji: string) {
   reactionPickerOpen.value = false;
   props.toggleReaction?.(props.message.messageId, emoji);
 }
 
-function onReactionToggle(emoji: string) {
+function onToggleReaction(emoji: string) {
   props.toggleReaction?.(props.message.messageId, emoji);
 }
-
-function isUpEmojisOnly(message: ArgonMessage): boolean {
-  if (!message.text) return false;
-  const text = message.text.trim();
-  const matches = [...text.matchAll(_emojiRegex)];
-  const emojisOnly = matches.map((m) => m[0]).join("");
-  return matches.length >= 1 && matches.length <= 2 && emojisOnly === text;
-}
 </script>
-
-<style scoped>
-/* ─── System message ─── */
-.system-message {
-    display: flex;
-    justify-content: center;
-    padding: 16px 0;
-    width: 100%;
-    contain: layout style;
-}
-
-.system-message-content {
-    padding: 6px 12px;
-    border-radius: var(--radius);
-    background: hsl(var(--muted) / 0.5);
-    color: hsl(var(--muted-foreground));
-    font-size: 12px;
-    text-align: center;
-    max-width: 80%;
-}
-
-/* ─── Message item ─── */
-.message-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 6px 0 0;
-    contain: layout style;
-}
-
-.message-item.is-first {
-    padding-top: 12px;
-}
-
-.message-item.is-grouped {
-    padding-top: 2px;
-}
-
-/* Avatar */
-.avatar-col {
-    width: 36px;
-    flex-shrink: 0;
-}
-
-.avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.avatar-spacer {
-    width: 36px;
-    flex-shrink: 0;
-}
-
-.message-content {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    min-width: 0;
-    max-width: 85%;
-}
-
-/* ─── Meta (username + time) ─── */
-.meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 2px;
-}
-
-.meta .time {
-    font-size: 11px;
-    color: hsl(var(--muted-foreground) / 0.7);
-}
-
-.meta .username {
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1;
-}
-
-/* ─── Bubble ─── */
-.bubble {
-    display: flex;
-    flex-direction: column;
-    padding: 8px 12px;
-    color: hsl(var(--foreground));
-    font-size: 14px;
-    line-height: 1.45;
-    word-break: break-word;
-    white-space: pre-wrap;
-    background-color: hsl(var(--muted));
-    max-width: 520px;
-    min-width: 150px;
-}
-
-/* Directional radius — avatar is at top, so tail points top-left on first */
-.bubble-single {
-    border-radius: 4px 18px 18px 18px;
-}
-
-.bubble-first {
-    border-radius: 4px 18px 18px 4px;
-}
-
-.bubble-middle {
-    border-radius: 4px 18px 18px 4px;
-}
-
-.bubble-last {
-    border-radius: 4px 18px 18px 18px;
-}
-
-/* ─── Message text ─── */
-.message-text {
-    position: relative;
-}
-
-/* ─── Inline time (grouped messages) ─── */
-.inline-time {
-    float: right;
-    font-size: 11px;
-    color: hsl(var(--muted-foreground) / 0.5);
-    margin-left: 8px;
-    margin-top: 4px;
-    line-height: 1;
-    user-select: none;
-}
-
-.inline-time.standalone {
-    float: none;
-    text-align: right;
-}
-
-.image-time-overlay {
-    position: absolute;
-    bottom: 6px;
-    right: 8px;
-    font-size: 11px;
-    color: white;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-    user-select: none;
-    pointer-events: none;
-}
-
-/* ─── Reply preview (Telegram-style) ─── */
-.reply-preview {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    margin-bottom: 6px;
-    border-radius: 4px;
-    overflow: hidden;
-    cursor: pointer;
-    background: hsl(var(--muted) / 0.5);
-    transition: background 0.15s ease;
-    font-size: 13px;
-}
-
-.reply-preview:hover {
-    background: hsl(var(--muted) / 0.8);
-}
-
-.reply-accent {
-    width: 3px;
-    flex-shrink: 0;
-    border-radius: 3px 0 0 3px;
-}
-
-.reply-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 4px 10px;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.reply-username {
-    font-weight: 600;
-    font-size: 12px;
-    line-height: 1.2;
-}
-
-.reply-text {
-    font-size: 12px;
-    color: hsl(var(--foreground) / 0.7);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-}
-
-/* ─── Single emoji ─── */
-.single-emoji {
-    display: flex;
-    flex-direction: column;
-    font-size: xxx-large;
-    line-height: 1.2;
-}
-
-/* ─── Unsupported message ─── */
-.unsupported-message {
-    border-radius: 0 var(--radius) var(--radius) var(--radius);
-    border-left: 4px solid hsl(var(--destructive));
-    background: hsl(var(--destructive) / 0.1);
-    font-style: italic;
-    font-size: 14px;
-    padding: 12px 16px;
-}
-
-/* ─── Hover actions (overlay) ─── */
-.bubble-wrapper {
-    position: relative;
-    display: inline-flex;
-    flex-direction: column;
-}
-
-.message-actions {
-    position: absolute;
-    top: -28px;
-    right: 0;
-    display: none;
-    gap: 1px;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.4);
-    border-radius: 8px;
-    padding: 2px;
-    box-shadow: 0 2px 8px hsl(var(--background) / 0.4);
-    z-index: 5;
-}
-
-.bubble-wrapper:hover .message-actions {
-    display: flex;
-}
-
-.action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: transparent;
-    color: hsl(var(--muted-foreground));
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.action-btn:hover {
-    background: hsl(var(--muted));
-    color: hsl(var(--foreground));
-}
-
-.action-btn:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 1px;
-}
-
-/* ─── Media container ─── */
-.media-message-container {
-    display: flex;
-    flex-direction: column;
-    max-width: calc(var(--chat-width, 600px) * 0.8);
-    position: relative;
-}
-
-.media-block {
-    border-radius: 18px 18px 0 0;
-    overflow: hidden;
-}
-
-.media-message-container > .media-block:last-child {
-    border-radius: 18px;
-}
-
-.media-block :deep(.image-grid) {
-    max-width: none;
-    width: 100%;
-    border-radius: 0;
-}
-
-.media-block :deep(.single-image-wrapper) {
-    max-width: none;
-    width: 100%;
-    border-radius: 0;
-}
-
-.media-message-container .bubble-below-media {
-    border-radius: 0 0 18px 18px !important;
-    margin-top: 0;
-}
-
-/* ─── Optimistic / Failed states ─── */
-.message-item.is-optimistic {
-    opacity: 0.6;
-}
-
-.message-item.is-optimistic .bubble {
-    opacity: 0.85;
-}
-
-.message-item.is-failed {
-    opacity: 1;
-}
-
-.message-item.is-failed .bubble {
-    border: 1px solid hsl(var(--destructive) / 0.3);
-}
-
-.message-item.is-failed .media-block {
-    border: 1px solid hsl(var(--destructive) / 0.3);
-    border-bottom: none;
-}
-
-/* ─── Status indicators ─── */
-.status-icon {
-    flex-shrink: 0;
-}
-
-.failed-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    color: hsl(var(--destructive));
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    flex-shrink: 0;
-    transition: opacity 0.15s;
-}
-
-.failed-badge:hover {
-    opacity: 0.7;
-}
-
-.failed-badge .retry-icon {
-    display: none;
-}
-
-.failed-badge:hover .retry-icon {
-    display: block;
-}
-
-.failed-badge:hover > .lucide-alert-circle {
-    display: none;
-}
-
-/* ─── Context menu reaction row ─── */
-.context-reaction-row {
-    padding: 4px;
-    display: flex;
-    justify-content: center;
-}
-
-.context-reaction-row :deep(.reaction-picker) {
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    padding: 0;
-}
-
-/* ─── Reaction picker popover override ─── */
-.reaction-picker-popover {
-    width: auto !important;
-}
-</style>
