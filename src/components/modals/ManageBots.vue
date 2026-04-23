@@ -118,29 +118,66 @@
             <div
               v-for="bot in installedBots"
               :key="bot.appId"
-              class="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+              class="flex flex-col gap-2 p-3 rounded-xl border transition-colors"
+              :class="bot.pendingApproval ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-border hover:bg-accent/50'"
             >
-              <ArgonAvatar :file-id="bot.avatarFileId" :fallback="bot.name?.[0] ?? '?'" :overrided-size="40" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-semibold text-foreground truncate">{{ bot.name }}</span>
-                  <BadgeCheckIcon v-if="bot.isVerified" class="w-4 h-4 text-primary shrink-0" />
+              <div class="flex items-center gap-3">
+                <ArgonAvatar :file-id="bot.avatarFileId" :fallback="bot.name?.[0] ?? '?'" :overrided-size="40" />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-semibold text-foreground truncate">{{ bot.name }}</span>
+                    <BadgeCheckIcon v-if="bot.isVerified" class="w-4 h-4 text-primary shrink-0" />
+                  </div>
+                  <div class="text-sm text-muted-foreground truncate">@{{ bot.username }}</div>
                 </div>
-                <div class="text-sm text-muted-foreground truncate">@{{ bot.username }}</div>
+                <div class="flex items-center gap-2">
+                  <Button
+                    v-if="bot.pendingApproval"
+                    size="sm"
+                    variant="outline"
+                    class="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                    @click="approveBotEntitlements(bot.appId)"
+                    :disabled="approvingBotId === bot.appId"
+                  >
+                    <LoaderIcon v-if="approvingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    <ShieldAlertIcon v-else class="w-3.5 h-3.5 mr-1.5" />
+                    {{ t("bots_approve") }}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    @click="uninstallBot(bot.appId)"
+                    :disabled="uninstallingBotId === bot.appId"
+                  >
+                    <LoaderIcon v-if="uninstallingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    <Trash2Icon v-else class="w-3.5 h-3.5 mr-1.5" />
+                    {{ t("bots_uninstall") }}
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                @click="uninstallBot(bot.appId)"
-                :disabled="uninstallingBotId === bot.appId"
-              >
-                <LoaderIcon v-if="uninstallingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
-                <Trash2Icon v-else class="w-3.5 h-3.5 mr-1.5" />
-                {{ t("bots_uninstall") }}
-              </Button>
+
+              <!-- Pending approval banner -->
+              <div v-if="bot.pendingApproval" class="flex flex-col gap-1.5 px-2 py-2 rounded-lg bg-yellow-500/10">
+                <div class="flex items-center gap-1.5 text-sm font-medium text-yellow-600">
+                  <ShieldAlertIcon class="w-4 h-4 shrink-0" />
+                  {{ t("bots_pending_approval") }}
+                </div>
+                <div v-if="getMissingEntitlements(bot).length > 0" class="flex flex-wrap gap-1">
+                  <span
+                    v-for="flag in getMissingEntitlements(bot)"
+                    :key="flag"
+                    class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/15 text-yellow-700"
+                  >
+                    {{ t(`permissions.flags.${flag}`) }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
+          <div v-if="approveMessage" class="text-sm" :class="approveMessageIsError ? 'text-destructive' : 'text-emerald-500'">
+            {{ approveMessage }}
+          </div>
           <div v-if="uninstallMessage" class="text-sm" :class="uninstallMessageIsError ? 'text-destructive' : 'text-emerald-500'">
             {{ uninstallMessage }}
           </div>
@@ -167,12 +204,14 @@ import {
   DownloadIcon,
   Trash2Icon,
   BadgeCheckIcon,
+  ShieldAlertIcon,
 } from "lucide-vue-next";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";
 import type { BotSearchResult, InstalledBotInfo } from "@argon/glue";
-import { InstallBotError, UninstallBotError } from "@argon/glue";
+import { InstallBotError, UninstallBotError, ApproveBotEntitlementsError } from "@argon/glue";
+import { extractEntitlements } from "@/lib/rbac/ArgonEntitlement";
 
 const { t } = useLocale();
 const api = useApi();
@@ -206,6 +245,11 @@ const uninstallingBotId = shallowRef<string | null>(null);
 const uninstallMessage = shallowRef("");
 const uninstallMessageIsError = shallowRef(false);
 
+// Approve state
+const approvingBotId = shallowRef<string | null>(null);
+const approveMessage = shallowRef("");
+const approveMessageIsError = shallowRef(false);
+
 const installErrorMap: Record<number, string> = {
   [InstallBotError.NOT_FOUND]: "bots_error_not_found",
   [InstallBotError.ALREADY_INSTALLED]: "bots_error_already_installed",
@@ -220,6 +264,18 @@ const uninstallErrorMap: Record<number, string> = {
   [UninstallBotError.INSUFFICIENT_PERMISSIONS]: "bots_error_insufficient_permissions",
 };
 
+const approveErrorMap: Record<number, string> = {
+  [ApproveBotEntitlementsError.NOT_FOUND]: "bots_error_not_found",
+  [ApproveBotEntitlementsError.NOT_INSTALLED]: "bots_error_not_installed",
+  [ApproveBotEntitlementsError.INSUFFICIENT_PERMISSIONS]: "bots_error_insufficient_permissions",
+  [ApproveBotEntitlementsError.ALREADY_UP_TO_DATE]: "bots_approve_already_up_to_date",
+};
+
+function getMissingEntitlements(bot: InstalledBotInfo): string[] {
+  const missing = BigInt(bot.requiredEntitlements) & ~BigInt(bot.grantedEntitlements);
+  return extractEntitlements(missing);
+}
+
 // Reset state when modal opens
 watch(open, (isOpen) => {
   if (isOpen) {
@@ -230,6 +286,7 @@ watch(open, (isOpen) => {
     searchError.value = "";
     installMessage.value = "";
     uninstallMessage.value = "";
+    approveMessage.value = "";
     loadInstalledBots();
   }
 });
@@ -328,6 +385,37 @@ async function uninstallBot(botAppId: string) {
     uninstallMessageIsError.value = true;
   } finally {
     uninstallingBotId.value = null;
+  }
+}
+
+async function approveBotEntitlements(botAppId: string) {
+  approvingBotId.value = botAppId;
+  approveMessage.value = "";
+
+  try {
+    const result = await api.botManagementInteraction.ApproveBotEntitlements(
+      selectedSpaceId.value!,
+      botAppId
+    );
+
+    if (result.isSuccessApproval()) {
+      approveMessage.value = t("bots_approve_success");
+      approveMessageIsError.value = false;
+      const bot = installedBots.value.find((b) => b.appId === botAppId);
+      if (bot) {
+        bot.grantedEntitlements = bot.requiredEntitlements;
+        bot.pendingApproval = false;
+      }
+    } if (result.isFailedApproval()) {
+      const key = approveErrorMap[result.error] ?? "bots_error_unknown";
+      approveMessage.value = t(key);
+      approveMessageIsError.value = true;
+    }
+  } catch (e) {
+    approveMessage.value = String(e);
+    approveMessageIsError.value = true;
+  } finally {
+    approvingBotId.value = null;
   }
 }
 </script>

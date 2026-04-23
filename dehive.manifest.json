@@ -2,5 +2,7 @@
     "name": "argon.ui",
     "root": "./dist",
     "output": "./publish",
-    "compression": false
+    "compression": false,
+	"deduplication": true,
+	"scramble": true
 }

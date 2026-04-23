@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@argon-chat/emojix": "^0.2.0",
-    "@argon-chat/ion.webcore": "^1.1.21",
+    "@argon-chat/ion.webcore": "^1.1.22",
     "@argon/assets": "workspace:*",
     "@argon/audio": "workspace:*",
     "@argon/avatar": "workspace:*",

@@ -93,6 +93,7 @@ export interface BotSearchResult {
   avatarFileId: string | null;
   isVerified: bool;
   requiredScopes: IonArray<string>;
+  requiredEntitlements: ArgonEntitlement;
 };
 
 
@@ -107,6 +108,7 @@ export interface BotDetails {
   requiredScopes: IonArray<string>;
   maxSpaces: i4;
   teamName: string;
+  requiredEntitlements: ArgonEntitlement;
 };
 
 
@@ -117,6 +119,26 @@ export interface InstalledBotInfo {
   avatarFileId: string | null;
   isVerified: bool;
   botUserId: guid;
+  requiredEntitlements: ArgonEntitlement;
+  grantedEntitlements: ArgonEntitlement;
+  pendingApproval: bool;
+};
+
+
+export interface SpaceCommandOption {
+  name: string;
+  description: string;
+  type: CommandOptionType;
+  required: bool;
+};
+
+
+export interface SpaceCommand {
+  commandId: guid;
+  appId: guid;
+  name: string;
+  description: string;
+  options: IonArray<SpaceCommandOption>;
 };
 
 
@@ -137,6 +159,28 @@ export enum UninstallBotError
   NOT_FOUND = 1,
   NOT_INSTALLED = 2,
   INSUFFICIENT_PERMISSIONS = 3,
+}
+
+
+export enum ApproveBotEntitlementsError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  NOT_INSTALLED = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  ALREADY_UP_TO_DATE = 4,
+}
+
+
+export enum CommandOptionType
+{
+  String = 0,
+  Integer = 1,
+  Boolean = 2,
+  User = 3,
+  Channel = 4,
+  Role = 5,
+  Number = 6,
 }
 
 
@@ -194,6 +238,7 @@ export interface ArgonMessage {
   timeSent: datetime;
   sender: guid;
   reactions: IonArray<ReactionInfo>;
+  controls: IonArray<ControlRow> | null;
 };
 
 
@@ -220,6 +265,43 @@ export interface MessageReactionsEntry {
 export interface SlashCommandOption {
   name: string;
   value: string;
+};
+
+
+export interface OklchColor {
+  l: f4;
+  c: f4;
+  h: f4;
+};
+
+
+export interface SelectOption {
+  label: string;
+  value: string;
+  description: string | null;
+  isDefault: bool | null;
+};
+
+
+export interface BotControl {
+  type: ControlType;
+  variant: ButtonVariant | null;
+  label: string | null;
+  id: string | null;
+  url: string | null;
+  colour: OklchColor | null;
+  disabled: bool | null;
+  customId: string | null;
+  placeholder: string | null;
+  minValues: i4 | null;
+  maxValues: i4 | null;
+  options: IonArray<SelectOption> | null;
+  requiredArchetypeId: guid | null;
+};
+
+
+export interface ControlRow {
+  controls: IonArray<BotControl>;
 };
 
 
@@ -381,6 +463,23 @@ export enum EntityType
   SystemCallTimeout = 18,
   SystemUserJoined = 19,
   Attachment = 20,
+}
+
+
+export enum ControlType
+{
+  Button = 0,
+  StringSelect = 1,
+  UserSelect = 2,
+  ArchetypeSelect = 3,
+  ChannelSelect = 4,
+}
+
+
+export enum ButtonVariant
+{
+  Callback = 0,
+  Link = 1,
 }
 
 
@@ -1279,6 +1378,108 @@ IonFormatterStorage.register("FailedUninstallBot", {
   write(writer: CborWriter, value: FailedUninstallBot): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<UninstallBotError>('UninstallBotError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IApproveBotEntitlementsResult implements IIonUnion<IApproveBotEntitlementsResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessApproval(): this is SuccessApproval {
+    return this.UnionKey === "SuccessApproval";
+  }
+  public isFailedApproval(): this is FailedApproval {
+    return this.UnionKey === "FailedApproval";
+  }
+
+}
+
+
+export class SuccessApproval extends IApproveBotEntitlementsResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessApproval";
+  UnionIndex: number = 0;
+}
+
+export class FailedApproval extends IApproveBotEntitlementsResult
+{
+  constructor(public error: ApproveBotEntitlementsError) { super(); }
+
+  UnionKey: string = "FailedApproval";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IApproveBotEntitlementsResult", {
+  read(reader: CborReader): IApproveBotEntitlementsResult {
+    reader.readStartArray();
+    let value: IApproveBotEntitlementsResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessApproval>("SuccessApproval").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedApproval>("FailedApproval").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IApproveBotEntitlementsResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessApproval>("SuccessApproval").write(writer, value as SuccessApproval);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedApproval>("FailedApproval").write(writer, value as FailedApproval);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessApproval", {
+  read(reader: CborReader): SuccessApproval {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessApproval();
+  },
+  write(writer: CborWriter, value: SuccessApproval): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedApproval", {
+  read(reader: CborReader): FailedApproval {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<ApproveBotEntitlementsError>('ApproveBotEntitlementsError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedApproval(error);
+  },
+  write(writer: CborWriter, value: FailedApproval): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ApproveBotEntitlementsError>('ApproveBotEntitlementsError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -7606,11 +7807,12 @@ IonFormatterStorage.register("BotSearchResult", {
     const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
     const requiredScopes = IonFormatterStorage.readArray<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 7);
-    return { appId, name, username, description, avatarFileId, isVerified, requiredScopes };
+    const requiredEntitlements = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { appId, name, username, description, avatarFileId, isVerified, requiredScopes, requiredEntitlements };
   },
   write(writer: CborWriter, value: BotSearchResult): void {
-    writer.writeStartArray(7);
+    writer.writeStartArray(8);
     IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
@@ -7618,6 +7820,7 @@ IonFormatterStorage.register("BotSearchResult", {
     IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
     IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
     IonFormatterStorage.writeArray<string>(writer, value.requiredScopes, 'string');
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.requiredEntitlements);
     writer.writeEndArray();
   }
 });
@@ -7635,11 +7838,12 @@ IonFormatterStorage.register("BotDetails", {
     const requiredScopes = IonFormatterStorage.readArray<string>(reader, 'string');
     const maxSpaces = IonFormatterStorage.get<i4>('i4').read(reader);
     const teamName = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 10);
-    return { appId, name, username, description, avatarFileId, isVerified, isPublic, requiredScopes, maxSpaces, teamName };
+    const requiredEntitlements = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { appId, name, username, description, avatarFileId, isVerified, isPublic, requiredScopes, maxSpaces, teamName, requiredEntitlements };
   },
   write(writer: CborWriter, value: BotDetails): void {
-    writer.writeStartArray(10);
+    writer.writeStartArray(11);
     IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
@@ -7650,6 +7854,7 @@ IonFormatterStorage.register("BotDetails", {
     IonFormatterStorage.writeArray<string>(writer, value.requiredScopes, 'string');
     IonFormatterStorage.get<i4>('i4').write(writer, value.maxSpaces);
     IonFormatterStorage.get<string>('string').write(writer, value.teamName);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.requiredEntitlements);
     writer.writeEndArray();
   }
 });
@@ -7663,17 +7868,76 @@ IonFormatterStorage.register("InstalledBotInfo", {
     const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
     const botUserId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 6);
-    return { appId, name, username, avatarFileId, isVerified, botUserId };
+    const requiredEntitlements = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    const grantedEntitlements = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    const pendingApproval = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { appId, name, username, avatarFileId, isVerified, botUserId, requiredEntitlements, grantedEntitlements, pendingApproval };
   },
   write(writer: CborWriter, value: InstalledBotInfo): void {
-    writer.writeStartArray(6);
+    writer.writeStartArray(9);
     IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
     IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
     IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
     IonFormatterStorage.get<guid>('guid').write(writer, value.botUserId);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.requiredEntitlements);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.grantedEntitlements);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.pendingApproval);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CommandOptionType", {
+  read(reader: CborReader): CommandOptionType {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return CommandOptionType[num] !== undefined ? num as CommandOptionType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: CommandOptionType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SpaceCommandOption", {
+  read(reader: CborReader): SpaceCommandOption {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const type = IonFormatterStorage.get<CommandOptionType>('CommandOptionType').read(reader);
+    const required = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { name, description, type, required };
+  },
+  write(writer: CborWriter, value: SpaceCommandOption): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.get<CommandOptionType>('CommandOptionType').write(writer, value.type);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.required);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceCommand", {
+  read(reader: CborReader): SpaceCommand {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const commandId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const appId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const options = IonFormatterStorage.readArray<SpaceCommandOption>(reader, 'SpaceCommandOption');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { commandId, appId, name, description, options };
+  },
+  write(writer: CborWriter, value: SpaceCommand): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.commandId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.writeArray<SpaceCommandOption>(writer, value.options, 'SpaceCommandOption');
     writer.writeEndArray();
   }
 });
@@ -7695,6 +7959,17 @@ IonFormatterStorage.register("UninstallBotError", {
     return UninstallBotError[num] !== undefined ? num as UninstallBotError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: UninstallBotError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ApproveBotEntitlementsError", {
+  read(reader: CborReader): ApproveBotEntitlementsError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ApproveBotEntitlementsError[num] !== undefined ? num as ApproveBotEntitlementsError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ApproveBotEntitlementsError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -7831,11 +8106,12 @@ IonFormatterStorage.register("ArgonMessage", {
     const timeSent = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const sender = IonFormatterStorage.get<guid>('guid').read(reader);
     const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions };
+    const controls = IonFormatterStorage.readNullableArray<ControlRow>(reader, 'ControlRow');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions, controls };
   },
   write(writer: CborWriter, value: ArgonMessage): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(10);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.writeNullable<i8>(writer, value.replyId, 'i8');
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -7845,6 +8121,7 @@ IonFormatterStorage.register("ArgonMessage", {
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.timeSent);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sender);
     IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
+    IonFormatterStorage.writeNullableArray<ControlRow>(writer, value.controls, 'ControlRow');
     writer.writeEndArray();
   }
 });
@@ -7924,6 +8201,107 @@ IonFormatterStorage.register("SlashCommandOption", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("OklchColor", {
+  read(reader: CborReader): OklchColor {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const l = IonFormatterStorage.get<f4>('f4').read(reader);
+    const c = IonFormatterStorage.get<f4>('f4').read(reader);
+    const h = IonFormatterStorage.get<f4>('f4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { l, c, h };
+  },
+  write(writer: CborWriter, value: OklchColor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<f4>('f4').write(writer, value.l);
+    IonFormatterStorage.get<f4>('f4').write(writer, value.c);
+    IonFormatterStorage.get<f4>('f4').write(writer, value.h);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SelectOption", {
+  read(reader: CborReader): SelectOption {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const label = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isDefault = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { label, value, description, isDefault };
+  },
+  write(writer: CborWriter, value: SelectOption): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.label);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<bool>(writer, value.isDefault, 'bool');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ControlType", {
+  read(reader: CborReader): ControlType {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return ControlType[num] !== undefined ? num as ControlType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ControlType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("BotControl", {
+  read(reader: CborReader): BotControl {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<ControlType>('ControlType').read(reader);
+    const variant = IonFormatterStorage.readNullable<ButtonVariant>(reader, 'ButtonVariant');
+    const label = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const id = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const url = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const colour = IonFormatterStorage.readNullable<OklchColor>(reader, 'OklchColor');
+    const disabled = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const customId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const placeholder = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const minValues = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const maxValues = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const options = IonFormatterStorage.readNullableArray<SelectOption>(reader, 'SelectOption');
+    const requiredArchetypeId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { type, variant, label, id, url, colour, disabled, customId, placeholder, minValues, maxValues, options, requiredArchetypeId };
+  },
+  write(writer: CborWriter, value: BotControl): void {
+    writer.writeStartArray(13);
+    IonFormatterStorage.get<ControlType>('ControlType').write(writer, value.type);
+    IonFormatterStorage.writeNullable<ButtonVariant>(writer, value.variant, 'ButtonVariant');
+    IonFormatterStorage.writeNullable<string>(writer, value.label, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.id, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.url, 'string');
+    IonFormatterStorage.writeNullable<OklchColor>(writer, value.colour, 'OklchColor');
+    IonFormatterStorage.writeNullable<bool>(writer, value.disabled, 'bool');
+    IonFormatterStorage.writeNullable<string>(writer, value.customId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.placeholder, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.minValues, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.maxValues, 'i4');
+    IonFormatterStorage.writeNullableArray<SelectOption>(writer, value.options, 'SelectOption');
+    IonFormatterStorage.writeNullable<guid>(writer, value.requiredArchetypeId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ControlRow", {
+  read(reader: CborReader): ControlRow {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const controls = IonFormatterStorage.readArray<BotControl>(reader, 'BotControl');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { controls };
+  },
+  write(writer: CborWriter, value: ControlRow): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<BotControl>(writer, value.controls, 'BotControl');
     writer.writeEndArray();
   }
 });
@@ -8285,6 +8663,17 @@ IonFormatterStorage.register("EntityType", {
     return EntityType[num] !== undefined ? num as EntityType : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: EntityType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ButtonVariant", {
+  read(reader: CborReader): ButtonVariant {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return ButtonVariant[num] !== undefined ? num as ButtonVariant : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ButtonVariant): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -9387,6 +9776,8 @@ export interface IBotManagementInteraction extends IIonService
   GetInstalledBots(spaceId: guid): Promise<IonArray<InstalledBotInfo>>;
   InstallBot(spaceId: guid, botAppId: guid): Promise<IInstallBotResult>;
   UninstallBot(spaceId: guid, botAppId: guid): Promise<IUninstallBotResult>;
+  GetSpaceCommands(spaceId: guid): Promise<IonArray<SpaceCommand>>;
+  ApproveBotEntitlements(spaceId: guid, botAppId: guid): Promise<IApproveBotEntitlementsResult>;
 }
 
 
@@ -9629,6 +10020,8 @@ export interface IBotManagementInteraction extends IIonService
   GetInstalledBots(spaceId: guid): Promise<IonArray<InstalledBotInfo>>;
   InstallBot(spaceId: guid, botAppId: guid): Promise<IInstallBotResult>;
   UninstallBot(spaceId: guid, botAppId: guid): Promise<IUninstallBotResult>;
+  GetSpaceCommands(spaceId: guid): Promise<IonArray<SpaceCommand>>;
+  ApproveBotEntitlements(spaceId: guid, botAppId: guid): Promise<IApproveBotEntitlementsResult>;
 }
 
 
@@ -10059,6 +10452,33 @@ export class BotManagementInteraction_Executor extends ServiceExecutor<IBotManag
     writer.writeEndArray();
           
     return await req.callAsyncT<IUninstallBotResult>("IUninstallBotResult", writer.data, this.signal);
+  }
+  async GetSpaceCommands(spaceId: guid): Promise<IonArray<SpaceCommand>> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "GetSpaceCommands");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<SpaceCommand>>("IonArray<SpaceCommand>", writer.data, this.signal);
+  }
+  async ApproveBotEntitlements(spaceId: guid, botAppId: guid): Promise<IApproveBotEntitlementsResult> {
+    const req = new IonRequest(this.ctx, "IBotManagementInteraction", "ApproveBotEntitlements");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, botAppId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IApproveBotEntitlementsResult>("IApproveBotEntitlementsResult", writer.data, this.signal);
   }
 
 }

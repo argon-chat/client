@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
@@ -9,11 +9,13 @@ import { useNotificationStore } from '@/store/data/notificationStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport, IconDownload } from '@tabler/icons-vue';
+import { TerminalIcon } from 'lucide-vue-next';
 import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import { NBadge } from 'naive-ui';
 import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
+import { native } from '@argon/glue/native';
 
 const { t } = useLocale();
 const route = useRoute();
@@ -25,6 +27,28 @@ const { needsUpdate, doUpdate } = useVersionChecker();
 const linux = useLinuxUpdateChecker();
 const ntf = useNotificationStore();
 const voice = useUnifiedCall();
+
+// Runtime error tracking for devtools indicator
+const runtimeErrorCount = ref(0);
+const hasRuntimeErrors = computed(() => runtimeErrorCount.value > 0);
+
+function onRuntimeError() {
+  runtimeErrorCount.value++;
+}
+
+onMounted(() => {
+  window.addEventListener('error', onRuntimeError);
+  window.addEventListener('unhandledrejection', onRuntimeError);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('error', onRuntimeError);
+  window.removeEventListener('unhandledrejection', onRuntimeError);
+});
+
+function openDevTools() {
+  native.hostProc.toggleDevTools();
+}
 
 const isVoiceConnected = computed(() => voice.isConnected);
 const isVoiceConnecting = computed(() => voice.isConnecting);
@@ -178,6 +202,16 @@ const windowClose = () => {
 
       <button class="action-btn" @click="emit('feedback')" :title="t('send_feedback')">
         <IconMessageReport class="w-4 h-4" />
+      </button>
+
+      <button
+        class="action-btn devtools-btn"
+        :class="{ 'devtools-btn--error': hasRuntimeErrors }"
+        @click="openDevTools"
+        :title="hasRuntimeErrors ? `DevTools (${runtimeErrorCount} errors)` : 'DevTools'"
+      >
+        <TerminalIcon class="w-4 h-4" />
+        <span v-if="hasRuntimeErrors" class="devtools-badge">{{ runtimeErrorCount > 99 ? '99+' : runtimeErrorCount }}</span>
       </button>
     </div>
 
@@ -519,5 +553,36 @@ const windowClose = () => {
 
 .mac-btn:active {
   filter: brightness(0.8);
+}
+
+/* ---- DevTools indicator ---- */
+.devtools-btn {
+  position: relative;
+}
+
+.devtools-btn--error {
+  color: #ef4444;
+}
+
+.devtools-btn--error:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.devtools-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
 }
 </style>

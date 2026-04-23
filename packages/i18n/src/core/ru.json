@@ -873,5 +873,9 @@
   "bots_error_space_limit": "Бот достиг лимита серверов",
   "bots_error_restricted": "Этот бот ограничен",
   "bots_error_not_installed": "Бот не установлен",
-  "bots_error_unknown": "Произошла неизвестная ошибка"
+  "bots_error_unknown": "Произошла неизвестная ошибка",
+  "bots_approve": "Одобрить",
+  "bots_approve_success": "Права бота успешно одобрены",
+  "bots_approve_already_up_to_date": "Права уже актуальны",
+  "bots_pending_approval": "Бот запрашивает расширенные права"
 }

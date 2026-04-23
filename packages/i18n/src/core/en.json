@@ -896,5 +896,9 @@
   "bots_error_space_limit": "Bot has reached its server limit",
   "bots_error_restricted": "This bot is restricted",
   "bots_error_not_installed": "Bot is not installed",
-  "bots_error_unknown": "An unknown error occurred"
+  "bots_error_unknown": "An unknown error occurred",
+  "bots_approve": "Approve",
+  "bots_approve_success": "Bot permissions approved successfully",
+  "bots_approve_already_up_to_date": "Permissions are already up to date",
+  "bots_pending_approval": "Bot requests extended permissions"
 }

@@ -117,20 +117,36 @@ export const useAppState = defineStore("app", () => {
     isInitializing.value = true;
     hasInitError.value = false;
     initError.value = "";
-    try {
-      const success = await initializeArgonApp();
-      isLoaded.value = true;
-      if (success) router.push({ path: "/master.pg" });
-      logger.success("Complete initialization");
-    } catch (e) {
-      isFailedLoad.value = true;
-      hasInitError.value = true;
-      initError.value = e instanceof Error ? e.message : String(e);
-      logger.error("Failed init argon app", e);
-    } finally {
-      // Don't set isInitializing to false if there's an error - keep overlay visible
-      if (!hasInitError.value) {
+
+    const MAX_RETRIES = 10;
+    const BASE_DELAY = 1000;
+    const MAX_DELAY = 30000;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const success = await initializeArgonApp();
+        isLoaded.value = true;
+        isFailedLoad.value = false;
+        hasInitError.value = false;
+        initError.value = "";
+        if (success) router.push({ path: "/master.pg" });
+        logger.success("Complete initialization");
         isInitializing.value = false;
+        return;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.error(`Init attempt ${attempt + 1} failed: ${msg}`, e);
+
+        if (attempt >= MAX_RETRIES) {
+          isFailedLoad.value = true;
+          hasInitError.value = true;
+          initError.value = msg;
+          return;
+        }
+
+        const backoff = Math.min(BASE_DELAY * Math.pow(2, attempt), MAX_DELAY);
+        loadingStep.value = `Retrying in ${Math.round(backoff / 1000)}s...`;
+        await delay(backoff);
       }
     }
   }
