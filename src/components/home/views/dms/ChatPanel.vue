@@ -18,25 +18,27 @@ const isFullscreen = shallowRef(false);
 const focusedUserId = shallowRef<string | null>(null);
 const userRefsCache = shallowRef(new Map<string, any>());
 
-function setVideoRef(el: any, userId: string) {
+function setVideoRef(el: any, userId: string, source: string = 'camera') {
+    const trackKey = dm.videoTrackKey(userId, source);
+
     if (!el) {
-        const old = videoRefs.value.get(userId);
-        const track = dm.videoTracks.get(userId);
+        const old = videoRefs.value.get(trackKey);
+        const track = dm.videoTracks.get(trackKey);
         if (old && track) {
             track.detach(old);
         }
-        videoRefs.value.delete(userId);
+        videoRefs.value.delete(trackKey);
         triggerRef(videoRefs);
         return;
     }
     if (el instanceof HTMLVideoElement) {
-        const existing = videoRefs.value.get(userId);
+        const existing = videoRefs.value.get(trackKey);
         if (existing !== el) {
-            const track = dm.videoTracks.get(userId);
+            const track = dm.videoTracks.get(trackKey);
             if (existing && track) {
                 track.detach(existing);
             }
-            videoRefs.value.set(userId, el);
+            videoRefs.value.set(trackKey, el);
             if (track) track.attach(el);
             triggerRef(videoRefs);
         }
@@ -122,12 +124,12 @@ function isSpeaking(uid: string) {
     return dm.speaking.has(uid);
 }
 function hasVideo(uid: string) {
-    return dm.videoTracks.has(uid);
+    return dm.hasVideoTrack(uid);
 }
 
 onUnmounted(() => {
-    for (const [uid, el] of videoRefs.value) {
-        const t = dm.videoTracks.get(uid);
+    for (const [key, el] of videoRefs.value) {
+        const t = dm.videoTracks.get(key);
         if (t) t.detach(el);
     }
     videoRefs.value.clear();
@@ -144,7 +146,7 @@ onUnmounted(() => {
         <div v-if="hasActiveStream && activeStream" class="flex gap-3 flex-1 overflow-hidden">
             <div class="flex-1 relative rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center group">
                 <video v-if="activeStream && hasVideo(activeStream.userId)" 
-                    :ref="el => activeStream && setVideoRef(el, activeStream.userId)"
+                    :ref="el => activeStream && setVideoRef(el, activeStream.userId, activeStream.screencase ? 'screen_share' : 'camera')"
                     autoplay playsinline class="w-full h-full object-contain" />
 
                 <ArgonAvatar v-else-if="activeStream" :user-id="activeStream.userId" :overrided-size="120"

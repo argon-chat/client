@@ -165,7 +165,12 @@ const windowClose = () => {
         }" />
         <span class="voice-title">{{ callTitle }}</span>
         <span v-if="isVoiceConnected" class="voice-timer">
+          <template v-if="voice.interval.hor > 0">
+            <Counter :value="voice.interval.hor" :gap="1" :places="[10, 1]" :font-size="9" :textColor="'hsl(var(--muted-foreground))'" />
+            <span class="voice-timer-sep">:</span>
+          </template>
           <Counter :value="voice.interval.min" :gap="1" :places="[10, 1]" :font-size="9" :textColor="'hsl(var(--muted-foreground))'" />
+          <span class="voice-timer-sep">:</span>
           <Counter :value="voice.interval.sec" :gap="1" :places="[10, 1]" :font-size="9" :textColor="'hsl(var(--muted-foreground))'" />
         </span>
         <span class="voice-dot" :class="{
@@ -375,6 +380,13 @@ const windowClose = () => {
 .voice-timer {
   display: flex;
   align-items: center;
+}
+
+.voice-timer-sep {
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1;
+  margin: 0 1px;
 }
 
 .voice-dot {

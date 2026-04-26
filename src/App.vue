@@ -12,11 +12,16 @@ import ReconnectOverlay from "./components/overlays/ReconnectOverlay.vue";
 import DvdBounce from "./components/overlays/DvdBounce.vue";
 import GamePicker from "./components/playframe/GamePicker.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
+import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
 import { useTheme } from "@/composables/useTheme";
 import { logger } from "@argon/core";
 import { useAppState, useSystemStore } from "./store";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { useLocale } from "@/store/system/localeStore";
 
+const { t } = useLocale();
 const sys = useSystemStore();
+const call = useUnifiedCall();
 const appState = useAppState();
 const keys = useMagicKeys();
 const showDiagnostics = ref(false);
@@ -58,6 +63,12 @@ const reloadPage = () => {
   location.reload();
 };
 
+const showAudioDeviceError = ref(false);
+
+watch(() => call.audioDeviceError, (err) => {
+  if (err) showAudioDeviceError.value = true;
+});
+
 </script>
 
 <template>
@@ -68,7 +79,21 @@ const reloadPage = () => {
   <GamePicker />
   <DvdBounce />
   <BotInteractionModal />
+  <AudioDeviceErrorModal 
+    v-model:open="showAudioDeviceError" 
+    :error-type="call.audioDeviceError?.type ?? null" 
+  />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
+  <Island class="select-none" v-if="call.isLocalAudioSilent && call.isConnected" :title="t('audio_silence_detected')">
+    <template #icon>
+      <span class="i-lucide-mic-off text-lg" style="color: wheat;" />
+    </template>
+  </Island>
+  <Island class="select-none" v-if="call.isCpuConstrained && call.isSharing" :title="t('cpu_throttling')">
+    <template #icon>
+      <span class="i-lucide-cpu text-lg" style="color: wheat;" />
+    </template>
+  </Island>
 
   <!-- Loading overlay -->
   <div v-if="appState.isInitializing" class="loading-overlay">

@@ -18,4 +18,6 @@ export type {
   ConnectionQuality,
   CallMode,
   CallManagerConfig,
+  AudioDeviceError,
+  AudioDeviceErrorType,
 } from "./types";

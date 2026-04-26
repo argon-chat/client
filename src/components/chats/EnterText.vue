@@ -1,29 +1,27 @@
 <template>
-    <div class="enter-text-wrapper">
-        <!-- Reply banner -->
-        <div v-if="replyTo && !captionMode" class="reply-banner">
-            <div class="reply-accent-bar" />
-            <div class="reply-info">
-                <span class="reply-label">{{ t("replying_to") }}</span>
-                <span class="reply-preview-text">{{ replyTo.text }}</span>
-            </div>
-            <button class="reply-close" @click="$emit('clear-reply')">
-                <X class="w-4 h-4" />
-            </button>
-        </div>
-
-        <div class="input-area" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+    <div class="relative w-full">
+        <div class="relative" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
             <!-- Drag overlay -->
-            <div v-if="isDragging && !captionMode" class="drag-overlay">
-                <div class="drag-overlay-content">
-                    <PaperclipIcon class="w-7 h-7" />
-                    <span>{{ t('drop_files_here') || 'Drop files here' }}</span>
+            <Transition
+              enter-active-class="transition duration-150 ease-out"
+              leave-active-class="transition duration-100 ease-in"
+              enter-from-class="opacity-0"
+              leave-to-class="opacity-0"
+            >
+              <div
+                v-if="isDragging && !captionMode"
+                class="absolute inset-0 z-20 bg-primary/[0.08] border-2 border-dashed border-primary rounded-lg flex items-center justify-center pointer-events-none"
+              >
+                <div class="flex flex-col items-center gap-1 text-primary text-[13px] font-medium">
+                  <PaperclipIcon class="w-6 h-6" />
+                  <span>{{ t('drop_files_here') || 'Drop files here' }}</span>
                 </div>
-            </div>
+              </div>
+            </Transition>
 
-            <div :class="captionMode ? 'input-row caption-mode' : 'input-row'">
+            <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
-                <button v-if="!captionMode && canAttachFiles" class="input-icon-btn" title="Attach file" @click="openFilePicker">
+                <button v-if="!captionMode && canAttachFiles" class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
                 </button>
                 <input
@@ -39,7 +37,7 @@
                 <textarea
                     ref="editorRef"
                     v-model="messageText"
-                    class="message-textarea"
+                    class="flex-1 min-h-9 max-h-[200px] py-1.5 px-1 border-none outline-none bg-transparent resize-none font-[inherit] text-sm leading-relaxed text-foreground overflow-y-auto placeholder:text-muted-foreground"
                     :disabled="!canSendMessages"
                     :placeholder="!canSendMessages ? (t('no_send_permission') || 'You do not have permission to send messages') : captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
                     @input="onEditorInput"
@@ -51,7 +49,7 @@
                 <!-- Emoji picker -->
                 <Popover>
                     <PopoverTrigger>
-                        <button class="input-icon-btn">
+                        <button class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
                             <SmileIcon class="w-5 h-5" />
                         </button>
                     </PopoverTrigger>
@@ -62,8 +60,18 @@
                 </Popover>
 
                 <!-- Send button -->
-                <Transition name="send-btn">
-                    <button v-if="hasContent" class="send-btn" @click="captionMode ? $emit('submit') : handleSend()" :title="t('send') || 'Send'">
+                <Transition
+                  enter-active-class="transition-all duration-150"
+                  leave-active-class="transition-all duration-150"
+                  enter-from-class="opacity-0 scale-50"
+                  leave-to-class="opacity-0 scale-50"
+                >
+                    <button
+                      v-if="hasContent"
+                      class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      @click="captionMode ? $emit('submit') : handleSend()"
+                      :title="t('send') || 'Send'"
+                    >
                         <SendHorizonalIcon class="w-5 h-5" />
                     </button>
                 </Transition>
@@ -71,36 +79,44 @@
         </div>
 
         <!-- Mentions dropdown -->
-        <Transition name="mention-pop">
+        <Transition
+          enter-active-class="transition duration-100 ease-out"
+          leave-active-class="transition duration-100 ease-in"
+          enter-from-class="opacity-0 translate-y-1.5"
+          leave-to-class="opacity-0 translate-y-1.5"
+        >
         <ul v-if="mention.show && mention.candidates.length"
-            class="mention-dropdown">
-            <li v-for="(user, i) in mention.candidates" :key="user.id" :class="[
-                'mention-item',
-                i === mention.index ? 'mention-item-active' : '',
-            ]" @mousedown.prevent="selectMention(user)"
-               @mouseenter="mention.index = i">
-                <ArgonAvatar :user-id="user.id" :overrided-size="28" class="mention-avatar" />
-                <div class="mention-info">
-                    <span class="mention-name">{{ user.displayName }}</span>
-                    <span class="mention-username">@{{ user.username }}</span>
+            class="absolute bottom-full left-0 right-0 max-w-[min(100%,340px)] max-h-[200px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 list-none p-1 m-0">
+            <li v-for="(user, i) in mention.candidates" :key="user.id"
+                :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === mention.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
+                @mousedown.prevent="selectMention(user)"
+                @mouseenter="mention.index = i">
+                <ArgonAvatar :user-id="user.id" :overrided-size="28" class="shrink-0 rounded-full" />
+                <div class="flex items-baseline gap-1.5 min-w-0 overflow-hidden">
+                    <span class="font-medium text-[13px] truncate">{{ user.displayName }}</span>
+                    <span :class="['text-xs truncate', i === mention.index ? 'text-primary-foreground/70' : 'text-muted-foreground']">@{{ user.username }}</span>
                 </div>
             </li>
         </ul>
         </Transition>
 
         <!-- Slash command dropdown -->
-        <Transition name="mention-pop">
+        <Transition
+          enter-active-class="transition duration-100 ease-out"
+          leave-active-class="transition duration-100 ease-in"
+          enter-from-class="opacity-0 translate-y-1.5"
+          leave-to-class="opacity-0 translate-y-1.5"
+        >
         <ul v-if="slashCmd.show && slashCmd.candidates.length"
-            class="mention-dropdown slash-dropdown">
-            <li v-for="(cmd, i) in slashCmd.candidates" :key="cmd.commandId" :class="[
-                'mention-item',
-                i === slashCmd.index ? 'mention-item-active' : '',
-            ]" @mousedown.prevent="selectSlashCommand(cmd)"
-               @mouseenter="slashCmd.index = i">
-                <div class="slash-cmd-icon">/</div>
-                <div class="mention-info">
-                    <span class="mention-name">{{ cmd.name }}</span>
-                    <span class="mention-username">{{ cmd.description }}</span>
+            class="absolute bottom-full left-0 right-0 max-w-[min(100%,420px)] max-h-[200px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 list-none p-1 m-0">
+            <li v-for="(cmd, i) in slashCmd.candidates" :key="cmd.commandId"
+                :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === slashCmd.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
+                @mousedown.prevent="selectSlashCommand(cmd)"
+                @mouseenter="slashCmd.index = i">
+                <div class="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-muted font-bold text-sm text-primary">/</div>
+                <div class="flex items-baseline gap-1.5 min-w-0 overflow-hidden">
+                    <span class="font-medium text-[13px] truncate">{{ cmd.name }}</span>
+                    <span :class="['text-xs truncate', i === slashCmd.index ? 'text-primary-foreground/70' : 'text-muted-foreground']">{{ cmd.description }}</span>
                 </div>
             </li>
         </ul>
@@ -244,7 +260,7 @@ import CapitalizedSegment from "./CapitalizedSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
-import { SendHorizonalIcon, SmileIcon, X, PaperclipIcon } from "lucide-vue-next";
+import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
@@ -1107,360 +1123,3 @@ defineExpose({
   clear: () => { messageText.value = ''; mentionRegistry.clear(); },
 });
 </script>
-<style lang="css" scoped>
-.enter-text-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    overflow: visible;
-}
-
-/* Reply banner — Telegram style */
-.reply-banner {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    margin-bottom: 4px;
-    background: hsl(var(--muted));
-    border-radius: var(--radius) var(--radius) 0 0;
-    overflow: hidden;
-}
-
-.reply-accent-bar {
-    width: 3px;
-    min-height: 28px;
-    border-radius: 2px;
-    background: hsl(var(--primary));
-    flex-shrink: 0;
-}
-
-.reply-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.reply-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: hsl(var(--primary));
-    line-height: 1.2;
-}
-
-.reply-preview-text {
-    font-size: 13px;
-    color: hsl(var(--foreground) / 0.7);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-}
-
-.reply-close {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: hsl(var(--muted-foreground));
-    cursor: pointer;
-    transition: background 150ms, color 150ms;
-}
-
-.reply-close:hover {
-    background: hsl(var(--muted-foreground) / 0.15);
-    color: hsl(var(--foreground));
-}
-
-/* Input area */
-.input-area {
-    position: relative;
-}
-
-.input-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    padding: 6px 8px;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--background));
-    transition: border-color 150ms;
-}
-
-.input-row:focus-within {
-    border-color: hsl(var(--ring));
-}
-
-.input-row.caption-mode {
-    border: none;
-    padding: 4px 0;
-    gap: 4px;
-}
-
-/* Icon buttons (attach, emoji) */
-.input-icon-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: hsl(var(--muted-foreground));
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 150ms, color 150ms;
-}
-
-.input-icon-btn:hover {
-    background: hsl(var(--muted-foreground) / 0.12);
-    color: hsl(var(--foreground));
-}
-
-.input-icon-btn:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: -2px;
-}
-
-/* Textarea */
-.message-textarea {
-    flex: 1;
-    min-height: 36px;
-    max-height: 200px;
-    padding: 6px 4px;
-    border: none;
-    outline: none;
-    background: transparent;
-    resize: none;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.5;
-    color: hsl(var(--foreground));
-    overflow-y: auto;
-}
-
-.message-textarea::placeholder {
-    color: hsl(var(--muted-foreground));
-}
-
-.message-textarea::-webkit-scrollbar {
-    width: 6px;
-}
-
-.message-textarea::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.message-textarea::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
-}
-
-.message-textarea::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
-}
-
-/* Send button */
-.send-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 50%;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 150ms, transform 150ms;
-}
-
-.send-btn:hover {
-    background: hsl(var(--primary) / 0.85);
-}
-
-.send-btn:active {
-    transform: scale(0.92);
-}
-
-.send-btn:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
-}
-
-/* Send button enter/leave transition */
-.send-btn-enter-active,
-.send-btn-leave-active {
-    transition: opacity 150ms, transform 150ms;
-}
-
-.send-btn-enter-from {
-    opacity: 0;
-    transform: scale(0.5);
-}
-
-.send-btn-leave-to {
-    opacity: 0;
-    transform: scale(0.5);
-}
-
-/* Mention dropdown */
-.mention-dropdown {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    max-width: min(100%, 340px);
-    max-height: 200px;
-    margin-bottom: 4px;
-    overflow-y: auto;
-    background: hsl(var(--popover));
-    color: hsl(var(--popover-foreground));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    box-shadow: 0 4px 24px hsl(0 0% 0% / 0.18);
-    z-index: 50;
-    list-style: none;
-    padding: 4px;
-    margin: 0 0 4px;
-}
-
-.mention-dropdown::-webkit-scrollbar {
-    width: 5px;
-}
-
-.mention-dropdown::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.mention-dropdown::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.2);
-    border-radius: 3px;
-}
-
-.mention-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 8px;
-    border-radius: calc(var(--radius) - 2px);
-    cursor: pointer;
-    transition: background 100ms;
-}
-
-.mention-item:hover {
-    background: hsl(var(--muted));
-}
-
-.mention-item-active {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-}
-
-.mention-item-active .mention-username {
-    color: hsl(var(--primary-foreground) / 0.7);
-}
-
-.mention-item-active:hover {
-    background: hsl(var(--primary) / 0.9);
-}
-
-.mention-avatar {
-    flex-shrink: 0;
-    border-radius: 50%;
-}
-
-.mention-info {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.mention-name {
-    font-weight: 500;
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.mention-username {
-    color: hsl(var(--muted-foreground));
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Slash command dropdown extras */
-.slash-dropdown {
-    max-width: min(100%, 420px);
-}
-
-.slash-cmd-icon {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    background: hsl(var(--muted));
-    font-weight: 700;
-    font-size: 14px;
-    color: hsl(var(--primary));
-}
-
-/* Mention transition */
-.mention-pop-enter-active,
-.mention-pop-leave-active {
-    transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.mention-pop-enter-from {
-    opacity: 0;
-    transform: translateY(6px);
-}
-
-.mention-pop-leave-to {
-    opacity: 0;
-    transform: translateY(6px);
-}
-
-/* Drag overlay */
-.drag-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    background: hsl(var(--primary) / 0.08);
-    border: 2px dashed hsl(var(--primary));
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-}
-
-.drag-overlay-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    color: hsl(var(--primary));
-    font-size: 13px;
-    font-weight: 500;
-}
-</style>

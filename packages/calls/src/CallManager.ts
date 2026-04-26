@@ -23,6 +23,7 @@ import type {
   RtcDiagnostics,
   ConnectionQuality,
   CallMode,
+  AudioDeviceError,
 } from "./types";
 import { parseRtcStats } from "./rtcStats";
 import { createSpeakingDetector } from "./speakingDetector";
@@ -47,6 +48,9 @@ export interface CallManager {
   readonly averagePing: ComputedRef<number>;
   readonly qualityConnection: ComputedRef<ConnectionQuality>;
   readonly diagnostics: Map<string, RtcDiagnostics>;
+  readonly isLocalAudioSilent: Ref<boolean>;
+  readonly isCpuConstrained: Ref<boolean>;
+  readonly audioDeviceError: Ref<AudioDeviceError | null>;
 
   // Actions
   startDirectCall(targetUserId: string): Promise<void>;
@@ -102,6 +106,11 @@ export function createCallManager(config: CallManagerConfig): CallManager {
 
   const isSharing = ref(false);
   let screenTrackPub: any = null;
+
+  const isLocalAudioSilent = ref(false);
+  const isCpuConstrained = ref(false);
+  const audioDeviceError = ref<AudioDeviceError | null>(null);
+  let cpuConstrainedResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ping = ref(-1);
   const pingHistory = reactive<Array<{ timestamp: number; value: number }>>([]);
@@ -292,6 +301,21 @@ export function createCallManager(config: CallManagerConfig): CallManager {
       isReconnecting.value = false;
       ping.value = -1;
       stopTimerRTT();
+    });
+
+    r.on("localAudioSilenceDetected", () => {
+      logger.warn("[CALL] Local audio silence detected — microphone may not be working");
+      isLocalAudioSilent.value = true;
+    });
+
+    r.localParticipant.on("localTrackCpuConstrained", () => {
+      logger.warn("[CALL] Local track CPU constrained — performance degradation");
+      isCpuConstrained.value = true;
+      if (cpuConstrainedResetTimer) clearTimeout(cpuConstrainedResetTimer);
+      cpuConstrainedResetTimer = setTimeout(() => {
+        isCpuConstrained.value = false;
+        cpuConstrainedResetTimer = null;
+      }, 10_000);
     });
 
     try {
@@ -728,6 +752,14 @@ export function createCallManager(config: CallManagerConfig): CallManager {
     diagnostics.clear();
     pingHistory.splice(0);
     ping.value = -1;
+
+    isLocalAudioSilent.value = false;
+    isCpuConstrained.value = false;
+    audioDeviceError.value = null;
+    if (cpuConstrainedResetTimer) {
+      clearTimeout(cpuConstrainedResetTimer);
+      cpuConstrainedResetTimer = null;
+    }
   }
 
   async function startScreenShare(opts: {
@@ -826,6 +858,10 @@ export function createCallManager(config: CallManagerConfig): CallManager {
     averagePing,
     qualityConnection,
     diagnostics,
+
+    isLocalAudioSilent,
+    isCpuConstrained,
+    audioDeviceError,
 
     startDirectCall,
     acceptIncomingCall,

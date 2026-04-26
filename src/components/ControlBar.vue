@@ -22,8 +22,9 @@
 
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
-                <button :disabled="true">
-                    <CameraIcon class="w-5 h-5" />
+                <button @click="voice.toggleCamera()" :class="{ active: voice.isCameraOn }" :disabled="!isConnected">
+                    <CameraOff v-if="voice.isCameraOn" class="w-5 h-5" />
+                    <CameraIcon v-else class="w-5 h-5" />
                 </button>
 
                 <button v-if="playframeActive"
@@ -53,6 +54,7 @@ import {
     ScreenShareOff,
     ScreenShare,
     CameraIcon,
+    CameraOff,
     OctagonMinusIcon,
     Gamepad2,
 } from "lucide-vue-next";

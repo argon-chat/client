@@ -272,7 +272,7 @@ const openMeetingDetails = () => {
 /* Voice user list */
 .voice-user-list {
   margin-left: 12px;
-  padding: 0 16px 8px;
+  padding: 4px 16px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;

@@ -265,17 +265,17 @@
                 :space-id="props.message.spaceId"
                 :channel-id="props.message.channelId"
               />
-
-              <!-- ── Reactions ── -->
-              <MessageReactions
-                v-if="hasReactions"
-                :reactions="props.message.reactions"
-                :current-user-id="me.me?.userId ?? ''"
-                :can-react="canReact"
-                @toggle="onToggleReaction"
-              />
             </div>
           </ContextMenuTrigger>
+
+          <!-- ── Reactions (outside bubble to avoid width distortion) ── -->
+          <MessageReactions
+            v-if="hasReactions"
+            :reactions="props.message.reactions"
+            :current-user-id="me.me?.userId ?? ''"
+            :can-react="canReact"
+            @toggle="onToggleReaction"
+          />
 
           <!-- ── Right-click context menu ── -->
           <ContextMenuContent class="min-w-40">

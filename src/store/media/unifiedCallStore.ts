@@ -8,6 +8,8 @@ import {
   Track,
   LocalAudioTrack,
   AudioPresets,
+  createLocalVideoTrack,
+  VideoPresets,
 } from "livekit-client";
 import { ref, reactive, computed } from "vue";
 
@@ -84,7 +86,38 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     >
   >({});
 
-  const videoTracks = reactive(new Map<string, RemoteTrack>());
+  // key = "userId:source" e.g. "abc:camera", "abc:screen_share"
+  const videoTracks = reactive(new Map<string, RemoteTrack | LocalVideoTrack>());
+
+  function videoTrackKey(uid: string, source: string) {
+    return `${uid}:${source}`;
+  }
+
+  /** All track entries for a given user (camera + screen_share, etc.) */
+  function getVideoTracksForUser(uid: string) {
+    const result: { source: string; track: RemoteTrack | LocalVideoTrack }[] = [];
+    for (const [key, track] of videoTracks) {
+      if (key.startsWith(uid + ":")) {
+        result.push({ source: key.split(":")[1], track: track as RemoteTrack | LocalVideoTrack });
+      }
+    }
+    return result;
+  }
+
+  /** Check if user has any video track */
+  function hasVideoTrack(uid: string) {
+    for (const key of videoTracks.keys()) {
+      if (key.startsWith(uid + ":")) return true;
+    }
+    return false;
+  }
+
+  /** Delete all video tracks for a user */
+  function deleteVideoTracksForUser(uid: string) {
+    for (const key of [...videoTracks.keys()]) {
+      if (key.startsWith(uid + ":")) videoTracks.delete(key);
+    }
+  }
 
   const speaking = reactive(new Set<string>());
 
@@ -92,6 +125,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   const isSharing = ref(false);
   let screenTrackPub: any = null;
+
+  const isCameraOn = ref(false);
+  let cameraTrackPub: any = null;
+
+  const isLocalAudioSilent = ref(false);
+  const isCpuConstrained = ref(false);
+  const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
+  let cpuConstrainedResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ping = ref(-1);
 
@@ -158,6 +199,17 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isSharing.value = false;
     screenTrackPub = null;
+
+    isCameraOn.value = false;
+    cameraTrackPub = null;
+
+    isLocalAudioSilent.value = false;
+    isCpuConstrained.value = false;
+    audioDeviceError.value = null;
+    if (cpuConstrainedResetTimer) {
+      clearTimeout(cpuConstrainedResetTimer);
+      cpuConstrainedResetTimer = null;
+    }
 
     tone.playSoftLeaveSound();
   }
@@ -587,7 +639,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       const uid = p.identity;
       delete participants[uid];
       speaking.delete(uid);
-      if (videoTracks.has(uid)) videoTracks.delete(uid);
+      deleteVideoTracksForUser(uid);
 
       // Remove guest user from realtime channel
       const isGuest = uid.toLowerCase().startsWith("fafccccc");
@@ -622,6 +674,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       isReconnecting.value = false;
       ping.value = -1;
       stopTimerRTT();
+    });
+
+    r.on("localAudioSilenceDetected", () => {
+      logger.warn("[CALL] Local audio silence detected — microphone may not be working");
+      isLocalAudioSilent.value = true;
+    });
+
+    r.localParticipant.on("localTrackCpuConstrained", () => {
+      logger.warn("[CALL] Local track CPU constrained — performance degradation");
+      isCpuConstrained.value = true;
+      if (cpuConstrainedResetTimer) clearTimeout(cpuConstrainedResetTimer);
+      cpuConstrainedResetTimer = setTimeout(() => {
+        isCpuConstrained.value = false;
+        cpuConstrainedResetTimer = null;
+      }, 10_000);
     });
 
     function isStun(url: string) {
@@ -791,6 +858,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
       disposables.addSubscription(mutedSub);
       disposables.addSubscription(mutedAllSub);
+
+      const audioErrorSub = audio.onAudioDeviceError((err) => {
+        logger.error(`[CALL] Audio device error (${err.type}):`, err.message);
+        audioDeviceError.value = { type: err.type, message: err.message };
+      });
+      disposables.addSubscription(audioErrorSub);
     } catch (err) {
       logger.error("mic publish failed", err);
       await leave();
@@ -995,7 +1068,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
 
     if (track.kind === Track.Kind.Video) {
-      videoTracks.set(uid, track);
+      const source = track.source || pub.source || 'unknown';
+      videoTracks.set(videoTrackKey(uid, source), track);
       return;
     }
 
@@ -1022,7 +1096,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     const uid = participant.identity;
 
     if (track.kind === "video") {
-      videoTracks.delete(uid);
+      const source = track.source || pub.source || 'unknown';
+      videoTracks.delete(videoTrackKey(uid, source));
       return;
     }
 
@@ -1143,14 +1218,66 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
     isSharing.value = true;
 
+    // Add local screen share to videoTracks
+    const localId = me.me!.userId;
+    videoTracks.set(videoTrackKey(localId, Track.Source.ScreenShare), vid);
+
     screenTrackPub.once("ended", () => stopScreenShare());
   }
 
   async function stopScreenShare() {
     if (screenTrackPub) {
+      const localId = me.me!.userId;
+      videoTracks.delete(videoTrackKey(localId, Track.Source.ScreenShare));
+
       await room.value?.localParticipant.setScreenShareEnabled(false);
       screenTrackPub = null;
       isSharing.value = false;
+    }
+  }
+
+  async function startCamera(deviceId?: string) {
+    if (!room.value) return;
+    if (isCameraOn.value) return;
+
+    try {
+      const cam = await createLocalVideoTrack({
+        deviceId: deviceId || undefined,
+        resolution: VideoPresets.h720.resolution,
+      });
+
+      cameraTrackPub = await room.value.localParticipant.publishTrack(cam, {
+        videoEncoding: VideoPresets.h720.encoding,
+        simulcast: true,
+      });
+      isCameraOn.value = true;
+
+      // Add local video to videoTracks so ParticipantCard shows it
+      const localId = me.me!.userId;
+      videoTracks.set(videoTrackKey(localId, Track.Source.Camera), cam);
+
+      cameraTrackPub.once("ended", () => stopCamera());
+    } catch (err) {
+      logger.error("[CALL] Failed to start camera:", err);
+    }
+  }
+
+  async function stopCamera() {
+    if (cameraTrackPub) {
+      const localId = me.me!.userId;
+      videoTracks.delete(videoTrackKey(localId, Track.Source.Camera));
+
+      await room.value?.localParticipant.setCameraEnabled(false);
+      cameraTrackPub = null;
+      isCameraOn.value = false;
+    }
+  }
+
+  async function toggleCamera(deviceId?: string) {
+    if (isCameraOn.value) {
+      await stopCamera();
+    } else {
+      await startCamera(deviceId);
     }
   }
 
@@ -1185,10 +1312,18 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     participants,
     videoTracks,
+    videoTrackKey,
+    getVideoTracksForUser,
+    hasVideoTrack,
     speaking,
     incoming,
 
     isSharing,
+    isCameraOn,
+
+    isLocalAudioSilent,
+    isCpuConstrained,
+    audioDeviceError,
 
     ping,
     pingHistory,
@@ -1203,6 +1338,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     joinVoiceChannel,
     startScreenShare,
     stopScreenShare,
+    startCamera,
+    stopCamera,
+    toggleCamera,
     setVolume,
     leave,
   };

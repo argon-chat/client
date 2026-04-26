@@ -44,6 +44,7 @@
                         :is-muted="isMuted(userId)"
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
+                        :video-source="getPreferredSource(userId, 'camera')"
                         :is-screen-sharing="isScreenSharing(userId)"
                         :is-playing="isPlayingActivity(userId)"
                         :avatar-size="60"
@@ -68,6 +69,7 @@
                         :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
                         :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                         :has-video="hasVideo(mainStreamer.User.userId)"
+                        :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
                         :avatar-size="180"
                         class="flex-1 min-h-0"
                         :custom-style="{ maxWidth: '100%', width: '100%' }"
@@ -86,6 +88,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :video-source="getPreferredSource(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="90"
                             :icon-size="18"
@@ -111,6 +114,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :video-source="getPreferredSource(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="flex-shrink-0"
                             :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }"
@@ -131,6 +135,7 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
+                            :video-source="getPreferredSource(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="w-full"
                             :custom-style="gridCardStyle(allUsers.length)"
@@ -168,8 +173,11 @@
                     <ScreenShare v-else class="w-[18px] h-[18px]" />
                 </button>
 
-                <button class="ctrl-btn" disabled>
-                    <CameraIcon class="w-[18px] h-[18px]" />
+                <ScreenSharePicker ref="sharePicker" @start="goShare" />
+
+                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
+                    <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px]" />
+                    <CameraIcon v-else class="w-[18px] h-[18px]" />
                 </button>
 
                 <button v-if="playframeActive" class="ctrl-btn" :class="{ 'ctrl-btn--active': activity.isActive }" @click="activity.openPicker()" :disabled="!isConnected">
@@ -193,10 +201,11 @@ import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
+import ScreenSharePicker from "./ScreenSharePicker.vue";
 import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
-    CameraIcon, Gamepad2, Signal, Users2,
+    CameraIcon, CameraOff, Gamepad2, Signal, Users2,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
@@ -211,6 +220,7 @@ const selectedChannelId = defineModel<string | null>("selectedChannelId", { type
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const mediaChannelContainer = ref<HTMLElement | null>(null);
 const openPingDetails = ref(false);
+const sharePicker = ref<InstanceType<typeof ScreenSharePicker> | null>(null);
 
 const {
     allUsers,
@@ -221,6 +231,7 @@ const {
     gridCardStyle,
     isSpeaking,
     hasVideo,
+    getPreferredSource,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
@@ -243,29 +254,48 @@ const toggleScreenCast = () => {
     if (!isConnected.value) return;
     if (voice.isSharing) {
         voice.stopScreenShare();
-    } else {
-        voice.startScreenShare({ deviceId: null, systemAudio: "exclude" });
+    } else if (sharePicker.value) {
+        sharePicker.value.open = true;
     }
 };
 
-const setVideoRef = (el: Element | null | any, userId: Guid) => {
+async function goShare(opts: {
+    deviceId: string;
+    systemAudio: "include" | "exclude";
+    width: number;
+    height: number;
+    frameRate: number;
+    maxBitrate: number;
+}) {
+    if (!isConnected.value) return;
+    if (voice.isSharing) {
+        await voice.stopScreenShare();
+        return;
+    }
+    await voice.startScreenShare(opts);
+}
+
+const setVideoRef = (el: Element | null | any, userId: Guid, source: string = 'camera') => {
+    const trackKey = voice.videoTrackKey(userId, source);
+    const refKey = trackKey;
+
     if (el instanceof HTMLVideoElement) {
-        videoRefs.value.set(userId, el);
-        const track = voice.videoTracks.get(userId);
+        videoRefs.value.set(refKey, el);
+        const track = voice.videoTracks.get(trackKey);
         if (track) track.attach(el);
     } else if (el === null) {
-        const oldEl = videoRefs.value.get(userId);
+        const oldEl = videoRefs.value.get(refKey);
         if (oldEl) {
-            const track = voice.videoTracks.get(userId);
+            const track = voice.videoTracks.get(trackKey);
             if (track) track.detach(oldEl);
         }
-        videoRefs.value.delete(userId);
+        videoRefs.value.delete(refKey);
     }
 };
 
 onUnmounted(() => {
-    voice.videoTracks.forEach((track, userId) => {
-        const el = videoRefs.value.get(userId);
+    voice.videoTracks.forEach((track, key) => {
+        const el = videoRefs.value.get(key);
         if (track && el) track.detach(el);
     });
     videoRefs.value.clear();

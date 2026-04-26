@@ -131,6 +131,16 @@ export interface RtcDiagnostics {
 }
 
 /**
+ * Audio device error info
+ */
+export type AudioDeviceErrorType = 'not-found' | 'not-readable';
+
+export interface AudioDeviceError {
+  type: AudioDeviceErrorType;
+  message: string;
+}
+
+/**
  * Connection quality level
  */
 export type ConnectionQuality = "excellent" | "good" | "fair" | "poor";

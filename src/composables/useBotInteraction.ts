@@ -149,12 +149,12 @@ export const useBotInteraction = defineStore("botInteraction", () => {
         interactionId,
         values as any,
       );
+      if (result.isFailedSubmitModal()) {
+        logger.error("SubmitModal failed:", result.error);
+      }
       if (result.isSuccessSubmitModal()) {
         activeModal.value = null;
         return true;
-      }
-      if (result.isFailedSubmitModal()) {
-        logger.error("SubmitModal failed:", result.error);
       }
       return false;
     } catch (error) {
@@ -176,11 +176,11 @@ export const useBotInteraction = defineStore("botInteraction", () => {
         commandId,
         options as any,
       );
-      if (result.isSuccessInvokeSlashCommand()) {
-        return true;
-      }
       if (result.isFailedInvokeSlashCommand()) {
         logger.error("InvokeSlashCommand failed:", result.error);
+      }
+      if (result.isSuccessInvokeSlashCommand()) {
+        return true;
       }
       return false;
     } catch (error) {

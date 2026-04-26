@@ -7,7 +7,7 @@
         
         <video 
             v-if="hasVideo" 
-            :ref="(el) => $emit('video-ref', el, userId)" 
+            :ref="(el) => $emit('video-ref', el, userId, videoSource)" 
             autoplay 
             playsinline 
             muted 
@@ -71,6 +71,7 @@ interface Props {
     nameClass?: string;
     iconPosition?: string;
     centered?: boolean;
+    videoSource?: string;
 }
 
 withDefaults(defineProps<Props>(), {
@@ -85,12 +86,13 @@ withDefaults(defineProps<Props>(), {
     className: '',
     nameClass: 'text-sm',
     iconPosition: 'top-2 right-2',
-    centered: true
+    centered: true,
+    videoSource: 'camera',
 });
 
 defineEmits<{
     (e: 'click', userId: Guid): void;
-    (e: 'video-ref', el: any, userId: Guid): void;
+    (e: 'video-ref', el: any, userId: Guid, source: string): void;
 }>();
 </script>
 

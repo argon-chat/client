@@ -10,6 +10,8 @@ export {
   type RemoteAudioGraph,
   type RemoteAudioGraphOptions,
   type RemoteAudioGraphInfo,
+  type AudioDeviceErrorEvent,
+  type AudioDeviceErrorType,
 } from "./AudioManager";
 
 export { WorkletManager } from "./WorkletManager";

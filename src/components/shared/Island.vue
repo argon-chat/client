@@ -22,7 +22,9 @@
                 width: open && isSlotAvailable ? 320 : 260,
             }" class="bg-natural-900 relative cursor-pointer overflow-hidden text-secondary">
                 <header class="gray- flex h-11 cursor-pointer items-center gap-2 px-4">
-                    <VueSpinnerRadio size="20" color="wheat" />
+                    <slot name="icon">
+                        <VueSpinnerRadio size="20" color="wheat" />
+                    </slot>
                     <h1 class="grow text-center font-bold" style="color: wheat;">{{ titleRef }}</h1>
                 </header>
                 <motion.div v-if="isSlotAvailable"

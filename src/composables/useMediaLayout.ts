@@ -6,6 +6,8 @@ import { useMe } from "@/store/auth/meStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
 
+export type VideoSource = "camera" | "screen_share";
+
 export function useMediaLayout(selectedChannelId: () => string | null) {
   const pool = usePoolStore();
   const voice = useUnifiedCall();
@@ -34,9 +36,13 @@ export function useMediaLayout(selectedChannelId: () => string | null) {
       if (user.isScreenShare) return user as IRealtimeChannelUserWithData;
     }
 
-    for (const [userId] of voice.videoTracks) {
-      const user = users.value.get(userId);
-      if (user) return user as IRealtimeChannelUserWithData;
+    // Check for any screen share track
+    for (const [key] of voice.videoTracks) {
+      const [userId, source] = key.split(":");
+      if (source === "screen_share") {
+        const user = users.value.get(userId);
+        if (user) return user as IRealtimeChannelUserWithData;
+      }
     }
 
     return null;
@@ -87,11 +93,43 @@ export function useMediaLayout(selectedChannelId: () => string | null) {
     return voice.speaking.has(uid);
   };
 
-  const hasVideo = (uid: Guid) => voice.videoTracks.has(uid);
+  /** Check if user has ANY video track (camera or screen_share) */
+  const hasVideo = (uid: Guid) => voice.hasVideoTrack(uid);
+
+  /** Check if user has a camera video track */
+  const hasCameraVideo = (uid: Guid) => {
+    return voice.videoTracks.has(voice.videoTrackKey(uid, "camera"));
+  };
+
+  /** Check if user has a screen share video track */
+  const hasScreenShareVideo = (uid: Guid) => {
+    return voice.videoTracks.has(voice.videoTrackKey(uid, "screen_share"));
+  };
+
+  /**
+   * Returns the best video source for a participant card.
+   * - 'camera' preferred for grid/thumbnail cards (user face)
+   * - 'screen_share' preferred for the main streamer card
+   */
+  const getPreferredSource = (uid: Guid, prefer: "camera" | "screen_share" = "camera") => {
+    const hasCam = voice.videoTracks.has(voice.videoTrackKey(uid, "camera"));
+    const hasSS = voice.videoTracks.has(voice.videoTrackKey(uid, "screen_share"));
+
+    if (prefer === "camera") {
+      if (hasCam) return "camera";
+      if (hasSS) return "screen_share";
+    } else {
+      if (hasSS) return "screen_share";
+      if (hasCam) return "camera";
+    }
+    return "camera";
+  };
 
   const isScreenSharing = (uid: Guid) => {
     const myId = me.me?.userId;
     if (uid === myId) return voice.isSharing;
+    // Check remote screen share track
+    if (hasScreenShareVideo(uid)) return true;
     const user = users.value.get(uid);
     return user?.isScreenShare ?? false;
   };
@@ -129,6 +167,9 @@ export function useMediaLayout(selectedChannelId: () => string | null) {
     gridCardStyle,
     isSpeaking,
     hasVideo,
+    hasCameraVideo,
+    hasScreenShareVideo,
+    getPreferredSource,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,

@@ -25,6 +25,14 @@ export interface AudioConstraints {
   autoGainControl: boolean;
 }
 
+export type AudioDeviceErrorType = 'not-found' | 'not-readable';
+
+export interface AudioDeviceErrorEvent {
+  type: AudioDeviceErrorType;
+  deviceId: string;
+  message: string;
+}
+
 export interface AudioLevels {
   input: number;  // 0-100
   output: number; // 0-100
@@ -128,6 +136,7 @@ export interface IAudioManagement {
   onInputLevelChanged(on: (level: number) => void): Subscription;
   onOutputLevelChanged(on: (level: number) => void): Subscription;
   onOutputLevelStereoChanged(callback: (left: number, right: number) => void): { dispose: () => void };
+  onAudioDeviceError(on: (error: AudioDeviceErrorEvent) => void): Subscription;
   
   // Testing
   playTestSound(frequency?: number, duration?: number): Promise<void>;
@@ -209,6 +218,7 @@ export class AudioManagement implements IAudioManagement {
   private devices$ = new Subject<MediaDeviceInfo[]>();
   private inputLevel$ = new BehaviorSubject<number>(0);
   private outputLevel$ = new BehaviorSubject<number>(0);
+  private audioDeviceError$ = new Subject<AudioDeviceErrorEvent>();
 
   private config: Required<AudioManagerConfig>;
 
@@ -772,8 +782,31 @@ export class AudioManagement implements IAudioManagement {
       }
       
       logger.info('[AudioManagement] Microphone connected to virtual stream:', deviceId);
-    } catch (err) {
-      logger.error('[AudioManagement] Failed to connect microphone:', err);
+    } catch (err: any) {
+      const errorType = this.classifyMediaError(err);
+      if (errorType) {
+        this.audioDeviceError$.next({
+          type: errorType,
+          deviceId: deviceId || 'default',
+          message: err?.message || String(err),
+        });
+        logger.error(`[AudioManagement] Microphone error (${errorType}):`, err);
+
+        // Attempt fallback to default device if we weren't already using it
+        if (deviceId && deviceId !== 'default') {
+          logger.warn('[AudioManagement] Attempting fallback to default microphone');
+          try {
+            await this.connectMicrophoneToVirtualStream('default');
+            this.inputDeviceId.value = 'default';
+            localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, 'default');
+            return;
+          } catch (fallbackErr) {
+            logger.error('[AudioManagement] Fallback to default microphone also failed:', fallbackErr);
+          }
+        }
+      } else {
+        logger.error('[AudioManagement] Failed to connect microphone:', err);
+      }
       throw err;
     }
   }
@@ -808,7 +841,15 @@ export class AudioManagement implements IAudioManagement {
           sampleRate: { ideal: this.config.sampleRate },
         },
       });
-    } catch (err) {
+    } catch (err: any) {
+      const errorType = this.classifyMediaError(err);
+      if (errorType) {
+        this.audioDeviceError$.next({
+          type: errorType,
+          deviceId: this.getInputDevice().value || 'default',
+          message: err?.message || String(err),
+        });
+      }
       logger.error("[AudioManagement] Failed to get user media:", err);
       throw err;
     }
@@ -956,6 +997,20 @@ export class AudioManagement implements IAudioManagement {
 
   onOutputLevelChanged(on: (level: number) => void): Subscription {
     return this.outputLevel$.subscribe(on);
+  }
+
+  onAudioDeviceError(on: (error: AudioDeviceErrorEvent) => void): Subscription {
+    return this.audioDeviceError$.subscribe(on);
+  }
+
+  private classifyMediaError(err: any): AudioDeviceErrorType | null {
+    if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+      return 'not-found';
+    }
+    if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+      return 'not-readable';
+    }
+    return null;
   }
 
   /**
