@@ -131,7 +131,8 @@ export function useTheme(config: ThemeConfig = {}) {
     const colorBlindMode = persistedValue<string>("appearance.colorBlindMode", "none");
 
     // Apply font (or dyslexia font)
-    const selectedFont = dyslexiaFont.value ? "OpenDyslexic, sans-serif" : fontFamily.value;
+    const baseFont = dyslexiaFont.value ? "OpenDyslexic, sans-serif" : fontFamily.value;
+    const selectedFont = `${baseFont}, 'Noto Color Emoji'`;
     root.style.setProperty("font-family", selectedFont);
     document.body.style.fontFamily = selectedFont;
 

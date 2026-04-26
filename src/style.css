@@ -1,7 +1,7 @@
 @plugin "@tailwindcss/typography";
 :root {
   font-family: Tengwar Annatar, Inter, system-ui, Avenir, Helvetica, Arial,
-    sans-serif;
+    sans-serif, 'Noto Color Emoji';
   line-height: 1.5;
   font-weight: 400;
 

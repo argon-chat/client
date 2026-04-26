@@ -33,18 +33,20 @@
                     @change="onFileInputChange"
                 />
 
-                <!-- Textarea -->
-                <textarea
+                <!-- Rich text input -->
+                <EmojiInput
                     ref="editorRef"
-                    v-model="messageText"
-                    class="flex-1 min-h-9 max-h-[200px] py-1.5 px-1 border-none outline-none bg-transparent resize-none font-[inherit] text-sm leading-relaxed text-foreground overflow-y-auto placeholder:text-muted-foreground"
+                    :model-value="messageText"
+                    @update:model-value="onModelValueUpdate"
+                    class="flex-1 min-h-9 max-h-[200px] py-1.5 px-1 text-sm leading-relaxed text-foreground overflow-y-auto"
                     :disabled="!canSendMessages"
                     :placeholder="!canSendMessages ? (t('no_send_permission') || 'You do not have permission to send messages') : captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
+                    :unstyled="true"
+                    render-mode="noto"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
-                    rows="1"
-                ></textarea>
+                />
 
                 <!-- Emoji picker -->
                 <Popover>
@@ -54,8 +56,8 @@
                         </button>
                     </PopoverTrigger>
                     <PopoverContent class="w-auto p-0">
-                        <EmojiPicker :native="true" :disable-skin-tones="true" :theme="emojiPickerTheme"
-                            @select="(e: EmojiExt) => onEmojiClick(e)" />
+                        <EmojixPicker :theme="'auto'" :render-mode="'noto'"
+                            @select="onEmojixSelect" />
                     </PopoverContent>
                 </Popover>
 
@@ -248,7 +250,8 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
-import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
+import { EmojixPicker, EmojiInput, type EmojiSelection } from "@argon-chat/emojix";
+import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import BoldSegment from "./BoldSegment.vue";
@@ -267,7 +270,6 @@ import { refDebounced } from "@vueuse/core";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
-import { persistedValue } from "@argon/storage";
 import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
@@ -281,10 +283,21 @@ const pex = usePexStore();
 const canSendMessages = computed(() => pex.has("SendMessages"));
 const canAttachFiles = computed(() => pex.has("AttachFiles"));
 
-const currentTheme = persistedValue<string>("appearance.theme", "dark");
-const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light" : "dark");
+interface EmojiInputExposed {
+  insertEmoji(entry: EmojiEntry): void;
+  insertTextAtCursor(text: string): void;
+  replaceRange(start: number, end: number, replacement: string): void;
+  getCursorOffset(): number;
+  setCursorOffset(offset: number): void;
+  getTextBeforeCursor(): string;
+  focus(): void;
+  blur(): void;
+  clear(): void;
+  getText(): string;
+  el: HTMLDivElement | null;
+}
 
-const editorRef = ref<HTMLTextAreaElement | null>(null);
+const editorRef = ref<EmojiInputExposed | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const messageText = ref("");
 const showFormatHelp = ref(false);
@@ -397,6 +410,10 @@ let lastReplacement: ReplacementRecord | null = null;
 let typingTimeout: ReturnType<typeof setTimeout> | undefined;
 let lastTypingSent = 0;
 
+function onModelValueUpdate(val: string) {
+  messageText.value = val;
+}
+
 function onEditorInput() {
   const now = Date.now();
 
@@ -410,15 +427,8 @@ function onEditorInput() {
     emit("stop_typing");
   }, 3000);
 
-  // Auto-resize textarea
-  if (editorRef.value) {
-    const maxH = props.captionMode ? 80 : 200;
-    editorRef.value.style.height = "auto";
-    editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, maxH)}px`;
-  }
-
   // Auto-replacements
-  const cursorPos = editorRef.value?.selectionStart ?? 0;
+  const cursorPos = editorRef.value?.getCursorOffset() ?? 0;
   const text = messageText.value;
   
   // Check each pattern
@@ -446,7 +456,7 @@ function onEditorInput() {
         nextTick(() => {
           if (editorRef.value) {
             const newCursorPos = startPos + replacement.length;
-            editorRef.value.setSelectionRange(newCursorPos, newCursorPos);
+            editorRef.value.setCursorOffset(newCursorPos);
           }
         });
         
@@ -507,7 +517,7 @@ function onEditorInput() {
 async function onEditorKeydown(e: KeyboardEvent) {
   // Handle backspace to revert auto-replacements
   if (e.key === "Backspace" && !mention.show && editorRef.value && lastReplacement) {
-    const cursorPos = editorRef.value.selectionStart ?? 0;
+    const cursorPos = editorRef.value.getCursorOffset();
     const text = messageText.value;
     
     // Check if we're right after a replacement
@@ -529,7 +539,7 @@ async function onEditorKeydown(e: KeyboardEvent) {
           if (editorRef.value) {
             // Position cursor after the original pattern
             const newCursorPos = lastReplacement!.position + lastReplacement!.original.length;
-            editorRef.value.setSelectionRange(newCursorPos, newCursorPos);
+            editorRef.value.setCursorOffset(newCursorPos);
           }
         });
         
@@ -593,7 +603,7 @@ async function onEditorKeydown(e: KeyboardEvent) {
 function selectMention(user: MentionUser) {
   if (!editorRef.value) return;
 
-  const cursorPos = editorRef.value.selectionStart ?? 0;
+  const cursorPos = editorRef.value.getCursorOffset();
   const text = messageText.value;
   
   // Replace @query with @displayName
@@ -610,7 +620,7 @@ function selectMention(user: MentionUser) {
   nextTick(() => {
     if (editorRef.value) {
       const newPos = mention.startOffset + mentionText.length + 1;
-      editorRef.value.setSelectionRange(newPos, newPos);
+      editorRef.value.setCursorOffset(newPos);
       editorRef.value.focus();
     }
   });
@@ -621,10 +631,6 @@ function selectMention(user: MentionUser) {
 function selectSlashCommand(cmd: SpaceCommand) {
   slashCmd.show = false;
   messageText.value = "";
-
-  if (editorRef.value) {
-    editorRef.value.style.height = "auto";
-  }
 
   // If command has no options, invoke immediately
   if (!cmd.options || cmd.options.length === 0) {
@@ -645,7 +651,7 @@ function selectSlashCommand(cmd: SpaceCommand) {
     nextTick(() => {
       if (editorRef.value) {
         const newPos = messageText.value.length;
-        editorRef.value.setSelectionRange(newPos, newPos);
+        editorRef.value.setCursorOffset(newPos);
         editorRef.value.focus();
       }
     });
@@ -673,22 +679,15 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
 });
 
-const onEmojiClick = (emoji: EmojiExt) => {
+const onEmojixSelect = (selection: EmojiSelection) => {
   if (!editorRef.value) return;
   
-  const cursorPos = editorRef.value.selectionStart ?? messageText.value.length;
-  const before = messageText.value.slice(0, cursorPos);
-  const after = messageText.value.slice(cursorPos);
-  
-  messageText.value = before + emoji.i + after;
-  
-  nextTick(() => {
-    if (editorRef.value) {
-      const newPos = cursorPos + emoji.i.length;
-      editorRef.value.setSelectionRange(newPos, newPos);
-      editorRef.value.focus();
-    }
-  });
+  if (selection.emoji) {
+    editorRef.value.insertEmoji(selection.emoji);
+  } else {
+    editorRef.value.insertTextAtCursor(selection.text);
+  }
+  editorRef.value.focus();
 };
 
 interface ParsedMessage {
@@ -1017,7 +1016,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
     selectedSlashCommand.value = null;
     messageText.value = "";
     if (editorRef.value) {
-      editorRef.value.style.height = "auto";
+      editorRef.value.clear();
     }
     return;
   }
@@ -1064,7 +1063,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   }
   messageText.value = "";
   if (editorRef.value) {
-    editorRef.value.style.height = "auto";
+    editorRef.value.clear();
   }
   mentionRegistry.clear();
 

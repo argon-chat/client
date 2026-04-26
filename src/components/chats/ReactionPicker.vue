@@ -6,13 +6,16 @@
       class="picker-emoji"
       @click="$emit('select', emoji)"
     >
-      {{ emoji }}
+      <EmojiSprite v-if="resolveEmoji(emoji)" :emoji="resolveEmoji(emoji)!" :size="18" render-mode="noto" />
+      <template v-else>{{ emoji }}</template>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { DEFAULT_REACTIONS } from "@/composables/useMessageReactions";
+import { EmojiSprite, emojiRegistry, stringToCodepoints, codepointsToHexcode } from "@argon-chat/emojix";
+import type { EmojiEntry } from "@argon-chat/emojix";
 
 withDefaults(defineProps<{
   emojis?: string[];
@@ -23,6 +26,12 @@ withDefaults(defineProps<{
 defineEmits<{
   (e: "select", emoji: string): void;
 }>();
+
+function resolveEmoji(text: string): EmojiEntry | undefined {
+  const codepoints = stringToCodepoints(text);
+  const hexcode = codepointsToHexcode(codepoints);
+  return emojiRegistry.getByHexcode(hexcode);
+}
 </script>
 
 <style scoped>

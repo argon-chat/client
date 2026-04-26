@@ -338,7 +338,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useMessageContent, fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
 import { EntityType, type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
-import emojiRegex from "emoji-regex";
+import { isEmojiOnly } from "@argon-chat/emojix";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
@@ -381,8 +381,8 @@ function tsFormat(): string {
   return _tsFmt;
 }
 
-// ── Shared singleton: emoji regex ──
-const emojiRx = emojiRegex();
+// ── Emoji-only detection (via emojix) ──
+// No separate regex instance needed
 
 // ── Inline reply preview component ──
 const ReplyPreview = defineComponent({
@@ -512,8 +512,8 @@ const hasOnlyImages = computed(
 const isSingleEmoji = computed(() => {
   const text = props.message.text?.trim();
   if (!text) return false;
-  const matches = [...text.matchAll(emojiRx)];
-  return matches.length >= 1 && matches.length <= 2 && matches.map((m) => m[0]).join("") === text;
+  const result = isEmojiOnly(text, 2);
+  return result.isOnlyEmoji;
 });
 
 // ── Reply ──

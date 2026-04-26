@@ -3,6 +3,7 @@ import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
 //@ts-ignore
 import "@argon/assets/styles";
+import "@argon-chat/emojix/style.css";
 
 import "@argon/glue";
 import "@argon/glue/ipc";
@@ -15,12 +16,13 @@ import * as Sentry from "@sentry/vue";
 import App from "./App.vue";
 import router from "./router";
 
-import { createApp } from "vue";
+import { createApp, type Plugin } from "vue";
 import { createPinia } from "pinia";
 import { MotionPlugin } from "@vueuse/motion";
 import { createI18n } from "vue-i18n";
 import { coreMessages, type SupportedLocale, type CoreLocaleSchema } from "@argon/i18n";
 import { createSentryPiniaPlugin } from "@sentry/vue";
+import { createEmojix, initializeEmojix } from "@argon-chat/emojix";
 
 window.ui_version = pkg.version;
 window.ui_buildtime = pkg.lastBuildTime;
@@ -104,4 +106,6 @@ Sentry.setTag("version.build.time", pkg.lastBuildTime);
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
+app.use(createEmojix({ registerComponents: true }) as unknown as Plugin);
+initializeEmojix();
 app.mount("#app");

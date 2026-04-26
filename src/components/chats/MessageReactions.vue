@@ -13,7 +13,7 @@
       :disabled="!canReact"
       @click="$emit('toggle', reaction.emoji)"
     >
-      <span class="text-sm leading-none">{{ reaction.emoji }}</span>
+      <span class="text-sm leading-none"><EmojiSprite v-if="resolveEmoji(reaction.emoji)" :emoji="resolveEmoji(reaction.emoji)!" :size="16" render-mode="noto" /><template v-else>{{ reaction.emoji }}</template></span>
       <span v-if="reaction.count > 3" class="text-xs font-medium min-w-[8px] text-center">
         {{ reaction.count }}
       </span>
@@ -38,6 +38,8 @@
 <script setup lang="ts">
 import type { ReactionInfo } from "@argon/glue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import { EmojiSprite, emojiRegistry, stringToCodepoints, codepointsToHexcode } from "@argon-chat/emojix";
+import type { EmojiEntry } from "@argon-chat/emojix";
 
 const props = defineProps<{
   reactions: ReactionInfo[];
@@ -56,5 +58,11 @@ function isMine(reaction: ReactionInfo): boolean {
 function avatarStackWidth(count: number): number {
   const n = Math.min(count, 3);
   return n > 0 ? 16 + (n - 1) * 10 : 0;
+}
+
+function resolveEmoji(text: string): EmojiEntry | undefined {
+  const codepoints = stringToCodepoints(text);
+  const hexcode = codepointsToHexcode(codepoints);
+  return emojiRegistry.getByHexcode(hexcode);
 }
 </script>

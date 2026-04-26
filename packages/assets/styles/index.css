@@ -210,6 +210,23 @@
   }
 }
 
+/* ── Emojix theme bridge ── */
+/* Maps app CSS variables to emojix CSS variables so the picker inherits the current theme */
+:root {
+  --emojix-bg: hsl(var(--popover));
+  --emojix-bg-secondary: hsl(var(--card));
+  --emojix-bg-hover: hsl(var(--muted));
+  --emojix-bg-active: hsl(var(--accent));
+  --emojix-bg-sticky: hsl(var(--popover));
+  --emojix-border: hsl(var(--border));
+  --emojix-text: hsl(var(--popover-foreground));
+  --emojix-text-muted: hsl(var(--muted-foreground));
+  --emojix-accent: hsl(var(--ring));
+  --emojix-scrollbar: hsl(var(--muted-foreground));
+  --emojix-font: inherit;
+  --emojix-radius: var(--radius);
+}
+
 @layer components {
   .rarity-common { @apply text-xs text-center leading-tight opacity-90 text-gray-400; }
   .rarity-rare   { @apply text-xs text-center leading-tight opacity-90 text-blue-400 font-semibold; }

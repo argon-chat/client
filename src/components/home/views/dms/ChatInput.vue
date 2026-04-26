@@ -8,16 +8,18 @@
         </div>
 
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
-            <!-- Textarea message area -->
-            <textarea
+            <!-- Rich text input -->
+            <EmojiInput
                 ref="editorRef"
-                v-model="messageText"
-                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded resize-none"
+                :model-value="messageText"
+                @update:model-value="onModelValueUpdate"
+                class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded"
                 :placeholder="t('enter_some_text')"
+                :unstyled="true"
+                render-mode="noto"
                 @input="onEditorInput"
                 @keydown="onEditorKeydown"
-                rows="1"
-            ></textarea>
+            />
 
             <!-- Emoji picker -->
             <Popover>
@@ -27,7 +29,7 @@
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent class="w-auto p-0">
-                    <EmojiPicker :native="true" @select="onEmojiClick" :theme="emojiPickerTheme" />
+                    <EmojixPicker :theme="'auto'" :render-mode="'noto'" @select="onEmojixSelect" />
                 </PopoverContent>
             </Popover>
 
@@ -61,7 +63,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@argon/ui/popover";
-import EmojiPicker, { type EmojiExt } from "vue3-emoji-picker";
+import { EmojixPicker, EmojiInput, type EmojiSelection } from "@argon-chat/emojix";
+import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
@@ -71,13 +74,23 @@ import { refDebounced } from "@vueuse/core";
 import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
-import { persistedValue } from "@argon/storage";
 const { t } = useLocale();
 
-const currentTheme = persistedValue<string>("appearance.theme", "dark");
-const emojiPickerTheme = computed(() => currentTheme.value === "light" ? "light" : "dark");
+interface EmojiInputExposed {
+  insertEmoji(entry: EmojiEntry): void;
+  insertTextAtCursor(text: string): void;
+  replaceRange(start: number, end: number, replacement: string): void;
+  getCursorOffset(): number;
+  setCursorOffset(offset: number): void;
+  getTextBeforeCursor(): string;
+  focus(): void;
+  blur(): void;
+  clear(): void;
+  getText(): string;
+  el: HTMLDivElement | null;
+}
 
-const editorRef = ref<HTMLTextAreaElement | null>(null);
+const editorRef = ref<EmojiInputExposed | null>(null);
 const messageText = ref("");
 const api = useApi();
 const pool = usePoolStore();
@@ -116,16 +129,14 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 };
 
-function onEditorInput() {
-  // Auto-resize textarea
-  if (editorRef.value) {
-    editorRef.value.style.height = "auto";
-    editorRef.value.style.height = `${Math.min(editorRef.value.scrollHeight, 200)}px`;
-  }
+function onModelValueUpdate(val: string) {
+  messageText.value = val;
+}
 
+function onEditorInput() {
   // Check for mention trigger
   const text = messageText.value;
-  const cursorPos = editorRef.value?.selectionStart ?? 0;
+  const cursorPos = editorRef.value?.getCursorOffset() ?? 0;
   const textBeforeCursor = text.slice(0, cursorPos);
   const atIndex = textBeforeCursor.lastIndexOf("@");
 
@@ -172,7 +183,7 @@ async function onEditorKeydown(e: KeyboardEvent) {
 function selectMention(user: MentionUser) {
   if (!editorRef.value) return;
 
-  const cursorPos = editorRef.value.selectionStart ?? 0;
+  const cursorPos = editorRef.value.getCursorOffset();
   const text = messageText.value;
   
   // Replace @query with @displayName
@@ -189,7 +200,7 @@ function selectMention(user: MentionUser) {
   nextTick(() => {
     if (editorRef.value) {
       const newPos = mention.startOffset + mentionText.length + 1;
-      editorRef.value.setSelectionRange(newPos, newPos);
+      editorRef.value.setCursorOffset(newPos);
       editorRef.value.focus();
     }
   });
@@ -205,22 +216,15 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
 });
 
-const onEmojiClick = (emoji: EmojiExt) => {
+const onEmojixSelect = (selection: EmojiSelection) => {
   if (!editorRef.value) return;
   
-  const cursorPos = editorRef.value.selectionStart ?? messageText.value.length;
-  const before = messageText.value.slice(0, cursorPos);
-  const after = messageText.value.slice(cursorPos);
-  
-  messageText.value = before + emoji.i + after;
-  
-  nextTick(() => {
-    if (editorRef.value) {
-      const newPos = cursorPos + emoji.i.length;
-      editorRef.value.setSelectionRange(newPos, newPos);
-      editorRef.value.focus();
-    }
-  });
+  if (selection.emoji) {
+    editorRef.value.insertEmoji(selection.emoji);
+  } else {
+    editorRef.value.insertTextAtCursor(selection.text);
+  }
+  editorRef.value.focus();
 };
 
 interface ParsedMessage {
@@ -477,7 +481,7 @@ const handleSend = async () => {
   // Clear editor
   messageText.value = "";
   if (editorRef.value) {
-    editorRef.value.style.height = "auto";
+    editorRef.value.clear();
   }
   
   // Clear mention registry after send
