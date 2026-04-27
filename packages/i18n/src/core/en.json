@@ -168,23 +168,23 @@
   "sent_on_email": "It has been sent to your email.",
   "choose_your_path": "Choose your path below ✨",
   "space_name_required": "Space name is required",
-  "role_color": "Role Color",
-  "role_color_explain": "Members use the colour of the highest role they have on the roles list",
+  "role_color": "Archetype Color",
+  "role_color_explain": "Members use the colour of the highest archetype they have on the archetypes list",
   "permissions_name": "Permissions",
   "description": "Description",
-  "group_members_with_this_role": "Group members with this role?",
+  "group_members_with_this_role": "Group members with this archetype?",
   "mention_hard": {
-    "allow_mention_role": "Allow {mention} of this role to everyone else",
+    "allow_mention_role": "Allow {mention} of this archetype to everyone else",
     "mention": "{'@'}mention"
   },
   "search_users": "Search users...",
-  "users_with_this_role": "Users with this role",
-  "no_users_with_this_role": "No users with this role",
+  "users_with_this_role": "Users with this archetype",
+  "no_users_with_this_role": "No users with this archetype",
   "no_users_found": "No users found",
   "loading": "Loading...",
   "saved": "📁 Saved",
   "save_changes": "Save changes",
-  "fail_save": "Failed to save Role",
+  "fail_save": "Failed to save Archetype",
   "dev_tools": "Dev Tools",
   "open_dev_tools": "Open Dev Tools",
   "diagnostic_board": "Diagnostic Board",
@@ -630,8 +630,8 @@
         "description": "Allows creating, deleting, and editing channels."
       },
       "ManageArchetype": {
-        "name": "Manage Roles",
-        "description": "Allows editing server roles (archetypes)."
+        "name": "Manage Archetypes",
+        "description": "Allows editing server archetypes."
       },
       "ManageBots": {
         "name": "Manage Bots",
@@ -912,5 +912,24 @@
   "bots_approve": "Approve",
   "bots_approve_success": "Bot permissions approved successfully",
   "bots_approve_already_up_to_date": "Permissions are already up to date",
-  "bots_pending_approval": "Bot requests extended permissions"
+  "bots_pending_approval": "Bot requests extended permissions",
+
+  "roles": "Archetypes",
+  "bot_roles": "Bot Archetypes",
+  "add_role": "Add Archetype",
+  "no_roles": "No archetypes found",
+  "general": "General",
+  "delete_role_warning": "Deleting this archetype will remove it from all members.",
+  "delete_role": "Delete Archetype",
+  "select_role": "Select an archetype to edit",
+  "select_role_hint": "Choose an archetype from the list to view or modify its settings",
+  "locked": "Locked",
+  "no_bot_roles": "No bot archetypes",
+  "no_bot_roles_hint": "Bot archetypes are created automatically when bots are installed",
+  "bot_entitlements": "Bot Entitlements",
+  "granted_entitlements": "Granted Entitlements",
+  "pending_approval": "Pending Approval",
+  "approved": "Approved",
+  "select_bot_role": "Select a bot archetype",
+  "select_bot_role_hint": "Choose a bot archetype from the list to view its permissions"
 }

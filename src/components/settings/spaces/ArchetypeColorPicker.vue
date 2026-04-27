@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useLocale } from "@/store/system/localeStore";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@argon/ui/tooltip";
+import { PipetteIcon } from "lucide-vue-next";
 
 const { t } = useLocale();
 const props = defineProps<{
@@ -18,7 +20,7 @@ function hexToArgb(hex: string): number {
 
 function argbToHex(argb: number): string {
   const rgb = argb & 0xffffff;
-  return `#${rgb.toString(16).padStart(6, "0")}`;
+  return `#${rgb.toString(16).padStart(6, "0").toUpperCase()}`;
 }
 
 const colors = [
@@ -68,6 +70,11 @@ watch(
   },
 );
 
+function isSelected(color: string | null): boolean {
+  if (color === null) return props.modelValue === null;
+  return props.modelValue !== null && argbToHex(props.modelValue) === color;
+}
+
 function selectColor(color: string | null) {
   if (props.readonly) return;
   if (!color) {
@@ -97,45 +104,61 @@ const displayColor = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-1">
-    <label class="text-sm font-medium text-white">{{t("role_color")}}</label>
-    <p class="text-xs text-muted">{{t("role_color_explain")}}.</p>
+  <div class="space-y-2">
+    <label class="text-sm font-medium text-white">{{ t("role_color") }}</label>
+    <p class="text-xs text-muted-foreground">{{ t("role_color_explain") }}.</p>
 
-    <div class="flex items-center gap-2 mt-2">
-      <div class="w-10 h-10 rounded-md border border-white/20" :style="{ backgroundColor: displayColor }" />
+    <div class="flex items-center gap-3 mt-2">
+      <div class="w-10 h-10 rounded-lg border border-white/10 shadow-sm"
+        :style="{ backgroundColor: displayColor }" />
       <button type="button" :disabled="readonly" :class="[
-        'w-10 h-10 flex items-center justify-center rounded-md border transition',
-        'border-white/20 hover:border-white',
+        'w-10 h-10 flex items-center justify-center rounded-lg border transition-all duration-150',
+        'border-white/10 hover:border-white/40 hover:bg-white/5',
         readonly ? 'cursor-not-allowed opacity-50' : ''
-      ]" @click="openColorPicker" title="Custom color">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM5 15v-1.586l7.586-7.586L14.586 7 7 14.586H5z" />
-        </svg>
+      ]" @click="openColorPicker" :title="t('role_color') || 'Custom color'">
+        <PipetteIcon class="w-4 h-4 text-white/70" />
       </button>
-      <input ref="colorPicker" type="color" class="absolute opacity-0 w-0 h-0 pointer-events-none" :disabled="readonly"
-        :value="displayColor" @change="handleCustomColorChange" />
+      <span class="text-xs text-muted-foreground font-mono">{{ displayColor }}</span>
+      <input ref="colorPicker" type="color" class="absolute opacity-0 w-0 h-0 pointer-events-none"
+        :disabled="readonly" :value="displayColor" @change="handleCustomColorChange" />
     </div>
 
-    <div class="flex flex-wrap gap-2 mt-3">
-      <button class="w-8 h-8 rounded-md border-2" :disabled="readonly" :class="[
-        modelValue === null ? 'border-blue-500' : 'border-transparent',
-        readonly ? 'cursor-not-allowed opacity-50' : ''
-      ]" @click="selectColor(null)">
-        <div class="w-full h-full bg-gray-400 rounded-md" />
-      </button>
+    <TooltipProvider :delay-duration="200">
+      <div class="flex flex-wrap gap-1.5 mt-3">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button class="color-swatch" :disabled="readonly" :class="[
+              isSelected(null) ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-background' : '',
+              readonly ? 'cursor-not-allowed opacity-50' : ''
+            ]" @click="selectColor(null)">
+              <div class="w-full h-full bg-gray-400 rounded" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" :side-offset="4">
+            <p class="text-xs">Default</p>
+          </TooltipContent>
+        </Tooltip>
 
-      <button v-for="color in colors" :key="color" type="button" :disabled="readonly"
-        class="w-8 h-8 rounded-md border-2" :style="{ backgroundColor: color }" :class="[
-          modelValue !== null && argbToHex(modelValue) === color ? 'border-blue-500' : 'border-transparent',
-          readonly ? 'cursor-not-allowed opacity-50' : ''
-        ]" @click="selectColor(color)" />
-    </div>
+        <Tooltip v-for="color in colors" :key="color">
+          <TooltipTrigger as-child>
+            <button type="button" :disabled="readonly"
+              class="color-swatch" :style="{ backgroundColor: color }" :class="[
+                isSelected(color) ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-background' : '',
+                readonly ? 'cursor-not-allowed opacity-50' : ''
+              ]" @click="selectColor(color)" />
+          </TooltipTrigger>
+          <TooltipContent side="top" :side-offset="4">
+            <p class="text-xs font-mono">{{ color }}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   </div>
 </template>
 
 <style scoped>
-.text-muted {
-  color: theme('colors.gray.400');
+.color-swatch {
+  @apply w-7 h-7 rounded transition-all duration-150 cursor-pointer;
+  @apply hover:scale-110 hover:shadow-md;
 }
 </style>
