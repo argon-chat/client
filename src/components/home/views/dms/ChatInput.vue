@@ -1,12 +1,5 @@
 <template>
     <div class="enter-text-wrapper">
-        <div v-if="replyTo" class="reply-banner">
-            <div class="reply-info">
-                <strong>{{ t("replying_to") }}</strong> {{ replyTo.text }}
-            </div>
-            <X class="text-red-600 cursor-pointer flex-shrink-0" @click="$emit('clear-reply')" />
-        </div>
-
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Rich text input -->
             <EmojiInput
@@ -67,11 +60,12 @@ import { EmojixPicker, EmojiInput, type EmojiSelection } from "@argon-chat/emoji
 import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
-import { SendHorizonalIcon, SmileIcon, X } from "lucide-vue-next";
+import { SendHorizonalIcon, SmileIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
+import { useMe } from "@/store/auth/meStore";
 import { refDebounced } from "@vueuse/core";
-import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
+import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, type ArgonMessage } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
@@ -94,6 +88,7 @@ const editorRef = ref<EmojiInputExposed | null>(null);
 const messageText = ref("");
 const api = useApi();
 const pool = usePoolStore();
+const me = useMe();
 const mention = reactive({
   show: false,
   query: "",
@@ -114,13 +109,17 @@ watch(debouncedQuery, async (query) => {
 });
 
 const props = defineProps<{
-  replyTo: DirectMessage | null;
+  replyTo: ArgonMessage | null;
   receiverId: Guid;
 }>();
 
 const emit = defineEmits<{
   (e: "clear-reply"): void;
-  (e: "send", html: string, rawText: string): void;
+  (e: "add-optimistic", msg: ArgonMessage, randomId: bigint): void;
+  (e: "resolve-optimistic", randomId: bigint, readback: { messageId: bigint }): void;
+  (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
+  (e: "typing"): void;
+  (e: "stop-typing"): void;
 }>();
 
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -134,6 +133,9 @@ function onModelValueUpdate(val: string) {
 }
 
 function onEditorInput() {
+  // Emit typing event
+  emit("typing");
+
   // Check for mention trigger
   const text = messageText.value;
   const cursorPos = editorRef.value?.getCursorOffset() ?? 0;
@@ -458,35 +460,68 @@ const handleSend = async () => {
   if (entities.length === 0 && plainText.length === 0) return;
 
   // Generate random message ID as bigint
-  const randomId = BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
 
-  logger.log("Sending DM message", {
-    plainText,
+  // Build optimistic message
+  const optimisticMsg: ArgonMessage = {
+    messageId: randomId,
+    replyId: props.replyTo?.messageId ?? null,
+    channelId: props.receiverId,
+    spaceId: "",
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me?.userId ?? "",
+    text: plainText,
     entities,
-    replyTo: props.replyTo?.messageId ?? null,
-  });
+    version: 1,
+    reactions: [],
+    controls: [],
+  } as ArgonMessage;
 
-  await api.userChatInteractions.SendDirectMessage(
-    props.receiverId,
-    plainText,
-    entities,
-    randomId,
-    props.replyTo?.messageId ?? null,
-  );
+  // Emit optimistic immediately
+  emit("add-optimistic", optimisticMsg, randomId);
 
   if (props.replyTo) {
     emit("clear-reply");
   }
-  
+
   // Clear editor
   messageText.value = "";
   if (editorRef.value) {
     editorRef.value.clear();
   }
-  
+
   // Clear mention registry after send
   mentionRegistry.clear();
+
+  // Stop typing
+  emit("stop-typing");
+
+  // Send to server
+  try {
+    const realMessageId = await api.userChatInteractions.SendDirectMessage(
+      props.receiverId,
+      plainText,
+      entities,
+      randomId,
+      props.replyTo?.messageId ?? null,
+    );
+
+    emit("resolve-optimistic", randomId, { messageId: realMessageId });
+  } catch (e: any) {
+    logger.error("Failed to send DM:", e);
+    emit("mark-optimistic-failed", randomId, e?.message ?? "Failed to send message");
+  }
 };
+
+function focus() {
+  editorRef.value?.focus();
+}
+
+function handleExternalFiles(_files: FileList) {
+  // TODO: implement file attachment support for DMs
+}
+
+defineExpose({ focus, handleExternalFiles });
 </script>
 <style lang="css" scoped>
 .enter-text-wrapper {
@@ -518,38 +553,5 @@ textarea::placeholder {
     overflow: hidden;
     text-overflow: ellipsis;
     border: 1px solid hsl(var(--border) / 0.5);
-}
-
-.reply-banner {
-    background-color: hsl(var(--muted));
-    border-left: 3px solid hsl(var(--border));
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    border-radius: 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    max-width: 100%;
-    overflow: hidden;
-}
-
-.clear-reply {
-    background: transparent;
-    border: none;
-    color: hsl(var(--muted-foreground));
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.reply-info {
-    color: hsl(var(--foreground) / 0.85);
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
 }
 </style>

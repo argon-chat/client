@@ -3,16 +3,17 @@ import HomeSideShell from './HomeSideShell.vue';
 import { ref } from 'vue';
 import router from '@/router';
 
-function select(tab: "dashboard" | "friends" | "notifications" | "inventory" | "overlayDebug" | "audioDebug" | "nv12Debug") {
+type HomeTab = "dashboard" | "friends" | "notifications" | "inventory";
+
+function select(tab: HomeTab) {
   router.push({ path: `/master.pg/home/${tab}` });
   tabRef.value = tab;
 }
-const tabRef = ref("dashboard" as "dashboard" | "friends" | "notifications" | "inventory" | "overlayDebug" | "audioDebug" | "nv12Debug");
-
+const tabRef = ref<HomeTab>("dashboard");
 </script>
 
 <template>
-    <div class="home-workspace flex flex-1 gap-4">
+    <div class="home-workspace flex flex-1 gap-3">
         <HomeSideShell @select="select" v-model:tab="tabRef" />
         <RouterView v-slot="{ Component, route }" class="flex-1 min-w-0">
             <div v-if="Component" :key="route.path" class="shell-container flex-1 flex flex-row h-full home-page-in">

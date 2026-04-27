@@ -59,6 +59,7 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
+            <slot name="actions" />
             <button 
                 class="p-2 rounded-full bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed" 
                 :disabled="isAlreadyInCall"

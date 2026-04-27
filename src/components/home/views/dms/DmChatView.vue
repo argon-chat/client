@@ -1,539 +1,392 @@
 <template>
-  <div class="chat-container">
-    <div ref="parentRef" :class="cn('chat-scroll messages', classes)">
-      <!-- Loading indicator at top -->
-      <div v-if="isLoadingOlder" class="loading-indicator top">
-        <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
+  <div
+    class="relative h-full w-full flex flex-col min-h-0 bg-card"
+    :style="{ '--chat-width': chatWidth + 'px' }"
+  >
+    <!-- ═══ Typing indicator ═══ -->
+    <Transition name="typing-slide">
+      <div
+        v-if="typingUsers?.length"
+        class="absolute top-0 left-1/2 -translate-x-1/2 z-20"
+      >
+        <div
+          class="flex items-center backdrop-blur-[10px] bg-card/[0.88] border border-border/20 rounded-b-[10px] px-3 py-1.5 text-xs text-muted-foreground whitespace-nowrap shadow-sm"
+        >
+          <span class="inline-flex gap-[1px] mr-1.5">
+            <span class="typing-dot" />
+            <span class="typing-dot delay-1" />
+            <span class="typing-dot delay-2" />
+          </span>
+          <span>{{ typingText }}</span>
+        </div>
       </div>
+    </Transition>
 
+    <!-- ═══ Virtual scroll area ═══ -->
+    <div
+      ref="parentRef"
+      :class="cn('flex-1 min-h-0 overflow-y-scroll relative px-9 pb-2 chat-scrollbar', externalClass)"
+    >
       <div
         v-if="virtualizer?.getTotalSize"
-        :style="{
-          height: `${virtualizer?.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }"
+        :style="{ height: virtualizer.getTotalSize() + 'px', width: '100%', position: 'relative' }"
       >
         <div
           v-for="item in virtualItems"
           :key="String(item.key)"
-          :data-index="item.index"
-          :ref="(el) => measureItem(el as HTMLElement | null, item.index)"
-          :style="{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            transform: `translateY(${item.start}px)`,
-          }"
-          class="chat-message"
+          class="absolute top-0 left-0 w-full will-change-transform"
+          :class="highlightedIdx === item.index ? 'highlight-flash' : ''"
+          :style="{ transform: `translateY(${item.start}px)` }"
+          style="contain: layout style paint; content-visibility: auto; contain-intrinsic-size: auto 64px"
         >
-          <MessageItem
-            :message="convertToArgonMessage(messages[item.index])"
-            :get-msg-by-id="(id) => convertToArgonMessage(getMessageById(id))"
-            @reply="emit('select-reply', messages[item.index])"
-          />
-        </div>
-      </div>
+          <div
+            :ref="(el) => measureItem(el as HTMLElement, item.index)"
+            :data-index="item.index"
+            v-memo="[
+              item.key,
+              messages[item.index]?._failed,
+              messages[item.index]?._optimistic,
+              messages[item.index]?.text,
+              messages[item.index]?.entities?.length,
+              messages[item.index]?.reactions?.length,
+              groupingMap[item.index]?.isFirstInGroup,
+              groupingMap[item.index]?.isLastInGroup,
+              groupingMap[item.index]?.showDate,
+            ]"
+          >
+            <DateSeparator
+              v-if="groupingMap[item.index]?.showDate"
+              :date="messages[item.index].timeSent.date"
+            />
 
-      <!-- Empty state -->
-      <div v-if="!isLoading && messages.length === 0" class="flex flex-col items-center justify-center h-full text-muted-foreground">
-        <MessageSquareIcon class="w-12 h-12 mb-4 opacity-50" />
-        <p>{{ t('no_messages_yet') }}</p>
+            <MessageItem
+              :message="messages[item.index]"
+              :get-msg-by-id="getMessageById"
+              :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
+              :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
+              :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
+              @dblclick="() => emit('select-reply', messages[item.index])"
+              @reply="(msg) => emit('select-reply', msg)"
+              @retry="retryMessage"
+              @open-lightbox="onOpenLightbox"
+              @scroll-to-message="scrollToMessage"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Scroll to bottom button - outside scroll container -->
-    <Transition name="fade">
-      <button 
-        v-if="isScrolledUp" 
-        @click="onScrollToBottomClick" 
-        class="scroll-to-bottom-btn"
+    <!-- ═══ Loading older spinner ═══ -->
+    <Transition name="fade-slide">
+      <div
+        v-if="isLoadingOlder"
+        class="absolute top-0 inset-x-0 flex justify-center py-3 z-5 bg-gradient-to-b from-card to-transparent pointer-events-none"
       >
-        <CircleArrowDown class="arrow-icon" />
-        <div v-if="newMessagesCount > 0" class="new-messages-count">
-          {{ newMessagesCount }}
-        </div>
+        <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    </Transition>
+
+    <!-- ═══ Empty state ═══ -->
+    <div
+      v-if="!isLoading && !messages.length"
+      class="flex-1 flex flex-col items-center justify-center gap-3 min-h-0"
+    >
+      <div class="w-14 h-14 rounded-2xl bg-muted/25 flex items-center justify-center text-muted-foreground/45">
+        <MessageSquareIcon class="w-7 h-7" />
+      </div>
+      <p class="text-sm text-muted-foreground/60">{{ t('no_messages_yet') }}</p>
+    </div>
+
+    <!-- ═══ Lightbox (single shared instance) ═══ -->
+    <ImageLightbox
+      :images="lbImages"
+      :initial-index="lbIndex"
+      :is-open="lbOpen"
+      :time-sent="lbTime"
+      @close="lbOpen = false"
+    />
+
+    <!-- ═══ Scroll-to-bottom FAB ═══ -->
+    <Transition name="fab-pop">
+      <button
+        v-if="isScrolledUp"
+        class="absolute bottom-4 right-6 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-card text-foreground/70 border border-border/35 cursor-pointer shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:text-foreground"
+        @click="scrollToBottomAndReset"
+      >
+        <CircleArrowDown class="w-5 h-5" />
+        <span
+          v-if="newMessagesCount > 0"
+          class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center"
+        >
+          {{ newMessagesCount > 99 ? '99+' : newMessagesCount }}
+        </span>
       </button>
     </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  onMounted,
-  onUnmounted,
-  nextTick,
-  watch,
-  computed,
-  shallowRef,
-} from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
+import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import { CircleArrowDown, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { cn } from "@argon/core";
+import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
+import type { Guid } from "@argon-chat/ion.webcore";
 
 import MessageItem from "@/components/MessageItem.vue";
+import ImageLightbox from "@/components/chats/ImageLightbox.vue";
+import DateSeparator from "@/components/chats/DateSeparator.vue";
 
-import { DirectMessage, EntityType, IMessageEntity, MessageEntityMention, ArgonMessage, DirectMessageSent } from "@argon/glue";
-import { Guid } from "@argon-chat/ion.webcore";
-
-import { useApi } from "@/store/system/apiStore";
-import { usePoolStore } from "@/store/data/poolStore";
-import { useMe } from "@/store/auth/meStore";
-import { useTone } from "@/store/media/toneStore";
 import { useLocale } from "@/store/system/localeStore";
-import { cn } from "@argon/core";
-import { logger } from "@argon/core";
-
-import type { Subscription } from "rxjs";
-import { useBus } from "@/store/realtime/busStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
+import { useDirectMessages } from "@/composables/useDirectMessages";
+import { useChatScroll } from "@/composables/useChatScroll";
 
-const MESSAGES_PER_LOAD = 50;
-const SCROLL_THRESHOLD = 150;
-const MESSAGE_HEIGHT_ESTIMATE = 72;
+// ── Stores ──
 
-const api = useApi();
-const pool = usePoolStore();
-const me = useMe();
-const tone = useTone();
-const bus = useBus();
+const { t } = useLocale();
 const ntf = useNotificationStore();
 const recentChats = useRecentChatsStore();
-const { t } = useLocale();
+
+// ── Props / Emits ──
 
 const props = defineProps<{
   peerId: Guid;
   peerName?: string;
+  typingUsers?: { displayName: string }[];
   class?: string;
 }>();
 
-// Convert DirectMessage to ArgonMessage format for MessageItem compatibility
-const convertToArgonMessage = (dm: DirectMessage): ArgonMessage => {
-  if (!dm || !dm.messageId) return {} as ArgonMessage;
-  
-  return {
-    messageId: dm.messageId,
-    replyId: dm.replyTo,
-    channelId: props.peerId, // Use peerId as channel identifier for DMs
-    spaceId: "", // Empty for DMs
-    timeSent: dm.createdAt,
-    sender: dm.senderId,
-    text: dm.text,
-    entities: dm.entities,
-    version: 1,
-  } as ArgonMessage;
-};
+const externalClass = computed(() => props.class);
 
-const classes = computed(() => props.class);
-const parentRef = ref<HTMLElement>();
-const messages = shallowRef<DirectMessage[]>([]);
-const hasReachedEnd = ref(false);
-const subs = ref<Subscription | null>(null);
-const isScrolledUp = ref(false);
-const newMessagesCount = ref(0);
-const chatWidth = ref(0);
-const isLoading = ref(false);
-const isLoadingOlder = ref(false);
-const isRestoringScroll = ref(false);
-const measuredItems = new Set<number>();
+const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
 
-// Get the oldest message ID for pagination
-const oldestMessageId = computed(() => {
-  if (messages.value.length === 0) return null;
-  return messages.value[0].messageId;
+// ── Typing text ──
+
+const typingText = computed(() => {
+  const users = props.typingUsers ?? [];
+  if (users.length === 1) return t("typing.one", { name: users[0].displayName });
+  if (users.length <= 3) return t("typing.few", { names: users.map((u) => u.displayName).join(", ") });
+  return t("typing.many");
 });
 
-const virtualizerOptions = computed(() => ({
-  count: messages.value.length,
-  getScrollElement: () => parentRef.value ?? null,
-  estimateSize: () => MESSAGE_HEIGHT_ESTIMATE,
-  overscan: 50,
-  getItemKey: (index: number) => messages.value[index]?.messageId?.toString() ?? index,
-}));
+// ── Lightbox state ──
 
-const virtualizer = useVirtualizer(virtualizerOptions);
-const virtualItems = computed(() => virtualizer.value.getVirtualItems());
+const lbOpen = ref(false);
+const lbImages = ref<MessageEntityAttachment[]>([]);
+const lbIndex = ref(0);
+const lbTime = ref<Date | null>(null);
 
-// Measure item only once to avoid jitter
-const measureItem = (el: HTMLElement | null, index: number) => {
-  if (!el || measuredItems.has(index)) return;
-  measuredItems.add(index);
-  virtualizer.value.measureElement(el);
-};
+function onOpenLightbox(images: MessageEntityAttachment[], index: number, timeSent: Date | null) {
+  lbImages.value = images;
+  lbIndex.value = index;
+  lbTime.value = timeSent;
+  lbOpen.value = true;
+}
 
-// Debounced scroll trigger
-let scrollLoadTimeout: ReturnType<typeof setTimeout> | null = null;
+// ── Reply-scroll highlight ──
 
-// Load older messages (scrolling up) 
-const loadOlderMessages = async () => {
-  if (isLoadingOlder.value || hasReachedEnd.value || isRestoringScroll.value) return;
-  
-  isLoadingOlder.value = true;
-  isRestoringScroll.value = true;
-  
-  try {
-    const fromId = oldestMessageId.value;
-    if (!fromId) {
-      hasReachedEnd.value = true;
-      return;
-    }
+const highlightedIdx = ref<number | null>(null);
+let hlTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const olderMessages = await api.userChatInteractions.QueryDirectMessages(
-      props.peerId,
-      fromId,
-      MESSAGES_PER_LOAD
-    );
+function scrollToMessage(messageId: bigint) {
+  const idx = messages.value.findIndex((m) => m.messageId === messageId);
+  if (idx < 0) return;
+  scrollToIndex(idx);
+  highlightedIdx.value = idx;
+  if (hlTimer) clearTimeout(hlTimer);
+  hlTimer = setTimeout(() => (highlightedIdx.value = null), 1500);
+}
 
-    if (!olderMessages || olderMessages.length === 0) {
-      hasReachedEnd.value = true;
-      return;
-    }
+// ── Grouping map (messages → visual metadata) ──
 
-    // Preload all unique senders in batch
-    const uniqueSenderIds = [...new Set(olderMessages.map(m => m.senderId))];
-    if (uniqueSenderIds.length > 0) {
-      await pool.getUsersBatch(uniqueSenderIds);
-    }
+const GROUP_GAP_MS = 5 * 60 * 1000;
 
-    // Sort and prepend older messages
-    const sortedOlder = [...olderMessages].sort((a, b) => 
-      Number(a.messageId - b.messageId)
-    );
-    
-    const addedCount = sortedOlder.length;
-    
-    // Shift measured indices since we're prepending
-    const shiftedMeasured = new Set<number>();
-    measuredItems.forEach(idx => shiftedMeasured.add(idx + addedCount));
-    measuredItems.clear();
-    shiftedMeasured.forEach(idx => measuredItems.add(idx));
-    
-    messages.value = [...sortedOlder, ...messages.value];
+interface GroupMeta {
+  isGrouped: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+  showDate: boolean;
+}
 
-    // Wait for DOM update then scroll to maintain position
-    await nextTick();
-    
-    // Scroll to the message that was at top (now at index = addedCount)
-    virtualizer.value.scrollToIndex(addedCount, { align: 'start', behavior: 'auto' });
+const groupingMap = computed<GroupMeta[]>(() => {
+  const msgs = messages.value;
+  const len = msgs.length;
+  const out: GroupMeta[] = new Array(len);
 
-    if (olderMessages.length < MESSAGES_PER_LOAD) {
-      hasReachedEnd.value = true;
-    }
-  } catch (error) {
-    logger.error('Failed to load older DM messages:', error);
-  } finally {
-    isLoadingOlder.value = false;
-    // Delay to prevent immediate re-trigger
-    setTimeout(() => {
-      isRestoringScroll.value = false;
-    }, 200);
-  }
-};
+  for (let i = 0; i < len; i++) {
+    const msg = msgs[i];
 
-// Initial message load
-const loadInitialMessages = async () => {
-  isLoading.value = true;
-  messages.value = [];
-  measuredItems.clear();
-  hasReachedEnd.value = false;
-  newMessagesCount.value = 0;
-  isScrolledUp.value = false;
-
-  try {
-    const initialMessages = await api.userChatInteractions.QueryDirectMessages(
-      props.peerId,
-      null,
-      MESSAGES_PER_LOAD
-    );
-
-    logger.log('Initial DM messages loaded:', initialMessages);
-
-    if (initialMessages && initialMessages.length > 0) {
-      // Preload all unique senders in batch
-      const uniqueSenderIds = [...new Set(initialMessages.map(m => m.senderId))];
-      if (uniqueSenderIds.length > 0) {
-        await pool.getUsersBatch(uniqueSenderIds);
-        logger.log(`[DmChatView] Preloaded ${uniqueSenderIds.length} users in batch`);
+    // Date separator: first message or different calendar day
+    let showDate = i === 0;
+    if (!showDate && i > 0) {
+      const prev = msgs[i - 1]?.timeSent?.date;
+      const curr = msg?.timeSent?.date;
+      if (prev && curr) {
+        showDate =
+          prev.getFullYear() !== curr.getFullYear() ||
+          prev.getMonth() !== curr.getMonth() ||
+          prev.getDate() !== curr.getDate();
       }
-      
-      messages.value = [...initialMessages].sort((a, b) => 
-        Number(a.messageId - b.messageId)
-      );
-
-      if (initialMessages.length < MESSAGES_PER_LOAD) {
-        hasReachedEnd.value = true;
-      }
-
-      await nextTick();
-      setTimeout(() => {
-        scrollToBottomImmediate();
-      }, 100);
-    } else {
-      await nextTick();
     }
-  } catch (error) {
-    logger.error('Failed to load initial DM messages:', error);
-  } finally {
-    isLoading.value = false;
+
+    if (!msg?.sender) {
+      out[i] = { isGrouped: false, isFirstInGroup: true, isLastInGroup: true, showDate };
+      continue;
+    }
+
+    const prev = i > 0 ? msgs[i - 1] : null;
+    const next = i < len - 1 ? msgs[i + 1] : null;
+
+    const samePrev =
+      !!prev?.sender &&
+      prev.sender === msg.sender &&
+      !prev._optimistic &&
+      !!msg.timeSent?.date &&
+      !!prev.timeSent?.date &&
+      Math.abs(msg.timeSent.date.getTime() - prev.timeSent.date.getTime()) < GROUP_GAP_MS &&
+      !showDate;
+
+    const sameNext =
+      !!next?.sender &&
+      next.sender === msg.sender &&
+      !msg._optimistic &&
+      !!msg.timeSent?.date &&
+      !!next.timeSent?.date &&
+      Math.abs(next.timeSent.date.getTime() - msg.timeSent.date.getTime()) < GROUP_GAP_MS;
+
+    out[i] = {
+      isGrouped: samePrev,
+      isFirstInGroup: !samePrev,
+      isLastInGroup: !sameNext,
+      showDate,
+    };
   }
-};
+  return out;
+});
 
-// Handle scroll events with debounce
-const handleScroll = () => {
-  if (!parentRef.value || isRestoringScroll.value) return;
+// ── Composables ──
 
-  const { scrollTop, scrollHeight, clientHeight } = parentRef.value;
-  
-  // Check if scrolled up from bottom
-  const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-  const wasScrolledUp = isScrolledUp.value;
+const {
+  messages, hasReachedEnd, isLoading, isLoadingOlder, isRestoringScroll,
+  newMessagesCount, isScrolledUp,
+  loadOlderMessages, loadInitialMessages, subscribeToNewMessages,
+  getMessageById, addOptimisticMessage, resolveOptimisticMessage,
+  markOptimisticFailed, retryMessage,
+  cleanup: cleanupMessages,
+} = useDirectMessages(() => props.peerId);
+
+const {
+  parentRef, chatWidth, virtualizer, virtualItems, measureItem,
+  scrollToBottomImmediate, scrollToBottom, scrollToIndex,
+  onScrollNearTop, onScroll: onScrollState,
+} = useChatScroll(() => messages.value, () => isRestoringScroll.value);
+
+// ── Scroll callbacks ──
+
+onScrollNearTop(() => {
+  if (!isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
+    loadOlderMessages((count) => nextTick(() => scrollToIndex(count)));
+  }
+});
+
+onScrollState(({ distanceFromBottom }) => {
+  const was = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
-  
-  // Reset new messages count when scrolled to bottom
-  if (wasScrolledUp && !isScrolledUp.value) {
-    newMessagesCount.value = 0;
-  }
+  if (was && !isScrolledUp.value) newMessagesCount.value = 0;
 
-  // Mark DM as read when scrolled to bottom
+  // Mark DM as read when at bottom
   if (distanceFromBottom <= 100) {
     recentChats.markRead(props.peerId);
     ntf.decrementDmUnread();
   }
-
-  // Debounce load trigger to prevent rapid firing
-  if (scrollLoadTimeout) clearTimeout(scrollLoadTimeout);
-  
-  scrollLoadTimeout = setTimeout(() => {
-    if (scrollTop < SCROLL_THRESHOLD && !isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
-      loadOlderMessages();
-    }
-  }, 100);
-};
-
-const scrollToBottomImmediate = () => {
-  if (messages.value.length === 0) return;
-  
-  const lastIndex = messages.value.length - 1;
-  
-  // Multiple attempts to ensure scroll lands at bottom after measurements
-  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-  
-  requestAnimationFrame(() => {
-    virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-    
-    // Final fallback after elements are measured
-    setTimeout(() => {
-      if (parentRef.value) {
-        parentRef.value.scrollTop = parentRef.value.scrollHeight;
-      }
-      newMessagesCount.value = 0;
-      isScrolledUp.value = false;
-    }, 50);
-  });
-};
-
-const scrollToBottom = () => {
-  if (messages.value.length === 0) return;
-  
-  const lastIndex = messages.value.length - 1;
-  
-  // Use auto behavior - smooth is not supported with dynamic sizes
-  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' });
-  
-  // Fallback: directly scroll the container to bottom
-  requestAnimationFrame(() => {
-    if (parentRef.value) {
-      parentRef.value.scrollTop = parentRef.value.scrollHeight;
-    }
-  });
-  
-  newMessagesCount.value = 0;
-  isScrolledUp.value = false;
-};
-
-const onScrollToBottomClick = () => scrollToBottom();
-
-const getMessageById = (messageId: bigint | null): DirectMessage => {
-  return messages.value.find((x) => x.messageId === (messageId ?? 0n)) ?? ({} as DirectMessage);
-};
-
-const emit = defineEmits<(e: "select-reply", message: DirectMessage) => void>();
-
-const filterMention = (e: IMessageEntity): e is MessageEntityMention => {
-  return e.type === EntityType.Mention;
-};
-
-const updateChatWidth = () => {
-  if (parentRef.value) {
-    chatWidth.value = parentRef.value.offsetWidth;
-  }
-};
-
-// Watch for peer changes
-watch(
-  () => props.peerId,
-  async (newPeerId) => {
-    subs.value?.unsubscribe();
-
-    await loadInitialMessages();
-
-    // Subscribe to new DM messages
-    subs.value = bus.onServerEvent<DirectMessageSent>("DirectMessageSent", async (e: DirectMessageSent) => {
-      if (e.senderId === newPeerId || e.receiverId === newPeerId) {
-        const dmMessage = e.message;
-        
-        messages.value = [...messages.value, dmMessage];
-
-        // Play notification if mentioned
-        if (dmMessage.entities.filter(filterMention).find((x) => x.userId === me.me?.userId)) {
-          tone.playNotificationSound();
-        }
-
-        // Auto-scroll or increment counter
-        if (dmMessage.senderId === me.me?.userId) {
-          nextTick(() => scrollToBottomImmediate());
-        } else if (isScrolledUp.value) {
-          newMessagesCount.value++;
-        } else {
-          nextTick(() => scrollToBottomImmediate());
-        }
-      }
-    });
-  },
-  { immediate: true }
-);
-
-onMounted(() => {
-  nextTick(() => {
-    if (parentRef.value) {
-      parentRef.value.addEventListener("scroll", handleScroll, { passive: true });
-      chatWidth.value = parentRef.value.offsetWidth;
-    }
-  });
-  window.addEventListener("resize", updateChatWidth);
 });
 
+function scrollToBottomAndReset() {
+  scrollToBottom();
+  newMessagesCount.value = 0;
+  isScrolledUp.value = false;
+}
+
+// ── Expose for parent ──
+
+defineExpose({ addOptimisticMessage, resolveOptimisticMessage, markOptimisticFailed, scrollToBottomImmediate });
+
+// ── Peer lifecycle ──
+
+watch(
+  () => props.peerId,
+  async (newId) => {
+    subscribeToNewMessages(newId, () => scrollToBottomImmediate());
+    await loadInitialMessages(() => scrollToBottomImmediate());
+  },
+  { immediate: true },
+);
+
 onUnmounted(() => {
-  subs.value?.unsubscribe();
-  if (scrollLoadTimeout) clearTimeout(scrollLoadTimeout);
-  if (parentRef.value) {
-    parentRef.value.removeEventListener("scroll", handleScroll);
-  }
-  window.removeEventListener("resize", updateChatWidth);
+  if (hlTimer) clearTimeout(hlTimer);
+  cleanupMessages();
 });
 </script>
 
 <style scoped>
-.chat-container {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+/* ── Typing dots animation ── */
+.typing-dot {
+  display: inline-block;
+  width: 3.5px;
+  height: 3.5px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: dot-pulse 1.4s infinite;
+}
+.delay-1 { animation-delay: 0.25s; }
+.delay-2 { animation-delay: 0.5s; }
+@keyframes dot-pulse {
+  0%, 80%, 100% { opacity: 0.15; }
+  40% { opacity: 1; }
 }
 
-.chat-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  position: relative;
-  padding: 8px;
-  background: hsl(var(--card));
-  border-radius: 0.5rem;
+/* ── Typing slide transition ── */
+.typing-slide-enter-active,
+.typing-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.typing-slide-enter-from,
+.typing-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-4px);
 }
 
-.chat-message {
-  word-wrap: break-word;
+/* ── Fade-slide (loading spinner) ── */
+.fade-slide-enter-active { transition: opacity 0.2s ease; }
+.fade-slide-leave-active { transition: opacity 0.15s ease; }
+.fade-slide-enter-from,
+.fade-slide-leave-to { opacity: 0; }
+
+/* ── FAB pop transition ── */
+.fab-pop-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fab-pop-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.fab-pop-enter-from { opacity: 0; transform: translateY(8px) scale(0.9); }
+.fab-pop-leave-to { opacity: 0; transform: translateY(4px) scale(0.95); }
+
+/* ── Reply-scroll highlight flash ── */
+@keyframes highlight-bg {
+  0% { background: hsl(var(--primary) / 0.15); }
+  100% { background: transparent; }
+}
+.highlight-flash {
+  animation: highlight-bg 1.5s ease-out;
+  border-radius: 8px;
 }
 
-.messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.messages::-webkit-scrollbar-thumb {
+/* ── Custom scrollbar ── */
+.chat-scrollbar::-webkit-scrollbar { width: 6px; }
+.chat-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.chat-scrollbar::-webkit-scrollbar-thumb {
   background-color: hsl(var(--foreground) / 0.2);
   border-radius: 3px;
 }
-
-.messages::-webkit-scrollbar-thumb:hover {
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--foreground) / 0.3);
-}
-
-/* Scroll to bottom button - fixed within container */
-.scroll-to-bottom-btn {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.scroll-to-bottom-btn:hover {
-  transform: scale(1.1);
-  background-color: hsl(var(--primary) / 0.9);
-}
-
-.scroll-to-bottom-btn .arrow-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.new-messages-count {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  background-color: hsl(var(--destructive));
-  color: hsl(var(--destructive-foreground));
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Loading indicator */
-.loading-indicator {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-}
-
-.loading-indicator.top {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 5;
-  background: linear-gradient(to bottom, hsl(var(--background)), transparent);
-}
-
-/* Fade transition */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

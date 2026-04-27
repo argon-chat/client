@@ -7,8 +7,51 @@ import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
 
 export type VideoSource = "camera" | "screen_share";
+export type MediaLayoutMode = "channel" | "dm";
 
-export function useMediaLayout(selectedChannelId: () => string | null) {
+/**
+ * Build a Map<Guid, IRealtimeChannelUserWithData> from voice.participants + local participant.
+ * Used in DM mode where there is no realtime channel users from the pool.
+ */
+function buildDmUsers(
+  voice: ReturnType<typeof useUnifiedCall>,
+  me: ReturnType<typeof useMe>,
+  sys: ReturnType<typeof useSystemStore>,
+): Map<Guid, IRealtimeChannelUserWithData> {
+  const map = new Map<Guid, IRealtimeChannelUserWithData>();
+
+  // Local participant
+  const myId = me.me?.userId;
+  if (myId && voice.room?.localParticipant) {
+    map.set(myId, {
+      User: { userId: myId, displayName: me.me?.displayName ?? "You" } as any,
+      isSpeaking: voice.speaking.has(myId),
+      isMuted: sys.microphoneMuted,
+      isScreenShare: voice.isSharing,
+      volume: [100],
+      isRecording: false,
+    } as IRealtimeChannelUserWithData);
+  }
+
+  // Remote participants
+  for (const [uid, p] of Object.entries(voice.participants)) {
+    map.set(uid, {
+      User: { userId: uid, displayName: p.displayName } as any,
+      isSpeaking: voice.speaking.has(uid),
+      isMuted: p.muted,
+      isScreenShare: p.screencast,
+      volume: p.volume,
+      isRecording: false,
+    } as IRealtimeChannelUserWithData);
+  }
+
+  return map;
+}
+
+export function useMediaLayout(
+  selectedChannelId: () => string | null,
+  mode: MediaLayoutMode = "channel",
+) {
   const pool = usePoolStore();
   const voice = useUnifiedCall();
   const me = useMe();
@@ -18,6 +61,9 @@ export function useMediaLayout(selectedChannelId: () => string | null) {
   const focusedUserId = ref<Guid | null>(null);
 
   const users = computed(() => {
+    if (mode === "dm") {
+      return buildDmUsers(voice, me, sys);
+    }
     const ch = selectedChannelId() ? pool.realtimeChannelUsers.get(selectedChannelId()!) : null;
     return ch?.Users ?? new Map<Guid, IRealtimeChannelUserWithData>();
   });

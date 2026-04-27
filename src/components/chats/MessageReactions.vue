@@ -26,7 +26,7 @@
           v-for="(uid, i) in reaction.userIds.slice(0, 3)"
           :key="uid"
           :userId="uid"
-          :overrided-size="16"
+          :overrided-size="14"
           class="absolute top-0 w-4 h-4 rounded-full border-[1.5px] border-card box-content"
           :style="{ left: i * 10 + 'px', zIndex: 3 - i }"
         />

@@ -1,39 +1,32 @@
 <template>
     <div v-bind="$attrs" class="flex flex-col h-full overflow-hidden">
-        <div class="w-full max-w-[90rem] mx-auto p-6 space-y-4 h-full flex flex-col">
-            <!-- Hero Section -->
-            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-6 border border-primary/20">
-                <div class="relative z-10 flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold mb-1">{{ t('welcome_back') }}, {{ me.me?.displayName }}! 👋</h1>
-                        <p class="text-muted-foreground text-sm">{{ t('ready_to_chat') }}</p>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button 
-                            @click="widgetStore.toggleEditMode()"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium',
-                                widgetStore.isEditMode 
-                                    ? 'bg-primary text-primary-foreground shadow-lg' 
-                                    : 'bg-card hover:bg-accent border border-border'
-                            ]">
-                            <IconEdit class="w-4 h-4" />
-                            {{ widgetStore.isEditMode ? t('done') : t('customize') }}
-                        </button>
-                        <button 
-                            v-if="widgetStore.isEditMode"
-                            @click="widgetStore.resetLayout()"
-                            class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-all flex items-center gap-2 text-sm font-medium">
-                            <IconRefresh class="w-4 h-4" />
-                            {{ t('reset') }}
-                        </button>
-                    </div>
+        <div class="w-full max-w-[90rem] mx-auto p-5 h-full flex flex-col gap-4">
+            <!-- Compact greeting bar -->
+            <div class="greeting-bar flex items-center justify-between px-4 py-3 rounded-xl">
+                <div>
+                    <h1 class="text-lg font-semibold">{{ t('welcome_back') }}, {{ me.me?.displayName }} 👋</h1>
+                    <p class="text-muted-foreground text-xs mt-0.5">{{ t('ready_to_chat') }}</p>
                 </div>
-                
-                <!-- Decorative elements -->
-                <div class="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-                <div class="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="flex gap-2">
+                    <button
+                        @click="widgetStore.toggleEditMode()"
+                        :class="[
+                            'px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-medium',
+                            widgetStore.isEditMode
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-accent/50 hover:bg-accent border border-border/50 text-foreground'
+                        ]">
+                        <IconEdit class="w-3.5 h-3.5" />
+                        {{ widgetStore.isEditMode ? t('done') : t('customize') }}
+                    </button>
+                    <button
+                        v-if="widgetStore.isEditMode"
+                        @click="widgetStore.resetLayout()"
+                        class="px-3 py-1.5 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-all flex items-center gap-1.5 text-xs font-medium">
+                        <IconRefresh class="w-3.5 h-3.5" />
+                        {{ t('reset') }}
+                    </button>
+                </div>
             </div>
 
             <!-- Widget Grid -->
@@ -47,7 +40,7 @@
                     :responsive="false"
                     :vertical-compact="true"
                     :use-css-transforms="true"
-                    :margin="[16, 16]"
+                    :margin="[12, 12]"
                     class="h-full"
                 >
                     <grid-item
@@ -64,7 +57,7 @@
                         :max-h="item.maxH"
                         :class="['widget-grid-item', widgetStore.isEditMode && 'edit-mode']"
                     >
-                        <div class="shell-item p-4 h-full">
+                        <div class="widget-card p-4 h-full">
                             <component :is="getWidgetComponent(item.i)" />
                         </div>
                     </grid-item>
@@ -81,7 +74,6 @@ import { useWidgetStore } from '@/store/ui/widgetStore';
 import { GridLayout, GridItem } from 'grid-layout-plus';
 import { IconEdit, IconRefresh } from '@tabler/icons-vue';
 
-// Widget components
 import ActiveNowWidget from '@/components/home/widgets/ActiveNowWidget.vue';
 import RecentSpacesWidget from '@/components/home/widgets/RecentSpacesWidget.vue';
 import DailyStatsWidget from '@/components/home/widgets/DailyStatsWidget.vue';
@@ -110,39 +102,39 @@ const getWidgetComponent = (widgetId: string | number) => {
 </script>
 
 <style lang="css" scoped>
-.shell-item {
+.greeting-bar {
     background-color: hsl(var(--card));
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border: 1px solid hsl(var(--border) / 0.5);
-    transition: all 0.3s ease;
 }
 
-.shell-item:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+.widget-card {
+    background-color: hsl(var(--card));
+    border-radius: 15px;
+    border: 1px solid hsl(var(--border) / 0.5);
+    transition: box-shadow 0.2s ease;
+}
+
+.widget-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .widget-grid-item.edit-mode {
     user-select: none;
 }
 
-.widget-grid-item.edit-mode .shell-item {
+.widget-grid-item.edit-mode .widget-card {
     cursor: move;
     border-color: hsl(var(--primary) / 0.3);
 }
 
-.widget-grid-item.edit-mode .shell-item:hover {
+.widget-grid-item.edit-mode .widget-card:hover {
     border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 @keyframes shimmer {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100%);
-    }
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
 
 .animate-shimmer {
@@ -151,29 +143,12 @@ const getWidgetComponent = (widgetId: string | number) => {
 }
 
 @keyframes pulse-fast {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .animate-pulse-fast {
     animation: pulse-fast 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes wave {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-50%);
-    }
-}
-
-.animate-wave {
-    animation: wave 3s linear infinite;
 }
 
 /* grid-layout-plus overrides */
@@ -191,7 +166,6 @@ const getWidgetComponent = (widgetId: string | number) => {
     border: 2px dashed hsl(var(--primary) / 0.3);
     border-radius: 15px;
     z-index: 2;
-    transition: all 0.2s;
 }
 
 :deep(.vue-grid-item.vue-draggable-dragging) {
