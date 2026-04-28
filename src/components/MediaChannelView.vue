@@ -30,8 +30,8 @@
                 <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
             </div>
 
-            <!-- Activity Mode: Game + participants below -->
-            <template v-else-if="activity.isActive">
+            <!--   Activity Mode: Game + participants below
+            <template v-else-if="activity?.isActive">
                 <PlayFramePanel class="flex-1 min-h-0" />
                 
                 <div class="flex flex-row gap-2 overflow-x-auto w-full shrink-0" style="max-height: 8rem;">
@@ -55,7 +55,7 @@
                         icon-position="top-1 right-1"
                         @video-ref="setVideoRef" />
                 </div>
-            </template>
+            </template> -->
             
             <!-- Normal Voice Channel View -->
             <Transition v-else name="stream-layout" mode="out-in">
