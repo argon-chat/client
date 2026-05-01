@@ -192,7 +192,7 @@ onUnmounted(() => {
 
 <style scoped>
 .dm-call-panel {
-    background: hsl(var(--card) / 0.6);
+    background: hsl(var(--card) / 0.2);
 }
 
 .media-content {

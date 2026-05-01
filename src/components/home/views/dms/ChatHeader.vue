@@ -46,7 +46,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-card/60">
         <div class="flex items-center gap-3">
             <div
                 class="w-10 h-10 rounded-full overflow-hidden bg-muted flex items-center justify-center text-foreground font-semibold">

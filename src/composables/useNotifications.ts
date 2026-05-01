@@ -21,11 +21,16 @@ export function useNotifications() {
     }
 
     async function markInventoryItemSeen(instanceId: string) {
-        // Decrement is now handled server-side via notifications system
-        // Keep the API call for inventory-specific marking
         const { useApi } = await import('@/store/system/apiStore');
         const api = useApi();
         await api.inventoryInteraction.MarkSeen([instanceId]);
+        // Decrement local inventory badge counter
+        if (store.notifications.inventory > 0) {
+            store.notifications = {
+                ...store.notifications,
+                inventory: store.notifications.inventory - 1,
+            };
+        }
     }
 
     return {

@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="boost-shop-dialog max-w-lg p-0 overflow-hidden">
+    <DialogContent class="boost-shop-dialog max-w-4xl p-0 overflow-hidden">
       <div class="shop-inner">
         <div class="shop-header">
           <div class="card-icon ci-shop">
@@ -36,10 +36,13 @@
             <span class="pack-per-unit">{{ perBoostPrice(pack) }} / {{ t('ultima_boost_per_unit') }}</span>
             <span v-if="packSavings(idx) > 0" class="pack-savings">{{ t('ultima_boost_save_percent', { percent: packSavings(idx) }) }}</span>
             <span class="pack-period-label">{{ boostPeriod === 'monthly' ? t('ultima_boost_period_monthly') : t('ultima_boost_period_annual') }}</span>
-            <button class="pack-buy-btn" :disabled="purchasingPack !== null" @click="handlePurchase(pack.type)">
+            <button v-if="featureFlags.boostsActive" class="pack-buy-btn" :disabled="purchasingPack !== null" @click="handlePurchase(pack.type)">
               <Loader2 v-if="purchasingPack === pack.type" class="w-4 h-4 animate-spin" />
               <ShoppingBagIcon v-else class="w-4 h-4" />
               {{ t('ultima_boost_buy') }}
+            </button>
+            <button v-else class="pack-buy-btn" :disabled="true">
+              <LockIcon class="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -53,16 +56,18 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog";
-import { Loader2, RocketIcon, ShoppingBagIcon } from "lucide-vue-next";
+import { Loader2, LockIcon, RocketIcon, ShoppingBagIcon } from "lucide-vue-next";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import { useToast } from "@argon/ui/toast";
 import { BoostPackType, PurchaseBoostError } from "@argon/glue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import { useLocale } from "@/store/system/localeStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 const { t } = useLocale();
 const ultima = useUltimaStore();
 const { toast } = useToast();
+const featureFlags = useFeatureFlags();
 
 const open = defineModel<boolean>("open", { default: false });
 

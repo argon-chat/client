@@ -141,11 +141,13 @@ import { useNotificationStore } from "@/store/data/notificationStore";
 import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useDirectMessages } from "@/composables/useDirectMessages";
 import { useChatScroll } from "@/composables/useChatScroll";
+import { useApi } from "@/store/system/apiStore";
 
 // ── Stores ──
 
 const { t } = useLocale();
 const ntf = useNotificationStore();
+const api = useApi();
 const recentChats = useRecentChatsStore();
 
 // ── Props / Emits ──
@@ -290,6 +292,24 @@ onScrollNearTop(() => {
   }
 });
 
+const markedReadForPeer = ref<string | null>(null);
+
+function markDmAsRead() {
+  if (markedReadForPeer.value === props.peerId) return;
+  markedReadForPeer.value = props.peerId;
+
+  const chat = recentChats.recent.find(x => x.peerId === props.peerId);
+  const unread = chat?.unreadCount ?? 0;
+
+  recentChats.markRead(props.peerId);
+  if (unread > 0) {
+    ntf.unreadDmCount = Math.max(0, ntf.unreadDmCount - unread);
+  }
+
+  // Notify the server so it persists across sessions
+  api.userChatInteractions.MarkChatRead(props.peerId as Guid).catch(() => {});
+}
+
 onScrollState(({ distanceFromBottom }) => {
   const was = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
@@ -297,8 +317,7 @@ onScrollState(({ distanceFromBottom }) => {
 
   // Mark DM as read when at bottom
   if (distanceFromBottom <= 100) {
-    recentChats.markRead(props.peerId);
-    ntf.decrementDmUnread();
+    markDmAsRead();
   }
 });
 
@@ -317,6 +336,7 @@ defineExpose({ addOptimisticMessage, resolveOptimisticMessage, markOptimisticFai
 watch(
   () => props.peerId,
   async (newId) => {
+    markedReadForPeer.value = null;
     subscribeToNewMessages(newId, () => scrollToBottomImmediate());
     await loadInitialMessages(() => scrollToBottomImmediate());
   },

@@ -172,7 +172,7 @@ onUnmounted(() => {
 </script>
 <template>
     <div
-        class="flex flex-col flex-1 overflow-hidden rounded-xl bg-card border border-border relative"
+        class="flex flex-col flex-1 overflow-hidden rounded-xl bg-card/60 border border-border relative"
         @dragover.prevent="onDragOver"
         @dragleave.prevent="onDragLeave"
         @drop.prevent="onDrop"
