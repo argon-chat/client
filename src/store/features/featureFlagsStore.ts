@@ -15,6 +15,8 @@ export const FeatureFlagKeys = {
   USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE: "af.user.settings.auto-delete-account.active",
   DASHBOARD_ECHO_ACTIVE: "af.dashboard.echo.active",
   DASHBOARD_DM_ACTIVE: "af.dashboard.dm.active",
+  ULTIMA_ACTIVE: "af.ultima.active",
+  BOOSTS_ACTIVE: "af.boosts.active",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -33,6 +35,8 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE]: false,
     [FeatureFlagKeys.DASHBOARD_ECHO_ACTIVE]: true,
     [FeatureFlagKeys.DASHBOARD_DM_ACTIVE]: true,
+    [FeatureFlagKeys.ULTIMA_ACTIVE]: true,
+    [FeatureFlagKeys.BOOSTS_ACTIVE]: true,
   });
 
   const isLoaded = ref(false);
@@ -68,6 +72,8 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const autoDeleteAccountActive = computed(() => flags.value[FeatureFlagKeys.USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE]);
   const echoActive = computed(() => flags.value[FeatureFlagKeys.DASHBOARD_ECHO_ACTIVE]);
   const dmActive = computed(() => flags.value[FeatureFlagKeys.DASHBOARD_DM_ACTIVE]);
+  const ultimaActive = computed(() => flags.value[FeatureFlagKeys.ULTIMA_ACTIVE]);
+  const boostsActive = computed(() => flags.value[FeatureFlagKeys.BOOSTS_ACTIVE]);
 
   return {
     flags,
@@ -77,12 +83,14 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     dialpadActive,
     inventoryActive,
     profileCoinsActive,
-    levelingActive,
+    levelingActive, 
     notificationActive,
     playframeActive,
     passkeyActive,
     autoDeleteAccountActive,
     echoActive,
     dmActive,
+    ultimaActive,
+    boostsActive,
   };
 });

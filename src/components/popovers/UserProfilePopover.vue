@@ -37,21 +37,21 @@
 
             <!-- Content -->
             <div class="profile-content">
-                <!-- Name + Badges -->
+                    <!-- Name + Badges -->
                 <div class="name-row">
                     <span class="display-name">{{ user.displayName }}</span>
 
-                    <!-- <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="userProfile.">
+                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                        v-if="user && (user.flags & UserFlag.PREMIUM) !== 0">
                         <Tooltip>
                             <TooltipTrigger>
                                 <IconDiamondFilled class="badge-icon text-violet-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Argon Premium</p>
+                                <p>Argon Ultima</p>
                             </TooltipContent>
                         </Tooltip>
-                    </TooltipProvider> -->
+                    </TooltipProvider>
                     <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
                         v-if="userProfile.badges.find(q => q == 'owner')">
                         <Tooltip>
@@ -171,7 +171,7 @@ import { persistedValue } from "@argon/storage";
 import ArgonBanner from "./../ArgonBanner.vue";
 import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
-import { ActivityPresenceKind, type ArgonUserProfile, type Archetype } from "@argon/glue";
+import { ActivityPresenceKind, UserFlag, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { usePexStore } from "@/store/data/permissionStore";
 

@@ -34,6 +34,7 @@ import {
   ChannelGroupReordered,
   ChannelReordered,
   SpaceDetailsUpdated,
+  SpaceBoostUpdated,
   type MeetingCreatedFor,
   type MeetingDeletedFor,
   type ReadStateUpdated,
@@ -354,6 +355,21 @@ export const useEventStore = defineStore("events", () => {
           logger.info("Updated space details in DB", x.spaceId, x.details);
         } catch (error) {
           logger.error("Error handling SpaceDetailsUpdated", error);
+        }
+      })();
+    });
+
+    bus.onServerEvent<SpaceBoostUpdated>("SpaceBoostUpdated", (x: SpaceBoostUpdated) => {
+      logger.info("SpaceBoostUpdated", x);
+      void (async () => {
+        try {
+          await db.servers.update(x.spaceId, {
+            boostCount: x.boostCount,
+            boostLevel: x.boostLevel,
+          });
+          logger.info("Updated space boost in DB", x.spaceId, x.boostCount, x.boostLevel);
+        } catch (error) {
+          logger.error("Error handling SpaceBoostUpdated", error);
         }
       })();
     });

@@ -3,11 +3,10 @@ import { usePoolStore } from '@/store/data/poolStore';
 import ChannelChat from './ChannelChat.vue';
 import LeftSideUserList from './LeftSideUserList.vue';
 import SpaceSideShell from './SpaceSideShell.vue';
+
 import { computed, watch } from 'vue';
-import { logger } from '@argon/core';
 import { useRoute, useRouter } from 'vue-router';
 import { getLastChannel } from '@/lib/recentSpaces';
-
 const route = useRoute();
 const router = useRouter();
 const pool = usePoolStore();
@@ -62,7 +61,9 @@ watch(
 <template>
     <div class="server-workspace flex flex-1 gap-4" v-if="selectedSpace">
         <SpaceSideShell v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" />
-        <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 min-w-0 flex-col overflow-hidden" />
+        <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <ChannelChat v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" class="chat-container flex-1 min-w-0 flex-col overflow-hidden" />
+        </div>
         <LeftSideUserList v-model:selected-space="selectedSpace"/>
     </div>
 </template>

@@ -838,6 +838,8 @@ export interface ArgonSpaceBase {
   description: string;
   avatarFieldId: string | null;
   topBannerFileId: string | null;
+  boostCount: i4;
+  boostLevel: i4;
 };
 
 
@@ -914,6 +916,12 @@ export interface ArgonUserProfile {
   bio: string | null;
   badges: IonArray<string>;
   archetypes: IonArray<SpaceMemberArchetype>;
+  backgroundId: i4 | null;
+  voiceCardEffectId: i4 | null;
+  avatarFrameId: i4 | null;
+  nickEffectId: i4 | null;
+  primaryColor: i4 | null;
+  accentColor: i4 | null;
 };
 
 
@@ -990,6 +998,168 @@ export interface ArgonIonTicket {
 };
 
 
+export interface UltimaPricing {
+  subscriptionMonthly: ProductPrice;
+  subscriptionAnnual: ProductPrice;
+  boostPack1: ProductPrice;
+  boostPack3: ProductPrice;
+  boostPack5: ProductPrice;
+  boostPack1Annual: ProductPrice;
+  boostPack3Annual: ProductPrice;
+  boostPack5Annual: ProductPrice;
+};
+
+
+export interface ProductPrice {
+  amount: string;
+  amountWithoutDiscount: string | null;
+  currency: string;
+};
+
+
+export interface UltimaSubscriptionInfo {
+  subscriptionId: guid;
+  tier: UltimaPlan;
+  status: UltimaSubscriptionStatus;
+  startsAt: datetime;
+  expiresAt: datetime;
+  autoRenew: bool;
+  totalBoostSlots: i4;
+  usedBoostSlots: i4;
+  paymentAccount: PaymentAccountInfo | null;
+};
+
+
+export interface PaymentAccountInfo {
+  cardLastFour: string | null;
+  cardType: string | null;
+  expiryMonth: string | null;
+  expiryYear: string | null;
+  paymentAccountId: i8 | null;
+};
+
+
+export interface UltimaTransaction {
+  paymentId: string;
+  date: datetime;
+  amount: string | null;
+  currency: string | null;
+  planExternalId: string | null;
+  boostPackType: string | null;
+  boostCount: i4 | null;
+  recipientId: guid | null;
+  transactionType: string | null;
+  cardSuffix: string | null;
+  cardBrand: string | null;
+  status: string | null;
+};
+
+
+export interface UltimaBoost {
+  boostId: guid;
+  spaceId: guid | null;
+  spaceName: string | null;
+  appliedAt: datetime | null;
+  transferCooldownUntil: datetime | null;
+  source: BoostSource;
+};
+
+
+export interface SpaceBoostStatus {
+  boostCount: i4;
+  boostLevel: i4;
+  boosters: IonArray<SpaceBooster>;
+};
+
+
+export interface SpaceBooster {
+  userId: guid;
+  username: string;
+  boostCount: i4;
+};
+
+
+export enum UltimaPlan
+{
+  Monthly = 0,
+  Annual = 1,
+}
+
+
+export enum UltimaSubscriptionStatus
+{
+  Active = 0,
+  Cancelled = 1,
+  Expired = 2,
+  GracePeriod = 3,
+}
+
+
+export enum BoostPackType
+{
+  Pack1 = 0,
+  Pack3 = 1,
+  Pack5 = 2,
+  Pack1Annual = 3,
+  Pack3Annual = 4,
+  Pack5Annual = 5,
+}
+
+
+export enum BoostSource
+{
+  Subscription = 0,
+  PurchasedPack1 = 1,
+  PurchasedPack3 = 2,
+  PurchasedPack5 = 3,
+  GiftReward = 4,
+  PurchasedPack1Annual = 5,
+  PurchasedPack3Annual = 6,
+  PurchasedPack5Annual = 7,
+}
+
+
+export enum CheckoutError
+{
+  ALREADY_SUBSCRIBED = 0,
+  PAYMENT_ERROR = 1,
+  REGION_UNAVAILABLE = 2,
+}
+
+
+export enum ApplyBoostError
+{
+  NOT_FOUND = 0,
+  NO_AVAILABLE_SLOTS = 1,
+  NOT_A_MEMBER = 2,
+  ALREADY_APPLIED = 3,
+}
+
+
+export enum TransferBoostError
+{
+  NOT_FOUND = 0,
+  ON_COOLDOWN = 1,
+  NOT_A_MEMBER = 2,
+  NOT_APPLIED = 3,
+}
+
+
+export enum PurchaseBoostError
+{
+  PAYMENT_ERROR = 0,
+  LIMIT_REACHED = 1,
+}
+
+
+export enum SendGiftError
+{
+  USER_NOT_FOUND = 0,
+  SELF_GIFT = 1,
+  PAYMENT_ERROR = 2,
+}
+
+
 export interface TodayStats {
   timeInVoice: i4;
   callsMade: i4;
@@ -1009,6 +1179,14 @@ export interface MyLevelDetails {
 export interface UserEditInput {
   displayName: string | null;
   avatarId: string | null;
+  backgroundId: i4 | null;
+  voiceCardEffectId: i4 | null;
+  avatarFrameId: i4 | null;
+  nickEffectId: i4 | null;
+  customStatus: string | null;
+  customStatusIconId: string | null;
+  primaryColor: i4 | null;
+  accentColor: i4 | null;
 };
 
 
@@ -1074,6 +1252,17 @@ export enum CreateSpaceError
 {
   UNKNOWN = 0,
   LIMIT_REACHED = 1,
+}
+
+
+export enum UpdateMeError
+{
+  NONE = 0,
+  COOLDOWN_ACTIVE = 1,
+  PREMIUM_REQUIRED = 2,
+  INVALID_PRESET_ID = 3,
+  DISPLAY_NAME_TOO_LONG = 4,
+  DISPLAY_NAME_EMPTY = 5,
 }
 
 
@@ -3335,6 +3524,15 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isReactionRemoved(): this is ReactionRemoved {
     return this.UnionKey === "ReactionRemoved";
   }
+  public isSpaceBoostUpdated(): this is SpaceBoostUpdated {
+    return this.UnionKey === "SpaceBoostUpdated";
+  }
+  public isUltimaGiftReceived(): this is UltimaGiftReceived {
+    return this.UnionKey === "UltimaGiftReceived";
+  }
+  public isUserProfileUpdated(): this is UserProfileUpdated {
+    return this.UnionKey === "UserProfileUpdated";
+  }
 
 }
 
@@ -3779,6 +3977,30 @@ export class ReactionRemoved extends IArgonEvent
   UnionIndex: number = 54;
 }
 
+export class SpaceBoostUpdated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public boostCount: i4, public boostLevel: i4) { super(); }
+
+  UnionKey: string = "SpaceBoostUpdated";
+  UnionIndex: number = 55;
+}
+
+export class UltimaGiftReceived extends IArgonEvent
+{
+  constructor(public userId: guid, public itemId: guid, public senderName: string, public message: string | null) { super(); }
+
+  UnionKey: string = "UltimaGiftReceived";
+  UnionIndex: number = 56;
+}
+
+export class UserProfileUpdated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public userId: guid, public profile: ArgonUserProfile) { super(); }
+
+  UnionKey: string = "UserProfileUpdated";
+  UnionIndex: number = 57;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -3899,6 +4121,12 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<ReactionAdded>("ReactionAdded").read(reader);
     else if (unionIndex == 54)
       value = IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").read(reader);
+    else if (unionIndex == 55)
+      value = IonFormatterStorage.get<SpaceBoostUpdated>("SpaceBoostUpdated").read(reader);
+    else if (unionIndex == 56)
+      value = IonFormatterStorage.get<UltimaGiftReceived>("UltimaGiftReceived").read(reader);
+    else if (unionIndex == 57)
+      value = IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").read(reader);
 
     else throw new Error();
   
@@ -4074,6 +4302,15 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 54) {
         IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").write(writer, value as ReactionRemoved);
+    }
+    else if (value.UnionIndex == 55) {
+        IonFormatterStorage.get<SpaceBoostUpdated>("SpaceBoostUpdated").write(writer, value as SpaceBoostUpdated);
+    }
+    else if (value.UnionIndex == 56) {
+        IonFormatterStorage.get<UltimaGiftReceived>("UltimaGiftReceived").write(writer, value as UltimaGiftReceived);
+    }
+    else if (value.UnionIndex == 57) {
+        IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").write(writer, value as UserProfileUpdated);
     }
   
     else throw new Error();
@@ -5014,6 +5251,62 @@ IonFormatterStorage.register("ReactionRemoved", {
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<string>('string').write(writer, value.emoji);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceBoostUpdated", {
+  read(reader: CborReader): SpaceBoostUpdated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SpaceBoostUpdated(spaceId, boostCount, boostLevel);
+  },
+  write(writer: CborWriter, value: SpaceBoostUpdated): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostLevel);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UltimaGiftReceived", {
+  read(reader: CborReader): UltimaGiftReceived {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const senderName = IonFormatterStorage.get<string>('string').read(reader);
+    const message = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new UltimaGiftReceived(userId, itemId, senderName, message);
+  },
+  write(writer: CborWriter, value: UltimaGiftReceived): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<string>('string').write(writer, value.senderName);
+    IonFormatterStorage.writeNullable<string>(writer, value.message, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserProfileUpdated", {
+  read(reader: CborReader): UserProfileUpdated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new UserProfileUpdated(spaceId, userId, profile);
+  },
+  write(writer: CborWriter, value: UserProfileUpdated): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
     writer.writeEndArray();
   }
 });
@@ -6886,6 +7179,524 @@ IonFormatterStorage.register("FailedSetAutoDelete", {
 
 
 
+export abstract class ICheckoutResult implements IIonUnion<ICheckoutResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCheckout(): this is SuccessCheckout {
+    return this.UnionKey === "SuccessCheckout";
+  }
+  public isFailedCheckout(): this is FailedCheckout {
+    return this.UnionKey === "FailedCheckout";
+  }
+
+}
+
+
+export class SuccessCheckout extends ICheckoutResult
+{
+  constructor(public checkoutUrl: string, public sessionId: string, public countryCode: string) { super(); }
+
+  UnionKey: string = "SuccessCheckout";
+  UnionIndex: number = 0;
+}
+
+export class FailedCheckout extends ICheckoutResult
+{
+  constructor(public error: CheckoutError) { super(); }
+
+  UnionKey: string = "FailedCheckout";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICheckoutResult", {
+  read(reader: CborReader): ICheckoutResult {
+    reader.readStartArray();
+    let value: ICheckoutResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCheckout>("SuccessCheckout").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCheckout>("FailedCheckout").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICheckoutResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCheckout>("SuccessCheckout").write(writer, value as SuccessCheckout);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCheckout>("FailedCheckout").write(writer, value as FailedCheckout);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCheckout", {
+  read(reader: CborReader): SuccessCheckout {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const countryCode = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessCheckout(checkoutUrl, sessionId, countryCode);
+  },
+  write(writer: CborWriter, value: SuccessCheckout): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.checkoutUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<string>('string').write(writer, value.countryCode);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCheckout", {
+  read(reader: CborReader): FailedCheckout {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<CheckoutError>('CheckoutError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCheckout(error);
+  },
+  write(writer: CborWriter, value: FailedCheckout): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CheckoutError>('CheckoutError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IApplyBoostResult implements IIonUnion<IApplyBoostResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessApplyBoost(): this is SuccessApplyBoost {
+    return this.UnionKey === "SuccessApplyBoost";
+  }
+  public isFailedApplyBoost(): this is FailedApplyBoost {
+    return this.UnionKey === "FailedApplyBoost";
+  }
+
+}
+
+
+export class SuccessApplyBoost extends IApplyBoostResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessApplyBoost";
+  UnionIndex: number = 0;
+}
+
+export class FailedApplyBoost extends IApplyBoostResult
+{
+  constructor(public error: ApplyBoostError) { super(); }
+
+  UnionKey: string = "FailedApplyBoost";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IApplyBoostResult", {
+  read(reader: CborReader): IApplyBoostResult {
+    reader.readStartArray();
+    let value: IApplyBoostResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessApplyBoost>("SuccessApplyBoost").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedApplyBoost>("FailedApplyBoost").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IApplyBoostResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessApplyBoost>("SuccessApplyBoost").write(writer, value as SuccessApplyBoost);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedApplyBoost>("FailedApplyBoost").write(writer, value as FailedApplyBoost);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessApplyBoost", {
+  read(reader: CborReader): SuccessApplyBoost {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessApplyBoost();
+  },
+  write(writer: CborWriter, value: SuccessApplyBoost): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedApplyBoost", {
+  read(reader: CborReader): FailedApplyBoost {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<ApplyBoostError>('ApplyBoostError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedApplyBoost(error);
+  },
+  write(writer: CborWriter, value: FailedApplyBoost): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ApplyBoostError>('ApplyBoostError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ITransferBoostResult implements IIonUnion<ITransferBoostResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessTransfer(): this is SuccessTransfer {
+    return this.UnionKey === "SuccessTransfer";
+  }
+  public isFailedTransfer(): this is FailedTransfer {
+    return this.UnionKey === "FailedTransfer";
+  }
+
+}
+
+
+export class SuccessTransfer extends ITransferBoostResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessTransfer";
+  UnionIndex: number = 0;
+}
+
+export class FailedTransfer extends ITransferBoostResult
+{
+  constructor(public error: TransferBoostError) { super(); }
+
+  UnionKey: string = "FailedTransfer";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ITransferBoostResult", {
+  read(reader: CborReader): ITransferBoostResult {
+    reader.readStartArray();
+    let value: ITransferBoostResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessTransfer>("SuccessTransfer").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedTransfer>("FailedTransfer").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ITransferBoostResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessTransfer>("SuccessTransfer").write(writer, value as SuccessTransfer);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedTransfer>("FailedTransfer").write(writer, value as FailedTransfer);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessTransfer", {
+  read(reader: CborReader): SuccessTransfer {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessTransfer();
+  },
+  write(writer: CborWriter, value: SuccessTransfer): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedTransfer", {
+  read(reader: CborReader): FailedTransfer {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<TransferBoostError>('TransferBoostError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedTransfer(error);
+  },
+  write(writer: CborWriter, value: FailedTransfer): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<TransferBoostError>('TransferBoostError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IPurchaseBoostResult implements IIonUnion<IPurchaseBoostResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPurchaseBoost(): this is SuccessPurchaseBoost {
+    return this.UnionKey === "SuccessPurchaseBoost";
+  }
+  public isFailedPurchaseBoost(): this is FailedPurchaseBoost {
+    return this.UnionKey === "FailedPurchaseBoost";
+  }
+
+}
+
+
+export class SuccessPurchaseBoost extends IPurchaseBoostResult
+{
+  constructor(public checkoutUrl: string, public countryCode: string) { super(); }
+
+  UnionKey: string = "SuccessPurchaseBoost";
+  UnionIndex: number = 0;
+}
+
+export class FailedPurchaseBoost extends IPurchaseBoostResult
+{
+  constructor(public error: PurchaseBoostError) { super(); }
+
+  UnionKey: string = "FailedPurchaseBoost";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPurchaseBoostResult", {
+  read(reader: CborReader): IPurchaseBoostResult {
+    reader.readStartArray();
+    let value: IPurchaseBoostResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPurchaseBoost>("SuccessPurchaseBoost").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPurchaseBoost>("FailedPurchaseBoost").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IPurchaseBoostResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPurchaseBoost>("SuccessPurchaseBoost").write(writer, value as SuccessPurchaseBoost);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPurchaseBoost>("FailedPurchaseBoost").write(writer, value as FailedPurchaseBoost);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPurchaseBoost", {
+  read(reader: CborReader): SuccessPurchaseBoost {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const countryCode = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessPurchaseBoost(checkoutUrl, countryCode);
+  },
+  write(writer: CborWriter, value: SuccessPurchaseBoost): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.checkoutUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.countryCode);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPurchaseBoost", {
+  read(reader: CborReader): FailedPurchaseBoost {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<PurchaseBoostError>('PurchaseBoostError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPurchaseBoost(error);
+  },
+  write(writer: CborWriter, value: FailedPurchaseBoost): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PurchaseBoostError>('PurchaseBoostError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISendGiftResult implements IIonUnion<ISendGiftResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSendGift(): this is SuccessSendGift {
+    return this.UnionKey === "SuccessSendGift";
+  }
+  public isFailedSendGift(): this is FailedSendGift {
+    return this.UnionKey === "FailedSendGift";
+  }
+
+}
+
+
+export class SuccessSendGift extends ISendGiftResult
+{
+  constructor(public checkoutUrl: string, public countryCode: string) { super(); }
+
+  UnionKey: string = "SuccessSendGift";
+  UnionIndex: number = 0;
+}
+
+export class FailedSendGift extends ISendGiftResult
+{
+  constructor(public error: SendGiftError) { super(); }
+
+  UnionKey: string = "FailedSendGift";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISendGiftResult", {
+  read(reader: CborReader): ISendGiftResult {
+    reader.readStartArray();
+    let value: ISendGiftResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSendGift>("SuccessSendGift").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSendGift>("FailedSendGift").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ISendGiftResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSendGift>("SuccessSendGift").write(writer, value as SuccessSendGift);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSendGift>("FailedSendGift").write(writer, value as FailedSendGift);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSendGift", {
+  read(reader: CborReader): SuccessSendGift {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const countryCode = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessSendGift(checkoutUrl, countryCode);
+  },
+  write(writer: CborWriter, value: SuccessSendGift): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.checkoutUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.countryCode);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSendGift", {
+  read(reader: CborReader): FailedSendGift {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SendGiftError>('SendGiftError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSendGift(error);
+  },
+  write(writer: CborWriter, value: FailedSendGift): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SendGiftError>('SendGiftError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IUploadFileResult implements IIonUnion<IUploadFileResult>
 {
   abstract UnionKey: string;
@@ -7084,6 +7895,110 @@ IonFormatterStorage.register("FailedCreateSpace", {
   write(writer: CborWriter, value: FailedCreateSpace): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<CreateSpaceError>('CreateSpaceError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUpdateMeResult implements IIonUnion<IUpdateMeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUpdateMe(): this is SuccessUpdateMe {
+    return this.UnionKey === "SuccessUpdateMe";
+  }
+  public isFailedUpdateMe(): this is FailedUpdateMe {
+    return this.UnionKey === "FailedUpdateMe";
+  }
+
+}
+
+
+export class SuccessUpdateMe extends IUpdateMeResult
+{
+  constructor(public user: ArgonUser, public profile: ArgonUserProfile) { super(); }
+
+  UnionKey: string = "SuccessUpdateMe";
+  UnionIndex: number = 0;
+}
+
+export class FailedUpdateMe extends IUpdateMeResult
+{
+  constructor(public error: UpdateMeError) { super(); }
+
+  UnionKey: string = "FailedUpdateMe";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUpdateMeResult", {
+  read(reader: CborReader): IUpdateMeResult {
+    reader.readStartArray();
+    let value: IUpdateMeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUpdateMe>("SuccessUpdateMe").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUpdateMe>("FailedUpdateMe").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IUpdateMeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUpdateMe>("SuccessUpdateMe").write(writer, value as SuccessUpdateMe);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUpdateMe>("FailedUpdateMe").write(writer, value as FailedUpdateMe);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUpdateMe", {
+  read(reader: CborReader): SuccessUpdateMe {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const user = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
+    const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessUpdateMe(user, profile);
+  },
+  write(writer: CborWriter, value: SuccessUpdateMe): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ArgonUser>('ArgonUser').write(writer, value.user);
+    IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUpdateMe", {
+  read(reader: CborReader): FailedUpdateMe {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<UpdateMeError>('UpdateMeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUpdateMe(error);
+  },
+  write(writer: CborWriter, value: FailedUpdateMe): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UpdateMeError>('UpdateMeError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -9169,16 +10084,20 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     const description = IonFormatterStorage.get<string>('string').read(reader);
     const avatarFieldId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const topBannerFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 5);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId };
+    const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel };
   },
   write(writer: CborWriter, value: ArgonSpaceBase): void {
-    writer.writeStartArray(5);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
     IonFormatterStorage.writeNullable<string>(writer, value.avatarFieldId, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.topBannerFileId, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostLevel);
     writer.writeEndArray();
   }
 });
@@ -9376,11 +10295,17 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const bio = IonFormatterStorage.readNullable<string>(reader, 'string');
     const badges = IonFormatterStorage.readArray<string>(reader, 'string');
     const archetypes = IonFormatterStorage.readArray<SpaceMemberArchetype>(reader, 'SpaceMemberArchetype');
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes };
+    const backgroundId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const voiceCardEffectId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const avatarFrameId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const nickEffectId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(14);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
@@ -9389,6 +10314,12 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<string>(writer, value.bio, 'string');
     IonFormatterStorage.writeArray<string>(writer, value.badges, 'string');
     IonFormatterStorage.writeArray<SpaceMemberArchetype>(writer, value.archetypes, 'SpaceMemberArchetype');
+    IonFormatterStorage.writeNullable<i4>(writer, value.backgroundId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.voiceCardEffectId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.avatarFrameId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.nickEffectId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     writer.writeEndArray();
   }
 });
@@ -9420,6 +10351,299 @@ IonFormatterStorage.register("ArgonIonTicket", {
     IonFormatterStorage.get<string>('string').write(writer, value.machineId);
     IonFormatterStorage.get<string>('string').write(writer, value.region);
     writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ProductPrice", {
+  read(reader: CborReader): ProductPrice {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const amount = IonFormatterStorage.get<string>('string').read(reader);
+    const amountWithoutDiscount = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const currency = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { amount, amountWithoutDiscount, currency };
+  },
+  write(writer: CborWriter, value: ProductPrice): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.amount);
+    IonFormatterStorage.writeNullable<string>(writer, value.amountWithoutDiscount, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.currency);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UltimaPricing", {
+  read(reader: CborReader): UltimaPricing {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const subscriptionMonthly = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const subscriptionAnnual = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack1 = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack3 = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack5 = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack1Annual = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack3Annual = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    const boostPack5Annual = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { subscriptionMonthly, subscriptionAnnual, boostPack1, boostPack3, boostPack5, boostPack1Annual, boostPack3Annual, boostPack5Annual };
+  },
+  write(writer: CborWriter, value: UltimaPricing): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.subscriptionMonthly);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.subscriptionAnnual);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack1);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack3);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack5);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack1Annual);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack3Annual);
+    IonFormatterStorage.get<ProductPrice>('ProductPrice').write(writer, value.boostPack5Annual);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UltimaPlan", {
+  read(reader: CborReader): UltimaPlan {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UltimaPlan[num] !== undefined ? num as UltimaPlan : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UltimaPlan): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UltimaSubscriptionStatus", {
+  read(reader: CborReader): UltimaSubscriptionStatus {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UltimaSubscriptionStatus[num] !== undefined ? num as UltimaSubscriptionStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UltimaSubscriptionStatus): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UltimaSubscriptionInfo", {
+  read(reader: CborReader): UltimaSubscriptionInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const subscriptionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const tier = IonFormatterStorage.get<UltimaPlan>('UltimaPlan').read(reader);
+    const status = IonFormatterStorage.get<UltimaSubscriptionStatus>('UltimaSubscriptionStatus').read(reader);
+    const startsAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const autoRenew = IonFormatterStorage.get<bool>('bool').read(reader);
+    const totalBoostSlots = IonFormatterStorage.get<i4>('i4').read(reader);
+    const usedBoostSlots = IonFormatterStorage.get<i4>('i4').read(reader);
+    const paymentAccount = IonFormatterStorage.readNullable<PaymentAccountInfo>(reader, 'PaymentAccountInfo');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { subscriptionId, tier, status, startsAt, expiresAt, autoRenew, totalBoostSlots, usedBoostSlots, paymentAccount };
+  },
+  write(writer: CborWriter, value: UltimaSubscriptionInfo): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.subscriptionId);
+    IonFormatterStorage.get<UltimaPlan>('UltimaPlan').write(writer, value.tier);
+    IonFormatterStorage.get<UltimaSubscriptionStatus>('UltimaSubscriptionStatus').write(writer, value.status);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.startsAt);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.autoRenew);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.totalBoostSlots);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.usedBoostSlots);
+    IonFormatterStorage.writeNullable<PaymentAccountInfo>(writer, value.paymentAccount, 'PaymentAccountInfo');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PaymentAccountInfo", {
+  read(reader: CborReader): PaymentAccountInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const cardLastFour = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const cardType = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const expiryMonth = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const expiryYear = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const paymentAccountId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { cardLastFour, cardType, expiryMonth, expiryYear, paymentAccountId };
+  },
+  write(writer: CborWriter, value: PaymentAccountInfo): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.writeNullable<string>(writer, value.cardLastFour, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.cardType, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.expiryMonth, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.expiryYear, 'string');
+    IonFormatterStorage.writeNullable<i8>(writer, value.paymentAccountId, 'i8');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UltimaTransaction", {
+  read(reader: CborReader): UltimaTransaction {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const paymentId = IonFormatterStorage.get<string>('string').read(reader);
+    const date = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const amount = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const currency = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const planExternalId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const boostPackType = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const boostCount = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const recipientId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const transactionType = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const cardSuffix = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const cardBrand = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const status = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { paymentId, date, amount, currency, planExternalId, boostPackType, boostCount, recipientId, transactionType, cardSuffix, cardBrand, status };
+  },
+  write(writer: CborWriter, value: UltimaTransaction): void {
+    writer.writeStartArray(12);
+    IonFormatterStorage.get<string>('string').write(writer, value.paymentId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.date);
+    IonFormatterStorage.writeNullable<string>(writer, value.amount, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.currency, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.planExternalId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.boostPackType, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.boostCount, 'i4');
+    IonFormatterStorage.writeNullable<guid>(writer, value.recipientId, 'guid');
+    IonFormatterStorage.writeNullable<string>(writer, value.transactionType, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.cardSuffix, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.cardBrand, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.status, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BoostSource", {
+  read(reader: CborReader): BoostSource {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return BoostSource[num] !== undefined ? num as BoostSource : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: BoostSource): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UltimaBoost", {
+  read(reader: CborReader): UltimaBoost {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const boostId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const spaceName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const appliedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const transferCooldownUntil = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const source = IonFormatterStorage.get<BoostSource>('BoostSource').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { boostId, spaceId, spaceName, appliedAt, transferCooldownUntil, source };
+  },
+  write(writer: CborWriter, value: UltimaBoost): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.boostId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.spaceId, 'guid');
+    IonFormatterStorage.writeNullable<string>(writer, value.spaceName, 'string');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.appliedAt, 'datetime');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.transferCooldownUntil, 'datetime');
+    IonFormatterStorage.get<BoostSource>('BoostSource').write(writer, value.source);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceBoostStatus", {
+  read(reader: CborReader): SpaceBoostStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boosters = IonFormatterStorage.readArray<SpaceBooster>(reader, 'SpaceBooster');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { boostCount, boostLevel, boosters };
+  },
+  write(writer: CborWriter, value: SpaceBoostStatus): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostLevel);
+    IonFormatterStorage.writeArray<SpaceBooster>(writer, value.boosters, 'SpaceBooster');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceBooster", {
+  read(reader: CborReader): SpaceBooster {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const username = IonFormatterStorage.get<string>('string').read(reader);
+    const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { userId, username, boostCount };
+  },
+  write(writer: CborWriter, value: SpaceBooster): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.username);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BoostPackType", {
+  read(reader: CborReader): BoostPackType {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return BoostPackType[num] !== undefined ? num as BoostPackType : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: BoostPackType): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CheckoutError", {
+  read(reader: CborReader): CheckoutError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return CheckoutError[num] !== undefined ? num as CheckoutError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: CheckoutError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ApplyBoostError", {
+  read(reader: CborReader): ApplyBoostError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ApplyBoostError[num] !== undefined ? num as ApplyBoostError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ApplyBoostError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("TransferBoostError", {
+  read(reader: CborReader): TransferBoostError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return TransferBoostError[num] !== undefined ? num as TransferBoostError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: TransferBoostError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PurchaseBoostError", {
+  read(reader: CborReader): PurchaseBoostError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return PurchaseBoostError[num] !== undefined ? num as PurchaseBoostError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: PurchaseBoostError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SendGiftError", {
+  read(reader: CborReader): SendGiftError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return SendGiftError[num] !== undefined ? num as SendGiftError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SendGiftError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
 
@@ -9468,13 +10692,29 @@ IonFormatterStorage.register("UserEditInput", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const displayName = IonFormatterStorage.readNullable<string>(reader, 'string');
     const avatarId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { displayName, avatarId };
+    const backgroundId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const voiceCardEffectId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const avatarFrameId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const nickEffectId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { displayName, avatarId, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, customStatus, customStatusIconId, primaryColor, accentColor };
   },
   write(writer: CborWriter, value: UserEditInput): void {
-    writer.writeStartArray(2);
+    writer.writeStartArray(10);
     IonFormatterStorage.writeNullable<string>(writer, value.displayName, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.avatarId, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.backgroundId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.voiceCardEffectId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.avatarFrameId, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.nickEffectId, 'i4');
+    IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     writer.writeEndArray();
   }
 });
@@ -9620,6 +10860,17 @@ IonFormatterStorage.register("CreateSpaceError", {
     return CreateSpaceError[num] !== undefined ? num as CreateSpaceError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: CreateSpaceError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UpdateMeError", {
+  read(reader: CborReader): UpdateMeError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return UpdateMeError[num] !== undefined ? num as UpdateMeError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UpdateMeError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -9938,12 +11189,31 @@ export interface IServerInteraction extends IIonService
 
 
 
+export interface IUltimaInteraction extends IIonService
+{
+  GetPricing(): Promise<UltimaPricing>;
+  GetMySubscription(): Promise<UltimaSubscriptionInfo | null>;
+  CreateCheckoutSession(plan: UltimaPlan): Promise<ICheckoutResult>;
+  CancelSubscription(): Promise<bool>;
+  GetTransactionHistory(): Promise<IonArray<UltimaTransaction>>;
+  GetMyBoosts(): Promise<IonArray<UltimaBoost>>;
+  ApplyBoost(boostId: guid, spaceId: guid): Promise<IApplyBoostResult>;
+  TransferBoost(boostId: guid, newSpaceId: guid): Promise<ITransferBoostResult>;
+  RemoveBoost(boostId: guid): Promise<bool>;
+  GetSpaceBoostStatus(spaceId: guid): Promise<SpaceBoostStatus>;
+  PurchaseBoostPack(pack: BoostPackType): Promise<IPurchaseBoostResult>;
+  SendUltimaGift(recipientId: guid, plan: UltimaPlan, message: string | null): Promise<ISendGiftResult>;
+}
+
+
+
+
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
   CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
-  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
+  UpdateMe(request: UserEditInput): Promise<IUpdateMeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
@@ -9951,8 +11221,6 @@ export interface IUserInteraction extends IIonService
   GetMyProfile(): Promise<ArgonUserProfile>;
   BeginUploadAvatar(): Promise<IUploadFileResult>;
   CompleteUploadAvatar(blobId: guid): Promise<void>;
-  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
-  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
   GetTodayStats(): Promise<TodayStats>;
   GetMyLevel(): Promise<MyLevelDetails>;
   ClaimLevelCoin(): Promise<bool>;
@@ -10182,12 +11450,31 @@ export interface IServerInteraction extends IIonService
 
 
 
+export interface IUltimaInteraction extends IIonService
+{
+  GetPricing(): Promise<UltimaPricing>;
+  GetMySubscription(): Promise<UltimaSubscriptionInfo | null>;
+  CreateCheckoutSession(plan: UltimaPlan): Promise<ICheckoutResult>;
+  CancelSubscription(): Promise<bool>;
+  GetTransactionHistory(): Promise<IonArray<UltimaTransaction>>;
+  GetMyBoosts(): Promise<IonArray<UltimaBoost>>;
+  ApplyBoost(boostId: guid, spaceId: guid): Promise<IApplyBoostResult>;
+  TransferBoost(boostId: guid, newSpaceId: guid): Promise<ITransferBoostResult>;
+  RemoveBoost(boostId: guid): Promise<bool>;
+  GetSpaceBoostStatus(spaceId: guid): Promise<SpaceBoostStatus>;
+  PurchaseBoostPack(pack: BoostPackType): Promise<IPurchaseBoostResult>;
+  SendUltimaGift(recipientId: guid, plan: UltimaPlan, message: string | null): Promise<ISendGiftResult>;
+}
+
+
+
+
 export interface IUserInteraction extends IIonService
 {
   GetMe(): Promise<ArgonUser>;
   CreateSpace(request: CreateServerRequest): Promise<ICreateSpaceResult>;
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
-  UpdateMe(request: UserEditInput): Promise<ArgonUser>;
+  UpdateMe(request: UserEditInput): Promise<IUpdateMeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
@@ -10195,8 +11482,6 @@ export interface IUserInteraction extends IIonService
   GetMyProfile(): Promise<ArgonUserProfile>;
   BeginUploadAvatar(): Promise<IUploadFileResult>;
   CompleteUploadAvatar(blobId: guid): Promise<void>;
-  BeginUploadProfileHeader(): Promise<IUploadFileResult>;
-  CompleteUploadProfileHeader(blobId: guid): Promise<void>;
   GetTodayStats(): Promise<TodayStats>;
   GetMyLevel(): Promise<MyLevelDetails>;
   ClaimLevelCoin(): Promise<bool>;
@@ -10342,7 +11627,7 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ChannelEntitlementOverwrite | null>("ChannelEntitlementOverwrite | null", writer.data, this.signal);
+    return await req.callAsyncNullableT<ChannelEntitlementOverwrite>("ChannelEntitlementOverwrite", writer.data, this.signal);
   }
   async GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>> {
     const req = new IonRequest(this.ctx, "IArchetypeInteraction", "GetChannelEntitlementOverwrites");
@@ -11900,6 +13185,177 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
 
 IonFormatterStorage.registerClientExecutor<IServerInteraction>('ServerInteraction', ServerInteraction_Executor);
 
+export class UltimaInteraction_Executor extends ServiceExecutor<IUltimaInteraction> implements IUltimaInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetPricing(): Promise<UltimaPricing> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "GetPricing");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<UltimaPricing>("UltimaPricing", writer.data, this.signal);
+  }
+  async GetMySubscription(): Promise<UltimaSubscriptionInfo | null> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "GetMySubscription");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncNullableT<UltimaSubscriptionInfo>("UltimaSubscriptionInfo", writer.data, this.signal);
+  }
+  async CreateCheckoutSession(plan: UltimaPlan): Promise<ICheckoutResult> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "CreateCheckoutSession");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<UltimaPlan>('UltimaPlan').write(writer, plan);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICheckoutResult>("ICheckoutResult", writer.data, this.signal);
+  }
+  async CancelSubscription(): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "CancelSubscription");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async GetTransactionHistory(): Promise<IonArray<UltimaTransaction>> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "GetTransactionHistory");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UltimaTransaction>>("IonArray<UltimaTransaction>", writer.data, this.signal);
+  }
+  async GetMyBoosts(): Promise<IonArray<UltimaBoost>> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "GetMyBoosts");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UltimaBoost>>("IonArray<UltimaBoost>", writer.data, this.signal);
+  }
+  async ApplyBoost(boostId: guid, spaceId: guid): Promise<IApplyBoostResult> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "ApplyBoost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, boostId);
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IApplyBoostResult>("IApplyBoostResult", writer.data, this.signal);
+  }
+  async TransferBoost(boostId: guid, newSpaceId: guid): Promise<ITransferBoostResult> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "TransferBoost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, boostId);
+    IonFormatterStorage.get<guid>('guid').write(writer, newSpaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ITransferBoostResult>("ITransferBoostResult", writer.data, this.signal);
+  }
+  async RemoveBoost(boostId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "RemoveBoost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, boostId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async GetSpaceBoostStatus(spaceId: guid): Promise<SpaceBoostStatus> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "GetSpaceBoostStatus");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SpaceBoostStatus>("SpaceBoostStatus", writer.data, this.signal);
+  }
+  async PurchaseBoostPack(pack: BoostPackType): Promise<IPurchaseBoostResult> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "PurchaseBoostPack");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<BoostPackType>('BoostPackType').write(writer, pack);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPurchaseBoostResult>("IPurchaseBoostResult", writer.data, this.signal);
+  }
+  async SendUltimaGift(recipientId: guid, plan: UltimaPlan, message: string | null): Promise<ISendGiftResult> {
+    const req = new IonRequest(this.ctx, "IUltimaInteraction", "SendUltimaGift");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, recipientId);
+    IonFormatterStorage.get<UltimaPlan>('UltimaPlan').write(writer, plan);
+    IonFormatterStorage.writeNullable<string>(writer, message, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISendGiftResult>("ISendGiftResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IUltimaInteraction>('UltimaInteraction', UltimaInteraction_Executor);
+
 export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> implements IUserInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -11945,7 +13401,7 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
           
     return await req.callAsyncT<IonArray<ArgonSpaceBase>>("IonArray<ArgonSpaceBase>", writer.data, this.signal);
   }
-  async UpdateMe(request: UserEditInput): Promise<ArgonUser> {
+  async UpdateMe(request: UserEditInput): Promise<IUpdateMeResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "UpdateMe");
           
     const writer = new CborWriter();
@@ -11956,7 +13412,7 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ArgonUser>("ArgonUser", writer.data, this.signal);
+    return await req.callAsyncT<IUpdateMeResult>("IUpdateMeResult", writer.data, this.signal);
   }
   async JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "JoinToSpace");
@@ -12038,32 +13494,6 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
   }
   async CompleteUploadAvatar(blobId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "CompleteUploadAvatar");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
-  }
-  async BeginUploadProfileHeader(): Promise<IUploadFileResult> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "BeginUploadProfileHeader");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(0);
-          
-    
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
-  }
-  async CompleteUploadProfileHeader(blobId: guid): Promise<void> {
-    const req = new IonRequest(this.ctx, "IUserInteraction", "CompleteUploadProfileHeader");
           
     const writer = new CborWriter();
       
@@ -12423,6 +13853,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
+        if (propKey === "UltimaInteraction") return IonFormatterStorage.createExecutor("UltimaInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
         if (propKey === "VoiceInteraction") return IonFormatterStorage.createExecutor("VoiceInteraction", ctx, controller.signal);
@@ -12444,6 +13875,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     InventoryInteraction: IInventoryInteraction;
     SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
+    UltimaInteraction: IUltimaInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;
     VoiceInteraction: IVoiceInteraction;

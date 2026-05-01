@@ -71,6 +71,7 @@ export const useApi = defineStore("api", () => {
   const eventBus = computed(() => rpcClient.value.EventBus);
   const featureFlagInteraction = computed(() => rpcClient.value.FeatureFlagInteractions);
   const botManagementInteraction = computed(() => rpcClient.value.BotManagementInteraction);
+  const ultimaInteraction = computed(() => rpcClient.value.UltimaInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -91,6 +92,7 @@ export const useApi = defineStore("api", () => {
     getRawClient,
     callInteraction,
     featureFlagInteraction,
-    botManagementInteraction
+    botManagementInteraction,
+    ultimaInteraction
   };
 });

@@ -43,6 +43,7 @@ import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/auth/meStore";
 import { useApi } from "@/store/system/apiStore";
 import { v7 } from "uuid";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 interface Props {
   fallback: string;
@@ -60,6 +61,7 @@ const emit = defineEmits<Emits>();
 const toast = useToast();
 const me = useMe();
 const api = useApi();
+const featureFlags = useFeatureFlags();
 
 const showCropDialog = ref(false);
 const showPremiumDialog = ref(false);
@@ -75,7 +77,7 @@ const onAvatarChange = async (event: Event) => {
 
   const isAnimated = file.type === "image/gif";
 
-  if (isAnimated && !me.isPremium) {
+  if (isAnimated && !me.isPremium && featureFlags.ultimaActive) {
     showPremiumDialog.value = true;
     input.value = ""; 
     return;

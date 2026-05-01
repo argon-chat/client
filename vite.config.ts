@@ -43,7 +43,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      vue(),
+      vue({
+        template: {
+          compilerOptions: {
+            isCustomElement: (tag) => tag.startsWith("psdk-"),
+          },
+        },
+      }),
       Icons({ compiler: "vue3", autoInstall: true }) as any,
       vueDevTools(),
       SvgImporter(),

@@ -66,11 +66,17 @@
             @keydown.space.prevent="onClick(i - 1)">
                 <CardContent class="w-full h-full p-4 flex items-center justify-center select-none relative overflow-hidden">
                     <slot name="item" :index="i - 1">
-                        <!-- Default empty slot -->
+                        <!-- Default slot: question mark for unknown items, basket for empty -->
                         <div class="flex items-center justify-center w-full h-full opacity-30 group-hover:opacity-50 transition-opacity">
-                            <IconBasket class="w-16 h-16 text-muted-foreground" stroke-width="1.5" />
+                            <IconQuestionMark v-if="props.isUnknownItem?.(i - 1)" class="w-16 h-16 text-amber-400/70" stroke-width="1.5" />
+                            <IconBasket v-else class="w-16 h-16 text-muted-foreground" stroke-width="1.5" />
                         </div>
                     </slot>
+                    <!-- Count badge -->
+                    <div v-if="props.getItemCount?.(i - 1) && props.getItemCount(i - 1) > 1"
+                        class="absolute top-2 right-2 bg-violet-600 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center shadow-lg z-10">
+                        x{{ props.getItemCount(i - 1) }}
+                    </div>
                     <!-- Hover overlay effect -->
                     <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 </CardContent>
@@ -84,7 +90,7 @@ import { Alert, AlertDescription, AlertTitle } from '@argon/ui/alert';
 import { Card, CardContent } from '@argon/ui/card'
 import { Input } from '@argon/ui/input';
 import { useLocale } from '@/store/system/localeStore';
-import { IconBasket } from '@tabler/icons-vue';
+import { IconBasket, IconQuestionMark } from '@tabler/icons-vue';
 import { computed, CSSProperties, ref } from 'vue'
 
 defineOptions({ inheritAttrs: false })
@@ -99,6 +105,8 @@ const props = withDefaults(
         disabled?: boolean
         minColWidth?: string
         getCardClass?: (index: number) => string
+        getItemCount?: (index: number) => number
+        isUnknownItem?: (index: number) => boolean
         itemCount?: number
         loading?: boolean
         hasItem?: (index: number) => boolean

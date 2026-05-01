@@ -63,12 +63,17 @@ import AppearanceSettings from "./settings/AppearanceSettings.vue";
 import { useLocale } from "@/store/system/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
+import UltimaSettings from "./settings/UltimaSettings.vue";
+import BoostSettings from "./settings/BoostSettings.vue";
+import TransactionSettings from "./settings/TransactionSettings.vue";
 import { useConfigStore } from "@/store/ui/configStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 // Stores
 const { t } = useLocale();
 const windows = useWindow();
 const configStore = useConfigStore();
+const featureFlags = useFeatureFlags();
 
 // State
 const selectedCategory = ref("account");
@@ -82,6 +87,9 @@ interface Category {
 
 const CATEGORY_CONFIG: Category[] = [
     { id: "account" },
+    { id: "ultima" },
+    { id: "boosts" },
+    { id: "transactions" },
     { id: "appearance" },
     { id: "application" },
     { id: "audio" },
@@ -92,11 +100,15 @@ const CATEGORY_CONFIG: Category[] = [
 ];
 
 const categories = computed<Category[]>(() => 
-    CATEGORY_CONFIG.map(cat => 
-        cat.id === "activity" 
-            ? { ...cat, hidden: !configStore.devModeEnabled }
-            : cat
-    )
+    CATEGORY_CONFIG.map(cat => {
+        if (cat.id === "activity")
+            return { ...cat, hidden: !configStore.devModeEnabled };
+        if (cat.id === "ultima" || cat.id === "transactions")
+            return { ...cat, hidden: !featureFlags.ultimaActive };
+        if (cat.id === "boosts")
+            return { ...cat, hidden: !featureFlags.boostsActive };
+        return cat;
+    })
 );
 
 const visibleCategories = computed(() => 
@@ -106,6 +118,9 @@ const visibleCategories = computed(() =>
 // Component mapping
 const categoryComponents: Record<string, any> = {
     account: ProfileSettings,
+    ultima: UltimaSettings,
+    boosts: BoostSettings,
+    transactions: TransactionSettings,
     devices: ConnectedDevices,
     appearance: AppearanceSettings,
     audio: AudioSettings,

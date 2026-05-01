@@ -8,7 +8,7 @@ import { InventoryItem, RedeemError } from '@argon/glue';
 import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@argon/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
-import { IconFilter, IconSortAscending, IconSparkles } from '@tabler/icons-vue';
+import { IconFilter, IconSortAscending, IconSparkles, IconQuestionMark, IconStack2 } from '@tabler/icons-vue';
 import { useConfigStore } from '@/store/ui/configStore';
 import { Button } from '@argon/ui/button';
 import { useLocale } from '@/store/system/localeStore';
@@ -47,6 +47,7 @@ const selected = ref<InventoryItemView | null>(null);
 // Filters and sorting
 const selectedRarity = ref<string | null>(null);
 const sortBy = ref<'name' | 'rarity' | 'recent'>('recent');
+const groupByType = ref(true);
 
 const filteredItems = computed(() => {
   let items = [...myInventoryItems.value];
@@ -73,6 +74,31 @@ const filteredItems = computed(() => {
   
   return items;
 });
+
+export type GroupedItem = {
+  representative: InventoryItemView;
+  count: number;
+  instances: InventoryItemView[];
+};
+
+const groupedItems = computed<GroupedItem[]>(() => {
+  if (!groupByType.value) {
+    return filteredItems.value.map(item => ({ representative: item, count: 1, instances: [item] }));
+  }
+  const groups = new Map<string, GroupedItem>();
+  for (const item of filteredItems.value) {
+    const existing = groups.get(item.id);
+    if (existing) {
+      existing.count++;
+      existing.instances.push(item);
+    } else {
+      groups.set(item.id, { representative: item, count: 1, instances: [item] });
+    }
+  }
+  return [...groups.values()];
+});
+
+const displayItems = computed(() => groupedItems.value);
 
 onMounted(async () => {
   await reloadData();
@@ -132,9 +158,9 @@ async function nextGrant() {
 }
 
 function onSlotClick(i: number) {
-  const item = filteredItems.value[i];
-  if (!item) return;
-  selected.value = item;
+  const group = displayItems.value[i];
+  if (!group) return;
+  selected.value = group.representative;
   openSidebar.value = true;
 }
 
@@ -248,13 +274,15 @@ function debugGrantTestItem() {
 <template>
   <InventoryView 
     :title="t('inventory')" 
-    :slots="loading ? initialSlots : filteredItems.length" 
+    :slots="loading ? initialSlots : displayItems.length" 
     :item-count="loading ? undefined : filteredItems.length"
     :loading="loading"
-    :has-item="(i) => !!filteredItems[i]"
+    :has-item="(i) => !!displayItems[i]"
+    :get-item-count="(i) => displayItems[i]?.count ?? 0"
+    :is-unknown-item="(i) => !!displayItems[i] && !displayItems[i].representative.icon"
     @slot:click="onSlotClick" 
     @redeem="onRedeem"
-    :getCardClass="i => filteredItems[i] ? rarityClassesCards[filteredItems[i].class] : ''" 
+    :getCardClass="i => displayItems[i] ? rarityClassesCards[displayItems[i].representative.class] : ''" 
     v-bind="$attrs"
   >
     <template #actions>
@@ -314,15 +342,27 @@ function debugGrantTestItem() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <!-- Group Toggle -->
+      <Button 
+        variant="outline" 
+        size="sm" 
+        class="gap-2"
+        :class="groupByType ? 'border-violet-500/50 bg-violet-500/10' : ''"
+        @click="groupByType = !groupByType"
+      >
+        <IconStack2 class="w-4 h-4" />
+        {{ t('inventory_group') || 'Group' }}
+      </Button>
     </template>
 
     <template #item="{ index }">
-      <TooltipProvider v-if="filteredItems[index]">
+      <TooltipProvider v-if="displayItems[index]">
         <Tooltip :delay-duration="300">
           <TooltipTrigger as-child>
             <div class="relative flex flex-col items-center gap-2 w-full h-full p-2">
               <!-- Usable indicator -->
-              <div v-if="filteredItems[index].usable" 
+              <div v-if="displayItems[index].representative.usable" 
                 class="absolute top-2 left-2 bg-green-500 text-white rounded-full p-1 shadow-lg z-10"
                 :title="t('inventory_usable_indicator')">
                 <IconSparkles class="w-4 h-4" />
@@ -331,37 +371,42 @@ function debugGrantTestItem() {
               <!-- Item image with hover effect -->
               <div class="flex-1 flex items-center justify-center">
                 <img 
-                  :src="filteredItems[index].icon" 
-                  :alt="filteredItems[index].name" 
+                  v-if="displayItems[index].representative.icon"
+                  :src="displayItems[index].representative.icon" 
+                  :alt="displayItems[index].representative.name" 
                   class="w-28 h-28 object-contain transition-transform duration-300 group-hover:scale-110"
                   draggable="false" 
                 />
+                <IconQuestionMark v-else class="w-20 h-20 text-amber-400/60" stroke-width="1.5" />
               </div>
 
               <!-- Item name with rarity gradient -->
               <div class="w-full text-center">
                 <p class="text-sm font-bold leading-tight opacity-90 bg-[length:200%_auto] bg-clip-text text-transparent animate-gold-shine px-2"
-                  :class="`${rarityClasses[filteredItems[index].class]}`">
-                  {{ filteredItems[index].name }}
+                  :class="`${rarityClasses[displayItems[index].representative.class]}`">
+                  {{ displayItems[index].representative.name }}
                 </p>
               </div>
             </div>
           </TooltipTrigger>
           <TooltipContent side="bottom" class="max-w-xs">
             <div class="space-y-2">
-              <p class="font-bold" :class="rarityClasses[filteredItems[index].class]">
-                {{ filteredItems[index].name }}
+              <p class="font-bold" :class="rarityClasses[displayItems[index].representative.class]">
+                {{ displayItems[index].representative.name }}
               </p>
-              <p v-if="filteredItems[index].desc" class="text-sm text-muted-foreground">
-                {{ filteredItems[index].desc }}
+              <p v-if="displayItems[index].representative.desc" class="text-sm text-muted-foreground">
+                {{ displayItems[index].representative.desc }}
               </p>
               <div class="flex items-center gap-2 text-xs text-muted-foreground">
                 <span class="font-semibold">{{ t('inventory_rarity') }}</span>
-                <span :class="rarityClasses[filteredItems[index].class]">
-                  {{ filteredItems[index].class }}
+                <span :class="rarityClasses[displayItems[index].representative.class]">
+                  {{ displayItems[index].representative.class }}
                 </span>
               </div>
-              <div v-if="filteredItems[index].usable" class="text-xs text-green-500 flex items-center gap-1">
+              <div v-if="displayItems[index].count > 1" class="text-xs text-violet-400 font-medium">
+                {{ t('inventory_quantity') || 'Quantity' }}: {{ displayItems[index].count }}
+              </div>
+              <div v-if="displayItems[index].representative.usable" class="text-xs text-green-500 flex items-center gap-1">
                 <IconSparkles class="w-3 h-3" />
                 <span>{{ t('inventory_click_to_use') }}</span>
               </div>

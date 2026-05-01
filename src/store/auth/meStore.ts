@@ -2,10 +2,11 @@ import { logger } from "@argon/core";
 import { setUser } from "@sentry/vue";
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { useUltimaStore } from "@/store/data/ultimaStore";
 import {
   ArgonUser,
   ArgonUserProfile,
@@ -13,6 +14,7 @@ import {
   LockdownReason,
   LockdownSeverity,
   LockedAuthStatus,
+  UserFlag,
   UserStatus,
 } from "@argon/glue";
 import { useAuthStore } from "@/store/auth/authStore";
@@ -30,13 +32,12 @@ export const useMe = defineStore("me", () => {
 
   const limitation = ref(null as LockedAuthStatus | null);
 
-  const isPremium = ref(false);
+  const ultimaStore = useUltimaStore();
 
-  function toggleIsPremium() {
-    isPremium.value = true;
-  }
-
-  (window as any)["tgp"] = toggleIsPremium; // for testing purpose
+  const isPremium = computed(() =>
+    ultimaStore.isSubscribed ||
+    ((me.value?.flags ?? 0) & UserFlag.PREMIUM) !== 0
+  );
 
   const preferredStatus = useLocalStorage<UserStatus>(
     "preferredStatus",
@@ -116,6 +117,7 @@ export const useMe = defineStore("me", () => {
     logger.info("Received user profile ", meProfile.value);
     
     await featureFlags.loadFeatureFlags();
+    await ultimaStore.init();
     
     WelcomeCommanderHasReceived.value = true;
 

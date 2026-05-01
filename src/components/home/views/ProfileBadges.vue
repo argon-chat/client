@@ -1,5 +1,15 @@
 <template>
     <Badge variant="secondary" class="flex items-center gap-1" v-for="badge in badges" :key="badge">
+        <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true" v-if="badge === 'premium'">
+            <Tooltip>
+                <TooltipTrigger>
+                    <IconDiamondFilled class="w-4 h-4 align-middle text-violet-400" />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Argon Ultima</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
         <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true" v-if="badge === 'staff'">
             <Tooltip>
                 <TooltipTrigger>
@@ -20,6 +30,7 @@
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
+        <template v-if="badge == 'premium'">Argon Ultima</template>
         <template v-if="badge == 'staff'">Argon Staff</template>
         <template v-if="badge == 'contributor'">Argon Contributor</template>
     </Badge>
@@ -27,7 +38,7 @@
 <script setup lang="ts">
 import { Badge } from '@argon/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
-import { IconCat, IconCpu } from '@tabler/icons-vue';
+import { IconCat, IconCpu, IconDiamondFilled } from '@tabler/icons-vue';
 
 
 const props = defineProps<{
