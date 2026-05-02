@@ -8,6 +8,7 @@
     "./sounds/*": "./sounds/*",
     "./icons/*": "./icons/*",
     "./fonts/*": "./fonts/*",
+    "./backgrounds/*": "./backgrounds/*",
     "./icon.png": "./icon.png",
     "./icon.svg": "./icon.svg",
     "./image0.jpg": "./image0.jpg"
@@ -17,6 +18,7 @@
     "icons", 
     "sounds",
     "styles",
+    "backgrounds",
     "icon.png",
     "icon.svg",
     "image0.jpg"

@@ -22,11 +22,7 @@
 
         <div v-else class="packs-row">
           <div
-            v-for="(pack, idx) in boostPacks"
-            :key="pack.type"
-            class="pack-card"
-            :class="{ 'pack-featured': idx === 2 }"
-          >
+            v-for="(pack, idx) in boostPacks" :key="pack.type" class="pack-card" :class="{ 'pack-featured': idx === 2 }">
             <div v-if="idx === 2" class="pack-best-badge">{{ t('ultima_boost_best_value') }}</div>
             <div class="pack-rockets">
               <RocketIcon v-for="i in pack.count" :key="i" class="w-5 h-5" />

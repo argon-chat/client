@@ -1,4 +1,4 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus } from "@argon/glue";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import Dexie, { type Table } from "dexie";
 
@@ -22,6 +22,14 @@ export function toStoredMessage(msg: ArgonMessage): StoredMessage {
   return { ...msg, _msgId: Number(msg.messageId) };
 }
 
+export interface CachedProfile {
+  key: string; // `${spaceId}:${userId}`
+  spaceId: string;
+  userId: string;
+  profile: ArgonUserProfile;
+  fetchedAt: number;
+}
+
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
   servers!: Table<ArgonSpaceBase, Guid>;
@@ -30,6 +38,7 @@ export class PoolDatabase extends Dexie {
   messages!: Table<StoredMessage, number>;
   archetypes!: Table<Archetype, Guid>;
   members!: Table<SpaceMember, Guid>;
+  profileCache!: Table<CachedProfile, string>;
 
   constructor() {
     super("argon-database-v3");
@@ -49,6 +58,10 @@ export class PoolDatabase extends Dexie {
     this.version(2).stores({
       messages:
         "_msgId, [channelId+_msgId], [spaceId+channelId+_msgId]",
+    });
+    // v3: profile cache table
+    this.version(3).stores({
+      profileCache: "key, userId, spaceId",
     });
   }
 }

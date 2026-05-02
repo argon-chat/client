@@ -1,6 +1,6 @@
 <template>
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
-    <PopoverContent style="width: 21rem;"
+    <PopoverContent style="width: 24rem;"
       class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
     </PopoverContent>

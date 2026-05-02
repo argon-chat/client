@@ -1,99 +1,113 @@
 <template>
     <template v-if="!isLoading && user && userProfile">
         <Transition name="profile-reveal" appear>
-        <div class="popover-inner">
-            <!-- Banner + Avatar -->
-            <div class="banner-section">
-                <ArgonBanner :file-id="userProfile.bannerFileID" :user-id="userProfile.userId" />
-                <div class="avatar-anchor">
-                    <div class="avatar-ring">
-                        <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
-                            :overridedSize="72" />
-                        <span :class="me.statusClass(user.status)" class="avatar-status"></span>
+        <div class="popover-inner" :style="cardGlowStyle">
+            <!-- Full-bleed background (extends behind everything) -->
+            <div class="card-bg">
+                <video
+                    v-if="bgSrc"
+                    :src="bgSrc"
+                    autoplay
+                    loop
+                    muted
+                    playsinline
+                    class="card-bg-media"
+                />
+                <div v-else-if="hasColors" class="card-bg-media" :style="gradientStyle" />
+                <div v-else class="card-bg-media card-bg-default" />
+                <!-- Color tint overlay -->
+                <div v-if="bgSrc && primaryTintStyle" class="card-bg-tint" :style="primaryTintStyle" />
+            </div>
+
+            <!-- Empty hero zone to reserve space for the background -->
+            <div class="hero-spacer"></div>
+
+            <!-- Glass content area (overlaps bg via negative margin) -->
+            <div class="glass-zone">
+                <!-- Frosted glass transition band -->
+                <div class="glass-frost"></div>
+
+                <!-- Shine line at the glass edge -->
+                <div class="glass-shine" :style="glassShineTint"></div>
+
+                <div class="glass-body" :style="glassTintStyle">
+                    <!-- Avatar overlapping into the background -->
+                    <div class="profile-header">
+                        <div class="avatar-anchor">
+                            <div class="hero-avatar" :style="avatarRingStyle">
+                                <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
+                                    :overridedSize="80" />
+                                <span :class="me.statusClass(user.status)" class="status-dot"></span>
+                            </div>
+                        </div>
+                        <div class="hero-info">
+                            <div class="hero-name-row">
+                                <span class="hero-display-name" :style="nameAccentStyle">{{ user.displayName }}</span>
+                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                                    v-if="user && (user.flags & UserFlag.PREMIUM) !== 0">
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <IconDiamondFilled class="badge-icon text-violet-400" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Argon Ultima</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                                    v-if="userProfile.badges.find(q => q == 'owner')">
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <CrownIcon class="badge-icon fill-blue-400 text-yellow-400" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Space Owner</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                                    v-if="userProfile.badges.find(q => q == 'staff')">
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <IconCat class="badge-icon fill-purple-400" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Argon Staff</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
+                                    v-if="userProfile.badges.find(q => q == 'contributor')">
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <IconCpu class="badge-icon fill-yellow-400" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Argon Contributor</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <div class="hero-username">@{{ user.username }}</div>
+                            <!-- Status / Activity -->
+                            <div class="hero-status">
+                                <span v-if="user.activity" class="hero-activity">
+                                    {{ t(getTextForActivityKind(user.activity.kind)) }}
+                                    <span class="font-medium">{{ user.activity.titleName }}</span>
+                                </span>
+                                <span v-else class="hero-presence" :class="presenceClass">
+                                    {{ statusText }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Activity pill (over banner, top-right) -->
-            <div v-if="user.activity" class="activity-pill" ref="activityWrapper">
-                <span
-                    class="pointer-events-none absolute inset-y-0 left-0 w-3 z-10 activity-fade-left"
-                    v-if="shouldScroll"></span>
-                <span
-                    class="pointer-events-none absolute inset-y-0 right-0 w-3 z-10 activity-fade-right"
-                    v-if="shouldScroll"></span>
-                <span :class="['whitespace-nowrap inline-flex', shouldScroll ? 'animate-marquee' : '']"
-                    ref="activityText">
-                    <span>
-                        {{ t(getTextForActivityKind(user.activity.kind)) }}
-                        <span class="font-semibold pl-0.5">{{ user.activity.titleName }}</span>
-                    </span>
-                    <span v-if="shouldScroll" class="pl-6">
-                        {{ t(getTextForActivityKind(user.activity.kind)) }}
-                        <span class="font-semibold pl-0.5">{{ user.activity.titleName }}</span>
-                    </span>
-                </span>
-            </div>
+                    <!-- Custom status -->
+                    <div v-if="userProfile.customStatus" class="custom-status">
+                        <span class="custom-status-text">{{ userProfile.customStatus }}</span>
+                    </div>
 
-            <!-- Content -->
-            <div class="profile-content">
-                    <!-- Name + Badges -->
-                <div class="name-row">
-                    <span class="display-name">{{ user.displayName }}</span>
-
-                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="user && (user.flags & UserFlag.PREMIUM) !== 0">
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <IconDiamondFilled class="badge-icon text-violet-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Argon Ultima</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="userProfile.badges.find(q => q == 'owner')">
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <CrownIcon class="badge-icon fill-blue-400 text-yellow-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Space Owner</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="userProfile.badges.find(q => q == 'staff')">
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <IconCat class="badge-icon fill-purple-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Argon Staff</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                        v-if="userProfile.badges.find(q => q == 'contributor')">
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <IconCpu class="badge-icon fill-yellow-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Argon Contributor</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
-                <div class="username">@{{ user.username }}</div>
-
-                <!-- Custom status -->
-                <div v-if="userProfile.customStatus" class="custom-status">
-                    <span class="custom-status-text">{{ userProfile.customStatus }}</span>
-                </div>
-
-                <Separator class="section-sep" />
+                    <Separator v-if="userProfile.customStatus" class="section-sep" />
 
                 <!-- Roles -->
                 <div class="roles-section">
@@ -132,19 +146,18 @@
                 <div v-if="userProfile.bio" class="bio-block">
                     {{ userProfile.bio }}
                 </div>
-            </div>
+                </div><!-- .glass-body -->
+            </div><!-- .glass-zone -->
         </div>
         </Transition>
     </template>
     <template v-else>
         <div class="loading-skeleton">
-            <div class="skeleton-banner"></div>
+            <div class="skeleton-hero"></div>
             <div class="skeleton-content">
-                <div class="skeleton-avatar"></div>
                 <div class="skeleton-line skeleton-line--name"></div>
                 <div class="skeleton-line skeleton-line--tag"></div>
                 <div class="skeleton-line skeleton-line--bio"></div>
-                <div class="skeleton-line skeleton-line--bio2"></div>
             </div>
         </div>
     </template>
@@ -162,22 +175,24 @@ import {
   TooltipTrigger,
 } from "@argon/ui/tooltip";
 import { Separator } from "@argon/ui/separator";
-import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useProfileCacheStore } from "@/store/data/profileCacheStore";
 import { db, type RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/auth/meStore";
 import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
-import ArgonBanner from "./../ArgonBanner.vue";
 import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
-import { ActivityPresenceKind, UserFlag, type ArgonUserProfile, type Archetype } from "@argon/glue";
+import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { usePexStore } from "@/store/data/permissionStore";
+import { useApi } from "@/store/system/apiStore";
+import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
 
 const isLoading = ref(true);
 const api = useApi();
 const pool = usePoolStore();
+const profileCache = useProfileCacheStore();
 const pex = usePexStore();
 
 const userProfile = ref(null as null | ArgonUserProfile);
@@ -196,6 +211,101 @@ const availableRoles = computed(() => {
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
+
+// ── Profile customization computeds ──
+
+const bgSrc = computed(() => getBackgroundSrc(userProfile.value?.backgroundId));
+
+const hasColors = computed(() =>
+  userProfile.value?.primaryColor != null || userProfile.value?.accentColor != null
+);
+
+const gradientStyle = computed(() => {
+  const primary = userProfile.value?.primaryColor
+    ? argbToRgba(userProfile.value.primaryColor)
+    : "hsl(var(--muted))";
+  const accent = userProfile.value?.accentColor
+    ? argbToRgba(userProfile.value.accentColor)
+    : primary;
+  return { background: `linear-gradient(135deg, ${primary}, ${accent})` };
+});
+
+// Tint overlay when background + primaryColor
+const primaryTintStyle = computed(() => {
+  if (!userProfile.value?.primaryColor) return null;
+  const color = argbToRgba(userProfile.value.primaryColor);
+  return { background: color.replace(/[\d.]+\)$/, "0.2)") };
+});
+
+// Glass area tint from primaryColor
+const glassTintStyle = computed(() => {
+  if (!userProfile.value?.primaryColor) return {};
+  const color = argbToRgba(userProfile.value.primaryColor);
+  return { background: `linear-gradient(180deg, ${color.replace(/[\d.]+\)$/, "0.10)")}, transparent 60%)` };
+});
+
+// Glass shine line color tint
+const glassShineTint = computed(() => {
+  if (!userProfile.value?.accentColor) return {};
+  const accent = argbToRgba(userProfile.value.accentColor);
+  return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, "0.3)")}, transparent)` };
+});
+
+// Accent glow on card border — more dramatic multi-layer glow
+const cardGlowStyle = computed(() => {
+  if (!userProfile.value?.accentColor) return {};
+  const accent = argbToRgba(userProfile.value.accentColor);
+  const outerGlow = accent.replace(/[\d.]+\)$/, "0.25)");
+  const midGlow = accent.replace(/[\d.]+\)$/, "0.12)");
+  const innerBorder = accent.replace(/[\d.]+\)$/, "0.2)");
+  return {
+    boxShadow: `0 0 30px ${outerGlow}, 0 0 60px ${midGlow}, inset 0 0 0 1px ${innerBorder}`,
+  };
+});
+
+// Avatar ring with accent — add a glow
+const avatarRingStyle = computed(() => {
+  if (!userProfile.value?.accentColor) return {};
+  const accent = argbToRgba(userProfile.value.accentColor);
+  const glow = accent.replace(/[\d.]+\)$/, "0.4)");
+  return {
+    borderColor: accent,
+    boxShadow: `0 0 12px ${glow}`,
+  };
+});
+
+// Name accent highlight
+const nameAccentStyle = computed(() => {
+  if (!userProfile.value?.accentColor) return {};
+  const accent = argbToRgba(userProfile.value.accentColor);
+  return { color: accent };
+});
+
+// Status text + class
+const statusText = computed(() => {
+  if (!user.value) return "";
+  switch (user.value.status) {
+    case UserStatus.Online: return t("status_online") || "Online";
+    case UserStatus.Away: return t("status_away") || "Away";
+    case UserStatus.DoNotDisturb: return t("status_dnd") || "Do Not Disturb";
+    case UserStatus.TouchGrass: return t("status_touch_grass") || "Touch Grass";
+    case UserStatus.Offline: return t("status_offline") || "Offline";
+    default: return t("status_online") || "Online";
+  }
+});
+
+const presenceClass = computed(() => {
+  if (!user.value) return "";
+  switch (user.value.status) {
+    case UserStatus.Online: return "presence-online";
+    case UserStatus.Away: return "presence-away";
+    case UserStatus.DoNotDisturb: return "presence-dnd";
+    case UserStatus.Offline: return "presence-offline";
+    default: return "presence-online";
+  }
+});
+
+// ── Props ──
 
 const props = withDefaults(
   defineProps<{
@@ -261,12 +371,8 @@ const formatDate = (date: Date) => {
 
 const me = useMe();
 
-const activityWrapper = ref<HTMLElement | null>(null);
-const activityText = ref<HTMLElement | null>(null);
-const shouldScroll = ref(false);
-
 onMounted(async () => {
-  userProfile.value = await api.serverInteraction.PrefetchProfile(
+  userProfile.value = await profileCache.getProfile(
     pool.selectedServer!,
     props.userId,
   );
@@ -307,14 +413,6 @@ onMounted(async () => {
   }
 
   isLoading.value = false;
-
-  await nextTick();
-  const wrapper = activityWrapper.value;
-  const text = activityText.value;
-
-  if (wrapper && text) {
-    shouldScroll.value = text.scrollWidth > wrapper.clientWidth;
-  }
 });
 
 async function addRole(archetypeId: Guid) {
@@ -354,114 +452,190 @@ async function removeRole(archetypeId: Guid) {
   transform: scale(0.96) translateY(6px);
 }
 
-/* Staggered section animation */
-.profile-content > * {
-  animation: section-fade-in 0.3s ease both;
-}
-.profile-content > *:nth-child(1) { animation-delay: 0.05s; }
-.profile-content > *:nth-child(2) { animation-delay: 0.08s; }
-.profile-content > *:nth-child(3) { animation-delay: 0.12s; }
-.profile-content > *:nth-child(4) { animation-delay: 0.16s; }
-.profile-content > *:nth-child(5) { animation-delay: 0.20s; }
-.profile-content > *:nth-child(6) { animation-delay: 0.24s; }
-.profile-content > *:nth-child(7) { animation-delay: 0.28s; }
-
-@keyframes section-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .popover-inner {
   position: relative;
-}
-
-/* Banner + Avatar */
-.banner-section {
-  position: relative;
-}
-
-.avatar-anchor {
-  position: absolute;
-  left: 16px;
-  bottom: -36px;
-}
-
-.avatar-ring {
-  position: relative;
-  border-radius: 50%;
-  padding: 3px;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
   background: hsl(var(--card));
 }
 
-.avatar-status {
+/* ── Full-bleed background ── */
+.card-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.card-bg-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-bg-default {
+  background: linear-gradient(160deg, hsl(var(--muted) / 0.5) 0%, hsl(var(--card)) 100%);
+}
+
+.card-bg-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* ── Hero spacer — reserves space for the visible background ── */
+.hero-spacer {
+  position: relative;
+  height: 100px;
+  z-index: 1;
+}
+
+/* ── Glass zone (frost + shine + body) ── */
+.glass-zone {
+  position: relative;
+  z-index: 2;
+}
+
+/* Frosted glass transition band */
+.glass-frost {
+  height: 28px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--card) / 0) 0%,
+    hsl(var(--card) / 0.35) 40%,
+    hsl(var(--card) / 0.7) 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+}
+
+/* Shine/accent line at glass edge */
+.glass-shine {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.08), transparent);
+}
+
+/* Main glass body */
+.glass-body {
+  background: hsl(var(--card) / 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 0 16px 16px;
+}
+
+/* ── Profile header: overlapping avatar + name ── */
+.profile-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.avatar-anchor {
+  flex-shrink: 0;
+  margin-top: -44px;  /* overlap into background */
+}
+
+.hero-avatar {
+  position: relative;
+  border-radius: 50%;
+  padding: 3px;
+  border: 3px solid hsl(var(--card) / 0.9);
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px hsl(var(--background) / 0.4);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-dot {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 18px;
-  height: 14px;
+  width: 13px;
+  height: 10px;
   border-radius: 9999px;
-  border: 3px solid hsl(var(--card));
+  border: 2px solid hsl(var(--card));
 }
 
-/* Activity pill */
-.activity-pill {
-  position: absolute;
-  top: 100px;
-  right: 12px;
+.hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+
+.hero-name-row {
   display: flex;
   align-items: center;
-  overflow: hidden;
-  max-width: 140px;
-  padding: 3px 8px;
-  border-radius: 8px;
-  background: hsl(var(--background) / 0.85);
-  backdrop-filter: blur(6px);
-  font-size: 0.65rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.activity-fade-left {
-  background: linear-gradient(to right, hsl(var(--background) / 0.85), transparent);
-}
-.activity-fade-right {
-  background: linear-gradient(to left, hsl(var(--background) / 0.85), transparent);
-}
-
-/* Content */
-.profile-content {
-  padding: 44px 16px 16px;
-}
-
-.name-row {
-  display: flex;
+  gap: 5px;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 2px;
 }
 
-.display-name {
-  font-size: 1.15rem;
-  font-weight: 600;
+.hero-display-name {
+  font-size: 1.1rem;
+  font-weight: 700;
   color: hsl(var(--foreground));
+  transition: color 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .badge-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   vertical-align: middle;
+  filter: drop-shadow(0 1px 2px hsl(var(--background) / 0.3));
 }
 
-.username {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 4px;
+.hero-username {
+  font-size: 0.72rem;
+  color: hsl(var(--foreground) / 0.5);
+}
+
+.hero-status {
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.hero-activity {
+  color: hsl(var(--foreground) / 0.8);
+}
+
+.hero-presence {
+  font-weight: 600;
+}
+.presence-online { color: #4ade80; }
+.presence-away { color: #fbbf24; }
+.presence-dnd { color: #f87171; }
+.presence-offline { color: #9ca3af; }
+
+/* ── Content sections ── */
+
+/* Staggered section animation */
+.glass-body > :not(.profile-header) {
+  animation: section-fade-in 0.3s ease both;
+}
+.glass-body > :nth-child(2) { animation-delay: 0.04s; }
+.glass-body > :nth-child(3) { animation-delay: 0.08s; }
+.glass-body > :nth-child(4) { animation-delay: 0.12s; }
+.glass-body > :nth-child(5) { animation-delay: 0.16s; }
+.glass-body > :nth-child(6) { animation-delay: 0.20s; }
+.glass-body > :nth-child(7) { animation-delay: 0.24s; }
+
+@keyframes section-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Custom status */
@@ -471,7 +645,7 @@ async function removeRole(archetypeId: Guid) {
   gap: 5px;
   margin-bottom: 4px;
   font-size: 0.78rem;
-  color: hsl(var(--foreground) / 0.7);
+  color: hsl(var(--foreground) / 0.65);
   font-style: italic;
 }
 
@@ -483,8 +657,8 @@ async function removeRole(archetypeId: Guid) {
 
 /* Section separator */
 .section-sep {
-  margin: 10px 0;
-  opacity: 0.4;
+  margin: 8px 0;
+  opacity: 0.25;
 }
 
 /* Roles */
@@ -496,7 +670,7 @@ async function removeRole(archetypeId: Guid) {
   font-size: 0.68rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: hsl(var(--muted-foreground));
   margin-bottom: 6px;
 }
@@ -511,13 +685,13 @@ async function removeRole(archetypeId: Guid) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 500;
   color: hsl(var(--foreground) / 0.9);
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border) / 0.4);
+  background: hsl(var(--background) / 0.45);
+  border: 1px solid hsl(var(--border) / 0.3);
 }
 
 .role-dot {
@@ -552,9 +726,10 @@ async function removeRole(archetypeId: Guid) {
 
 .role-picker {
   margin-top: 4px;
-  background: hsl(var(--popover));
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+  background: hsl(var(--popover) / 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
   max-height: 120px;
   overflow-y: auto;
 }
@@ -563,13 +738,13 @@ async function removeRole(archetypeId: Guid) {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 5px 10px;
   cursor: pointer;
   font-size: 0.75rem;
   transition: background 0.1s;
 }
 .role-picker-item:hover {
-  background: hsl(var(--accent));
+  background: hsl(var(--accent) / 0.5);
 }
 
 /* Member since */
@@ -585,39 +760,30 @@ async function removeRole(archetypeId: Guid) {
 .bio-block {
   font-size: 0.82rem;
   color: hsl(var(--foreground) / 0.85);
-  background: hsl(var(--background));
+  background: hsl(var(--background) / 0.3);
   padding: 8px 12px;
   border-radius: 10px;
   line-height: 1.45;
+  border: 1px solid hsl(var(--border) / 0.15);
 }
 
 /* Loading skeleton */
 .loading-skeleton {
   width: 100%;
-  min-height: 25rem;
+  min-height: 18rem;
   overflow: hidden;
+  border-radius: 16px;
+  background: hsl(var(--card));
 }
 
-.skeleton-banner {
-  height: 96px;
+.skeleton-hero {
+  height: 100px;
   background: hsl(var(--muted) / 0.3);
-  border-radius: 16px 16px 0 0;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .skeleton-content {
   padding: 16px;
-  position: relative;
-}
-
-.skeleton-avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: hsl(var(--muted) / 0.4);
-  margin-top: -36px;
-  margin-bottom: 20px;
-  animation: pulse 1.5s ease-in-out infinite;
 }
 
 .skeleton-line {
@@ -628,24 +794,13 @@ async function removeRole(archetypeId: Guid) {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.skeleton-line--name { width: 60%; height: 16px; }
-.skeleton-line--tag { width: 35%; }
-.skeleton-line--bio { width: 90%; animation-delay: 0.2s; }
-.skeleton-line--bio2 { width: 70%; animation-delay: 0.3s; }
+.skeleton-line--name { width: 55%; height: 16px; }
+.skeleton-line--tag { width: 30%; }
+.skeleton-line--bio { width: 85%; animation-delay: 0.2s; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-/* Marquee */
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-marquee {
-  animation: marquee 10s linear infinite;
 }
 </style>
 

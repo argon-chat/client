@@ -1076,5 +1076,32 @@
   "ultima_tx_type_gift": "Gift sent",
   "ultima_tx_type_boost": "Boost pack ({count}×)",
   "ultima_tx_type_subscription": "Subscription payment",
-  "ultima_tx_type_payment": "Payment"
+  "ultima_tx_type_payment": "Payment",
+
+  "profile_customization": "Profile Customization",
+  "custom_status": "Custom Status",
+  "set_custom_status": "Set a custom status...",
+  "tell_about_yourself": "Tell people about yourself...",
+  "primary_color": "Primary Color",
+  "profile_background": "Background",
+  "none": "None",
+  "saving": "Saving...",
+  "unsaved_changes": "Unsaved changes",
+  "profile_updated": "Profile updated",
+  "profile_update_failed": "Failed to update profile",
+  "no_phone_added": "No phone number added",
+  "test": "Test",
+  "member_since": "Member Since",
+  "no_roles_available": "No roles available",
+  "status_online": "Online",
+  "status_away": "Away",
+  "status_dnd": "Do Not Disturb",
+  "status_touch_grass": "Touch Grass",
+  "status_offline": "Offline",
+
+  "unlock_full_profile": "Unlock the full profile experience",
+  "perk_animated_avatars": "Animated Avatars",
+  "perk_custom_colors": "Custom Colors",
+  "perk_profile_backgrounds": "Profile Backgrounds",
+  "perk_custom_status": "Custom Status"
 }
