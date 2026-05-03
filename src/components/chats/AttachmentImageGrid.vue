@@ -12,6 +12,7 @@
       :width="images[0].width"
       :height="images[0].height"
       :thumb-hash="images[0].thumbHash"
+      :download-url="images[0].downloadUrl"
     />
   </div>
 
@@ -36,6 +37,7 @@
           :width="img.width"
           :height="img.height"
           :thumb-hash="img.thumbHash"
+          :download-url="img.downloadUrl"
         />
       </div>
     </div>

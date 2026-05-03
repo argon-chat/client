@@ -38,7 +38,7 @@ import { Button } from "@argon/ui/button";
 import { useToast } from "@argon/ui/toast";
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";
-import { UploadFileError } from "@argon/glue";
+import { uploadFile } from "@/lib/uploadFile";
 import { v7 } from "uuid";
 
 interface Props {
@@ -104,72 +104,8 @@ const handleSave = async () => {
 
 async function uploadUserAvatar(data: string | Blob | File): Promise<string> {
   const begin = await api.userInteraction.BeginUploadAvatar();
-
-  if (begin.isFailedUploadFile()) {
-    throw new Error(UploadFileError[begin.error] ?? "BeginUploadAvatar failed");
-  }
-  if (!begin.isSuccessUploadFile()) {
-    throw new Error("Unexpected upload state");
-  }
-
-  const blobId = begin.blobId;
-  if (!blobId) throw new Error("No blobId returned from BeginUploadAvatar");
-
-  let file: File;
-
-  if (typeof data === "string") {
-    const blob = dataURLtoBlob(data);
-    file = new File([blob], `${v7()}.jpg`, { type: blob.type });
-  } else if (data instanceof Blob) {
-    file = new File([data], `${v7()}.${getFileExtension(data.type)}`, { type: data.type });
-  } else {
-    file = data;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(`https://koko.argon.gl/api/v1/upload/${blobId}`, {
-    method: "PATCH",
-    body: formData,
-    headers: {
-      "X-Api-Token": "f2f3be8c3ddf5017c019248fef849bc240e7b4a25ecb662251d8a4ca7ac6fe58"
-    }
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Upload failed (${response.status}): ${errText}`);
-  }
-
+  const { blobId } = await uploadFile(begin, data, "Avatar");
   return blobId;
-}
-
-function getFileExtension(mime: string): string {
-  switch (mime) {
-    case "image/png": return "png";
-    case "image/jpeg": return "jpg";
-    case "image/gif": return "gif";
-    case "video/webm": return "webm";
-    default: return "bin";
-  }
-}
-
-function dataURLtoBlob(dataUrl: string): Blob {
-  const arr = dataUrl.split(",");
-  const mimeMatch = arr[0].match(/:(.*?);/);
-  if (!mimeMatch) throw new Error("Cant detect MIME-type");
-
-  const mime = mimeMatch[1];
-  const bstr = atob(arr[1]);
-  const n = bstr.length;
-  const u8arr = new Uint8Array(n);
-
-  for (let i = 0; i < n; i++) {
-    u8arr[i] = bstr.charCodeAt(i);
-  }
-
-  return new Blob([u8arr], { type: mime });
 }
 </script>
 

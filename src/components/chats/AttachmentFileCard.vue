@@ -25,13 +25,14 @@ import {
   DownloadIcon,
   Loader2Icon,
 } from "lucide-vue-next";
-import { cdnUrl } from "@/store/system/fileStorage";
+import { resolveAttachmentUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   fileId: string;
   fileName: string;
   fileSize: bigint | number;
   contentType: string;
+  downloadUrl?: string | null;
 }>();
 
 const downloading = ref(false);
@@ -61,7 +62,7 @@ async function download() {
   if (isPlaceholder.value) return;
   downloading.value = true;
   try {
-    const url = cdnUrl(props.fileId);
+    const url = resolveAttachmentUrl(props.fileId, props.downloadUrl ?? null);
 
     const resp = await fetch(url);
     if (!resp.ok) return;

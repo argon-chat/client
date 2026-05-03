@@ -11,6 +11,7 @@
       :file-name="file.fileName"
       :file-size="file.fileSize"
       :content-type="file.contentType"
+      :download-url="file.downloadUrl"
     />
   </div>
 </template>

@@ -892,6 +892,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated, UploadFileError, UltimaPlan, CheckoutError } from "@argon/glue";
+import { uploadFile } from "@/lib/uploadFile";
 import { v7 } from "uuid";
 import { useBus } from "@/store/realtime/busStore";
 import { PasskeyManager, type PasskeyApiCallbacks } from "@argon/passkey";
@@ -990,27 +991,7 @@ function onAvatarFileSelected(event: Event) {
 async function uploadAnimatedAvatar(file: File) {
   try {
     const begin = await api.userInteraction.BeginUploadAvatar();
-    if (begin.isFailedUploadFile()) {
-      toast({ title: t("error"), description: UploadFileError[begin.error] ?? "Upload failed", variant: "destructive" });
-      return;
-    }
-    if (!begin.isSuccessUploadFile()) {
-      toast({ title: t("error"), description: "Upload failed", variant: "destructive" });
-      return;
-    }
-
-    const blobId = begin.blobId;
-    const uploadFile = new File([file], `${v7()}.${file.type === "video/webm" ? "webm" : "gif"}`, { type: file.type });
-    const formData = new FormData();
-    formData.append("file", uploadFile);
-
-    const response = await fetch(`https://koko.argon.gl/api/v1/upload/${blobId}`, {
-      method: "PATCH",
-      body: formData,
-      headers: { "X-Api-Token": "f2f3be8c3ddf5017c019248fef849bc240e7b4a25ecb662251d8a4ca7ac6fe58" },
-    });
-
-    if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+    const { blobId } = await uploadFile(begin, file, "Avatar");
 
     await api.userInteraction.CompleteUploadAvatar(blobId);
     toast({ title: t("profile_updated") || "Avatar updated" });

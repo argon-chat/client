@@ -56,7 +56,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityAttachment } from "@argon/glue";
-import { cdnUrl } from "@/store/system/fileStorage";
+import { resolveAttachmentUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   images: MessageEntityAttachment[];
@@ -101,7 +101,7 @@ async function loadImage(fileId: string) {
   }
   currentSrc.value = null;
   imageLoaded.value = false;
-  const url = cdnUrl(fileId);
+  const url = resolveAttachmentUrl(fileId, currentImage.value?.downloadUrl ?? null);
   srcCache.set(fileId, url);
   currentSrc.value = url;
 }

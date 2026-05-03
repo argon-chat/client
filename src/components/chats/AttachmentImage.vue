@@ -31,7 +31,7 @@
 import { ref, onMounted, watch, nextTick, computed } from "vue";
 import { Loader2Icon } from "lucide-vue-next";
 import { thumbHashToRGBA } from "thumbhash";
-import { cdnUrl } from "@/store/system/fileStorage";
+import { resolveAttachmentUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   fileId: string;
@@ -39,6 +39,7 @@ const props = defineProps<{
   width: number | null;
   height: number | null;
   thumbHash: string | null;
+  downloadUrl?: string | null;
 }>();
 
 const placeholderCanvas = ref<HTMLCanvasElement | null>(null);
@@ -100,7 +101,7 @@ onMounted(async () => {
   if (isPlaceholder.value) return;
 
   // Fetch the actual image
-  const url = cdnUrl(props.fileId);
+  const url = resolveAttachmentUrl(props.fileId, props.downloadUrl);
   imageSrc.value = url;
 });
 
@@ -119,7 +120,7 @@ watch(
   async (newFileId) => {
     if (newFileId === PLACEHOLDER_FILE_ID) return;
     loaded.value = false;
-    imageSrc.value = cdnUrl(newFileId);
+    imageSrc.value = resolveAttachmentUrl(newFileId, props.downloadUrl);
   },
 );
 </script>

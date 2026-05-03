@@ -21,6 +21,19 @@ export function cdnUrl(fileId: string): string {
   return `https://cdn.argon.gl/${fileId}`;
 }
 
+/**
+ * Resolve URL for message attachments.
+ * Uses server-provided downloadUrl when available; falls back to legacy cdnUrl(fileId).
+ * In native (Electron), routes geo-CDN URLs through app://cdn-proxy/ for local caching.
+ */
+export function resolveAttachmentUrl(fileId: string, downloadUrl: string | null | undefined): string {
+  if (downloadUrl) {
+    if (isNative) return `app://cdn-proxy/${encodeURIComponent(downloadUrl)}`;
+    return downloadUrl;
+  }
+  return cdnUrl(fileId);
+}
+
 export async function getStorageUsageReport(): Promise<StorageUsageReport> {
   let quota: number | null = null;
   let storageUsed: number | null = null;

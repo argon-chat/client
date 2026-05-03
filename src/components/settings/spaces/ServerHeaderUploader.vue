@@ -55,6 +55,7 @@ import BuyPremium from "../../modals/BuyPremium.vue";
 import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/auth/meStore";
 import { useApi } from "@/store/system/apiStore";
+import { uploadFile } from "@/lib/uploadFile";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { v7 } from "uuid";
 import { useLocale } from "@/store/system/localeStore";
@@ -158,8 +159,7 @@ const onHeaderChange = async (event: Event) => {
 
 const handleHeaderUpdated = async (croppedDataUrl: string) => {
   try {
-    const blob = dataURLtoBlob(croppedDataUrl);
-    const blobId = await uploadServerHeader(blob);
+    const blobId = await uploadServerHeader(croppedDataUrl);
     await api.serverInteraction.CompleteUploadSpaceProfileHeader(props.spaceId, blobId);
 
     toast.toast({
@@ -178,64 +178,9 @@ const handleHeaderUpdated = async (croppedDataUrl: string) => {
 };
 
 async function uploadServerHeader(data: string | Blob | File): Promise<string> {
-  const blobId = await api.serverInteraction.BeginUploadSpaceProfileHeader(props.spaceId);
-
-  if (!blobId) throw new Error("No blobId returned from BeginUploadSpaceProfileHeader");
-
-  let file: File;
-
-  if (typeof data === "string") {
-    const blob = dataURLtoBlob(data);
-    file = new File([blob], `${v7()}.jpg`, { type: blob.type });
-  } else if (data instanceof Blob) {
-    file = new File([data], `${v7()}.${getFileExtension(data.type)}`, { type: data.type });
-  } else {
-    file = data;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(`https://koko.argon.gl/api/v1/upload/${blobId}`, {
-    method: "PATCH",
-    body: formData,
-    headers: {
-      "X-Api-Token": "f2f3be8c3ddf5017c019248fef849bc240e7b4a25ecb662251d8a4ca7ac6fe58"
-    }
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Upload failed (${response.status}): ${errText}`);
-  }
-
+  const begin = await api.serverInteraction.BeginUploadSpaceProfileHeader(props.spaceId);
+  const { blobId } = await uploadFile(begin, data, "SpaceProfileHeader");
   return blobId;
-}
-
-function getFileExtension(mime: string): string {
-  switch (mime) {
-    case "image/png": return "png";
-    case "image/jpeg": return "jpg";
-    case "image/gif": return "gif";
-    default: return "bin";
-  }
-}
-
-function dataURLtoBlob(dataUrl: string): Blob {
-  const arr = dataUrl.split(",");
-  const mimeMatch = arr[0].match(/:(.*?);/);
-  if (!mimeMatch) throw new Error("Cant detect MIME-type");
-
-  const mime = mimeMatch[1];
-  const bstr = atob(arr[1]);
-  const n = bstr.length;
-  const u8arr = new Uint8Array(n);
-
-  for (let i = 0; i < n; i++) {
-    u8arr[i] = bstr.charCodeAt(i);
-  }
-
-  return new Blob([u8arr], { type: mime });
 }
 </script>
 

@@ -253,6 +253,7 @@ export interface AttachmentInfo {
   fileName: string;
   fileSize: i8;
   contentType: string;
+  downloadUrl: string | null;
 };
 
 
@@ -1176,6 +1177,12 @@ export interface MyLevelDetails {
 };
 
 
+export interface FormField {
+  key: string;
+  value: string;
+};
+
+
 export interface UserEditInput {
   displayName: string | null;
   avatarId: string | null;
@@ -1916,7 +1923,7 @@ export class MessageEntitySystemUserJoined extends IMessageEntity
 
 export class MessageEntityAttachment extends IMessageEntity
 {
-  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public fileId: guid, public fileName: string, public fileSize: i8, public contentType: string, public width: i4 | null, public height: i4 | null, public thumbHash: string | null) { super(); }
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public fileId: guid, public fileName: string, public fileSize: i8, public contentType: string, public width: i4 | null, public height: i4 | null, public thumbHash: string | null, public downloadUrl: string | null) { super(); }
 
   UnionKey: string = "MessageEntityAttachment";
   UnionIndex: number = 20;
@@ -2507,11 +2514,12 @@ IonFormatterStorage.register("MessageEntityAttachment", {
     const width = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const height = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const thumbHash = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 11);
-    return new MessageEntityAttachment(type, offset, length, version, fileId, fileName, fileSize, contentType, width, height, thumbHash);
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return new MessageEntityAttachment(type, offset, length, version, fileId, fileName, fileSize, contentType, width, height, thumbHash, downloadUrl);
   },
   write(writer: CborWriter, value: MessageEntityAttachment): void {
-    writer.writeStartArray(11);
+    writer.writeStartArray(12);
     IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
     IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
     IonFormatterStorage.get<i4>('i4').write(writer, value.length);
@@ -2523,6 +2531,7 @@ IonFormatterStorage.register("MessageEntityAttachment", {
     IonFormatterStorage.writeNullable<i4>(writer, value.width, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.height, 'i4');
     IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -7717,7 +7726,7 @@ export abstract class IUploadFileResult implements IIonUnion<IUploadFileResult>
 
 export class SuccessUploadFile extends IUploadFileResult
 {
-  constructor(public blobId: guid) { super(); }
+  constructor(public blobId: guid, public uploadUrl: string, public formFields: IonArray<FormField>, public ttlSeconds: i4) { super(); }
 
   UnionKey: string = "SuccessUploadFile";
   UnionIndex: number = 0;
@@ -7773,12 +7782,18 @@ IonFormatterStorage.register("SuccessUploadFile", {
   read(reader: CborReader): SuccessUploadFile {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const blobId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 1);
-    return new SuccessUploadFile(blobId);
+    const uploadUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const formFields = IonFormatterStorage.readArray<FormField>(reader, 'FormField');
+    const ttlSeconds = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new SuccessUploadFile(blobId, uploadUrl, formFields, ttlSeconds);
   },
   write(writer: CborWriter, value: SuccessUploadFile): void {
-    writer.writeStartArray(1);
+    writer.writeStartArray(4);
     IonFormatterStorage.get<guid>('guid').write(writer, value.blobId);
+    IonFormatterStorage.get<string>('string').write(writer, value.uploadUrl);
+    IonFormatterStorage.writeArray<FormField>(writer, value.formFields, 'FormField');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.ttlSeconds);
     writer.writeEndArray();
   }
 });
@@ -9075,15 +9090,17 @@ IonFormatterStorage.register("AttachmentInfo", {
     const fileName = IonFormatterStorage.get<string>('string').read(reader);
     const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
     const contentType = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { fileId, fileName, fileSize, contentType };
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { fileId, fileName, fileSize, contentType, downloadUrl };
   },
   write(writer: CborWriter, value: AttachmentInfo): void {
-    writer.writeStartArray(4);
+    writer.writeStartArray(5);
     IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
     IonFormatterStorage.get<string>('string').write(writer, value.fileName);
     IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
     IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -10687,6 +10704,22 @@ IonFormatterStorage.register("MyLevelDetails", {
   }
 });
 
+IonFormatterStorage.register("FormField", {
+  read(reader: CborReader): FormField {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { key, value };
+  },
+  write(writer: CborWriter, value: FormField): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UserEditInput", {
   read(reader: CborReader): UserEditInput {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -11177,9 +11210,9 @@ export interface IServerInteraction extends IIonService
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
+  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
-  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
+  BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
@@ -11438,9 +11471,9 @@ export interface IServerInteraction extends IIonService
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
-  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid>;
+  BeginUploadSpaceProfileHeader(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
-  BeginUploadSpaceAvatar(spaceId: guid): Promise<guid>;
+  BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
@@ -13113,7 +13146,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IonArray<ArchetypeGroup>>("IonArray<ArchetypeGroup>", writer.data, this.signal);
   }
-  async BeginUploadSpaceProfileHeader(spaceId: guid): Promise<guid> {
+  async BeginUploadSpaceProfileHeader(spaceId: guid): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadSpaceProfileHeader");
           
     const writer = new CborWriter();
@@ -13124,7 +13157,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<guid>("guid", writer.data, this.signal);
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
   }
   async CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceProfileHeader");
@@ -13140,7 +13173,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     await req.callAsync(writer.data, this.signal);
   }
-  async BeginUploadSpaceAvatar(spaceId: guid): Promise<guid> {
+  async BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadSpaceAvatar");
           
     const writer = new CborWriter();
@@ -13151,7 +13184,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<guid>("guid", writer.data, this.signal);
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
   }
   async CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceAvatar");

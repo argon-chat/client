@@ -3,11 +3,11 @@ import { logger } from "@argon/core";
 import {
   EntityType,
   MessageEntityAttachment,
-  UploadFileError,
   type AttachmentInfo,
   type IMessageEntity,
 } from "@argon/glue";
 import { useApi } from "@/store/system/apiStore";
+import { uploadFile } from "@/lib/uploadFile";
 import { rgbaToThumbHash } from "thumbhash";
 import type { Guid } from "@argon-chat/ion.webcore";
 
@@ -164,41 +164,10 @@ export function useAttachmentUpload() {
         channelId,
       );
 
-      if (begin.isFailedUploadFile()) {
-        throw new Error(
-          UploadFileError[begin.error] ?? "BeginUploadAttachment failed",
-        );
-      }
-      if (!begin.isSuccessUploadFile()) {
-        throw new Error("Unexpected upload state");
-      }
-
-      const blobId = begin.blobId;
-      if (!blobId)
-        throw new Error("No blobId returned from BeginUploadAttachment");
-
       entry.progress = 20;
 
-      // Step 2: Upload file to KineticaFS
-      const formData = new FormData();
-      formData.append("file", entry.file);
-
-      const response = await fetch(
-        `https://koko.argon.gl/api/v1/upload/${blobId}`,
-        {
-          method: "PATCH",
-          body: formData,
-          headers: {
-            "X-Api-Token":
-              "f2f3be8c3ddf5017c019248fef849bc240e7b4a25ecb662251d8a4ca7ac6fe58",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Upload failed (${response.status}): ${errText}`);
-      }
+      // Step 2: Upload file via PUT
+      const { blobId } = await uploadFile(begin, entry.file, "Attachment");
 
       entry.progress = 80;
 
@@ -246,6 +215,7 @@ export function useAttachmentUpload() {
           entry.width,
           entry.height,
           entry.thumbHash,
+          null,
         ),
       );
     }
@@ -282,6 +252,7 @@ export function useAttachmentUpload() {
           entry.width,
           entry.height,
           entry.thumbHash,
+          null,
         ),
     );
   }
@@ -321,6 +292,7 @@ export function useAttachmentUpload() {
               entry.width,
               entry.height,
               entry.thumbHash,
+              null,
             ),
           );
         }
