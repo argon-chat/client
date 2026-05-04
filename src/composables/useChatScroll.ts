@@ -76,11 +76,26 @@ export function useChatScroll(
   const virtualizer = useVirtualizer(virtualizerOptions);
   const virtualItems = computed(() => virtualizer.value.getVirtualItems());
 
-  // TanStack's measureElement is cheap on repeated calls (cache hit + ResizeObserver already attached).
-  // No guard needed — just forward to tanstack.
+  // Batch measureElement calls to avoid layout thrashing.
+  // Collect elements during a frame, then measure all at once in a single rAF.
+  let pendingMeasurements: HTMLElement[] = [];
+  let measureRafId: number | null = null;
+
+  const flushMeasurements = () => {
+    measureRafId = null;
+    const els = pendingMeasurements;
+    pendingMeasurements = [];
+    for (const el of els) {
+      virtualizer.value.measureElement(el);
+    }
+  };
+
   const measureItem = (el: HTMLElement | null, _index: number) => {
     if (!el) return;
-    virtualizer.value.measureElement(el);
+    pendingMeasurements.push(el);
+    if (measureRafId === null) {
+      measureRafId = requestAnimationFrame(flushMeasurements);
+    }
   };
 
   const scrollToBottomImmediate = () => {

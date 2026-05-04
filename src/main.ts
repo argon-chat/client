@@ -71,9 +71,9 @@ Sentry.init({
       stateTransformer: () => null,
     })
   ],
-  tracesSampleRate: 1.0,
+  tracesSampleRate: import.meta.env.DEV ? 0 : 1.0,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
-  replaysSessionSampleRate: 1.0,
+  replaysSessionSampleRate: import.meta.env.DEV ? 0 : 1.0,
   replaysOnErrorSampleRate: 1.0,
   environment: import.meta.env.MODE,
   release: pkg.version,

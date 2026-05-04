@@ -2,7 +2,9 @@ import { CborReader, IonFormatterStorage } from "@argon-chat/ion.webcore";
 import { ActivityKind, createClient, IHostProc, INativeEvent, IOverlayController, PinnedFn } from "./argon.ipc";
 import { createElectronClient } from "./electronClient";
 
-if (!("ahid" in window)) {
+const _hasWindow = typeof window !== "undefined";
+
+if (_hasWindow && !("ahid" in window)) {
   window["ahid"] = 0;
 }
 
@@ -26,7 +28,7 @@ class ArgonHostProxy implements IArgon {
   }
 
   get ahid(): number {
-    return window.ahid;
+    return _hasWindow ? window.ahid : 0;
   }
 
   get isArgonHost(): boolean {
@@ -82,25 +84,29 @@ class NativeProxy {
   }
 }
 
-window.argon = deepFreeze(new ArgonHostProxy());
+let native: NativeProxy | undefined;
+let argon: ArgonHostProxy | undefined;
 
-window.addEventListener("native_abi", (e) => {
-  const reader = new CborReader(e.detail.bytes);
-  const result =
-    IonFormatterStorage.get<INativeEvent>("INativeEvent").read(reader);
-  console.log("Received:", result);
+if (_hasWindow) {
+  window.argon = deepFreeze(new ArgonHostProxy());
 
-  const handler = map.get(e.detail.idx);
+  window.addEventListener("native_abi", (e) => {
+    const reader = new CborReader(e.detail.bytes);
+    const result =
+      IonFormatterStorage.get<INativeEvent>("INativeEvent").read(reader);
+    console.log("Received:", result);
 
-  if (handler) {
-    handler(result);
-  }
-});
+    const handler = map.get(e.detail.idx);
 
+    if (handler) {
+      handler(result);
+    }
+  });
 
+  native = new NativeProxy();
+  argon = window.argon;
 
-const native = new NativeProxy();
-const argon = window.argon;
+  (window as any).native = native;
+}
 
-(window as any).native = native;
 export { native, argon };

@@ -1,149 +1,95 @@
 import { defineStore } from "pinia";
-import { defer, from, of, Subject, timer, type Subscription } from "rxjs";
-import { catchError, filter, repeat, switchMap } from "rxjs/operators";
+import { Subject, type Subscription } from "rxjs";
+import { filter } from "rxjs/operators";
 import { useApi } from "@/store/system/apiStore";
 import { logger } from "@argon/core";
 import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
-import * as signalR from "@microsoft/signalr";
-import { CborReader, Guid, IonFormatterStorage } from "@argon-chat/ion.webcore";
-import { MessagePackHubProtocol } from "@microsoft/signalr-protocol-msgpack";
+import type { Guid } from "@argon-chat/ion.webcore";
+import RealtimeWorker from "@/workers/realtimeWorker?worker";
+
 export type EventWithServerId<T> = { spaceId: string } & T;
 
 export const useBus = defineStore("bus", () => {
   const argonEventBus = new Subject<IArgonEvent>();
   const userEventBus = new Subject<IArgonEvent>();
-  const intervalSubject = ref(null as Subscription | null);
   const isSignalRReconnecting = ref(false);
   const nextReconnectAttempt = ref<number | null>(null);
   const reconnectAttemptCount = ref(0);
 
-  const controller = new AbortController();
-  const { signal } = controller;
-
   const api = useApi();
-  let hubConnection: signalR.HubConnection | null = null;
+  let worker: Worker | null = null;
+
+  function createWorker() {
+    if (worker) return worker;
+    
+    worker = new RealtimeWorker();
+
+    worker.onmessage = async (e: MessageEvent) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case "event":
+          // Events arrive already decoded from worker
+          argonEventBus.next(msg.event as IArgonEvent);
+          break;
+
+        case "tokenRequest":
+          // Worker needs auth token — fetch from main thread API and respond
+          try {
+            const token = await api.eventBus.PickTicket();
+            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token });
+          } catch (err) {
+            logger.error("Failed to get token for worker", err);
+          }
+          break;
+
+        case "heartbeatRequest":
+          // Worker requests heartbeat — provide current user status
+          try {
+            const { useMe } = await import("../auth/meStore");
+            const me = useMe();
+            const status = me.me?.currentStatus ?? UserStatus.Online;
+            worker!.postMessage({ type: "heartbeatInvoke", status });
+          } catch (err) {
+            logger.error("Failed to send heartbeat status to worker", err);
+          }
+          break;
+
+        case "state":
+          if (msg.state === "reconnecting") {
+            isSignalRReconnecting.value = true;
+          } else if (msg.state === "connected") {
+            isSignalRReconnecting.value = false;
+            nextReconnectAttempt.value = null;
+            reconnectAttemptCount.value = 0;
+          } else if (msg.state === "disconnected") {
+            // Will auto-reconnect inside worker
+          }
+          break;
+
+        case "reconnectInfo":
+          reconnectAttemptCount.value = msg.attemptCount;
+          nextReconnectAttempt.value = msg.nextAttemptAt;
+          break;
+
+        case "log":
+          if (msg.level === "error") logger.error(`[RealtimeWorker] ${msg.message}`, ...(msg.args ?? []));
+          else if (msg.level === "warn") logger.warn(`[RealtimeWorker] ${msg.message}`, ...(msg.args ?? []));
+          else logger.log(`[RealtimeWorker] ${msg.message}`, ...(msg.args ?? []));
+          break;
+      }
+    };
+
+    worker.onerror = (err) => {
+      logger.error("[RealtimeWorker] Worker error:", err);
+    };
+
+    return worker;
+  }
 
   async function doListenSignalR() {
-    try {
-      api.freindsInteraction;
-      hubConnection = new signalR.HubConnectionBuilder()
-        .withUrl(`${api.apiEndpoint}/w`, {
-          accessTokenFactory: async () => await api.eventBus.PickTicket(),
-          transport:
-            signalR.HttpTransportType.WebSockets |
-            signalR.HttpTransportType.ServerSentEvents |
-            signalR.HttpTransportType.LongPolling,
-          skipNegotiation: false,
-        })
-        //.withHubProtocol(new MessagePackHubProtocol())
-        .withAutomaticReconnect({
-          nextRetryDelayInMilliseconds: (retryContext) => {
-            const delayMs = Math.min(
-              1000 * Math.pow(2, retryContext.previousRetryCount),
-              30000,
-            );
-            reconnectAttemptCount.value = retryContext.previousRetryCount;
-            nextReconnectAttempt.value = Date.now() + delayMs;
-            return delayMs;
-          },
-        })
-        .configureLogging(signalR.LogLevel.Information)
-        .build();
-
-      hubConnection.on("forSelf", (data: string) => {
-        try {
-          if (typeof data !== "string")
-            throw new Error("expected base64 string");
-          const u8 = base64ToU8(data);
-          const reader = new CborReader(u8);
-          const event =
-            IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
-          //if (event.UnionKey !== "UserChangedStatus")
-            logger.log(`Received forSelf event, ${event.UnionKey}`, event);
-          requestAnimationFrame(() => {
-            argonEventBus.next(event);
-          });
-        } catch (e) {
-          logger.error("Error processing forSelf event", e);
-        }
-      });
-
-      hubConnection.on("broadcastSpace", (data: string) => {
-        if (typeof data !== "string") throw new Error("expected base64 string");
-        const u8 = base64ToU8(data);
-        const reader = new CborReader(u8);
-        const event =
-          IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
-        if (event.UnionKey !== "UserChangedStatus")
-          logger.log(`Received broadcastSpace event, ${event.UnionKey}`, event);
-        requestAnimationFrame(() => {
-          argonEventBus.next(event);
-        });
-      });
-
-      function base64ToU8(b64: string): Uint8Array {
-        const bin = atob(b64);
-        return Uint8Array.from(bin, c => c.charCodeAt(0));
-      }
-
-      hubConnection.onreconnecting((error) => {
-        logger.warn("SignalR reconnecting...", error);
-        isSignalRReconnecting.value = true;
-      });
-
-      hubConnection.onreconnected((connectionId) => {
-        logger.log("SignalR reconnected", connectionId);
-        isSignalRReconnecting.value = false;
-        nextReconnectAttempt.value = null;
-        reconnectAttemptCount.value = 0;
-      });
-
-      hubConnection.onclose((error) => {
-        logger.error("SignalR connection closed", error);
-        if (!signal.aborted) {
-          setTimeout(() => doListenSignalR(), 5000);
-        }
-      });
-
-      if (!intervalSubject.value) {
-        intervalSubject.value = defer(() =>
-          timer(0, 15000).pipe(
-            switchMap(() =>
-              from(sendHeartbeat()).pipe(
-                catchError((err) => {
-                  console.error("heartbeat error", err);
-                  return of(null);
-                }),
-              ),
-            ),
-          ),
-        )
-          .pipe(repeat())
-          .subscribe();
-      }
-
-      await hubConnection.start();
-      logger.log("SignalR connected successfully", hubConnection.connectionId);
-
-      await new Promise<void>((resolve) => {
-        const checkAbort = () => {
-          if (signal.aborted) {
-            resolve();
-          } else {
-            setTimeout(checkAbort, 100);
-          }
-        };
-        checkAbort();
-      });
-
-      await hubConnection.stop();
-    } catch (error) {
-      logger.error("SignalR connection error", error);
-      if (!signal.aborted) {
-        setTimeout(() => doListenSignalR(), 5000);
-      }
-    }
+    const w = createWorker();
+    w.postMessage({ type: "connect", endpoint: api.apiEndpoint });
   }
 
   async function doListenMyEvents() {
@@ -151,44 +97,25 @@ export const useBus = defineStore("bus", () => {
   }
 
   async function sendEventAsync<T extends IArgonEvent>(t: T) {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("SendEvent", t);
-    }
-  }
-
-  async function sendHeartbeat() {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      // Import dynamically to avoid circular dependency
-      const { useMe } = await import("../auth/meStore");
-      const me = useMe();
-      const status = me.me?.currentStatus ?? UserStatus.Online;
-      await hubConnection.invoke("Heartbeat", status);
-    }
+    worker?.postMessage({ type: "invoke", method: "SendEvent", args: [t] });
   }
 
   async function IAmTypingEvent(channelId: Guid) {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("IAmTyping", channelId);
-    }
+    worker?.postMessage({ type: "invoke", method: "IAmTyping", args: [channelId] });
   }
+
   async function IAmStopTypingEvent(channelId: Guid) {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("IAmStopTyping", channelId);
-    }
+    worker?.postMessage({ type: "invoke", method: "IAmStopTyping", args: [channelId] });
   }
 
   async function subscribeToSpace(spaceId: string) {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("SubscribeToSpace", spaceId);
-      logger.log(`Subscribed to space ${spaceId}`);
-    }
+    worker?.postMessage({ type: "invoke", method: "SubscribeToSpace", args: [spaceId] });
+    logger.log(`Subscribed to space ${spaceId}`);
   }
 
   async function unsubscribeFromSpace(spaceId: string) {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      await hubConnection.invoke("UnSubscribeToSpace", spaceId);
-      logger.log(`Unsubscribed from space ${spaceId}`);
-    }
+    worker?.postMessage({ type: "invoke", method: "UnSubscribeToSpace", args: [spaceId] });
+    logger.log(`Unsubscribed from space ${spaceId}`);
   }
 
   function listenEvents(id: string) {}
@@ -216,28 +143,20 @@ export const useBus = defineStore("bus", () => {
   }
 
   async function retryConnectionNow() {
-    if (hubConnection && isSignalRReconnecting.value) {
-      try {
-        await hubConnection.stop();
-        nextReconnectAttempt.value = null;
-        reconnectAttemptCount.value = 0;
-        isSignalRReconnecting.value = false;
-        await doListenSignalR();
-      } catch (error) {
-        logger.error("Manual reconnect failed", error);
-      }
+    if (isSignalRReconnecting.value) {
+      worker?.postMessage({ type: "disconnect" });
+      nextReconnectAttempt.value = null;
+      reconnectAttemptCount.value = 0;
+      isSignalRReconnecting.value = false;
+      await doListenSignalR();
     }
   }
 
   function closeAllSubscribes(reason: string) {
-    controller.abort(reason);
-    if (hubConnection) {
-      hubConnection.stop();
-      hubConnection = null;
-    }
-    if (intervalSubject.value) {
-      intervalSubject.value.unsubscribe();
-      intervalSubject.value = null;
+    if (worker) {
+      worker.postMessage({ type: "disconnect" });
+      worker.terminate();
+      worker = null;
     }
   }
 
