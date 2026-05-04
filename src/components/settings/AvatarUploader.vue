@@ -7,14 +7,38 @@
         class="hidden" 
         @change="onAvatarChange" 
       />
+      <!-- Show local preview while uploading, otherwise real avatar -->
+      <img
+        v-if="localPreview"
+        :src="localPreview"
+        alt="User Avatar"
+        class="w-20 h-20 rounded-full border border-gray-500 object-cover"
+      />
       <ArgonAvatar 
+        v-else
         :fallback="fallback" 
         :file-id="avatarFileId ?? null"
         :user-id="userId" 
         alt="User Avatar"
         class="user-avatar w-20 h-20 rounded-full border border-gray-500" 
       />
+      <!-- Upload progress overlay with circular spinner -->
       <div
+        v-if="localPreview && !uploadFailed"
+        class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center"
+      >
+        <Loader2 class="w-6 h-6 text-white animate-spin" />
+      </div>
+      <!-- Upload failed overlay with red X -->
+      <div
+        v-else-if="localPreview && uploadFailed"
+        class="absolute inset-0 bg-red-500/60 rounded-full flex items-center justify-center animate-in fade-in duration-200"
+      >
+        <X class="w-8 h-8 text-white" :stroke-width="3" />
+      </div>
+      <!-- Hover overlay -->
+      <div
+        v-else
         class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <span class="text-white text-sm font-semibold">
           <CameraIcon />
@@ -27,6 +51,8 @@
     v-model:open="showCropDialog"
     v-model:image-src="cropImageSrc"
     @avatar-updated="handleAvatarUpdated"
+    @upload-start="onUploadStart"
+    @upload-end="onUploadEnd"
   />
 
   <BuyPremium v-model:open="showPremiumDialog" />
@@ -34,15 +60,14 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { CameraIcon } from "lucide-vue-next";
+import { CameraIcon, Loader2, X } from "lucide-vue-next";
 import ArgonAvatar from "../ArgonAvatar.vue";
 import AvatarCropDialog from "./AvatarCropDialog.vue";
 import BuyPremium from "../modals/BuyPremium.vue";
 import { useToast } from "@argon/ui/toast";
 import { useMe } from "@/store/auth/meStore";
 import { useApi } from "@/store/system/apiStore";
-import { uploadFile } from "@/lib/uploadFile";
-import { v7 } from "uuid";
+import { useAvatarUpload } from "@/composables/useAvatarUpload";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 interface Props {
@@ -62,18 +87,37 @@ const toast = useToast();
 const me = useMe();
 const api = useApi();
 const featureFlags = useFeatureFlags();
+const uploadState = useAvatarUpload();
 
 const showCropDialog = ref(false);
 const showPremiumDialog = ref(false);
 const cropImageSrc = ref<string | null>(null);
-const isLoadingAvatar = ref(false);
+const localPreview = ref<string | null>(null);
+const uploadFailed = ref(false);
+
+function onUploadStart(previewUrl: string) {
+  uploadFailed.value = false;
+  localPreview.value = previewUrl;
+}
+
+function onUploadEnd(success: boolean) {
+  if (success) {
+    localPreview.value = null;
+  } else {
+    // Show red X animation, then revert
+    uploadFailed.value = true;
+    setTimeout(() => {
+      uploadFailed.value = false;
+      localPreview.value = null;
+    }, 1500);
+  }
+}
 
 const onAvatarChange = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
 
   const file = input.files[0];
-  console.log("File selected:", file.name, file.type, file.size);
 
   const isAnimated = file.type === "image/gif" || file.type === "video/webm";
 
@@ -84,26 +128,21 @@ const onAvatarChange = async (event: Event) => {
   }
 
   if (isAnimated) {
-    try {
-      isLoadingAvatar.value = true;
+    const success = await uploadState.upload(
+      () => api.userInteraction.BeginUploadAvatar(),
+      (blobId) => api.userInteraction.CompleteUploadAvatar(blobId),
+      file,
+    );
 
-      const blobId = await uploadUserAvatar(file);
-      await api.userInteraction.CompleteUploadAvatar(blobId);
-
-      toast.toast({
-        title: "Avatar updated",
-        description: "Your animated avatar has been successfully uploaded.",
-      });
-
+    if (success) {
+      toast.toast({ title: "Avatar updated" });
       emit("avatarUpdated");
-    } catch (e) {
+    } else {
       toast.toast({
         title: "Error on upload avatar...",
         variant: "destructive",
-        description: `${e}`,
+        description: uploadState.errorMessage.value ?? undefined,
       });
-    } finally {
-      isLoadingAvatar.value = false;
     }
     input.value = "";
     return;
@@ -119,12 +158,6 @@ const onAvatarChange = async (event: Event) => {
 const handleAvatarUpdated = () => {
   emit("avatarUpdated");
 };
-
-async function uploadUserAvatar(data: string | Blob | File): Promise<string> {
-  const begin = await api.userInteraction.BeginUploadAvatar();
-  const { blobId } = await uploadFile(begin, data, "Avatar");
-  return blobId;
-}
 </script>
 
 <style scoped>

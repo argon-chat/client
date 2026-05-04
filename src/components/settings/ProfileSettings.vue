@@ -28,6 +28,8 @@
                 :primary-color="editPrimaryColor"
                 :accent-color="editAccentColor"
                 :background-id="editBackgroundId"
+                :avatar-preview="avatarLocalPreview"
+                :avatar-upload-failed="avatarUploadFailed"
                 editable
                 @click-avatar="avatarFileInput?.click()"
               />
@@ -42,6 +44,8 @@
                 v-model:open="showAvatarCropDialog"
                 v-model:image-src="avatarCropSrc"
                 @avatar-updated="onProfileUpdated"
+                @upload-start="onAvatarUploadStart"
+                @upload-end="onAvatarUploadEnd"
               />
             </div>
 
@@ -962,6 +966,25 @@ const isSavingCustomization = ref(false);
 const avatarFileInput = ref<HTMLInputElement | null>(null);
 const showAvatarCropDialog = ref(false);
 const avatarCropSrc = ref<string | null>(null);
+const avatarLocalPreview = ref<string | null>(null);
+const avatarUploadFailed = ref(false);
+
+function onAvatarUploadStart(previewUrl: string) {
+  avatarUploadFailed.value = false;
+  avatarLocalPreview.value = previewUrl;
+}
+
+function onAvatarUploadEnd(success: boolean) {
+  if (success) {
+    avatarLocalPreview.value = null;
+  } else {
+    avatarUploadFailed.value = true;
+    setTimeout(() => {
+      avatarUploadFailed.value = false;
+      avatarLocalPreview.value = null;
+    }, 1500);
+  }
+}
 
 function onAvatarFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;

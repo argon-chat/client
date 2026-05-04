@@ -1427,4 +1427,150 @@ function sendGiftErrorMessage(error: SendGiftError): string {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* ── Light theme overrides ── */
+:root:not(.dark) .glass-card {
+  background: hsl(var(--card));
+  backdrop-filter: none;
+  border-color: hsl(var(--border));
+}
+
+:root:not(.dark) .glass-card-border {
+  background: linear-gradient(90deg, transparent, hsl(270 60% 55% / 0.15), transparent);
+}
+
+:root:not(.dark) .gift-border {
+  background: linear-gradient(90deg, transparent, hsl(330 60% 55% / 0.15), transparent);
+}
+
+:root:not(.dark) .gift-variant {
+  background: hsl(330 10% 97%);
+}
+
+:root:not(.dark) .shop-variant {
+  background: hsl(270 10% 97%);
+}
+
+:root:not(.dark) .shop-border {
+  background: linear-gradient(90deg, transparent, hsl(270 70% 60% / 0.2), hsl(290 60% 55% / 0.15), transparent);
+}
+
+:root:not(.dark) .ci-boost {
+  background: linear-gradient(135deg, hsl(270 50% 92%), hsl(270 40% 88%));
+  color: hsl(270 70% 45%);
+  box-shadow: 0 2px 8px hsl(270 50% 50% / 0.1);
+}
+
+:root:not(.dark) .ci-gift {
+  background: linear-gradient(135deg, hsl(330 50% 92%), hsl(330 40% 88%));
+  color: hsl(330 70% 45%);
+  box-shadow: 0 2px 8px hsl(330 50% 50% / 0.1);
+}
+
+:root:not(.dark) .ci-shop {
+  background: linear-gradient(135deg, hsl(270 55% 90%), hsl(290 45% 87%));
+  color: hsl(270 80% 45%);
+  box-shadow: 0 2px 8px hsl(270 60% 50% / 0.1);
+}
+
+:root:not(.dark) .avail-pill {
+  background: hsl(270 35% 92%);
+  color: hsl(270 55% 40%);
+  border-color: hsl(270 30% 82%);
+}
+
+:root:not(.dark) .empty-icon-wrap {
+  background: hsl(270 30% 92%);
+}
+
+:root:not(.dark) .boost-indicator-unassigned {
+  background: hsl(270 25% 93%);
+  border-color: hsl(270 40% 75% / 0.5);
+  color: hsl(270 50% 55%);
+}
+
+:root:not(.dark) .source-badge {
+  background: hsl(270 30% 92%);
+  color: hsl(270 50% 40%);
+}
+
+:root:not(.dark) .source-badge.src-1,
+:root:not(.dark) .source-badge.src-2,
+:root:not(.dark) .source-badge.src-3 {
+  background: hsl(220 30% 92%);
+  color: hsl(220 50% 40%);
+}
+
+:root:not(.dark) .source-badge.src-4 {
+  background: hsl(330 30% 92%);
+  color: hsl(330 50% 40%);
+}
+
+:root:not(.dark) .pack-card {
+  background: hsl(270 15% 97%);
+}
+
+:root:not(.dark) .pack-card:hover {
+  border-color: hsl(270 50% 65% / 0.5);
+  background: hsl(270 20% 95%);
+}
+
+:root:not(.dark) .pack-featured {
+  border-color: hsl(270 50% 65% / 0.4);
+  background: hsl(270 20% 95%);
+}
+
+:root:not(.dark) .pack-featured:hover {
+  border-color: hsl(270 60% 55% / 0.5);
+  box-shadow: 0 6px 20px hsl(270 50% 50% / 0.1);
+}
+
+:root:not(.dark) .boost-period-toggle button.on {
+  background: hsl(270 50% 92%);
+  color: hsl(270 70% 40%);
+  box-shadow: 0 2px 6px hsl(270 50% 50% / 0.1);
+}
+
+:root:not(.dark) .gift-toggle button.on {
+  background: hsl(330 50% 92%);
+  color: hsl(330 70% 40%);
+  box-shadow: 0 2px 6px hsl(330 50% 50% / 0.1);
+}
+
+:root:not(.dark) .boost-space-card {
+  border-color: hsl(var(--border));
+}
+
+:root:not(.dark) .boost-space-card.expanded {
+  border-color: hsl(270 40% 65% / 0.4);
+}
+
+:root:not(.dark) .unassigned-summary {
+  border-color: hsl(270 40% 75% / 0.4);
+}
+
+:root:not(.dark) .assign-btn {
+  color: hsl(270 50% 45%);
+  background: hsl(270 50% 90% / 0.6);
+}
+
+:root:not(.dark) .assign-btn:hover {
+  color: hsl(270 60% 40%);
+  background: hsl(270 50% 88%);
+}
+
+:root:not(.dark) .transfer-btn:hover {
+  color: hsl(200 60% 35%);
+  background: hsl(200 50% 90%);
+}
+
+:root:not(.dark) .remove-btn:hover {
+  color: hsl(0 60% 40%);
+  background: hsl(0 50% 92%);
+}
+
+:root:not(.dark) .pack-savings {
+  background: hsl(150 50% 90%);
+  color: hsl(150 60% 28%);
+}
 </style>

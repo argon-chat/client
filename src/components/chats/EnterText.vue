@@ -231,6 +231,16 @@
             @add-more="openFilePicker"
             @remove="attachments.removeFile"
             @add-files="onDialogAddFiles"
+            @replace-file="onReplaceFile"
+            @open-editor="onOpenAttachmentEditor"
+        />
+
+        <!-- Media Editor for attachment editing -->
+        <MediaEditor
+            v-model="attachmentEditorOpen"
+            :src="attachmentEditorSrc"
+            :media-type="attachmentEditorMediaType"
+            @done="onAttachmentEditorDone"
         />
     </div>
 </template>
@@ -273,6 +283,8 @@ import { useLocale } from "@/store/system/localeStore";
 import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
+import { MediaEditor } from "@argon/media-editor";
+import type { MediaEditorFinalResult } from "@argon/media-editor";
 import { usePexStore } from "@/store/data/permissionStore";
 import { useSlashCommands } from "@/composables/useSlashCommands";
 import { useBotInteraction } from "@/composables/useBotInteraction";
@@ -972,6 +984,56 @@ function onAttachmentDialogSend(text: string, entities: IMessageEntity[]) {
 async function onDialogAddFiles(files: FileList) {
   const errors = await attachments.addFiles(files);
   for (const err of errors) logger.warn(err);
+}
+
+function onReplaceFile(index: number, file: File, previewUrl: string) {
+  const pending = attachments.pendingFiles.value[index];
+  if (!pending) return;
+  // Revoke old preview URL
+  if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
+  // Replace the file and preview in-place
+  pending.file = file;
+  pending.previewUrl = previewUrl;
+  pending.width = null;
+  pending.height = null;
+  // Re-read dimensions from the new image
+  const img = new Image();
+  img.onload = () => {
+    pending.width = img.naturalWidth;
+    pending.height = img.naturalHeight;
+  };
+  img.src = previewUrl;
+}
+
+// --- Attachment Media Editor ---
+const attachmentEditorOpen = ref(false);
+const attachmentEditorSrc = ref("");
+const attachmentEditorMediaType = ref<"image" | "video">("image");
+let attachmentEditingIndex = -1;
+
+function onOpenAttachmentEditor(index: number, src: string, mediaType: "image" | "video") {
+  attachmentEditingIndex = index;
+  attachmentEditorSrc.value = src;
+  attachmentEditorMediaType.value = mediaType;
+  showAttachmentDialog.value = false;
+  attachmentEditorOpen.value = true;
+}
+
+async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
+  if (result && attachmentEditingIndex >= 0) {
+    const payload = await result.getResult();
+    const blob = payload.blob;
+    const pending = attachments.pendingFiles.value[attachmentEditingIndex];
+    const isVideo = attachmentEditorMediaType.value === "video";
+    const ext = isVideo ? "mp4" : "png";
+    const mime = isVideo ? "video/mp4" : "image/png";
+    const originalName = pending?.file.name ?? `edited.${ext}`;
+    const editedFile = new File([blob], originalName, { type: mime });
+    const previewUrl = URL.createObjectURL(blob);
+    onReplaceFile(attachmentEditingIndex, editedFile, previewUrl);
+  }
+  attachmentEditingIndex = -1;
+  showAttachmentDialog.value = true;
 }
 
 // --- Send handler ---

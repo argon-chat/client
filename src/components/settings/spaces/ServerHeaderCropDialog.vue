@@ -1,40 +1,39 @@
 <template>
   <Dialog v-model:open="isOpen">
-    <DialogContent class="max-h-[95vh] !max-w-[1400px] w-[95vw]" :disableOutsidePointerEvents="true">
-      <DialogHeader>
-        <DialogTitle>{{ t("crop_server_header") }}</DialogTitle>
-      </DialogHeader>
-      <div class="cropper-container">
-        <Cropper 
-          v-if="imageSrc" 
-          class="cropper" 
-          :src="imageSrc" 
-          :stencil-props="{ aspectRatio: 16/9 }" 
-          @change="onChange" 
-          image-restriction="stencil" 
+    <DialogContent class="avatar-crop-dialog avatar-crop-dialog--wide" :disableOutsidePointerEvents="true">
+      <div class="avatar-crop-dialog__cropper avatar-crop-dialog__cropper--wide">
+        <AvatarCropper
+          v-if="imageSrc"
+          ref="cropperRef"
+          :src="imageSrc"
+          :aspect-ratio="16 / 9"
+          :padding="20"
         />
       </div>
-      <DialogFooter>
-        <Button @click="handleSave" :disabled="isLoading">
-          {{ t("save_changes") }}
-        </Button>
-      </DialogFooter>
+
+      <div class="avatar-crop-dialog__bottom">
+        <div class="avatar-crop-dialog__actions">
+          <Button variant="ghost" @click="isOpen = false">
+            {{ t("cancel") }}
+          </Button>
+          <Button @click="handleSave" :disabled="isLoading">
+            {{ t("save_changes") }}
+          </Button>
+        </div>
+      </div>
     </DialogContent>
   </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { Cropper } from "vue-advanced-cropper";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { useLocale } from "@/store/system/localeStore";
+import AvatarCropper from "@/components/common/AvatarCropper.vue";
 
 interface Props {
   open: boolean;
@@ -53,7 +52,7 @@ const emit = defineEmits<Emits>();
 const { t } = useLocale();
 
 const isOpen = ref(props.open);
-const canvasRef = ref<HTMLCanvasElement | null>(null);
+const cropperRef = ref<InstanceType<typeof AvatarCropper> | null>(null);
 const isLoading = ref(false);
 
 watch(() => props.open, (value) => {
@@ -64,21 +63,12 @@ watch(isOpen, (value) => {
   emit("update:open", value);
 });
 
-const onChange = ({ canvas }: { canvas: HTMLCanvasElement }) => {
-  canvasRef.value = canvas;
-};
-
 const handleSave = async () => {
+  if (!cropperRef.value) return;
+
   try {
     isLoading.value = true;
-
-    if (!canvasRef.value) {
-      console.error("No canvas available");
-      return;
-    }
-
-    const croppedDataUrl = canvasRef.value.toDataURL("image/jpeg", 0.9);
-
+    const croppedDataUrl = await cropperRef.value.getCroppedDataURL(1280, 0.9);
     emit("headerUpdated", croppedDataUrl);
     isOpen.value = false;
     emit("update:imageSrc", null);
@@ -91,16 +81,38 @@ const handleSave = async () => {
 </script>
 
 <style scoped>
-@import "vue-advanced-cropper/dist/style.css";
-
-.cropper-container {
-  min-height: 400px;
-  max-height: 600px;
-  position: relative;
+.avatar-crop-dialog {
+  max-width: 400px;
+  width: 95vw;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #1a1a1a;
+  border: none;
 }
 
-.cropper {
-  height: 100%;
-  background: #181818;
+.avatar-crop-dialog--wide {
+  max-width: 580px;
+}
+
+.avatar-crop-dialog__cropper {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.avatar-crop-dialog__cropper--wide {
+  aspect-ratio: 16 / 10;
+}
+
+.avatar-crop-dialog__bottom {
+  padding: 8px 12px;
+  background: #1a1a1a;
+}
+
+.avatar-crop-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

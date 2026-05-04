@@ -1,131 +1,87 @@
 <template>
-  <Dialog v-model:open="isOpen">
-    <DialogContent class="max-h-[95vh] !max-w-[1400px] w-[95vw]" :disableOutsidePointerEvents="true">
-      <DialogHeader>
-        <DialogTitle>{{ t("crop_server_avatar") }}</DialogTitle>
-      </DialogHeader>
-      <div class="cropper-container">
-        <Cropper 
-          v-if="imageSrc" 
-          class="cropper" 
-          :src="imageSrc" 
-          :stencil-props="{ aspectRatio: 1 }" 
-          @change="onChange" 
-          image-restriction="stencil" 
-          :stencil-component="CircleStencil"
-        />
-      </div>
-      <DialogFooter>
-        <Button @click="handleSave" :disabled="isLoading">
-          {{ t("save_changes") }}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+  <MediaEditor
+    v-model="isOpen"
+    :src="imageSrc ?? ''"
+    media-type="image"
+    mode="avatar"
+    initial-tab="crop"
+    @done="onEditorDone"
+    @cancel="onCancel"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { Cropper, CircleStencil } from "vue-advanced-cropper";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@argon/ui/dialog";
-import { Button } from "@argon/ui/button";
-import { useToast } from "@argon/ui/toast";
-import { useLocale } from "@/store/system/localeStore";
-import { useApi } from "@/store/system/apiStore";
-import { uploadFile } from "@/lib/uploadFile";
-import { v7 } from "uuid";
+import { watch, computed } from 'vue'
+import { useApi } from '@/store/system/apiStore'
+import { useAvatarUpload } from '@/composables/useAvatarUpload'
+import { MediaEditor } from '@argon/media-editor'
+import type { MediaEditorFinalResult } from '@argon/media-editor'
 
 interface Props {
-  open: boolean;
-  imageSrc: string | null;
-  spaceId: string;
+  open: boolean
+  imageSrc: string | null
+  spaceId: string
 }
 
 interface Emits {
-  (e: "update:open", value: boolean): void;
-  (e: "update:imageSrc", value: string | null): void;
-  (e: "avatarUpdated"): void;
+  (e: 'update:open', value: boolean): void
+  (e: 'update:imageSrc', value: string | null): void
+  (e: 'avatarUpdated'): void
+  (e: 'uploadStart', preview: string): void
+  (e: 'uploadEnd', success: boolean): void
 }
 
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
-const { t } = useLocale();
-const toast = useToast();
-const api = useApi();
+const api = useApi()
+const uploadState = useAvatarUpload()
 
-const isOpen = ref(props.open);
-const canvasRef = ref<HTMLCanvasElement | null>(null);
-const isLoading = ref(false);
+const isOpen = computed({
+  get: () => props.open,
+  set: (v) => emit('update:open', v)
+})
 
-watch(() => props.open, (value) => {
-  isOpen.value = value;
-});
+watch(() => props.open, (v) => {
+  if (v) uploadState.reset()
+})
 
-watch(isOpen, (value) => {
-  emit("update:open", value);
-});
+async function onEditorDone(result: MediaEditorFinalResult) {
+  if (!result) return
 
-const onChange = ({ canvas }: { canvas: HTMLCanvasElement }) => {
-  canvasRef.value = canvas;
-};
+  // Close editor immediately
+  isOpen.value = false
 
-const handleSave = async () => {
-  try {
-    isLoading.value = true;
-    const image = canvasRef.value?.toDataURL("image/jpeg", 0.95);
-    if (!image) throw new Error("Failed to capture cropped image");
-
-    const blobId = await uploadServerAvatar(image);
-    await api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId);
-
-    toast.toast({
-      title: "Server avatar updated",
-      description: "Server avatar has been successfully uploaded.",
-    });
-
-    isOpen.value = false;
-    emit("avatarUpdated");
-  } catch (e) {
-    toast.toast({
-      title: "Error on upload avatar...",
-      variant: "destructive",
-      description: `${e}`,
-    });
-  } finally {
-    isLoading.value = false;
+  // Show preview on the avatar right away
+  let previewUrl: string | null = null
+  if (result.preview) {
+    previewUrl = URL.createObjectURL(result.preview)
+    emit('uploadStart', previewUrl)
   }
-};
 
-async function uploadServerAvatar(data: string | Blob | File): Promise<string> {
-  const begin = await api.serverInteraction.BeginUploadSpaceAvatar(props.spaceId);
-  const { blobId } = await uploadFile(begin, data, "SpaceAvatar");
-  return blobId;
+  const payload = await result.getResult()
+  const blob = payload.blob
+
+  if (!previewUrl) {
+    previewUrl = URL.createObjectURL(blob)
+    emit('uploadStart', previewUrl)
+  }
+
+  const success = await uploadState.upload(
+    () => api.serverInteraction.BeginUploadSpaceAvatar(props.spaceId),
+    (blobId) => api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId),
+    blob
+  )
+
+  if (previewUrl) URL.revokeObjectURL(previewUrl)
+
+  if (success) {
+    emit('avatarUpdated')
+  }
+  emit('uploadEnd', success)
+}
+
+function onCancel() {
+  isOpen.value = false
 }
 </script>
-<style scoped>
-.cropper-container {
-  width: 100%;
-  height: calc(95vh - 180px);
-  max-height: calc(95vh - 180px);
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.cropper {
-  height: 100%;
-  width: 100%;
-  max-height: 100%;
-  max-width: 100%;
-  min-height: 400px;
-  background: #dddddd00;
-}
-</style>

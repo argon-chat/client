@@ -234,11 +234,13 @@ const gradientStyle = computed(() => {
 const primaryTintStyle = computed(() => {
   if (!userProfile.value?.primaryColor) return null;
   const color = argbToRgba(userProfile.value.primaryColor);
-  return { background: color.replace(/[\d.]+\)$/, "0.2)") };
+  const opacity = isLightTheme.value ? "0.12)" : "0.2)";
+  return { background: color.replace(/[\d.]+\)$/, opacity) };
 });
 
 // Glass area tint from primaryColor
 const glassTintStyle = computed(() => {
+  if (isLightTheme.value) return {};
   if (!userProfile.value?.primaryColor) return {};
   const color = argbToRgba(userProfile.value.primaryColor);
   return { background: `linear-gradient(180deg, ${color.replace(/[\d.]+\)$/, "0.10)")}, transparent 60%)` };
@@ -248,13 +250,19 @@ const glassTintStyle = computed(() => {
 const glassShineTint = computed(() => {
   if (!userProfile.value?.accentColor) return {};
   const accent = argbToRgba(userProfile.value.accentColor);
-  return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, "0.3)")}, transparent)` };
+  const opacity = isLightTheme.value ? "0.4)" : "0.3)";
+  return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, opacity)}, transparent)` };
 });
 
 // Accent glow on card border — more dramatic multi-layer glow
 const cardGlowStyle = computed(() => {
   if (!userProfile.value?.accentColor) return {};
   const accent = argbToRgba(userProfile.value.accentColor);
+  if (isLightTheme.value) {
+    const border = accent.replace(/[\d.]+\)$/, "0.3)");
+    const shadow = accent.replace(/[\d.]+\)$/, "0.15)");
+    return { boxShadow: `0 4px 20px ${shadow}, inset 0 0 0 1px ${border}` };
+  }
   const outerGlow = accent.replace(/[\d.]+\)$/, "0.25)");
   const midGlow = accent.replace(/[\d.]+\)$/, "0.12)");
   const innerBorder = accent.replace(/[\d.]+\)$/, "0.2)");
@@ -267,6 +275,10 @@ const cardGlowStyle = computed(() => {
 const avatarRingStyle = computed(() => {
   if (!userProfile.value?.accentColor) return {};
   const accent = argbToRgba(userProfile.value.accentColor);
+  if (isLightTheme.value) {
+    const glow = accent.replace(/[\d.]+\)$/, "0.25)");
+    return { borderColor: accent, boxShadow: `0 0 8px ${glow}` };
+  }
   const glow = accent.replace(/[\d.]+\)$/, "0.4)");
   return {
     borderColor: accent,
@@ -278,6 +290,13 @@ const avatarRingStyle = computed(() => {
 const nameAccentStyle = computed(() => {
   if (!userProfile.value?.accentColor) return {};
   const accent = argbToRgba(userProfile.value.accentColor);
+  if (isLightTheme.value) {
+    // Darken the accent for readability on white
+    const darkened = accent.replace(/rgba\((\d+), (\d+), (\d+)/, (_m, r, g, b) => {
+      return `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}`;
+    });
+    return { color: darkened };
+  }
   return { color: accent };
 });
 
@@ -801,6 +820,53 @@ async function removeRole(archetypeId: Guid) {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ── Light theme overrides ── */
+:root:not(.dark) .popover-inner {
+  box-shadow: 0 4px 24px hsl(var(--foreground) / 0.1), 0 0 0 1px hsl(var(--border));
+}
+
+:root:not(.dark) .card-bg-default {
+  background: linear-gradient(160deg, hsl(var(--muted)) 0%, hsl(var(--border)) 100%);
+}
+
+:root:not(.dark) .glass-frost {
+  display: none;
+}
+
+:root:not(.dark) .glass-shine {
+  display: none;
+}
+
+:root:not(.dark) .glass-body {
+  background: hsl(var(--card));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root:not(.dark) .hero-avatar {
+  border-color: hsl(var(--card));
+  box-shadow: 0 2px 10px hsl(var(--foreground) / 0.12);
+}
+
+:root:not(.dark) .role-chip {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
+}
+
+:root:not(.dark) .role-picker {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+:root:not(.dark) .bio-block {
+  background: hsl(var(--muted) / 0.5);
+  border-color: hsl(var(--border) / 0.6);
+}
+
+:root:not(.dark) .loading-skeleton {
+  box-shadow: 0 2px 16px hsl(var(--foreground) / 0.06);
 }
 </style>
 

@@ -28,13 +28,28 @@
         <div class="preview-header">
           <div class="preview-avatar-anchor">
             <div class="preview-avatar" :class="{ 'preview-avatar--editable': editable }" :style="avatarRingStyle" @click="editable && $emit('clickAvatar')">
+              <img
+                v-if="avatarPreview"
+                :src="avatarPreview"
+                class="w-14 h-14 rounded-full object-cover"
+              />
               <ArgonAvatar
+                v-else
                 :fallback="displayName"
                 :file-id="avatarFileId"
                 :user-id="userId"
                 :overridedSize="56"
               />
-              <div v-if="editable" class="preview-avatar-overlay">
+              <!-- Upload spinner -->
+              <div v-if="avatarPreview && !avatarUploadFailed" class="preview-avatar-overlay" style="opacity: 1">
+                <Loader2 class="w-5 h-5 animate-spin" />
+              </div>
+              <!-- Upload failed -->
+              <div v-else-if="avatarPreview && avatarUploadFailed" class="preview-avatar-overlay" style="opacity: 1; background: rgba(239, 68, 68, 0.6)">
+                <X class="w-6 h-6" :stroke-width="3" />
+              </div>
+              <!-- Editable hover -->
+              <div v-else-if="editable" class="preview-avatar-overlay">
                 <CameraIcon class="w-5 h-5" />
               </div>
             </div>
@@ -64,10 +79,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconDiamondFilled } from "@tabler/icons-vue";
-import { CameraIcon } from "lucide-vue-next";
+import { CameraIcon, Loader2, X } from "lucide-vue-next";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
 import { useLocale } from "@/store/system/localeStore";
+import { persistedValue } from "@argon/storage";
 
 const { t } = useLocale();
 
@@ -83,13 +99,20 @@ const props = withDefaults(defineProps<{
   accentColor: number | null;
   backgroundId: number | null;
   editable?: boolean;
+  avatarPreview?: string | null;
+  avatarUploadFailed?: boolean;
 }>(), {
   editable: false,
+  avatarPreview: null,
+  avatarUploadFailed: false,
 });
 
 defineEmits<{
   clickAvatar: [];
 }>();
+
+const currentTheme = persistedValue<string>("appearance.theme", "dark");
+const isLightTheme = computed(() => currentTheme.value === "light");
 
 const bgSrc = computed(() => getBackgroundSrc(props.backgroundId));
 const hasColors = computed(() => props.primaryColor != null || props.accentColor != null);
@@ -105,10 +128,12 @@ const gradientStyle = computed(() => {
 const primaryTintStyle = computed(() => {
   if (!props.primaryColor) return null;
   const color = argbToRgba(props.primaryColor);
-  return { background: color.replace(/[\d.]+\)$/, "0.2)") };
+  const opacity = isLightTheme.value ? "0.12)" : "0.2)";
+  return { background: color.replace(/[\d.]+\)$/, opacity) };
 });
 
 const glassTintStyle = computed(() => {
+  if (isLightTheme.value) return {};
   if (!props.primaryColor) return {};
   const color = argbToRgba(props.primaryColor);
   return { background: `linear-gradient(180deg, ${color.replace(/[\d.]+\)$/, "0.10)")}, transparent 60%)` };
@@ -117,12 +142,18 @@ const glassTintStyle = computed(() => {
 const glassShineTint = computed(() => {
   if (!props.accentColor) return {};
   const accent = argbToRgba(props.accentColor);
-  return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, "0.3)")}, transparent)` };
+  const opacity = isLightTheme.value ? "0.4)" : "0.3)";
+  return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, opacity)}, transparent)` };
 });
 
 const cardGlowStyle = computed(() => {
   if (!props.accentColor) return {};
   const accent = argbToRgba(props.accentColor);
+  if (isLightTheme.value) {
+    const border = accent.replace(/[\d.]+\)$/, "0.3)");
+    const shadow = accent.replace(/[\d.]+\)$/, "0.15)");
+    return { boxShadow: `0 2px 16px ${shadow}, inset 0 0 0 1px ${border}` };
+  }
   const outerGlow = accent.replace(/[\d.]+\)$/, "0.25)");
   const midGlow = accent.replace(/[\d.]+\)$/, "0.12)");
   const innerBorder = accent.replace(/[\d.]+\)$/, "0.2)");
@@ -132,6 +163,10 @@ const cardGlowStyle = computed(() => {
 const avatarRingStyle = computed(() => {
   if (!props.accentColor) return {};
   const accent = argbToRgba(props.accentColor);
+  if (isLightTheme.value) {
+    const glow = accent.replace(/[\d.]+\)$/, "0.25)");
+    return { borderColor: accent, boxShadow: `0 0 6px ${glow}` };
+  }
   const glow = accent.replace(/[\d.]+\)$/, "0.4)");
   return { borderColor: accent, boxShadow: `0 0 10px ${glow}` };
 });
@@ -139,6 +174,13 @@ const avatarRingStyle = computed(() => {
 const nameAccentStyle = computed(() => {
   if (!props.accentColor) return {};
   const accent = argbToRgba(props.accentColor);
+  if (isLightTheme.value) {
+    // Darken the accent for readability on white
+    const darkened = accent.replace(/rgba\((\d+), (\d+), (\d+)/, (_m, r, g, b) => {
+      return `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}`;
+    });
+    return { color: darkened };
+  }
   return { color: accent };
 });
 </script>
@@ -333,5 +375,46 @@ const nameAccentStyle = computed(() => {
 .preview-bio--placeholder {
   color: hsl(var(--muted-foreground) / 0.4);
   font-style: italic;
+}
+
+/* ── Light theme overrides ── */
+:root:not(.dark) .preview-card {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 2px 16px hsl(var(--foreground) / 0.06);
+}
+
+:root:not(.dark) .preview-bg-default {
+  background: linear-gradient(160deg, hsl(var(--muted)) 0%, hsl(var(--border)) 100%);
+}
+
+:root:not(.dark) .preview-frost {
+  display: none;
+}
+
+:root:not(.dark) .preview-shine {
+  display: none;
+}
+
+:root:not(.dark) .preview-body {
+  background: hsl(var(--card));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root:not(.dark) .preview-avatar {
+  border-color: hsl(var(--card));
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.12);
+}
+
+:root:not(.dark) .preview-role-chip {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground) / 0.8);
+}
+
+:root:not(.dark) .preview-bio {
+  background: hsl(var(--muted) / 0.6);
+  border-color: hsl(var(--border) / 0.5);
 }
 </style>

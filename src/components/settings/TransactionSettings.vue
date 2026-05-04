@@ -351,4 +351,66 @@ function txIconClass(tx: UltimaTransaction): string {
   background: hsl(0 40% 15%);
   color: hsl(0 60% 60%);
 }
+
+/* ── Light theme overrides ── */
+:root:not(.dark) .glass-card {
+  background: hsl(var(--card));
+  backdrop-filter: none;
+  border-color: hsl(var(--border));
+}
+
+:root:not(.dark) .glass-card-border {
+  background: linear-gradient(90deg, transparent, hsl(270 60% 55% / 0.15), transparent);
+}
+
+:root:not(.dark) .ci-card {
+  background: linear-gradient(135deg, hsl(210 50% 92%), hsl(210 40% 88%));
+  color: hsl(210 70% 40%);
+  box-shadow: 0 2px 8px hsl(210 50% 50% / 0.1);
+}
+
+:root:not(.dark) .ci-history {
+  background: linear-gradient(135deg, hsl(270 50% 92%), hsl(270 40% 88%));
+  color: hsl(270 70% 45%);
+  box-shadow: 0 2px 8px hsl(270 50% 50% / 0.1);
+}
+
+:root:not(.dark) .payment-card-visual {
+  box-shadow: 0 8px 32px hsl(260 40% 30% / 0.15);
+}
+
+:root:not(.dark) .tx-sub {
+  background: hsl(270 40% 92%);
+  color: hsl(270 60% 45%);
+}
+
+:root:not(.dark) .tx-boost {
+  background: hsl(270 40% 92%);
+  color: hsl(270 70% 45%);
+}
+
+:root:not(.dark) .tx-gift {
+  background: hsl(330 40% 92%);
+  color: hsl(330 60% 45%);
+}
+
+:root:not(.dark) .tx-status-done,
+:root:not(.dark) .tx-status-paid,
+:root:not(.dark) .tx-status-successful {
+  background: hsl(145 40% 90%);
+  color: hsl(145 60% 30%);
+}
+
+:root:not(.dark) .tx-status-pending,
+:root:not(.dark) .tx-status-processing {
+  background: hsl(45 50% 90%);
+  color: hsl(45 70% 30%);
+}
+
+:root:not(.dark) .tx-status-failed,
+:root:not(.dark) .tx-status-canceled,
+:root:not(.dark) .tx-status-refunded {
+  background: hsl(0 40% 92%);
+  color: hsl(0 60% 40%);
+}
 </style>

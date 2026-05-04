@@ -1,11 +1,11 @@
 <template>
   <div class="header-list overflow-hidden bg-cover bg-no-repeat bg-center contrast-125 rounded-xl min-h-[8rem]"
-    :class="{ 'bg-[#16161655]': !backgroundImage }" :style="backgroundImage ? { backgroundImage } : {}">
+    :class="{ 'header-no-bg': !backgroundImage }" :style="backgroundImage ? { backgroundImage } : {}">
     <div class="relative flex flex-col items-start">
       <div class="w-full relative">
-        <div class="h-10 bg-gradient-to-b from-black/80 to-transparent rounded-t-lg" />
+        <div class="h-10 header-top-gradient rounded-t-lg" />
         <div class="absolute inset-0 flex items-start pt-1.5">
-          <h2 class="text-lg font-bold text-white text-shadow-lg px-4 flex items-center gap-2">
+          <h2 class="text-lg font-bold header-space-name text-shadow-lg px-4 flex items-center gap-2">
             <TooltipProvider v-if="isVerifiedSpace">
               <Tooltip>
                 <TooltipTrigger as-child>
@@ -259,5 +259,42 @@ onMounted(async () => {
 
 .header-list {
   position: relative;
+}
+
+/* ── Light theme overrides ── */
+:root:not(.dark) .boost-strip {
+  background: linear-gradient(to top, hsl(270 30% 95% / 0.95), hsl(270 20% 97% / 0.8));
+}
+
+:root:not(.dark) .boost-strip-bar {
+  background: hsl(270 20% 85%);
+}
+
+:root:not(.dark) .boost-strip-count {
+  color: hsl(270 60% 45%);
+}
+
+:root:not(.dark) .boost-strip-btn {
+  box-shadow: 0 1px 4px hsl(270 60% 50% / 0.2);
+}
+
+.header-no-bg {
+  background-color: #16161655;
+}
+
+:root:not(.dark) .header-no-bg {
+  background-color: hsl(270 20% 92%);
+}
+
+.header-top-gradient {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+}
+
+:root:not(.dark) .header-top-gradient {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent);
+}
+
+.header-space-name {
+  color: white;
 }
 </style>

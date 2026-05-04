@@ -39,9 +39,6 @@ export function useAttachmentUpload() {
   );
 
   function validateFile(file: File): string | null {
-    if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" exceeds 8 MB limit`;
-    }
     if (pendingFiles.value.length >= MAX_ATTACHMENTS) {
       return `Maximum ${MAX_ATTACHMENTS} attachments allowed`;
     }
@@ -50,6 +47,45 @@ export function useAttachmentUpload() {
 
   function isImageType(contentType: string): boolean {
     return contentType.startsWith("image/");
+  }
+
+  function isVideoType(contentType: string): boolean {
+    return contentType.startsWith("video/");
+  }
+
+  async function getVideoDimensions(
+    file: File,
+  ): Promise<{ width: number; height: number; previewUrl: string }> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.onloadeddata = () => {
+        video.currentTime = 0.1;
+      };
+      video.onseeked = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (blob) {
+            const previewUrl = URL.createObjectURL(blob);
+            resolve({ width: video.videoWidth, height: video.videoHeight, previewUrl });
+          } else {
+            reject(new Error("Failed to generate video thumbnail"));
+          }
+        }, "image/jpeg", 0.8);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to load video"));
+      };
+      video.src = url;
+    });
   }
 
   async function getImageDimensions(
@@ -132,6 +168,15 @@ export function useAttachmentUpload() {
           entry.thumbHash = await generateThumbHash(file);
         } catch (e) {
           logger.warn("Failed to process image metadata:", e);
+        }
+      } else if (isVideoType(file.type)) {
+        try {
+          const videoInfo = await getVideoDimensions(file);
+          entry.previewUrl = videoInfo.previewUrl;
+          entry.width = videoInfo.width;
+          entry.height = videoInfo.height;
+        } catch (e) {
+          logger.warn("Failed to process video metadata:", e);
         }
       }
 

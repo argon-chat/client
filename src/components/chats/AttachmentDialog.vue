@@ -19,6 +19,21 @@
         <!-- Image preview -->
         <div v-if="selectedFile && isImage(selectedFile)" class="image-preview">
           <img :src="selectedFile.previewUrl!" alt="" class="preview-img" />
+          <!-- Edit button -->
+          <button class="edit-btn" @click="openEditor" :title="t('edit') || 'Edit'">
+            <PencilIcon class="w-4 h-4" />
+          </button>
+        </div>
+        <!-- Video preview -->
+        <div v-else-if="selectedFile && isVideo(selectedFile)" class="image-preview">
+          <img :src="selectedFile.previewUrl!" alt="" class="preview-img" />
+          <div class="video-play-badge">
+            <PlayIcon class="w-5 h-5 fill-current" />
+          </div>
+          <!-- Edit button -->
+          <button class="edit-btn" @click="openEditor" :title="t('edit') || 'Edit'">
+            <PencilIcon class="w-4 h-4" />
+          </button>
         </div>
         <!-- File preview -->
         <div v-else-if="selectedFile" class="file-preview">
@@ -44,7 +59,7 @@
           :class="{ active: selectedIndex === i }"
           @click="selectedIndex = i"
         >
-          <img v-if="isImage(file)" :src="file.previewUrl!" alt="" class="strip-thumb-img" />
+          <img v-if="isImage(file) || isVideo(file)" :src="file.previewUrl!" alt="" class="strip-thumb-img" />
           <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
           <div role="button" class="strip-remove" @click.stop="$emit('remove', i)">
             <XIcon class="w-2.5 h-2.5" />
@@ -97,6 +112,8 @@ import {
   XIcon,
   PlusIcon,
   SendHorizonalIcon,
+  PencilIcon,
+  PlayIcon,
 } from "lucide-vue-next";
 import type { PendingAttachment } from "@/composables/useAttachmentUpload";
 import type { IMessageEntity } from "@argon/glue";
@@ -118,6 +135,8 @@ const emit = defineEmits<{
   (e: "add-more"): void;
   (e: "remove", index: number): void;
   (e: "add-files", files: FileList): void;
+  (e: "replace-file", index: number, file: File, previewUrl: string): void;
+  (e: "open-editor", index: number, src: string, mediaType: "image" | "video"): void;
 }>();
 
 const captionInputRef = ref<InstanceType<typeof EnterText> | null>(null);
@@ -146,6 +165,10 @@ function isImage(file: PendingAttachment): boolean {
   return file.file.type.startsWith("image/") && !!file.previewUrl;
 }
 
+function isVideo(file: PendingAttachment): boolean {
+  return file.file.type.startsWith("video/") && !!file.previewUrl;
+}
+
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -157,6 +180,17 @@ function send() {
   const text = parsed?.text ?? "";
   const entities = parsed?.entities ?? [];
   emit("send", text, entities);
+}
+
+// --- Media Editor ---
+function openEditor() {
+  if (!selectedFile.value) return;
+  if (isImage(selectedFile.value)) {
+    emit("open-editor", selectedIndex.value, selectedFile.value.previewUrl!, "image");
+  } else if (isVideo(selectedFile.value)) {
+    const videoSrc = URL.createObjectURL(selectedFile.value.file);
+    emit("open-editor", selectedIndex.value, videoSrc, "video");
+  }
 }
 
 // --- Drag-and-drop ---
@@ -224,12 +258,59 @@ function onDrop(e: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.edit-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: hsl(var(--background) / 0.8);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  backdrop-filter: blur(4px);
+}
+
+.image-preview:hover .edit-btn {
+  opacity: 1;
+}
+
+.edit-btn:hover {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }
 
 .preview-img {
   max-width: 100%;
   max-height: 400px;
   object-fit: contain;
+}
+
+.video-play-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: hsl(var(--background) / 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--foreground));
+  pointer-events: none;
+  backdrop-filter: blur(4px);
 }
 
 .file-preview {

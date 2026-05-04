@@ -1,0 +1,10 @@
+export { default as MediaEditor } from './components/MediaEditor.vue';
+export type { MediaEditorProps, MediaEditorMode } from './components/MediaEditor.vue';
+export type { MediaEditorFinalResult, MediaEditorFinalResultPayload } from './finalRender/createFinalResult';
+export { createFinalResult } from './finalRender/createFinalResult';
+export type { AdjustmentKey } from './adjustments';
+export { ADJUSTMENTS, adjustmentKeys } from './adjustments';
+export type { Vec2, MediaType, EditorLayer, TextStyle, FontKey, BrushType, RenderTransform } from './types';
+export { useMediaEditorStore } from './store/editorStore';
+export { useVideoPlayback } from './composables/useVideoPlayback';
+export { checkCapabilities, MAX_EDITABLE_VIDEO_SIZE } from './support';

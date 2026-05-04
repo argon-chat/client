@@ -1,4 +1,3 @@
-import "vue-advanced-cropper/dist/style.css";
 import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
 //@ts-ignore

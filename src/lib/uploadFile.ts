@@ -4,20 +4,27 @@ export interface UploadResult {
   blobId: string;
 }
 
+export interface UploadFileOptions {
+  /** Called with upload progress (0–1) during PUT */
+  onProgress?: (progress: number) => void;
+}
+
 /**
  * Performs the full file upload flow:
  * 1. Validates the BeginUpload result
- * 2. PUTs the raw binary body to the presigned uploadUrl
+ * 2. PUTs the raw binary body to the presigned uploadUrl (with progress tracking)
  * 3. Returns the blobId for CompleteUpload
  *
  * @param begin - The result from any BeginUpload*() call
  * @param data - The file data (dataURL string, Blob, or File)
  * @param context - Human-readable context for error messages (e.g. "Avatar", "SpaceHeader")
+ * @param options - Optional callbacks (onProgress)
  */
 export async function uploadFile(
   begin: IUploadFileResult,
   data: string | Blob | File,
   context = "Upload",
+  options?: UploadFileOptions,
 ): Promise<UploadResult> {
   if (begin.isFailedUploadFile()) {
     throw new Error(
@@ -48,18 +55,46 @@ export async function uploadFile(
     }
   }
 
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    body: blob,
-    headers,
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`${context} upload failed (${response.status}): ${errText}`);
-  }
+  await xhrPut(uploadUrl, blob, headers, options?.onProgress);
 
   return { blobId };
+}
+
+function xhrPut(
+  url: string,
+  body: Blob,
+  headers: Record<string, string>,
+  onProgress?: (progress: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(e.loaded / e.total);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Upload network error"));
+    xhr.onabort = () => reject(new Error("Upload aborted"));
+
+    xhr.send(body);
+  });
 }
 
 function dataURLtoBlob(dataUrl: string): Blob {
