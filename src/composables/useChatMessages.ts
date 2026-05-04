@@ -30,6 +30,7 @@ export type ChatMessage = ArgonMessage & {
 
 const MESSAGES_PER_LOAD = 50;
 const OPTIMISTIC_TIMEOUT_MS = 30_000;
+const MAX_MESSAGES_IN_MEMORY = 500;
 
 export function useChatMessages(
   channelId: () => Guid,
@@ -73,6 +74,13 @@ export function useChatMessages(
     const newMsgs = batch.map((b) => b.msg);
     for (const m of newMsgs) messageIdSet.add(m.messageId);
     messages.value.push(...newMsgs);
+
+    // Trim oldest messages if over limit (keep tail)
+    if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
+      const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
+      for (const m of removed) messageIdSet.delete(m.messageId);
+      hasReachedEnd.value = false; // can load older again
+    }
     triggerRef(messages);
 
     // Handle scroll/notification for the last message in batch

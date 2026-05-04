@@ -59,13 +59,12 @@ Sentry.init({
     }),
     Sentry.contextLinesIntegration(),
     Sentry.httpClientIntegration(),
-    Sentry.replayCanvasIntegration(),
     Sentry.feedbackIntegration({
       colorScheme: "dark",
       autoInject: false,
     }),
     Sentry.createSentryPiniaPlugin({
-      attachPiniaState: true,
+      attachPiniaState: false,
       addBreadcrumbs: false,
       actionTransformer: () => null,
       stateTransformer: () => null,
@@ -78,10 +77,9 @@ Sentry.init({
   environment: import.meta.env.MODE,
   release: pkg.version,
   enabled: true,
-  normalizeDepth: 10,
-  maxBreadcrumbs: 100,
-  enableMetrics: true,
-  attachStacktrace: true,
+  normalizeDepth: 5,
+  maxBreadcrumbs: 50,
+  attachStacktrace: false,
   beforeSend(event, hint) {
     if (event.request?.headers) {
       delete event.request.headers['Authorization'];

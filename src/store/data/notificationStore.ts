@@ -45,6 +45,7 @@ export const useNotificationStore = defineStore("notifications", () => {
   const unreadDmCount = ref(0);
   const notifications = ref<NotificationBadges>({ friendRequests: 0, inventory: 0, system: 0 });
   const notificationFeed = shallowRef<SystemNotificationDto[]>([]);
+  const MAX_NOTIFICATION_FEED = 200;
   const feedHasMore = ref(true);
   const initialized = ref(false);
 
@@ -165,7 +166,8 @@ export const useNotificationStore = defineStore("notifications", () => {
   }
 
   function handleSystemNotificationReceived(e: SystemNotificationReceived) {
-    notificationFeed.value = [e.notification, ...notificationFeed.value];
+    const feed = [e.notification, ...notificationFeed.value];
+    notificationFeed.value = feed.length > MAX_NOTIFICATION_FEED ? feed.slice(0, MAX_NOTIFICATION_FEED) : feed;
 
     const key = NOTIFICATION_TYPES[e.notification.type];
     if (key) {
@@ -340,9 +342,10 @@ export const useNotificationStore = defineStore("notifications", () => {
     try {
       const items = await api.userInteraction.GetNotificationFeed(limit, before ?? null);
       if (before) {
-        notificationFeed.value = [...notificationFeed.value, ...items];
+        const combined = [...notificationFeed.value, ...items];
+        notificationFeed.value = combined.length > MAX_NOTIFICATION_FEED ? combined.slice(0, MAX_NOTIFICATION_FEED) : combined;
       } else {
-        notificationFeed.value = [...items];
+        notificationFeed.value = items.length > MAX_NOTIFICATION_FEED ? items.slice(0, MAX_NOTIFICATION_FEED) : [...items];
       }
       feedHasMore.value = items.length >= limit;
     } catch (error) {
