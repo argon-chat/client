@@ -27,7 +27,8 @@ export const useUserStore = defineStore("user", () => {
   const api = useApi();
 
   // Cache for reactive user queries - one subscription per userId
-  const reactiveUserCache = new Map<string, { subscription: Subscription; ref: Ref<RealtimeUser | undefined>; createdAt: number }>();
+  const reactiveUserCache = new Map<string, { subscription: Subscription; ref: Ref<RealtimeUser | undefined>; lastAccessed: number }>();
+  const MAX_REACTIVE_SUBSCRIPTIONS = 50;
 
   // In-memory cache for getUser (TTL 5 sec)
   const userCache = new Map<string, { user: RealtimeUser | undefined; timestamp: number }>();
@@ -57,18 +58,12 @@ export const useUserStore = defineStore("user", () => {
     cacheHits: 0,
     cacheMisses: 0,
     deduplicatedRequests: 0,
-    recentCallTimestamps: [] as number[],
   });
 
   /**
    * Get diagnostics info
    */
   const getDiagnostics = () => {
-    // Calculate call frequency for the last second
-    const now = Date.now();
-    const recentCalls = diagnostics.recentCallTimestamps.filter(t => now - t < 1000);
-    const callsPerSecond = recentCalls.length;
-
     return {
       activeSubscriptions: reactiveUserCache.size,
       totalSubscriptionsCreated: diagnostics.totalSubscriptionsCreated,
@@ -82,13 +77,10 @@ export const useUserStore = defineStore("user", () => {
         ? ((diagnostics.cacheHits / diagnostics.totalQueriesExecuted) * 100).toFixed(1) + '%'
         : '0%',
       deduplicatedRequests: diagnostics.deduplicatedRequests,
-      callsPerSecond,
       cacheSize: userCache.size,
       pendingRequests: pendingRequests.size,
       activeRequests,
       queuedRequests: requestQueue.length,
-      maxParallelRequests: MAX_PARALLEL_REQUESTS,
-      cacheKeys: Array.from(reactiveUserCache.keys()),
     };
   };
 
@@ -160,9 +152,8 @@ export const useUserStore = defineStore("user", () => {
       
       logger.debug(`[UserStore] Batch loaded ${users.length}/${toFetch.length} users in ${duration.toFixed(0)}ms`);
       
-      if (duration > 1000) {
-        const caller = new Error().stack?.split('\n').slice(2, 8).join('\n') || 'unknown';
-        logSlowQuery(`getUsersBatch(${toFetch.length} users)`, duration, caller);
+      if (duration > 100) {
+        logSlowQuery(`getUsersBatch(${toFetch.length} users)`, duration);
       }
 
       // Cache results
@@ -184,15 +175,8 @@ export const useUserStore = defineStore("user", () => {
    */
   const getUser = async (userId: Guid): Promise<RealtimeUser | undefined> => {
     const now = Date.now();
-    const caller = new Error().stack?.split('\n').slice(2, 15).join('\n') || 'unknown';
     
     diagnostics.totalQueriesExecuted++;
-    diagnostics.recentCallTimestamps.push(now);
-    
-    // Clean up old timestamps (older than 1 sec)
-    if (diagnostics.recentCallTimestamps.length > 100) {
-      diagnostics.recentCallTimestamps = diagnostics.recentCallTimestamps.filter(t => now - t < 1000);
-    }
 
     // Check in-memory cache
     const cached = userCache.get(userId);
@@ -201,10 +185,10 @@ export const useUserStore = defineStore("user", () => {
       return cached.user;
     }
     diagnostics.cacheMisses++;
+
     // Check for stuck requests
     const pendingTimestamp = requestTimestamps.get(userId);
     if (pendingTimestamp && (now - pendingTimestamp) > REQUEST_TIMEOUT) {
-      logger.error(`[UserStore] Request timeout for userId=${userId}, clearing pending request`);
       pendingRequests.delete(userId);
       requestTimestamps.delete(userId);
       diagnostics.errorCount++;
@@ -221,26 +205,11 @@ export const useUserStore = defineStore("user", () => {
     const startTime = performance.now();
     requestTimestamps.set(userId, now);
     
-    // Check: are there other long-running requests?
-    const longRunningRequests = Array.from(requestTimestamps.entries())
-      .filter(([id, timestamp]) => id !== userId && (now - timestamp) > 5000)
-      .map(([id, timestamp]) => `${id} (${now - timestamp}ms)`);
-    
-    if (longRunningRequests.length > 0) {
-      logger.warn(`[UserStore] ${longRunningRequests.length} long-running requests detected: ${longRunningRequests.join(', ')}`);
-    }
-    
     // Wait for our turn if too many active requests
     if (activeRequests >= MAX_PARALLEL_REQUESTS) {
-      logger.warn(`[UserStore] ⏸️ Throttling: waiting for slot (${activeRequests} active requests)`);
-      
-      // Timeout for throttling - don't wait forever
       await Promise.race([
         new Promise<void>(resolve => requestQueue.push(resolve)),
-        new Promise<void>((resolve) => setTimeout(() => {
-          logger.error(`[UserStore] 💥 Throttling timeout for ${userId}, forcing slot`);
-          resolve();
-        }, 5000))
+        new Promise<void>((resolve) => setTimeout(resolve, 5000))
       ]);
     }
     
@@ -252,16 +221,12 @@ export const useUserStore = defineStore("user", () => {
     const request = Promise.race([
       (async () => {
         try {
-          const dbCallStart = performance.now();
           const result = await db.users.get(userId);
-          const dbCallDuration = performance.now() - dbCallStart;
           const duration = performance.now() - startTime;
           
-          if (dbCallDuration > 1000) {
-            logger.error(`[UserStore] 🐌 IndexedDB call took ${dbCallDuration}ms for getUser(${userId})\n📞 Called from:\n${caller}`);
+          if (duration > 100) {
+            logSlowQuery(`getUser(${userId})`, duration);
           }
-          
-          logSlowQuery(`getUser(${userId})`, duration, caller);
 
           // Cache result
           userCache.set(userId, { user: result, timestamp: Date.now() });
@@ -270,22 +235,17 @@ export const useUserStore = defineStore("user", () => {
           if (userCache.size > 500) {
             const entries = Array.from(userCache.entries());
             entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-            // Remove 100 oldest entries
             for (let i = 0; i < 100; i++) {
               userCache.delete(entries[i][0]);
             }
           }
 
-          if (result) {
-            return result;
-          }
-
-          return undefined;
+          return result ?? undefined;
         } catch (err) {
-          logger.error(`[UserStore] 💥 Exception in getUser(${userId}):`, err);
+          logger.error(`[UserStore] Exception in getUser(${userId}):`, err);
+          diagnostics.errorCount++;
           throw err;
         } finally {
-          // Cancel timeout
           if (timeoutId !== undefined) {
             clearTimeout(timeoutId);
           }
@@ -294,7 +254,6 @@ export const useUserStore = defineStore("user", () => {
           pendingRequests.delete(userId);
           requestTimestamps.delete(userId);
           
-          // Release slot for next request in queue
           const nextResolve = requestQueue.shift();
           if (nextResolve) {
             nextResolve();
@@ -303,23 +262,7 @@ export const useUserStore = defineStore("user", () => {
       })(),
       new Promise<RealtimeUser | undefined>((_, reject) => 
         timeoutId = setTimeout(() => {
-          const elapsed = Date.now() - now;
-          const allPending = Array.from(pendingRequests.keys());
-          const allTimestamps = Array.from(requestTimestamps.entries())
-            .map(([id, ts]) => `${id}:${Date.now() - ts}ms`);
-          
-          logger.error(
-            `[UserStore] ⏱️ REQUEST TIMEOUT for getUser(${userId})\n` +
-            `⏱️ Elapsed: ${elapsed}ms\n` +
-            `📞 Called from:\n${caller}\n` +
-            `🔄 Pending requests (${allPending.length}): ${allPending.join(', ')}\n` +
-            `⏲️ Request ages: ${allTimestamps.join(', ')}\n` +
-            `🎯 Active requests: ${activeRequests}/${MAX_PARALLEL_REQUESTS}\n` +
-            `📋 Queue length: ${requestQueue.length}`
-          );
-          
           diagnostics.errorCount++;
-          // DON'T do cleanup here - it will happen in finally block
           reject(new Error(`Request timeout for userId=${userId}`));
         }, REQUEST_TIMEOUT)
       )
@@ -352,35 +295,40 @@ export const useUserStore = defineStore("user", () => {
       const currentId = userId.value;
       if (!currentId) return null;
       
-      // Return cached subscription if exists
-      if (!reactiveUserCache.has(currentId)) {
-        diagnostics.totalSubscriptionsCreated++;
-        const userRef = ref<RealtimeUser | undefined>(undefined);
-
-        const subscription = liveQuery(() => db.users.get(currentId)).subscribe({
-          next: (user) => {
-            // Measure time for each liveQuery trigger separately
-            const queryStart = performance.now();
-            userRef.value = user;
-            const duration = performance.now() - queryStart;
-            
-            // Log only if really slow
-            if (duration > 100) {
-              logSlowQuery(`liveQuery.getUserReactive(${currentId})`, duration);
-            }
-          },
-          error: (err) => {
-            diagnostics.errorCount++;
-            logger.error(`[UserStore] Error in getUserReactive liveQuery for userId=${currentId}:`, err);
-            userRef.value = undefined;
-          }
-        });
-
-        reactiveUserCache.set(currentId, { subscription, ref: userRef, createdAt: Date.now() });
-        logger.info(`[UserStore] Created subscription #${diagnostics.totalSubscriptionsCreated} for userId=${currentId}. Total active: ${reactiveUserCache.size}`);
+      const existing = reactiveUserCache.get(currentId);
+      if (existing) {
+        existing.lastAccessed = Date.now();
+        return existing.ref.value ?? null;
       }
+
+      // Evict LRU subscriptions if at capacity
+      if (reactiveUserCache.size >= MAX_REACTIVE_SUBSCRIPTIONS) {
+        const entries = Array.from(reactiveUserCache.entries());
+        entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+        const toEvict = entries.slice(0, Math.floor(MAX_REACTIVE_SUBSCRIPTIONS * 0.25));
+        for (const [key, entry] of toEvict) {
+          entry.subscription.unsubscribe();
+          reactiveUserCache.delete(key);
+        }
+      }
+
+      diagnostics.totalSubscriptionsCreated++;
+      const userRef = ref<RealtimeUser | undefined>(undefined);
+
+      const subscription = liveQuery(() => db.users.get(currentId)).subscribe({
+        next: (user) => {
+          userRef.value = user;
+        },
+        error: (err) => {
+          diagnostics.errorCount++;
+          logger.error(`[UserStore] Error in getUserReactive liveQuery for userId=${currentId}:`, err);
+          userRef.value = undefined;
+        }
+      });
+
+      reactiveUserCache.set(currentId, { subscription, ref: userRef, lastAccessed: Date.now() });
       
-      return reactiveUserCache.get(currentId)!.ref.value ?? null;
+      return userRef.value ?? null;
     });
   }
 

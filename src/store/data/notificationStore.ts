@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, shallowRef, triggerRef } from "vue";
 import { logger } from "@argon/core";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
@@ -39,12 +39,12 @@ export const useNotificationStore = defineStore("notifications", () => {
 
   // ── State ──────────────────────────────────────────────
 
-  const readStates = ref(new Map<Guid, ChannelReadState>());
-  const muteSettings = ref(new Map<Guid, MuteSettingsDto>());
-  const spaceBadges = ref(new Map<Guid, SpaceBadge>());
+  const readStates = shallowRef(new Map<Guid, ChannelReadState>());
+  const muteSettings = shallowRef(new Map<Guid, MuteSettingsDto>());
+  const spaceBadges = shallowRef(new Map<Guid, SpaceBadge>());
   const unreadDmCount = ref(0);
   const notifications = ref<NotificationBadges>({ friendRequests: 0, inventory: 0, system: 0 });
-  const notificationFeed = ref<SystemNotificationDto[]>([]);
+  const notificationFeed = shallowRef<SystemNotificationDto[]>([]);
   const feedHasMore = ref(true);
   const initialized = ref(false);
 
@@ -156,8 +156,7 @@ export const useNotificationStore = defineStore("notifications", () => {
       lastReadMessageId: e.lastReadMessageId,
       mentionCount: e.mentionCount,
     });
-    // Trigger reactivity
-    readStates.value = new Map(readStates.value);
+    triggerRef(readStates);
 
     // Recalculate space badge if spaceId is known
     if (e.spaceId) {
@@ -188,7 +187,7 @@ export const useNotificationStore = defineStore("notifications", () => {
       existing.muteLevel = e.muteLevel;
       muteSettings.value.set(e.targetId, { ...existing });
     }
-    muteSettings.value = new Map(muteSettings.value);
+    triggerRef(muteSettings);
   }
 
   function handleBatchMentionOccurred(e: BatchMentionOccurred) {
@@ -224,7 +223,7 @@ export const useNotificationStore = defineStore("notifications", () => {
           ...rs,
           lastReadMessageId: msg.messageId,
         });
-        readStates.value = new Map(readStates.value);
+        triggerRef(readStates);
       }
       return;
     }
@@ -267,7 +266,7 @@ export const useNotificationStore = defineStore("notifications", () => {
         lastReadMessageId: messageId,
         mentionCount: 0,
       });
-      readStates.value = new Map(readStates.value);
+      triggerRef(readStates);
 
       if (resolvedSpaceId) {
         recalcSpaceBadge(resolvedSpaceId);
@@ -277,7 +276,7 @@ export const useNotificationStore = defineStore("notifications", () => {
         logger.error("[NotificationStore] AckChannel failed, rolling back:", error);
         if (oldReadState) {
           readStates.value.set(channelId, oldReadState);
-          readStates.value = new Map(readStates.value);
+          triggerRef(readStates);
           if (oldReadState.spaceId) recalcSpaceBadge(oldReadState.spaceId);
         }
       });
@@ -307,7 +306,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     const old = muteSettings.value.get(targetId);
     const dto: MuteSettingsDto = { targetId, targetType, muteLevel, suppressEveryone, expiresAt };
     muteSettings.value.set(targetId, dto);
-    muteSettings.value = new Map(muteSettings.value);
+    triggerRef(muteSettings);
 
     try {
       await api.userInteraction.MuteTarget(targetId, targetType, muteLevel, suppressEveryone, expiresAt);
@@ -315,14 +314,14 @@ export const useNotificationStore = defineStore("notifications", () => {
       logger.error("[NotificationStore] MuteTarget failed, rolling back:", error);
       if (old) muteSettings.value.set(targetId, old);
       else muteSettings.value.delete(targetId);
-      muteSettings.value = new Map(muteSettings.value);
+      triggerRef(muteSettings);
     }
   }
 
   async function unmuteTarget(targetId: Guid) {
     const old = muteSettings.value.get(targetId);
     muteSettings.value.delete(targetId);
-    muteSettings.value = new Map(muteSettings.value);
+    triggerRef(muteSettings);
 
     try {
       await api.userInteraction.UnmuteTarget(targetId);
@@ -330,7 +329,7 @@ export const useNotificationStore = defineStore("notifications", () => {
       logger.error("[NotificationStore] UnmuteTarget failed, rolling back:", error);
       if (old) {
         muteSettings.value.set(targetId, old);
-        muteSettings.value = new Map(muteSettings.value);
+        triggerRef(muteSettings);
       }
     }
   }
@@ -358,10 +357,9 @@ export const useNotificationStore = defineStore("notifications", () => {
     const old = notificationFeed.value[idx];
     if (old.isRead) return;
 
-    // Optimistic
-    const updated = [...notificationFeed.value];
-    updated[idx] = { ...old, isRead: true };
-    notificationFeed.value = updated;
+    // Optimistic - mutate in place
+    notificationFeed.value[idx] = { ...old, isRead: true };
+    triggerRef(notificationFeed);
 
     const key = NOTIFICATION_TYPES[old.type];
     if (key && notifications.value[key] > 0) {
@@ -373,7 +371,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     } catch (error) {
       logger.error("[NotificationStore] MarkNotificationRead failed:", error);
       notificationFeed.value[idx] = old;
-      notificationFeed.value = [...notificationFeed.value];
+      triggerRef(notificationFeed);
       if (key) {
         notifications.value = { ...notifications.value, [key]: notifications.value[key] + 1 };
       }
@@ -384,10 +382,15 @@ export const useNotificationStore = defineStore("notifications", () => {
     const oldFeed = [...notificationFeed.value];
     const oldNotifications = { ...notifications.value };
 
-    // Optimistic
-    notificationFeed.value = notificationFeed.value.map((n) =>
-      !type || n.type === type ? { ...n, isRead: true } : n,
-    );
+    // Optimistic - mutate in place
+    for (let i = 0; i < notificationFeed.value.length; i++) {
+      const n = notificationFeed.value[i];
+      if (!type || n.type === type) {
+        notificationFeed.value[i] = { ...n, isRead: true };
+      }
+    }
+    triggerRef(notificationFeed);
+
     if (type) {
       const key = NOTIFICATION_TYPES[type];
       if (key) notifications.value = { ...notifications.value, [key]: 0 };
@@ -431,7 +434,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     }
 
     spaceBadges.value.set(spaceId, { spaceId, unreadChannelCount: unreadCount, totalMentions });
-    spaceBadges.value = new Map(spaceBadges.value);
+    triggerRef(spaceBadges);
   }
 
   function decrementDmUnread() {

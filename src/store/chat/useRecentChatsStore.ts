@@ -79,11 +79,25 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
 
     const idx = recent.value.findIndex((x) => x.peerId === chat.peerId);
     if (idx !== -1) {
-      recent.value.splice(idx, 1);
+      // Update in place and re-sort only if ordering properties changed
+      const existing = recent.value[idx];
+      const orderChanged = existing.isPinned !== vm.isPinned 
+        || toTsDate(existing.pinnedAt) !== toTsDate(vm.pinnedAt)
+        || toTsDate(existing.lastMessageAt) !== toTsDate(vm.lastMessageAt);
+      
+      recent.value[idx] = vm;
+      if (orderChanged) {
+        recent.value.sort(sorter);
+      }
+    } else {
+      // Insert at correct sorted position
+      const insertIdx = recent.value.findIndex((x) => sorter(vm, x) <= 0);
+      if (insertIdx === -1) {
+        recent.value.push(vm);
+      } else {
+        recent.value.splice(insertIdx, 0, vm);
+      }
     }
-
-    recent.value.unshift(vm);
-    recent.value.sort(sorter);
   }
 
   function markPinned(
@@ -93,6 +107,8 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   ) {
     const chat = recent.value.find((x) => x.peerId === peerId);
     if (!chat) return;
+
+    if (chat.isPinned === value) return;
 
     chat.isPinned = value;
     chat.pinnedAt = value ? pinnedAt : null;

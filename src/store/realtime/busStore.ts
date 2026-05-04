@@ -84,9 +84,7 @@ export const useBus = defineStore("bus", () => {
 
       function base64ToU8(b64: string): Uint8Array {
         const bin = atob(b64);
-        const u8 = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-        return u8;
+        return Uint8Array.from(bin, c => c.charCodeAt(0));
       }
 
       hubConnection.onreconnecting((error) => {
