@@ -452,13 +452,13 @@ let _scrollParent: HTMLElement | null = null;
 const showActions = computed(() => isHovered.value || reactionPickerOpen.value);
 
 // Position the action bar above the bubble using getBoundingClientRect
-const actionBarPos = ref<{ top: number; right: number } | null>(null);
+const actionBarPos = ref<{ top: number; left: number } | null>(null);
 
 const actionBarStyle = computed(() => {
   if (!actionBarPos.value) return {};
   return {
     top: actionBarPos.value.top + 'px',
-    right: actionBarPos.value.right + 'px',
+    left: actionBarPos.value.left + 'px',
     zIndex: '9999',
   };
 });
@@ -467,8 +467,8 @@ function recalcPos() {
   if (!_hoveredEl) return;
   const rect = _hoveredEl.getBoundingClientRect();
   actionBarPos.value = {
-    top: rect.top - 32,
-    right: window.innerWidth - rect.right,
+    top: rect.top,
+    left: rect.right + 8,
   };
 }
 
