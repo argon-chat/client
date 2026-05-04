@@ -103,14 +103,11 @@ export const useChannelStore = defineStore("channel", () => {
       }
 
       diagnostics.activeSubscriptions++;
-      const startTime = performance.now();
 
       sub = liveQuery(() =>
         db.channels.where("spaceId").equals(id).toArray()
       ).subscribe({
         next: (channels) => {
-          const duration = performance.now() - startTime;
-          logSlowQuery(`liveQuery.useActiveServerChannels(${id})`, duration);
           result.value = channels;
         },
         error: (err) => {

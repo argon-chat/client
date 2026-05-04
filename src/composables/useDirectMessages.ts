@@ -62,7 +62,6 @@ export function useDirectMessages(peerId: () => Guid) {
   const hasReachedEnd = ref(false);
   const isLoading = ref(false);
   const isLoadingOlder = ref(false);
-  const isRestoringScroll = ref(false);
   const newMessagesCount = ref(0);
   const isScrolledUp = ref(false);
   const subs = ref<Subscription | null>(null);
@@ -71,6 +70,15 @@ export function useDirectMessages(peerId: () => Guid) {
   const resolvedMessageIds = new Set<bigint>();
   const optimisticTimers = new Map<bigint, ReturnType<typeof setTimeout>>();
   const messageIdSet = new Set<bigint>();
+
+  /** Trim messages to MAX_MESSAGES_IN_MEMORY from the tail (newest kept) */
+  const trimMessages = () => {
+    if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
+      const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
+      for (const m of removed) messageIdSet.delete(m.messageId);
+      hasReachedEnd.value = false;
+    }
+  };
 
   // Batch incoming messages to avoid multiple array rebuilds per frame
   let pendingIncoming: { msg: ChatMessage; onNewMessage: () => void }[] = [];
@@ -84,13 +92,7 @@ export function useDirectMessages(peerId: () => Guid) {
     const newMsgs = batch.map((b) => b.msg);
     for (const m of newMsgs) messageIdSet.add(m.messageId);
     messages.value.push(...newMsgs);
-
-    // Trim oldest messages if over limit
-    if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
-      const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
-      for (const m of removed) messageIdSet.delete(m.messageId);
-      hasReachedEnd.value = false;
-    }
+    trimMessages();
     triggerRef(messages);
 
     const lastEntry = batch[batch.length - 1];
@@ -125,11 +127,13 @@ export function useDirectMessages(peerId: () => Guid) {
   // Loading
   // ────────────────────────────────────────────
 
-  const loadOlderMessages = async (onPrepend: (count: number) => void) => {
-    if (isLoadingOlder.value || hasReachedEnd.value || isRestoringScroll.value) return;
+  const loadOlderMessages = async (callbacks: {
+    beforePrepend: () => void;
+    afterPrepend: () => void;
+  }) => {
+    if (isLoadingOlder.value || hasReachedEnd.value) return;
 
     isLoadingOlder.value = true;
-    isRestoringScroll.value = true;
 
     try {
       const fromId = oldestMessageId.value;
@@ -159,10 +163,12 @@ export function useDirectMessages(peerId: () => Guid) {
         .sort((a, b) => Number(a.messageId - b.messageId))
         .map((dm) => dmToChatMessage(dm, peerId()));
 
+      callbacks.beforePrepend();
       for (const m of sorted) messageIdSet.add(m.messageId);
       messages.value.unshift(...sorted);
+      trimMessages();
       triggerRef(messages);
-      onPrepend(sorted.length);
+      callbacks.afterPrepend();
 
       if (olderMessages.length < MESSAGES_PER_LOAD) {
         hasReachedEnd.value = true;
@@ -171,11 +177,6 @@ export function useDirectMessages(peerId: () => Guid) {
       logger.error("Failed to load older DM messages:", error);
     } finally {
       isLoadingOlder.value = false;
-      nextTick(() => {
-        requestAnimationFrame(() => {
-          isRestoringScroll.value = false;
-        });
-      });
     }
   };
 
@@ -428,7 +429,6 @@ export function useDirectMessages(peerId: () => Guid) {
     hasReachedEnd,
     isLoading,
     isLoadingOlder,
-    isRestoringScroll,
     newMessagesCount,
     isScrolledUp,
     loadOlderMessages,

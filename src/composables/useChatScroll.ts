@@ -1,11 +1,165 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
+import { ref, nextTick, type ShallowRef, onMounted, onUnmounted } from "vue";
 import { type ArgonMessage, EntityType } from "@argon/glue";
+import { useChatVirtualScroller, type VirtualItem } from "@/composables/useChatVirtualScroller";
+import { useHeavyAnimationCheck } from "@/composables/useHeavyAnimationCheck";
+import type { ChatMessage } from "@/composables/useChatMessages";
 
-const SCROLL_THRESHOLD = 150;
+const SCROLL_NEAR_TOP_THRESHOLD = 300;
+const SCROLL_NEAR_BOTTOM_THRESHOLD = 120;
 
-// Adaptive height estimates by message content type
-function estimateMessageHeight(msg: ArgonMessage | undefined): number {
+/** Selector for anchor-able message elements inside the scroll container */
+const ANCHOR_QUERY = "[data-msg-key]";
+
+export interface ScrollAnchorConfig {
+  /** Scrollable container */
+  el: HTMLElement;
+  /** Selector for anchorable children */
+  selector: string;
+  /** true = anchor from top (prepend scenario), false = anchor from bottom */
+  anchorTop?: boolean;
+}
+
+interface Snapshot {
+  node: HTMLElement;
+  rect: DOMRect;
+}
+
+export class PositionDeltaAnchor {
+  private el: HTMLElement;
+  private selector: string;
+  private anchorTop: boolean;
+
+  private savedScrollTop = 0;
+  private savedScrollHeight = 0;
+  private savedClientHeight = 0;
+  private savedDelta = 0; // scrollHeight - scrollTop (for fallback)
+  private atEnd = false;
+  private anchors: Snapshot[] = [];
+
+  constructor(cfg: ScrollAnchorConfig) {
+    this.el = cfg.el;
+    this.selector = cfg.selector;
+    this.anchorTop = cfg.anchorTop ?? true;
+  }
+
+  /** Capture current state. Call before DOM mutation. */
+  save(): void {
+    const { scrollTop, scrollHeight, clientHeight } = this.el;
+    this.savedScrollTop = scrollTop;
+    this.savedScrollHeight = scrollHeight;
+    this.savedClientHeight = clientHeight;
+    this.savedDelta = this.anchorTop
+      ? scrollHeight - scrollTop
+      : scrollTop;
+    this.atEnd = scrollHeight - Math.ceil(scrollTop + clientHeight) <= 1;
+    this.anchors = this.collectVisible();
+  }
+
+  /** After DOM mutation, restore scroll so the anchor stays in place. */
+  restore(): void {
+    const { scrollTop, scrollHeight } = this.el;
+    this.savedScrollHeight = scrollHeight;
+
+    if (!this.anchors.length && this.selector) {
+      this.applyScroll(this.anchorTop ? scrollHeight : 0);
+      return;
+    }
+
+    let pick = this.pickAnchor();
+
+    // If anchor was removed from DOM, try re-collecting
+    if (!pick?.node?.parentElement) {
+      this.anchors = this.collectVisible();
+      pick = this.pickAnchor();
+      if (!pick) {
+        this.fallback();
+        return;
+      }
+    }
+
+    const { node, rect: before } = pick;
+    const after = node.getBoundingClientRect();
+    const box = this.el.getBoundingClientRect();
+
+    const overTop = before.top < box.top;
+    const overBot = before.bottom > box.bottom;
+
+    // Which edge of the element do we track?
+    let edge: "top" | "bottom" = this.anchorTop ? "top" : "bottom";
+    if (this.anchorTop ? (overTop && !overBot) : (overBot && !overTop)) {
+      edge = this.anchorTop ? "bottom" : "top";
+    }
+
+    const shift = after[edge] - before[edge];
+    if (shift === 0 && !this.atEnd) return;
+    if (!shift) return;
+
+    this.applyScroll(scrollTop + shift);
+  }
+
+  /** Swap a DOM reference (useful when Vue recreates nodes). */
+  replaceSaved(from: HTMLElement, to: HTMLElement): void {
+    const i = this.anchors.findIndex((s) => s.node === from);
+    if (i !== -1) this.anchors[i].node = to;
+  }
+
+  // ─── internals ───
+
+  private collectVisible(): Snapshot[] {
+    if (!this.selector) return [];
+
+    const box = this.el.getBoundingClientRect();
+    const nodes = Array.from(this.el.querySelectorAll(this.selector)) as HTMLElement[];
+    const out: Snapshot[] = [];
+
+    for (const node of nodes) {
+      const r = node.getBoundingClientRect();
+      const visible =
+        r.bottom > box.top && r.top < box.bottom &&
+        r.right > box.left && r.left < box.right;
+
+      if (visible) {
+        out.push({ node, rect: r });
+      } else if (out.length) {
+        break;
+      }
+    }
+
+    if (!out.length && nodes.length) {
+      out.push({ node: nodes[0], rect: nodes[0].getBoundingClientRect() });
+    }
+    return out;
+  }
+
+  private pickAnchor(): Snapshot | undefined {
+    return this.anchors[this.anchorTop ? 0 : this.anchors.length - 1];
+  }
+
+  private applyScroll(value: number): void {
+    this.el.scrollTop = value;
+    this.savedScrollTop = value;
+  }
+
+  private fallback(): void {
+    const target = this.anchorTop
+      ? this.savedScrollHeight - this.savedDelta
+      : this.savedDelta;
+    this.applyScroll(Math.max(0, target));
+  }
+
+  getSaved() {
+    return {
+      scrollHeight: this.savedScrollHeight,
+      scrollTop: this.savedScrollTop,
+      clientHeight: this.savedClientHeight,
+    };
+  }
+}
+
+
+// ── Adaptive height estimates by message content type ──
+
+export function estimateMessageHeight(msg: ArgonMessage | undefined, _index?: number): number {
   if (!msg) return 64;
 
   const entities = msg.entities ?? [];
@@ -26,7 +180,7 @@ function estimateMessageHeight(msg: ArgonMessage | undefined): number {
   });
   const fileAttachments = attachments.length - imageAttachments.length;
 
-  let height = 32; // meta (username + time)
+  let height = 32;
 
   if (imageAttachments.length === 1) height += 300;
   else if (imageAttachments.length >= 2 && imageAttachments.length <= 4) height += 160;
@@ -55,78 +209,66 @@ export type ScrollStateCallback = (info: {
 }) => void;
 
 export function useChatScroll(
-  messages: () => ArgonMessage[],
-  isRestoringScroll: () => boolean,
+  messages: ShallowRef<ChatMessage[]>,
 ) {
   const parentRef = ref<HTMLElement>();
   const chatWidth = ref(0);
 
   let onScrollTopCallback: (() => void) | null = null;
   let onScrollCallback: ScrollStateCallback | null = null;
-  let scrollTicking = false;
 
-  const virtualizerOptions = computed(() => ({
-    count: messages().length,
-    getScrollElement: () => parentRef.value ?? null,
-    estimateSize: (index: number) => estimateMessageHeight(messages()[index]),
-    overscan: 10,
-    getItemKey: (index: number) => messages()[index]?.messageId?.toString() ?? index,
-  }));
+  const { isAnimating, consumeNeedCheck } = useHeavyAnimationCheck();
 
-  const virtualizer = useVirtualizer(virtualizerOptions);
-  const virtualItems = computed(() => virtualizer.value.getVirtualItems());
+  // ── Virtual scroller ──
 
-  // Batch measureElement calls to avoid layout thrashing.
-  // Collect elements during a frame, then measure all at once in a single rAF.
-  let pendingMeasurements: HTMLElement[] = [];
-  let measureRafId: number | null = null;
+  const scroller = useChatVirtualScroller<ChatMessage>({
+    list: messages,
+    scrollContainer: parentRef,
+    estimateHeight: (item, index) => estimateMessageHeight(item, index),
+    getKey: (item) => item.messageId?.toString() ?? Math.random().toString(),
+    maxBatchSize: 20,
+    nearBottomThreshold: SCROLL_NEAR_BOTTOM_THRESHOLD,
+    nearTopThreshold: SCROLL_NEAR_TOP_THRESHOLD,
+    onNearBottom: () => {
+      if (!isAnimating.value && onScrollCallback) {
+        const container = parentRef.value;
+        if (container) {
+          const { scrollTop, scrollHeight, clientHeight } = container;
+          onScrollCallback({
+            scrollTop,
+            scrollHeight,
+            clientHeight,
+            distanceFromBottom: scrollHeight - scrollTop - clientHeight,
+          });
+        }
+      }
+    },
+    onNearTop: () => {
+      if (!isAnimating.value && onScrollTopCallback) {
+        onScrollTopCallback();
+      }
+    },
+  });
 
-  const flushMeasurements = () => {
-    measureRafId = null;
-    const els = pendingMeasurements;
-    pendingMeasurements = [];
-    for (const el of els) {
-      virtualizer.value.measureElement(el);
-    }
-  };
+  // ── Additional scroll state reporting ──
+  // The virtual scroller handles its own scroll events for rendering,
+  // but we also need to report scroll state for UI (FAB, unread counter, ACK).
 
-  const measureItem = (el: HTMLElement | null, _index: number) => {
-    if (!el) return;
-    pendingMeasurements.push(el);
-    if (measureRafId === null) {
-      measureRafId = requestAnimationFrame(flushMeasurements);
-    }
-  };
+  let scrollReportTicking = false;
 
-  const scrollToBottomImmediate = () => {
-    if (messages().length === 0) return;
-    const lastIndex = messages().length - 1;
-    virtualizer.value.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
-    // Fallback: after measurement settles, snap via direct scrollTop for reliability
+  function handleScrollReport() {
+    if (scrollReportTicking) return;
+    scrollReportTicking = true;
     requestAnimationFrame(() => {
-      const el = parentRef.value;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
-  };
+      scrollReportTicking = false;
+      if (!parentRef.value) return;
 
-  const scrollToBottom = () => {
-    if (messages().length === 0) return;
-    const lastIndex = messages().length - 1;
-    virtualizer.value.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
-  };
-
-  const scrollToIndex = (index: number) => {
-    virtualizer.value.scrollToIndex(index, { align: "start", behavior: "auto" });
-  };
-
-  // RAF-throttled unified scroll handler
-  const handleScroll = () => {
-    if (scrollTicking) return;
-    scrollTicking = true;
-
-    requestAnimationFrame(() => {
-      scrollTicking = false;
-      if (!parentRef.value || isRestoringScroll()) return;
+      // Check deferred animation
+      if (isAnimating.value) return;
+      if (consumeNeedCheck()) {
+        // Post-animation check — let the scroller recompute
+        scroller.scheduleUpdate();
+      }
 
       const { scrollTop, scrollHeight, clientHeight } = parentRef.value;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
@@ -134,11 +276,33 @@ export function useChatScroll(
       if (onScrollCallback) {
         onScrollCallback({ scrollTop, scrollHeight, clientHeight, distanceFromBottom });
       }
-
-      if (scrollTop < SCROLL_THRESHOLD && onScrollTopCallback) {
-        onScrollTopCallback();
-      }
     });
+  }
+
+  // ── ScrollSaver for anchor-based scroll restoration ──
+
+  function createScrollSaver(anchorTop = true): PositionDeltaAnchor {
+    return new PositionDeltaAnchor({
+      el: parentRef.value!,
+      selector: ANCHOR_QUERY,
+      anchorTop,
+    });
+  }
+
+  // ── Public methods ──
+
+  const scrollToBottomImmediate = () => {
+    // Render from the end of the list so the bottom items are in DOM immediately
+    scroller.renderAtBottom();
+  };
+
+  const scrollToBottom = () => {
+    // Also use renderAtBottom to avoid the bounce-back from mismatched spacers
+    scroller.renderAtBottom();
+  };
+
+  const scrollToIndex = (index: number) => {
+    scroller.scrollToIndex(index, "start");
   };
 
   const onScrollNearTop = (callback: () => void) => {
@@ -157,7 +321,7 @@ export function useChatScroll(
 
   onMounted(() => {
     if (parentRef.value) {
-      parentRef.value.addEventListener("scroll", handleScroll, { passive: true });
+      parentRef.value.addEventListener("scroll", handleScrollReport, { passive: true });
       chatWidth.value = parentRef.value.offsetWidth;
     }
     window.addEventListener("resize", updateChatWidth);
@@ -165,7 +329,7 @@ export function useChatScroll(
 
   onUnmounted(() => {
     if (parentRef.value) {
-      parentRef.value.removeEventListener("scroll", handleScroll);
+      parentRef.value.removeEventListener("scroll", handleScrollReport);
     }
     window.removeEventListener("resize", updateChatWidth);
   });
@@ -173,14 +337,27 @@ export function useChatScroll(
   return {
     parentRef,
     chatWidth,
-    virtualizer,
-    virtualItems,
-    measureItem,
+    /** Virtual items to render in template */
+    renderedItems: scroller.renderedItems,
+    /** Total height of the virtual content */
+    totalHeight: scroller.totalHeight,
+    /** Spacer heights for flow layout */
+    topSpace: scroller.topSpace,
+    bottomSpace: scroller.bottomSpace,
+    /** Register element for measurement */
+    measureElement: scroller.measureElement,
     scrollToBottomImmediate,
     scrollToBottom,
     scrollToIndex,
-    handleScroll,
     onScrollNearTop,
     onScroll,
+    /** Create a ScrollSaver for anchor-based position preservation */
+    createScrollSaver,
+    /** Reset scroller state (on channel switch) */
+    resetScroller: scroller.resetState,
+    /** Force schedule an update */
+    scheduleUpdate: scroller.scheduleUpdate,
+    /** Heavy animation state */
+    isAnimating,
   };
 }

@@ -25,13 +25,24 @@ import type { IArgonEvent } from "@argon/glue";
 
 // --- Token request management ---
 let tokenRequestId = 0;
-const pendingTokenRequests = new Map<string, (token: string) => void>();
+const pendingTokenRequests = new Map<string, (token: string, error?: boolean) => void>();
 var qwe = EventBus_Executor;
 console.log(qwe);
 function requestToken(): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const id = String(++tokenRequestId);
-    pendingTokenRequests.set(id, resolve);
+    const timeout = setTimeout(() => {
+      pendingTokenRequests.delete(id);
+      reject(new Error("Token request timed out"));
+    }, 10000);
+    pendingTokenRequests.set(id, (token: string, error?: boolean) => {
+      clearTimeout(timeout);
+      if (error || !token) {
+        reject(new Error("Token request failed"));
+      } else {
+        resolve(token);
+      }
+    });
     self.postMessage({ type: "tokenRequest", requestId: id });
   });
 }
@@ -63,7 +74,18 @@ async function connect(endpoint: string) {
   try {
     hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(`${endpoint}/w`, {
-        accessTokenFactory: () => requestToken(),
+        accessTokenFactory: async () => {
+          // Retry token request up to 3 times on failure
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              return await requestToken();
+            } catch (e) {
+              postLog("warn", `Token request attempt ${attempt + 1} failed, retrying...`);
+              if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+          }
+          throw new Error("Failed to obtain token after 3 attempts");
+        },
         transport:
           signalR.HttpTransportType.WebSockets |
           signalR.HttpTransportType.ServerSentEvents |
@@ -192,8 +214,8 @@ self.onmessage = (e: MessageEvent) => {
     case "tokenResponse": {
       const resolve = pendingTokenRequests.get(msg.requestId);
       if (resolve) {
-        resolve(msg.token);
         pendingTokenRequests.delete(msg.requestId);
+        resolve(msg.token, msg.error);
       }
       break;
     }

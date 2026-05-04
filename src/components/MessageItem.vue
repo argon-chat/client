@@ -112,7 +112,7 @@
         <ContextMenu>
           <ContextMenuTrigger>
             <div
-              class="relative inline-flex flex-col"
+              class="msg-bubble-wrap relative inline-flex flex-col"
               @mouseenter="onMouseEnter"
               @mouseleave="onMouseLeave"
             >
@@ -215,48 +215,6 @@
                 class="absolute inset-0 rounded-2xl border border-destructive/30 pointer-events-none"
               />
 
-              <!-- ── Hover action bar ── -->
-              <Transition
-                enter-active-class="transition duration-150 ease-out"
-                leave-active-class="transition duration-100 ease-in"
-                enter-from-class="opacity-0 scale-95"
-                leave-to-class="opacity-0 scale-95"
-              >
-                <div
-                  v-if="showActions"
-                  class="absolute -top-8 right-0 flex items-center gap-px bg-card/95 backdrop-blur-sm border border-border/50 rounded-lg p-0.5 shadow-lg z-20"
-                  @mouseenter="onMouseEnter"
-                  @mouseleave="onMouseLeave"
-                >
-                  <TooltipProvider :delay-duration="400">
-                    <Popover v-if="canReact" v-model:open="reactionPickerOpen">
-                      <PopoverTrigger as-child>
-                        <ActionBtn><SmilePlusIcon class="w-3.5 h-3.5" /></ActionBtn>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        side="top"
-                        :side-offset="6"
-                        class="p-0 border-0 bg-transparent shadow-none w-auto"
-                      >
-                        <ReactionPicker @select="onPickReaction" />
-                      </PopoverContent>
-                    </Popover>
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <ActionBtn @click="copyText"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" :side-offset="4">{{ t('copy') }}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <ActionBtn @click="emit('reply', props.message)"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" :side-offset="4">{{ t('reply') }}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </Transition>
-
               <!-- ── Bot controls ── -->
               <MessageControls
                 v-if="hasControls"
@@ -268,12 +226,45 @@
             </div>
           </ContextMenuTrigger>
 
-          <!-- ── Reactions (outside bubble to avoid width distortion) ── -->
+          <!-- ── Hover action bar (rendered outside bubble flow via Teleport to avoid z-index / overflow issues) ── -->
+          <Teleport to="body">
+            <Transition
+              enter-active-class="transition duration-100 ease-out"
+              leave-active-class="transition duration-75 ease-in"
+              enter-from-class="opacity-0 translate-y-1"
+              leave-to-class="opacity-0 translate-y-1"
+            >
+              <div
+                v-if="showActions && actionBarPos"
+                class="fixed flex items-center gap-px bg-card/95 backdrop-blur-sm border border-border/50 rounded-lg p-0.5 shadow-lg"
+                :style="actionBarStyle"
+                @mouseenter="onMouseEnter"
+                @mouseleave="onMouseLeave"
+              >
+                <Popover v-if="canReact" v-model:open="reactionPickerOpen">
+                  <PopoverTrigger as-child>
+                    <ActionBtn><SmilePlusIcon class="w-3.5 h-3.5" /></ActionBtn>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="top"
+                    :side-offset="6"
+                    class="p-0 border-0 bg-transparent shadow-none w-auto"
+                  >
+                    <ReactionPicker @select="onPickReaction" />
+                  </PopoverContent>
+                </Popover>
+                <ActionBtn @click="copyText" :title="t('copy')"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
+                <ActionBtn @click="emit('reply', props.message)" :title="t('reply')"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
+              </div>
+            </Transition>
+          </Teleport>
+
+          <!-- ── Reactions ── -->
           <MessageReactions
             v-if="hasReactions"
             :reactions="props.message.reactions"
             :current-user-id="me.me?.userId ?? ''"
-            :can-react="canReact"
+            :can-react="canReact ?? false"
             @toggle="onToggleReaction"
           />
 
@@ -455,16 +446,73 @@ const isUnsupported = ref(false);
 // ── Hover actions (JS-based with debounced leave) ──
 const isHovered = ref(false);
 let _hoverTimer: ReturnType<typeof setTimeout> | undefined;
+let _hoveredEl: HTMLElement | null = null;
+let _scrollParent: HTMLElement | null = null;
 
 const showActions = computed(() => isHovered.value || reactionPickerOpen.value);
 
-function onMouseEnter() {
+// Position the action bar above the bubble using getBoundingClientRect
+const actionBarPos = ref<{ top: number; right: number } | null>(null);
+
+const actionBarStyle = computed(() => {
+  if (!actionBarPos.value) return {};
+  return {
+    top: actionBarPos.value.top + 'px',
+    right: actionBarPos.value.right + 'px',
+    zIndex: '9999',
+  };
+});
+
+function recalcPos() {
+  if (!_hoveredEl) return;
+  const rect = _hoveredEl.getBoundingClientRect();
+  actionBarPos.value = {
+    top: rect.top - 32,
+    right: window.innerWidth - rect.right,
+  };
+}
+
+function onScroll() {
+  if (_hoveredEl && (isHovered.value || reactionPickerOpen.value)) {
+    recalcPos();
+  }
+}
+
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let cur = el.parentElement;
+  while (cur) {
+    const ov = getComputedStyle(cur).overflowY;
+    if (ov === 'auto' || ov === 'scroll') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+function onMouseEnter(e: MouseEvent) {
   clearTimeout(_hoverTimer);
   isHovered.value = true;
+  const el = (e.currentTarget as HTMLElement);
+  if (el?.classList?.contains('msg-bubble-wrap')) {
+    _hoveredEl = el;
+    recalcPos();
+    // Attach scroll listener to nearest scrollable ancestor
+    if (!_scrollParent) {
+      _scrollParent = findScrollParent(el);
+      _scrollParent?.addEventListener('scroll', onScroll, { passive: true });
+    }
+  }
 }
 
 function onMouseLeave() {
-  _hoverTimer = setTimeout(() => { isHovered.value = false; }, 200);
+  _hoverTimer = setTimeout(() => {
+    isHovered.value = false;
+    if (!reactionPickerOpen.value) {
+      actionBarPos.value = null;
+      _hoveredEl = null;
+      _scrollParent?.removeEventListener('scroll', onScroll);
+      _scrollParent = null;
+    }
+  }, 200);
 }
 
 function openReactionFromMenu() {

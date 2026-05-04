@@ -46,7 +46,6 @@ export function useChatMessages(
   const hasReachedEnd = ref(false);
   const isLoading = ref(false);
   const isLoadingOlder = ref(false);
-  const isRestoringScroll = ref(false);
   const newMessagesCount = ref(0);
   const isScrolledUp = ref(false);
   const subs = ref<Subscription | null>(null);
@@ -62,6 +61,15 @@ export function useChatMessages(
   // O(1) dedup: tracks all messageIds currently in the messages array
   const messageIdSet = new Set<bigint>();
 
+  /** Trim messages to MAX_MESSAGES_IN_MEMORY from the tail (newest kept) */
+  const trimMessages = () => {
+    if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
+      const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
+      for (const m of removed) messageIdSet.delete(m.messageId);
+      hasReachedEnd.value = false;
+    }
+  };
+
   // Batch incoming messages to avoid multiple array rebuilds per frame
   let pendingIncoming: { msg: ArgonMessage; onNewMessage: () => void }[] = [];
   let batchFlushScheduled = false;
@@ -74,13 +82,7 @@ export function useChatMessages(
     const newMsgs = batch.map((b) => b.msg);
     for (const m of newMsgs) messageIdSet.add(m.messageId);
     messages.value.push(...newMsgs);
-
-    // Trim oldest messages if over limit (keep tail)
-    if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
-      const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
-      for (const m of removed) messageIdSet.delete(m.messageId);
-      hasReachedEnd.value = false; // can load older again
-    }
+    trimMessages();
     triggerRef(messages);
 
     // Handle scroll/notification for the last message in batch
@@ -116,11 +118,18 @@ export function useChatMessages(
   // Loading
   // ────────────────────────────────────────────
 
-  const loadOlderMessages = async (onPrepend: (count: number) => void) => {
-    if (isLoadingOlder.value || hasReachedEnd.value || !spaceId() || isRestoringScroll.value) return;
+  /**
+   * Load older messages.
+   * @param callbacks.beforePrepend — called BEFORE messages are prepended (save scroll anchor)
+   * @param callbacks.afterPrepend  — called AFTER messages are prepended (restore scroll anchor)
+   */
+  const loadOlderMessages = async (callbacks: {
+    beforePrepend: () => void;
+    afterPrepend: () => void;
+  }) => {
+    if (isLoadingOlder.value || hasReachedEnd.value || !spaceId()) return;
 
     isLoadingOlder.value = true;
-    isRestoringScroll.value = true;
 
     try {
       const fromId = oldestMessageId.value;
@@ -137,14 +146,13 @@ export function useChatMessages(
       );
 
       if (cachedOlder.length >= MESSAGES_PER_LOAD) {
+        callbacks.beforePrepend();
         for (const m of cachedOlder) messageIdSet.add(m.messageId);
         messages.value.unshift(...cachedOlder);
+        trimMessages();
         triggerRef(messages);
-        onPrepend(cachedOlder.length);
+        callbacks.afterPrepend();
         isLoadingOlder.value = false;
-        nextTick(() => {
-          requestAnimationFrame(() => { isRestoringScroll.value = false; });
-        });
         return;
       }
 
@@ -166,10 +174,12 @@ export function useChatMessages(
         (a, b) => Number(a.messageId - b.messageId),
       );
 
+      callbacks.beforePrepend();
       for (const m of sortedOlder) messageIdSet.add(m.messageId);
       messages.value.unshift(...sortedOlder);
+      trimMessages();
       triggerRef(messages);
-      onPrepend(sortedOlder.length);
+      callbacks.afterPrepend();
 
       if (olderMessages.length < MESSAGES_PER_LOAD) {
         hasReachedEnd.value = true;
@@ -178,9 +188,6 @@ export function useChatMessages(
       logger.error("Failed to load older messages:", error);
     } finally {
       isLoadingOlder.value = false;
-      nextTick(() => {
-        requestAnimationFrame(() => { isRestoringScroll.value = false; });
-      });
     }
   };
 
@@ -484,7 +491,6 @@ export function useChatMessages(
     hasReachedEnd,
     isLoading,
     isLoadingOlder,
-    isRestoringScroll,
     newMessagesCount,
     isScrolledUp,
     loadOlderMessages,

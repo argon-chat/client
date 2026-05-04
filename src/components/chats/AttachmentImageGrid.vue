@@ -1,9 +1,9 @@
 <template>
-  <!-- Single image: Telegram-style adaptive container, no cropping -->
+  <!-- Single image: explicit pixel dimensions, no layout shift -->
   <div
     v-if="isSingle"
     class="single-image-wrapper"
-    :style="singleImageStyle"
+    :style="singleDims"
     @click="emit('open-lightbox', 0)"
   >
     <AttachmentImage
@@ -16,28 +16,28 @@
     />
   </div>
 
-  <!-- Multi-image grid -->
-  <div v-else class="image-grid">
+  <!-- Multi-image grid: rows with fixed height, cells with explicit width -->
+  <div v-else class="image-grid" :style="{ width: gridWidth + 'px', maxWidth: '100%' }">
     <div
-      v-for="(row, ri) in rows"
+      v-for="(row, ri) in gridLayout"
       :key="ri"
       class="grid-row"
-      :style="{ height: rowHeight + 'px' }"
+      :style="{ height: row.height + 'px' }"
     >
       <div
-        v-for="(img, ci) in row"
+        v-for="(cell, ci) in row.cells"
         :key="ci"
         class="grid-cell"
-        :style="{ flex: cellFlex(img) }"
-        @click="emit('open-lightbox', flatIndex(ri, ci))"
+        :style="{ width: cell.w + 'px' }"
+        @click="emit('open-lightbox', cell.flatIdx)"
       >
         <AttachmentImage
-          :file-id="img.fileId"
-          :file-name="img.fileName"
-          :width="img.width"
-          :height="img.height"
-          :thumb-hash="img.thumbHash"
-          :download-url="img.downloadUrl"
+          :file-id="cell.img.fileId"
+          :file-name="cell.img.fileName"
+          :width="cell.img.width"
+          :height="cell.img.height"
+          :thumb-hash="cell.img.thumbHash"
+          :download-url="cell.img.downloadUrl"
         />
       </div>
     </div>
@@ -57,103 +57,104 @@ const emit = defineEmits<{
   (e: "open-lightbox", index: number): void;
 }>();
 
+// ─── Sizing constants (inspired by Telegram Desktop's setAttachmentSize) ───
+const MAX_WIDTH = 420;
+const MAX_HEIGHT = 550;
+const MIN_WIDTH = 120;
+const GAP = 2;
+
 const isSingle = computed(() => props.images.length === 1);
 
-// ─── Single image: Telegram-style sizing ───
-// Container adapts to the image's natural aspect ratio, constrained by max bounds.
-const MAX_SINGLE_HEIGHT = 550;
+// ─── Single image: fit into bounding box, explicit px dims ───
 
-const singleImageStyle = computed(() => {
-  if (!isSingle.value) return {} as Record<string, string>;
+function fitInBox(imgW: number, imgH: number, boxW: number, boxH: number) {
+  if (imgW <= boxW && imgH <= boxH) return { w: imgW, h: imgH };
+  const scale = Math.min(boxW / imgW, boxH / imgH);
+  return { w: Math.round(imgW * scale), h: Math.round(imgH * scale) };
+}
+
+const singleDims = computed(() => {
   const img = props.images[0];
   const natW = img.width || 300;
   const natH = img.height || 200;
-  const ar = natW / natH;
-
-  // Compute width so that height stays within MAX_SINGLE_HEIGHT.
-  // Parent already constrains horizontal size (80 % of chat via max-width),
-  // so we only need to handle the height overflow here.
-  let w = natW;
-  let h = w / ar;
-
-  if (h > MAX_SINGLE_HEIGHT) {
-    h = MAX_SINGLE_HEIGHT;
-    w = h * ar;
-  }
-
+  const { w, h } = fitInBox(natW, natH, MAX_WIDTH, MAX_HEIGHT);
   return {
-    width: Math.round(w) + 'px',
+    width: w + 'px',
+    height: h + 'px',
     maxWidth: '100%',
-    aspectRatio: `${natW} / ${natH}`,
-    maxHeight: MAX_SINGLE_HEIGHT + 'px',
   };
 });
 
-/* ─── Multi-image grid ───
- * Split images into rows.
- * Strategy: distribute N images into rows of 2-3 to keep cells roughly square.
- * 1 → [1], 2 → [2], 3 → [3], 4 → [2,2], 5 → [3,2], 6 → [3,3],
- * 7 → [3,2,2], 8 → [3,3,2], 9 → [3,3,3], 10 → [3,3,4]
- */
-function layoutRows(n: number): number[] {
-  if (n <= 0) return [];
-  if (n === 1) return [1];
-  if (n === 2) return [2];
-  if (n === 3) return [3];
-  if (n === 4) return [2, 2];
+// ─── Multi-image grid: explicit geometry ───
+// Each row has a fixed height; cells split the row width proportionally by aspect ratio.
 
-  // For 5+: fill rows of 3, handle remainder
-  const result: number[] = [];
-  let remaining = n;
-  while (remaining > 0) {
-    if (remaining === 2) { result.push(2); remaining = 0; }
-    else if (remaining === 4) { result.push(2, 2); remaining = 0; }
-    else { result.push(Math.min(3, remaining)); remaining -= Math.min(3, remaining); }
-  }
-  return result;
+const GRID_MAX_W = MAX_WIDTH;
+const ROW_H_2_4 = 160;
+const ROW_H_5_PLUS = 120;
+
+interface GridCell {
+  img: MessageEntityAttachment;
+  w: number;
+  flatIdx: number;
+}
+interface GridRow {
+  height: number;
+  cells: GridCell[];
 }
 
-const rowLayout = computed(() => layoutRows(props.images.length));
+function distributeToRows(n: number): number[] {
+  if (n <= 0) return [];
+  if (n <= 3) return [n];
+  if (n === 4) return [2, 2];
+  const rows: number[] = [];
+  let rem = n;
+  while (rem > 0) {
+    if (rem === 2) { rows.push(2); rem = 0; }
+    else if (rem === 4) { rows.push(2, 2); rem = 0; }
+    else { rows.push(Math.min(3, rem)); rem -= Math.min(3, rem); }
+  }
+  return rows;
+}
 
-const rows = computed(() => {
-  const result: MessageEntityAttachment[][] = [];
+const gridWidth = computed(() => GRID_MAX_W);
+
+const gridLayout = computed((): GridRow[] => {
+  const imgs = props.images;
+  const n = imgs.length;
+  const rowCounts = distributeToRows(n);
+  const rowH = n <= 4 ? ROW_H_2_4 : ROW_H_5_PLUS;
+
+  const result: GridRow[] = [];
   let offset = 0;
-  for (const count of rowLayout.value) {
-    result.push(props.images.slice(offset, offset + count));
+
+  for (const count of rowCounts) {
+    const rowImgs = imgs.slice(offset, offset + count);
+    const totalGap = GAP * (count - 1);
+    const available = GRID_MAX_W - totalGap;
+
+    // Compute aspect ratios; use ratio to divide available width
+    const ratios = rowImgs.map((img) => {
+      const w = img.width ?? 1;
+      const h = img.height ?? 1;
+      return Math.max(0.5, Math.min(3, w / h));
+    });
+    const sumRatios = ratios.reduce((s, r) => s + r, 0);
+
+    const cells: GridCell[] = rowImgs.map((img, ci) => ({
+      img,
+      w: Math.round((ratios[ci] / sumRatios) * available),
+      flatIdx: offset + ci,
+    }));
+
+    result.push({ height: rowH, cells });
     offset += count;
   }
+
   return result;
 });
-
-const ROW_HEIGHT_SINGLE = 300;
-const ROW_HEIGHT_DEFAULT = 160;
-const ROW_HEIGHT_MANY = 120;
-
-const rowHeight = computed(() => {
-  const n = props.images.length;
-  if (n === 1) return ROW_HEIGHT_SINGLE;
-  if (n <= 4) return ROW_HEIGHT_DEFAULT;
-  return ROW_HEIGHT_MANY;
-});
-
-function cellFlex(img: MessageEntityAttachment): string {
-  const w = img.width ?? 1;
-  const h = img.height ?? 1;
-  // Use aspect ratio as flex basis so wider images take more space
-  return `${Math.max(0.5, Math.min(3, w / h))} 1 0%`;
-}
-
-function flatIndex(rowIndex: number, colIndex: number): number {
-  let idx = 0;
-  for (let r = 0; r < rowIndex; r++) {
-    idx += rows.value[r].length;
-  }
-  return idx + colIndex;
-}
 </script>
 
 <style scoped>
-/* ─── Single image: adaptive, no crop ─── */
 .single-image-wrapper {
   border-radius: 8px;
   overflow: hidden;
@@ -173,22 +174,19 @@ function flatIndex(rowIndex: number, colIndex: number): number {
 .single-image-wrapper :deep(.attachment-image) {
   width: 100%;
   height: 100%;
-  aspect-ratio: auto;
   border-radius: 0;
-  min-height: auto;
+  min-height: 0;
 }
 
 .single-image-wrapper :deep(.actual-image) {
   object-fit: contain;
 }
 
-/* ─── Multi-image grid ─── */
+/* ─── Grid ─── */
 .image-grid {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
-  max-width: calc(var(--chat-width, 600px) * 0.8);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -202,7 +200,7 @@ function flatIndex(rowIndex: number, colIndex: number): number {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .grid-cell:hover::after {
@@ -216,8 +214,11 @@ function flatIndex(rowIndex: number, colIndex: number): number {
 .grid-cell :deep(.attachment-image) {
   width: 100%;
   height: 100%;
-  aspect-ratio: auto;
   border-radius: 0;
-  min-height: 100%;
+  min-height: 0;
+}
+
+.grid-cell :deep(.actual-image) {
+  object-fit: cover;
 }
 </style>

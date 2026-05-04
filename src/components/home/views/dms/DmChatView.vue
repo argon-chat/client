@@ -25,55 +25,59 @@
     <!-- ═══ Virtual scroll area ═══ -->
     <div
       ref="parentRef"
-      :class="cn('flex-1 min-h-0 overflow-y-scroll relative px-9 pb-2 chat-scrollbar', externalClass)"
+      :class="cn('flex-1 min-h-0 overflow-y-scroll px-9 pb-2 chat-scrollbar', externalClass)"
+      style="overflow-anchor: none"
     >
+      <!-- Top spacer -->
+      <div :style="{ height: topSpace + 'px' }" />
+
+      <!-- Rendered items in normal flow -->
       <div
-        v-if="virtualizer?.getTotalSize"
-        :style="{ height: virtualizer.getTotalSize() + 'px', width: '100%', position: 'relative' }"
+        v-for="item in renderedItems"
+        :key="String(item.key)"
+        class="w-full"
+        :class="highlightedIdx === item.index ? 'highlight-flash' : ''"
+        style="contain: content; content-visibility: auto; contain-intrinsic-size: auto 64px"
       >
         <div
-          v-for="item in virtualItems"
-          :key="String(item.key)"
-          class="absolute top-0 left-0 w-full will-change-transform"
-          :class="highlightedIdx === item.index ? 'highlight-flash' : ''"
-          :style="{ transform: `translateY(${item.start}px)` }"
-          style="contain: layout style paint; content-visibility: auto; contain-intrinsic-size: auto 64px"
+          v-if="messages[item.index]"
+          :ref="(el) => measureElement(el as HTMLElement, item.key)"
+          :data-msg-key="String(item.key)"
+          :data-index="item.index"
+          v-memo="[
+            item.key,
+            messages[item.index]?._failed,
+            messages[item.index]?._optimistic,
+            messages[item.index]?.text,
+            messages[item.index]?.entities?.length,
+            messages[item.index]?.reactions?.length,
+            groupingMap[item.index]?.isFirstInGroup,
+            groupingMap[item.index]?.isLastInGroup,
+            groupingMap[item.index]?.showDate,
+          ]"
         >
-          <div
-            :ref="(el) => measureItem(el as HTMLElement, item.index)"
-            :data-index="item.index"
-            v-memo="[
-              item.key,
-              messages[item.index]?._failed,
-              messages[item.index]?._optimistic,
-              messages[item.index]?.text,
-              messages[item.index]?.entities?.length,
-              messages[item.index]?.reactions?.length,
-              groupingMap[item.index]?.isFirstInGroup,
-              groupingMap[item.index]?.isLastInGroup,
-              groupingMap[item.index]?.showDate,
-            ]"
-          >
-            <DateSeparator
-              v-if="groupingMap[item.index]?.showDate"
-              :date="messages[item.index].timeSent.date"
-            />
+          <DateSeparator
+            v-if="groupingMap[item.index]?.showDate"
+            :date="messages[item.index].timeSent.date"
+          />
 
-            <MessageItem
-              :message="messages[item.index]"
-              :get-msg-by-id="getMessageById"
-              :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
-              :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
-              :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
-              @dblclick="() => emit('select-reply', messages[item.index])"
-              @reply="(msg) => emit('select-reply', msg)"
-              @retry="retryMessage"
-              @open-lightbox="onOpenLightbox"
-              @scroll-to-message="scrollToMessage"
-            />
-          </div>
+          <MessageItem
+            :message="messages[item.index]"
+            :get-msg-by-id="getMessageById"
+            :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
+            :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
+            :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
+            @dblclick="() => emit('select-reply', messages[item.index])"
+            @reply="(msg) => emit('select-reply', msg)"
+            @retry="retryMessage"
+            @open-lightbox="onOpenLightbox"
+            @scroll-to-message="scrollToMessage"
+          />
         </div>
       </div>
+
+      <!-- Bottom spacer -->
+      <div :style="{ height: bottomSpace + 'px' }" />
     </div>
 
     <!-- ═══ Loading older spinner ═══ -->
@@ -270,7 +274,7 @@ const groupingMap = computed<GroupMeta[]>(() => {
 // ── Composables ──
 
 const {
-  messages, hasReachedEnd, isLoading, isLoadingOlder, isRestoringScroll,
+  messages, hasReachedEnd, isLoading, isLoadingOlder,
   newMessagesCount, isScrolledUp,
   loadOlderMessages, loadInitialMessages, subscribeToNewMessages,
   getMessageById, addOptimisticMessage, resolveOptimisticMessage,
@@ -279,16 +283,20 @@ const {
 } = useDirectMessages(() => props.peerId);
 
 const {
-  parentRef, chatWidth, virtualizer, virtualItems, measureItem,
+  parentRef, chatWidth, renderedItems, totalHeight, topSpace, bottomSpace, measureElement,
   scrollToBottomImmediate, scrollToBottom, scrollToIndex,
   onScrollNearTop, onScroll: onScrollState,
-} = useChatScroll(() => messages.value, () => isRestoringScroll.value);
+  createScrollSaver, resetScroller,
+} = useChatScroll(messages);
 
 // ── Scroll callbacks ──
 
 onScrollNearTop(() => {
-  if (!isLoadingOlder.value && !hasReachedEnd.value && !isRestoringScroll.value) {
-    loadOlderMessages((count) => nextTick(() => scrollToIndex(count)));
+  if (!isLoadingOlder.value && !hasReachedEnd.value) {
+    loadOlderMessages({
+      beforePrepend: () => { /* browser overflow-anchor handles scroll stability */ },
+      afterPrepend: () => {},
+    });
   }
 });
 
@@ -337,6 +345,7 @@ watch(
   () => props.peerId,
   async (newId) => {
     markedReadForPeer.value = null;
+    resetScroller();
     subscribeToNewMessages(newId, () => scrollToBottomImmediate());
     await loadInitialMessages(() => scrollToBottomImmediate());
   },

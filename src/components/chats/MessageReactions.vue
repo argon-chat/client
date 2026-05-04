@@ -1,43 +1,32 @@
 <template>
-  <div v-if="reactions && reactions.length > 0" class="flex flex-wrap gap-1 mt-1">
+  <div v-if="reactions.length" class="reactions-row">
     <button
-      v-for="reaction in reactions"
-      :key="reaction.emoji"
-      class="inline-flex items-center gap-1 py-0.5 px-2 rounded-full border text-[13px] leading-snug select-none transition-colors"
-      :class="[
-        isMine(reaction)
-          ? 'bg-primary/15 border-primary/40 hover:bg-primary/25 hover:border-primary/60'
-          : 'bg-muted/50 border-border/40 hover:bg-muted/80 hover:border-border/60',
-        !canReact && 'opacity-70 !cursor-default',
-      ]"
+      v-for="r in reactions"
+      :key="r.emoji"
+      class="reaction-pill"
+      :class="{
+        'reaction-pill--mine': isMine(r),
+        'reaction-pill--disabled': !canReact,
+      }"
       :disabled="!canReact"
-      @click="$emit('toggle', reaction.emoji)"
+      @click="$emit('toggle', r.emoji)"
     >
-      <span class="text-sm leading-none"><EmojiSprite v-if="resolveEmoji(reaction.emoji)" :emoji="resolveEmoji(reaction.emoji)!" :size="16" render-mode="noto" /><template v-else>{{ reaction.emoji }}</template></span>
-      <span v-if="reaction.count > 3" class="text-xs font-medium min-w-[8px] text-center">
-        {{ reaction.count }}
-      </span>
-      <span
-        v-else
-        class="relative inline-flex h-4 shrink-0"
-        :style="{ width: avatarStackWidth(reaction.userIds.length) + 'px' }"
-      >
-        <ArgonAvatar
-          v-for="(uid, i) in reaction.userIds.slice(0, 3)"
-          :key="uid"
-          :userId="uid"
-          :overrided-size="14"
-          class="absolute top-0 w-4 h-4 rounded-full border-[1.5px] border-card box-content"
-          :style="{ left: i * 10 + 'px', zIndex: 3 - i }"
+      <span class="reaction-pill__emoji">
+        <EmojiSprite
+          v-if="resolveEmoji(r.emoji)"
+          :emoji="resolveEmoji(r.emoji)!"
+          :size="18"
+          render-mode="noto"
         />
+        <template v-else>{{ r.emoji }}</template>
       </span>
+      <span class="reaction-pill__count">{{ r.count }}</span>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { ReactionInfo } from "@argon/glue";
-import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { EmojiSprite, emojiRegistry, stringToCodepoints, codepointsToHexcode } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
 
@@ -51,13 +40,8 @@ defineEmits<{
   (e: "toggle", emoji: string): void;
 }>();
 
-function isMine(reaction: ReactionInfo): boolean {
-  return reaction.userIds?.includes(props.currentUserId) ?? false;
-}
-
-function avatarStackWidth(count: number): number {
-  const n = Math.min(count, 3);
-  return n > 0 ? 16 + (n - 1) * 10 : 0;
+function isMine(r: ReactionInfo): boolean {
+  return r.userIds?.includes(props.currentUserId) ?? false;
 }
 
 function resolveEmoji(text: string): EmojiEntry | undefined {
@@ -66,3 +50,77 @@ function resolveEmoji(text: string): EmojiEntry | undefined {
   return emojiRegistry.getByHexcode(hexcode);
 }
 </script>
+
+<style scoped>
+.reactions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  /* Isolate stacking context so reactions never bleed into other messages */
+  isolation: isolate;
+  position: relative;
+  z-index: 0;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  border: 1px solid hsl(var(--border) / 0.4);
+  background: hsl(var(--muted) / 0.5);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.reaction-pill:hover:not(:disabled) {
+  background: hsl(var(--muted) / 0.8);
+  border-color: hsl(var(--border) / 0.7);
+}
+
+.reaction-pill:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.reaction-pill--mine {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+.reaction-pill--mine:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.2);
+  border-color: hsl(var(--primary) / 0.6);
+}
+
+.reaction-pill--disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.reaction-pill__emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.reaction-pill__count {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: hsl(var(--foreground) / 0.75);
+  min-width: 8px;
+  text-align: center;
+}
+
+.reaction-pill--mine .reaction-pill__count {
+  color: hsl(var(--primary));
+}
+</style>

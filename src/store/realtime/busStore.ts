@@ -40,6 +40,8 @@ export const useBus = defineStore("bus", () => {
             worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token });
           } catch (err) {
             logger.error("Failed to get token for worker", err);
+            // Always respond so worker doesn't hang
+            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true });
           }
           break;
 

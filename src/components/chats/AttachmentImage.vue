@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="attachment-image"
-    :style="containerStyle"
-  >
+  <div class="attachment-image">
     <!-- ThumbHash placeholder -->
     <canvas
       v-if="thumbHash && !loaded"
@@ -28,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick, computed } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { Loader2Icon } from "lucide-vue-next";
 import { thumbHashToRGBA } from "thumbhash";
 import { resolveAttachmentUrl } from "@/store/system/fileStorage";
@@ -45,17 +42,6 @@ const props = defineProps<{
 const placeholderCanvas = ref<HTMLCanvasElement | null>(null);
 const imageSrc = ref<string | null>(null);
 const loaded = ref(false);
-
-const aspectRatio = computed(() => {
-  if (props.width && props.height) {
-    return props.width / props.height;
-  }
-  return 16 / 9;
-});
-
-const containerStyle = computed(() => ({
-  aspectRatio: `${aspectRatio.value}`,
-}));
 
 function renderThumbHash() {
   if (!props.thumbHash || !placeholderCanvas.value) return;
@@ -83,8 +69,6 @@ const PLACEHOLDER_FILE_ID = "00000000-0000-0000-0000-000000000000";
 
 const isPlaceholder = computed(() => props.fileId === PLACEHOLDER_FILE_ID);
 
-// Use requestIdleCallback to defer thumbhash rendering — avoids blocking
-// the main thread when prepending many messages with images at once
 const scheduleRender = (fn: () => void) => {
   if (typeof requestIdleCallback !== "undefined") {
     requestIdleCallback(fn, { timeout: 200 });
@@ -97,10 +81,8 @@ onMounted(async () => {
   await nextTick();
   scheduleRender(renderThumbHash);
 
-  // Don't fetch from CDN for optimistic placeholder attachments
   if (isPlaceholder.value) return;
 
-  // Fetch the actual image
   const url = resolveAttachmentUrl(props.fileId, props.downloadUrl);
   imageSrc.value = url;
 });
@@ -113,8 +95,6 @@ watch(
   },
 );
 
-// When fileId changes (e.g. server event replaces placeholder with real fileId),
-// fetch the actual image from CDN
 watch(
   () => props.fileId,
   async (newFileId) => {
@@ -130,7 +110,8 @@ watch(
   position: relative;
   overflow: hidden;
   background: hsl(var(--muted));
-  min-height: 60px;
+  width: 100%;
+  height: 100%;
 }
 
 .placeholder {
@@ -144,7 +125,8 @@ watch(
 }
 
 .actual-image {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
