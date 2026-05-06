@@ -19,7 +19,7 @@
               </div>
             </Transition>
 
-            <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring', captionMode && '!border-0 !p-1']">
+            <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
                 <button v-if="!captionMode && canAttachFiles" class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
@@ -38,7 +38,7 @@
                     ref="editorRef"
                     :model-value="messageText"
                     @update:model-value="onModelValueUpdate"
-                    class="flex-1 min-h-9 max-h-[200px] py-1.5 px-1 text-sm leading-relaxed text-foreground overflow-y-auto"
+                    class="flex-1 min-w-0 min-h-9 max-h-[200px] py-1.5 px-1 text-sm leading-relaxed text-foreground overflow-y-auto break-words [overflow-wrap:anywhere] [word-break:break-word] hide-scrollbar"
                     :disabled="!canSendMessages"
                     :placeholder="!canSendMessages ? (t('no_send_permission') || 'You do not have permission to send messages') : captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
                     :unstyled="true"
@@ -78,6 +78,21 @@
                     </button>
                 </Transition>
             </div>
+
+            <!-- Character counter (absolute, bottom-right of input area) -->
+            <Transition
+              enter-active-class="transition-opacity duration-150"
+              leave-active-class="transition-opacity duration-100"
+              enter-from-class="opacity-0"
+              leave-to-class="opacity-0"
+            >
+              <span
+                v-if="showCharCounter"
+                :class="['absolute right-3 -top-6 text-[11px] font-medium tabular-nums select-none pointer-events-none transition-colors duration-150', charCounterColor, shakeCounter && 'animate-shake']" 
+              >
+                {{ graphemeCount }}/{{ charLimit }}
+              </span>
+            </Transition>
         </div>
 
         <!-- Mentions dropdown -->
@@ -295,6 +310,46 @@ const pex = usePexStore();
 const canSendMessages = computed(() => pex.has("SendMessages"));
 const canAttachFiles = computed(() => pex.has("AttachFiles"));
 
+// ── Character limit ──
+
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Count graphemes in one pass. O(n), no allocations beyond the iterator. */
+function countGraphemes(text: string): number {
+  let count = 0;
+  for (const _ of segmenter.segment(text)) count++;
+  return count;
+}
+
+/**
+ * Counted once per input event inside onModelValueUpdate.
+ * NOT a computed — avoids redundant re-iteration of the segmenter.
+ */
+const graphemeCount = ref(0);
+const charLimit = computed(() => me.isPremium ? 4000 : 2000);
+const charWarnThreshold = computed(() => me.isPremium ? 3000 : 1500);
+const charDangerThreshold = computed(() => me.isPremium ? 3800 : 1900);
+const showCharCounter = computed(() => graphemeCount.value > (me.isPremium ? 2000 : 1000));
+const isOverLimit = computed(() => graphemeCount.value > charLimit.value);
+const charCounterColor = computed(() => {
+  if (graphemeCount.value >= charLimit.value) return "text-red-500";
+  if (graphemeCount.value >= charDangerThreshold.value) return "text-red-400";
+  if (graphemeCount.value >= charWarnThreshold.value) return "text-orange-400";
+  return "text-muted-foreground";
+});
+
+const shakeCounter = ref(false);
+let shakeTimeout: ReturnType<typeof setTimeout> | undefined;
+
+function triggerShake() {
+  shakeCounter.value = false;
+  // Force reflow so re-adding the class restarts the animation
+  void document.body.offsetHeight;
+  shakeCounter.value = true;
+  clearTimeout(shakeTimeout);
+  shakeTimeout = setTimeout(() => { shakeCounter.value = false; }, 400);
+}
+
 interface EmojiInputExposed {
   insertEmoji(entry: EmojiEntry): void;
   insertTextAtCursor(text: string): void;
@@ -423,6 +478,41 @@ let typingTimeout: ReturnType<typeof setTimeout> | undefined;
 let lastTypingSent = 0;
 
 function onModelValueUpdate(val: string) {
+  // Single segmenter pass: count graphemes and find truncation point together
+  const limit = charLimit.value;
+  let count = 0;
+  let truncEnd = 0; // byte index where the limit-th grapheme ends
+  let hitLimit = false;
+
+  for (const seg of segmenter.segment(val)) {
+    count++;
+    if (!hitLimit) {
+      if (count <= limit) {
+        truncEnd = seg.index + seg.segment.length;
+      } else {
+        hitLimit = true;
+      }
+    }
+  }
+
+  if (hitLimit) {
+    messageText.value = val.slice(0, truncEnd);
+    graphemeCount.value = limit;
+    triggerShake();
+    nextTick(() => {
+      if (editorRef.value) {
+        const truncated = messageText.value;
+        if (editorRef.value.getText() !== truncated) {
+          editorRef.value.clear();
+          editorRef.value.insertTextAtCursor(truncated);
+          editorRef.value.setCursorOffset(limit);
+        }
+      }
+    });
+    return;
+  }
+
+  graphemeCount.value = count;
   messageText.value = val;
 }
 
@@ -1184,3 +1274,32 @@ defineExpose({
   clear: () => { messageText.value = ''; mentionRegistry.clear(); },
 });
 </script>
+
+<style scoped>
+.animate-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-3px); }
+  30% { transform: translateX(3px); }
+  45% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+  90% { transform: translateX(1px); }
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+:deep(.emojix-input) {
+  scrollbar-width: none;
+}
+:deep(.emojix-input)::-webkit-scrollbar {
+  display: none;
+}
+</style>
