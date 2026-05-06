@@ -14,6 +14,26 @@
         <span>{{ ratio.labelKey ? t(ratio.labelKey) : ratio.label }}</span>
       </button>
     </div>
+
+    <!-- Perspective controls -->
+    <div class="mt-6">
+      <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('media_editor_perspective') }}</div>
+      <RangeInput
+        :model-value="store.mediaState.perspective[0]"
+        @update:model-value="setPerspectiveX"
+        :label="t('media_editor_perspective_horizontal')"
+        :min="-1"
+        :max="1"
+      />
+      <RangeInput
+        :model-value="store.mediaState.perspective[1]"
+        @update:model-value="setPerspectiveY"
+        :label="t('media_editor_perspective_vertical')"
+        :min="-1"
+        :max="1"
+        class="mt-4"
+      />
+    </div>
   </div>
 </template>
 
@@ -25,6 +45,7 @@ import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray } from '../geometry';
 import { tween } from '../animation';
 import type { Vec2 } from '../types';
+import RangeInput from '../components/RangeInput.vue';
 
 const { t } = useI18n();
 const { store, mode } = useMediaEditorContext();
@@ -94,5 +115,13 @@ function animateToNewRatio(item: RatioItem) {
     store.mediaState.scale = mix(initScale, targetScale, p);
     store.mediaState.translation = mixArray(initTrans, [0, 0], p) as Vec2;
   }, onComplete: () => { store.uiState.isMoving = false; } });
+}
+
+function setPerspectiveX(v: number) {
+  store.mediaState.perspective = [v, store.mediaState.perspective[1]];
+}
+
+function setPerspectiveY(v: number) {
+  store.mediaState.perspective = [store.mediaState.perspective[0], v];
 }
 </script>

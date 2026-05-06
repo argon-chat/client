@@ -14,7 +14,7 @@
             <VideoControls v-if="props.mediaType === 'video'" />
           </div>
           <div class="bg-card flex-[0_0_400px] flex flex-col overflow-hidden max-md:absolute max-md:left-1/2 max-md:-translate-x-1/2 max-md:bottom-0 max-md:w-screen max-md:max-w-[400px] max-md:h-[50vh] max-md:rounded-t-2xl">
-            <Topbar @close="close" @done="handleDone" />
+            <Topbar :dev-mode="props.devMode" @close="close" @done="handleDone" />
             <Toolbar />
             <FinishButton v-if="!isMobile" @click="handleDone" />
           </div>
@@ -44,12 +44,14 @@ export interface MediaEditorProps {
   mediaType?: MediaType;
   mode?: MediaEditorMode;
   initialTab?: string;
+  devMode?: boolean;
 }
 
 const props = withDefaults(defineProps<MediaEditorProps>(), {
   mediaType: 'image',
   mode: 'full',
-  initialTab: 'adjustments'
+  initialTab: 'adjustments',
+  devMode: false
 });
 
 const emit = defineEmits<{

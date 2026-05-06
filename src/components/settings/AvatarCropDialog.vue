@@ -5,6 +5,7 @@
     media-type="image"
     mode="avatar"
     initial-tab="crop"
+    :dev-mode="configStore.devModeEnabled"
     @done="onEditorDone"
     @cancel="onCancel"
   />
@@ -14,6 +15,7 @@
 import { watch, computed } from 'vue'
 import { useApi } from '@/store/system/apiStore'
 import { useAvatarUpload } from '@/composables/useAvatarUpload'
+import { useConfigStore } from '@/store/ui/configStore'
 import { MediaEditor } from '@argon/media-editor'
 import type { MediaEditorFinalResult } from '@argon/media-editor'
 
@@ -32,6 +34,7 @@ const emit = defineEmits<{
 
 const api = useApi()
 const upload = useAvatarUpload()
+const configStore = useConfigStore()
 
 const isOpen = computed({
   get: () => props.open,

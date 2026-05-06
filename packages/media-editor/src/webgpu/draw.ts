@@ -9,6 +9,7 @@ export type DrawingParameters = {
   translation: Vec2;
   imageSize: Vec2;
   flip: Vec2;
+  perspective: Vec2;
 } & Record<AdjustmentKey, number>;
 
 export function draw(device: GPUDevice, context: GPUCanvasContext, payload: RenderingPayload, parameters: DrawingParameters): void {
@@ -21,6 +22,7 @@ export function draw(device: GPUDevice, context: GPUCanvasContext, payload: Rend
     imageSize: parameters.imageSize,
     resolution: [canvas.width, canvas.height],
     translation: parameters.translation,
+    perspective: parameters.perspective,
     enhance: parameters.enhance,
     saturation: parameters.saturation,
     brightness: parameters.brightness,

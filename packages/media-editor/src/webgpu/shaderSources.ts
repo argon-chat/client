@@ -18,6 +18,8 @@ struct Params {
   vignette: f32,
   grain: f32,
   sharpen: f32,
+  perspective_x: f32,
+  perspective_y: f32,
   _padding: f32,
 }
 
@@ -38,7 +40,7 @@ fn vs_main(@location(0) pos_in: vec2f, @location(1) uv_in: vec2f) -> VSOutput {
   // Apply mirror and zoom
   pos = pos * p.mirror * p.zoom;
 
-  // Rotation
+  // Rotation (2D in-plane)
   let sin_a = sin(p.rotation_angle);
   let cos_a = cos(p.rotation_angle);
   pos = vec2f(pos.x * cos_a + pos.y * sin_a, pos.y * cos_a - pos.x * sin_a);
@@ -50,8 +52,33 @@ fn vs_main(@location(0) pos_in: vec2f, @location(1) uv_in: vec2f) -> VSOutput {
   pos = ((pos + p.offset) / p.viewport) * 2.0 - 1.0;
   pos.y = -pos.y; // WebGPU Y-up
 
+  // 3D perspective tilt — rotate the plane in 3D space then project.
+  // perspective_x = rotation around Y axis (tilt left/right)
+  // perspective_y = rotation around X axis (tilt forward/back)
+  // Virtual camera distance controls how dramatic the effect is.
+  let cam_dist = 2.5;
+
+  // Place vertex on a plane at z=0 in 3D, then rotate
+  var p3 = vec3f(pos.x, pos.y, 0.0);
+
+  // Rotate around Y axis (horizontal tilt)
+  let ax = p.perspective_x;
+  let sin_x = sin(ax);
+  let cos_x = cos(ax);
+  p3 = vec3f(p3.x * cos_x + p3.z * sin_x, p3.y, p3.z * cos_x - p3.x * sin_x);
+
+  // Rotate around X axis (vertical tilt)
+  let ay = p.perspective_y;
+  let sin_y = sin(ay);
+  let cos_y = cos(ay);
+  p3 = vec3f(p3.x, p3.y * cos_y - p3.z * sin_y, p3.z * cos_y + p3.y * sin_y);
+
+  // Perspective projection: project from z onto screen with camera at z = -cam_dist
+  // Use clip-space W for GPU perspective-correct UV interpolation
+  let depth = cam_dist + p3.z;
+
   var output: VSOutput;
-  output.clip_pos = vec4f(pos, 0.0, 1.0);
+  output.clip_pos = vec4f(p3.x * cam_dist, p3.y * cam_dist, 0.0, depth);
   output.uv = uv_in;
   return output;
 }
@@ -76,6 +103,8 @@ struct Params {
   vignette: f32,
   grain: f32,
   sharpen: f32,
+  perspective_x: f32,
+  perspective_y: f32,
   _padding: f32,
 }
 

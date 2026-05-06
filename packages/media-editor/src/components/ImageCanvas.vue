@@ -12,6 +12,7 @@ import { updateVideoTexture } from '../webgpu/loadTexture';
 import { fitToAspectRatio } from '../geometry';
 import { resolveOutputQuality } from '../constants';
 import { adjustmentsConfig } from '../adjustments';
+import { ensureGizmoCanvas, removeGizmoCanvas, drawGizmos } from '../webgpu/debugGizmos';
 
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
@@ -71,6 +72,7 @@ onBeforeUnmount(() => {
   if (animFrameId !== null) cancelAnimationFrame(animFrameId);
   if (videoPlaybackId !== null) cancelAnimationFrame(videoPlaybackId);
   stopVideoPlayback();
+  removeGizmoCanvas();
   if (payload) cleanupWebGPU(payload);
 });
 
@@ -164,6 +166,17 @@ watch(
 );
 
 watch(
+  () => store.uiState.debugGizmos,
+  () => { scheduleRedraw(); }
+);
+
+watch(
+  () => store.mediaState.perspective,
+  () => { scheduleRedraw(); },
+  { deep: true }
+);
+
+watch(
   () => store.mediaState.adjustments,
   () => { scheduleDebouncedRedraw(); },
   { deep: true }
@@ -204,10 +217,27 @@ function redraw() {
     translation: ft.translation,
     imageSize: [payload.media.width, payload.media.height],
     flip: ft.flip,
+    perspective: store.mediaState.perspective,
     ...adjustmentValues as any
   };
 
   draw(device, context, payload, params);
+
+  // Debug gizmos overlay
+  if (store.uiState.debugGizmos && canvasEl.value?.parentElement) {
+    ensureGizmoCanvas(canvasEl.value.parentElement);
+    const co = cropOffset.value;
+    drawGizmos({
+      canvasSize: store.uiState.canvasSize!,
+      pixelRatio: store.uiState.pixelRatio,
+      mediaSize: [payload.media.width, payload.media.height],
+      cropOffset: co,
+      currentImageRatio: store.mediaState.currentImageRatio,
+      params
+    });
+  } else {
+    removeGizmoCanvas();
+  }
 }
 
 let lastCanvasWidth = 0;

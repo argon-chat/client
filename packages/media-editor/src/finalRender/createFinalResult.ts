@@ -91,7 +91,6 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     scaledHeight,
     imageWidth: gpuPayload.media.width,
     imageHeight: gpuPayload.media.height,
-    canvasSize,
     cropOffset,
     mediaState
   });
@@ -103,6 +102,7 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     translation: finalTransform.translation,
     imageSize: finalTransform.imageSize,
     flip: finalTransform.flip,
+    perspective: mediaState.perspective,
     ...(mediaState.adjustments as Record<AdjustmentKey, number>)
   };
 

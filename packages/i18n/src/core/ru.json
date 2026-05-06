@@ -1121,5 +1121,8 @@
   "media_editor_font_playwrite": "Playwrite",
   "media_editor_add_text": "Добавить текст",
   "media_editor_free": "Свободно",
-  "media_editor_original": "Оригинал"
+  "media_editor_original": "Оригинал",
+  "media_editor_perspective": "Перспектива",
+  "media_editor_perspective_horizontal": "Горизонтально",
+  "media_editor_perspective_vertical": "Вертикально"
 }

@@ -255,6 +255,7 @@
             v-model="attachmentEditorOpen"
             :src="attachmentEditorSrc"
             :media-type="attachmentEditorMediaType"
+            :dev-mode="configStore.devModeEnabled"
             @done="onAttachmentEditorDone"
         />
     </div>
@@ -304,7 +305,10 @@ import { usePexStore } from "@/store/data/permissionStore";
 import { useSlashCommands } from "@/composables/useSlashCommands";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 import type { SpaceCommand } from "@argon/glue";
+import { useConfigStore } from "@/store/ui/configStore";
 const { t } = useLocale();
+
+const configStore = useConfigStore();
 
 const pex = usePexStore();
 const canSendMessages = computed(() => pex.has("SendMessages"));

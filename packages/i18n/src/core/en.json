@@ -1143,5 +1143,8 @@
   "media_editor_font_playwrite": "Playwrite",
   "media_editor_add_text": "Add Text",
   "media_editor_free": "Free",
-  "media_editor_original": "Original"
+  "media_editor_original": "Original",
+  "media_editor_perspective": "Perspective",
+  "media_editor_perspective_horizontal": "Horizontal",
+  "media_editor_perspective_vertical": "Vertical"
 }

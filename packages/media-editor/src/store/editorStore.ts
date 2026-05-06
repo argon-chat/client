@@ -32,6 +32,7 @@ export interface EditingMediaState {
   rotation: number;
   translation: Vec2;
   flip: Vec2;
+  perspective: Vec2;
   currentImageRatio: number;
 
   currentVideoTime: number;
@@ -82,6 +83,8 @@ export interface MediaEditorUIState {
   isAdjusting: boolean;
   isMoving: boolean;
   isPlaying: boolean;
+
+  debugGizmos: boolean;
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────
@@ -92,6 +95,7 @@ function getDefaultEditingMediaState(): EditingMediaState {
     rotation: 0,
     translation: [0, 0],
     flip: [1, 1],
+    perspective: [0, 0],
     currentImageRatio: 0,
 
     currentVideoTime: 0,
@@ -142,7 +146,9 @@ function getDefaultUIState(): MediaEditorUIState {
 
     isAdjusting: false,
     isMoving: false,
-    isPlaying: false
+    isPlaying: false,
+
+    debugGizmos: false
   };
 }
 

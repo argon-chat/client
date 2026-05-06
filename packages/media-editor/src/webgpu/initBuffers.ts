@@ -9,8 +9,11 @@ import type { Vec2 } from '../types';
  * offset 16: source_dimensions (vec2f)
  * offset 24: viewport (vec2f)
  * offset 32: offset (vec2f)
- * offset 40: enhance..sharpen + padding (12 × f32)
- * Total: 88 bytes → padded to 96 (16-byte aligned)
+ * offset 40: enhance..sharpen (11 × f32)
+ * offset 84: perspective_x (f32)
+ * offset 88: perspective_y (f32)
+ * offset 92: _padding (f32)
+ * Total: 96 bytes (16-byte aligned)
  */
 export const UNIFORM_BUFFER_SIZE = 96;
 
@@ -21,6 +24,7 @@ export type UniformData = {
   imageSize: Vec2;
   resolution: Vec2;
   translation: Vec2;
+  perspective: Vec2;
 } & Record<AdjustmentKey, number>;
 
 export function createVertexBuffer(device: GPUDevice, width: number, height: number): GPUBuffer {
@@ -78,7 +82,9 @@ export function writeUniforms(device: GPUDevice, buffer: GPUBuffer, data: Unifor
   arr[18] = data.vignette;
   arr[19] = data.grain;
   arr[20] = data.sharpen;
-  arr[21] = 0; // _pad
+  arr[21] = data.perspective[0];
+  arr[22] = data.perspective[1];
+  arr[23] = 0; // _pad
 
   device.queue.writeBuffer(buffer, 0, arr);
 }

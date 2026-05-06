@@ -20,7 +20,7 @@ export const useSystemStore = defineStore("system", () => {
 
   // reconnection
   const isLongReconnecting = ref(false);
-  let reconnectTimer: NodeJS.Timeout | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   const muteEvent = new Subject<boolean>();
   const muteHeadphoneEvent = new Subject<boolean>();

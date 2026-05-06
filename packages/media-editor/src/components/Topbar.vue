@@ -7,6 +7,18 @@
     </button>
 
     <div class="flex items-center gap-4">
+      <!-- Debug gizmo toggle (dev mode only) -->
+      <button
+        v-if="devMode"
+        class="size-10 rounded-full border-none cursor-pointer flex items-center justify-center transition-colors hover:bg-muted"
+        :class="store.uiState.debugGizmos ? 'bg-green-500/20 text-green-400' : 'bg-transparent text-foreground/50'"
+        title="Toggle debug gizmos"
+        @click="store.uiState.debugGizmos = !store.uiState.debugGizmos"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+      </button>
       <button
         class="size-10 rounded-full bg-transparent border-none text-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none"
         :disabled="!store.mediaState.history.length"
@@ -43,6 +55,10 @@
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 
 const { store } = useMediaEditorContext();
+
+defineProps<{
+  devMode?: boolean;
+}>();
 
 defineEmits<{
   (e: 'close'): void;
