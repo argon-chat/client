@@ -13,6 +13,7 @@ import { computeExportDimensions } from './computeExportDimensions';
 import getResultTransform from './getResultTransform';
 import getScaledLayersAndLines from './getScaledLayersAndLines';
 import drawTextLayer from './drawTextLayer';
+import drawStickerLayer from './drawStickerLayer';
 import { selectEncodingProfile, RENDER_FPS } from './videoEncoding';
 import type { EditingMediaState } from '../store/editorStore';
 
@@ -103,6 +104,8 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     imageSize: finalTransform.imageSize,
     flip: finalTransform.flip,
     perspective: mediaState.perspective,
+    curves: mediaState.curves ?? { r: [0, 0], g: [0, 0], b: [0, 0] },
+    selective: mediaState.selective ?? { hue: 0, range: 0, shift: 0, sat: 0, luma: 0 },
     ...(mediaState.adjustments as Record<AdjustmentKey, number>)
   };
 
@@ -144,6 +147,7 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     // Draw text layers
     for (const layer of scaledLayers) {
       if (layer.type === 'text') drawTextLayer(ctx, layer);
+      else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
     }
 
     const blob = await new Promise<Blob>((resolve) =>
@@ -274,6 +278,7 @@ async function renderVideoResult(opts: {
       compositeCtx.drawImage(brushResultCanvas, 0, 0);
       for (const layer of scaledLayers) {
         if (layer.type === 'text') drawTextLayer(compositeCtx, layer);
+        else if (layer.type === 'sticker') await drawStickerLayer(compositeCtx, layer);
       }
 
       // Encode frame

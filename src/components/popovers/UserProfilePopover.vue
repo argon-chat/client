@@ -92,7 +92,7 @@
                             <!-- Status / Activity -->
                             <div class="hero-status">
                                 <span v-if="user.activity" class="hero-activity">
-                                    {{ t(getTextForActivityKind(user.activity.kind)) }}
+                                    <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
                                     <span class="font-medium">{{ user.activity.titleName }}</span>
                                 </span>
                                 <span v-else class="hero-presence" :class="presenceClass">
@@ -166,7 +166,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from "vue";
 import ArgonAvatar from "./../ArgonAvatar.vue";
-import { CrownIcon } from "lucide-vue-next";
+import { CrownIcon, Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { IconDiamondFilled } from "@tabler/icons-vue";
 import {
   Tooltip,
@@ -337,18 +337,23 @@ const emit = defineEmits<(e: "close:pressed") => void>();
 
 const { t } = useLocale();
 
-const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
+const getActivityIcon = (activityKind: ActivityPresenceKind) => {
   switch (activityKind) {
-    case ActivityPresenceKind.GAME:
-      return "activity_play_in";
-    case ActivityPresenceKind.SOFTWARE:
-      return "activity_work_in";
-    case ActivityPresenceKind.STREAMING:
-      return "activity_stream";
-    case ActivityPresenceKind.LISTEN:
-      return "activity_listen";
-    default:
-      return "error";
+    case ActivityPresenceKind.GAME: return Gamepad2;
+    case ActivityPresenceKind.LISTEN: return Headphones;
+    case ActivityPresenceKind.SOFTWARE: return Monitor;
+    case ActivityPresenceKind.STREAMING: return Radio;
+    default: return Monitor;
+  }
+};
+
+const getActivityColor = (activityKind: ActivityPresenceKind) => {
+  switch (activityKind) {
+    case ActivityPresenceKind.GAME: return 'activity-game';
+    case ActivityPresenceKind.LISTEN: return 'activity-listen';
+    case ActivityPresenceKind.SOFTWARE: return 'activity-software';
+    case ActivityPresenceKind.STREAMING: return 'activity-streaming';
+    default: return '';
   }
 };
 
@@ -628,8 +633,24 @@ async function removeRole(archetypeId: Guid) {
 }
 
 .hero-activity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: hsl(var(--foreground) / 0.8);
 }
+
+.activity-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  position: relative;
+  top: -1px;
+}
+
+.activity-game { color: #22d3ee; }
+.activity-listen { color: #4ade80; }
+.activity-software { color: #fb923c; }
+.activity-streaming { color: #a78bfa; }
 
 .hero-presence {
   font-weight: 600;

@@ -14,7 +14,7 @@
         <div class="user-text">
           <span class="user-name">{{ user.displayName }}</span>
           <span class="user-activity" v-if="user.activity && props.showActivity">
-            {{ t(getTextForActivityKind(user.activity.kind)) }}
+            <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
             <span class="font-semibold">{{ user.activity.titleName }}</span>
           </span>
         </div>
@@ -31,7 +31,7 @@
     <div class="user-text">
       <span class="user-name">{{ user.displayName }}</span>
       <span class="user-activity" v-if="user.activity && props.showActivity">
-        {{ t(getTextForActivityKind(user.activity.kind)) }}
+        <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
         <span class="font-semibold">{{ user.activity.titleName }}</span>
       </span>
     </div>
@@ -50,6 +50,7 @@ import {
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import { ref } from "vue";
 import { ActivityPresenceKind } from "@argon/glue";
+import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 
 const isOpened = ref(false);
 const props = withDefaults(
@@ -75,6 +76,26 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
       return "activity_listen";
     default:
       return "error";
+  }
+};
+
+const getActivityIcon = (activityKind: ActivityPresenceKind) => {
+  switch (activityKind) {
+    case ActivityPresenceKind.GAME: return Gamepad2;
+    case ActivityPresenceKind.LISTEN: return Headphones;
+    case ActivityPresenceKind.SOFTWARE: return Monitor;
+    case ActivityPresenceKind.STREAMING: return Radio;
+    default: return Monitor;
+  }
+};
+
+const getActivityColor = (activityKind: ActivityPresenceKind) => {
+  switch (activityKind) {
+    case ActivityPresenceKind.GAME: return 'activity-game';
+    case ActivityPresenceKind.LISTEN: return 'activity-listen';
+    case ActivityPresenceKind.SOFTWARE: return 'activity-software';
+    case ActivityPresenceKind.STREAMING: return 'activity-streaming';
+    default: return '';
   }
 };
 </script>
@@ -122,10 +143,26 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
 }
 
 .user-activity {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.activity-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  position: relative;
+  top: -1px;
+}
+
+.activity-game { color: #22d3ee; }
+.activity-listen { color: #4ade80; }
+.activity-software { color: #fb923c; }
+.activity-streaming { color: #a78bfa; }
 </style>

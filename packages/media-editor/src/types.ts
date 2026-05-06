@@ -5,12 +5,13 @@ export type MediaType = 'image' | 'video';
 
 export type EditorLayer = {
   id: number;
-  type: 'text';
+  type: 'text' | 'sticker';
   position: Vec2;
   rotation: number;
   scale: number;
   textInfo?: TextStyle;
   textRenderingInfo?: TextRenderingInfo;
+  stickerSrc?: string;
 };
 
 export type TextRenderingInfo = {

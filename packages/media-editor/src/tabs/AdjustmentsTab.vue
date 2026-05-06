@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-1 py-2">
+  <div class="flex flex-col gap-0.5 py-2">
     <!-- Video quality selector -->
     <StepInput
       v-if="store.mediaType === 'video' && qualitySteps.length > 1"
@@ -9,33 +9,55 @@
       @update:model-value="store.mediaState.videoQuality = $event"
     />
 
-    <div
-      v-for="item in adjustmentsConfig"
-      :key="item.key"
-      class="group px-4 py-2 rounded-lg transition-colors hover:bg-accent/50"
-    >
+    <!-- Enhance (standalone, prominent) -->
+    <div class="px-4 py-3">
       <div class="flex items-center gap-2.5 mb-2">
-        <component
-          :is="iconMap[item.icon]"
-          :size="16"
-          class="shrink-0 transition-colors"
-          :class="store.mediaState.adjustments[item.key] !== 0 ? 'text-primary' : 'text-muted-foreground'"
-        />
-        <span class="text-[13px] font-medium text-foreground flex-1">{{ t(item.labelKey) }}</span>
-        <span
-          class="text-xs tabular-nums min-w-[32px] text-right transition-colors"
-          :class="store.mediaState.adjustments[item.key] !== 0 ? 'text-primary' : 'text-muted-foreground'"
-        >{{ formatValue(item) }}</span>
+        <Sparkles :size="16" class="shrink-0" :class="store.mediaState.adjustments.enhance !== 0 ? 'text-primary' : 'text-muted-foreground'" />
+        <span class="text-[13px] font-semibold text-foreground flex-1">{{ t('media_editor_enhance') }}</span>
+        <button
+          v-if="store.mediaState.adjustments.enhance !== 0"
+          class="text-[10px] text-muted-foreground hover:text-foreground bg-muted px-1.5 py-0.5 rounded cursor-pointer border-none"
+          @click="resetAdjustment('enhance')"
+        >{{ t('media_editor_reset') }}</button>
+        <span class="text-xs tabular-nums min-w-[28px] text-right" :class="store.mediaState.adjustments.enhance !== 0 ? 'text-primary' : 'text-muted-foreground'">{{ store.mediaState.adjustments.enhance ? Math.round(store.mediaState.adjustments.enhance * 100) : '' }}</span>
       </div>
       <RangeInput
-        :model-value="store.mediaState.adjustments[item.key]"
-        :min="item.to100 ? 0 : -1"
-        :max="1"
-        :to100="item.to100"
-        compact
-        @update:model-value="updateAdjustment(item.key, $event)"
+        :model-value="store.mediaState.adjustments.enhance"
+        :min="0" :max="1" :to100="true" compact
+        @update:model-value="updateAdjustment('enhance', $event)"
       />
     </div>
+
+    <!-- Light section -->
+    <AdjustmentSection :title="t('media_editor_section_light')" :initially-open="true">
+      <AdjustmentRow key="brightness" :label="t('media_editor_brightness')" :icon="Sun" :value="store.mediaState.adjustments.brightness" bipolar @update="v => updateAdjustment('brightness', v)" @reset="resetAdjustment('brightness')" />
+      <AdjustmentRow key="contrast" :label="t('media_editor_contrast')" :icon="Contrast" :value="store.mediaState.adjustments.contrast" bipolar @update="v => updateAdjustment('contrast', v)" @reset="resetAdjustment('contrast')" />
+      <AdjustmentRow key="highlights" :label="t('media_editor_highlights')" :icon="Sunrise" :value="store.mediaState.adjustments.highlights" bipolar @update="v => updateAdjustment('highlights', v)" @reset="resetAdjustment('highlights')" />
+      <AdjustmentRow key="shadows" :label="t('media_editor_shadows')" :icon="Moon" :value="store.mediaState.adjustments.shadows" bipolar @update="v => updateAdjustment('shadows', v)" @reset="resetAdjustment('shadows')" />
+      <AdjustmentRow key="fade" :label="t('media_editor_fade')" :icon="CloudFog" :value="store.mediaState.adjustments.fade" @update="v => updateAdjustment('fade', v)" @reset="resetAdjustment('fade')" />
+    </AdjustmentSection>
+
+    <!-- Color section -->
+    <AdjustmentSection :title="t('media_editor_section_color')">
+      <AdjustmentRow key="saturation" :label="t('media_editor_saturation')" :icon="Droplets" :value="store.mediaState.adjustments.saturation" bipolar @update="v => updateAdjustment('saturation', v)" @reset="resetAdjustment('saturation')" />
+      <AdjustmentRow key="warmth" :label="t('media_editor_warmth')" :icon="Thermometer" :value="store.mediaState.adjustments.warmth" bipolar @update="v => updateAdjustment('warmth', v)" @reset="resetAdjustment('warmth')" />
+    </AdjustmentSection>
+
+    <!-- Detail section -->
+    <AdjustmentSection :title="t('media_editor_section_detail')">
+      <AdjustmentRow key="sharpen" :label="t('media_editor_sharpen')" :icon="Diamond" :value="store.mediaState.adjustments.sharpen" @update="v => updateAdjustment('sharpen', v)" @reset="resetAdjustment('sharpen')" />
+      <AdjustmentRow key="grain" :label="t('media_editor_grain')" :icon="ScanLine" :value="store.mediaState.adjustments.grain" @update="v => updateAdjustment('grain', v)" @reset="resetAdjustment('grain')" />
+      <AdjustmentRow key="vignette" :label="t('media_editor_vignette')" :icon="Aperture" :value="store.mediaState.adjustments.vignette" @update="v => updateAdjustment('vignette', v)" @reset="resetAdjustment('vignette')" />
+    </AdjustmentSection>
+
+    <!-- Effects section -->
+    <AdjustmentSection :title="t('media_editor_section_effects')">
+      <AdjustmentRow key="tiltShift" :label="t('media_editor_tilt_shift')" :icon="Mountain" :value="store.mediaState.adjustments.tiltShift" @update="v => updateAdjustment('tiltShift', v)" @reset="resetAdjustment('tiltShift')" />
+      <AdjustmentRow key="chromatic" :label="t('media_editor_chromatic')" :icon="Rainbow" :value="store.mediaState.adjustments.chromatic" @update="v => updateAdjustment('chromatic', v)" @reset="resetAdjustment('chromatic')" />
+      <AdjustmentRow key="fisheye" :label="t('media_editor_fisheye')" :icon="CircleDot" :value="store.mediaState.adjustments.fisheye" bipolar @update="v => updateAdjustment('fisheye', v)" @reset="resetAdjustment('fisheye')" />
+      <AdjustmentRow key="glitch" :label="t('media_editor_glitch')" :icon="Zap" :value="store.mediaState.adjustments.glitch" @update="v => updateAdjustment('glitch', v)" @reset="resetAdjustment('glitch')" />
+      <AdjustmentRow key="motionBlur" :label="t('media_editor_motion_blur')" :icon="Wind" :value="store.mediaState.adjustments.motionBlur" @update="v => updateAdjustment('motionBlur', v)" @reset="resetAdjustment('motionBlur')" />
+    </AdjustmentSection>
   </div>
 </template>
 
@@ -43,13 +65,16 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
-import { adjustmentsConfig, type AdjustmentKey } from '../adjustments';
+import { type AdjustmentKey } from '../adjustments';
 import { QUALITY_PRESETS, resolveOutputQuality } from '../constants';
 import RangeInput from '../components/RangeInput.vue';
 import StepInput from '../components/StepInput.vue';
+import AdjustmentSection from '../components/AdjustmentSection.vue';
+import AdjustmentRow from '../components/AdjustmentRow.vue';
 import {
   Sparkles, Sun, Contrast, Droplets, Thermometer,
-  CloudFog, Sunrise, Moon, Aperture, ScanLine, Diamond
+  CloudFog, Sunrise, Moon, Aperture, ScanLine, Diamond,
+  Mountain, Rainbow, CircleDot, Zap, Wind
 } from 'lucide-vue-next';
 
 const { t } = useI18n();
@@ -71,27 +96,6 @@ const effectiveQuality = computed(() =>
   Math.min(maxQuality.value, store.mediaState.videoQuality || maxQuality.value)
 );
 
-const iconMap: Record<string, any> = {
-  'sparkles': Sparkles,
-  'sun': Sun,
-  'contrast': Contrast,
-  'droplets': Droplets,
-  'thermometer': Thermometer,
-  'cloud-fog': CloudFog,
-  'sunrise': Sunrise,
-  'moon': Moon,
-  'aperture': Aperture,
-  'scan-line': ScanLine,
-  'diamond': Diamond
-};
-
-function formatValue(item: typeof adjustmentsConfig[number]) {
-  const v = store.mediaState.adjustments[item.key];
-  if (v === 0) return '';
-  if (item.to100) return Math.round(v * 100);
-  return (v > 0 ? '+' : '') + Math.round(v * 100);
-}
-
 function updateAdjustment(key: AdjustmentKey, value: number) {
   const oldValue = store.mediaState.adjustments[key];
   store.mediaState.adjustments[key] = value;
@@ -100,5 +104,9 @@ function updateAdjustment(key: AdjustmentKey, value: number) {
     oldValue,
     newValue: value
   });
+}
+
+function resetAdjustment(key: AdjustmentKey) {
+  updateAdjustment(key, 0);
 }
 </script>

@@ -156,8 +156,7 @@ watch(() => store.mediaState.currentVideoTime, (time) => {
   video.addEventListener('seeked', onSeeked);
 });
 
-// Watch finalTransform + adjustments for redraw (debounced for adjustments)
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+// Watch finalTransform + adjustments for immediate redraw
 
 watch(
   () => [store.uiState.finalTransform, store.uiState.canvasSize],
@@ -177,8 +176,20 @@ watch(
 );
 
 watch(
+  () => store.mediaState.curves,
+  () => { scheduleRedraw(); },
+  { deep: true }
+);
+
+watch(
+  () => store.mediaState.selective,
+  () => { scheduleRedraw(); },
+  { deep: true }
+);
+
+watch(
   () => store.mediaState.adjustments,
-  () => { scheduleDebouncedRedraw(); },
+  () => { scheduleRedraw(); },
   { deep: true }
 );
 
@@ -188,14 +199,6 @@ function scheduleRedraw() {
     animFrameId = null;
     redraw();
   });
-}
-
-function scheduleDebouncedRedraw() {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    debounceTimer = null;
-    scheduleRedraw();
-  }, 16);
 }
 
 function redraw() {
@@ -218,6 +221,8 @@ function redraw() {
     imageSize: [payload.media.width, payload.media.height],
     flip: ft.flip,
     perspective: store.mediaState.perspective,
+    curves: store.mediaState.curves ?? { r: [0, 0], g: [0, 0], b: [0, 0] },
+    selective: store.mediaState.selective ?? { hue: 0, range: 0, shift: 0, sat: 0, luma: 0 },
     ...adjustmentValues as any
   };
 

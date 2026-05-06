@@ -7,23 +7,33 @@
       :class="{ '!border-primary': store.uiState.selectedResizableLayer === layer.id }"
       :style="layerStyle(layer)"
       @pointerdown.stop="(e) => startDrag(layer, e)"
-      @dblclick="startEditing(layer)"
+      @dblclick="layer.type === 'text' && startEditing(layer)"
     >
-      <div
-        v-if="editingLayerId !== layer.id"
-        class="whitespace-pre-wrap break-words pointer-events-none"
-        :style="textContentStyle(layer)"
-      >{{ layer.textInfo?.content || 'Text' }}</div>
-      <textarea
-        v-else
-        ref="editInputRef"
-        class="bg-transparent border-none outline-none resize-none w-full min-w-[100px] min-h-[40px] font-[inherit] whitespace-pre-wrap break-words"
-        :style="textContentStyle(layer)"
-        :value="layer.textInfo?.content || 'Text'"
-        @input="(e) => updateContent(layer, (e.target as HTMLTextAreaElement).value)"
-        @blur="stopEditing"
-        @keydown.escape="stopEditing"
+      <!-- Sticker layer -->
+      <img
+        v-if="layer.type === 'sticker'"
+        :src="layer.stickerSrc"
+        class="w-full h-full object-contain pointer-events-none select-none"
+        draggable="false"
       />
+      <!-- Text layer -->
+      <template v-else>
+        <div
+          v-if="editingLayerId !== layer.id"
+          class="whitespace-pre-wrap break-words pointer-events-none"
+          :style="textContentStyle(layer)"
+        >{{ layer.textInfo?.content || 'Text' }}</div>
+        <textarea
+          v-else
+          ref="editInputRef"
+          class="bg-transparent border-none outline-none resize-none w-full min-w-[100px] min-h-[40px] font-[inherit] whitespace-pre-wrap break-words"
+          :style="textContentStyle(layer)"
+          :value="layer.textInfo?.content || 'Text'"
+          @input="(e) => updateContent(layer, (e.target as HTMLTextAreaElement).value)"
+          @blur="stopEditing"
+          @keydown.escape="stopEditing"
+        />
+      </template>
     </div>
   </div>
 </template>

@@ -9,6 +9,18 @@ export function initPipeline(device: GPUDevice, format: GPUTextureFormat): Pipel
   const vertexModule = device.createShaderModule({ code: vertexShaderSource });
   const fragmentModule = device.createShaderModule({ code: fragmentShaderSource });
 
+  // Log shader compilation errors
+  vertexModule.getCompilationInfo().then(info => {
+    for (const msg of info.messages) {
+      if (msg.type === 'error') console.error('[WebGPU vertex shader]', msg.message, `line ${msg.lineNum}:${msg.linePos}`);
+    }
+  });
+  fragmentModule.getCompilationInfo().then(info => {
+    for (const msg of info.messages) {
+      if (msg.type === 'error') console.error('[WebGPU fragment shader]', msg.message, `line ${msg.lineNum}:${msg.linePos}`);
+    }
+  });
+
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
       {

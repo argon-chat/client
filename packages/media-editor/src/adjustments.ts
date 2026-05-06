@@ -18,6 +18,11 @@ export const ADJUSTMENTS = {
   vignette:   { uniform: 'uVignette',   labelKey: 'media_editor_vignette',   icon: 'aperture',    range: [0, 100] },
   grain:      { uniform: 'uGrain',      labelKey: 'media_editor_grain',      icon: 'scan-line',   range: [0, 100] },
   sharpen:    { uniform: 'uSharpen',    labelKey: 'media_editor_sharpen',    icon: 'diamond',     range: [0, 100] },
+  tiltShift:  { uniform: 'uTiltShift',  labelKey: 'media_editor_tilt_shift', icon: 'mountains',   range: [0, 100] },
+  chromatic:  { uniform: 'uChromatic',  labelKey: 'media_editor_chromatic',  icon: 'rainbow',     range: [0, 100] },
+  fisheye:    { uniform: 'uFisheye',    labelKey: 'media_editor_fisheye',    icon: 'circle-dot',  range: [-100, 100] },
+  glitch:     { uniform: 'uGlitch',     labelKey: 'media_editor_glitch',     icon: 'zap',         range: [0, 100] },
+  motionBlur: { uniform: 'uMotionBlur', labelKey: 'media_editor_motion_blur', icon: 'wind',       range: [0, 100] },
 } as const satisfies Record<string, AdjustmentDef>;
 
 export type AdjustmentKey = keyof typeof ADJUSTMENTS;

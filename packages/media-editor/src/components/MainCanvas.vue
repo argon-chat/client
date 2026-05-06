@@ -5,6 +5,7 @@
     <TextLayers />
     <CropHandles />
     <RotationWheel v-if="store.uiState.currentTab === 'crop'" />
+    <BeforeAfter :visible="store.uiState.showBeforeAfter" />
   </div>
 </template>
 
@@ -17,6 +18,7 @@ import BrushCanvas from './BrushCanvas.vue';
 import CropHandles from './CropHandles.vue';
 import RotationWheel from './RotationWheel.vue';
 import TextLayers from './TextLayers.vue';
+import BeforeAfter from './BeforeAfter.vue';
 
 const { store } = useMediaEditorContext();
 

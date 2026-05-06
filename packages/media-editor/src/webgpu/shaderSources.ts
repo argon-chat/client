@@ -6,7 +6,6 @@ struct Params {
   source_dimensions: vec2f,
   viewport: vec2f,
   offset: vec2f,
-  // per-effect intensities (aligned to 16 bytes)
   enhance: f32,
   saturation: f32,
   brightness: f32,
@@ -20,7 +19,31 @@ struct Params {
   sharpen: f32,
   perspective_x: f32,
   perspective_y: f32,
-  _padding: f32,
+  tilt_shift: f32,
+  chromatic: f32,
+  fisheye: f32,
+  glitch: f32,
+  motion_blur: f32,
+  curves_r_shadows: f32,
+  curves_r_highlights: f32,
+  curves_g_shadows: f32,
+  curves_g_highlights: f32,
+  curves_b_shadows: f32,
+  curves_b_highlights: f32,
+  selective_hue: f32,
+  selective_range: f32,
+  selective_shift: f32,
+  selective_sat: f32,
+  selective_luma: f32,
+  _pad0: f32,
+  _pad1: f32,
+  _pad2: f32,
+  _pad3: f32,
+  _pad4: f32,
+  _pad5: f32,
+  _pad6: f32,
+  _pad7: f32,
+  _pad8: f32,
 }
 
 struct VSOutput {
@@ -105,7 +128,31 @@ struct Params {
   sharpen: f32,
   perspective_x: f32,
   perspective_y: f32,
-  _padding: f32,
+  tilt_shift: f32,
+  chromatic: f32,
+  fisheye: f32,
+  glitch: f32,
+  motion_blur: f32,
+  curves_r_shadows: f32,
+  curves_r_highlights: f32,
+  curves_g_shadows: f32,
+  curves_g_highlights: f32,
+  curves_b_shadows: f32,
+  curves_b_highlights: f32,
+  selective_hue: f32,
+  selective_range: f32,
+  selective_shift: f32,
+  selective_sat: f32,
+  selective_luma: f32,
+  _pad0: f32,
+  _pad1: f32,
+  _pad2: f32,
+  _pad3: f32,
+  _pad4: f32,
+  _pad5: f32,
+  _pad6: f32,
+  _pad7: f32,
+  _pad8: f32,
 }
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -286,11 +333,195 @@ fn sharpen_pass(intensity: f32, uv: vec2f) -> vec4f {
   return vec4f(clamp(center.rgb * (1.0 + 4.0 * intensity) - neighbors, vec3f(0.0), vec3f(1.0)), center.a);
 }
 
+// ─── Tilt-Shift (lens blur at top/bottom) ──────────────────────────
+
+fn tilt_shift_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
+  if (intensity < 0.001) { return color; }
+  let focus_center = 0.5;
+  let focus_width = 0.2;
+  let dist_from_focus = abs(uv.y - focus_center);
+  let blur_amount = smoothstep(focus_width * 0.5, focus_width, dist_from_focus) * intensity;
+  let texel = 1.0 / p.viewport;
+  let r = blur_amount * 6.0;
+  var acc = color.rgb;
+  var weight = 1.0;
+  // Unrolled blur samples (6 taps in each direction)
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 1.0 * r, 0.0)).rgb * 0.857;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 1.0 * r, 0.0)).rgb * 0.857;
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 1.0 * r)).rgb * 0.857;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 1.0 * r)).rgb * 0.857;
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 2.0 * r, 0.0)).rgb * 0.714;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 2.0 * r, 0.0)).rgb * 0.714;
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 2.0 * r)).rgb * 0.714;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 2.0 * r)).rgb * 0.714;
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 3.0 * r, 0.0)).rgb * 0.571;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 3.0 * r, 0.0)).rgb * 0.571;
+  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 3.0 * r)).rgb * 0.571;
+  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 3.0 * r)).rgb * 0.571;
+  weight = 1.0 + 0.857 * 4.0 + 0.714 * 4.0 + 0.571 * 4.0;
+  return vec4f(acc / weight, color.a);
+}
+
+// ─── Chromatic Aberration ──────────────────────────────────────────
+
+fn chromatic_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
+  if (intensity < 0.001) { return color; }
+  let dir = (uv - 0.5) * intensity * 0.02;
+  let r = textureSample(src_texture, src_sampler, uv + dir).r;
+  let g = color.g;
+  let b = textureSample(src_texture, src_sampler, uv - dir).b;
+  return vec4f(r, g, b, color.a);
+}
+
+// ─── Fish-eye / Barrel distortion ─────────────────────────────────
+
+fn fisheye_pass(intensity: f32, uv: vec2f) -> vec4f {
+  let center = uv - 0.5;
+  let r = length(center);
+  if (r < 0.0001) { return textureSample(src_texture, src_sampler, uv); }
+  let power = intensity * 2.0;
+  let distorted_r = r * (1.0 + power * r * r);
+  let new_uv = 0.5 + (center / r) * distorted_r;
+  let clamped_uv = clamp(new_uv, vec2f(0.0), vec2f(1.0));
+  return textureSample(src_texture, src_sampler, clamped_uv);
+}
+
+// ─── Glitch / RGB Split ───────────────────────────────────────────
+
+fn glitch_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
+  if (intensity < 0.001) { return color; }
+  let block = floor(uv.y * 20.0);
+  let noise = fract(sin(block * 43758.5453) * 2.0);
+  let shift_x = (noise - 0.5) * intensity * 0.03;
+  let r = textureSample(src_texture, src_sampler, uv + vec2f(shift_x, 0.0)).r;
+  let g = color.g;
+  let b = textureSample(src_texture, src_sampler, uv - vec2f(shift_x * 0.7, 0.0)).b;
+  let scanline = 1.0 - step(0.92, noise) * intensity * 0.3;
+  return vec4f(vec3f(r, g, b) * scanline, color.a);
+}
+
+// ─── Motion Blur ──────────────────────────────────────────────────
+
+fn motion_blur_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
+  if (intensity < 0.001) { return color; }
+  let dir = vec2f(1.0, 0.0) * intensity * 0.015;
+  var acc = color.rgb;
+  // Unrolled 8 taps in each direction
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.125).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.125).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.250).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.250).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.375).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.375).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.500).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.500).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.625).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.625).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.750).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.750).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 0.875).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 0.875).rgb;
+  acc += textureSample(src_texture, src_sampler, uv + dir * 1.000).rgb;
+  acc += textureSample(src_texture, src_sampler, uv - dir * 1.000).rgb;
+  return vec4f(acc / 17.0, color.a);
+}
+
+// ─── RGB Curves (shadow/highlight lift per channel) ────────────────
+
+fn curves_pass(color: vec4f) -> vec4f {
+  let sh_r = p.curves_r_shadows;
+  let hi_r = p.curves_r_highlights;
+  let sh_g = p.curves_g_shadows;
+  let hi_g = p.curves_g_highlights;
+  let sh_b = p.curves_b_shadows;
+  let hi_b = p.curves_b_highlights;
+
+  if (abs(sh_r) + abs(hi_r) + abs(sh_g) + abs(hi_g) + abs(sh_b) + abs(hi_b) < 0.001) {
+    return color;
+  }
+
+  var rgb = color.rgb;
+  // Shadow lift: affects dark areas (1-luma weighted)
+  // Highlight lift: affects bright areas (luma weighted)
+  let luma = vec3f(dot(rgb, vec3f(0.299, 0.587, 0.114)));
+  let shadow_weight = pow(1.0 - rgb, vec3f(2.0));
+  let highlight_weight = pow(rgb, vec3f(2.0));
+
+  rgb.r += shadow_weight.r * sh_r * 0.5 + highlight_weight.r * hi_r * 0.5;
+  rgb.g += shadow_weight.g * sh_g * 0.5 + highlight_weight.g * hi_g * 0.5;
+  rgb.b += shadow_weight.b * sh_b * 0.5 + highlight_weight.b * hi_b * 0.5;
+
+  return vec4f(clamp(rgb, vec3f(0.0), vec3f(1.0)), color.a);
+}
+
+// ─── Selective Color (hue-range based adjustment) ──────────────────
+
+fn rgb_to_hsl(rgb: vec3f) -> vec3f {
+  let mx = max(rgb.r, max(rgb.g, rgb.b));
+  let mn = min(rgb.r, min(rgb.g, rgb.b));
+  let l = (mx + mn) * 0.5;
+  if (mx == mn) { return vec3f(0.0, 0.0, l); }
+  let d = mx - mn;
+  let s = select(d / (2.0 - mx - mn), d / (mx + mn), l < 0.5);
+  var h: f32;
+  if (mx == rgb.r) {
+    h = (rgb.g - rgb.b) / d + select(0.0, 6.0, rgb.g < rgb.b);
+  } else if (mx == rgb.g) {
+    h = (rgb.b - rgb.r) / d + 2.0;
+  } else {
+    h = (rgb.r - rgb.g) / d + 4.0;
+  }
+  return vec3f(h / 6.0, s, l);
+}
+
+fn hsl_to_rgb(hsl: vec3f) -> vec3f {
+  if (hsl.y == 0.0) { return vec3f(hsl.z); }
+  let q = select(hsl.z + hsl.y - hsl.z * hsl.y, hsl.z * (1.0 + hsl.y), hsl.z < 0.5);
+  let pp = 2.0 * hsl.z - q;
+  let r = hue_to_rgb(pp, q, hsl.x + 1.0/3.0);
+  let g = hue_to_rgb(pp, q, hsl.x);
+  let b = hue_to_rgb(pp, q, hsl.x - 1.0/3.0);
+  return vec3f(r, g, b);
+}
+
+fn hue_to_rgb(p_val: f32, q: f32, t_in: f32) -> f32 {
+  var t = fract(t_in);
+  if (t < 1.0/6.0) { return p_val + (q - p_val) * 6.0 * t; }
+  if (t < 0.5) { return q; }
+  if (t < 2.0/3.0) { return p_val + (q - p_val) * (2.0/3.0 - t) * 6.0; }
+  return p_val;
+}
+
+fn selective_color_pass(color: vec4f) -> vec4f {
+  let range = p.selective_range;
+  if (range < 0.001) { return color; }
+
+  let hsl = rgb_to_hsl(color.rgb);
+  let target_hue = p.selective_hue; // 0..1 normalized
+  let hue_diff = abs(hsl.x - target_hue);
+  let wrapped_diff = min(hue_diff, 1.0 - hue_diff);
+  let mask = smoothstep(range, range * 0.3, wrapped_diff) * hsl.y; // only affect saturated pixels
+
+  if (mask < 0.001) { return color; }
+
+  var new_hsl = hsl;
+  new_hsl.x = fract(new_hsl.x + p.selective_shift * mask);
+  new_hsl.y = clamp(new_hsl.y + p.selective_sat * mask, 0.0, 1.0);
+  new_hsl.z = clamp(new_hsl.z + p.selective_luma * mask * 0.5, 0.0, 1.0);
+
+  let result = hsl_to_rgb(new_hsl);
+  return vec4f(result, color.a);
+}
+
 // ─── Main fragment entry ───────────────────────────────────────────
 
 @fragment
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   var c = sharpen_pass(p.sharpen * 0.45 + p.enhance * 0.15, uv);
+  c = chromatic_pass(c, p.chromatic, uv);
+  c = glitch_pass(c, p.glitch, uv);
+  c = motion_blur_pass(c, p.motion_blur, uv);
+  c = tilt_shift_pass(c, p.tilt_shift, uv);
   c = grain_pass(c, p.grain * 0.04, uv);
   c = saturation_pass(c, p.saturation + p.enhance * 0.2);
   c = warmth_pass(c, p.warmth);
@@ -298,6 +529,8 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   c = highlights_shadows_pass(c, (p.highlights + p.enhance * 0.15) * 0.75 + 1.0, (p.shadows - p.enhance * 0.075) * 0.55 + 1.0);
   c = contrast_pass(c, p.contrast + p.enhance * 0.1);
   c = brightness_pass(c, p.brightness + p.enhance * 0.25);
+  c = curves_pass(c);
+  c = selective_color_pass(c);
   c = vignette_pass(c, p.vignette, uv);
   return c;
 }

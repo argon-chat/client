@@ -44,6 +44,20 @@ export interface EditingMediaState {
 
   adjustments: Record<AdjustmentKey, number>;
 
+  curves: {
+    r: Vec2;
+    g: Vec2;
+    b: Vec2;
+  };
+
+  selective: {
+    hue: number;
+    range: number;
+    shift: number;
+    sat: number;
+    luma: number;
+  };
+
   resizableLayers: EditorLayer[];
   brushDrawnLines: BrushDrawnLine[];
 
@@ -85,6 +99,8 @@ export interface MediaEditorUIState {
   isPlaying: boolean;
 
   debugGizmos: boolean;
+  gridOverlay: 'none' | 'thirds' | 'golden' | 'diagonal';
+  showBeforeAfter: boolean;
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────
@@ -108,6 +124,20 @@ function getDefaultEditingMediaState(): EditingMediaState {
     adjustments: Object.fromEntries(
       adjustmentsConfig.map(entry => [entry.key, 0])
     ) as Record<AdjustmentKey, number>,
+
+    curves: {
+      r: [0, 0] as Vec2,
+      g: [0, 0] as Vec2,
+      b: [0, 0] as Vec2,
+    },
+
+    selective: {
+      hue: 0,
+      range: 0,
+      shift: 0,
+      sat: 0,
+      luma: 0,
+    },
 
     resizableLayers: [],
     brushDrawnLines: [],
@@ -148,7 +178,9 @@ function getDefaultUIState(): MediaEditorUIState {
     isMoving: false,
     isPlaying: false,
 
-    debugGizmos: false
+    debugGizmos: false,
+    gridOverlay: 'thirds',
+    showBeforeAfter: false
   };
 }
 

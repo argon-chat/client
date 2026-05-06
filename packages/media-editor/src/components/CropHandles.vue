@@ -18,10 +18,13 @@
     :style="cropAreaStyle"
     @pointerdown.self.prevent="startPan"
   >
-    <div class="absolute left-0 w-full h-px bg-white/20 pointer-events-none" style="top: 33%" />
-    <div class="absolute left-0 w-full h-px bg-white/20 pointer-events-none" style="top: 66%" />
-    <div class="absolute top-0 w-px h-full bg-white/20 pointer-events-none" style="left: 33%" />
-    <div class="absolute top-0 w-px h-full bg-white/20 pointer-events-none" style="left: 66%" />
+    <div class="absolute left-0 w-full h-px bg-white/20 pointer-events-none" v-for="y in gridHLines" :key="'h'+y" :style="{ top: y + '%' }" />
+    <div class="absolute top-0 w-px h-full bg-white/20 pointer-events-none" v-for="x in gridVLines" :key="'v'+x" :style="{ left: x + '%' }" />
+    <!-- Diagonal grid lines -->
+    <svg v-if="store.uiState.gridOverlay === 'diagonal'" class="absolute inset-0 w-full h-full pointer-events-none">
+      <line x1="0" y1="0" x2="100%" y2="100%" stroke="white" stroke-opacity="0.2" stroke-width="1" />
+      <line x1="100%" y1="0" x2="0" y2="100%" stroke="white" stroke-opacity="0.2" stroke-width="1" />
+    </svg>
 
     <div v-for="side in sides" :key="side.cls"
       :class="['crop-side absolute', `crop-side--${side.cls}`]"
@@ -51,6 +54,24 @@ const isAvatar = mode === 'avatar';
 const isCropping = computed(() => store.uiState.currentTab === 'crop');
 const isReady = computed(() => !!store.uiState.canvasSize && store.mediaState.currentImageRatio > 0);
 const MAX_SCALE = 20;
+
+// ─── Grid overlay lines ────────────────────────────────────────
+
+const PHI = 100 / (1 + 1.618); // ~38.2%
+const gridHLines = computed(() => {
+  switch (store.uiState.gridOverlay) {
+    case 'thirds': return [33.33, 66.67];
+    case 'golden': return [PHI, 100 - PHI];
+    default: return [];
+  }
+});
+const gridVLines = computed(() => {
+  switch (store.uiState.gridOverlay) {
+    case 'thirds': return [33.33, 66.67];
+    case 'golden': return [PHI, 100 - PHI];
+    default: return [];
+  }
+});
 
 // ─── Crop rect in px ───────────────────────────────────────────
 

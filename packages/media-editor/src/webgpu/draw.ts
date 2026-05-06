@@ -10,6 +10,8 @@ export type DrawingParameters = {
   imageSize: Vec2;
   flip: Vec2;
   perspective: Vec2;
+  curves: { r: Vec2; g: Vec2; b: Vec2 };
+  selective: { hue: number; range: number; shift: number; sat: number; luma: number };
 } & Record<AdjustmentKey, number>;
 
 export function draw(device: GPUDevice, context: GPUCanvasContext, payload: RenderingPayload, parameters: DrawingParameters): void {
@@ -23,6 +25,8 @@ export function draw(device: GPUDevice, context: GPUCanvasContext, payload: Rend
     resolution: [canvas.width, canvas.height],
     translation: parameters.translation,
     perspective: parameters.perspective,
+    curves: parameters.curves,
+    selective: parameters.selective,
     enhance: parameters.enhance,
     saturation: parameters.saturation,
     brightness: parameters.brightness,
@@ -34,6 +38,11 @@ export function draw(device: GPUDevice, context: GPUCanvasContext, payload: Rend
     vignette: parameters.vignette,
     grain: parameters.grain,
     sharpen: parameters.sharpen,
+    tiltShift: parameters.tiltShift,
+    chromatic: parameters.chromatic,
+    fisheye: parameters.fisheye,
+    glitch: parameters.glitch,
+    motionBlur: parameters.motionBlur,
   };
 
   writeUniforms(device, payload.uniformBuffer, uniformData);

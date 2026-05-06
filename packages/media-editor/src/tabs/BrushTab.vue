@@ -11,6 +11,19 @@
         :disabled="!hasColor"
         @click="store.uiState.currentBrush.color = color"
       />
+      <!-- Eyedropper -->
+      <button
+        v-if="hasEyeDropper"
+        class="size-8 rounded-full border-2 border-dashed border-muted-foreground/50 cursor-pointer flex items-center justify-center transition-transform hover:scale-110 text-muted-foreground hover:text-foreground"
+        :disabled="!hasColor"
+        @click="pickColor"
+        :title="t('media_editor_eyedropper')"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m2 22 1-1h3l9-9M3 21v-3l9-9"/>
+          <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Size -->
@@ -97,5 +110,17 @@ function selectBrush(id: BrushType) {
   if (id in brushColorMap) {
     store.uiState.currentBrush.color = brushColorMap[id];
   }
+}
+
+const hasEyeDropper = 'EyeDropper' in window;
+
+async function pickColor() {
+  try {
+    const dropper = new (window as any).EyeDropper();
+    const result = await dropper.open();
+    if (result?.sRGBHex) {
+      store.uiState.currentBrush.color = result.sRGBHex;
+    }
+  } catch { /* user cancelled */ }
 }
 </script>

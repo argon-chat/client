@@ -34,6 +34,22 @@
         class="mt-4"
       />
     </div>
+
+    <!-- Grid overlay -->
+    <div class="mt-6">
+      <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('media_editor_grid') }}</div>
+      <div class="flex gap-2 px-2">
+        <button
+          v-for="opt in gridOptions"
+          :key="opt.value"
+          class="flex-1 py-2 px-3 rounded-md text-xs font-medium border transition-all"
+          :class="store.uiState.gridOverlay === opt.value
+            ? 'border-primary text-primary bg-primary/10'
+            : 'border-border text-muted-foreground hover:border-foreground/30'"
+          @click="store.uiState.gridOverlay = opt.value"
+        >{{ t(opt.labelKey) }}</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -124,4 +140,11 @@ function setPerspectiveX(v: number) {
 function setPerspectiveY(v: number) {
   store.mediaState.perspective = [store.mediaState.perspective[0], v];
 }
+
+const gridOptions = [
+  { value: 'none' as const, labelKey: 'media_editor_grid_none' },
+  { value: 'thirds' as const, labelKey: 'media_editor_grid_thirds' },
+  { value: 'golden' as const, labelKey: 'media_editor_grid_golden' },
+  { value: 'diagonal' as const, labelKey: 'media_editor_grid_diagonal' },
+];
 </script>

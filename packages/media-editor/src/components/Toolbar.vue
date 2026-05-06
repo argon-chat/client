@@ -17,7 +17,9 @@
     </div>
 
     <div class="flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-      <AdjustmentsTab v-if="store.uiState.currentTab === 'adjustments'" />
+      <PresetsTab v-if="store.uiState.currentTab === 'presets'" />
+      <AdjustmentsTab v-else-if="store.uiState.currentTab === 'adjustments'" />
+      <CurvesTab v-else-if="store.uiState.currentTab === 'curves'" />
       <CropTab v-else-if="store.uiState.currentTab === 'crop'" />
       <BrushTab v-else-if="store.uiState.currentTab === 'brush'" />
       <TextTab v-else-if="store.uiState.currentTab === 'text'" />
@@ -28,17 +30,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
-import { SlidersHorizontal, Crop, Pen, Type } from 'lucide-vue-next';
+import { SlidersHorizontal, Crop, Pen, Type, Palette, Blend } from 'lucide-vue-next';
+import PresetsTab from '../tabs/PresetsTab.vue';
 import AdjustmentsTab from '../tabs/AdjustmentsTab.vue';
 import CropTab from '../tabs/CropTab.vue';
 import BrushTab from '../tabs/BrushTab.vue';
 import TextTab from '../tabs/TextTab.vue';
+import CurvesTab from '../tabs/CurvesTab.vue';
 
 const { store, mode } = useMediaEditorContext();
 
 const allTabs = [
+  { id: 'presets', icon: Palette },
   { id: 'crop', icon: Crop },
   { id: 'adjustments', icon: SlidersHorizontal },
+  { id: 'curves', icon: Blend },
   { id: 'brush', icon: Pen },
   { id: 'text', icon: Type }
 ];

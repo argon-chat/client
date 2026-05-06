@@ -4,6 +4,7 @@ interface ArgonIpcBridge {
   invoke(service: string, method: string, args: any[]): Promise<any>;
   onEvent(callback: (event: any) => void): void;
   onPinnedFn(callback: (fnId: number, data: any) => void): void;
+  onPresenceUpdate(callback: (presence: any) => void): void;
 }
 
 declare global {
