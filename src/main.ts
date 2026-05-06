@@ -20,7 +20,6 @@ import { createPinia } from "pinia";
 import { MotionPlugin } from "@vueuse/motion";
 import { createI18n } from "vue-i18n";
 import { coreMessages, type SupportedLocale, type CoreLocaleSchema } from "@argon/i18n";
-import { createSentryPiniaPlugin } from "@sentry/vue";
 import { createEmojix, initializeEmojix } from "@argon-chat/emojix";
 
 window.ui_version = pkg.version;
