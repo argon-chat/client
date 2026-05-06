@@ -1,5 +1,8 @@
 using DeHive;
 using DeHive.Abstractions;
+using DeltaQ.BsDiff;
+using DeltaQ.SuffixSorting;
+using DeltaQ.SuffixSorting.LibDivSufSort;
 using Genbox.SimpleS3.Core.Abstracts.Clients;
 using Genbox.SimpleS3.Core.Abstracts.Enums;
 using Genbox.SimpleS3.Core.Common.Authentication;
@@ -38,7 +41,7 @@ class Build : NukeBuild
 
     [GitVersion] readonly GitVersion GitVersion;
 
-    public static int Main() => Execute<Build>(x => x.UploadWebViewToS3);
+    public static int Main() => Execute<Build>(x => x.GenerateAndUploadUiDelta);
 
     AbsolutePath FrontendDir => RootDirectory;
     AbsolutePath FrontendDist => RootDirectory / "dist";
@@ -253,6 +256,164 @@ class Build : NukeBuild
       });
 
 
+    #region UI Delta Generation
+
+    const int MaxDeltaChainLength = 3;
+    AbsolutePath DeltaTemp => RootDirectory / ".delta_temp";
+
+    Target GenerateAndUploadUiDelta => _ => _
+        .DependsOn(UploadWebViewToS3)
+        .Executes(async () =>
+        {
+            var s3 = CreateS3();
+            var version = GitVersion.AssemblySemFileVer;
+            var deltaManifestKey = $"manifests/ui.{Channel}.deltas.json";
+
+            // 1. Fetch existing delta manifest
+            DeltaManifest? existingDeltaManifest = null;
+            try
+            {
+                var resp = await s3.GetObjectAsync(S3Bucket, deltaManifestKey);
+                if (resp.IsSuccess)
+                {
+                    existingDeltaManifest = await JsonSerializer.DeserializeAsync<DeltaManifest>(resp.Content);
+                    Log.Information("Existing UI delta manifest: targetVersion={Version}, chain={Count}",
+                        existingDeltaManifest?.TargetVersion, existingDeltaManifest?.Chain.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "No existing UI delta manifest found");
+            }
+
+            // 2. Determine previous version
+            var previousVersion = existingDeltaManifest?.TargetVersion;
+            if (previousVersion is null || previousVersion.Equals(version, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Information("No previous UI version to diff against. Uploading empty delta manifest.");
+                await UploadUiDeltaManifest(s3, new DeltaManifest(
+                    ArgonComponentKind.webview, version, new FileInfo(HiveBundle).Length, []));
+                return;
+            }
+
+            Log.Information("Generating UI delta: {From} → {To}", previousVersion, version);
+
+            // 3. Download previous .hb from S3
+            DeltaTemp.CreateOrCleanDirectory();
+            var prevKey = $"runtime/ui/{previousVersion}/argon.ui.hb";
+            var prevHbPath = DeltaTemp / $"prev-{previousVersion}.hb";
+
+            try
+            {
+                var prevResp = await s3.GetObjectAsync(S3Bucket, prevKey);
+                if (!prevResp.IsSuccess)
+                {
+                    Log.Warning("Previous argon.ui.hb not found: {Key}. Skipping delta.", prevKey);
+                    await UploadUiDeltaManifest(s3, new DeltaManifest(
+                        ArgonComponentKind.webview, version, new FileInfo(HiveBundle).Length, []));
+                    return;
+                }
+
+                await using (var fs = File.Create(prevHbPath))
+                {
+                    await prevResp.Content.CopyToAsync(fs);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to download previous UI bundle. Skipping delta.");
+                await UploadUiDeltaManifest(s3, new DeltaManifest(
+                    ArgonComponentKind.webview, version, new FileInfo(HiveBundle).Length,
+                    existingDeltaManifest?.Chain ?? []));
+                return;
+            }
+
+            // 4. Generate bsdiff
+            var deltaPath = DeltaTemp / $"{previousVersion}-to-{version}.bsdiff";
+
+            var oldData = await File.ReadAllBytesAsync(prevHbPath);
+            var newData = await File.ReadAllBytesAsync(HiveBundle);
+            ISuffixSort suffixSorter = new LibDivSufSort();
+
+            await using (var deltaStream = File.Create(deltaPath))
+            {
+                Diff.Create(oldData, newData, deltaStream, suffixSorter);
+            }
+
+            // 5. Compute hash and upload
+            var deltaHash = await ComputeFileHashAsync(deltaPath);
+            var deltaSize = new FileInfo(deltaPath).Length;
+            var deltaS3Key = $"runtime/ui/deltas/{previousVersion}-to-{version}.bsdiff";
+
+            Log.Information("Uploading UI delta to S3: {Key} ({Size:N1} MB)",
+                deltaS3Key, deltaSize / 1024.0 / 1024.0);
+
+            await using (var fs = File.OpenRead(deltaPath))
+            {
+                await s3.PutObjectAsync(S3Bucket, deltaS3Key, fs);
+            }
+
+            // 6. Update chain
+            var newEntry = new DeltaEntry(
+                previousVersion, version, deltaS3Key, deltaHash, deltaSize);
+
+            var chain = existingDeltaManifest?.Chain.ToList() ?? [];
+            chain.Add(newEntry);
+
+            var removedEntries = new List<DeltaEntry>();
+            while (chain.Count > MaxDeltaChainLength)
+            {
+                removedEntries.Add(chain[0]);
+                chain.RemoveAt(0);
+            }
+
+            await UploadUiDeltaManifest(s3, new DeltaManifest(
+                ArgonComponentKind.webview, version, new FileInfo(HiveBundle).Length, chain));
+
+            // 7. Cleanup old deltas
+            foreach (var removed in removedEntries)
+            {
+                try
+                {
+                    Log.Information("Deleting old UI delta: {Key}", removed.Url);
+                    await s3.DeleteObjectAsync(S3Bucket, removed.Url);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to delete old UI delta {Key}", removed.Url);
+                }
+            }
+
+            Log.Information("UI delta generation complete. Chain length={Count}", chain.Count);
+        });
+
+    async Task UploadUiDeltaManifest(IObjectClient s3, DeltaManifest manifest)
+    {
+        var key = $"manifests/ui.{Channel}.deltas.json";
+        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
+
+        await using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+        await s3.PutObjectAsync(S3Bucket, key, ms,
+            request => request.ContentType.Set("application/json"));
+
+        Log.Information("UI delta manifest uploaded: {Key}", key);
+    }
+
+    static async Task<string> ComputeFileHashAsync(AbsolutePath filePath)
+    {
+        using var sha = SHA256.Create();
+        await using var fs = File.OpenRead(filePath);
+        var hash = await sha.ComputeHashAsync(fs);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    #endregion
+
+
     [Parameter][Secret] readonly string S3Endpoint;
     [Parameter][Secret] readonly string S3Region;
     [Parameter][Secret] readonly string S3Bucket;
@@ -361,4 +522,35 @@ public record UpdaterManifestInfo(
     [property: JsonPropertyName("latestHash")]
     string LatestHash,
     [property: JsonPropertyName("url")] string Url
+);
+
+public record DeltaManifest(
+    [property: JsonPropertyName("component")]
+    ArgonComponentKind Component,
+
+    [property: JsonPropertyName("targetVersion")]
+    string TargetVersion,
+
+    [property: JsonPropertyName("fullPackageSize")]
+    long FullPackageSize,
+
+    [property: JsonPropertyName("chain")]
+    List<DeltaEntry> Chain
+);
+
+public record DeltaEntry(
+    [property: JsonPropertyName("fromVersion")]
+    string FromVersion,
+
+    [property: JsonPropertyName("toVersion")]
+    string ToVersion,
+
+    [property: JsonPropertyName("url")]
+    string Url,
+
+    [property: JsonPropertyName("hash")]
+    string Hash,
+
+    [property: JsonPropertyName("size")]
+    long Size
 );

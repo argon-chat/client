@@ -25,6 +25,8 @@
 		<PackageReference Include="Nuke.Utilities.IO.Compression" Version="10.1.0" />
 		<PackageReference Include="Nuke.Utilities.IO.Globbing" Version="10.1.0" />
 		<PackageReference Include="Nuke.Utilities.Net" Version="10.1.0" />
+		<PackageReference Include="DeltaQ.BsDiff" Version="2.1.0" />
+		<PackageReference Include="DeltaQ.SuffixSorting.LibDivSufSort" Version="2.1.0" />
 		<PackageReference Include="SharpCompress" Version="0.42.1" />
 		<PackageReference Include="Genbox.SimpleS3.Core" Version="3.2.12" />
 		<PackageReference Include="Genbox.SimpleS3.Extensions.GenericS3" Version="3.2.12" />
