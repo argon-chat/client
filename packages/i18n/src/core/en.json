@@ -1182,5 +1182,8 @@
   "media_editor_original": "Original",
   "media_editor_perspective": "Perspective",
   "media_editor_perspective_horizontal": "Horizontal",
-  "media_editor_perspective_vertical": "Vertical"
+  "media_editor_perspective_vertical": "Vertical",
+  "block_user": "Block",
+  "report_user_profile": "Report User Profile",
+  "copy_user_id": "Copy User ID"
 }

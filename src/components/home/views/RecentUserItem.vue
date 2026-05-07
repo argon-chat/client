@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import StatusDot from "@/components/StatusDot.vue";
 import { UserStatus, ActivityPresenceKind } from "@argon/glue";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -88,8 +89,7 @@ const timeAgo = computed(() => {
         <!-- Avatar with status dot -->
         <div class="relative w-[36px] h-[36px] shrink-0">
             <ArgonAvatar :user-id="userId" :overrided-size="36" />
-            <span :class="me.statusClass(displayStatus)"
-                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card" />
+            <StatusDot :status="displayStatus" :size="12" class="absolute -bottom-0.5 -right-0.5" />
         </div>
 
         <!-- Name + subtitle -->

@@ -2,6 +2,34 @@
     <template v-if="!isLoading && user && userProfile">
         <Transition name="profile-reveal" appear>
         <div class="popover-inner" :style="cardGlowStyle">
+            <!-- Three-dot menu -->
+            <div class="popover-menu-anchor">
+                <DropdownMenu v-model:open="menuOpen">
+                    <DropdownMenuTrigger as-child>
+                        <button class="popover-menu-btn" :class="{ 'menu-is-open': menuOpen }">
+                            <EllipsisVertical :size="14" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" side="bottom" :side-offset="4">
+                        <template v-if="!isOwnProfile">
+                            <DropdownMenuItem class="text-destructive focus:text-destructive" @click="onBlock">
+                                <Ban :size="14" class="mr-2" />
+                                {{ t('block_user') }}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem class="text-destructive focus:text-destructive" @click="onReport">
+                                <Flag :size="14" class="mr-2" />
+                                {{ t('report_user_profile') }}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                        </template>
+                        <DropdownMenuItem @click="onCopyUserId">
+                            <Copy :size="14" class="mr-2" />
+                            {{ t('copy_user_id') }}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
             <!-- Full-bleed background (extends behind everything) -->
             <div class="card-bg">
                 <video
@@ -37,12 +65,15 @@
                             <div class="hero-avatar" :style="avatarRingStyle">
                                 <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
                                     :overridedSize="80" />
-                                <span :class="me.statusClass(user.status)" class="status-dot"></span>
+                                <StatusDot :status="user.status" :size="18" class="status-dot-pos" />
                             </div>
                         </div>
                         <div class="hero-info">
                             <div class="hero-name-row">
                                 <span class="hero-display-name" :style="nameAccentStyle">{{ user.displayName }}</span>
+                            </div>
+                            <div class="hero-username-row">
+                                <span class="hero-username">@{{ user.username }}</span>
                                 <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
                                     v-if="user && (user.flags & UserFlag.PREMIUM) !== 0">
                                     <Tooltip>
@@ -88,12 +119,17 @@
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
-                            <div class="hero-username">@{{ user.username }}</div>
                             <!-- Status / Activity -->
                             <div class="hero-status">
                                 <span v-if="user.activity" class="hero-activity">
                                     <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
-                                    <span class="font-medium">{{ user.activity.titleName }}</span>
+                                    <span class="activity-text-wrapper" ref="activityWrapperEl">
+                                        <span class="activity-text-track" :class="{ 'activity-marquee': isActivityOverflowing }" :style="marqueeVars">
+                                            <span ref="activityTextEl">{{ user.activity.titleName }}</span>
+                                            <span v-if="isActivityOverflowing" class="activity-text-sep"></span>
+                                            <span v-if="isActivityOverflowing">{{ user.activity.titleName }}</span>
+                                        </span>
+                                    </span>
                                 </span>
                                 <span v-else class="hero-presence" :class="presenceClass">
                                     {{ statusText }}
@@ -110,30 +146,16 @@
                     <Separator v-if="userProfile.customStatus" class="section-sep" />
 
                 <!-- Roles -->
-                <div class="roles-section">
+                <div v-if="resolvedRoles.length > 0" class="roles-section">
                     <div class="section-label">{{ t('roles') }}</div>
                     <div class="roles-list">
                         <span v-for="role in resolvedRoles" :key="role.id" class="role-chip"
                             :style="{ '--role-color': formatColour(role.colour) }">
                             <span class="role-dot" :style="{ background: formatColour(role.colour) }"></span>
                             {{ role.name }}
-                            <button v-if="canManageRoles && !role.isLocked && !role.isDefault"
-                                class="role-remove" @click.stop="removeRole(role.id)" title="Remove role">×</button>
                         </span>
-                        <button v-if="canManageRoles" class="role-chip role-add-btn" @click="showRolePicker = !showRolePicker" title="Add role">
-                            <span>+</span>
-                        </button>
                     </div>
-                    <div v-if="showRolePicker && canManageRoles" class="role-picker">
-                        <div v-for="role in availableRoles" :key="role.id"
-                            class="role-picker-item" @click="addRole(role.id)">
-                            <span class="role-dot" :style="{ background: formatColour(role.colour) }"></span>
-                            {{ role.name }}
-                        </div>
-                        <div v-if="availableRoles.length === 0" class="text-xs text-muted-foreground p-2">
-                            {{ t("no_roles_available") || "No roles available" }}
-                        </div>
-                    </div>
+
                 </div>
 
                 <!-- Member since -->
@@ -164,9 +186,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ArgonAvatar from "./../ArgonAvatar.vue";
-import { CrownIcon, Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
+import StatusDot from "./../StatusDot.vue";
+import { CrownIcon, Gamepad2, Headphones, Monitor, Radio, EllipsisVertical, Ban, Flag, Copy } from "lucide-vue-next";
 import { IconDiamondFilled } from "@tabler/icons-vue";
 import {
   Tooltip,
@@ -175,6 +198,13 @@ import {
   TooltipTrigger,
 } from "@argon/ui/tooltip";
 import { Separator } from "@argon/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@argon/ui/dropdown-menu";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useProfileCacheStore } from "@/store/data/profileCacheStore";
 import { db, type RealtimeUser } from "@/store/db/dexie";
@@ -185,29 +215,29 @@ import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
 import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
-import { usePexStore } from "@/store/data/permissionStore";
-import { useApi } from "@/store/system/apiStore";
 import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
 
 const isLoading = ref(true);
-const api = useApi();
 const pool = usePoolStore();
 const profileCache = useProfileCacheStore();
-const pex = usePexStore();
 
 const userProfile = ref(null as null | ArgonUserProfile);
 const user = ref(undefined as undefined | RealtimeUser);
 const resolvedRoles = ref<Archetype[]>([]);
 const memberJoinedAt = ref<Date | null>(null);
-const showRolePicker = ref(false);
 const allSpaceRoles = ref<Archetype[]>([]);
+const activityTextEl = ref<HTMLElement | null>(null);
+const activityWrapperEl = ref<HTMLElement | null>(null);
+const isActivityOverflowing = ref(false);
+const marqueeOffset = ref(0);
+const menuOpen = ref(false);
 
-const canManageRoles = computed(() => pex.has('ManageArchetype'));
-
-const availableRoles = computed(() => {
-  const currentIds = new Set(resolvedRoles.value.map(r => r.id));
-  return allSpaceRoles.value.filter(r => !currentIds.has(r.id) && !r.isHidden && !r.isLocked);
+const marqueeVars = computed(() => {
+  if (!isActivityOverflowing.value) return {};
+  return { '--marquee-offset': `-${marqueeOffset.value}px` };
 });
+
+
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
@@ -394,6 +424,7 @@ const formatDate = (date: Date) => {
 };
 
 const me = useMe();
+const isOwnProfile = computed(() => me.me?.userId === props.userId);
 
 onMounted(async () => {
   userProfile.value = await profileCache.getProfile(
@@ -411,7 +442,7 @@ onMounted(async () => {
     const archetypes = await db.archetypes
       .where("id")
       .anyOf(archetypeIds)
-      .filter(a => !a.isHidden)
+      .filter(a => !a.isHidden && !a.isDefault)
       .toArray();
     resolvedRoles.value = archetypes;
   }
@@ -437,33 +468,36 @@ onMounted(async () => {
   }
 
   isLoading.value = false;
+
+  await nextTick();
+  checkActivityOverflow();
 });
 
-async function addRole(archetypeId: Guid) {
-  if (!pool.selectedServer) return;
-  try {
-    const memberIds = await pool.getMemberIdsByUserIds(pool.selectedServer, [props.userId]);
-    if (!memberIds || memberIds.length === 0) return;
-    await api.archetypeInteraction.SetArchetypeToMember(pool.selectedServer, memberIds[0], archetypeId, true);
-    const role = allSpaceRoles.value.find(r => r.id === archetypeId);
-    if (role) resolvedRoles.value.push(role);
-    showRolePicker.value = false;
-  } catch (e) {
-    console.error("Failed to add role", e);
+function checkActivityOverflow() {
+  const el = activityTextEl.value;
+  const wrapper = activityWrapperEl.value;
+  if (!el || !wrapper) return;
+  const textW = el.scrollWidth;
+  const wrapperW = wrapper.clientWidth;
+  isActivityOverflowing.value = textW > wrapperW;
+  if (isActivityOverflowing.value) {
+    // offset = full text width + separator gap
+    marqueeOffset.value = textW + 32;
   }
 }
 
-async function removeRole(archetypeId: Guid) {
-  if (!pool.selectedServer) return;
-  try {
-    const memberIds = await pool.getMemberIdsByUserIds(pool.selectedServer, [props.userId]);
-    if (!memberIds || memberIds.length === 0) return;
-    await api.archetypeInteraction.SetArchetypeToMember(pool.selectedServer, memberIds[0], archetypeId, false);
-    resolvedRoles.value = resolvedRoles.value.filter(r => r.id !== archetypeId);
-  } catch (e) {
-    console.error("Failed to remove role", e);
-  }
+function onBlock() {
+  // TODO: call block API when available
 }
+
+function onReport() {
+  // TODO: call report API when available
+}
+
+function onCopyUserId() {
+  navigator.clipboard.writeText(props.userId);
+}
+
 </script>
 
 <style lang="css" scoped>
@@ -514,6 +548,44 @@ async function removeRole(archetypeId: Guid) {
   position: relative;
   height: 100px;
   z-index: 1;
+}
+
+/* Three-dot menu anchor */
+.popover-menu-anchor {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+}
+
+/* Three-dot menu button */
+.popover-menu-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--background) / 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: hsl(var(--foreground) / 0.7);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.popover-inner:hover .popover-menu-btn,
+.popover-menu-btn.menu-is-open {
+  opacity: 0.6;
+}
+
+.popover-menu-btn:hover,
+.popover-menu-btn.menu-is-open:hover {
+  opacity: 1 !important;
+  background: hsl(var(--background) / 0.4);
+  color: hsl(var(--foreground) / 0.95);
 }
 
 /* ── Glass zone (frost + shine + body) ── */
@@ -580,20 +652,16 @@ async function removeRole(archetypeId: Guid) {
   justify-content: center;
 }
 
-.status-dot {
+.status-dot-pos {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 13px;
-  height: 10px;
-  border-radius: 9999px;
-  border: 2px solid hsl(var(--card));
 }
 
 .hero-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
   padding-bottom: 2px;
 }
@@ -616,10 +684,16 @@ async function removeRole(archetypeId: Guid) {
 }
 
 .badge-icon {
-  width: 17px;
-  height: 17px;
+  width: 14px;
+  height: 14px;
   vertical-align: middle;
   filter: drop-shadow(0 1px 2px hsl(var(--background) / 0.3));
+}
+
+.hero-username-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .hero-username {
@@ -637,6 +711,41 @@ async function removeRole(archetypeId: Guid) {
   align-items: center;
   gap: 4px;
   color: hsl(var(--foreground) / 0.8);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.activity-text-wrapper {
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  mask-image: linear-gradient(to right, black 0%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 0%, black 90%, transparent 100%);
+}
+
+.activity-text-track {
+  display: inline-flex;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.activity-text-sep {
+  display: inline-block;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.activity-marquee {
+  animation: activity-scroll 10s linear infinite;
+  animation-delay: 1.5s;
+}
+
+@keyframes activity-scroll {
+  0%   { transform: translateX(0); }
+  5%   { transform: translateX(0); }
+  95%  { transform: translateX(var(--marquee-offset)); }
+  100% { transform: translateX(var(--marquee-offset)); }
 }
 
 .activity-icon {
@@ -741,51 +850,6 @@ async function removeRole(archetypeId: Guid) {
   flex-shrink: 0;
 }
 
-.role-remove {
-  margin-left: 2px;
-  opacity: 0.5;
-  cursor: pointer;
-  font-size: 0.8rem;
-  line-height: 1;
-  transition: opacity 0.15s;
-}
-.role-remove:hover {
-  opacity: 1;
-  color: hsl(var(--destructive));
-}
-
-.role-add-btn {
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.15s;
-  border-style: dashed;
-}
-.role-add-btn:hover {
-  opacity: 1;
-}
-
-.role-picker {
-  margin-top: 4px;
-  background: hsl(var(--popover) / 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 8px;
-  max-height: 120px;
-  overflow-y: auto;
-}
-
-.role-picker-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  transition: background 0.1s;
-}
-.role-picker-item:hover {
-  background: hsl(var(--accent) / 0.5);
-}
 
 /* Member since */
 .member-since {
@@ -873,11 +937,6 @@ async function removeRole(archetypeId: Guid) {
 
 :root:not(.dark) .role-chip {
   background: hsl(var(--muted));
-  border-color: hsl(var(--border));
-}
-
-:root:not(.dark) .role-picker {
-  background: hsl(var(--card));
   border-color: hsl(var(--border));
 }
 

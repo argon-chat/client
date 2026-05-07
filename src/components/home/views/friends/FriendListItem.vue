@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import StatusDot from "@/components/StatusDot.vue";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
@@ -80,8 +81,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div class="relative">
                         <ArgonAvatar :user-id="user.userId" :overrided-size="40" />
-                        <span :class="me.statusClass(user.status)"
-                            class="absolute bottom-0 right-0 w-4 h-3 rounded-full border-2 border-card"></span>
+                        <StatusDot :status="user.status" :size="16" class="absolute bottom-0 right-0" />
                     </div>
                     <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-2">

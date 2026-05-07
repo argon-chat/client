@@ -9,7 +9,7 @@
         <div class="user-avatar-wrap">
           <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
             :overridedSize="34" />
-          <span :class="me.statusClass(user.status)" class="status-dot"></span>
+          <StatusDot :status="user.status" class="status-dot" />
         </div>
         <div class="user-text">
           <span class="user-name">{{ user.displayName }}</span>
@@ -17,6 +17,7 @@
             <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
             <span class="font-semibold">{{ user.activity.titleName }}</span>
           </span>
+          <span class="user-status-text" v-else-if="props.showActivity && customStatus">{{ customStatus }}</span>
         </div>
       </div>
     </PopoverTrigger>
@@ -26,7 +27,7 @@
     <div class="user-avatar-wrap">
       <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
         :overridedSize="34" />
-      <span :class="me.statusClass(user.status)" class="status-dot"></span>
+      <StatusDot :status="user.status" class="status-dot" />
     </div>
     <div class="user-text">
       <span class="user-name">{{ user.displayName }}</span>
@@ -34,6 +35,8 @@
         <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
         <span class="font-semibold">{{ user.activity.titleName }}</span>
       </span>
+      <span class="user-status-text" v-else-if="props.showActivity && customStatus">{{ customStatus }}</span>
+
     </div>
   </div>
 </template>
@@ -42,15 +45,18 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import { useLocale } from "@/store/system/localeStore";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import StatusDot from "@/components/StatusDot.vue";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { ActivityPresenceKind } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
+import { usePoolStore } from "@/store/data/poolStore";
+import { useProfileCacheStore } from "@/store/data/profileCacheStore";
 
 const isOpened = ref(false);
 const props = withDefaults(
@@ -63,6 +69,16 @@ const props = withDefaults(
 );
 const me = useMe();
 const { t } = useLocale();
+const pool = usePoolStore();
+const profileCache = useProfileCacheStore();
+const customStatus = ref<string | null>(null);
+
+onMounted(async () => {
+  if (pool.selectedServer) {
+    const profile = await profileCache.getProfile(pool.selectedServer, props.user.userId);
+    customStatus.value = profile.customStatus || null;
+  }
+});
 
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
   switch (activityKind) {
@@ -120,10 +136,6 @@ const getActivityColor = (activityKind: ActivityPresenceKind) => {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 13px;
-  height: 10px;
-  border-radius: 9999px;
-  border: 2px solid hsl(var(--card));
 }
 
 .user-text {
@@ -165,4 +177,13 @@ const getActivityColor = (activityKind: ActivityPresenceKind) => {
 .activity-listen { color: #4ade80; }
 .activity-software { color: #fb923c; }
 .activity-streaming { color: #a78bfa; }
+
+.user-status-text {
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
 </style>

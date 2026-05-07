@@ -1160,5 +1160,8 @@
   "media_editor_original": "Оригинал",
   "media_editor_perspective": "Перспектива",
   "media_editor_perspective_horizontal": "Горизонтально",
-  "media_editor_perspective_vertical": "Вертикально"
+  "media_editor_perspective_vertical": "Вертикально",
+  "block_user": "Заблокировать",
+  "report_user_profile": "Пожаловаться на профиль",
+  "copy_user_id": "Скопировать ID"
 }
