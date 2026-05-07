@@ -10,6 +10,9 @@ import {
     IconSearch,
     IconDialpad,
     IconPin,
+    IconHeadphones,
+    IconVideo,
+    IconBug,
 } from "@tabler/icons-vue";
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue';
 import { useLocale } from "@/store/system/localeStore";
@@ -30,11 +33,13 @@ import { useMe } from '@/store/auth/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { useNotificationStore } from '@/store/data/notificationStore';
 import { useFeatureFlags } from '@/store/features/featureFlagsStore';
+import { useConfigStore } from '@/store/ui/configStore';
 
 const { t } = useLocale();
 const { dialpadActive, dmActive, inventoryActive, notificationActive } = useFeatureFlags();
+const configStore = useConfigStore();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'>('tab', {
     default: 'dashboard'
 });
 
@@ -48,7 +53,7 @@ const softphoneOpened = ref(false);
 const searchQuery = ref('');
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory'): void;
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'): void;
 }>();
 
 // --- Chat lists ---
@@ -131,7 +136,7 @@ onUnmounted(() => {
 
 // --- Nav items ---
 interface NavItem {
-    key: 'dashboard' | 'friends' | 'inventory' | 'notifications';
+    key: 'dashboard' | 'friends' | 'inventory' | 'notifications' | 'overlayDebug' | 'audioDebug' | 'nv12Debug';
     icon: any;
     label: string;
     badge: number;
@@ -143,6 +148,9 @@ const navItems = computed<NavItem[]>(() => [
     { key: 'friends', icon: IconUsers, label: t('friends'), badge: friendBadge.value, visible: true },
     { key: 'inventory', icon: IconBoxMultiple, label: t('inventory'), badge: inventoryBadge.value, visible: inventoryActive },
     { key: 'notifications', icon: IconBell, label: t('notifications'), badge: 0, visible: notificationActive },
+    { key: 'overlayDebug', icon: IconBug, label: 'Overlay Debug', badge: 0, visible: configStore.devModeEnabled },
+    { key: 'audioDebug', icon: IconHeadphones, label: 'Audio Debug', badge: 0, visible: configStore.devModeEnabled },
+    { key: 'nv12Debug', icon: IconVideo, label: 'NV12 Debug', badge: 0, visible: configStore.devModeEnabled },
 ]);
 </script>
 

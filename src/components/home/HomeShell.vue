@@ -3,7 +3,7 @@ import HomeSideShell from './HomeSideShell.vue';
 import { ref } from 'vue';
 import router from '@/router';
 
-type HomeTab = "dashboard" | "friends" | "notifications" | "inventory";
+type HomeTab = "dashboard" | "friends" | "notifications" | "inventory" | "overlayDebug" | "audioDebug" | "nv12Debug";
 
 function select(tab: HomeTab) {
   router.push({ path: `/master.pg/home/${tab}` });
