@@ -32,8 +32,8 @@ class AuthInterceptor implements IonInterceptor {
       authData.Authorization = `Bearer ${this.lazyStore.value.token}`;
     }
     
-    ctx.requestHeadets = {
-      ...ctx.requestHeadets,
+    ctx.requestHeaders = {
+      ...ctx.requestHeaders,
       ...authData,
     };
     await next(ctx, signal);
@@ -73,6 +73,7 @@ export const useApi = defineStore("api", () => {
   const botManagementInteraction = computed(() => rpcClient.value.BotManagementInteraction);
   const ultimaInteraction = computed(() => rpcClient.value.UltimaInteraction);
   const reportInteraction = computed(() => rpcClient.value.ReportInteraction);
+  const gifInteraction = computed(() => rpcClient.value.GifInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -95,6 +96,7 @@ export const useApi = defineStore("api", () => {
     featureFlagInteraction,
     botManagementInteraction,
     ultimaInteraction,
-    reportInteraction
+    reportInteraction,
+    gifInteraction
   };
 });

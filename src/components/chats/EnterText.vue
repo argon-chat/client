@@ -57,7 +57,18 @@
                     </PopoverTrigger>
                     <PopoverContent class="w-auto p-0">
                         <EmojixPicker :theme="'auto'" :render-mode="'noto'"
-                            @select="onEmojixSelect" />
+                            :content-tabs="gifContentTabs"
+                            @select="onEmojixSelect"
+                            @tab-change="handlePickerTabChange">
+                          <template #tab-content="{ tabId, searchQuery }">
+                            <GifPicker
+                              v-if="tabId === 'gif'"
+                              :search-query="searchQuery"
+                              @select="handleGifSelect"
+                              @select-saved="handleSavedGifSelect"
+                            />
+                          </template>
+                        </EmojixPicker>
                     </PopoverContent>
                 </Popover>
 
@@ -276,7 +287,7 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
-import { EmojixPicker, EmojiInput, type EmojiSelection } from "@argon-chat/emojix";
+import { EmojixPicker, EmojiInput, type EmojiSelection, type ContentTab } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -292,8 +303,9 @@ import UnderlineSegment from "./UnderlineSegment.vue";
 import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
-import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline } from "@argon/glue";
+import { debouncedRef } from "@vueuse/core";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
+import type { GifItem, SavedGif } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
@@ -306,9 +318,113 @@ import { useSlashCommands } from "@/composables/useSlashCommands";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 import type { SpaceCommand } from "@argon/glue";
 import { useConfigStore } from "@/store/ui/configStore";
+import GifPicker from "./GifPicker.vue";
 const { t } = useLocale();
 
 const configStore = useConfigStore();
+
+// ── GIF tab ──
+const gifContentTabs: ContentTab[] = [
+  { id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' },
+];
+const gifSearchQuery = ref('');
+const handlePickerTabChange = (tabId: string) => {
+  gifSearchQuery.value = '';
+};
+
+const handleGifSelect = (gif: GifItem) => {
+  if (!canSendMessages.value) return;
+  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  if (!resolvedChannelId) return;
+
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
+  const spaceId = props.spaceId;
+  const replyTo = props.replyTo?.messageId ?? null;
+
+  const gifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId, gif.hmac, null,
+    gif.width, gif.height, null,
+  );
+
+  const optimisticGifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId, gif.hmac, null,
+    gif.width, gif.height, gif.previewUrl,
+  );
+
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: replyTo,
+    channelId: resolvedChannelId,
+    spaceId,
+    text: '',
+    entities: [optimisticGifEntity],
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me!.userId,
+    reactions: [],
+    controls: [],
+  } as ArgonMessage;
+
+  emit("add-optimistic", optimisticMsg, randomId);
+  if (props.replyTo) emit("clear-reply");
+
+  (async () => {
+    try {
+      const readback = await api.channelInteraction.SendMessageWithReadback(
+        spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
+      );
+      emit("resolve-optimistic", randomId, readback);
+    } catch (e: any) {
+      logger.error("Failed to send GIF:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+    }
+  })();
+};
+
+const handleSavedGifSelect = (gif: SavedGif) => {
+  if (!canSendMessages.value) return;
+  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  if (!resolvedChannelId) return;
+
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
+  const spaceId = props.spaceId;
+  const replyTo = props.replyTo?.messageId ?? null;
+
+  const gifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId ?? '', '', gif.fileId,
+    gif.width, gif.height, gif.previewUrl,
+  );
+
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: replyTo,
+    channelId: resolvedChannelId,
+    spaceId,
+    text: '',
+    entities: [gifEntity],
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me!.userId,
+    reactions: [],
+    controls: [],
+  } as ArgonMessage;
+
+  emit("add-optimistic", optimisticMsg, randomId);
+  if (props.replyTo) emit("clear-reply");
+
+  (async () => {
+    try {
+      const readback = await api.channelInteraction.SendMessageWithReadback(
+        spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
+      );
+      emit("resolve-optimistic", randomId, readback);
+    } catch (e: any) {
+      logger.error("Failed to send GIF:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+    }
+  })();
+};
 
 const pex = usePexStore();
 const canSendMessages = computed(() => pex.has("SendMessages"));
@@ -415,7 +531,7 @@ const slashCommands = useSlashCommands(() => props.spaceId);
 const mentionRegistry = new Map<string, string>();
 
 const rawQuery = ref("");
-const debouncedQuery = refDebounced(rawQuery, 150);
+const debouncedQuery = debouncedRef(rawQuery, 150);
 
 
 

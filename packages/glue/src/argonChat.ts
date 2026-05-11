@@ -464,6 +464,7 @@ export enum EntityType
   SystemCallTimeout = 18,
   SystemUserJoined = 19,
   Attachment = 20,
+  Gif = 21,
 }
 
 
@@ -681,6 +682,49 @@ export enum SendFriendStatus
   AlreadySent = 5,
   SuccessSent = 6,
   FailedSent = 7,
+}
+
+
+export interface GifItem {
+  gifId: string;
+  title: string | null;
+  previewUrl: string;
+  webmUrl: string;
+  width: i4;
+  height: i4;
+  hmac: string;
+};
+
+
+export interface GifSearchResult {
+  items: IonArray<GifItem>;
+  hasNext: bool;
+};
+
+
+export interface SavedGif {
+  id: guid;
+  gifId: string | null;
+  fileId: guid;
+  previewUrl: string;
+  webmUrl: string;
+  width: i4;
+  height: i4;
+  addedAt: datetime;
+};
+
+
+export interface GifCategory {
+  title: string;
+  imageUrl: string;
+};
+
+
+export enum SaveGifError
+{
+  INVALID_HMAC = 0,
+  ALREADY_SAVED = 1,
+  NOT_FOUND = 2,
 }
 
 
@@ -1909,6 +1953,9 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntityAttachment(): this is MessageEntityAttachment {
     return this.UnionKey === "MessageEntityAttachment";
   }
+  public isMessageEntityGif(): this is MessageEntityGif {
+    return this.UnionKey === "MessageEntityGif";
+  }
 
 }
 
@@ -2081,6 +2128,14 @@ export class MessageEntityAttachment extends IMessageEntity
   UnionIndex: number = 20;
 }
 
+export class MessageEntityGif extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public gifId: string, public hmac: string, public fileId: guid | null, public width: i4, public height: i4, public previewUrl: string | null) { super(); }
+
+  UnionKey: string = "MessageEntityGif";
+  UnionIndex: number = 21;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
@@ -2133,6 +2188,8 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntitySystemUserJoined>("MessageEntitySystemUserJoined").read(reader);
     else if (unionIndex == 20)
       value = IonFormatterStorage.get<MessageEntityAttachment>("MessageEntityAttachment").read(reader);
+    else if (unionIndex == 21)
+      value = IonFormatterStorage.get<MessageEntityGif>("MessageEntityGif").read(reader);
 
     else throw new Error();
   
@@ -2206,6 +2263,9 @@ IonFormatterStorage.register("IMessageEntity", {
     }
     else if (value.UnionIndex == 20) {
         IonFormatterStorage.get<MessageEntityAttachment>("MessageEntityAttachment").write(writer, value as MessageEntityAttachment);
+    }
+    else if (value.UnionIndex == 21) {
+        IonFormatterStorage.get<MessageEntityGif>("MessageEntityGif").write(writer, value as MessageEntityGif);
     }
   
     else throw new Error();
@@ -2684,6 +2744,38 @@ IonFormatterStorage.register("MessageEntityAttachment", {
     IonFormatterStorage.writeNullable<i4>(writer, value.height, 'i4');
     IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityGif", {
+  read(reader: CborReader): MessageEntityGif {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const gifId = IonFormatterStorage.get<string>('string').read(reader);
+    const hmac = IonFormatterStorage.get<string>('string').read(reader);
+    const fileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const previewUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return new MessageEntityGif(type, offset, length, version, gifId, hmac, fileId, width, height, previewUrl);
+  },
+  write(writer: CborWriter, value: MessageEntityGif): void {
+    writer.writeStartArray(10);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<string>('string').write(writer, value.gifId);
+    IonFormatterStorage.get<string>('string').write(writer, value.hmac);
+    IonFormatterStorage.writeNullable<guid>(writer, value.fileId, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.writeNullable<string>(writer, value.previewUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -5630,6 +5722,108 @@ IonFormatterStorage.register("SubscribeToMySpaces", {
   write(writer: CborWriter, value: SubscribeToMySpaces): void {
     writer.writeStartArray(0);
     
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISaveGifResult implements IIonUnion<ISaveGifResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSaveGif(): this is SuccessSaveGif {
+    return this.UnionKey === "SuccessSaveGif";
+  }
+  public isFailedSaveGif(): this is FailedSaveGif {
+    return this.UnionKey === "FailedSaveGif";
+  }
+
+}
+
+
+export class SuccessSaveGif extends ISaveGifResult
+{
+  constructor(public gif: SavedGif) { super(); }
+
+  UnionKey: string = "SuccessSaveGif";
+  UnionIndex: number = 0;
+}
+
+export class FailedSaveGif extends ISaveGifResult
+{
+  constructor(public error: SaveGifError) { super(); }
+
+  UnionKey: string = "FailedSaveGif";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISaveGifResult", {
+  read(reader: CborReader): ISaveGifResult {
+    reader.readStartArray();
+    let value: ISaveGifResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSaveGif>("SuccessSaveGif").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSaveGif>("FailedSaveGif").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ISaveGifResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSaveGif>("SuccessSaveGif").write(writer, value as SuccessSaveGif);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSaveGif>("FailedSaveGif").write(writer, value as FailedSaveGif);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSaveGif", {
+  read(reader: CborReader): SuccessSaveGif {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const gif = IonFormatterStorage.get<SavedGif>('SavedGif').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSaveGif(gif);
+  },
+  write(writer: CborWriter, value: SuccessSaveGif): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SavedGif>('SavedGif').write(writer, value.gif);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSaveGif", {
+  read(reader: CborReader): FailedSaveGif {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SaveGifError>('SaveGifError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSaveGif(error);
+  },
+  write(writer: CborWriter, value: FailedSaveGif): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SaveGifError>('SaveGifError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -10112,6 +10306,103 @@ IonFormatterStorage.register("SendFriendStatus", {
   }
 });
 
+IonFormatterStorage.register("GifItem", {
+  read(reader: CborReader): GifItem {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const gifId = IonFormatterStorage.get<string>('string').read(reader);
+    const title = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const previewUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const webmUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const hmac = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { gifId, title, previewUrl, webmUrl, width, height, hmac };
+  },
+  write(writer: CborWriter, value: GifItem): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<string>('string').write(writer, value.gifId);
+    IonFormatterStorage.writeNullable<string>(writer, value.title, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.previewUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.webmUrl);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<string>('string').write(writer, value.hmac);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("GifSearchResult", {
+  read(reader: CborReader): GifSearchResult {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const items = IonFormatterStorage.readArray<GifItem>(reader, 'GifItem');
+    const hasNext = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { items, hasNext };
+  },
+  write(writer: CborWriter, value: GifSearchResult): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeArray<GifItem>(writer, value.items, 'GifItem');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasNext);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SavedGif", {
+  read(reader: CborReader): SavedGif {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const id = IonFormatterStorage.get<guid>('guid').read(reader);
+    const gifId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const previewUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const webmUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const addedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { id, gifId, fileId, previewUrl, webmUrl, width, height, addedAt };
+  },
+  write(writer: CborWriter, value: SavedGif): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.id);
+    IonFormatterStorage.writeNullable<string>(writer, value.gifId, 'string');
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.previewUrl);
+    IonFormatterStorage.get<string>('string').write(writer, value.webmUrl);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.addedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("GifCategory", {
+  read(reader: CborReader): GifCategory {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const title = IonFormatterStorage.get<string>('string').read(reader);
+    const imageUrl = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { title, imageUrl };
+  },
+  write(writer: CborWriter, value: GifCategory): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.title);
+    IonFormatterStorage.get<string>('string').write(writer, value.imageUrl);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SaveGifError", {
+  read(reader: CborReader): SaveGifError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return SaveGifError[num] !== undefined ? num as SaveGifError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SaveGifError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("BadAuthKind", {
   read(reader: CborReader): BadAuthKind {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -11577,6 +11868,19 @@ export interface IUserChatInteractions extends IIonService
 
 
 
+export interface IGifInteraction extends IIonService
+{
+  GetTrending(page: i4, perPage: i4): Promise<GifSearchResult>;
+  Search(query: string, page: i4, perPage: i4): Promise<GifSearchResult>;
+  GetCategories(): Promise<IonArray<GifCategory>>;
+  GetSavedGifs(page: i4, perPage: i4): Promise<IonArray<SavedGif>>;
+  SaveGif(gifId: string, hmac: string): Promise<ISaveGifResult>;
+  RemoveSavedGif(savedGifId: guid): Promise<bool>;
+}
+
+
+
+
 export interface IIdentityInteraction extends IIonService
 {
   Authorize(data: UserCredentialsInput): Promise<IAuthorizeResult>;
@@ -11842,6 +12146,19 @@ export interface IUserChatInteractions extends IIonService
   MarkChatRead(peerId: guid): Promise<void>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
+}
+
+
+
+
+export interface IGifInteraction extends IIonService
+{
+  GetTrending(page: i4, perPage: i4): Promise<GifSearchResult>;
+  Search(query: string, page: i4, perPage: i4): Promise<GifSearchResult>;
+  GetCategories(): Promise<IonArray<GifCategory>>;
+  GetSavedGifs(page: i4, perPage: i4): Promise<IonArray<SavedGif>>;
+  SaveGif(gifId: string, hmac: string): Promise<ISaveGifResult>;
+  RemoveSavedGif(savedGifId: guid): Promise<bool>;
 }
 
 
@@ -13033,6 +13350,100 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
 }
 
 IonFormatterStorage.registerClientExecutor<IUserChatInteractions>('UserChatInteractions', UserChatInteractions_Executor);
+
+export class GifInteraction_Executor extends ServiceExecutor<IGifInteraction> implements IGifInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetTrending(page: i4, perPage: i4): Promise<GifSearchResult> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "GetTrending");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, page);
+    IonFormatterStorage.get<i4>('i4').write(writer, perPage);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<GifSearchResult>("GifSearchResult", writer.data, this.signal);
+  }
+  async Search(query: string, page: i4, perPage: i4): Promise<GifSearchResult> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "Search");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<string>('string').write(writer, query);
+    IonFormatterStorage.get<i4>('i4').write(writer, page);
+    IonFormatterStorage.get<i4>('i4').write(writer, perPage);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<GifSearchResult>("GifSearchResult", writer.data, this.signal);
+  }
+  async GetCategories(): Promise<IonArray<GifCategory>> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "GetCategories");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<GifCategory>>("IonArray<GifCategory>", writer.data, this.signal);
+  }
+  async GetSavedGifs(page: i4, perPage: i4): Promise<IonArray<SavedGif>> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "GetSavedGifs");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, page);
+    IonFormatterStorage.get<i4>('i4').write(writer, perPage);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<SavedGif>>("IonArray<SavedGif>", writer.data, this.signal);
+  }
+  async SaveGif(gifId: string, hmac: string): Promise<ISaveGifResult> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "SaveGif");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, gifId);
+    IonFormatterStorage.get<string>('string').write(writer, hmac);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISaveGifResult>("ISaveGifResult", writer.data, this.signal);
+  }
+  async RemoveSavedGif(savedGifId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IGifInteraction", "RemoveSavedGif");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, savedGifId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IGifInteraction>('GifInteraction', GifInteraction_Executor);
 
 export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInteraction> implements IIdentityInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -14367,6 +14778,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
+        if (propKey === "GifInteraction") return IonFormatterStorage.createExecutor("GifInteraction", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
         if (propKey === "ReportInteraction") return IonFormatterStorage.createExecutor("ReportInteraction", ctx, controller.signal);
@@ -14390,6 +14802,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;
     UserChatInteractions: IUserChatInteractions;
+    GifInteraction: IGifInteraction;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
     ReportInteraction: IReportInteraction;

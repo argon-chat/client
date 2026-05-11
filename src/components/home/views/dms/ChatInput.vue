@@ -22,7 +22,19 @@
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent class="w-auto p-0">
-                    <EmojixPicker :theme="'auto'" :render-mode="'noto'" @select="onEmojixSelect" />
+                    <EmojixPicker :theme="'auto'" :render-mode="'noto'"
+                        :content-tabs="gifContentTabs"
+                        @select="onEmojixSelect"
+                        @tab-change="handlePickerTabChange">
+                      <template #tab-content="{ tabId, searchQuery }">
+                        <GifPicker
+                          v-if="tabId === 'gif'"
+                          :search-query="searchQuery"
+                          @select="handleGifSelectDm"
+                          @select-saved="handleSavedGifSelectDm"
+                        />
+                      </template>
+                    </EmojixPicker>
                 </PopoverContent>
             </Popover>
 
@@ -56,7 +68,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@argon/ui/popover";
-import { EmojixPicker, EmojiInput, type EmojiSelection } from "@argon-chat/emojix";
+import { EmojixPicker, EmojiInput, type EmojiSelection, type ContentTab } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -64,11 +76,22 @@ import { SendHorizonalIcon, SmileIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
-import { refDebounced } from "@vueuse/core";
-import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, type ArgonMessage } from "@argon/glue";
+import { debouncedRef } from "@vueuse/core";
+import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, type ArgonMessage } from "@argon/glue";
+import type { GifItem, SavedGif } from "@argon/glue";
+import GifPicker from "@/components/chats/GifPicker.vue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
+
+// ── GIF tab ──
+const gifContentTabs: ContentTab[] = [
+  { id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' },
+];
+const gifSearchQuery = ref('');
+const handlePickerTabChange = (_tabId: string) => {
+  gifSearchQuery.value = '';
+};
 
 interface EmojiInputExposed {
   insertEmoji(entry: EmojiEntry): void;
@@ -101,7 +124,7 @@ const mention = reactive({
 const mentionRegistry = new Map<string, string>();
 
 const rawQuery = ref("");
-const debouncedQuery = refDebounced(rawQuery, 150);
+const debouncedQuery = debouncedRef(rawQuery, 150);
 
 watch(debouncedQuery, async (query) => {
   if (!query || !mention.show) return;
@@ -511,6 +534,90 @@ const handleSend = async () => {
     logger.error("Failed to send DM:", e);
     emit("mark-optimistic-failed", randomId, e?.message ?? "Failed to send message");
   }
+};
+
+const handleGifSelectDm = (gif: GifItem) => {
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
+
+  const gifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId, gif.hmac, null,
+    gif.width, gif.height, null,
+  );
+
+  const optimisticGifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId, gif.hmac, null,
+    gif.width, gif.height, gif.previewUrl,
+  );
+
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: props.replyTo?.messageId ?? null,
+    channelId: props.receiverId,
+    spaceId: "",
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me?.userId ?? "",
+    text: '',
+    entities: [optimisticGifEntity],
+    version: 1,
+    reactions: [],
+    controls: [],
+  } as ArgonMessage;
+
+  emit("add-optimistic", optimisticMsg, randomId);
+  if (props.replyTo) emit("clear-reply");
+
+  (async () => {
+    try {
+      const realMessageId = await api.userChatInteractions.SendDirectMessage(
+        props.receiverId, '', [gifEntity], randomId, props.replyTo?.messageId ?? null,
+      );
+      emit("resolve-optimistic", randomId, { messageId: realMessageId });
+    } catch (e: any) {
+      logger.error("Failed to send GIF in DM:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Failed to send GIF");
+    }
+  })();
+};
+
+const handleSavedGifSelectDm = (gif: SavedGif) => {
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
+
+  const gifEntity = new MessageEntityGif(
+    EntityType.Gif, 0, 0, 1,
+    gif.gifId ?? '', '', gif.fileId,
+    gif.width, gif.height, gif.previewUrl,
+  );
+
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: props.replyTo?.messageId ?? null,
+    channelId: props.receiverId,
+    spaceId: "",
+    timeSent: { date: new Date(), offsetMinutes: 0 },
+    sender: me.me?.userId ?? "",
+    text: '',
+    entities: [gifEntity],
+    version: 1,
+    reactions: [],
+    controls: [],
+  } as ArgonMessage;
+
+  emit("add-optimistic", optimisticMsg, randomId);
+  if (props.replyTo) emit("clear-reply");
+
+  (async () => {
+    try {
+      const realMessageId = await api.userChatInteractions.SendDirectMessage(
+        props.receiverId, '', [gifEntity], randomId, props.replyTo?.messageId ?? null,
+      );
+      emit("resolve-optimistic", randomId, { messageId: realMessageId });
+    } catch (e: any) {
+      logger.error("Failed to send GIF in DM:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Failed to send GIF");
+    }
+  })();
 };
 
 function focus() {

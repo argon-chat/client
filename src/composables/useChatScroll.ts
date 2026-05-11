@@ -179,12 +179,20 @@ export function estimateMessageHeight(msg: ArgonMessage | undefined, _index?: nu
     return !!ext && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext);
   });
   const fileAttachments = attachments.length - imageAttachments.length;
+  const gifEntities = entities.filter((e) => e.type === EntityType.Gif);
 
   let height = 32;
 
   if (imageAttachments.length === 1) height += 300;
   else if (imageAttachments.length >= 2 && imageAttachments.length <= 4) height += 160;
   else if (imageAttachments.length > 4) height += 120 * Math.ceil(imageAttachments.length / 3);
+
+  for (const gif of gifEntities) {
+    const natW = (gif as any).width || 300;
+    const natH = (gif as any).height || 200;
+    const scale = Math.min(1, 320 / natW, 400 / natH);
+    height += Math.round(natH * scale);
+  }
 
   if (fileAttachments > 0) height += 48 * fileAttachments;
 

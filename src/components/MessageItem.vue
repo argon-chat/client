@@ -148,6 +148,22 @@
                   @open-lightbox="onImageClick"
                 />
 
+                <!-- GIF media -->
+                <div
+                  v-for="(gif, gi) in gifEntities"
+                  :key="`gif-${gi}`"
+                  class="gif-message relative overflow-hidden bg-muted"
+                  :class="hasOnlyImages ? 'rounded-2xl' : 'rounded-t-2xl'"
+                  :style="gifDims(gif)"
+                >
+                  <img
+                    v-if="gif.previewUrl"
+                    :src="gif.previewUrl"
+                    :alt="gif.gifId || 'GIF'"
+                    class="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
+
                 <!-- Text/file bubble -->
                 <div
                   v-if="!hasOnlyImages"
@@ -342,7 +358,7 @@ import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
 import { useMessageContent, fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
-import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
+import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment, type MessageEntityGif } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
 
@@ -571,9 +587,29 @@ function isImage(a: MessageEntityAttachment): boolean {
 const imageAttachments = computed(() => allAttachments.value.filter(isImage));
 const fileAttachments = computed(() => allAttachments.value.filter((a) => !isImage(a)));
 
+// ── GIF entities ──
+
+const GIF_MAX_W = 320;
+const GIF_MAX_H = 400;
+
+const gifEntities = computed(() =>
+  (props.message.entities ?? []).filter(
+    (e): e is MessageEntityGif => e.type === EntityType.Gif,
+  ),
+);
+
+function gifDims(gif: MessageEntityGif) {
+  const natW = gif.width || 300;
+  const natH = gif.height || 200;
+  const scale = Math.min(1, GIF_MAX_W / natW, GIF_MAX_H / natH);
+  const w = Math.round(natW * scale);
+  const h = Math.round(natH * scale);
+  return { width: w + 'px', height: h + 'px', maxWidth: '100%' };
+}
+
 const hasOnlyImages = computed(
   () =>
-    allAttachments.value.length > 0 &&
+    (allAttachments.value.length > 0 || gifEntities.value.length > 0) &&
     fileAttachments.value.length === 0 &&
     !fragments.value.length &&
     !props.message.text?.trim(),
