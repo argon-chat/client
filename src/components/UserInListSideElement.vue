@@ -2,7 +2,7 @@
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
     <PopoverContent style="width: 24rem;"
       class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
-      <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
+      <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
     <PopoverTrigger as-child>
       <div class="user-element">
@@ -39,6 +39,12 @@
 
     </div>
   </div>
+
+  <ReportDialog
+    v-model:open="reportDialogOpen"
+    :target-kind="ReportTargetKind.PROFILE"
+    :target-id="reportUserId"
+  />
 </template>
 <script setup lang="ts">
 import type { RealtimeUser } from "@/store/db/dexie";
@@ -52,13 +58,16 @@ import {
   PopoverContent,
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
+import ReportDialog from "./modals/ReportDialog.vue";
 import { ref, onMounted } from "vue";
-import { ActivityPresenceKind } from "@argon/glue";
+import { ActivityPresenceKind, ReportTargetKind } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useProfileCacheStore } from "@/store/data/profileCacheStore";
 
 const isOpened = ref(false);
+const reportDialogOpen = ref(false);
+const reportUserId = ref('');
 const props = withDefaults(
   defineProps<{
     user: RealtimeUser;
@@ -114,6 +123,12 @@ const getActivityColor = (activityKind: ActivityPresenceKind) => {
     default: return '';
   }
 };
+
+function onReportProfile(userId: string) {
+  isOpened.value = false;
+  reportUserId.value = userId;
+  setTimeout(() => { reportDialogOpen.value = true; }, 100);
+}
 </script>
 
 <style scoped>

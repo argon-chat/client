@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import type { StepperIndicatorProps } from "radix-vue";
+import type { StepperIndicatorProps } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { cn } from "@argon/core";
 
-import { StepperIndicator, useForwardProps } from "radix-vue";
+import { StepperIndicator, useForwardProps } from "reka-ui";
 import { computed } from "vue";
 
 const props = defineProps<

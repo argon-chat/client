@@ -736,6 +736,142 @@ export enum RedeemError
 }
 
 
+export interface ReportTarget {
+  kind: ReportTargetKind;
+  targetId: guid;
+  channelId: guid | null;
+  messageId: u8 | null;
+};
+
+
+export interface CreateReportInput {
+  target: ReportTarget;
+  category: ReportCategory;
+  reason: ReportReason;
+  additionalInfo: string | null;
+  referenceReportId: guid | null;
+};
+
+
+export interface ReportInfo {
+  reportId: guid;
+  reporterId: guid;
+  target: ReportTarget;
+  category: ReportCategory;
+  reason: ReportReason;
+  additionalInfo: string | null;
+  status: ReportStatus;
+  referenceReportId: guid | null;
+  createdAt: datetime;
+};
+
+
+export interface UserTrustInfo {
+  userId: guid;
+  trustScore: i4;
+  totalReportsReceived: i4;
+  confirmedReportsReceived: i4;
+  totalReportsFiled: i4;
+  falseReportsFiled: i4;
+  lastUpdated: datetime;
+};
+
+
+export enum ReportTargetKind
+{
+  PROFILE = 0,
+  MESSAGE = 1,
+  CHANNEL = 2,
+  SPACE = 3,
+  USER = 4,
+}
+
+
+export enum ReportCategory
+{
+  I_DONT_LIKE_IT = 0,
+  CHILD_ABUSE = 1,
+  VIOLENCE = 2,
+  ILLEGAL_GOODS = 3,
+  ILLEGAL_ADULT_CONTENT = 4,
+  PERSONAL_DATA = 5,
+  SCAM_OR_FRAUD = 6,
+  COPYRIGHT = 7,
+  SPAM = 8,
+  OTHER = 9,
+}
+
+
+export enum ReportReason
+{
+  NONE = 0,
+  CHILD_SEXUAL_ABUSE = 1,
+  CHILD_PHYSICAL_ABUSE = 2,
+  INSULTS_OR_FALSE_INFO = 3,
+  GRAPHIC_OR_DISTURBING_CONTENT = 4,
+  EXTREME_VIOLENCE = 5,
+  HATE_SPEECH_OR_SYMBOL = 6,
+  CALLING_FOR_VIOLENCE = 7,
+  ORGANIZED_CRIME = 8,
+  TERRORISM = 9,
+  ANIMAL_ABUSE = 10,
+  WEAPONS = 11,
+  DRUGS = 12,
+  FAKE_DOCUMENTS = 13,
+  COUNTERFEIT_MONEY = 14,
+  HACKING_TOOLS_AND_MALWARE = 15,
+  COUNTERFEIT_MERCHANDISE = 16,
+  OTHER_GOODS_AND_SERVICES = 17,
+  IAC_CHILD_ABUSE = 18,
+  ILLEGAL_SEXUAL_SERVICES = 19,
+  IAC_ANIMAL_ABUSE = 20,
+  NON_CONSENSUAL_SEXUAL_IMAGERY = 21,
+  PORNOGRAPHY = 22,
+  IAC_OTHER = 23,
+  PRIVATE_IMAGES = 24,
+  PHONE_NUMBER = 25,
+  ADDRESS = 26,
+  STOLEN_DATA_OR_CREDENTIALS = 27,
+  PD_OTHER = 28,
+  IMPERSONATION = 29,
+  DECEPTIVE_FINANCIAL_CLAIMS = 30,
+  SF_MALWARE = 31,
+  PHISHING = 32,
+  FRAUDULENT_SELLER = 33,
+  SPAM_INSULTS_OR_FALSE_INFO = 34,
+  PROMOTING_ILLEGAL_CONTENT = 35,
+  SPAM_OTHER = 36,
+  OTHER_I_DONT_LIKE_IT = 37,
+  OTHER_FALSE_INFO = 38,
+  OTHER_ILLEGAL_ADULT_CONTENT = 39,
+  OTHER_ILLEGAL_GOODS_AND_SERVICES = 40,
+  OTHER_ELSE = 41,
+}
+
+
+export enum ReportStatus
+{
+  PENDING = 0,
+  UNDER_REVIEW = 1,
+  RESOLVED_ACTION_TAKEN = 2,
+  RESOLVED_NO_ACTION = 3,
+  DISMISSED = 4,
+  ESCALATED = 5,
+}
+
+
+export enum SubmitReportError
+{
+  NONE = 0,
+  INVALID_TARGET = 1,
+  CANNOT_REPORT_SELF = 2,
+  DUPLICATE_REPORT = 3,
+  RATE_LIMITED = 4,
+  TARGET_NOT_FOUND = 5,
+  INTERNAL_ERROR = 6,
+}
+
+
 export interface SecurityDetails {
   otpEnabled: bool;
   passkeys: IonArray<Passkey>;
@@ -997,6 +1133,22 @@ export interface ArgonIonTicket {
   machineId: string;
   region: string;
 };
+
+
+export enum ArgonAuthMode
+{
+  EmailPassword = 0,
+  EmailOtp = 1,
+  EmailPasswordOtp = 2,
+}
+
+
+export enum OtpMethod
+{
+  Email = 0,
+  Phone = 1,
+  Totp = 2,
+}
 
 
 export interface UltimaPricing {
@@ -5754,6 +5906,108 @@ IonFormatterStorage.register("FailedRedeem", {
 
 
 
+export abstract class ISubmitReportResult implements IIonUnion<ISubmitReportResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSubmitReport(): this is SuccessSubmitReport {
+    return this.UnionKey === "SuccessSubmitReport";
+  }
+  public isFailedSubmitReport(): this is FailedSubmitReport {
+    return this.UnionKey === "FailedSubmitReport";
+  }
+
+}
+
+
+export class SuccessSubmitReport extends ISubmitReportResult
+{
+  constructor(public reportId: guid) { super(); }
+
+  UnionKey: string = "SuccessSubmitReport";
+  UnionIndex: number = 0;
+}
+
+export class FailedSubmitReport extends ISubmitReportResult
+{
+  constructor(public error: SubmitReportError) { super(); }
+
+  UnionKey: string = "FailedSubmitReport";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISubmitReportResult", {
+  read(reader: CborReader): ISubmitReportResult {
+    reader.readStartArray();
+    let value: ISubmitReportResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSubmitReport>("SuccessSubmitReport").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSubmitReport>("FailedSubmitReport").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ISubmitReportResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSubmitReport>("SuccessSubmitReport").write(writer, value as SuccessSubmitReport);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSubmitReport>("FailedSubmitReport").write(writer, value as FailedSubmitReport);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSubmitReport", {
+  read(reader: CborReader): SuccessSubmitReport {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const reportId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSubmitReport(reportId);
+  },
+  write(writer: CborWriter, value: SuccessSubmitReport): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.reportId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSubmitReport", {
+  read(reader: CborReader): FailedSubmitReport {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SubmitReportError>('SubmitReportError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSubmitReport(error);
+  },
+  write(writer: CborWriter, value: FailedSubmitReport): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SubmitReportError>('SubmitReportError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IRequestEmailChangeResult implements IIonUnion<IRequestEmailChangeResult>
 {
   abstract UnionKey: string;
@@ -9953,6 +10207,159 @@ IonFormatterStorage.register("RedeemError", {
   }
 });
 
+IonFormatterStorage.register("ReportTargetKind", {
+  read(reader: CborReader): ReportTargetKind {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ReportTargetKind[num] !== undefined ? num as ReportTargetKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ReportTargetKind): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ReportTarget", {
+  read(reader: CborReader): ReportTarget {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const kind = IonFormatterStorage.get<ReportTargetKind>('ReportTargetKind').read(reader);
+    const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const messageId = IonFormatterStorage.readNullable<u8>(reader, 'u8');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { kind, targetId, channelId, messageId };
+  },
+  write(writer: CborWriter, value: ReportTarget): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<ReportTargetKind>('ReportTargetKind').write(writer, value.kind);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.channelId, 'guid');
+    IonFormatterStorage.writeNullable<u8>(writer, value.messageId, 'u8');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ReportCategory", {
+  read(reader: CborReader): ReportCategory {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ReportCategory[num] !== undefined ? num as ReportCategory : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ReportCategory): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ReportReason", {
+  read(reader: CborReader): ReportReason {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ReportReason[num] !== undefined ? num as ReportReason : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ReportReason): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CreateReportInput", {
+  read(reader: CborReader): CreateReportInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const target = IonFormatterStorage.get<ReportTarget>('ReportTarget').read(reader);
+    const category = IonFormatterStorage.get<ReportCategory>('ReportCategory').read(reader);
+    const reason = IonFormatterStorage.get<ReportReason>('ReportReason').read(reader);
+    const additionalInfo = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const referenceReportId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { target, category, reason, additionalInfo, referenceReportId };
+  },
+  write(writer: CborWriter, value: CreateReportInput): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<ReportTarget>('ReportTarget').write(writer, value.target);
+    IonFormatterStorage.get<ReportCategory>('ReportCategory').write(writer, value.category);
+    IonFormatterStorage.get<ReportReason>('ReportReason').write(writer, value.reason);
+    IonFormatterStorage.writeNullable<string>(writer, value.additionalInfo, 'string');
+    IonFormatterStorage.writeNullable<guid>(writer, value.referenceReportId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ReportStatus", {
+  read(reader: CborReader): ReportStatus {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ReportStatus[num] !== undefined ? num as ReportStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ReportStatus): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ReportInfo", {
+  read(reader: CborReader): ReportInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const reportId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const reporterId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const target = IonFormatterStorage.get<ReportTarget>('ReportTarget').read(reader);
+    const category = IonFormatterStorage.get<ReportCategory>('ReportCategory').read(reader);
+    const reason = IonFormatterStorage.get<ReportReason>('ReportReason').read(reader);
+    const additionalInfo = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const status = IonFormatterStorage.get<ReportStatus>('ReportStatus').read(reader);
+    const referenceReportId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { reportId, reporterId, target, category, reason, additionalInfo, status, referenceReportId, createdAt };
+  },
+  write(writer: CborWriter, value: ReportInfo): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.reportId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.reporterId);
+    IonFormatterStorage.get<ReportTarget>('ReportTarget').write(writer, value.target);
+    IonFormatterStorage.get<ReportCategory>('ReportCategory').write(writer, value.category);
+    IonFormatterStorage.get<ReportReason>('ReportReason').write(writer, value.reason);
+    IonFormatterStorage.writeNullable<string>(writer, value.additionalInfo, 'string');
+    IonFormatterStorage.get<ReportStatus>('ReportStatus').write(writer, value.status);
+    IonFormatterStorage.writeNullable<guid>(writer, value.referenceReportId, 'guid');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserTrustInfo", {
+  read(reader: CborReader): UserTrustInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const trustScore = IonFormatterStorage.get<i4>('i4').read(reader);
+    const totalReportsReceived = IonFormatterStorage.get<i4>('i4').read(reader);
+    const confirmedReportsReceived = IonFormatterStorage.get<i4>('i4').read(reader);
+    const totalReportsFiled = IonFormatterStorage.get<i4>('i4').read(reader);
+    const falseReportsFiled = IonFormatterStorage.get<i4>('i4').read(reader);
+    const lastUpdated = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { userId, trustScore, totalReportsReceived, confirmedReportsReceived, totalReportsFiled, falseReportsFiled, lastUpdated };
+  },
+  write(writer: CborWriter, value: UserTrustInfo): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.trustScore);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.totalReportsReceived);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.confirmedReportsReceived);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.totalReportsFiled);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.falseReportsFiled);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastUpdated);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SubmitReportError", {
+  read(reader: CborReader): SubmitReportError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return SubmitReportError[num] !== undefined ? num as SubmitReportError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SubmitReportError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("AutoDeletePeriod", {
   read(reader: CborReader): AutoDeletePeriod {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -10368,6 +10775,28 @@ IonFormatterStorage.register("ArgonIonTicket", {
     IonFormatterStorage.get<string>('string').write(writer, value.machineId);
     IonFormatterStorage.get<string>('string').write(writer, value.region);
     writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArgonAuthMode", {
+  read(reader: CborReader): ArgonAuthMode {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return ArgonAuthMode[num] !== undefined ? num as ArgonAuthMode : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ArgonAuthMode): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("OtpMethod", {
+  read(reader: CborReader): OtpMethod {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return OtpMethod[num] !== undefined ? num as OtpMethod : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: OtpMethod): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
 
@@ -11174,6 +11603,15 @@ export interface IInventoryInteraction extends IIonService
 
 
 
+export interface IReportInteraction extends IIonService
+{
+  SubmitReport(input: CreateReportInput): Promise<ISubmitReportResult>;
+  GetMyReports(limit: i4, offset: i4): Promise<IonArray<ReportInfo>>;
+}
+
+
+
+
 export interface ISecurityInteraction extends IIonService
 {
   RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult>;
@@ -11430,6 +11868,15 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IReportInteraction extends IIonService
+{
+  SubmitReport(input: CreateReportInput): Promise<ISubmitReportResult>;
+  GetMyReports(limit: i4, offset: i4): Promise<IonArray<ReportInfo>>;
 }
 
 
@@ -12768,6 +13215,44 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
 
 IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
 
+export class ReportInteraction_Executor extends ServiceExecutor<IReportInteraction> implements IReportInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async SubmitReport(input: CreateReportInput): Promise<ISubmitReportResult> {
+    const req = new IonRequest(this.ctx, "IReportInteraction", "SubmitReport");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<CreateReportInput>('CreateReportInput').write(writer, input);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISubmitReportResult>("ISubmitReportResult", writer.data, this.signal);
+  }
+  async GetMyReports(limit: i4, offset: i4): Promise<IonArray<ReportInfo>> {
+    const req = new IonRequest(this.ctx, "IReportInteraction", "GetMyReports");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ReportInfo>>("IonArray<ReportInfo>", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IReportInteraction>('ReportInteraction', ReportInteraction_Executor);
+
 export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInteraction> implements ISecurityInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -13884,6 +14369,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
+        if (propKey === "ReportInteraction") return IonFormatterStorage.createExecutor("ReportInteraction", ctx, controller.signal);
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
         if (propKey === "UltimaInteraction") return IonFormatterStorage.createExecutor("UltimaInteraction", ctx, controller.signal);
@@ -13906,6 +14392,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     UserChatInteractions: IUserChatInteractions;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
+    ReportInteraction: IReportInteraction;
     SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
     UltimaInteraction: IUltimaInteraction;

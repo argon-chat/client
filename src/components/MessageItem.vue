@@ -42,7 +42,7 @@
             style="width: 24rem"
             class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden"
           >
-            <UserProfilePopover :user-id="user!.userId" @close:pressed="profileOpen = false" />
+            <UserProfilePopover :user-id="user!.userId" @close:pressed="profileOpen = false" @report="onReportProfile" />
           </PopoverContent>
         </Popover>
       </template>
@@ -283,10 +283,25 @@
               <CopyIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('copy') }}
             </ContextMenuItem>
+            <template v-if="!isOwnMessage">
+              <ContextMenuSeparator />
+              <ContextMenuItem class="text-destructive focus:text-destructive" @select="onReportMessage">
+                <FlagIcon class="w-4 h-4 mr-2 opacity-60" />
+                {{ t('report_message') }}
+              </ContextMenuItem>
+            </template>
           </ContextMenuContent>
         </ContextMenu>
       </template>
     </div>
+
+    <ReportDialog
+      v-model:open="reportDialogOpen"
+      :target-kind="reportTarget.kind"
+      :target-id="reportTarget.targetId"
+      :channel-id="reportTarget.channelId"
+      :message-id="reportTarget.messageId"
+    />
   </div>
 </template>
 
@@ -327,7 +342,7 @@ import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
 import { useMessageContent, fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
-import { EntityType, type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
+import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
 
@@ -339,6 +354,7 @@ import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
 import MessageReactions from "./chats/MessageReactions.vue";
 import MessageControls from "./chats/MessageControls.vue";
 import ReactionPicker from "./chats/ReactionPicker.vue";
+import ReportDialog from "./modals/ReportDialog.vue";
 
 import {
   Popover, PopoverTrigger, PopoverContent,
@@ -352,7 +368,7 @@ import {
 } from "@argon/ui/context-menu";
 import {
   CopyIcon, ReplyIcon, AlertCircleIcon,
-  Loader2Icon, RefreshCwIcon, SmilePlusIcon,
+  Loader2Icon, RefreshCwIcon, SmilePlusIcon, FlagIcon,
 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 
@@ -442,6 +458,14 @@ const emit = defineEmits<{
 const profileOpen = ref(false);
 const reactionPickerOpen = ref(false);
 const isUnsupported = ref(false);
+const reportDialogOpen = ref(false);
+const isOwnMessage = computed(() => props.message.sender === me.me?.userId);
+const reportTarget = ref({
+  kind: ReportTargetKind.MESSAGE as ReportTargetKind,
+  targetId: '' as string,
+  channelId: null as string | null,
+  messageId: null as bigint | null,
+});
 
 // ── Hover actions (JS-based with debounced leave) ──
 const isHovered = ref(false);
@@ -614,6 +638,27 @@ const formattedFullTime = useDateFormat(props.message.timeSent.date, "YYYY-MM-DD
 
 function copyText() {
   navigator.clipboard.writeText(props.message.text);
+}
+
+function onReportMessage() {
+  reportTarget.value = {
+    kind: ReportTargetKind.MESSAGE,
+    targetId: props.message.sender,
+    channelId: props.message.channelId,
+    messageId: props.message.messageId,
+  };
+  setTimeout(() => { reportDialogOpen.value = true; }, 100);
+}
+
+function onReportProfile(userId: string) {
+  profileOpen.value = false;
+  reportTarget.value = {
+    kind: ReportTargetKind.PROFILE,
+    targetId: userId,
+    channelId: null,
+    messageId: null,
+  };
+  setTimeout(() => { reportDialogOpen.value = true; }, 100);
 }
 
 function onImageClick(index: number) {

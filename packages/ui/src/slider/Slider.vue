@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SliderRootEmits, SliderRootProps } from "radix-vue";
+import type { SliderRootEmits, SliderRootProps } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { cn } from "@argon/core";
 import {
@@ -8,7 +8,7 @@ import {
   SliderThumb,
   SliderTrack,
   useForwardPropsEmits,
-} from "radix-vue";
+} from "reka-ui";
 import { computed } from "vue";
 
 const props = defineProps<

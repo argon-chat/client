@@ -3,7 +3,7 @@ import { cn } from "@argon/core";
 import {
   ContextMenuSeparator,
   type ContextMenuSeparatorProps,
-} from "radix-vue";
+} from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = defineProps<

@@ -2,7 +2,7 @@
     <Popover v-model:open="isOpened">
         <PopoverContent style="width: 24rem;"
             class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
-            <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" />
+            <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
         <PopoverTrigger>
             <span class="mention" :class="{ 'mention--me': isForMeMention }">
@@ -11,6 +11,12 @@
             </span>
         </PopoverTrigger>
     </Popover>
+
+    <ReportDialog
+      v-model:open="reportDialogOpen"
+      :target-kind="ReportTargetKind.PROFILE"
+      :target-id="reportUserId"
+    />
 </template>
 <script setup lang="ts" generic="T extends MessageEntityMention">
 import type { RealtimeUser } from "@/store/db/dexie";
@@ -18,14 +24,17 @@ import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { computed, ref } from "vue";
 import UserProfilePopover from "../popovers/UserProfilePopover.vue";
+import ReportDialog from "../modals/ReportDialog.vue";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@argon/ui/popover";
-import { MessageEntityMention } from "@argon/glue";
+import { MessageEntityMention, ReportTargetKind } from "@argon/glue";
 
 const isOpened = ref(false);
+const reportDialogOpen = ref(false);
+const reportUserId = ref('');
 const pool = usePoolStore();
 
 const props = defineProps<{
@@ -37,6 +46,12 @@ const user = computed(() => pool.getUserReactive(computed(() => props.entity.use
 const me = useMe();
 
 const isForMeMention = computed(() => user.value?.userId === me.me?.userId);
+
+function onReportProfile(userId: string) {
+  isOpened.value = false;
+  reportUserId.value = userId;
+  setTimeout(() => { reportDialogOpen.value = true; }, 100);
+}
 </script>
 
 <style scoped>

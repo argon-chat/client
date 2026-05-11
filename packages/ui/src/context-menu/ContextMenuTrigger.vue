@@ -3,7 +3,7 @@ import {
   ContextMenuTrigger,
   type ContextMenuTriggerProps,
   useForwardProps,
-} from "radix-vue";
+} from "reka-ui";
 
 const props = defineProps<ContextMenuTriggerProps>();
 

@@ -3,7 +3,7 @@ import {
   MenubarSub,
   type MenubarSubEmits,
   useForwardPropsEmits,
-} from "radix-vue";
+} from "reka-ui";
 
 interface MenubarSubRootProps {
   defaultOpen?: boolean;

@@ -2,11 +2,11 @@
 import type {
   SplitterResizeHandleEmits,
   SplitterResizeHandleProps,
-} from "radix-vue";
+} from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { cn } from "@argon/core";
 import { GripVertical } from "lucide-vue-next";
-import { SplitterResizeHandle, useForwardPropsEmits } from "radix-vue";
+import { SplitterResizeHandle, useForwardPropsEmits } from "reka-ui";
 import { computed } from "vue";
 
 const props = defineProps<

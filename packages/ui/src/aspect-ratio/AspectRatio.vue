@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AspectRatioProps } from "radix-vue";
-import { AspectRatio } from "radix-vue";
+import type { AspectRatioProps } from "reka-ui";
+import { AspectRatio } from "reka-ui";
 
 const props = defineProps<AspectRatioProps>();
 </script>

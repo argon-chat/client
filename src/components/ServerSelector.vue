@@ -170,7 +170,19 @@
             <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: folder.color }"></div>
             {{ folder.name }}
         </button>
+        <div class="border-t border-border my-1"></div>
+        <button class="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"
+            @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
+            <Flag class="w-4 h-4" />
+            {{ t('report_space') }}
+        </button>
     </div>
+
+    <ReportDialog
+      v-model:open="reportDialogOpen"
+      :target-kind="ReportTargetKind.SPACE"
+      :target-id="reportSpaceId"
+    />
 </template>
 
 <script setup lang="ts">
@@ -178,15 +190,16 @@ import { computed, ref, onMounted, onUnmounted } from "vue"
 import { Button } from "@argon/ui/button"
 import { Separator } from "@argon/ui/separator"
 import ArgonAvatar from "./ArgonAvatar.vue"
-import { Plus } from "lucide-vue-next"
+import { Plus, Flag } from "lucide-vue-next"
 import { IconPin, IconPinFilled } from '@tabler/icons-vue'
-import { ArgonSpaceBase } from "@argon/glue"
+import { ArgonSpaceBase, ReportTargetKind } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/system/localeStore"
 import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
+import ReportDialog from "./modals/ReportDialog.vue"
 import { useNotificationStore } from "@/store/data/notificationStore"
 import { MuteLevelType } from "@argon/glue"
 
@@ -195,6 +208,8 @@ const ntf = useNotificationStore();
 
 const createSpaceOpened = ref(false);
 const openDetailed = ref(false);
+const reportDialogOpen = ref(false);
+const reportSpaceId = ref<Guid>("");
 
 const { 
     organization: org, 

@@ -2,10 +2,10 @@
 // @ts-ignore
 import type { toggleVariants } from "@/lib/registry/default/ui/toggle";
 import type { VariantProps } from "class-variance-authority";
-import type { ToggleGroupRootEmits, ToggleGroupRootProps } from "radix-vue";
+import type { ToggleGroupRootEmits, ToggleGroupRootProps } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { cn } from "@argon/core";
-import { ToggleGroupRoot, useForwardPropsEmits } from "radix-vue";
+import { ToggleGroupRoot, useForwardPropsEmits } from "reka-ui";
 import { computed, provide } from "vue";
 
 type ToggleGroupVariants = VariantProps<typeof toggleVariants>;

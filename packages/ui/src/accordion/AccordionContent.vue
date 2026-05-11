@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from "@argon/core";
-import { AccordionContent, type AccordionContentProps } from "radix-vue";
+import { AccordionContent, type AccordionContentProps } from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = defineProps<

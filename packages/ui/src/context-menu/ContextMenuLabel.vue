@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from "@argon/core";
-import { ContextMenuLabel, type ContextMenuLabelProps } from "radix-vue";
+import { ContextMenuLabel, type ContextMenuLabelProps } from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = defineProps<

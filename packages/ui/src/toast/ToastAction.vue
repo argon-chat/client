@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from "@argon/core";
-import { ToastAction, type ToastActionProps } from "radix-vue";
+import { ToastAction, type ToastActionProps } from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = defineProps<

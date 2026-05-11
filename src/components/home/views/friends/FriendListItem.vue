@@ -5,16 +5,19 @@ import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import UserProfilePopover from "@/components/popovers/UserProfilePopover.vue";
+import ReportDialog from "@/components/modals/ReportDialog.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { ref, computed } from "vue";
-import { ActivityPresenceKind } from "@argon/glue";
+import { ActivityPresenceKind, ReportTargetKind } from "@argon/glue";
 
 const { t } = useLocale();
 const pool = usePoolStore();
 const me = useMe();
 const isOpened = ref(false);
+const reportDialogOpen = ref(false);
+const reportUserId = ref('');
 
 export type FriendListItemVm =
     | {
@@ -52,6 +55,12 @@ const emit = defineEmits<{
     (e: "unfriend", toUserId: string): void;
 }>();
 
+function onReportProfile(userId: string) {
+  isOpened.value = false;
+  reportUserId.value = userId;
+  setTimeout(() => { reportDialogOpen.value = true; }, 100);
+}
+
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     switch (activityKind) {
         case ActivityPresenceKind.GAME:
@@ -73,7 +82,7 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
     <Popover v-if="user && item.kind === 'friend'" v-model:open="isOpened">
         <PopoverContent style="width: 24rem;"
             class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
-            <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" />
+            <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
         <PopoverTrigger as-child>
             <div class="flex justify-between items-center p-3 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
@@ -146,4 +155,10 @@ const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
             </template>
         </div>
     </div>
+
+    <ReportDialog
+      v-model:open="reportDialogOpen"
+      :target-kind="ReportTargetKind.PROFILE"
+      :target-id="reportUserId"
+    />
 </template>

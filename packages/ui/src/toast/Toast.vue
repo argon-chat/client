@@ -4,7 +4,7 @@ import {
   ToastRoot,
   type ToastRootEmits,
   useForwardPropsEmits,
-} from "radix-vue";
+} from "reka-ui";
 import { computed } from "vue";
 import { type ToastProps, toastVariants } from ".";
 

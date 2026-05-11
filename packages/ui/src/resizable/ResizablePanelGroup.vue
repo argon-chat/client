@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { SplitterGroupEmits, SplitterGroupProps } from "radix-vue";
+import type { SplitterGroupEmits, SplitterGroupProps } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { cn } from "@argon/core";
-import { SplitterGroup, useForwardPropsEmits } from "radix-vue";
+import { SplitterGroup, useForwardPropsEmits } from "reka-ui";
 import { computed } from "vue";
 
 const props = defineProps<

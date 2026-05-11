@@ -5,7 +5,7 @@ import {
   type PinInputRootEmits,
   type PinInputRootProps,
   useForwardPropsEmits,
-} from "radix-vue";
+} from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = withDefaults(

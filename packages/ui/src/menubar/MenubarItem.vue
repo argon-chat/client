@@ -5,7 +5,7 @@ import {
   type MenubarItemEmits,
   type MenubarItemProps,
   useForwardPropsEmits,
-} from "radix-vue";
+} from "reka-ui";
 import { computed, type HTMLAttributes } from "vue";
 
 const props = defineProps<

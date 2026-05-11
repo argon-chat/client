@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { VariantProps } from "class-variance-authority";
-import type { ToggleGroupItemProps } from "radix-vue";
+import type { ToggleGroupItemProps } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import type { toggleVariants } from "../toggle";
 import { cn } from "@argon/core";
-import { ToggleGroupItem, useForwardProps } from "radix-vue";
+import { ToggleGroupItem, useForwardProps } from "reka-ui";
 import { computed, inject } from "vue";
 
 type ToggleGroupVariants = VariantProps<typeof toggleVariants>;

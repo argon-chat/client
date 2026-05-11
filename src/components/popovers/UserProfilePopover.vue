@@ -363,7 +363,10 @@ const props = withDefaults(
   {},
 );
 
-const emit = defineEmits<(e: "close:pressed") => void>();
+const emit = defineEmits<{
+  (e: "close:pressed"): void;
+  (e: "report", userId: Guid): void;
+}>();
 
 const { t } = useLocale();
 
@@ -491,7 +494,8 @@ function onBlock() {
 }
 
 function onReport() {
-  // TODO: call report API when available
+  menuOpen.value = false;
+  emit('report', props.userId);
 }
 
 function onCopyUserId() {
