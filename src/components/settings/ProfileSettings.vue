@@ -441,14 +441,19 @@
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium">{{ t("passkey_name") }}</label>
-            <Input v-model="newPasskeyName" :placeholder="t('passkey_name_placeholder')" class="mt-2" />
+            <Input v-model="newPasskeyName" :placeholder="t('passkey_name_placeholder')" class="mt-2" :disabled="isAddingPasskey" />
+          </div>
+          <div v-if="isAddingPasskey" class="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 class="w-4 h-4 animate-spin" />
+            {{ t("passkey_waiting") }}
           </div>
         </div>
         <DialogFooter>
-          <Button @click="showAddPasskeyDialog = false" variant="outline">
+          <Button @click="showAddPasskeyDialog = false" variant="outline" :disabled="isAddingPasskey">
             {{ t("cancel") }}
           </Button>
-          <Button @click="addPasskey" :disabled="!newPasskeyName.trim()">
+          <Button @click="addPasskey" :disabled="!newPasskeyName.trim() || isAddingPasskey">
+            <Loader2 v-if="isAddingPasskey" class="w-4 h-4 animate-spin mr-2" />
             {{ t("add") }}
           </Button>
         </DialogFooter>
@@ -1094,17 +1099,15 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
     if (result.isSuccessBeginPasskey()) {
       return {
         success: true,
-        passkeyId: result.passkeyId,
-        challenge: result.challenge,
+        optionsJson: result.optionsJson,
       };
     }
     return { success: false };
   },
-  completeAddPasskey: async (passkeyId: string, publicKey: string) => {
-    const result = await api.securityInteraction.CompleteAddPasskey(passkeyId, publicKey);
+  completeAddPasskey: async (registrationResponse: string) => {
+    const result = await api.securityInteraction.CompleteAddPasskey(registrationResponse);
     if (result.isSuccessCompletePasskey()) {
       const passkey = (result as any).passkey;
-      logger.warn("BeginValidatePasskey result:", result);
       return {
         success: true,
         passkey: passkey ? {
@@ -1125,39 +1128,22 @@ const passkeyApiCallbacks: PasskeyApiCallbacks = {
   beginValidatePasskey: async () => {
     const result = await api.securityInteraction.BeginValidatePasskey();
     if (result.isSuccessBeginValidatePasskey()) {
-      logger.warn("BeginValidatePasskey result:", result);
       return {
         success: true,
-        challenge: result.challenge,
-        allowedCredentials: result.allowedCredentials,
+        optionsJson: result.optionsJson,
       };
     }
     return { success: false };
   },
-  completeValidatePasskey: async (
-    credentialId: string,
-    signature: string,
-    authenticatorData: string,
-    clientDataJSON: string
-  ) => {
-    const result = await api.securityInteraction.CompleteValidatePasskey(
-      credentialId,
-      signature,
-      authenticatorData,
-      clientDataJSON
-    );
+  completeValidatePasskey: async (authenticationResponse: string) => {
+    const result = await api.securityInteraction.CompleteValidatePasskey(authenticationResponse);
     return {
       success: result.isSuccessCompletePasskey(),
     };
   },
 };
 
-const passkeyManager = new PasskeyManager(passkeyApiCallbacks, {
-  relyingPartyId: "argon.gl",
-  relyingPartyName: "ArgonChat",
-  origin: "https://aegis.argon.gl",
-  timeoutMilliseconds: 60000,
-});
+const passkeyManager = new PasskeyManager(passkeyApiCallbacks);
 
 
 // Email State
@@ -1223,11 +1209,8 @@ const otpQrUrl = ref("otpauth://totp/Argon:user@example.com?secret=JBSWY3DPEHPK3
 // Passkeys State
 const showAddPasskeyDialog = ref(false);
 const newPasskeyName = ref("");
-const passkeys = ref<Array<{ id: string; name: string; createdAt: Date }>>([
-  // TODO: Load from API - api.userInteraction.GetPasskeys()
-  { id: "1", name: "MacBook Pro", createdAt: new Date("2024-01-15") },
-  { id: "2", name: "iPhone 15", createdAt: new Date("2024-02-20") },
-]);
+const isAddingPasskey = ref(false);
+const passkeys = ref<Array<{ id: string; name: string; createdAt: Date }>>([]);
 
 // Password State
 const showChangePasswordDialog = ref(false);
@@ -1738,24 +1721,13 @@ const confirmDisableOTP = async () => {
 };
 
 const addPasskey = async () => {
-  if (!newPasskeyName.value.trim()) {
+  if (!newPasskeyName.value.trim() || isAddingPasskey.value) {
     return;
   }
 
-  if (!me.me) {
-    toast({
-      title: t("error"),
-      description: t("user_not_loaded"),
-      variant: "destructive",
-    });
-    return;
-  }
-
-  const result = await passkeyManager.createPasskey(newPasskeyName.value, {
-    userId: me.me.userId,
-    username: me.me.username,
-    displayName: me.me.displayName,
-  });
+  isAddingPasskey.value = true;
+  try {
+  const result = await passkeyManager.createPasskey(newPasskeyName.value);
 
   if (result.success) {
     passkeys.value.push({
@@ -1796,6 +1768,9 @@ const addPasskey = async () => {
         variant: "destructive",
       });
     }
+  }
+  } finally {
+    isAddingPasskey.value = false;
   }
 };
 

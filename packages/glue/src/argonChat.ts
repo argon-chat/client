@@ -930,12 +930,8 @@ export interface Passkey {
   name: string;
   createdAt: datetime;
   lastUsedAt: datetime | null;
-};
-
-
-export interface PasskeyCredentialDescriptor {
-  id: string;
-  type: string;
+  aaGuid: guid | null;
+  authenticatorName: string | null;
 };
 
 
@@ -999,8 +995,10 @@ export enum PasskeyError
   NONE = 0,
   NOT_FOUND = 1,
   LIMIT_REACHED = 2,
-  INVALID_PUBLIC_KEY = 3,
-  INTERNAL_ERROR = 4,
+  INVALID_CREDENTIAL = 3,
+  VERIFICATION_FAILED = 4,
+  CHALLENGE_EXPIRED = 5,
+  INTERNAL_ERROR = 6,
 }
 
 
@@ -7142,7 +7140,7 @@ export abstract class IBeginPasskeyResult implements IIonUnion<IBeginPasskeyResu
 
 export class SuccessBeginPasskey extends IBeginPasskeyResult
 {
-  constructor(public passkeyId: guid, public challenge: string) { super(); }
+  constructor(public optionsJson: string) { super(); }
 
   UnionKey: string = "SuccessBeginPasskey";
   UnionIndex: number = 0;
@@ -7197,15 +7195,13 @@ IonFormatterStorage.register("IBeginPasskeyResult", {
 IonFormatterStorage.register("SuccessBeginPasskey", {
   read(reader: CborReader): SuccessBeginPasskey {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const passkeyId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const challenge = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return new SuccessBeginPasskey(passkeyId, challenge);
+    const optionsJson = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessBeginPasskey(optionsJson);
   },
   write(writer: CborWriter, value: SuccessBeginPasskey): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.passkeyId);
-    IonFormatterStorage.get<string>('string').write(writer, value.challenge);
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.optionsJson);
     writer.writeEndArray();
   }
 });
@@ -7450,7 +7446,7 @@ export abstract class IBeginPasskeyValidateResult implements IIonUnion<IBeginPas
 
 export class SuccessBeginValidatePasskey extends IBeginPasskeyValidateResult
 {
-  constructor(public challenge: string, public allowedCredentials: IonArray<PasskeyCredentialDescriptor>) { super(); }
+  constructor(public optionsJson: string) { super(); }
 
   UnionKey: string = "SuccessBeginValidatePasskey";
   UnionIndex: number = 0;
@@ -7505,15 +7501,13 @@ IonFormatterStorage.register("IBeginPasskeyValidateResult", {
 IonFormatterStorage.register("SuccessBeginValidatePasskey", {
   read(reader: CborReader): SuccessBeginValidatePasskey {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const challenge = IonFormatterStorage.get<string>('string').read(reader);
-    const allowedCredentials = IonFormatterStorage.readArray<PasskeyCredentialDescriptor>(reader, 'PasskeyCredentialDescriptor');
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return new SuccessBeginValidatePasskey(challenge, allowedCredentials);
+    const optionsJson = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessBeginValidatePasskey(optionsJson);
   },
   write(writer: CborWriter, value: SuccessBeginValidatePasskey): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<string>('string').write(writer, value.challenge);
-    IonFormatterStorage.writeArray<PasskeyCredentialDescriptor>(writer, value.allowedCredentials, 'PasskeyCredentialDescriptor');
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.optionsJson);
     writer.writeEndArray();
   }
 });
@@ -10696,31 +10690,19 @@ IonFormatterStorage.register("Passkey", {
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const lastUsedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { id, name, createdAt, lastUsedAt };
+    const aaGuid = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const authenticatorName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { id, name, createdAt, lastUsedAt, aaGuid, authenticatorName };
   },
   write(writer: CborWriter, value: Passkey): void {
-    writer.writeStartArray(4);
+    writer.writeStartArray(6);
     IonFormatterStorage.get<guid>('guid').write(writer, value.id);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
     IonFormatterStorage.writeNullable<datetime>(writer, value.lastUsedAt, 'datetime');
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("PasskeyCredentialDescriptor", {
-  read(reader: CborReader): PasskeyCredentialDescriptor {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const id = IonFormatterStorage.get<string>('string').read(reader);
-    const type = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return { id, type };
-  },
-  write(writer: CborWriter, value: PasskeyCredentialDescriptor): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<string>('string').write(writer, value.id);
-    IonFormatterStorage.get<string>('string').write(writer, value.type);
+    IonFormatterStorage.writeNullable<guid>(writer, value.aaGuid, 'guid');
+    IonFormatterStorage.writeNullable<string>(writer, value.authenticatorName, 'string');
     writer.writeEndArray();
   }
 });
@@ -11929,13 +11911,13 @@ export interface ISecurityInteraction extends IIonService
   DisableOTP(code: string): Promise<IDisableOTPResult>;
   GetPasskeys(): Promise<IonArray<Passkey>>;
   BeginAddPasskey(name: string): Promise<IBeginPasskeyResult>;
-  CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult>;
+  CompleteAddPasskey(registrationResponse: string): Promise<ICompletePasskeyResult>;
   RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
-  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
+  CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -12212,13 +12194,13 @@ export interface ISecurityInteraction extends IIonService
   DisableOTP(code: string): Promise<IDisableOTPResult>;
   GetPasskeys(): Promise<IonArray<Passkey>>;
   BeginAddPasskey(name: string): Promise<IBeginPasskeyResult>;
-  CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult>;
+  CompleteAddPasskey(registrationResponse: string): Promise<ICompletePasskeyResult>;
   RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
-  CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult>;
+  CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
 }
 
 
@@ -13816,15 +13798,14 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
           
     return await req.callAsyncT<IBeginPasskeyResult>("IBeginPasskeyResult", writer.data, this.signal);
   }
-  async CompleteAddPasskey(passkeyId: guid, publicKey: string): Promise<ICompletePasskeyResult> {
+  async CompleteAddPasskey(registrationResponse: string): Promise<ICompletePasskeyResult> {
     const req = new IonRequest(this.ctx, "ISecurityInteraction", "CompleteAddPasskey");
           
     const writer = new CborWriter();
       
-    writer.writeStartArray(2);
+    writer.writeStartArray(1);
           
-    IonFormatterStorage.get<guid>('guid').write(writer, passkeyId);
-    IonFormatterStorage.get<string>('string').write(writer, publicKey);
+    IonFormatterStorage.get<string>('string').write(writer, registrationResponse);
       
     writer.writeEndArray();
           
@@ -13895,17 +13876,14 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
           
     return await req.callAsyncT<IBeginPasskeyValidateResult>("IBeginPasskeyValidateResult", writer.data, this.signal);
   }
-  async CompleteValidatePasskey(credentialId: string, signature: string, authenticatorData: string, clientDataJSON: string): Promise<ICompletePasskeyResult> {
+  async CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult> {
     const req = new IonRequest(this.ctx, "ISecurityInteraction", "CompleteValidatePasskey");
           
     const writer = new CborWriter();
       
-    writer.writeStartArray(4);
+    writer.writeStartArray(1);
           
-    IonFormatterStorage.get<string>('string').write(writer, credentialId);
-    IonFormatterStorage.get<string>('string').write(writer, signature);
-    IonFormatterStorage.get<string>('string').write(writer, authenticatorData);
-    IonFormatterStorage.get<string>('string').write(writer, clientDataJSON);
+    IonFormatterStorage.get<string>('string').write(writer, authenticationResponse);
       
     writer.writeEndArray();
           

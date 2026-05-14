@@ -362,6 +362,7 @@
   "passkey_added": "パスキーが追加されました",
   "passkey_added_desc": "パスキーが正常に追加されました",
   "passkey_add_error": "パスキーの追加に失敗しました",
+  "passkey_waiting": "認証器を待機中...",
   "formatting_help": "メッセージフォーマット",
   "formatting_help_desc": "これらの特殊文字を使用してメッセージをフォーマットできます",
   "text_styling": "テキストスタイル",

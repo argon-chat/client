@@ -1,11 +1,4 @@
 import { logger } from "@argon/core";
-import { native } from "@argon/glue";
-
-export interface PasskeyUser {
-  userId: string;
-  username: string;
-  displayName: string;
-}
 
 export interface PasskeyCreateResult {
   success: boolean;
@@ -36,12 +29,10 @@ export interface PasskeyData {
 export interface PasskeyApiCallbacks {
   beginAddPasskey: (name: string) => Promise<{
     success: boolean;
-    passkeyId?: string;
-    challenge?: string;
+    optionsJson?: string;
   }>;
   completeAddPasskey: (
-    passkeyId: string,
-    publicKey: string,
+    registrationResponse: string,
   ) => Promise<{
     success: boolean;
     passkey?: PasskeyData;
@@ -51,106 +42,115 @@ export interface PasskeyApiCallbacks {
   }>;
   beginValidatePasskey: () => Promise<{
     success: boolean;
-    challenge?: string;
-    allowedCredentials?: Array<{ id: string; type: string }>;
+    optionsJson?: string;
   }>;
   completeValidatePasskey: (
-    credentialId: string,
-    signature: string,
-    authenticatorData: string,
-    clientDataJSON: string,
+    authenticationResponse: string,
   ) => Promise<{
     success: boolean;
   }>;
 }
 
-export interface PasskeyConfig {
-  relyingPartyId: string;
-  relyingPartyName: string;
-  origin: string;
-  timeoutMilliseconds: number;
+// Base64url helpers
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4;
+  const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
 }
 
-export interface IPasskeyProvider {
-  createPasskey(
-    passkeyId: string,
-    challenge: string,
-    user: PasskeyUser,
-    rpName: string,
-    rpId: string,
-  ): Promise<string | null>; // Returns public key in base64
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
-  validatePasskey(
-    challenge: string,
-    allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string,
-  ): Promise<{
-    credentialId: string;
-    signature: string;
-    authenticatorData: string;
-    clientDataJSON: string;
-  } | null>;
+// Parse Fido2NetLib CredentialCreateOptions JSON into PublicKeyCredentialCreationOptions
+function parseCreationOptions(optionsJson: string): PublicKeyCredentialCreationOptions {
+  const opts = JSON.parse(optionsJson);
+  return {
+    challenge: base64urlToBuffer(opts.challenge),
+    rp: opts.rp,
+    user: {
+      id: base64urlToBuffer(opts.user.id),
+      name: opts.user.name,
+      displayName: opts.user.displayName,
+    },
+    pubKeyCredParams: opts.pubKeyCredParams,
+    timeout: opts.timeout,
+    attestation: opts.attestation,
+    authenticatorSelection: opts.authenticatorSelection,
+    excludeCredentials: (opts.excludeCredentials || []).map((c: any) => ({
+      id: base64urlToBuffer(c.id),
+      type: c.type,
+      transports: c.transports,
+    })),
+    extensions: opts.extensions,
+  };
+}
 
-  isSupported(): boolean;
+// Parse Fido2NetLib AssertionOptions JSON into PublicKeyCredentialRequestOptions
+function parseRequestOptions(optionsJson: string): PublicKeyCredentialRequestOptions {
+  const opts = JSON.parse(optionsJson);
+  return {
+    challenge: base64urlToBuffer(opts.challenge),
+    rpId: opts.rpId,
+    timeout: opts.timeout,
+    userVerification: opts.userVerification,
+    allowCredentials: (opts.allowCredentials || []).map((c: any) => ({
+      id: base64urlToBuffer(c.id),
+      type: c.type,
+      transports: c.transports,
+    })),
+    extensions: opts.extensions,
+  };
+}
+
+// Serialize PublicKeyCredential (creation) into AuthenticatorAttestationRawResponse JSON
+function serializeAttestationResponse(credential: PublicKeyCredential): string {
+  const response = credential.response as AuthenticatorAttestationResponse;
+  return JSON.stringify({
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      attestationObject: bufferToBase64url(response.attestationObject),
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+    },
+    extensions: credential.getClientExtensionResults(),
+  });
+}
+
+// Serialize PublicKeyCredential (assertion) into AuthenticatorAssertionRawResponse JSON
+function serializeAssertionResponse(credential: PublicKeyCredential): string {
+  const response = credential.response as AuthenticatorAssertionResponse;
+  return JSON.stringify({
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      authenticatorData: bufferToBase64url(response.authenticatorData),
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+      signature: bufferToBase64url(response.signature),
+      userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : null,
+    },
+  });
 }
 
 /**
- * Native provider for native applications
+ * Main PasskeyManager - uses WebAuthn API directly
  */
-class NativeProvider implements IPasskeyProvider {
-  isSupported(): boolean {
-    return typeof argon !== "undefined" && argon.isArgonHost;
+export class PasskeyManager {
+  private api: PasskeyApiCallbacks;
+
+  constructor(api: PasskeyApiCallbacks) {
+    this.api = api;
   }
 
-  async createPasskey(
-    passkeyId: string,
-    challenge: string,
-    user: PasskeyUser,
-    rpName: string,
-    rpId: string,
-  ): Promise<string | null> {
-    const result = await native.hostProc.createPasskey(
-      passkeyId,
-      challenge,
-      { displayName: user.displayName, id: user.userId, name: user.username },
-      rpName,
-      rpId,
-    );
-    if (result.isSuccessCreatePasskey()) return result.cert;
-    logger.error("Native passkey creation failed", result);
-    return null;
-  }
-
-  async validatePasskey(
-    challenge: string,
-    allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string,
-  ): Promise<{
-    credentialId: string;
-    signature: string;
-    authenticatorData: string;
-    clientDataJSON: string;
-  } | null> {
-    logger.info("NativeProvider: Validating passkey", allowedCredentials);
-    const result = await native.hostProc.validatePasskey(
-      challenge,
-      allowedCredentials.map((c) => {
-        return { id: c.id, publicKey: c.type };
-      }),
-      rpId,
-    );
-
-    if (result.isSuccessValidatePasskey())
-      return result;
-    logger.error("Native passkey validate failed", result);
-    return null; 
-  }
-}
-
-/**
- * Browser-based WebAuthn provider
- */
-class WebAuthnProvider implements IPasskeyProvider {
   isSupported(): boolean {
     return (
       typeof window !== "undefined" &&
@@ -159,267 +159,40 @@ class WebAuthnProvider implements IPasskeyProvider {
     );
   }
 
-  async createPasskey(
-    passkeyId: string,
-    challenge: string,
-    user: PasskeyUser,
-    rpName: string,
-    rpId: string,
-  ): Promise<string | null> {
-    logger.info("[WebAuthn] Creating passkey with browser API");
+  async createPasskey(name: string): Promise<PasskeyCreateResult> {
+    logger.info("[PasskeyManager] Starting passkey creation:", name);
+
+    if (!name.trim()) {
+      return { success: false, error: "Passkey name is required" };
+    }
 
     try {
-      // Convert challenge from base64 to Uint8Array
-      const challengeBuffer = Uint8Array.from(atob(challenge), (c) =>
-        c.charCodeAt(0),
-      );
+      // Step 1: Get creation options from server
+      const beginResult = await this.api.beginAddPasskey(name);
+      if (!beginResult.success || !beginResult.optionsJson) {
+        return { success: false, error: "Failed to begin passkey creation" };
+      }
 
-      const publicKeyOptions: PublicKeyCredentialCreationOptions = {
-        challenge: challengeBuffer,
-        rp: {
-          name: rpName,
-          id: rpId,
-        },
-        user: {
-          id: Uint8Array.from(user.userId, (c) => c.charCodeAt(0)),
-          name: user.username,
-          displayName: user.displayName,
-        },
-        pubKeyCredParams: [
-          { alg: -7, type: "public-key" }, // ES256
-          { alg: -257, type: "public-key" }, // RS256
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          requireResidentKey: false,
-          userVerification: "preferred",
-        },
-        timeout: 60000,
-        attestation: "none",
-      };
+      const publicKeyOptions = parseCreationOptions(beginResult.optionsJson);
 
-      logger.info("[WebAuthn] Requesting credential creation");
+      // Step 2: Perform WebAuthn ceremony
       const credential = (await navigator.credentials.create({
         publicKey: publicKeyOptions,
       })) as PublicKeyCredential | null;
 
       if (!credential) {
-        logger.warn("[WebAuthn] Credential creation returned null");
-        return null;
+        return { success: false, error: "Credential creation returned null" };
       }
 
-      logger.info("[WebAuthn] Credential created successfully");
+      const registrationResponseJson = serializeAttestationResponse(credential);
 
-      // Extract public key from credential
-      const response = credential.response as AuthenticatorAttestationResponse;
-      const publicKeyBuffer = response.getPublicKey();
-
-      if (!publicKeyBuffer) {
-        logger.error("[WebAuthn] Public key buffer is null");
-        return null;
-      }
-
-      const publicKeyBase64 = btoa(
-        String.fromCharCode(...new Uint8Array(publicKeyBuffer)),
-      );
-      logger.info("[WebAuthn] Public key extracted and encoded");
-
-      return publicKeyBase64;
-    } catch (error: any) {
-      logger.error("[WebAuthn] Error creating passkey:", error);
-      throw error;
-    }
-  }
-
-  async validatePasskey(
-    challenge: string,
-    allowedCredentials: Array<{ id: string; type: string }>,
-    rpId: string,
-  ): Promise<{
-    credentialId: string;
-    signature: string;
-    authenticatorData: string;
-    clientDataJSON: string;
-  } | null> {
-    logger.info("[WebAuthn] Validating passkey with browser API");
-
-    try {
-      // Convert challenge from base64 to Uint8Array
-      const challengeBuffer = Uint8Array.from(atob(challenge), (c) =>
-        c.charCodeAt(0),
-      );
-
-      // Convert credential IDs from base64 to Uint8Array
-      const allowCredentials = allowedCredentials.map((cred) => ({
-        id: Uint8Array.from(atob(cred.id), (c) => c.charCodeAt(0)),
-        type: cred.type as PublicKeyCredentialType,
-      }));
-
-      const publicKeyOptions: PublicKeyCredentialRequestOptions = {
-        challenge: challengeBuffer,
-        rpId: rpId,
-        allowCredentials: allowCredentials,
-        userVerification: "preferred",
-        timeout: 60000,
-      };
-
-      logger.info("[WebAuthn] Requesting credential assertion");
-      const credential = (await navigator.credentials.get({
-        publicKey: publicKeyOptions,
-      })) as PublicKeyCredential | null;
-
-      if (!credential) {
-        logger.warn("[WebAuthn] Credential assertion returned null");
-        return null;
-      }
-
-      logger.info("[WebAuthn] Credential assertion received");
-
-      const response = credential.response as AuthenticatorAssertionResponse;
-
-      // Convert buffers to base64
-      const credentialId = btoa(
-        String.fromCharCode(...new Uint8Array(credential.rawId)),
-      );
-      const signature = btoa(
-        String.fromCharCode(...new Uint8Array(response.signature)),
-      );
-      const authenticatorData = btoa(
-        String.fromCharCode(...new Uint8Array(response.authenticatorData)),
-      );
-      const clientDataJSON = btoa(
-        String.fromCharCode(...new Uint8Array(response.clientDataJSON)),
-      );
-
-      logger.info("[WebAuthn] Credential data extracted and encoded");
-
-      return {
-        credentialId,
-        signature,
-        authenticatorData,
-        clientDataJSON,
-      };
-    } catch (error: any) {
-      logger.error("[WebAuthn] Error validating passkey:", error);
-      throw error;
-    }
-  }
-}
-
-/**
- * Main PasskeyManager that automatically selects the appropriate provider
- */
-export class PasskeyManager {
-  private provider: IPasskeyProvider;
-  private api: PasskeyApiCallbacks;
-  private config: PasskeyConfig;
-
-  constructor(
-    api: PasskeyApiCallbacks,
-    config: PasskeyConfig = {
-      relyingPartyId: "gl.argon.app",
-      relyingPartyName: "ArgonChat",
-      origin: "https://aegis.argon.gl",
-      timeoutMilliseconds: 60000,
-    },
-  ) {
-    this.api = api;
-    this.config = config;
-
-    // Auto-select provider based on environment
-    const nativeProvider = new NativeProvider();
-    const webAuthnProvider = new WebAuthnProvider();
-
-    if (nativeProvider.isSupported()) {
-      logger.info("[PasskeyManager] Using native passkey provider");
-      this.provider = nativeProvider;
-    } else if (webAuthnProvider.isSupported()) {
-      logger.info("[PasskeyManager] Using WebAuthn provider");
-      this.provider = webAuthnProvider;
-    } else {
-      logger.error("[PasskeyManager] No passkey provider available");
-      // Fallback to WebAuthn even if not supported (will fail gracefully)
-      this.provider = webAuthnProvider;
-    }
-  }
-
-  /**
-   * Check if passkeys are supported in this environment
-   */
-  isSupported(): boolean {
-    return this.provider.isSupported();
-  }
-
-  /**
-   * Create a new passkey
-   */
-  async createPasskey(
-    name: string,
-    user: PasskeyUser,
-  ): Promise<PasskeyCreateResult> {
-    logger.info("[PasskeyManager] Starting passkey creation:", name);
-
-    if (!name.trim()) {
-      logger.warn("[PasskeyManager] Empty passkey name");
-      return {
-        success: false,
-        error: "Passkey name is required",
-      };
-    }
-
-    try {
-      // Step 1: Begin passkey creation on server
-      logger.info("[PasskeyManager] Requesting challenge from server");
-      const beginResult = await this.api.beginAddPasskey(name);
-
-      if (!beginResult.success) {
-        logger.error("[PasskeyManager] Server rejected passkey creation");
-        return {
-          success: false,
-          error: "Failed to begin passkey creation",
-        };
-      }
-
-      const passkeyId = beginResult.passkeyId!;
-      const challenge = beginResult.challenge!;
-      logger.info("[PasskeyManager] Challenge received:", passkeyId);
-
-      // Step 2: Create passkey using the selected provider
-      logger.info("[PasskeyManager] Creating passkey with provider");
-      const publicKeyBase64 = await this.provider.createPasskey(
-        passkeyId,
-        challenge,
-        user,
-        this.config.relyingPartyName,
-        this.config.relyingPartyId,
-      );
-
-      if (!publicKeyBase64) {
-        logger.error("[PasskeyManager] Provider returned null public key");
-        return {
-          success: false,
-          error: "Failed to create passkey",
-        };
-      }
-
-      // Step 3: Complete passkey creation on server
-      logger.info("[PasskeyManager] Completing passkey creation on server");
-      const completeResult = await this.api.completeAddPasskey(
-        passkeyId,
-        publicKeyBase64,
-      );
-
+      // Step 3: Complete on server
+      const completeResult = await this.api.completeAddPasskey(registrationResponseJson);
       if (!completeResult.success) {
-        logger.error("[PasskeyManager] Server rejected passkey completion");
-        return {
-          success: false,
-          error: "Failed to complete passkey creation",
-        };
+        return { success: false, error: "Failed to complete passkey creation" };
       }
 
       const passkey = completeResult.passkey!;
-      logger.info("[PasskeyManager] Passkey created successfully:", passkey.id);
-
       return {
         success: true,
         passkeyId: passkey.id,
@@ -427,12 +200,8 @@ export class PasskeyManager {
         createdAt: passkey.createdAt,
       };
     } catch (error: any) {
-      logger.error(
-        "[PasskeyManager] Exception during passkey creation:",
-        error,
-      );
+      logger.error("[PasskeyManager] Exception during passkey creation:", error);
 
-      // Map error codes
       let errorCode: PasskeyCreateResult["errorCode"] = "UNKNOWN";
       let errorMessage = "Failed to create passkey";
 
@@ -447,111 +216,55 @@ export class PasskeyManager {
         errorMessage = "This authenticator is already registered";
       }
 
-      return {
-        success: false,
-        error: errorMessage,
-        errorCode,
-      };
+      return { success: false, error: errorMessage, errorCode };
     }
   }
 
-  /**
-   * Remove an existing passkey
-   */
   async removePasskey(passkeyId: string): Promise<PasskeyRemoveResult> {
-    logger.info("[PasskeyManager] Removing passkey:", passkeyId);
-
     try {
       const result = await this.api.removePasskey(passkeyId);
-
-      if (result.success) {
-        logger.info("[PasskeyManager] Passkey removed successfully");
-        return { success: true };
-      }
-
-      logger.error("[PasskeyManager] Failed to remove passkey");
-      return {
-        success: false,
-        error: "Failed to remove passkey",
-      };
+      if (result.success) return { success: true };
+      return { success: false, error: "Failed to remove passkey" };
     } catch (error: any) {
       logger.error("[PasskeyManager] Exception during passkey removal:", error);
-      return {
-        success: false,
-        error: "Failed to remove passkey",
-      };
+      return { success: false, error: "Failed to remove passkey" };
     }
   }
 
-  /**
-   * Validate/authenticate using a passkey
-   */
   async validatePasskey(): Promise<PasskeyValidateResult> {
     logger.info("[PasskeyManager] Starting passkey validation");
 
     try {
-      // Step 1: Begin passkey validation on server
-      logger.info("[PasskeyManager] Requesting challenge from server");
+      // Step 1: Get assertion options from server
       const beginResult = await this.api.beginValidatePasskey();
-
-      if (!beginResult.success) {
-        logger.error("[PasskeyManager] Server rejected passkey validation");
-        return {
-          success: false,
-          error: "Failed to begin passkey validation",
-        };
+      if (!beginResult.success || !beginResult.optionsJson) {
+        return { success: false, error: "Failed to begin passkey validation" };
       }
 
-      const challenge = beginResult.challenge!;
-      const allowedCredentials = beginResult.allowedCredentials || [];
-      logger.info(
-        "[PasskeyManager] Challenge received with",
-        allowedCredentials.length,
-        "allowed credentials",
-      );
+      const optionsJson = beginResult.optionsJson;
 
-      // Step 2: Get assertion using the selected provider
-      logger.info("[PasskeyManager] Getting assertion from provider");
-      const assertionData = await this.provider.validatePasskey(
-        challenge,
-        allowedCredentials,
-        this.config.relyingPartyId,
-      );
+      // Step 2: Perform WebAuthn assertion
+      const publicKeyOptions = parseRequestOptions(optionsJson);
+      const credential = (await navigator.credentials.get({
+        publicKey: publicKeyOptions,
+      })) as PublicKeyCredential | null;
 
-      if (!assertionData) {
-        logger.error("[PasskeyManager] Provider returned null assertion");
-        return {
-          success: false,
-          error: "Failed to get passkey assertion",
-        };
+      if (!credential) {
+        return { success: false, error: "Credential assertion returned null" };
       }
 
-      // Step 3: Complete passkey validation on server
-      logger.info("[PasskeyManager] Completing passkey validation on server");
-      const completeResult = await this.api.completeValidatePasskey(
-        assertionData.credentialId,
-        assertionData.signature,
-        assertionData.authenticatorData,
-        assertionData.clientDataJSON,
-      );
+      const authenticationResponseJson = serializeAssertionResponse(credential);
 
+      // Step 3: Complete on server
+      const completeResult = await this.api.completeValidatePasskey(authenticationResponseJson);
       if (!completeResult.success) {
-        logger.error("[PasskeyManager] Server rejected passkey validation");
-        return {
-          success: false,
-          error: "Failed to complete passkey validation",
-        };
+        return { success: false, error: "Failed to complete passkey validation" };
       }
 
-      logger.info("[PasskeyManager] Passkey validated successfully");
       return { success: true };
     } catch (error: any) {
-      logger.error(
-        "[PasskeyManager] Exception during passkey validation:",
-        error,
-      );
+      logger.error("[PasskeyManager] Exception during passkey validation:", error);
 
-      // Map error codes
       let errorCode: PasskeyValidateResult["errorCode"] = "UNKNOWN";
       let errorMessage = "Failed to validate passkey";
 
@@ -566,11 +279,7 @@ export class PasskeyManager {
         errorMessage = "No passkey found for this account";
       }
 
-      return {
-        success: false,
-        error: errorMessage,
-        errorCode,
-      };
+      return { success: false, error: errorMessage, errorCode };
     }
   }
 }

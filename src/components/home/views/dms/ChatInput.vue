@@ -76,7 +76,7 @@ import { SendHorizonalIcon, SmileIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
-import { debouncedRef } from "@vueuse/core";
+import { refDebounced } from "@vueuse/core";
 import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, type ArgonMessage } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import GifPicker from "@/components/chats/GifPicker.vue";
@@ -124,7 +124,7 @@ const mention = reactive({
 const mentionRegistry = new Map<string, string>();
 
 const rawQuery = ref("");
-const debouncedQuery = debouncedRef(rawQuery, 150);
+const debouncedQuery = refDebounced(rawQuery, 150);
 
 watch(debouncedQuery, async (query) => {
   if (!query || !mention.show) return;

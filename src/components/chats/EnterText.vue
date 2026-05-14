@@ -303,7 +303,7 @@ import UnderlineSegment from "./UnderlineSegment.vue";
 import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
-import { debouncedRef } from "@vueuse/core";
+import { refDebounced } from "@vueuse/core";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
@@ -531,7 +531,7 @@ const slashCommands = useSlashCommands(() => props.spaceId);
 const mentionRegistry = new Map<string, string>();
 
 const rawQuery = ref("");
-const debouncedQuery = debouncedRef(rawQuery, 150);
+const debouncedQuery = refDebounced(rawQuery, 150);
 
 
 

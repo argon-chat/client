@@ -352,6 +352,7 @@
   "passkey_added": "Ключ добавлен в связку",
   "passkey_added_desc": "Твой пиратский ключ успешно добавлен",
   "passkey_add_error": "Не вышло добавить ключ",
+  "passkey_waiting": "Ждём аутентификатор...",
   "passkey_removed": "Ключ выброшен за борт",
   "has_been_removed": "был выброшен",
   "auto_delete_updated": "Самозатопление обновлено",

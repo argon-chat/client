@@ -1,10 +1,8 @@
 export { PasskeyManager } from "./PasskeyManager";
 export type {
-  PasskeyUser,
   PasskeyCreateResult,
   PasskeyRemoveResult,
+  PasskeyValidateResult,
   PasskeyData,
   PasskeyApiCallbacks,
-  PasskeyConfig,
-  IPasskeyProvider,
 } from "./PasskeyManager";

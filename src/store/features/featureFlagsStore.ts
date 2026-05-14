@@ -31,7 +31,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.LEVELING_ACTIVE]: true,
     [FeatureFlagKeys.NOTIFICATION_ACTIVE]: false,
     [FeatureFlagKeys.PLAYFRAME_ACTIVE]: false,
-    [FeatureFlagKeys.USER_SETTINGS_PASSKEY_ACTIVE]: false,
+    [FeatureFlagKeys.USER_SETTINGS_PASSKEY_ACTIVE]: true,
     [FeatureFlagKeys.USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE]: false,
     [FeatureFlagKeys.DASHBOARD_ECHO_ACTIVE]: true,
     [FeatureFlagKeys.DASHBOARD_DM_ACTIVE]: true,

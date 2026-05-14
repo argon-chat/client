@@ -424,6 +424,7 @@
   "passkey_added": "Passkey Added",
   "passkey_added_desc": "Your passkey has been added successfully",
   "passkey_add_error": "Failed to add passkey",
+  "passkey_waiting": "Waiting for authenticator...",
   "formatting_help": "Message Formatting",
   "formatting_help_desc": "Use these special characters to format your messages",
   "text_styling": "Text Styling",
