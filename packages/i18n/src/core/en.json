@@ -1255,7 +1255,7 @@
   "report_reason_other_false_info": "False information",
   "report_reason_other_illegal_adult_content": "Illegal adult content",
   "report_reason_other_illegal_goods_and_services": "Illegal goods & services",
-  "report_reason_other_else": "Something else"
+  "report_reason_other_else": "Something else",
   "login_with_passkey": "Login with Passkey",
   "passkey_too_many_attempts": "Too Many Attempts",
   "passkey_too_many_attempts_desc": "Please wait a moment before trying again",

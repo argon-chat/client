@@ -920,8 +920,7 @@
   "operator_cert_failed": "Ошибка проверки сертификата",
   "operator_cert_failed_desc": "Проверка сертификата не пройдена.",
   "operator_verify_error": "Ошибка верификации",
-  "operator_verify_error_desc": "Не удалось проверить сертификат. Убедитесь, что YubiKey подключён."
-
+  "operator_verify_error_desc": "Не удалось проверить сертификат. Убедитесь, что YubiKey подключён.",
   "bots_manage": "Управление ботами",
   "bots_manage_description": "Поиск, установка и управление ботами сервера",
   "bots_search": "Поиск",
