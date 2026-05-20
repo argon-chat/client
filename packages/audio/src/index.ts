@@ -14,6 +14,8 @@ export {
   type AudioDeviceErrorType,
 } from "./AudioManager";
 
+export { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";
+
 export { WorkletManager } from "./WorkletManager";
 
 export { createDTMFPlayer, type DTMFPlayer } from "./DTMF";

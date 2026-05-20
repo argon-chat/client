@@ -3,7 +3,6 @@ import { Toaster } from "@argon/ui/toast";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
-import { NConfigProvider, darkTheme } from 'naive-ui'
 import { useSleepWatcher } from "./composables/useSleepWatcher";
 import { native } from "@argon/glue/native";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
@@ -47,6 +46,7 @@ const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 const altShift7 = keys["Shift+Ctrl+Digit7"];
 
 watch(shiftCtrlA, (_) => {
+  // @ts-ignore
   native.hostProc.toggleDevTools();
 });
 
@@ -84,11 +84,6 @@ watch(() => call.audioDeviceError, (err) => {
     :error-type="call.audioDeviceError?.type ?? null" 
   />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
-  <Island class="select-none" v-if="call.isLocalAudioSilent && call.isConnected" :title="t('audio_silence_detected')">
-    <template #icon>
-      <span class="i-lucide-mic-off text-lg" style="color: wheat;" />
-    </template>
-  </Island>
   <Island class="select-none" v-if="call.isCpuConstrained && call.isSharing" :title="t('cpu_throttling')">
     <template #icon>
       <span class="i-lucide-cpu text-lg" style="color: wheat;" />

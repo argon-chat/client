@@ -2,6 +2,7 @@ import { Subject, BehaviorSubject, type Subscription } from "rxjs";
 import { v4 } from "uuid";
 import { ref, type Ref } from "vue";
 import { logger, Disposable } from "@argon/core";
+import { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";
 
 export type DeviceId = string;
 export type WorkletPath = string;
@@ -108,6 +109,17 @@ export interface IAudioManagement {
   getAudioConstraints(): AudioConstraints;
   setAudioConstraints(constraints: Partial<AudioConstraints>): Promise<void>;
   
+  // Noise suppression
+  setNoiseSuppressionMode(mode: NoiseSuppressionMode): Promise<void>;
+  getNoiseSuppressionMode(): NoiseSuppressionMode;
+  
+  // Input gate (dB threshold limiter)
+  setInputGateEnabled(enabled: boolean): Promise<void>;
+  setInputGateThreshold(db: number): void;
+  getInputGateEnabled(): boolean;
+  getInputGateThreshold(): number;
+  onInputGateStateChanged(on: (isOpen: boolean) => void): { dispose: () => void };
+  
   // Streams
   getVirtualInputStream(): Promise<MediaStream>;
   createRawInputMediaStream(): Promise<MediaStream>;
@@ -181,6 +193,8 @@ export interface AudioManagerConfig {
   enableInputLevelMonitoring?: boolean;
   /** Automatically initialize virtual input stream on startup. Default: true */
   autoInitialize?: boolean;
+  /** URLs for noise suppressor worklets and WASM binaries (resolved via ?url imports) */
+  noiseSuppressorUrls?: NoiseSuppressorUrls;
 }
 
 export class AudioManagement implements IAudioManagement {
@@ -220,7 +234,7 @@ export class AudioManagement implements IAudioManagement {
   private outputLevel$ = new BehaviorSubject<number>(0);
   private audioDeviceError$ = new Subject<AudioDeviceErrorEvent>();
 
-  private config: Required<AudioManagerConfig>;
+  private config: Required<Omit<AudioManagerConfig, 'noiseSuppressorUrls'>> & Pick<AudioManagerConfig, 'noiseSuppressorUrls'>;
 
   // Virtual input stream architecture
   private virtualStreamDestination: MediaStreamAudioDestinationNode | null = null;
@@ -253,6 +267,15 @@ export class AudioManagement implements IAudioManagement {
   // Remote audio graphs tracking
   private remoteAudioGraphs = new Map<string, { label: string; volume: number; speaking: boolean }>();
 
+  // Noise suppression
+  private noiseSuppressor: NoiseSuppressor | null;
+
+  // Input gate
+  private inputGateNode: AudioWorkletNode | null = null;
+  private inputGateEnabled = false;
+  private inputGateThresholdDb = -40;
+  private inputGateStateCallbacks = new Set<(isOpen: boolean) => void>();
+
   constructor(config: AudioManagerConfig = {}) {
     this.config = {
       workletBasePath: config.workletBasePath ?? '/audio',
@@ -261,6 +284,11 @@ export class AudioManagement implements IAudioManagement {
       autoInitialize: config.autoInitialize ?? true,
     };
     this.audioCtx = new AudioContext({ sampleRate: this.config.sampleRate });
+    if (config.noiseSuppressorUrls) {
+      this.noiseSuppressor = new NoiseSuppressor(config.noiseSuppressorUrls);
+    } else {
+      this.noiseSuppressor = null!;
+    }
     this.validateAndAdaptConfig();
     this.loadSavedSettings();
     this.setupDeviceChangeListener();
@@ -314,6 +342,9 @@ export class AudioManagement implements IAudioManagement {
       cancelAnimationFrame(this.outputLevelAnimationFrame);
       this.outputLevelAnimationFrame = null;
     }
+    
+    // Cleanup noise suppressor
+    this.noiseSuppressor?.dispose();
     
     // Cleanup virtual input stream
     this.cleanupCurrentMicSource();
@@ -705,6 +736,134 @@ export class AudioManagement implements IAudioManagement {
     if (changed && this.virtualStreamInitialized) {
       await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
     }
+  }
+
+  // ==================== NOISE SUPPRESSION ====================
+
+  getNoiseSuppressionMode(): NoiseSuppressionMode {
+    return this.noiseSuppressor?.getMode() ?? "off";
+  }
+
+  async setNoiseSuppressionMode(mode: NoiseSuppressionMode): Promise<void> {
+    logger.info("[AudioManagement] setNoiseSuppressionMode:", mode);
+
+    if (!this.noiseSuppressor) {
+      logger.warn("[AudioManagement] Noise suppressor not configured (no URLs provided)");
+      return;
+    }
+
+    if (!this.inputGainNode || !this.virtualStreamDestination) {
+      return;
+    }
+
+    // Deactivate current suppressor
+    this.noiseSuppressor.deactivate();
+
+    if (mode !== "off") {
+      const ctx = this.getCurrentAudioContext();
+      await this.noiseSuppressor.activate(mode, ctx);
+    }
+
+    this.rebuildInputPipeline();
+  }
+
+  // ==================== INPUT GATE ====================
+
+  getInputGateEnabled(): boolean {
+    return this.inputGateEnabled;
+  }
+
+  getInputGateThreshold(): number {
+    return this.inputGateThresholdDb;
+  }
+
+  setInputGateThreshold(db: number): void {
+    this.inputGateThresholdDb = db;
+    if (this.inputGateNode) {
+      const param = this.inputGateNode.parameters.get("threshold");
+      if (param) {
+        param.setValueAtTime(db, this.getCurrentAudioContext().currentTime);
+      }
+    }
+  }
+
+  async setInputGateEnabled(enabled: boolean): Promise<void> {
+    logger.info("[AudioManagement] setInputGateEnabled:", enabled);
+    this.inputGateEnabled = enabled;
+
+    if (!this.inputGainNode || !this.virtualStreamDestination) {
+      return;
+    }
+
+    if (enabled && !this.inputGateNode) {
+      // Create gate node
+      const ctx = this.getCurrentAudioContext();
+      this.inputGateNode = new AudioWorkletNode(ctx, "input-gate-processor", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+        parameterData: {
+          threshold: this.inputGateThresholdDb,
+          enabled: 1,
+        },
+      });
+      this.inputGateNode.port.onmessage = (e: MessageEvent) => {
+        const { isOpen } = e.data;
+        for (const cb of this.inputGateStateCallbacks) {
+          cb(isOpen);
+        }
+      };
+    } else if (!enabled && this.inputGateNode) {
+      this.inputGateNode.port.close();
+      this.inputGateNode.disconnect();
+      this.inputGateNode = null;
+    }
+
+    this.rebuildInputPipeline();
+  }
+
+  onInputGateStateChanged(on: (isOpen: boolean) => void): { dispose: () => void } {
+    this.inputGateStateCallbacks.add(on);
+    return {
+      dispose: () => {
+        this.inputGateStateCallbacks.delete(on);
+      },
+    };
+  }
+
+  // ==================== INPUT PIPELINE WIRING ====================
+
+  private rebuildInputPipeline(): void {
+    if (!this.inputGainNode || !this.virtualStreamDestination) return;
+
+    // Disconnect everything from inputGainNode onwards
+    this.inputGainNode.disconnect();
+
+    const suppressorNode = this.noiseSuppressor?.getNode() ?? null;
+    if (suppressorNode) {
+      suppressorNode.disconnect();
+    }
+    if (this.inputGateNode) {
+      this.inputGateNode.disconnect();
+    }
+
+    // Build chain: inputGainNode → [suppressor] → [gate] → virtualStreamDestination
+    let lastNode: AudioNode = this.inputGainNode;
+
+    if (suppressorNode) {
+      lastNode.connect(suppressorNode);
+      lastNode = suppressorNode;
+    }
+
+    if (this.inputGateNode && this.inputGateEnabled) {
+      lastNode.connect(this.inputGateNode);
+      lastNode = this.inputGateNode;
+    }
+
+    lastNode.connect(this.virtualStreamDestination);
   }
 
   // ==================== VIRTUAL INPUT STREAM ====================

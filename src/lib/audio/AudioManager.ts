@@ -2,7 +2,16 @@
 import { AudioManagement as BaseAudioManagement, type IAudioManagement, createDTMFPlayer } from "@argon/audio";
 import { WebRTCProcessor } from "./WebRTCProcessor";
 
+// Noise suppressor assets (resolved by Vite via ?url)
+import rnnoiseWorkletPath from "@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url";
+import speexWorkletPath from "@sapphi-red/web-noise-suppressor/speexWorklet.js?url";
+import noiseGateWorkletPath from "@sapphi-red/web-noise-suppressor/noiseGateWorklet.js?url";
+import rnnoiseWasmPath from "@sapphi-red/web-noise-suppressor/rnnoise.wasm?url";
+import rnnoiseWasmSimdPath from "@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm?url";
+import speexWasmPath from "@sapphi-red/web-noise-suppressor/speex.wasm?url";
+
 export type { IAudioManagement, DeviceId, WorkletPath, WorkletId, AudioManagerConfig, DTMFPlayer, RemoteAudioGraph, RemoteAudioGraphOptions } from "@argon/audio";
+export type { NoiseSuppressionMode } from "@argon/audio";
 
 // Extended AudioManagement with app-specific features
 class AppAudioManagement extends BaseAudioManagement {
@@ -15,6 +24,14 @@ class AppAudioManagement extends BaseAudioManagement {
 const audio = new AppAudioManagement({
   workletBasePath: '/audio',
   sampleRate: 48000,
+  noiseSuppressorUrls: {
+    rnnoiseWorklet: rnnoiseWorkletPath,
+    rnnoiseWasm: rnnoiseWasmPath,
+    rnnoiseWasmSimd: rnnoiseWasmSimdPath,
+    speexWorklet: speexWorkletPath,
+    speexWasm: speexWasmPath,
+    noiseGateWorklet: noiseGateWorkletPath,
+  },
 });
 
 // App-specific DTMF player

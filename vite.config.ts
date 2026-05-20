@@ -33,6 +33,11 @@ export default defineConfig(({ mode }) => {
         key: "localhost-key.pem",
         cert: "localhost.pem",
       },
+      hmr: {
+        host: "localhost",
+        protocol: "wss",
+        clientPort: 5005,
+      },
     },
     build: {
       sourcemap: "hidden",

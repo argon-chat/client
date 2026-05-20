@@ -11,6 +11,7 @@ import { useIdleStore } from "@/store/ui/idleStore";
 import { useActivity } from "@/store/features/activityStore";
 import { worklets, initWorklets } from "@/lib/audio/WorkletBase";
 import { audio } from "@/lib/audio/AudioManager";
+import { usePreference } from "@/store/ui/preferenceStore";
 import router from "@/router";
 import { useConfigStore } from "@/store/ui/configStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -62,6 +63,23 @@ export const useAppState = defineStore("app", () => {
     loadingProgress.value = 4;
     logger.info("Load audio manager...");
     await worklets.init();
+
+    // Apply saved noise suppression mode
+    const preferenceStore = usePreference();
+    if (preferenceStore.noiseSuppressionMode !== "off") {
+      await audio.setNoiseSuppressionMode(preferenceStore.noiseSuppressionMode).catch(err => {
+        logger.warn("Failed to apply noise suppression mode on startup:", err);
+      });
+    }
+
+    // Apply saved input gate settings
+    if (preferenceStore.inputGateEnabled) {
+      audio.setInputGateThreshold(preferenceStore.inputGateThreshold);
+      await audio.setInputGateEnabled(true).catch(err => {
+        logger.warn("Failed to apply input gate on startup:", err);
+      });
+    }
+
     await delay(100);
 
     loadingStep.value = "Loading configurations...";

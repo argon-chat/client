@@ -2,14 +2,18 @@ import { persistedValue } from "@argon/storage";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { watch } from "vue";
+import type { NoiseSuppressionMode } from "@/lib/audio/AudioManager";
 
 export const usePreference = defineStore("preference", () => {
   const forceToMono = persistedValue<boolean>("forceToMono", false);
 
   const echoCancellation = persistedValue<boolean>("echoCancellation", false);
   const autoGainControl = persistedValue<boolean>("autoGainControl", false);
-  const noiseSuppression = persistedValue<boolean>("noiseSuppression", false);
+  const noiseSuppressionMode = persistedValue<NoiseSuppressionMode>("noiseSuppressionMode", "off");
   const voiceIsolation = persistedValue<boolean>("voiceIsolation", false);
+
+  const inputGateEnabled = persistedValue<boolean>("inputGateEnabled", false);
+  const inputGateThreshold = persistedValue<number>("inputGateThreshold", -40);
 
   const minimizeToTrayOnClose = persistedValue<boolean>(
     "minimizeToTrayOnClose",
@@ -65,8 +69,10 @@ export const usePreference = defineStore("preference", () => {
 
     echoCancellation,
     autoGainControl,
-    noiseSuppression,
+    noiseSuppressionMode,
     voiceIsolation,
+    inputGateEnabled,
+    inputGateThreshold,
 
     minimizeToTrayOnClose,
     soundLevel,

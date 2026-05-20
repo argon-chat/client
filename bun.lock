@@ -30,6 +30,7 @@
         "@microsoft/signalr-protocol-msgpack": "^10.0.0",
         "@phosphor-icons/vue": "^2.2.1",
         "@radix-icons/vue": "^1.0.0",
+        "@sapphi-red/web-noise-suppressor": "^0.3.5",
         "@sentry/vue": "^10.52.0",
         "@tabler/icons-vue": "^3.44.0",
         "@tailwindcss/typography": "^0.5.19",
@@ -122,6 +123,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@argon/core": "workspace:*",
+        "@sapphi-red/web-noise-suppressor": "^0.3.5",
         "rxjs": "*",
         "uuid": "*",
         "vue": "*",
@@ -792,6 +794,8 @@
     "@rollup/rollup-win32-x64-gnu": ["@rollup/rollup-win32-x64-gnu@4.52.5", "", { "os": "win32", "cpu": "x64" }, "sha512-UGBUGPFp1vkj6p8wCRraqNhqwX/4kNQPS57BCFc8wYh0g94iVIW33wJtQAx3G7vrjjNtRaxiMUylM0ktp/TRSQ=="],
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.52.5", "", { "os": "win32", "cpu": "x64" }, "sha512-TAcgQh2sSkykPRWLrdyy2AiceMckNf5loITqXxFI5VuQjS5tSuw3WlwdN8qv8vzjLAUTvYaH/mVjSFpbkFbpTg=="],
+
+    "@sapphi-red/web-noise-suppressor": ["@sapphi-red/web-noise-suppressor@0.3.5", "", {}, "sha512-jh3+V9yM+zxLriQexoGm0GatoPaJWjs6ypFIbFYwQp+AoUb55eUXrjKtKQyuC5zShzzeAQUl0M5JzqB7SSrsRA=="],
 
     "@sentry-internal/browser-utils": ["@sentry-internal/browser-utils@10.52.0", "", { "dependencies": { "@sentry/core": "10.52.0" } }, "sha512-x/yEPZdpH6NGQeoeQnV9tj8reAH8twNttiltGZl2o8Rk7sQeUfe7E8yuYP2XbJ2RqyZK5qRS3COrNyMPzf6KFA=="],
 

@@ -86,11 +86,9 @@
                         <div class="text-sm font-medium">{{ t("noise_sup") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("noise_sup_desc") }}</div>
                     </div>
-                    <Switch 
-                        disabled 
-                        @update:checked="(x) => preferenceStore.noiseSuppression = x"
-                        :checked="preferenceStore.noiseSuppression" 
-                    />
+                    <span class="text-sm text-muted-foreground">
+                        {{ preferenceStore.noiseSuppressionMode === 'off' ? t("noise_sup_off") : preferenceStore.noiseSuppressionMode }}
+                    </span>
                 </div>
             </div>
         </div>

@@ -28,6 +28,10 @@ export class WorkletManager {
       `${basePath}/vu-stm.js`,
       "vu-stereo-to-mono-processor"
     );
+    await this.#audio.addWorkletModule(
+      `${basePath}/input-gate-processor.js`,
+      "input-gate-processor"
+    );
     this.#inited = true;
   }
 

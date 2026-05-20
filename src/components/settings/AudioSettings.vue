@@ -66,17 +66,32 @@
                     <span class="text-sm font-medium flex items-center gap-2">
                         <ActivityIcon class="w-4 h-4" />
                         {{ t("input_level") }}
+                        <span 
+                            v-if="inputGateEnabled"
+                            class="w-2 h-2 rounded-full transition-colors"
+                            :class="inputGateOpen ? 'bg-green-500' : 'bg-red-500'"
+                        />
                     </span>
-                    <Button 
-                        @click="isInputMonitoring = !isInputMonitoring" 
-                        variant="ghost" 
-                        size="sm"
-                        class="h-8"
-                    >
-                        <VolumeIcon v-if="!isInputMonitoring" class="w-4 h-4" />
-                        <VolumeXIcon v-if="isInputMonitoring" class="w-4 h-4" />
-                        <span class="ml-2 text-xs">{{ isInputMonitoring ? t("mute") : t("monitor") }}</span>
-                    </Button>
+                    <div class="flex items-center gap-2">
+                        <Button 
+                            @click="isInputMonitoring = !isInputMonitoring" 
+                            variant="ghost" 
+                            size="sm"
+                            class="h-8"
+                        >
+                            <VolumeIcon v-if="!isInputMonitoring" class="w-4 h-4" />
+                            <VolumeXIcon v-if="isInputMonitoring" class="w-4 h-4" />
+                            <span class="ml-2 text-xs">{{ isInputMonitoring ? t("mute") : t("monitor") }}</span>
+                        </Button>
+                        <button 
+                            class="gate-toggle-btn"
+                            :class="{ active: inputGateEnabled }"
+                            @click="inputGateEnabled = !inputGateEnabled; onChangeInputGateEnabled(inputGateEnabled)"
+                            :title="t('input_gate')"
+                        >
+                            <ScissorsIcon class="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="space-y-3">
@@ -88,8 +103,18 @@
                         </div>
                         <div class="volume-meter">
                             <div 
+                                v-if="inputGateEnabled"
+                                class="gate-cut-zone"
+                                :style="{ width: gateThresholdPercent + '%' }"
+                            />
+                            <div 
                                 class="volume-fill"
                                 :style="{ width: inputLeftVolume + '%', backgroundColor: audio.volumeColor(inputLeftVolume) }"
+                            />
+                            <div 
+                                v-if="inputGateEnabled"
+                                class="gate-threshold-marker"
+                                :style="{ left: gateThresholdPercent + '%' }"
                             />
                         </div>
                     </div>
@@ -101,11 +126,37 @@
                         </div>
                         <div class="volume-meter">
                             <div 
+                                v-if="inputGateEnabled"
+                                class="gate-cut-zone"
+                                :style="{ width: gateThresholdPercent + '%' }"
+                            />
+                            <div 
                                 class="volume-fill"
                                 :style="{ width: inputRightVolume + '%', backgroundColor: audio.volumeColor(inputRightVolume) }"
                             />
+                            <div 
+                                v-if="inputGateEnabled"
+                                class="gate-threshold-marker"
+                                :style="{ left: gateThresholdPercent + '%' }"
+                            />
                         </div>
                     </div>
+                </div>
+
+                <!-- Gate Threshold Slider -->
+                <div v-if="inputGateEnabled" class="mt-3 pt-3 border-t">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-muted-foreground">{{ t("input_gate_threshold") }}</span>
+                        <span class="text-xs font-mono text-muted-foreground">{{ inputGateThreshold }} dB</span>
+                    </div>
+                    <Slider 
+                        class="w-full" 
+                        :step="1" 
+                        :min="-60" 
+                        :max="0" 
+                        :modelValue="[inputGateThreshold]"
+                        @update:modelValue="(v: number[]) => onChangeInputGateThreshold(v[0])"
+                    />
                 </div>
             </div>
 
@@ -124,10 +175,17 @@
                         <div class="text-sm font-medium">{{ t("noise_sup") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("noise_sup_desc") }}</div>
                     </div>
-                    <Switch 
-                        :checked="preferenceStore.noiseSuppression" 
-                        @update:checked="onChangeNoiseSuppression"
-                    />
+                    <Select :modelValue="noiseSuppressionMode" @update:modelValue="(v: any) => onChangeNoiseSuppressionMode(v as NoiseSuppressionMode)">
+                        <SelectTrigger class="w-[180px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="off">{{ t("noise_sup_off") }}</SelectItem>
+                            <SelectItem value="rnnoise">{{ t("noise_sup_rnnoise") }}</SelectItem>
+                            <SelectItem value="speex">{{ t("noise_sup_speex") }}</SelectItem>
+                            <SelectItem value="noisegate">{{ t("noise_sup_gate") }}</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </div>
@@ -293,6 +351,7 @@ import {
     SelectValue,
 } from "@argon/ui/select";
 import { audio } from "@/lib/audio/AudioManager";
+import type { NoiseSuppressionMode } from "@/lib/audio/AudioManager";
 import { worklets } from "@/lib/audio/WorkletBase";
 import { DisposableBag, logger } from "@argon/core";
 import { useLocale } from "@/store/system/localeStore";
@@ -310,6 +369,7 @@ import {
     PlayIcon,
     Loader2Icon,
     BellIcon,
+    ScissorsIcon,
 } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -319,6 +379,22 @@ import type { Subscription } from "rxjs";
 const { t } = useLocale();
 const preferenceStore = usePreference();
 const tone = useTone();
+
+// Noise suppression mode
+const noiseSuppressionMode = ref<NoiseSuppressionMode>(preferenceStore.noiseSuppressionMode);
+
+// Input gate
+const inputGateEnabled = ref(preferenceStore.inputGateEnabled ?? false);
+const inputGateThreshold = ref(preferenceStore.inputGateThreshold ?? -40);
+const inputGateOpen = ref(true);
+
+// Map dB threshold to VU meter percentage (inverse of percentToDb)
+const gateThresholdPercent = computed(() => {
+    const db = inputGateThreshold.value;
+    if (db <= -60) return 0;
+    const amplitude = Math.pow(10, db / 20);
+    return Math.min(100, Math.pow(amplitude, 0.3) * 100);
+});
 
 // Helpers
 const formatDb = (db: number): string => {
@@ -486,6 +562,7 @@ async function startInputMonitoring() {
     }
 
     try {
+        // Raw mic for VU meter (shows pre-gate levels so user sees signal vs threshold)
         inputMediaStream = await audio.createRawInputMediaStream();
         inputSource = audio.getCurrentAudioContext().createMediaStreamSource(inputMediaStream);
 
@@ -496,15 +573,15 @@ async function startInputMonitoring() {
             .injectInto(inputDisposables);
 
         worklets.setEnabledVUNode(stm, preferenceStore.forceToMono);
-        const dest = audio.getCurrentAudioContext().createMediaStreamDestination();
 
         inputSource.connect(stm);
-        stm.connect(dest);
         stm.connect(vuNode);
 
         stmNode.value = stm;
 
-        monitoringAudio = (await audio.createAudioElement(dest.stream))
+        // Monitoring audio uses virtual stream (post noise-suppression + gate)
+        const virtualStream = await audio.getVirtualInputStream();
+        monitoringAudio = (await audio.createAudioElement(virtualStream))
             .injectInto(inputDisposables);
         monitoringAudio.muted = !isInputMonitoring.value;
         isInputVUEnabled.value = true;
@@ -567,14 +644,46 @@ async function onChangeForceToMono(x: boolean) {
 }
 
 // Noise suppression
-async function onChangeNoiseSuppression(x: boolean) {
-    preferenceStore.noiseSuppression = x;
-    await audio.setAudioConstraints({ noiseSuppression: x });
-    // Restart input monitoring to apply changes
-    if (isInputVUEnabled.value) {
-        stopInputMonitoring();
-        await startInputMonitoring();
+async function onChangeNoiseSuppressionMode(mode: NoiseSuppressionMode) {
+    noiseSuppressionMode.value = mode;
+    preferenceStore.noiseSuppressionMode = mode;
+    await audio.setNoiseSuppressionMode(mode);
+}
+
+// Input gate
+let gateStateSub: { dispose: () => void } | null = null;
+
+function onChangeInputGateEnabled(enabled: boolean) {
+    logger.info("Input gate enabled:", enabled);
+    
+    try { preferenceStore.inputGateEnabled = enabled; } catch {}
+
+    if (enabled) {
+        try {
+            gateStateSub?.dispose();
+            if (typeof audio.onInputGateStateChanged === 'function') {
+                gateStateSub = audio.onInputGateStateChanged((isOpen) => {
+                    inputGateOpen.value = isOpen;
+                });
+            }
+        } catch {}
+    } else {
+        gateStateSub?.dispose();
+        gateStateSub = null;
+        inputGateOpen.value = true;
     }
+
+    if (typeof audio.setInputGateEnabled === 'function') {
+        audio.setInputGateEnabled(enabled).catch((err: any) => {
+            logger.error("Failed to set input gate:", err);
+        });
+    }
+}
+
+function onChangeInputGateThreshold(db: number) {
+    inputGateThreshold.value = db;
+    preferenceStore.inputGateThreshold = db;
+    audio.setInputGateThreshold(db);
 }
 
 // Test sound
@@ -687,6 +796,8 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
     stopInputMonitoring();
     stopOutputMonitoring();
+    gateStateSub?.dispose();
+    gateStateSub = null;
     deviceSubscriptions.forEach(sub => sub.unsubscribe());
     deviceSubscriptions.length = 0;
 });
@@ -724,6 +835,45 @@ onUnmounted(() => {
 .volume-fill {
     @apply h-full transition-all duration-75 ease-out rounded-full;
     box-shadow: 0 0 8px currentColor;
+}
+
+.gate-cut-zone {
+    @apply absolute top-0 left-0 h-full rounded-l-full;
+    background: 
+        repeating-linear-gradient(
+            -45deg,
+            rgba(100, 100, 100, 0.25) 0px,
+            rgba(100, 100, 100, 0.25) 2px,
+            transparent 2px,
+            transparent 4px
+        ),
+        hsl(var(--muted));
+    transition: width 0.15s ease-out;
+    z-index: 5;
+}
+
+.gate-threshold-marker {
+    @apply absolute top-0 h-full w-0.5 bg-red-500/70 rounded-full;
+    transition: left 0.15s ease-out;
+    z-index: 10;
+}
+
+.gate-toggle-btn {
+    @apply p-1.5 rounded-md transition-all duration-200 cursor-pointer border;
+    color: hsl(var(--muted-foreground));
+    border-color: transparent;
+    background: transparent;
+}
+
+.gate-toggle-btn:hover {
+    @apply bg-accent;
+}
+
+.gate-toggle-btn.active {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 6px hsl(var(--primary) / 0.2);
 }
 
 .camera-preview-wrapper {

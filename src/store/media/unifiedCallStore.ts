@@ -129,7 +129,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   const isCameraOn = ref(false);
   let cameraTrackPub: any = null;
 
-  const isLocalAudioSilent = ref(false);
   const isCpuConstrained = ref(false);
   const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
   let cpuConstrainedResetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -203,7 +202,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isCameraOn.value = false;
     cameraTrackPub = null;
 
-    isLocalAudioSilent.value = false;
     isCpuConstrained.value = false;
     audioDeviceError.value = null;
     if (cpuConstrainedResetTimer) {
@@ -674,11 +672,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       isReconnecting.value = false;
       ping.value = -1;
       stopTimerRTT();
-    });
-
-    r.on("localAudioSilenceDetected", () => {
-      logger.warn("[CALL] Local audio silence detected — microphone may not be working");
-      isLocalAudioSilent.value = true;
     });
 
     r.localParticipant.on("localTrackCpuConstrained", () => {
@@ -1321,7 +1314,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isSharing,
     isCameraOn,
 
-    isLocalAudioSilent,
     isCpuConstrained,
     audioDeviceError,
 

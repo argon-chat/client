@@ -41,6 +41,7 @@
     "@microsoft/signalr-protocol-msgpack": "^10.0.0",
     "@phosphor-icons/vue": "^2.2.1",
     "@radix-icons/vue": "^1.0.0",
+    "@sapphi-red/web-noise-suppressor": "^0.3.5",
     "@sentry/vue": "^10.52.0",
     "@tabler/icons-vue": "^3.44.0",
     "@tailwindcss/typography": "^0.5.19",
