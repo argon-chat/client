@@ -312,7 +312,7 @@ const steps = computed(() => [
                                 <div class="space-y-3 pt-2">
                                     <div class="agreement-item">
                                         <Checkbox 
-                                            v-model:checked="allowSendMeOptionalEmails" 
+                                            v-model="allowSendMeOptionalEmails" 
                                             id="allowSendMeOptionalEmails" 
                                         />
                                         <label for="allowSendMeOptionalEmails" class="text-sm text-muted-foreground cursor-pointer">
@@ -322,7 +322,7 @@ const steps = computed(() => [
 
                                     <div class="agreement-item border border-primary/20 bg-primary/5 rounded-lg p-3">
                                         <Checkbox 
-                                            v-model:checked="agreeTos" 
+                                            v-model="agreeTos" 
                                             aria-required="true" 
                                             id="agreeTos" 
                                         />
