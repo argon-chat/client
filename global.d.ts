@@ -116,10 +116,26 @@ declare global {
     constructor(url: string, options?: WebSocketStreamOptions);
   }
 
+  /** Window controls exposed by the Electron preload bridge (absent on web). */
+  interface WindowManagementBridge {
+    minimize(): void;
+    maximize(): void;
+    close(): void;
+    isMaximized(): Promise<boolean>;
+    onMaximizeChange(callback: (isMaximized: boolean) => void): void;
+  }
+
   interface Window {
     ui_version: string;
     ui_buildtime: string;
     ui_fullversion: string;
     ui_branch: string;
+
+    // Electron preload bridge — optional because the app also runs on the web.
+    windowManagement?: WindowManagementBridge;
+    /** Host titlebar flag (0x1 = render the in-app titlebar). */
+    devolution_titlebar?: number;
+    ahid?: number;
+    argon_host_version_full?: string;
   }
 }

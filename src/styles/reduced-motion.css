@@ -1,0 +1,16 @@
+/*
+ * Respect the OS "reduce motion" accessibility setting globally.
+ * Near-zero (not 0) durations keep transitionend/animationend events firing,
+ * so libraries that wait on them still work — we just skip the visible motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -30,22 +30,20 @@ const tabValueForTabs = computed({
 </template>
 
 <style scoped>
-/* Fade + Scale transition for tab switching */
-.fade-scale-enter-active {
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+/* Fade + scale transition for switching between auth forms. */
+.fade-scale-enter-active,
 .fade-scale-leave-active {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
 }
 
 .fade-scale-enter-from {
   opacity: 0;
-  transform: scale(0.96) translateY(10px);
+  transform: scale(0.97) translateY(8px);
 }
 
 .fade-scale-leave-to {
   opacity: 0;
-  transform: scale(0.98) translateY(-5px);
+  transform: scale(0.98) translateY(-6px);
 }
 </style>

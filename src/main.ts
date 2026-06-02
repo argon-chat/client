@@ -3,6 +3,7 @@ import "vfonts/FiraCode.css";
 //@ts-ignore
 import "@argon/assets/styles";
 import "@argon-chat/emojix/style.css";
+import "./styles/reduced-motion.css";
 
 import "@argon/glue";
 import "@argon/glue/ipc";
@@ -41,6 +42,12 @@ export const i18n = createI18n<[CoreLocaleSchema], SupportedLocale>({
 const pinia = createPinia();
 const app = createApp(App);
 app.use(i18n);
+
+// Catch errors the <ErrorBoundary> can't (async, event handlers, watchers).
+// Set before Sentry.init so Sentry's Vue handler chains to this one.
+app.config.errorHandler = (err, _instance, info) => {
+  console.error(`[vue:errorHandler] ${info}`, err);
+};
 
 Sentry.init({
   app,

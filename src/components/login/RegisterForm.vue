@@ -138,8 +138,8 @@ const steps = computed(() => [
 </script>
 
 <template>
-    <div class="flex justify-center items-center min-h-screen">
-        <form @submit.prevent="handleSubmit" class="w-full max-w-[500px]">
+    <div class="flex justify-center items-center">
+        <form @submit.prevent="handleSubmit" novalidate class="w-[500px] max-w-full">
             <Card class="register-card">
                 <!-- Header inside card -->
                 <CardHeader class="text-center pb-2">

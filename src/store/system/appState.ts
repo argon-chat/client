@@ -26,107 +26,101 @@ export const useAppState = defineStore("app", () => {
   const isInitializing = ref(false);
   const loadingStep = ref("");
   const loadingProgress = ref(0);
-  const totalSteps = 10;
+  const totalSteps = ref(0);
   const hasInitError = ref(false);
   const initError = ref("");
 
+  // Cosmetic pause between steps so the progress bar reads as deliberate.
+  const STEP_DELAY = 100;
+
+  interface InitStep {
+    label: string;
+    run: () => void | Promise<void>;
+  }
+
   async function initializeArgonApp(): Promise<boolean> {
-    loadingStep.value = "Checking network...";
-    loadingProgress.value = 0;
+    const auth = useAuthStore();
+    let blocked = false;
 
-    while (!isOnline.value) {
-      logger.info("Waiting network online...");
-      await delay(1000);
-    }
+    // Auth-gated steps no-op when signed out; they stay in the list so the
+    // progress total is stable and the runner below stays a single flat loop.
+    const steps: InitStep[] = [
+      {
+        label: "Checking network...",
+        run: async () => {
+          while (!isOnline.value) {
+            logger.info("Waiting network online...");
+            await delay(1000);
+          }
+        },
+      },
+      { label: "Initializing audio engine...", run: () => useTone().init() },
+      { label: "Restoring session...", run: () => auth.restoreSession() },
+      { label: "Loading AI predictor...", run: () => usePredictor().init() },
+      {
+        label: "Initializing audio worklets...",
+        run: async () => {
+          await worklets.init();
 
-    loadingStep.value = "Initializing audio engine...";
-    loadingProgress.value = 1;
-    logger.info("Begin init tone audio engine...");
-    useTone().init();
-    await delay(100);
+          const pref = usePreference();
+          if (pref.noiseSuppressionMode !== "off") {
+            await audio
+              .setNoiseSuppressionMode(pref.noiseSuppressionMode)
+              .catch(err => logger.warn("Failed to apply noise suppression mode on startup:", err));
+          }
+          if (pref.inputGateEnabled) {
+            audio.setInputGateThreshold(pref.inputGateThreshold);
+            await audio
+              .setInputGateEnabled(true)
+              .catch(err => logger.warn("Failed to apply input gate on startup:", err));
+          }
+        },
+      },
+      { label: "Loading configurations...", run: () => useConfigStore().load() },
+      { label: "Initializing data store...", run: () => usePoolStore().init() },
+      {
+        label: "Loading user profile...",
+        run: async () => {
+          if (!auth.isAuthenticated) return;
+          const continueNext = await useMe().init();
+          if (!continueNext) {
+            router.push({ path: "/blocked.pg" });
+            blocked = true;
+          }
+        },
+      },
+      {
+        label: "Loading spaces and channels...",
+        run: async () => {
+          if (!auth.isAuthenticated) return;
+          await usePoolStore().loadServerDetails();
 
-    loadingStep.value = "Restoring session...";
-    loadingProgress.value = 2;
-    logger.info("Restoring session...");
-    const auth = await useAuthStore();
-    auth.restoreSession();
-    await delay(100);
+          const { useNotificationStore } = await import("@/store/data/notificationStore");
+          await useNotificationStore().initFromGlobalBadges();
 
-    loadingStep.value = "Loading AI predictor...";
-    loadingProgress.value = 3;
-    logger.info("Load wasm predictor...");
-    const predictor = usePredictor();
-    await predictor.init();
-    await delay(100);
+          await useMe().completeInit();
+          await useIdleStore().init();
+          await useActivity().init();
+        },
+      },
+    ];
 
-    loadingStep.value = "Initializing audio worklets...";
-    loadingProgress.value = 4;
-    logger.info("Load audio manager...");
-    await worklets.init();
+    totalSteps.value = steps.length;
 
-    // Apply saved noise suppression mode
-    const preferenceStore = usePreference();
-    if (preferenceStore.noiseSuppressionMode !== "off") {
-      await audio.setNoiseSuppressionMode(preferenceStore.noiseSuppressionMode).catch(err => {
-        logger.warn("Failed to apply noise suppression mode on startup:", err);
-      });
-    }
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      loadingStep.value = step.label;
+      loadingProgress.value = i + 1;
+      logger.info(step.label);
 
-    // Apply saved input gate settings
-    if (preferenceStore.inputGateEnabled) {
-      audio.setInputGateThreshold(preferenceStore.inputGateThreshold);
-      await audio.setInputGateEnabled(true).catch(err => {
-        logger.warn("Failed to apply input gate on startup:", err);
-      });
-    }
+      await step.run();
+      if (blocked) return false;
 
-    await delay(100);
-
-    loadingStep.value = "Loading configurations...";
-    loadingProgress.value = 5;
-    logger.info("Load configurations...");
-    await useConfigStore().load();
-    await delay(100);
-
-    loadingStep.value = "Initializing data store...";
-    loadingProgress.value = 7;
-    logger.info("Fetch data...");
-    const poolStore = usePoolStore();
-    await poolStore.init();
-    await delay(100);
-
-    if (auth.isAuthenticated) {
-      loadingStep.value = "Loading user profile...";
-      loadingProgress.value = 8;
-      const me = useMe();
-      const continueNext = await me.init();
-      await delay(100);
-
-      if (!continueNext) {
-        router.push({ path: "/blocked.pg" });
-        return false;
-      }
-
-      loadingStep.value = "Loading spaces and channels...";
-      loadingProgress.value = 9;
-      await poolStore.loadServerDetails();
-
-      // Load notification badges after auth + server data
-      const { useNotificationStore } = await import("@/store/data/notificationStore");
-      const notificationStore = useNotificationStore();
-      await notificationStore.initFromGlobalBadges();
-
-      await delay(100);
-
-      await me.completeInit();
-
-      await useIdleStore().init();
-      await useActivity().init();
+      await delay(STEP_DELAY);
     }
 
     loadingStep.value = "Finalizing...";
-    loadingProgress.value = 10;
-
+    loadingProgress.value = steps.length;
     return true;
   }
 

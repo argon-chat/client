@@ -71,8 +71,8 @@ const passwordStrengthWidth = computed(() => {
 </script>
 
 <template>
-  <div class="flex justify-center items-center min-h-screen">
-    <form @submit.prevent="onSubmit" class="w-full max-w-[420px]">
+  <div class="flex justify-center items-center">
+    <form @submit.prevent="onSubmit" novalidate class="w-[420px] max-w-full">
       <Card class="reset-card">
         <CardHeader class="text-center pb-2">
           <div class="flex justify-center mb-3">

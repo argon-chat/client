@@ -141,7 +141,7 @@ const __navTargets = {
 const __nav: Record<string, unknown> = {
   router,
   titlebar(on = true) {
-    (window as any).devolution_titlebar = on ? 0x1 : 0x0;
+    window.devolution_titlebar = on ? 0x1 : 0x0;
     // force re-eval of the shell's titlebar computed via a no-op re-nav
     return router.replace(router.currentRoute.value.fullPath);
   },

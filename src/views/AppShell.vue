@@ -28,7 +28,7 @@ onMounted(() => {
 });
 
 // Unified titlebar — present on every view in the shell, gated only by the host flag.
-const showTitlebar = computed(() => (window as any).devolution_titlebar === 0x1);
+const showTitlebar = computed(() => window.devolution_titlebar === 0x1);
 
 // Children read this to pad their content for the OS titlebar overlay area.
 provide("titlebarVisible", showTitlebar);

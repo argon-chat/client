@@ -71,14 +71,18 @@
             />
         </div>
 
-        <div v-if="loading" class="flex items-center justify-center flex-1 text-muted-foreground">
-            <div class="text-center space-y-2">
-                <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
-                <p class="text-sm">{{ t("loading") }}</p>
+        <div v-if="loading" class="flex flex-col gap-1 flex-1 overflow-hidden">
+            <div v-for="i in 8" :key="i" class="flex items-center gap-3 p-3 rounded-lg">
+                <Skeleton class="h-10 w-10 rounded-full shrink-0" />
+                <div class="flex flex-col gap-2 flex-1 min-w-0">
+                    <Skeleton class="h-3 w-40 max-w-[60%]" />
+                    <Skeleton class="h-2.5 w-24 max-w-[35%]" />
+                </div>
+                <Skeleton class="h-8 w-20 rounded-md shrink-0" />
             </div>
         </div>
 
-        <FriendList 
+        <FriendList
             v-else
             :items="filteredItems" 
             :loading="actionLoading" 
@@ -104,6 +108,7 @@ import { Badge } from "@argon/ui/badge";
 
 import { IconCookieManFilled, IconUserPlus } from "@tabler/icons-vue";
 import FriendList from "./FriendList.vue";
+import Skeleton from "@/components/shared/Skeleton.vue";
 
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";

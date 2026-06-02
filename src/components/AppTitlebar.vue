@@ -39,6 +39,12 @@ function onRuntimeError() {
 onMounted(() => {
   window.addEventListener('error', onRuntimeError);
   window.addEventListener('unhandledrejection', onRuntimeError);
+
+  // Sync the maximize/restore icon with the real window state: initial value
+  // (covers a restored-maximized launch) + OS-driven changes (snap, double-click).
+  const wm = window.windowManagement;
+  wm?.isMaximized().then((v) => (isMaximized.value = v));
+  wm?.onMaximizeChange((v) => (isMaximized.value = v));
 });
 
 onBeforeUnmount(() => {
@@ -102,19 +108,27 @@ function goHome() {
 }
 
 const windowMinimize = () => {
-  (window as any).windowManagement?.minimize?.();
+  window.windowManagement?.minimize?.();
 };
 const windowMaximize = async () => {
-  (window as any).windowManagement?.maximize?.();
-  isMaximized.value = await (window as any).windowManagement.isMaximized();
+  window.windowManagement?.maximize?.();
+  isMaximized.value = await window.windowManagement.isMaximized();
 };
 const windowClose = () => {
-  (window as any).windowManagement?.close?.();
+  window.windowManagement?.close?.();
+};
+
+// Frameless Windows/Linux don't auto-maximize on titlebar double-click — do it
+// ourselves. macOS handles its drag region natively, so skip there.
+const onTitlebarDblClick = (e: MouseEvent) => {
+  if (isMac.value) return;
+  if ((e.target as HTMLElement).closest('button')) return;
+  windowMaximize();
 };
 </script>
 
 <template>
-  <div class="app-titlebar" :class="{ 'app-titlebar--mac': isMac }">
+  <div class="app-titlebar" :class="{ 'app-titlebar--mac': isMac }" @dblclick="onTitlebarDblClick">
     <!-- Mac: traffic lights on the left -->
     <div v-if="isMac" class="titlebar-controls titlebar-controls--mac">
       <button class="mac-btn mac-close" @click="windowClose" title="Close">

@@ -3,14 +3,15 @@ import { Button } from "@argon/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@argon/ui/card";
 import { Input } from "@argon/ui/input";
 import { Label } from "@argon/ui/label";
-import { computed, onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch, nextTick } from "vue";
 import QRStyled from "./QRStyled.vue";
+import SmoothResize from "../shared/SmoothResize.vue";
 import { useApi } from "@/store/system/apiStore";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
-import { 
-    MailIcon, 
-    LockIcon, 
+import {
+    MailIcon,
+    LockIcon,
     LogInIcon,
     Loader2Icon,
     ArrowRightIcon,
@@ -35,11 +36,22 @@ const heading = ref(titles[0]);
 function pickRandomHeading() {
   heading.value = titles[Math.floor(Math.random() * titles.length)];
 }
-onMounted(() => pickRandomHeading());
 
 const qrLoginUrl = ref("https://www.youtube.com/watch?v=HIcSWuKMwOw");
 const step = ref<"email" | "password">("email");
 const showPassword = ref(false);
+const formEl = ref<HTMLFormElement | null>(null);
+
+// Focus whatever the single editable input is for the current step
+// (email step → email; password step → password, since email collapses to text).
+function focusActiveInput() {
+  nextTick(() => formEl.value?.querySelector<HTMLInputElement>("input")?.focus());
+}
+
+onMounted(() => {
+  pickRandomHeading();
+  focusActiveInput();
+});
 
 async function getLoginScenario(email: string): Promise<"pwd" | "otp" | "pwd-otp" | ""> {
   const scenario = await api.identityInteraction.GetAuthorizationScenarioFor({ email: email, phone: null, username: null });
@@ -68,148 +80,151 @@ async function handleNext() {
   }
 }
 
+// Enter / submit routes by step: continue on email, sign in on password.
+function handleFormSubmit() {
+  if (step.value === "email") handleNext();
+  else onSubmit();
+}
+
 watch(email, (newVal, oldVal) => {
   if (step.value === "password" && newVal !== oldVal) {
     step.value = "email";
   }
 });
+
+watch(step, () => focusActiveInput());
 </script>
 
 <template>
-  <div class="flex justify-center items-center min-h-screen">
-    <Card class="login-card flex flex-row overflow-hidden">
-      <form @submit.prevent="onSubmit" class="w-[400px] flex flex-col">
-        <CardHeader class="text-center pb-2">
-          <div class="flex justify-center mb-3">
-            <div class="icon-box">
-              <LogInIcon class="w-6 h-6 text-primary" />
+  <Card class="login-card flex flex-row overflow-hidden">
+    <form ref="formEl" @submit.prevent="handleFormSubmit" novalidate class="w-[400px] flex flex-col justify-center">
+      <CardHeader class="text-center pb-2">
+        <div class="flex justify-center mb-3">
+          <div class="icon-box">
+            <LogInIcon class="w-6 h-6 text-primary" />
+          </div>
+        </div>
+        <CardTitle class="text-2xl font-bold text-white">{{ heading.title }}</CardTitle>
+        <CardDescription class="text-muted-foreground">{{ heading.desc }}</CardDescription>
+      </CardHeader>
+
+      <CardContent class="pt-4">
+        <SmoothResize>
+          <div v-if="step === 'email'" key="email-step" class="space-y-4">
+            <div class="input-group">
+              <div class="flex items-center gap-2 mb-2">
+                <MailIcon class="w-4 h-4 text-primary" />
+                <Label for="email" class="text-sm font-medium">Email</Label>
+              </div>
+              <InputWithError
+                v-model="email"
+                :error="authError"
+                @clear-error="authError = ''"
+                type="email"
+                placeholder="example@email.com"
+                :disabled="isLoading"
+                id="email"
+                class="input-styled"
+              />
             </div>
           </div>
-          <CardTitle class="text-2xl font-bold text-white">{{ heading.title }}</CardTitle>
-          <CardDescription class="text-muted-foreground">{{ heading.desc }}</CardDescription>
-        </CardHeader>
 
-        <CardContent class="space-y-4 pt-4 flex-1">
-          <Transition name="slide" mode="out-in">
-            <div v-if="step === 'email'" key="email-step" class="space-y-4">
-              <div class="input-group">
-                <div class="flex items-center gap-2 mb-2">
+          <div v-else key="password-step" class="space-y-4">
+            <div class="input-group">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
                   <MailIcon class="w-4 h-4 text-primary" />
-                  <Label for="email" class="text-sm font-medium">Email</Label>
+                  <Label class="text-sm font-medium">Email</Label>
                 </div>
-                <div class="relative">
-                  <InputWithError 
-                    v-model="email" 
-                    :error="authError" 
-                    @clear-error="authError = ''" 
-                    type="email"
-                    placeholder="example@email.com" 
-                    :disabled="isLoading" 
-                    id="email"
-                    class="input-styled"
-                  />
-                </div>
+                <button type="button" @click="step = 'email'" class="text-xs text-primary hover:underline">
+                  {{ t("change") }}
+                </button>
+              </div>
+              <div class="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-sm text-muted-foreground truncate">
+                {{ email }}
               </div>
             </div>
 
-            <div v-else key="password-step" class="space-y-4">
-              <div class="input-group">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <MailIcon class="w-4 h-4 text-primary" />
-                    <Label class="text-sm font-medium">Email</Label>
-                  </div>
-                  <button type="button" @click="step = 'email'" class="text-xs text-primary hover:underline">
-                    {{ t("change") }}
-                  </button>
-                </div>
-                <div class="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-sm text-muted-foreground">
-                  {{ email }}
-                </div>
+            <div class="input-group">
+              <div class="flex items-center gap-2 mb-2">
+                <LockIcon class="w-4 h-4 text-primary" />
+                <Label for="password" class="text-sm font-medium">{{ t("password") }}</Label>
               </div>
-
-              <div class="input-group">
-                <div class="flex items-center gap-2 mb-2">
-                  <LockIcon class="w-4 h-4 text-primary" />
-                  <Label for="password" class="text-sm font-medium">{{ t("password") }}</Label>
-                </div>
-                <div class="relative">
-                  <Input 
-                    id="password" 
-                    v-model="password" 
-                    :type="showPassword ? 'text' : 'password'" 
-                    placeholder="••••••••" 
-                    class="input-styled pr-10"
-                    :disabled="isLoading" 
-                  />
-                  <button 
-                    type="button" 
-                    @click="showPassword = !showPassword"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-                  >
-                    <EyeOffIcon v-if="showPassword" class="w-4 h-4" />
-                    <EyeIcon v-else class="w-4 h-4" />
-                  </button>
-                </div>
-                <div class="flex justify-end mt-1">
-                  <a @click="goToResetPass" class="cursor-pointer text-xs text-primary hover:underline transition">
-                    {{ t("forgot_password") }}
-                  </a>
-                </div>
+              <div class="relative">
+                <Input
+                  id="password"
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  class="input-styled pr-10"
+                  :disabled="isLoading"
+                />
+                <button
+                  type="button"
+                  @click="showPassword = !showPassword"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                >
+                  <EyeOffIcon v-if="showPassword" class="w-4 h-4" />
+                  <EyeIcon v-else class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="flex justify-end mt-1">
+                <a @click="goToResetPass" class="cursor-pointer text-xs text-primary hover:underline transition">
+                  {{ t("forgot_password") }}
+                </a>
               </div>
             </div>
-          </Transition>
-        </CardContent>
+          </div>
+        </SmoothResize>
+      </CardContent>
 
-        <CardFooter class="flex flex-col gap-3 pt-2">
-          <Button 
-            v-if="step === 'email'" 
-            type="button" 
-            :disabled="isLoading || !email"
-            class="w-full btn-primary" 
-            @click="handleNext"
-          >
-            <Loader2Icon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-            <template v-else>
-              {{ t("continue") }}
-              <ArrowRightIcon class="w-4 h-4 ml-2" />
-            </template>
-          </Button>
+      <CardFooter class="flex flex-col gap-3 pt-4">
+        <Button
+          v-if="step === 'email'"
+          type="submit"
+          :disabled="isLoading || !email"
+          class="w-full btn-primary"
+        >
+          <Loader2Icon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+          <template v-else>
+            {{ t("continue") }}
+            <ArrowRightIcon class="w-4 h-4 ml-2" />
+          </template>
+        </Button>
 
-          <Button 
-            v-else 
-            type="submit" 
-            :disabled="isLoading" 
-            class="w-full btn-primary"
-          >
-            <Loader2Icon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
-            <template v-else>
-              <LogInIcon class="w-4 h-4 mr-2" />
-              {{ t("signin") }}
-            </template>
-          </Button>
+        <Button
+          v-else
+          type="submit"
+          :disabled="isLoading"
+          class="w-full btn-primary"
+        >
+          <Loader2Icon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+          <template v-else>
+            <LogInIcon class="w-4 h-4 mr-2" />
+            {{ t("signin") }}
+          </template>
+        </Button>
 
-          <p class="text-sm text-muted-foreground text-center">
-            {{ t("dont_have_account") }}
-            <a @click="props.auth.goToRegister()" class="cursor-pointer text-primary hover:underline transition font-medium">
-              {{ t("create_one") }}
-            </a>
-          </p>
-        </CardFooter>
-      </form>
+        <p class="text-sm text-muted-foreground text-center">
+          {{ t("dont_have_account") }}
+          <a @click="props.auth.goToRegister()" class="cursor-pointer text-primary hover:underline transition font-medium">
+            {{ t("create_one") }}
+          </a>
+        </p>
+      </CardFooter>
+    </form>
 
-      <div class="w-px bg-border/50"></div>
+    <div class="w-px bg-border/50"></div>
 
-      <div class="flex flex-col justify-center items-center p-6 w-[220px] text-center space-y-4 bg-background/30">
-        <div class="icon-box-sm">
-          <QrCodeIcon class="w-5 h-5 text-primary" />
-        </div>
-        <p class="text-sm font-medium text-white">{{ t("qr_code_login") }}</p>
-        <QRStyled :value="qrLoginUrl" :size="140" level="M" class="rounded-lg shadow-lg" />
-        <p class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
+    <div class="flex flex-col justify-center items-center p-6 w-[220px] text-center space-y-4 bg-background/30">
+      <div class="icon-box-sm">
+        <QrCodeIcon class="w-5 h-5 text-primary" />
       </div>
-    </Card>
-  </div>
+      <p class="text-sm font-medium text-white">{{ t("qr_code_login") }}</p>
+      <QRStyled :value="qrLoginUrl" :size="140" level="M" class="rounded-lg shadow-lg" />
+      <p class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
+    </div>
+  </Card>
 </template>
 
 <style scoped>
@@ -235,23 +250,8 @@ watch(email, (newVal, oldVal) => {
 }
 
 .btn-primary {
-  @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 
-         text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300;
-}
-
-/* Slide transition */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slide-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.slide-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
+  @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70
+         text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300
+         active:scale-[0.98];
 }
 </style>

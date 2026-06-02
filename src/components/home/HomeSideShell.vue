@@ -34,6 +34,7 @@ import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { useNotificationStore } from '@/store/data/notificationStore';
 import { useFeatureFlags } from '@/store/features/featureFlagsStore';
 import { useConfigStore } from '@/store/ui/configStore';
+import Skeleton from '@/components/shared/Skeleton.vue';
 
 const { t } = useLocale();
 const { dialpadActive, dmActive, inventoryActive, notificationActive } = useFeatureFlags();
@@ -82,9 +83,14 @@ const friendBadge = computed(() => ntf.notifications.friendRequests || 0);
 const inventoryBadge = computed(() => ntf.notifications.inventory || 0);
 
 // --- Data loading ---
+const chatsLoading = ref(true);
 async function loadChats() {
-    const res = await client.GetRecentChats(50, 0);
-    recentStore.setChats(res);
+    try {
+        const res = await client.GetRecentChats(50, 0);
+        recentStore.setChats(res);
+    } finally {
+        chatsLoading.value = false;
+    }
 }
 
 onMounted(() => {
@@ -208,6 +214,17 @@ const navItems = computed<NavItem[]>(() => [
             <!-- Chat list -->
             <div v-if="dmActive" class="flex-1 flex flex-col overflow-hidden min-h-0">
                 <div class="chat-list flex flex-col gap-0.5 px-1 overflow-y-auto flex-1">
+                    <!-- Loading skeletons -->
+                    <template v-if="chatsLoading && !hasAnyChats">
+                        <div v-for="i in 6" :key="`chat-sk-${i}`" class="flex items-center gap-2 px-2 py-1.5">
+                            <Skeleton class="h-9 w-9 rounded-full shrink-0" />
+                            <div class="flex flex-col gap-1.5 flex-1 min-w-0">
+                                <Skeleton class="h-2.5 w-24 max-w-[70%]" />
+                                <Skeleton class="h-2 w-32 max-w-[90%]" />
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Pinned section -->
                     <template v-if="filteredPinned.length > 0">
                         <div class="flex items-center gap-1.5 px-2 pt-2 pb-1">
@@ -246,7 +263,7 @@ const navItems = computed<NavItem[]>(() => [
                     />
 
                     <!-- Empty state -->
-                    <div v-if="!hasAnyChats" class="flex flex-col items-center justify-center py-8 text-center">
+                    <div v-if="!hasAnyChats && !chatsLoading" class="flex flex-col items-center justify-center py-8 text-center">
                         <p class="text-xs text-muted-foreground/70">
                             {{ searchQuery ? t('no_results') : t('no_recent_chats') }}
                         </p>
