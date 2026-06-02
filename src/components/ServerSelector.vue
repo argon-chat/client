@@ -1,6 +1,6 @@
 <template>
   <TooltipProvider :delay-duration="300">
-    <div class="server-list-container flex flex-col py-3 w-[72px] min-w-[72px] max-w-[72px] shrink-0">
+    <div class="server-list-container flex flex-col py-2 w-[50px] min-w-[50px] max-w-[50px] shrink-0">
       <!-- Scrollable rail -->
       <div
         class="rail-scroll flex-1 w-full flex flex-col gap-2"
@@ -13,7 +13,7 @@
             <div class="rail-slot group" :class="{ 'is-active': model == null }">
               <span class="rail-indicator" />
               <button class="rail-icon-btn rail-home" :class="{ 'is-active': model == null }" @click="goHome">
-                <IconHome class="w-5 h-5" />
+                <IconHome class="w-4 h-4" />
               </button>
             </div>
           </TooltipTrigger>
@@ -54,7 +54,7 @@
                   <ArgonAvatar
                     v-for="srv in getFolderServers(folder).slice(0, 4)"
                     :key="srv.spaceId"
-                    :class="['folder-mini', getFolderServers(folder).length === 1 ? 'w-8 h-8' : 'w-3.5 h-3.5']"
+                    :class="['folder-mini', getFolderServers(folder).length === 1 ? 'w-6 h-6' : 'w-3 h-3']"
                     :file-id="srv.avatarFieldId"
                     :space-id="srv.spaceId"
                     :fallback="initials(srv.name)"
@@ -90,7 +90,7 @@
         <TooltipTrigger as-child>
           <div class="rail-slot">
             <button class="rail-icon-btn rail-add" @click="createSpaceOpened = true">
-              <Plus class="w-5 h-5" />
+              <Plus class="w-4 h-4" />
             </button>
           </div>
         </TooltipTrigger>
@@ -373,7 +373,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 .server-list-container {
     background-color: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 15px;
+    border-radius: 12px;
 }
 
 /* Rail scroll — hidden scrollbar (no jitter, no eaten pixels). */
@@ -390,7 +390,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 }
 
 .rail-sep {
-    width: 32px;
+    width: 24px;
     margin: 2px auto;
     background: hsl(var(--border) / 0.6);
 }
@@ -415,14 +415,14 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     opacity: 0;
     transition: height 0.18s ease, opacity 0.18s ease;
 }
-.rail-slot:hover .rail-indicator { height: 18px; opacity: 0.6; }
-.rail-slot.is-active .rail-indicator { height: 36px; opacity: 1; }
+.rail-slot:hover .rail-indicator { height: 12px; opacity: 0.6; }
+.rail-slot.is-active .rail-indicator { height: 20px; opacity: 1; }
 
 /* ── Generic rail icon button (home / folder / add) ── */
 .rail-icon-btn {
     position: relative;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -435,7 +435,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 }
 .rail-slot:hover .rail-icon-btn,
 .rail-icon-btn.is-active {
-    border-radius: 16px;
+    border-radius: 12px;
 }
 .rail-home:hover { background: hsl(var(--primary) / 0.85); color: #fff; }
 .rail-home.is-active { background: hsl(var(--primary)); color: #fff; }
@@ -450,12 +450,12 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     align-content: center;
     justify-content: center;
     gap: 2px;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
 }
 .folder-mini {
     flex: 0 0 auto;
-    border-radius: 5px;
+    border-radius: 4px;
     overflow: hidden;
 }
 
@@ -464,16 +464,16 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     position: absolute;
     bottom: -2px;
     right: -2px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 9px;
+    border-radius: 8px;
     background: hsl(var(--destructive));
     color: hsl(var(--destructive-foreground));
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     border: 2px solid hsl(var(--card));
 }
@@ -481,8 +481,8 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #fff;
     border: 2px solid hsl(var(--card));
@@ -500,7 +500,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 }
 .rail-popover-grid {
     display: grid;
-    grid-template-columns: repeat(2, 48px);
+    grid-template-columns: repeat(2, 40px);
     gap: 8px;
 }
 

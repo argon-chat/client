@@ -101,19 +101,19 @@ const initials = (name: string) =>
 }
 
 .rail-slot:hover .rail-indicator {
-  height: 18px;
+  height: 12px;
   opacity: 0.6;
 }
 
 .rail-slot.is-active .rail-indicator {
-  height: 36px;
+  height: 20px;
   opacity: 1;
 }
 
 .rail-btn {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border: none;
   background: transparent;
   padding: 0;
@@ -135,11 +135,11 @@ const initials = (name: string) =>
 }
 
 .rail-slot:hover .rail-avatar {
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .rail-slot.is-active .rail-avatar {
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .rail-btn:active .rail-avatar {
@@ -150,8 +150,8 @@ const initials = (name: string) =>
   position: absolute;
   top: -2px;
   right: -2px;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   color: hsl(var(--primary));
   filter: drop-shadow(0 0 2px hsl(var(--card)));
   z-index: 2;
@@ -161,16 +161,16 @@ const initials = (name: string) =>
   position: absolute;
   bottom: -2px;
   right: -2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: 8px;
   background: hsl(var(--destructive));
   color: hsl(var(--destructive-foreground));
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   border: 2px solid hsl(var(--card));
   z-index: 2;
@@ -180,8 +180,8 @@ const initials = (name: string) =>
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid hsl(var(--card));
