@@ -43,12 +43,6 @@ function onHome() {
 }
 </script>
 
-<style scoped>
-.app-container {
-  background-color: #202225;
-}
-</style>
-
 <!--
   Shell-level view transition (Login ↔ Master ↔ Lockdown). NOT scoped: the
   classes are applied to the route component's root, which lives outside this
