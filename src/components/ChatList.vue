@@ -126,14 +126,14 @@
         </div>
       </template>
     </div>
-  </div>
 
-  <AddChannel
-    v-model:open="addChannelInGroupOpened"
-    v-model:group-id="selectedGroupId"
-    :selected-space="selectedSpaceId"
-    @close="addChannelInGroupOpened = false; selectedGroupId = null"
-  />
+    <AddChannel
+      v-model:open="addChannelInGroupOpened"
+      v-model:group-id="selectedGroupId"
+      :selected-space="selectedSpaceId"
+      @close="addChannelInGroupOpened = false; selectedGroupId = null"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">

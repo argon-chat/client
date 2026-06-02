@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container flex flex-col" style="width: 100svw; height: 100svh;">
+  <div class="app-container relative flex flex-col" style="width: 100svw; height: 100svh;">
     <AppTitlebar v-if="showTitlebar" @home="onHome" @feedback="feedbackOpened = true" />
 
     <div class="shell-content relative flex flex-1 min-h-0">

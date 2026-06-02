@@ -188,9 +188,8 @@ export function useTheme(config: ThemeConfig = {}) {
     const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
     root.classList.toggle("no-smooth-scroll", !smoothScroll.value);
 
-    // Ultrawide layout: center + cap content width (CSS gates it to wide aspect ratios)
-    const layoutMode = persistedValue<string>("appearance.layoutMode", "default");
-    root.classList.toggle("layout-follow-ultrawide", layoutMode.value === "ultrawide");
+    // NOTE: ultrawide layout + interface scale are applied in the renderer
+    // (@/composables/useUltrawide), not here.
 
     // Apply high contrast
     root.classList.toggle("high-contrast", highContrast.value);

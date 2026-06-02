@@ -153,43 +153,78 @@
                     <div class="text-xs text-muted-foreground">{{ lm.description }}</div>
                 </div>
             </div>
+
+            <!-- Ultrawide sub-settings -->
+            <div v-if="layoutMode === 'ultrawide'" class="mt-4 space-y-3">
+                <!-- Trigger threshold -->
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ tr("layout_threshold", "Apply on") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ tr("layout_threshold_desc", "Which screens get centered") }}</div>
+                    </div>
+                    <Select v-model="ultrawideThreshold">
+                        <SelectTrigger class="w-[200px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="ultra">{{ tr("layout_threshold_ultra", "Ultrawide only (21:9+)") }}</SelectItem>
+                                <SelectItem value="wide">{{ tr("layout_threshold_wide", "Any wide screen (16:10+)") }}</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <!-- Max width -->
+                <div class="setting-item flex-col items-start gap-3">
+                    <div class="w-full">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <div class="text-sm font-medium">{{ tr("layout_max_width", "Max content width") }}</div>
+                                <div class="text-xs text-muted-foreground">{{ tr("layout_max_width_desc", "Cap the centered column") }}</div>
+                            </div>
+                            <span class="text-sm font-mono text-primary">{{ ultrawideMaxWidth }}px</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs text-muted-foreground">{{ ULTRAWIDE_MIN }}</span>
+                            <Slider class="flex-1" :min="ULTRAWIDE_MIN" :max="ULTRAWIDE_MAX" :step="50" v-model="ultrawideMaxWidthArray" />
+                            <span class="text-xs text-muted-foreground">{{ ULTRAWIDE_MAX }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center titlebar -->
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ tr("layout_center_titlebar", "Align titlebar to content") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ tr("layout_center_titlebar_desc", "Keep the titlebar content above the centered column") }}</div>
+                    </div>
+                    <Switch v-model:checked="ultrawideCenterTitlebar" />
+                </div>
+            </div>
         </div>
 
-        <!-- UI Scale -->
-        <!-- TODO: Enable when webview2 zoom control is implemented
+        <!-- Interface Scale -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <MaximizeIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">UI Scale</h3>
+                <h3 class="text-lg font-semibold">{{ tr("ui_scale", "Interface scale") }}</h3>
             </div>
 
             <div class="setting-item flex-col items-start gap-3">
                 <div class="w-full">
                     <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <div class="text-sm font-medium">Interface Zoom</div>
-                            <div class="text-xs text-muted-foreground">Adjust overall interface size (DPI scaling)</div>
-                        </div>
+                        <div class="text-xs text-muted-foreground">{{ tr("ui_scale_desc", "Zoom the whole interface (useful on high-DPI / ultrawide displays).") }}</div>
                         <span class="text-sm font-mono text-primary">{{ uiScale }}%</span>
                     </div>
                     <div class="flex items-center gap-4">
-                        <span class="text-xs text-muted-foreground">80%</span>
-                        <Slider 
-                            class="flex-1" 
-                            :min="80" 
-                            :max="125" 
-                            :step="5" 
-                            v-model="uiScaleArray" 
-                        />
-                        <span class="text-xs text-muted-foreground">125%</span>
-                    </div>
-                    <div class="mt-2 text-xs text-muted-foreground text-center">
-                        💡 Useful for high-DPI displays or accessibility needs
+                        <span class="text-xs text-muted-foreground">{{ UI_SCALE_MIN }}%</span>
+                        <Slider class="flex-1" :min="UI_SCALE_MIN" :max="UI_SCALE_MAX" :step="5" v-model="uiScaleArray" />
+                        <span class="text-xs text-muted-foreground">{{ UI_SCALE_MAX }}%</span>
                     </div>
                 </div>
             </div>
         </div>
-        -->
 
         <!-- Border Radius -->
         <div class="setting-card">
@@ -397,6 +432,17 @@ import {
 import { persistedValue } from "@argon/storage";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
+import {
+    layoutMode,
+    ultrawideThreshold,
+    ultrawideMaxWidth,
+    ultrawideCenterTitlebar,
+    uiScale,
+    ULTRAWIDE_MIN,
+    ULTRAWIDE_MAX,
+    UI_SCALE_MIN,
+    UI_SCALE_MAX,
+} from "@/composables/useUltrawide";
 import { native } from "@argon/glue/native";
 import { useConfigStore } from "@/store/ui/configStore";
 
@@ -590,7 +636,7 @@ const fontFamily = persistedValue<string>("appearance.fontFamily", "Inter, sans-
 const fontSize = persistedValue<number>("appearance.fontSize", 14);
 const lineHeight = persistedValue<number>("appearance.lineHeight", 1.5);
 const uiDensity = persistedValue<string>("appearance.uiDensity", "comfortable");
-const layoutMode = persistedValue<string>("appearance.layoutMode", "default");
+// layoutMode + ultrawide.* live in @/composables/useUltrawide (shared singletons)
 // TODO: Enable when webview2 zoom control is implemented
 // const uiScale = persistedValue<number>("appearance.uiScale", 100);
 const borderRadius = persistedValue<number>("appearance.borderRadius", 0.75);
@@ -612,13 +658,15 @@ const lineHeightArray = ref([lineHeight.value]);
 // TODO: Enable when webview2 zoom control is implemented
 // const uiScaleArray = ref([uiScale.value]);
 const borderRadiusArray = ref([borderRadius.value]);
+const ultrawideMaxWidthArray = ref([ultrawideMaxWidth.value]);
+const uiScaleArray = ref([uiScale.value]);
 
 // Watch slider changes
 watch(fontSizeArray, (val) => fontSize.value = val[0]);
 watch(lineHeightArray, (val) => lineHeight.value = val[0]);
-// TODO: Enable when webview2 zoom control is implemented
-// watch(uiScaleArray, (val) => uiScale.value = val[0]);
 watch(borderRadiusArray, (val) => borderRadius.value = val[0]);
+watch(ultrawideMaxWidthArray, (val) => ultrawideMaxWidth.value = val[0]);
+watch(uiScaleArray, (val) => uiScale.value = val[0]);
 
 // Check if View Transitions are supported and user prefers animations
 const enableTransitions = () =>
@@ -702,7 +750,7 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
 
 // Watch all settings
 // TODO: Add uiScale back when webview2 zoom control is implemented
-watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
+watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, ultrawideThreshold, ultrawideMaxWidth, ultrawideCenterTitlebar, uiScale, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
     applyAppearanceSettingsController();
 });
 
@@ -724,8 +772,10 @@ const resetToDefaults = () => {
     lineHeight.value = 1.5;
     uiDensity.value = "comfortable";
     layoutMode.value = "default";
-    // TODO: Enable when webview2 zoom control is implemented
-    // uiScale.value = 100;
+    ultrawideThreshold.value = "ultra";
+    ultrawideMaxWidth.value = 1700;
+    ultrawideCenterTitlebar.value = true;
+    uiScale.value = 100;
     borderRadius.value = 0.75;
     accentColor.value = "blue";
     enableAnimations.value = true;
@@ -744,6 +794,8 @@ const resetToDefaults = () => {
     // TODO: Enable when webview2 zoom control is implemented
     // uiScaleArray.value = [100];
     borderRadiusArray.value = [0.75];
+    ultrawideMaxWidthArray.value = [1700];
+    uiScaleArray.value = [100];
 
     applyMaterial(defaultMaterial);
 

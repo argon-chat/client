@@ -1,29 +1,37 @@
 /*
  * "Follow ultrawide" layout mode (appearance.layoutMode === "ultrawide").
- * Centers the app content within a max width — but ONLY when the viewport is
- * actually ultra-wide (aspect ratio >= 2:1, i.e. 21:9 / 32:9). On 16:9 / 4K it
- * does nothing, so enabling it is harmless on normal displays.
- *
- * The titlebar stays full-width; only the content region below it is capped,
- * leaving the window background visible on both sides.
+ * Centers the app content within a max width (--ultrawide-max), applied only
+ * when the viewport matches the chosen aspect threshold:
+ *   layout-cap-ultra → >= 2:1  (21:9 / 32:9 only)
+ *   layout-cap-wide  → >= 16:10 (also 16:9 / 4K)
+ * The titlebar stays full-width unless "ultrawide-center-titlebar" is set, in
+ * which case its content is padded to align with the capped column.
  */
 :root {
   --ultrawide-max: 1700px;
 }
 
+/* Shared capping declarations for both thresholds. */
 @media (min-aspect-ratio: 2 / 1) {
-  html.layout-follow-ultrawide .shell-content {
+  html.layout-cap-ultra .shell-content,
+  html.layout-cap-ultra [data-slot="drawer-content"] {
     width: 100%;
     max-width: var(--ultrawide-max);
     margin-inline: auto;
   }
+  html.layout-cap-ultra.ultrawide-center-titlebar .app-titlebar {
+    padding-inline: max(4px, calc((100% - var(--ultrawide-max)) / 2));
+  }
+}
 
-  /* Drawers (settings / server settings / etc.) are portaled to <body> and
-     span full width when bottom/top-anchored — cap & center them too. The
-     overlay stays full-screen; the panel sits centered. left/right side
-     drawers are already narrow, so the cap is a no-op for them. */
-  html.layout-follow-ultrawide [data-slot="drawer-content"] {
+@media (min-aspect-ratio: 16 / 10) {
+  html.layout-cap-wide .shell-content,
+  html.layout-cap-wide [data-slot="drawer-content"] {
+    width: 100%;
     max-width: var(--ultrawide-max);
     margin-inline: auto;
+  }
+  html.layout-cap-wide.ultrawide-center-titlebar .app-titlebar {
+    padding-inline: max(4px, calc((100% - var(--ultrawide-max)) / 2));
   }
 }

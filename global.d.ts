@@ -123,6 +123,7 @@ declare global {
     close(): void;
     isMaximized(): Promise<boolean>;
     onMaximizeChange(callback: (isMaximized: boolean) => void): void;
+    setZoom(factor: number): void;
   }
 
   /** Native theme bridge: window theme source + OS accent (absent on web). */
