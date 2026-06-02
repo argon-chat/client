@@ -109,7 +109,7 @@ const getWidgetComponent = (widgetId: string | number) => {
 
 .widget-card {
     background-color: hsl(var(--card));
-    border-radius: 15px;
+    border-radius: var(--radius);
     border: 1px solid hsl(var(--border) / 0.5);
     transition: box-shadow 0.2s ease;
 }
@@ -164,7 +164,7 @@ const getWidgetComponent = (widgetId: string | number) => {
 :deep(.vue-grid-item.vue-grid-placeholder) {
     background: hsl(var(--primary) / 0.1);
     border: 2px dashed hsl(var(--primary) / 0.3);
-    border-radius: 15px;
+    border-radius: var(--radius);
     z-index: 2;
 }
 

@@ -18,6 +18,7 @@ export const FeatureFlagKeys = {
   ULTIMA_ACTIVE: "af.ultima.active",
   BOOSTS_ACTIVE: "af.boosts.active",
   SPLIT_VIEW_ACTIVE: "af.split-view.active",
+  UI_DENSITY_ACTIVE: "af.ui-density.active",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -31,7 +32,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.PROFILE_COINS_ACTIVE]: true,
     [FeatureFlagKeys.LEVELING_ACTIVE]: true,
     [FeatureFlagKeys.NOTIFICATION_ACTIVE]: false,
-    [FeatureFlagKeys.PLAYFRAME_ACTIVE]: false,
+    [FeatureFlagKeys.PLAYFRAME_ACTIVE]: true,
     [FeatureFlagKeys.USER_SETTINGS_PASSKEY_ACTIVE]: true,
     [FeatureFlagKeys.USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE]: false,
     [FeatureFlagKeys.DASHBOARD_ECHO_ACTIVE]: true,
@@ -39,6 +40,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.ULTIMA_ACTIVE]: false,
     [FeatureFlagKeys.BOOSTS_ACTIVE]: false,
     [FeatureFlagKeys.SPLIT_VIEW_ACTIVE]: false,
+    [FeatureFlagKeys.UI_DENSITY_ACTIVE]: false,
   });
 
   const isLoaded = ref(false);
@@ -77,6 +79,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const ultimaActive = computed(() => flags.value[FeatureFlagKeys.ULTIMA_ACTIVE]);
   const boostsActive = computed(() => flags.value[FeatureFlagKeys.BOOSTS_ACTIVE]);
   const splitViewActive = computed(() => flags.value[FeatureFlagKeys.SPLIT_VIEW_ACTIVE]);
+  const uiDensityActive = computed(() => flags.value[FeatureFlagKeys.UI_DENSITY_ACTIVE]);
 
   return {
     flags,
@@ -96,5 +99,6 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     ultimaActive,
     boostsActive,
     splitViewActive,
+    uiDensityActive,
   };
 });

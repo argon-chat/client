@@ -191,7 +191,7 @@ const formatColour = (argb: number) => {
 .user-list-outer {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 15px;
+  border-radius: var(--radius);
 }
 
 /* Header — minimal height by default; grows only when search expands. */
@@ -338,14 +338,14 @@ const formatColour = (argb: number) => {
   width: 100%;
   border: none;
   background: transparent;
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground) / 0.7);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 2px;
   padding: 4px 4px;
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 6px);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
@@ -403,7 +403,7 @@ const formatColour = (argb: number) => {
   align-items: center;
   gap: 10px;
   padding: 5px 6px;
-  border-radius: 10px;
+  border-radius: calc(var(--radius) - 4px);
   cursor: pointer;
   transition: background 0.15s ease;
   overflow: hidden;

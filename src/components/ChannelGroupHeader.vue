@@ -18,7 +18,7 @@
     <div class="group-label" @click="emit('toggle', group.groupId)">
       <ChevronRightIcon v-if="group.isCollapsed" class="group-chevron" />
       <ChevronDownIcon v-else class="group-chevron" />
-      <span class="group-name tracking-wide" :title="group.name">{{ group.name }}</span>
+      <span class="group-name" :title="group.name">{{ group.name }}</span>
     </div>
   </div>
 </template>
@@ -107,8 +107,9 @@ const emit = defineEmits<{
   max-width: 100%;
   min-width: 0;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 0.6875rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   background-color: hsl(var(--card));

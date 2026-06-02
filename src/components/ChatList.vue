@@ -375,7 +375,7 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 .empty-state-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background-color: hsl(var(--muted) / 0.5);
   display: flex;
   align-items: center;

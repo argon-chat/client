@@ -373,7 +373,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 .server-list-container {
     background-color: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 12px;
+    border-radius: var(--radius);
 }
 
 /* Rail scroll — hidden scrollbar (no jitter, no eaten pixels). */
@@ -435,7 +435,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 }
 .rail-slot:hover .rail-icon-btn,
 .rail-icon-btn.is-active {
-    border-radius: 12px;
+    border-radius: var(--radius);
 }
 .rail-home:hover { background: hsl(var(--primary) / 0.85); color: #fff; }
 .rail-home.is-active { background: hsl(var(--primary)); color: #fff; }
@@ -494,7 +494,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     z-index: 50;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
-    border-radius: 12px;
+    border-radius: var(--radius);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     padding: 8px;
 }
@@ -511,7 +511,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     min-width: 160px;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
-    border-radius: 10px;
+    border-radius: calc(var(--radius) - 2px);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     padding: 4px;
 }

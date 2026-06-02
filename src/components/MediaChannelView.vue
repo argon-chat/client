@@ -3,6 +3,10 @@
     <div ref="mediaChannelContainer" class="media-channel flex flex-col flex-1 min-h-0 transition-all duration-300 relative">
         <!-- Top Info Overlay -->
         <div class="media-info-bar">
+            <div class="info-pill channel-title" :title="channelName">
+                <Volume2 class="w-3.5 h-3.5 shrink-0" />
+                <span class="channel-title-name">{{ channelName }}</span>
+            </div>
             <div class="info-pill">
                 <Users2 class="w-3.5 h-3.5" />
                 <span>{{ allUsers.length }}</span>
@@ -158,11 +162,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
@@ -170,15 +175,22 @@ import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
 import {
-    Signal, Users2,
+    Signal, Users2, Volume2,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
 const api = useApi();
+const pool = usePoolStore();
 const { playframeActive } = useFeatureFlags();
 const { t } = useLocale();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
+
+// Channel name for the header (follows the selected voice channel).
+const channelName = ref("");
+watch(selectedChannelId, async (id) => {
+    channelName.value = id ? (await pool.getChannel(id))?.name ?? "" : "";
+}, { immediate: true });
 
 const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const mediaChannelContainer = ref<HTMLElement | null>(null);
@@ -242,7 +254,7 @@ onUnmounted(() => {
 <style scoped>
 .media-channel {
     border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 15px;
+    border-radius: var(--radius);
     background: hsl(var(--card) / 0.6);
     backdrop-filter: blur(8px);
 }
@@ -308,7 +320,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 4px;
     padding: 3px 8px;
-    border-radius: 8px;
+    border-radius: calc(var(--radius) - 4px);
     background: hsl(var(--card) / 0.85);
     backdrop-filter: blur(8px);
     border: 1px solid hsl(var(--border) / 0.3);
@@ -316,6 +328,18 @@ onUnmounted(() => {
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
+}
+
+.channel-title {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    max-width: 240px;
+}
+
+.channel-title-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .info-pill--clickable {

@@ -245,7 +245,7 @@ const openMeetingDetails = () => {
 .channel-inner {
   padding: 6px 8px;
   margin: 0 8px;
-  border-radius: 8px;
+  border-radius: calc(var(--radius) - 4px);
   cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease;
 }

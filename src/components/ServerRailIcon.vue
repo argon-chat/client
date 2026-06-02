@@ -135,11 +135,11 @@ const initials = (name: string) =>
 }
 
 .rail-slot:hover .rail-avatar {
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 .rail-slot.is-active .rail-avatar {
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 .rail-btn:active .rail-avatar {

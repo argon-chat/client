@@ -46,7 +46,7 @@ const me = useMe();
 .user-bar {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 15px;
+  border-radius: var(--radius);
   padding: 10px;
   display: flex;
   align-items: center;

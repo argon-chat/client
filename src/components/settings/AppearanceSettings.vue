@@ -120,8 +120,8 @@
             </div>
         </div>
 
-        <!-- UI Density -->
-        <div class="setting-card">
+        <!-- UI Density (feature-flagged) -->
+        <div v-if="uiDensityFeatureEnabled" class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <LayoutGridIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t("ui_density") }}</h3>
@@ -472,10 +472,13 @@ import {
     UI_SCALE_MAX,
 } from "@/composables/useUltrawide";
 import { splitTrigger, splitFeatureEnabled } from "@/composables/useSplitView";
+import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
 import { native } from "@argon/glue/native";
 import { useConfigStore } from "@/store/ui/configStore";
 
 const { t } = useLocale();
+const featureFlags = useFeatureFlags();
+const uiDensityFeatureEnabled = computed(() => featureFlags.isEnabled(FeatureFlagKeys.UI_DENSITY_ACTIVE));
 const toast = useToast();
 const { applyTheme: applyThemeController, applyAppearanceSettings: applyAppearanceSettingsController } = useTheme();
 const configStore = useConfigStore();
@@ -719,6 +722,7 @@ const applyMaterial = async (materialId: string) => {
     const mat = isOled.value ? 'solid' : materialId;
     const nativeMat = mat === 'solid' ? 'none' : mat; // 'none' for Electron's backgroundMaterial
     try {
+        //@ts-ignore
         await native.hostProc.setWindowMaterial(nativeMat);
         await configStore.setWindowMaterial(mat);
     } catch (e) {

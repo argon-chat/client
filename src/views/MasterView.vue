@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-1 gap-4 min-h-0 pb-4 pr-4 pl-4" :class="titlebarVisible ? 'pt-2' : 'pt-7'">
+  <div class="master-shell flex flex-1 gap-4 min-h-0 pb-4 pr-4 pl-4" :class="titlebarVisible ? 'pt-2' : 'pt-7'">
     <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
       :spaces="spaces" />
 

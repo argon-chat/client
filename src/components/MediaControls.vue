@@ -99,7 +99,7 @@ async function goShare(opts: {
     padding: 10px 14px;
     background-color: hsl(var(--card) / 0.8) ;
     border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 15px;
+    border-radius: var(--radius);
     flex-shrink: 0;
 }
 

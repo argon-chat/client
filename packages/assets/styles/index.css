@@ -284,6 +284,19 @@
 .density-compact .space-y-4 > * + * { margin-top: 0.625rem !important; }
 .density-compact .space-y-6 > * + * { margin-top: 0.875rem !important; }
 
+/* Compact layout — collapse the gaps between the top-level shell panels
+   (server rail ↔ workspace, and channel panel / chat / member list inside it)
+   plus the shell's outer side/bottom padding, for an edge-to-edge dense layout.
+   The top padding is kept (native titlebar overlay sits there); panel borders
+   and radii are left intact. */
+.density-compact .master-shell {
+  gap: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
+}
+.density-compact .server-workspace { gap: 0 !important; }
+
 .density-comfortable {
   --spacing: 0.75rem;
   --padding: 1rem;

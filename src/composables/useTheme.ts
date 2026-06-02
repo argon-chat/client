@@ -2,6 +2,7 @@
 import { useTheme as useBaseTheme, type ThemeId, accentColors, hexToHSL } from "@argon/theme";
 import { ref } from "vue";
 import { useConfigStore } from "@/store/ui/configStore";
+import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
 
 export type { ThemeId };
 export { accentColors, hexToHSL };
@@ -26,6 +27,14 @@ let lastNative: string | null = null;
 function createBase() {
   return useBaseTheme({
     systemAccent: () => systemAccent.value,
+    // UI-density control is feature-flagged; off → forced "comfortable".
+    uiDensityEnabled: () => {
+      try {
+        return useFeatureFlags().isEnabled(FeatureFlagKeys.UI_DENSITY_ACTIVE);
+      } catch {
+        return false; // pinia not ready yet
+      }
+    },
     onThemeChange: async (theme, nativeTheme) => {
       // Drive the native window theme (acrylic/mica tint + system resolution).
       const source = theme === "light" ? "light" : theme === "system" ? "system" : "dark";

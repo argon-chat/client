@@ -92,7 +92,7 @@ watch(
 <style lang="css" scoped>
 .chat-container {
   background-color: transparent;
-  border-radius: 15px;
+  border-radius: var(--radius);
 }
 
 .split-pane {

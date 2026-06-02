@@ -7,6 +7,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useUltimaStore } from "@/store/data/ultimaStore";
+import { useTheme } from "@/composables/useTheme";
 import {
   ArgonUser,
   ArgonUserProfile,
@@ -117,6 +118,9 @@ export const useMe = defineStore("me", () => {
     logger.info("Received user profile ", meProfile.value);
     
     await featureFlags.loadFeatureFlags();
+    // Density is feature-flagged — re-apply now that flags are known so a
+    // flag-enabled user's saved density takes effect (default stays comfortable).
+    try { useTheme().applyAppearanceSettings(); } catch { /* theme not ready */ }
     await ultimaStore.init();
     
     WelcomeCommanderHasReceived.value = true;

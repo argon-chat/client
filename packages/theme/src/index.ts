@@ -68,6 +68,12 @@ export interface ThemeConfig {
   onThemeChange?: (theme: ThemeId, nativeTheme: string) => void | Promise<void>;
   /** Resolved OS accent (e.g. "#3b82f6") — used when accentColor === "system". */
   systemAccent?: () => string | null;
+  /**
+   * Whether the user-facing UI-density control is enabled (feature-flagged).
+   * When false (the default for everyone), density is forced to "comfortable"
+   * regardless of any persisted value.
+   */
+  uiDensityEnabled?: () => boolean;
 }
 
 export function useTheme(config: ThemeConfig = {}) {
@@ -170,9 +176,11 @@ export function useTheme(config: ThemeConfig = {}) {
     root.style.setProperty("--primary", hsl);
     root.style.setProperty("--ring", hsl);
 
-    // Apply density
+    // Apply density — gated behind a feature flag; everyone defaults to
+    // "comfortable" unless the control is explicitly enabled.
     root.classList.remove("density-compact", "density-comfortable", "density-spacious");
-    root.classList.add(`density-${uiDensity.value}`);
+    const densityEnabled = config.uiDensityEnabled?.() ?? false;
+    root.classList.add(`density-${densityEnabled ? uiDensity.value : "comfortable"}`);
 
     // Apply animations
     if (!enableAnimations.value || reduceMotion.value) {

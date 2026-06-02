@@ -5,7 +5,7 @@
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
     <PopoverTrigger as-child>
-      <div class="user-element">
+      <div class="user-element" :class="{ 'is-offline': isOffline }">
         <div class="user-avatar-wrap">
           <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
             :overridedSize="34" />
@@ -23,7 +23,7 @@
     </PopoverTrigger>
   </Popover>
 
-  <div v-else class="user-element">
+  <div v-else class="user-element" :class="{ 'is-offline': isOffline }">
     <div class="user-avatar-wrap">
       <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
         :overridedSize="34" />
@@ -59,8 +59,8 @@ import {
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
-import { ref, onMounted } from "vue";
-import { ActivityPresenceKind, ReportTargetKind } from "@argon/glue";
+import { ref, computed, onMounted } from "vue";
+import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useProfileCacheStore } from "@/store/data/profileCacheStore";
@@ -79,6 +79,9 @@ const props = withDefaults(
 const me = useMe();
 const { t } = useLocale();
 const pool = usePoolStore();
+
+// Dim offline members (status dot already shows it; dim the whole row too).
+const isOffline = computed(() => props.user.status === UserStatus.Offline);
 const profileCache = useProfileCacheStore();
 const customStatus = ref<string | null>(null);
 
@@ -138,6 +141,15 @@ function onReportProfile(userId: string) {
   gap: 10px;
   min-width: 0;
   width: 100%;
+  transition: opacity 0.15s ease;
+}
+
+/* Offline members are dimmed (Discord-like); brighten on hover. */
+.user-element.is-offline {
+  opacity: 0.4;
+}
+.user-element.is-offline:hover {
+  opacity: 0.85;
 }
 
 .user-avatar-wrap {
