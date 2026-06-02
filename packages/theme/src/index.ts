@@ -3,7 +3,7 @@ import { logger } from "@argon/core";
 import { persistedValue } from "@argon/storage";
 import { computed } from "vue";
 
-export type ThemeId = "dark" | "light" | "oled";
+export type ThemeId = "dark" | "light" | "oled" | "system";
 
 export const accentColors: Record<string, string> = {
   blue: "#3b82f6",
@@ -66,6 +66,8 @@ const oledOverrides: Partial<Record<(typeof cssVars)[number], string>> = {
 
 export interface ThemeConfig {
   onThemeChange?: (theme: ThemeId, nativeTheme: string) => void | Promise<void>;
+  /** Resolved OS accent (e.g. "#3b82f6") — used when accentColor === "system". */
+  systemAccent?: () => string | null;
 }
 
 export function useTheme(config: ThemeConfig = {}) {
@@ -81,29 +83,42 @@ export function useTheme(config: ThemeConfig = {}) {
     // Remove all inline style overrides first
     cssVars.forEach((v) => html.style.removeProperty(v));
 
-    logger.info("[theme] applyTheme:", theme);
+    // Resolve "system" to the OS preference. Electron drives prefers-color-scheme
+    // through nativeTheme.themeSource = 'system'.
+    const resolved =
+      theme === "system"
+        ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : theme;
 
-    // Apply theme
-    if (theme === "oled") {
+    logger.info("[theme] applyTheme:", theme, "→", resolved);
+
+    // Apply resolved appearance
+    if (resolved === "oled") {
       html.classList.add("dark");
-      // Apply OLED-specific overrides
       Object.entries(oledOverrides).forEach(([key, value]) => {
         html.style.setProperty(key, value);
       });
-    } else if (theme === "light") {
+    } else if (resolved === "light") {
       // Light theme - no dark class, use CSS defaults
     } else {
       // Dark theme (default) - add dark class
       html.classList.add("dark");
     }
 
-    currentTheme.value = theme;
+    currentTheme.value = theme; // persist the chosen mode (may be "system")
 
     // Update body class for theme-specific background
-    document.body.classList.toggle("oled-theme", theme === "oled");
+    document.body.classList.toggle("oled-theme", resolved === "oled");
 
     // Notify native host if callback provided
-    const nativeTheme = theme === "dark" ? "Dark" : theme === "light" ? "White" : "OLED";
+    const nativeTheme =
+      theme === "system"
+        ? "System"
+        : resolved === "dark"
+          ? "Dark"
+          : resolved === "light"
+            ? "White"
+            : "OLED";
     config.onThemeChange?.(theme, nativeTheme);
   };
 
@@ -145,8 +160,12 @@ export function useTheme(config: ThemeConfig = {}) {
     // Apply border radius
     root.style.setProperty("--radius", `${borderRadius.value}rem`);
 
-    // Apply accent color - convert hex to HSL and set as primary
-    const colorValue = accentColors[accentColor.value] || "#3b82f6";
+    // Apply accent color - convert hex to HSL and set as primary.
+    // "system" uses the OS accent provided by the host.
+    let colorValue = accentColors[accentColor.value] || "#3b82f6";
+    if (accentColor.value === "system") {
+      colorValue = config.systemAccent?.() || colorValue;
+    }
     const hsl = hexToHSL(colorValue);
     root.style.setProperty("--primary", hsl);
     root.style.setProperty("--ring", hsl);
@@ -168,6 +187,10 @@ export function useTheme(config: ThemeConfig = {}) {
     // Apply smooth scroll preference
     const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
     root.classList.toggle("no-smooth-scroll", !smoothScroll.value);
+
+    // Ultrawide layout: center + cap content width (CSS gates it to wide aspect ratios)
+    const layoutMode = persistedValue<string>("appearance.layoutMode", "default");
+    root.classList.toggle("layout-follow-ultrawide", layoutMode.value === "ultrawide");
 
     // Apply high contrast
     root.classList.toggle("high-contrast", highContrast.value);

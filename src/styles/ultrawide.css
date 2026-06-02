@@ -1,0 +1,29 @@
+/*
+ * "Follow ultrawide" layout mode (appearance.layoutMode === "ultrawide").
+ * Centers the app content within a max width — but ONLY when the viewport is
+ * actually ultra-wide (aspect ratio >= 2:1, i.e. 21:9 / 32:9). On 16:9 / 4K it
+ * does nothing, so enabling it is harmless on normal displays.
+ *
+ * The titlebar stays full-width; only the content region below it is capped,
+ * leaving the window background visible on both sides.
+ */
+:root {
+  --ultrawide-max: 1700px;
+}
+
+@media (min-aspect-ratio: 2 / 1) {
+  html.layout-follow-ultrawide .shell-content {
+    width: 100%;
+    max-width: var(--ultrawide-max);
+    margin-inline: auto;
+  }
+
+  /* Drawers (settings / server settings / etc.) are portaled to <body> and
+     span full width when bottom/top-anchored — cap & center them too. The
+     overlay stays full-screen; the panel sits centered. left/right side
+     drawers are already narrow, so the cap is a no-op for them. */
+  html.layout-follow-ultrawide [data-slot="drawer-content"] {
+    max-width: var(--ultrawide-max);
+    margin-inline: auto;
+  }
+}

@@ -40,15 +40,15 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     await load();
   };
 
-  const setTheme = async (theme: "Dark" | "White" | "OLED") => {
+  const setTheme = async (theme: "Dark" | "White" | "OLED" | "System") => {
     if (argon.isArgonHost)
       await setValue_raw({
         key: "Theme",
         section: "appearance",
         valueB: null,
-        valueEnum: theme,
+        valueEnum: null,
         valueNum: null,
-        valueStr: null,
+        valueStr: theme, // Theme is a String config key
         valueF: null,
       });
   };

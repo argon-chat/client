@@ -125,6 +125,14 @@ declare global {
     onMaximizeChange(callback: (isMaximized: boolean) => void): void;
   }
 
+  /** Native theme bridge: window theme source + OS accent (absent on web). */
+  interface ArgonThemeBridge {
+    setSource(source: "dark" | "light" | "system"): Promise<boolean>;
+    getAccent(): Promise<string | null>;
+    isSystemDark(): Promise<boolean>;
+    onSystemUpdated(callback: (data: { dark: boolean; accent: string | null }) => void): void;
+  }
+
   interface Window {
     ui_version: string;
     ui_buildtime: string;
@@ -133,6 +141,7 @@ declare global {
 
     // Electron preload bridge — optional because the app also runs on the web.
     windowManagement?: WindowManagementBridge;
+    argonTheme?: ArgonThemeBridge;
     /** Host titlebar flag (0x1 = render the in-app titlebar). */
     devolution_titlebar?: number;
     ahid?: number;

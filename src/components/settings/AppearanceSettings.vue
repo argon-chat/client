@@ -9,7 +9,7 @@
                 <h3 class="text-lg font-semibold">{{ t("theme") }}</h3>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 gap-3">
                 <div v-for="theme in themes" :key="theme.id" class="theme-card"
                     :class="{ 'theme-selected': currentTheme === theme.id }" @click="(e) => selectTheme(theme.id, e)">
                     <div class="theme-preview" :style="theme.preview">
@@ -137,6 +137,24 @@
             </div>
         </div>
 
+        <!-- Layout (ultrawide) -->
+        <div class="setting-card">
+            <div class="flex items-center gap-2 mb-4">
+                <MonitorIcon class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold">{{ tr("layout", "Layout") }}</h3>
+            </div>
+            <p class="text-xs text-muted-foreground mb-4">{{ tr("layout_desc", "On ultra-wide displays, center the app within a max width instead of stretching edge to edge.") }}</p>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div v-for="lm in layoutModes" :key="lm.id" class="density-card"
+                    :class="{ 'density-selected': layoutMode === lm.id }" @click="layoutMode = lm.id">
+                    <component :is="lm.icon" class="w-8 h-8 mx-auto mb-2 text-primary" />
+                    <div class="text-sm font-medium">{{ lm.name }}</div>
+                    <div class="text-xs text-muted-foreground">{{ lm.description }}</div>
+                </div>
+            </div>
+        </div>
+
         <!-- UI Scale -->
         <!-- TODO: Enable when webview2 zoom control is implemented
         <div class="setting-card">
@@ -209,6 +227,15 @@
             </div>
 
             <div class="grid grid-cols-8 gap-2">
+                <!-- System accent (uses the OS accent color) -->
+                <button class="accent-color-btn accent-system"
+                    :class="{ 'accent-selected': accentColor === 'system' }"
+                    :style="systemAccent ? { backgroundColor: systemAccent } : undefined"
+                    @click="accentColor = 'system'" :title="t('accent_system') === 'accent_system' ? 'System accent' : t('accent_system')">
+                    <CheckIcon v-if="accentColor === 'system'" class="w-4 h-4 text-white" />
+                    <MonitorIcon v-else class="w-4 h-4 text-white/90" />
+                </button>
+
                 <button v-for="color in accentColors" :key="color.id" class="accent-color-btn"
                     :class="{ 'accent-selected': accentColor === color.id }" :style="{ backgroundColor: color.value }"
                     @click="accentColor = color.id" :title="color.name">
@@ -365,10 +392,11 @@ import {
     EyeIcon,
     GlassWaterIcon,
     InfoIcon,
+    MonitorIcon,
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
 import { useToast } from "@argon/ui/toast";
-import { useTheme, type ThemeId } from "@/composables/useTheme";
+import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
 import { native } from "@argon/glue/native";
 import { useConfigStore } from "@/store/ui/configStore";
 
@@ -396,6 +424,14 @@ const themes = [
         }
     },
     {
+        id: "system",
+        name: t("theme_system") === "theme_system" ? "System" : t("theme_system"),
+        description: t("theme_system_desc") === "theme_system_desc" ? "Follow OS" : t("theme_system_desc"),
+        preview: {
+            background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 49%, #ededed 51%, #ffffff 100%)"
+        }
+    },
+    {
         id: "oled",
         name: t("theme_oled"),
         description: t("theme_oled_desc"),
@@ -419,6 +455,13 @@ const densities = [
     { id: "compact", name: t("density_compact"), description: t("density_compact_desc"), icon: MinimizeIcon },
     { id: "comfortable", name: t("density_comfortable"), description: t("density_comfortable_desc"), icon: ShrinkIcon },
     { id: "spacious", name: t("density_spacious"), description: t("density_spacious_desc"), icon: MaximizeIcon }
+];
+
+// Layout modes (ultrawide support)
+const tr = (key: string, fallback: string) => (t(key) === key ? fallback : t(key));
+const layoutModes = [
+    { id: "default", name: tr("layout_default", "Default"), description: tr("layout_default_desc", "Use the full window width"), icon: MaximizeIcon },
+    { id: "ultrawide", name: tr("layout_ultrawide", "Follow ultrawide"), description: tr("layout_ultrawide_desc", "Center content on ultra-wide screens"), icon: MinimizeIcon }
 ];
 
 // Color blind modes with color palette visualization
@@ -547,6 +590,7 @@ const fontFamily = persistedValue<string>("appearance.fontFamily", "Inter, sans-
 const fontSize = persistedValue<number>("appearance.fontSize", 14);
 const lineHeight = persistedValue<number>("appearance.lineHeight", 1.5);
 const uiDensity = persistedValue<string>("appearance.uiDensity", "comfortable");
+const layoutMode = persistedValue<string>("appearance.layoutMode", "default");
 // TODO: Enable when webview2 zoom control is implemented
 // const uiScale = persistedValue<number>("appearance.uiScale", 100);
 const borderRadius = persistedValue<number>("appearance.borderRadius", 0.75);
@@ -627,9 +671,10 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
         `circle(${endRadius}px at ${x}px ${y}px)`
     ];
 
-    const isDarkTheme = themeId === 'dark' || themeId === 'oled';
-    const wasLight = currentTheme.value === 'light';
-    const goingToDark = isDarkTheme && wasLight;
+    const osDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
+    const resolvedDark = (id: string) =>
+        id === 'dark' || id === 'oled' || (id === 'system' && osDark);
+    const goingToDark = resolvedDark(themeId) && !resolvedDark(currentTheme.value);
 
     // @ts-ignore - startViewTransition is not yet in TypeScript types
     const transition = document.startViewTransition(async () => {
@@ -657,7 +702,7 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
 
 // Watch all settings
 // TODO: Add uiScale back when webview2 zoom control is implemented
-watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
+watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
     applyAppearanceSettingsController();
 });
 
@@ -678,6 +723,7 @@ const resetToDefaults = () => {
     fontSize.value = 14;
     lineHeight.value = 1.5;
     uiDensity.value = "comfortable";
+    layoutMode.value = "default";
     // TODO: Enable when webview2 zoom control is implemented
     // uiScale.value = 100;
     borderRadius.value = 0.75;
@@ -793,6 +839,11 @@ onMounted(() => {
 
 .accent-selected {
     @apply border-white ring-2 ring-offset-2 ring-primary scale-110;
+}
+
+/* System accent — fallback swatch when the OS accent is unknown. */
+.accent-system {
+    background: linear-gradient(135deg, #3b82f6, #a855f7);
 }
 
 /* Preview box */
