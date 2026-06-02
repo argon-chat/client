@@ -38,6 +38,27 @@ export const useAppState = defineStore("app", () => {
     run: () => void | Promise<void>;
   }
 
+  // Authenticated-user data load — shared by first-run init and post-login flow.
+  async function loadProfile(): Promise<boolean> {
+    const continueNext = await useMe().init();
+    if (!continueNext) {
+      router.push({ path: "/blocked.pg" });
+      return false; // blocked
+    }
+    return true;
+  }
+
+  async function loadUserData(): Promise<void> {
+    await usePoolStore().loadServerDetails();
+
+    const { useNotificationStore } = await import("@/store/data/notificationStore");
+    await useNotificationStore().initFromGlobalBadges();
+
+    await useMe().completeInit();
+    await useIdleStore().init();
+    await useActivity().init();
+  }
+
   async function initializeArgonApp(): Promise<boolean> {
     const auth = useAuthStore();
     let blocked = false;
@@ -82,25 +103,14 @@ export const useAppState = defineStore("app", () => {
         label: "Loading user profile...",
         run: async () => {
           if (!auth.isAuthenticated) return;
-          const continueNext = await useMe().init();
-          if (!continueNext) {
-            router.push({ path: "/blocked.pg" });
-            blocked = true;
-          }
+          if (!(await loadProfile())) blocked = true;
         },
       },
       {
         label: "Loading spaces and channels...",
         run: async () => {
           if (!auth.isAuthenticated) return;
-          await usePoolStore().loadServerDetails();
-
-          const { useNotificationStore } = await import("@/store/data/notificationStore");
-          await useNotificationStore().initFromGlobalBadges();
-
-          await useMe().completeInit();
-          await useIdleStore().init();
-          await useActivity().init();
+          await loadUserData();
         },
       },
     ];
@@ -163,8 +173,28 @@ export const useAppState = defineStore("app", () => {
     }
   }
 
+  /**
+   * Post-authentication continuation — quietly loads the just-signed-in user's
+   * data and routes into the app. No full-screen loader: the form's own button
+   * spinner covers the brief wait and the shell animates the view in. Hard
+   * reload is kept only as a last-resort fallback on failure.
+   */
+  async function continueAfterLogin(): Promise<void> {
+    try {
+      if (!(await loadProfile())) return; // blocked → already routed to /blocked.pg
+      await loadUserData();
+      isLoaded.value = true;
+      logger.success("Post-login init complete");
+      router.push({ path: "/master.pg" });
+    } catch (e) {
+      logger.error("Post-login init failed, reloading as fallback:", e);
+      window.location.reload();
+    }
+  }
+
   return {
     initApp,
+    continueAfterLogin,
     isFailedLoad,
     isLoaded,
     isInitializing,

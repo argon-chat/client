@@ -1,5 +1,6 @@
 import { ref, computed, watch } from "vue";
 import { useAuthStore } from "@/store/auth/authStore";
+import { useAppState } from "@/store/system/appState";
 import { AuthorizationError } from "@argon/glue";
 import { DateOnly } from "@argon-chat/ion.webcore";
 import type { DateValue } from "reka-ui";
@@ -91,7 +92,8 @@ export function useAuthForm() {
         }
       }
       if (authStore.isAuthenticated) {
-        window.location.reload();
+        // Smoothly load the user's data and route in — no hard page reload.
+        await useAppState().continueAfterLogin();
       }
     } catch (err) {
       console.error("Auth error:", err);
