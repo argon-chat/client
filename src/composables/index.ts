@@ -21,4 +21,3 @@ export { useSnakeGame } from './useSnakeGame';
 export { useTheme } from './useTheme';
 export { useVersionChecker } from './useVersionChecker';
 export { useLinuxUpdateChecker } from './useLinuxUpdateChecker';
-export { useWebGLBackground } from './useWebGLBackground';

@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-red-500 font-mono">
+  <div class="lockdown-view flex flex-col items-center justify-center min-h-full w-full overflow-y-auto bg-[#0a0a0a] text-red-500 font-mono">
     <div class="text-center mb-10 title-wrap">
       <h1 class="title">{{ isBadClient ? 'Client Configuration Error' : 'Account Suspended' }}</h1>
     </div>
@@ -234,9 +234,8 @@ const cells = classifyLockdown(me.limitation?.lockdownReason ?? LockdownReason.N
   --bg: #0a0a0a;
 }
 
-.app-container {
+.lockdown-view {
   position: relative;
-  overflow: hidden;
 }
 
 .title-wrap {

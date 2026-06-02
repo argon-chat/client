@@ -17,7 +17,7 @@ const tabValueForTabs = computed({
 </script>
 
 <template>
-  <div class="mx-auto flex w-full flex-col justify-center flex-1 min-h-0">
+  <div class="mx-auto flex w-full flex-col items-center justify-center flex-1 min-h-0">
     <Transition name="fade-scale" mode="out-in">
       <LoginForm v-if="tabValueForTabs == 'login'" key="login" :auth="auth" />
       <RegisterForm v-else-if="tabValueForTabs == 'register'" key="register" :auth="auth" />
