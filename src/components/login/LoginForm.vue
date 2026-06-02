@@ -6,6 +6,8 @@ import { Label } from "@argon/ui/label";
 import { onMounted, ref, watch, nextTick } from "vue";
 import QRStyled from "./QRStyled.vue";
 import SmoothResize from "../shared/SmoothResize.vue";
+import BorderTrace from "../shared/BorderTrace.vue";
+import { ExclamationTriangleIcon } from "@radix-icons/vue";
 import { useApi } from "@/store/system/apiStore";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
@@ -41,6 +43,8 @@ const qrLoginUrl = ref("https://www.youtube.com/watch?v=HIcSWuKMwOw");
 const step = ref<"email" | "password">("email");
 const showPassword = ref(false);
 const formEl = ref<HTMLFormElement | null>(null);
+// Bumped on each new error to replay the BorderTrace error pulse.
+const traceKey = ref(0);
 
 // Focus whatever the single editable input is for the current step
 // (email step → email; password step → password, since email collapses to text).
@@ -93,10 +97,22 @@ watch(email, (newVal, oldVal) => {
 });
 
 watch(step, () => focusActiveInput());
+
+// Pulse the card border whenever a new auth error appears.
+watch(authError, (v, prev) => {
+  if (v && !prev) traceKey.value++;
+});
+
+// Clear the error once the user starts correcting the password.
+watch(password, () => {
+  if (authError.value) authError.value = "";
+});
 </script>
 
 <template>
-  <Card class="login-card flex flex-row overflow-hidden">
+  <Card class="login-card relative flex flex-row overflow-hidden">
+    <BorderTrace v-if="traceKey > 0" :key="traceKey" />
+
     <form ref="formEl" @submit.prevent="handleFormSubmit" novalidate class="w-[400px] flex flex-col justify-center">
       <CardHeader class="text-center pb-2">
         <div class="flex justify-center mb-3">
@@ -136,7 +152,7 @@ watch(step, () => focusActiveInput());
                   <MailIcon class="w-4 h-4 text-primary" />
                   <Label class="text-sm font-medium">Email</Label>
                 </div>
-                <button type="button" @click="step = 'email'" class="text-xs text-primary hover:underline">
+                <button type="button" @click="step = 'email'; authError = ''" class="text-xs text-primary hover:underline">
                   {{ t("change") }}
                 </button>
               </div>
@@ -145,7 +161,18 @@ watch(step, () => focusActiveInput());
               </div>
             </div>
 
-            <div class="input-group">
+            <div class="input-group relative">
+              <Transition name="slide-fade">
+                <div v-if="authError" role="alert" class="absolute top-[-6px] right-[-8px] z-20 px-2 py-0.5
+                     bg-popover/95 backdrop-blur-sm border border-red-500
+                     text-red-500 dark:text-red-400 text-[12px] font-mono tracking-wider
+                     rounded-md shadow-lg flex items-center gap-1
+                     translate-x-2 -translate-y-1">
+                  <ExclamationTriangleIcon class="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{{ authError }}</span>
+                </div>
+              </Transition>
+
               <div class="flex items-center gap-2 mb-2">
                 <LockIcon class="w-4 h-4 text-primary" />
                 <Label for="password" class="text-sm font-medium">{{ t("password") }}</Label>
@@ -253,5 +280,17 @@ watch(step, () => focusActiveInput());
   @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70
          text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300
          active:scale-[0.98];
+}
+
+/* Error badge in/out — matches InputWithError. */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-2px);
 }
 </style>

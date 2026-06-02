@@ -1,7 +1,19 @@
 import { ref, computed, watch } from "vue";
 import { useAuthStore } from "@/store/auth/authStore";
+import { AuthorizationError } from "@argon/glue";
 import { DateOnly } from "@argon-chat/ion.webcore";
 import type { DateValue } from "reka-ui";
+
+function describeAuthError(error: AuthorizationError): string {
+  switch (error) {
+    case AuthorizationError.BAD_CREDENTIALS:
+      return "Incorrect email or password";
+    case AuthorizationError.BAD_OTP:
+      return "Incorrect verification code";
+    default:
+      return "Couldn't sign you in. Check your connection and try again.";
+  }
+}
 
 export type TabType =
   | "login"
@@ -45,6 +57,7 @@ export function useAuthForm() {
 
   async function onSubmit() {
     isLoading.value = true;
+    authError.value = "";
     try {
       if (isResetPass.value) {
         if (tabValue.value === "otp-reset") {
@@ -65,7 +78,7 @@ export function useAuthForm() {
           birthDate: decomposeDateOfBirth(),
         });
       } else {
-        await authStore.login(
+        const error = await authStore.login(
           email.value,
           password.value,
           otpCode.value || undefined,
@@ -73,6 +86,8 @@ export function useAuthForm() {
         );
         if (authStore.isRequiredOtp) {
           tabValue.value = "otp-code";
+        } else if (error !== null) {
+          authError.value = describeAuthError(error);
         }
       }
       if (authStore.isAuthenticated) {

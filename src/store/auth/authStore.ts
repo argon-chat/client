@@ -30,7 +30,7 @@ export const useAuthStore = defineStore("auth", () => {
     pass: string,
     otp: string | undefined,
     captchaToken: string | undefined
-  ) => {
+  ): Promise<AuthorizationError | null> => {
     const api = useApi();
     await delay(500);
     const r = await api.identityInteraction.Authorize({
@@ -49,35 +49,12 @@ export const useAuthStore = defineStore("auth", () => {
     }
 
     if (r.isFailedAuthorize()) {
-      switch (r.error) {
-        case AuthorizationError.BAD_CREDENTIALS:
-          toast({
-            title: "Incorrect credentials",
-            description: "You have entered incorrect login credentials",
-            variant: "destructive",
-            duration: 2500,
-          });
-          break;
-        case AuthorizationError.BAD_OTP:
-          toast({
-            title: "Incorrect otp code",
-            description: "You have entered incorrect OTP code",
-            variant: "destructive",
-            duration: 2500,
-          });
-          break;
-        case AuthorizationError.REQUIRED_OTP:
-          isRequiredOtp.value = true;
-          return;
-        case AuthorizationError.NONE:
-          toast({
-            title: "Unknown error",
-            description: "Maybe internet connection is corrupted",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
+      if (r.error === AuthorizationError.REQUIRED_OTP) {
+        isRequiredOtp.value = true;
+        return null;
       }
+      // Surface to the caller for inline display in the form (no toast).
+      return r.error;
     } else if (r.isSuccessAuthorize()) {
       isRequiredOtp.value = false;
       isAuthenticated.value = true;
@@ -85,6 +62,7 @@ export const useAuthStore = defineStore("auth", () => {
       setAuthToken(r.token);
       if (r.refreshToken) setRefreshToken(r.refreshToken);
     }
+    return null;
   };
   const register = async (data: NewUserCredentialsInput) => {
     const api = useApi();
