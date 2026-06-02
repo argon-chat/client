@@ -17,6 +17,7 @@ export const FeatureFlagKeys = {
   DASHBOARD_DM_ACTIVE: "af.dashboard.dm.active",
   ULTIMA_ACTIVE: "af.ultima.active",
   BOOSTS_ACTIVE: "af.boosts.active",
+  SPLIT_VIEW_ACTIVE: "af.split-view.active",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -37,6 +38,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.DASHBOARD_DM_ACTIVE]: true,
     [FeatureFlagKeys.ULTIMA_ACTIVE]: false,
     [FeatureFlagKeys.BOOSTS_ACTIVE]: false,
+    [FeatureFlagKeys.SPLIT_VIEW_ACTIVE]: false,
   });
 
   const isLoaded = ref(false);
@@ -74,6 +76,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const dmActive = computed(() => flags.value[FeatureFlagKeys.DASHBOARD_DM_ACTIVE]);
   const ultimaActive = computed(() => flags.value[FeatureFlagKeys.ULTIMA_ACTIVE]);
   const boostsActive = computed(() => flags.value[FeatureFlagKeys.BOOSTS_ACTIVE]);
+  const splitViewActive = computed(() => flags.value[FeatureFlagKeys.SPLIT_VIEW_ACTIVE]);
 
   return {
     flags,
@@ -92,5 +95,6 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     dmActive,
     ultimaActive,
     boostsActive,
+    splitViewActive,
   };
 });

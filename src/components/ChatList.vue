@@ -105,6 +105,7 @@
                 :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
                 :voice-users="voiceChannelUsers.get(channel.channelId)"
                 @select="channelSelect"
+                @open-split="openChannelInSplit"
                 @switch-voice="switchVoiceChannel"
                 @delete="channelDelete"
                 @dragstart="onDragStart"
@@ -161,6 +162,7 @@ import AddChannel from './modals/AddChannel.vue';
 import Skeleton from './shared/Skeleton.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useListLoading } from '@/composables/useListLoading';
+import { openInSplit } from '@/composables/useSplitView';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import { setLastChannel } from '@/lib/recentSpaces';
 import type { Guid } from '@argon-chat/ion.webcore';
@@ -238,6 +240,10 @@ const {
   getGroupChannels,
   sortedGroups
 );
+
+function openChannelInSplit(channelId: string) {
+  openInSplit(channelId, selectedSpaceId.value ?? null);
+}
 
 async function deleteGroup(groupId: Guid, deleteChannels: boolean) {
   try {

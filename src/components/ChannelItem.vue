@@ -17,12 +17,13 @@
         >
           <div
             class="channel-inner"
-            @click="emit('select', channel.channelId)"
+            @click="onClick"
+            @auxclick="onAuxClick"
           >
             <div class="flex items-center space-x-2">
-            <VideoIcon 
-              v-if="channelMeetingInfo" 
-              class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
+            <VideoIcon
+              v-if="channelMeetingInfo"
+              class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors"
               @click.stop="openMeetingDetails"
             />
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -34,11 +35,23 @@
             </span>
             <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full bg-white flex-shrink-0" />
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
+            <button
+              v-if="canButton"
+              class="split-btn ml-auto"
+              @click.stop="emit('open-split', channel.channelId)"
+              title="Open in split"
+            >
+              <IconColumns class="w-3.5 h-3.5" />
+            </button>
             </div>
           </div>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent class="w-52">
+        <ContextMenuItem v-if="splitEnabled" @click="emit('open-split', channel.channelId)">
+          {{ t("open_in_split") === "open_in_split" ? "Open in split" : t("open_in_split") }}
+        </ContextMenuItem>
+        <ContextMenuSeparator v-if="splitEnabled && canManageChannels" />
         <ContextMenuItem
           v-if="canManageChannels"
           @click="channelPermissionsOpen = true"
@@ -105,6 +118,8 @@
 <script setup lang="ts">
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
 import { HashIcon, Volume2Icon, AntennaIcon, VideoIcon } from 'lucide-vue-next';
+import { IconColumns } from '@tabler/icons-vue';
+import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -144,6 +159,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [channelId: string];
+  'open-split': [channelId: string];
   'switch-voice': [channelId: string];
   delete: [channelId: string];
   dragstart: [channel: ArgonChannel, groupId: Guid | null, event: DragEvent];
@@ -152,6 +168,21 @@ const emit = defineEmits<{
   dragend: [];
   'kick-member': [userId: string, channelId: string, spaceId: string];
 }>();
+
+// Left-click selects; Ctrl/Cmd-click or middle-click opens in split (when enabled).
+function onClick(e: MouseEvent) {
+  if (canCtrlClick.value && (e.ctrlKey || e.metaKey)) {
+    emit('open-split', props.channel.channelId);
+    return;
+  }
+  emit('select', props.channel.channelId);
+}
+function onAuxClick(e: MouseEvent) {
+  if (canCtrlClick.value && e.button === 1) {
+    e.preventDefault();
+    emit('open-split', props.channel.channelId);
+  }
+}
 
 const pex = usePexStore();
 const { t } = useLocale();
@@ -221,6 +252,30 @@ const openMeetingDetails = () => {
 
 .channel-inner:hover {
   background-color: hsl(var(--foreground) / 0.06);
+}
+
+/* "Open in split" button — revealed on row hover. */
+.split-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.channel-inner:hover .split-btn {
+  opacity: 0.65;
+}
+.split-btn:hover {
+  opacity: 1;
+  color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.1);
 }
 
 .channel-item[data-active] .channel-inner {

@@ -226,6 +226,34 @@
             </div>
         </div>
 
+        <!-- Split view (feature-flagged) -->
+        <div v-if="splitFeatureEnabled" class="setting-card">
+            <div class="flex items-center gap-2 mb-4">
+                <LayoutGridIcon class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold">{{ tr("split_view", "Split view") }}</h3>
+            </div>
+
+            <div class="setting-item">
+                <div class="flex-1">
+                    <div class="text-sm font-medium">{{ tr("split_trigger", "Open a second channel beside the first") }}</div>
+                    <div class="text-xs text-muted-foreground">{{ tr("split_trigger_desc", "How to open a channel in a split pane") }}</div>
+                </div>
+                <Select v-model="splitTrigger">
+                    <SelectTrigger class="w-[200px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="off">{{ tr("split_off", "Off") }}</SelectItem>
+                            <SelectItem value="ctrlclick">{{ tr("split_ctrlclick", "Ctrl/Cmd + click") }}</SelectItem>
+                            <SelectItem value="button">{{ tr("split_button", "Hover button + menu") }}</SelectItem>
+                            <SelectItem value="both">{{ tr("split_both", "Both") }}</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+
         <!-- Border Radius -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
@@ -443,6 +471,7 @@ import {
     UI_SCALE_MIN,
     UI_SCALE_MAX,
 } from "@/composables/useUltrawide";
+import { splitTrigger, splitFeatureEnabled } from "@/composables/useSplitView";
 import { native } from "@argon/glue/native";
 import { useConfigStore } from "@/store/ui/configStore";
 
@@ -776,6 +805,7 @@ const resetToDefaults = () => {
     ultrawideMaxWidth.value = 1700;
     ultrawideCenterTitlebar.value = true;
     uiScale.value = 100;
+    splitTrigger.value = "ctrlclick";
     borderRadius.value = 0.75;
     accentColor.value = "blue";
     enableAnimations.value = true;
