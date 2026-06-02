@@ -1,22 +1,25 @@
 <template>
   <div
-    :draggable="canManageChannels"
-    @dragstart="emit('dragstart', channel, groupId, $event)"
-    @dragover.prevent="emit('dragover', channel, groupId, index, $event)"
-    @drop="emit('drop', channel, groupId, index, $event)"
-    @dragend="emit('dragend')"
     :data-active="isActive || undefined"
     :data-connected="isConnectedVoiceChannel || undefined"
     :data-drop-position="isDragOver ? dropPosition : undefined"
     class="channel-item"
   >
     <ContextMenu>
-      <ContextMenuTrigger as-child>
-        <div 
-          class="channel-inner"
-          @click="emit('select', channel.channelId)"
+      <ContextMenuTrigger as="div">
+        <div
+          class="channel-row"
+          :draggable="canManageChannels"
+          @dragstart="emit('dragstart', channel, groupId, $event)"
+          @dragover="emit('dragover', channel, groupId, index, $event)"
+          @drop="emit('drop', channel, groupId, index, $event)"
+          @dragend="emit('dragend')"
         >
-          <div class="flex items-center space-x-2">
+          <div
+            class="channel-inner"
+            @click="emit('select', channel.channelId)"
+          >
+            <div class="flex items-center space-x-2">
             <VideoIcon 
               v-if="channelMeetingInfo" 
               class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors" 
@@ -31,6 +34,7 @@
             </span>
             <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full bg-white flex-shrink-0" />
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
+            </div>
           </div>
         </div>
       </ContextMenuTrigger>
@@ -260,11 +264,11 @@ const openMeetingDetails = () => {
   opacity: 1;
 }
 
-.channel-item[draggable="true"] {
+.channel-row[draggable="true"] {
   cursor: grab;
 }
 
-.channel-item[draggable="true"]:active {
+.channel-row[draggable="true"]:active {
   opacity: 0.5;
   cursor: grabbing;
 }

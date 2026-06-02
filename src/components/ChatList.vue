@@ -1,8 +1,16 @@
 <template>
   <div class="chat-list flex flex-col">
     <div class="chat-list-scroll">
+      <!-- Loading skeletons -->
+      <template v-if="channelsLoading && channelLists.length === 0">
+        <div v-for="i in 8" :key="`ch-sk-${i}`" class="channel-skeleton">
+          <Skeleton class="h-4 w-4 rounded shrink-0" />
+          <Skeleton class="h-3 rounded" :style="{ width: `${42 + (i * 13) % 44}%` }" />
+        </div>
+      </template>
+
       <!-- Empty state -->
-      <div v-if="channelLists.length === 0" class="empty-state">
+      <div v-else-if="channelLists.length === 0" class="empty-state">
         <div class="empty-state-icon">
           <HashIcon class="w-8 h-8 text-muted-foreground/40" />
         </div>
@@ -53,13 +61,18 @@
         <div v-for="group in sortedGroups" :key="group.groupId">
           <ContextMenu>
             <ContextMenuTrigger>
-              <ChannelGroupHeader 
+              <ChannelGroupHeader
                 :group="group"
-                :is-drag-over="dragOverGroupId === group.groupId"
+                :can-drag="canDrag()"
+                :is-channel-drag-over="dragOverGroupId === group.groupId"
+                :is-group-drag-over="dragOverGroupReorder === group.groupId"
+                :group-drop-position="groupDropPosition"
                 @toggle="toggleGroup"
-                @group-dragover="onGroupDragOver"
-                @group-dragleave="onGroupDragLeave"
-                @group-drop="onGroupDrop"
+                @dragstart="onGroupDragStart"
+                @dragend="onDragEnd"
+                @dragover="onHeaderDragOver"
+                @dragleave="onHeaderDragLeave"
+                @drop="onHeaderDrop"
               />
             </ContextMenuTrigger>
             <ContextMenuContent class="w-64">
@@ -67,6 +80,15 @@
                 {{ t("add_channel") }}
                 <ContextMenuShortcut>⌘+</ContextMenuShortcut>
               </ContextMenuItem>
+              <template v-if="pex.has('ManageChannels')">
+                <ContextMenuSeparator />
+                <ContextMenuItem inset class="text-red-400" @click="deleteGroup(group.groupId, false)">
+                  {{ t("delete_group") || "Delete group" }}
+                </ContextMenuItem>
+                <ContextMenuItem inset class="text-red-500" @click="deleteGroup(group.groupId, true)">
+                  {{ t("delete_group_with_channels") || "Delete group + channels" }}
+                </ContextMenuItem>
+              </template>
             </ContextMenuContent>
           </ContextMenu>
           
@@ -115,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref as vueRef, watch, TransitionGroup } from 'vue';
+import { computed, ref } from 'vue';
 import { HashIcon, PlusIcon } from 'lucide-vue-next';
 import { useSpaceStore } from '@/store/data/serverStore';
 import { usePoolStore } from '@/store/data/poolStore';
@@ -127,6 +149,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@argon/ui/context-menu';
@@ -135,7 +158,9 @@ import { ChannelType } from '@argon/glue';
 import ChannelItem from './ChannelItem.vue';
 import ChannelGroupHeader from './ChannelGroupHeader.vue';
 import AddChannel from './modals/AddChannel.vue';
+import Skeleton from './shared/Skeleton.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
+import { useListLoading } from '@/composables/useListLoading';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import { setLastChannel } from '@/lib/recentSpaces';
 import type { Guid } from '@argon-chat/ion.webcore';
@@ -160,6 +185,11 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
 
 const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
+const channelsLoading = useListLoading(
+  computed(() => channelLists.value.length),
+  selectedSpaceId,
+);
+
 const voiceChannelUsers = computed(() => {
   const result = new Map<Guid, IRealtimeChannel>();
   for (const channel of channelLists.value) {
@@ -173,11 +203,7 @@ const voiceChannelUsers = computed(() => {
   return result;
 });
 
-const { sortedGroups, toggleGroup, updateGroups, sortByFractionalIndex } = useChannelGroups(selectedSpaceId);
-
-watch(channelLists, () => {
-  updateGroups();
-}, { deep: true });
+const { sortedGroups, toggleGroup, sortByFractionalIndex } = useChannelGroups(selectedSpaceId);
 
 const sortedUngroupedChannels = computed(() => {
   const channels = channelLists.value.filter(c => c.groupId === null);
@@ -190,26 +216,42 @@ const getGroupChannels = (groupId: Guid) => {
 };
 
 const {
+  canDrag,
   draggedChannel,
   dragOverChannel,
   dropPosition,
   dragOverGroupId,
+  dragOverGroupReorder,
+  groupDropPosition,
   onDragStart,
   onDragOver,
   onDrop,
-  onGroupDrop,
-  onGroupDragOver,
-  onGroupDragLeave,
   onTailDrop,
+  onGroupDragStart,
+  onHeaderDragOver,
+  onHeaderDragLeave,
+  onHeaderDrop,
   onDragEnd
 } = useChannelDragDrop(
   selectedSpaceId,
   sortedUngroupedChannels,
-  getGroupChannels
+  getGroupChannels,
+  sortedGroups
 );
 
-const addChannelInGroupOpened = vueRef(false);
-const selectedGroupId = vueRef<Guid | null>(null);
+async function deleteGroup(groupId: Guid, deleteChannels: boolean) {
+  try {
+    // Service ctx is (spaceId, channelId); the group id doubles as the context id.
+    await api.channelInteraction.DeleteChannelGroup(
+      selectedSpaceId.value, groupId, groupId, deleteChannels,
+    );
+  } catch (error) {
+    logger.error('Failed to delete channel group', error);
+  }
+}
+
+const addChannelInGroupOpened = ref(false);
+const selectedGroupId = ref<Guid | null>(null);
 
 const openAddChannelForGroup = (groupId: Guid | null) => {
   selectedGroupId.value = groupId;
@@ -282,45 +324,34 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 
 <style scoped>
 .chat-list {
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 15px;
-  height: 100%;
+  /* Chrome (bg/border/radius) is owned by the parent .channel-panel. */
+  background-color: transparent;
   overflow: hidden;
+  min-height: 0;
 }
 
+/* Scrollbar fully hidden — no arrows, no reserved pixels, no layout jitter. */
 .chat-list-scroll {
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   height: 100%;
   padding: 6px 0;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
 }
 
 .chat-list-scroll::-webkit-scrollbar {
-  width: 4px;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
-.chat-list-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-list-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--foreground) / 0.08);
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-
-.chat-list:hover .chat-list-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--foreground) / 0.15);
-}
-
-.chat-list-scroll::-webkit-scrollbar-thumb:active {
-  background: hsl(var(--foreground) / 0.25);
-}
-
-.chat-list-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--foreground) / 0.08) transparent;
+/* Loading skeletons */
+.channel-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
 }
 
 /* Empty state */

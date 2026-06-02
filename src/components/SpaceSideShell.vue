@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AdminControlBar from './AdminControlBar.vue';
 import ChatList from './ChatList.vue';
 import ControlBar from './ControlBar.vue';
 import SidebarHeader from './SidebarHeader.vue';
@@ -16,11 +15,22 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
 </script>
 
 <template>
-    <div class="channel-container flex flex-col justify-between rounded-xl space-y-3 w-55 min-w-60">
-        <SidebarHeader v-model:selected-space="selectedSpaceId" />
-        <AdminControlBar v-model:selected-space="selectedSpaceId"/>
-        <ChatList v-model:selected-space="selectedSpaceId" v-model:selected-channel-id="selectedChannelId"/>
+    <div class="channel-container flex flex-col gap-3 w-72 min-w-72">
+        <!-- Unified panel: header + channel list, flush (no gap / inner rounding) -->
+        <div class="channel-panel flex flex-col flex-1 min-h-0">
+            <SidebarHeader v-model:selected-space="selectedSpaceId" />
+            <ChatList class="flex-1 min-h-0" v-model:selected-space="selectedSpaceId" v-model:selected-channel-id="selectedChannelId"/>
+        </div>
         <ControlBar />
         <UserBar/>
     </div>
 </template>
+
+<style scoped>
+.channel-panel {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 15px;
+    overflow: hidden;
+}
+</style>

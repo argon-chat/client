@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-1 gap-4 min-h-0 pb-4 pr-4 pl-4" :class="titlebarVisible ? 'pt-2' : 'pt-7'">
-    <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer"
+    <ServerSelector :selected-space="dataPool.selectedServer" @select="selectServer" @home="selectHome"
       :spaces="spaces" />
 
     <RouterView v-slot="{ Component, route }">
@@ -44,6 +44,11 @@ function selectServer(id: Guid) {
   const current = router.currentRoute.value;
   if (String(current.params.id) === String(id)) return;
   router.push({ name: "SpaceShellView", params: { id } });
+}
+
+function selectHome() {
+  dataPool.selectedServer = null;
+  router.push({ name: "HomeShellView" });
 }
 
 </script>

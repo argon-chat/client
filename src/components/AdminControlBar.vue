@@ -1,129 +1,92 @@
 <template>
-    <div class="relative" style="z-index: 1;" v-if="me.me" v-show="pex.has('ManageServer') || pex.has('ManageChannels') || pex.has('ManageArchetype') || pex.has('ManageBots')">
-        <div class="control-bar">
-            <div class="controls">
-                <button @click="openServerSettings" v-show="pex.has('ManageServer') || pex.has('ManageArchetype')">
-                    <SettingsIcon class="w-5 h-5" />
-                </button>
-                <button @click="addChannelOpened = true" v-if="false">
-                    <CirclePlusIcon class="w-5 h-5" />
-                </button>
-                <button @click="addGroupOpened = true" v-show="pex.has('ManageChannels')">
-                    <FolderPlusIcon class="w-5 h-5" />
-                </button>
-                <button @click="manageBotsOpened = true" v-show="pex.has('ManageBots')">
-                    <BotIcon class="w-5 h-5" />
-                </button>
-                <button disabled>
-                    <UsersIcon class="w-5 h-5" />
-                </button>
-                <button disabled>
-                    <ShieldCheck class="w-5 h-5 good" />
-                </button>
-            </div>
-        </div>
+    <div
+        class="admin-controls"
+        v-if="me.me"
+        v-show="pex.has('ManageServer') || pex.has('ManageChannels') || pex.has('ManageArchetype') || pex.has('ManageBots')"
+    >
+        <button
+            v-show="pex.has('ManageServer') || pex.has('ManageArchetype')"
+            @click="openServerSettings"
+            title="Server settings"
+        >
+            <SettingsIcon class="w-4 h-4" />
+        </button>
+        <button
+            v-show="pex.has('ManageChannels')"
+            @click="addGroupOpened = true"
+            title="New group"
+        >
+            <FolderPlusIcon class="w-4 h-4" />
+        </button>
+        <button
+            v-show="pex.has('ManageBots')"
+            @click="manageBotsOpened = true"
+            title="Manage bots"
+        >
+            <BotIcon class="w-4 h-4" />
+        </button>
+
+        <AddChannelGroup v-model:open="addGroupOpened" :selected-space="selectedSpaceId" />
+        <ManageBots v-model:open="manageBotsOpened" :selected-space="selectedSpaceId" />
     </div>
-
-    <AddChannel 
-      v-model:open="addChannelOpened" 
-      :selected-space="selectedSpaceId"
-    />
-
-    <AddChannelGroup
-      v-model:open="addGroupOpened"
-      :selected-space="selectedSpaceId"
-    />
-
-    <ManageBots
-      v-model:open="manageBotsOpened"
-      :selected-space="selectedSpaceId"
-    />
 </template>
 
 <script setup lang="ts">
-import {
-    SettingsIcon,
-    CirclePlusIcon,
-    ShieldCheck,
-    BotIcon,
-    UsersIcon,
-    FolderPlusIcon,
-} from "lucide-vue-next";
-
-
-import { useTone } from "@/store/media/toneStore";
-import { useLocale } from "@/store/system/localeStore";
+import { SettingsIcon, BotIcon, FolderPlusIcon } from "lucide-vue-next";
 import { useMe } from "@/store/auth/meStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { shallowRef, onUnmounted } from "vue";
-import AddChannel from "./modals/AddChannel.vue";
 import AddChannelGroup from "./modals/AddChannelGroup.vue";
 import ManageBots from "./modals/ManageBots.vue";
 
-const { t } = useLocale();
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
 })
 
 const me = useMe();
 const windows = useWindow();
-const addChannelOpened = shallowRef(false);
+const pex = usePexStore();
 const manageBotsOpened = shallowRef(false);
 const addGroupOpened = shallowRef(false);
-const pex = usePexStore();
 
 async function openServerSettings() {
     windows.serverSettingsOpen = true;
 }
 
 onUnmounted(() => {
-    addChannelOpened.value = false;
     addGroupOpened.value = false;
+    manageBotsOpened.value = false;
 });
 </script>
 
 <style scoped>
-.control-bar {
-    background-color: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 15px;
-    padding: 10px;
+.admin-controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    position: relative;
+    gap: 4px;
 }
 
-.controls button {
-    background: none;
-    border: none;
-    color: hsl(var(--foreground));
-    font-size: 16px;
-    cursor: pointer;
-    margin-left: 5px;
-    transition: color 0.3s;
-    margin: 5px;
-}
-
-.controls {
-    justify-content: center;
+.admin-controls button {
     display: flex;
-    gap: 1rem;
-    flex: auto;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    background: hsl(0 0% 0% / 0.35);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease;
 }
 
-.controls button:hover {
-    color: hsl(var(--primary));
+.admin-controls button:hover {
+    background: hsl(0 0% 0% / 0.6);
 }
 
-.controls button.active {
-    color: #f04747;
-}
-
-.controls button:disabled {
-    color: hsl(var(--muted-foreground));
-    cursor: not-allowed;
+.admin-controls button:active {
+    transform: scale(0.94);
 }
 </style>

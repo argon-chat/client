@@ -1,25 +1,33 @@
-import { ref, watch, computed, type Ref } from 'vue';
+import { ref, watch, computed, onUnmounted, type Ref } from 'vue';
+import { liveQuery, type Subscription } from 'dexie';
 import { usePoolStore } from '@/store/data/poolStore';
+import { persistedValue } from '@argon/storage';
+import { logger } from '@argon/core';
 import type { ChannelGroup } from '@argon/glue';
 import type { Guid } from '@argon-chat/ion.webcore';
+
+// Per-group collapse overrides, persisted across sessions/space switches.
+// groupId absent → fall back to the server's isCollapsed value.
+const collapseOverrides = persistedValue<Record<string, boolean>>('channels.collapse', {});
 
 export function useChannelGroups(selectedSpaceId: Ref<string>) {
   const pool = usePoolStore();
   const channelGroups = ref<ChannelGroup[]>([]);
-  // Stores local overrides: true = collapsed, false = expanded
-  // If a groupId is NOT in this map, we use the server's isCollapsed value
-  const localCollapseOverrides = ref<Map<Guid, boolean>>(new Map());
 
-  const updateGroups = async () => {
+  // Live subscription — reflects create/modify/remove/reorder events instantly.
+  let sub: Subscription | null = null;
+  const updateGroups = () => {
+    sub?.unsubscribe();
     if (!selectedSpaceId.value) {
       channelGroups.value = [];
       return;
     }
-    const groups = await pool.db.channelGroups
-      .where('spaceId')
-      .equals(selectedSpaceId.value)
-      .toArray();
-    channelGroups.value = groups;
+    sub = liveQuery(() =>
+      pool.db.channelGroups.where('spaceId').equals(selectedSpaceId.value).toArray()
+    ).subscribe({
+      next: (groups) => (channelGroups.value = groups),
+      error: (err) => logger.error('[ChannelGroups] liveQuery error:', err),
+    });
   };
 
   const sortByFractionalIndex = <T extends { fractionalIndex: string | null }>(items: T[]): T[] => {
@@ -35,10 +43,10 @@ export function useChannelGroups(selectedSpaceId: Ref<string>) {
     const groups = channelGroups.value;
     const sorted = sortByFractionalIndex(groups);
     return sorted.map(group => {
-      const localOverride = localCollapseOverrides.value.get(group.groupId);
+      const override = collapseOverrides[group.groupId];
       return {
         ...group,
-        isCollapsed: localOverride !== undefined ? localOverride : !!group.isCollapsed
+        isCollapsed: override !== undefined ? override : !!group.isCollapsed
       };
     });
   });
@@ -46,21 +54,19 @@ export function useChannelGroups(selectedSpaceId: Ref<string>) {
   const toggleGroup = (groupId: Guid) => {
     const currentGroup = sortedGroups.value.find(g => g.groupId === groupId);
     if (!currentGroup) return;
-    // Toggle: set the local override to the opposite of the current resolved state
-    localCollapseOverrides.value.set(groupId, !currentGroup.isCollapsed);
+    collapseOverrides[groupId] = !currentGroup.isCollapsed;
   };
 
-  // Reset local overrides when switching spaces
   watch(selectedSpaceId, () => {
-    localCollapseOverrides.value.clear();
     updateGroups();
   }, { immediate: true });
+
+  onUnmounted(() => sub?.unsubscribe());
 
   return {
     channelGroups,
     sortedGroups,
     toggleGroup,
-    updateGroups,
     sortByFractionalIndex
   };
 }

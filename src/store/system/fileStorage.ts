@@ -1,3 +1,4 @@
+import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
 
 export type GroupReport = {
@@ -16,8 +17,13 @@ export type StorageUsageReport = {
 
 const isNative = typeof window !== "undefined" && "argonIpc" in window;
 
-export function cdnUrl(fileId: string): string {
-  if (isNative) return `app://cdn/${fileId}`;
+export function cdnUrl(fileId: string, spaceId: Guid | null = null): string {
+  if (isNative) {
+    if (spaceId )
+      return `app://cdn/s/${spaceId}/banner/${fileId}`;
+    else 
+      return `app://cdn/${fileId}`;
+  }
   return `https://cdn.argon.gl/${fileId}`;
 }
 

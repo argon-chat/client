@@ -1,11 +1,15 @@
 <template>
-  <div class="header-list overflow-hidden bg-cover bg-no-repeat bg-center contrast-125 rounded-xl min-h-[8rem]"
+  <div class="header-list overflow-hidden bg-cover bg-no-repeat bg-center contrast-125 min-h-[8rem]"
     :class="{ 'header-no-bg': !backgroundImage }" :style="backgroundImage ? { backgroundImage } : {}">
+    <!-- Admin actions overlaid top-right of the banner -->
+    <div class="header-admin">
+      <AdminControlBar :selected-space="selectedSpaceId" />
+    </div>
     <div class="relative flex flex-col items-start">
       <div class="w-full relative">
         <div class="h-10 header-top-gradient rounded-t-lg" />
         <div class="absolute inset-0 flex items-start pt-1.5">
-          <h2 class="text-lg font-bold header-space-name text-shadow-lg px-4 flex items-center gap-2">
+          <h2 class="text-lg font-bold header-space-name text-shadow-lg pl-4 pr-24 flex items-center gap-2">
             <TooltipProvider v-if="isVerifiedSpace">
               <Tooltip>
                 <TooltipTrigger as-child>
@@ -20,7 +24,12 @@
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {{ spaceName?.name }}
+            <span
+              class="header-name-text"
+              :class="{ 'header-name-text--clickable': canManageSpace }"
+              :title="canManageSpace ? 'Open space settings' : undefined"
+              @click="openSpaceSettings"
+            >{{ spaceName?.name }}</span>
           </h2>
         </div>
       </div>
@@ -47,9 +56,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from "vue";
-import { delay } from "@argon/core";
-import { usePoolStore } from "@/store/data/poolStore";
+import { computed, ref } from "vue";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
@@ -57,14 +64,23 @@ import { RocketIcon, Loader2 } from "lucide-vue-next";
 import confetti from "@/lib/useConfetti";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import { useToast } from "@argon/ui/toast";
+import { useWindow } from "@/store/ui/windowStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import BoostShopModal from "@/components/modals/BoostShopModal.vue";
+import AdminControlBar from "@/components/AdminControlBar.vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import { db } from "@/store/db/dexie";
 
-const pool = usePoolStore();
 const ultima = useUltimaStore();
 const { toast } = useToast();
+const windows = useWindow();
+const pex = usePexStore();
+
+const canManageSpace = computed(() => pex.has("ManageServer") || pex.has("ManageArchetype"));
+function openSpaceSettings() {
+  if (canManageSpace.value) windows.serverSettingsOpen = true;
+}
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
   type: String, required: true
@@ -76,8 +92,6 @@ const isVerifiedSpace = computed(() => {
 
 const spaceName = useLiveQuery(() => db.servers.where("spaceId").equals(selectedSpaceId.value).first())
 
-const headerImageUrl = ref<string | null>(null);
-const isLoadingHeader = ref(false);
 const boostBtnRef = ref<HTMLButtonElement | null>(null);
 const boosting = ref(false);
 const shopOpen = ref(false);
@@ -148,50 +162,11 @@ function onBoostPurchased() {
   ultima.fetchBoosts();
 }
 
+// Banner is derived reactively from the live-queried space record — updates
+// automatically when the space loads or its banner changes, no polling/delay.
 const backgroundImage = computed(() => {
-  if (headerImageUrl.value) {
-    return `url(${headerImageUrl.value})`;
-  }
-  return '';
-});
-
-const loadHeaderImage = async () => {
-  if (!selectedSpaceId.value) {
-    headerImageUrl.value = null;
-    return;
-  }
-
-  const space = await pool.getServer(selectedSpaceId.value);
-  if (!space?.topBannerFileId) {
-    headerImageUrl.value = null;
-    return;
-  }
-
-  try {
-    isLoadingHeader.value = true;
-    headerImageUrl.value = cdnUrl(space.topBannerFileId);
-  } catch (error) {
-    console.error("Failed to load header image:", error);
-    headerImageUrl.value = null;
-  } finally {
-    isLoadingHeader.value = false;
-  }
-};
-
-watch(selectedSpaceId, () => {
-  loadHeaderImage();
-}, { immediate: true });
-
-// Watch for space details updates
-watch(() => spaceName.value, async (newSpace, oldSpace) => {
-  if (newSpace && oldSpace && newSpace.topBannerFileId !== oldSpace.topBannerFileId) {
-    await loadHeaderImage();
-  }
-}, { deep: true });
-
-onMounted(async () => {
-  await delay(1000);
-  await loadHeaderImage();
+  const fileId = spaceName.value?.topBannerFileId;
+  return fileId ? `url(${cdnUrl(fileId, selectedSpaceId.value)})` : '';
 });
 </script>
 
@@ -261,6 +236,21 @@ onMounted(async () => {
   position: relative;
 }
 
+.header-admin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.header-list:hover .header-admin {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* ── Light theme overrides ── */
 :root:not(.dark) .boost-strip {
   background: linear-gradient(to top, hsl(270 30% 95% / 0.95), hsl(270 20% 97% / 0.8));
@@ -296,5 +286,16 @@ onMounted(async () => {
 
 .header-space-name {
   color: white;
+}
+
+.header-name-text--clickable {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.header-name-text--clickable:hover {
+  opacity: 0.82;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 </style>

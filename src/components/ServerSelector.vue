@@ -1,197 +1,180 @@
 <template>
-    <div
-        class="server-list-container flex flex-col items-center py-3 justify-between rounded-xl space-y-3 w-55 min-w-[60px] max-w-[60px] shrink-0">
-        <div class="flex-1 w-full overflow-y-auto flex flex-col gap-2 px-3 pt-1"
-            @dragover.prevent="onDragOverUncategorized"
-            @drop="onDropToUncategorized">
-            <!-- Pinned Servers -->
-            <div v-if="pinnedServers.length > 0" class="space-y-2">
-                <div v-for="server in pinnedServers" :key="server.spaceId" class="relative group">
-                    <Button :variant="'secondary'" size="icon"
-                        :aria-current="isSelected(server.spaceId)" 
-                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto overflow-visible" 
-                        :class="[isSelected(server.spaceId) ? 'rounded-2xl' : 'rounded-full']" 
-                        draggable="true"
-                        @dragstart="onDragStart($event, server.spaceId)"
-                        @dragover.prevent="onDragOver($event, server.spaceId)"
-                        @drop="onDrop($event, server.spaceId)"
-                        @dragend="onDragEnd"
-                        @click="select(server.spaceId)"
-                        @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                        <ArgonAvatar 
-                            class="w-full h-full"
-                            :file-id="server.avatarFieldId"
-                            :space-id="server.spaceId"
-                            :fallback="initials(server.name)"
-                        />
-                        <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
-                            :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
-                        <IconPinFilled class="absolute -top-1 -right-1 w-3 h-3 text-primary z-10" />
-                        <!-- Mention badge -->
-                        <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
-                            class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
-                            {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
-                        </span>
-                        <!-- Unread dot -->
-                        <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
-                            class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
-                    </Button>
+  <TooltipProvider :delay-duration="300">
+    <div class="server-list-container flex flex-col py-3 w-[72px] min-w-[72px] max-w-[72px] shrink-0">
+      <!-- Scrollable rail -->
+      <div
+        class="rail-scroll flex-1 w-full flex flex-col gap-2"
+        @dragover.prevent="onDragOverUncategorized"
+        @drop="onDropToUncategorized"
+      >
+        <!-- Home -->
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div class="rail-slot group" :class="{ 'is-active': model == null }">
+              <span class="rail-indicator" />
+              <button class="rail-icon-btn rail-home" :class="{ 'is-active': model == null }" @click="goHome">
+                <IconHome class="w-5 h-5" />
+              </button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" :side-offset="12" class="font-medium">{{ t('dashboard') }}</TooltipContent>
+        </Tooltip>
+
+        <Separator class="rail-sep" />
+
+        <!-- Pinned -->
+        <template v-if="pinnedServers.length > 0">
+          <ServerRailIcon
+            v-for="server in pinnedServers"
+            :key="server.spaceId"
+            :server="server"
+            :active="isSelected(server.spaceId)"
+            :pinned="true"
+            @select="select(server.spaceId)"
+            @dragstart="onDragStart($event, server.spaceId)"
+            @dragover="onDragOver($event, server.spaceId)"
+            @drop="onDrop($event, server.spaceId)"
+            @dragend="onDragEnd"
+            @contextmenu="openContextMenu($event, server.spaceId)"
+          />
+          <Separator class="rail-sep" />
+        </template>
+
+        <!-- Folders -->
+        <Tooltip v-for="folder in org.folders" :key="folder.id">
+          <TooltipTrigger as-child>
+            <div class="rail-slot group">
+              <button
+                class="rail-icon-btn rail-folder"
+                @click="toggleFolderPopup(folder.id, $event)"
+                @dragover.prevent="onDragOverFolder($event, folder.id)"
+                @drop="onDropToFolder($event, folder.id)"
+              >
+                <div class="folder-grid">
+                  <ArgonAvatar
+                    v-for="srv in getFolderServers(folder).slice(0, 4)"
+                    :key="srv.spaceId"
+                    :class="['folder-mini', getFolderServers(folder).length === 1 ? 'w-8 h-8' : 'w-3.5 h-3.5']"
+                    :file-id="srv.avatarFieldId"
+                    :space-id="srv.spaceId"
+                    :fallback="initials(srv.name)"
+                  />
                 </div>
-                <Separator class="my-2" />
+                <span v-if="folderTotalMentions(folder) > 0" class="rail-badge">{{ folderTotalMentions(folder) }}</span>
+                <span v-else-if="folderHasUnread(folder)" class="rail-dot" />
+              </button>
             </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" :side-offset="12" class="font-medium">{{ folder.name }}</TooltipContent>
+        </Tooltip>
 
-            <!-- Folders -->
-            <div v-for="folder in org.folders" :key="folder.id" class="relative">
-                <Button variant="secondary" size="icon"
-                    class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto rounded-full overflow-visible" 
-                    @click="toggleFolderPopup(folder.id, $event)"
-                    @dragover.prevent="onDragOverFolder($event, folder.id)"
-                    @drop="onDropToFolder($event, folder.id)">
-                    <!-- 2x2 Grid of server icons -->
-                    <div class="grid grid-cols-2 gap-0.5 w-8 h-8">
-                        <div v-for="(server, idx) in getFolderServers(folder).slice(0, 4)" 
-                            :key="server.spaceId" 
-                            class="overflow-hidden rounded-sm">
-                            <ArgonAvatar 
-                                :class="getFolderServers(folder).length === 1 ? 'w-8 h-8' : 'w-3.5 h-3.5'"
-                                :file-id="server.avatarFieldId"
-                                :space-id="server.spaceId"
-                                :fallback="initials(server.name)"
-                            />
-                        </div>
-                    </div>
-                    <!-- Folder combined mention badge -->
-                    <span v-if="folderTotalMentions(folder) > 0"
-                        class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
-                        {{ folderTotalMentions(folder) }}
-                    </span>
-                    <!-- Folder unread dot -->
-                    <span v-else-if="folderHasUnread(folder)"
-                        class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
-                </Button>
-            </div>
+        <!-- Uncategorized -->
+        <ServerRailIcon
+          v-for="server in uncategorizedServers"
+          :key="server.spaceId"
+          :server="server"
+          :active="isSelected(server.spaceId)"
+          @select="select(server.spaceId)"
+          @dragstart="onDragStart($event, server.spaceId)"
+          @dragover="onDragOver($event, server.spaceId)"
+          @drop="onDrop($event, server.spaceId)"
+          @dragend="onDragEnd"
+          @contextmenu="openContextMenu($event, server.spaceId)"
+        />
+      </div>
 
-            <!-- Uncategorized Servers -->
-            <div class="space-y-2">
-                <div v-for="server in uncategorizedServers" :key="server.spaceId" class="relative">
-                    <Button :variant="'secondary'" size="icon"
-                        :aria-current="isSelected(server.spaceId)" 
-                        class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl mx-auto overflow-visible" 
-                        :class="[isSelected(server.spaceId) ? 'rounded-2xl' : 'rounded-full']"
-                        draggable="true"
-                        @dragstart="onDragStart($event, server.spaceId)"
-                        @dragover.prevent="onDragOver($event, server.spaceId)"
-                        @drop="onDrop($event, server.spaceId)"
-                        @dragend="onDragEnd"
-                        @click="select(server.spaceId)"
-                        @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                        <ArgonAvatar 
-                            class="w-full h-full"
-                            :file-id="server.avatarFieldId"
-                            :space-id="server.spaceId"
-                            :fallback="initials(server.name)"
-                        />
-                        <span class="absolute -left-3 w-1 h-6 rounded-full transition-all duration-400"
-                            :class="isSelected(server.spaceId) ? 'bg-blue-500' : 'bg-blue-500/0'" />
-                        <!-- Mention badge -->
-                        <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
-                            class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
-                            {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
-                        </span>
-                        <!-- Unread dot -->
-                        <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
-                            class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
-                    </Button>
-                </div>
-            </div>
-        </div>
+      <Separator class="rail-sep" />
 
-        <Separator class="my-2" />
-        
-        <Button variant="ghost" size="icon" class="w-12 h-12 rounded-full hover:rounded-2xl transition-all duration-200"
-            @click="createSpaceOpened = true">
-            <Plus class="w-4 h-4" />
-        </Button>
+      <!-- Add -->
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div class="rail-slot">
+            <button class="rail-icon-btn rail-add" @click="createSpaceOpened = true">
+              <Plus class="w-5 h-5" />
+            </button>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" :side-offset="12" class="font-medium">Add a space</TooltipContent>
+      </Tooltip>
     </div>
 
     <CreateOrJoinSpace v-model:open="createSpaceOpened" />
-    <CreateSpaceDetailed v-model:open="openDetailed"/>
+    <CreateSpaceDetailed v-model:open="openDetailed" />
 
     <!-- Folder Popup -->
-    <div v-if="folderPopup.show" 
-        class="fixed z-50 bg-card border border-border rounded-lg shadow-lg p-2"
+    <Transition name="rail-pop">
+      <div
+        v-if="folderPopup.show"
+        class="rail-popover"
         :style="{ top: folderPopup.y + 'px', left: folderPopup.x + 'px' }"
-        @click.stop>
-        <div class="grid grid-cols-2 gap-2 w-[120px]">
-            <Button v-for="server in folderServers" 
-                :key="server.spaceId"
-                :variant="'secondary'" size="icon"
-                :aria-current="isSelected(server.spaceId)" 
-                class="relative w-12 h-12 transition-all duration-200 hover:rounded-2xl" 
-                :class="[isSelected(server.spaceId) ? 'rounded-2xl' : 'rounded-full']"
-                draggable="true"
-                @dragstart="onDragStart($event, server.spaceId, folderPopup.folderId!)"
-                @dragend="onDragEnd"
-                @click="select(server.spaceId); folderPopup.show = false"
-                @contextmenu.prevent="openContextMenu($event, server.spaceId)">
-                <ArgonAvatar 
-                    class="w-full h-full"
-                    :file-id="server.avatarFieldId"
-                    :space-id="server.spaceId"
-                    :fallback="initials(server.name)"
-                />
-                <!-- Mention badge -->
-                <span v-if="ntf.getSpaceBadge(server.spaceId)?.totalMentions && !ntf.isTargetMuted(server.spaceId)"
-                    class="absolute -bottom-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold z-10">
-                    {{ ntf.getSpaceBadge(server.spaceId)!.totalMentions }}
-                </span>
-                <!-- Unread dot -->
-                <span v-else-if="ntf.getSpaceBadge(server.spaceId)?.unreadChannelCount && !ntf.isTargetMuted(server.spaceId)"
-                    class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white z-10" />
-            </Button>
+        @click.stop
+      >
+        <div class="rail-popover-grid">
+          <ServerRailIcon
+            v-for="server in folderServers"
+            :key="server.spaceId"
+            :server="server"
+            :active="isSelected(server.spaceId)"
+            @select="select(server.spaceId); folderPopup.show = false"
+            @dragstart="onDragStart($event, server.spaceId, folderPopup.folderId!)"
+            @dragend="onDragEnd"
+            @contextmenu="openContextMenu($event, server.spaceId)"
+          />
         </div>
-    </div>
+      </div>
+    </Transition>
 
     <!-- Context Menu -->
-    <div v-if="contextMenu.show" 
-        class="fixed z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[150px]"
+    <Transition name="rail-pop">
+      <div
+        v-if="contextMenu.show"
+        class="rail-ctx"
         :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-        @click="contextMenu.show = false">
-        <button class="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
-            @click="togglePin(contextMenu.serverId!)">
-            <IconPinFilled v-if="isServerPinned(contextMenu.serverId!)" class="w-4 h-4" />
-            <IconPin v-else class="w-4 h-4" />
-            {{ isServerPinned(contextMenu.serverId!) ? t('unpin') : t('pin') }}
+        @click="contextMenu.show = false"
+      >
+        <button class="rail-ctx-item" @click="togglePin(contextMenu.serverId!)">
+          <IconPinFilled v-if="isServerPinned(contextMenu.serverId!)" class="w-4 h-4" />
+          <IconPin v-else class="w-4 h-4" />
+          {{ isServerPinned(contextMenu.serverId!) ? t('unpin') : t('pin') }}
         </button>
-        <div v-if="org.folders.length > 0" class="border-t border-border my-1"></div>
-        <button v-for="folder in org.folders" :key="folder.id"
-            class="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
-            @click="addToFolder(folder.id, contextMenu.serverId!)">
-            <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: folder.color }"></div>
+
+        <template v-if="org.folders.length > 0">
+          <div class="rail-ctx-sep" />
+          <button
+            v-for="folder in org.folders"
+            :key="folder.id"
+            class="rail-ctx-item"
+            @click="addToFolder(folder.id, contextMenu.serverId!)"
+          >
+            <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: folder.color }" />
             {{ folder.name }}
+          </button>
+        </template>
+
+        <div class="rail-ctx-sep" />
+        <button class="rail-ctx-item rail-ctx-item--danger" @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
+          <Flag class="w-4 h-4" />
+          {{ t('report_space') }}
         </button>
-        <div class="border-t border-border my-1"></div>
-        <button class="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"
-            @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
-            <Flag class="w-4 h-4" />
-            {{ t('report_space') }}
-        </button>
-    </div>
+      </div>
+    </Transition>
 
     <ReportDialog
       v-model:open="reportDialogOpen"
       :target-kind="ReportTargetKind.SPACE"
       :target-id="reportSpaceId"
     />
+  </TooltipProvider>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from "vue"
-import { Button } from "@argon/ui/button"
 import { Separator } from "@argon/ui/separator"
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip"
 import ArgonAvatar from "./ArgonAvatar.vue"
+import ServerRailIcon from "./ServerRailIcon.vue"
 import { Plus, Flag } from "lucide-vue-next"
-import { IconPin, IconPinFilled } from '@tabler/icons-vue'
+import { IconPin, IconPinFilled, IconHome } from '@tabler/icons-vue'
 import { ArgonSpaceBase, ReportTargetKind } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/system/localeStore"
@@ -201,7 +184,6 @@ import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
 import ReportDialog from "./modals/ReportDialog.vue"
 import { useNotificationStore } from "@/store/data/notificationStore"
-import { MuteLevelType } from "@argon/glue"
 
 const { t } = useLocale();
 const ntf = useNotificationStore();
@@ -211,15 +193,14 @@ const openDetailed = ref(false);
 const reportDialogOpen = ref(false);
 const reportSpaceId = ref<Guid>("");
 
-const { 
-    organization: org, 
-    toggleServerPin, 
+const {
+    organization: org,
+    toggleServerPin,
     isServerPinned,
-    toggleFolderCollapse,
     addServerToFolder,
     removeServerFromFolder,
     getServerFolder,
-    createFolder
+    createFolderWithServers
 } = useServerOrganization();
 
 const props = defineProps<{
@@ -232,6 +213,7 @@ const model = defineModel<string | null>('selectedSpace', {
 
 const emit = defineEmits<{
     (e: 'select', id: Guid): void
+    (e: 'home'): void
 }>()
 
 const contextMenu = ref({
@@ -252,39 +234,30 @@ const dragState = ref({
     draggingServerId: null as string | null,
     sourceFolder: null as string | null
 });
-// Pinned servers
-const pinnedServers = computed(() => {
-    return props.spaces.filter(s => isServerPinned(s.spaceId));
-});
 
-// Uncategorized servers (not pinned, not in folders)
-const uncategorizedServers = computed(() => {
-    return props.spaces.filter(s => {
-        return !isServerPinned(s.spaceId) && !getServerFolder(s.spaceId);
-    });
-});
+// Pinned but NOT inside a folder (a server in a folder renders only in the folder).
+const pinnedServers = computed(() =>
+    props.spaces.filter(s => isServerPinned(s.spaceId) && !getServerFolder(s.spaceId))
+);
 
-// Get servers in folder
-const getFolderServers = (folder: any) => {
-    return props.spaces.filter(s => folder.serverIds.includes(s.spaceId));
-};
+const uncategorizedServers = computed(() =>
+    props.spaces.filter(s => !isServerPinned(s.spaceId) && !getServerFolder(s.spaceId))
+);
 
-// Folder badge aggregation
-const folderTotalMentions = (folder: any) => {
-    return getFolderServers(folder).reduce((sum, s) => {
+const getFolderServers = (folder: any) => props.spaces.filter(s => folder.serverIds.includes(s.spaceId));
+
+const folderTotalMentions = (folder: any) =>
+    getFolderServers(folder).reduce((sum, s) => {
         if (ntf.isTargetMuted(s.spaceId)) return sum;
         return sum + (ntf.getSpaceBadge(s.spaceId)?.totalMentions ?? 0);
     }, 0);
-};
 
-const folderHasUnread = (folder: any) => {
-    return getFolderServers(folder).some(s => {
+const folderHasUnread = (folder: any) =>
+    getFolderServers(folder).some(s => {
         if (ntf.isTargetMuted(s.spaceId)) return false;
         return (ntf.getSpaceBadge(s.spaceId)?.unreadChannelCount ?? 0) > 0;
     });
-};
 
-// Servers for current folder popup
 const folderServers = computed(() => {
     if (!folderPopup.value.folderId) return [];
     const folder = org.value.folders.find(f => f.id === folderPopup.value.folderId);
@@ -295,32 +268,17 @@ const isSelected = (id: string) => model.value === id;
 
 const select = (id: string) => {
     const space = props.spaces.find(s => s.spaceId === id);
-    if (space) {
-        addRecentSpace(space);
-    }
+    if (space) addRecentSpace(space);
     emit("select", id);
 };
 
+const goHome = () => emit("home");
+
 const initials = (name: string) =>
-    name
-        .trim()
-        .split(/\s+/)
-        .map(w => w[0]?.toUpperCase() ?? '')
-        .slice(0, 2)
-        .join('');
+    name.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('');
 
 function openContextMenu(event: MouseEvent, serverId: string) {
-    contextMenu.value = {
-        show: true,
-        x: event.clientX,
-        y: event.clientY,
-        serverId
-    };
-}
-
-function openFolderMenu(event: MouseEvent, folderId: string) {
-    // TODO: implement folder menu
-    event.stopPropagation();
+    contextMenu.value = { show: true, x: event.clientX, y: event.clientY, serverId };
 }
 
 function togglePin(serverId: string) {
@@ -333,7 +291,7 @@ function addToFolder(folderId: string, serverId: string) {
     contextMenu.value.show = false;
 }
 
-// Drag and drop handlers
+// ── Drag and drop ──────────────────────────────────────────────────
 function onDragStart(event: DragEvent, serverId: string, folderId?: string) {
     dragState.value.draggingServerId = serverId;
     dragState.value.sourceFolder = folderId || null;
@@ -349,40 +307,25 @@ function onDragOver(event: DragEvent, targetServerId: string) {
     }
 }
 
-function onDrop(event: DragEvent, targetServerId: string, targetFolder?: string) {
-    event.preventDefault();
+function onDrop(_event: DragEvent, targetServerId: string, targetFolder?: string) {
     const draggedServerId = dragState.value.draggingServerId;
-    
-    if (!draggedServerId || draggedServerId === targetServerId) {
-        return;
-    }
-    
-    // If dropped on another server, create new folder with both servers
+    if (!draggedServerId || draggedServerId === targetServerId) return;
+
+    // Dropping a server onto another → one folder with both (atomic, dedups).
     if (!targetFolder) {
-        const folder = createFolder(`Group ${org.value.folders.length + 1}`);
-        addServerToFolder(folder.id, draggedServerId);
-        addServerToFolder(folder.id, targetServerId);
+        createFolderWithServers([draggedServerId, targetServerId]);
     }
 }
 
-function onDragOverFolder(event: DragEvent, folderId: string) {
-    if (dragState.value.draggingServerId) {
-        event.dataTransfer!.dropEffect = 'move';
-    }
+function onDragOverFolder(event: DragEvent, _folderId: string) {
+    if (dragState.value.draggingServerId) event.dataTransfer!.dropEffect = 'move';
 }
 
 function onDropToFolder(event: DragEvent, folderId: string) {
     event.preventDefault();
     const draggedServerId = dragState.value.draggingServerId;
-    
     if (!draggedServerId) return;
-    
-    // Remove from source folder if exists
-    if (dragState.value.sourceFolder) {
-        removeServerFromFolder(draggedServerId);
-    }
-    
-    // Add to target folder
+    if (dragState.value.sourceFolder) removeServerFromFolder(draggedServerId);
     addServerToFolder(folderId, draggedServerId);
 }
 
@@ -401,22 +344,14 @@ function onDragOverUncategorized(event: DragEvent) {
 function onDropToUncategorized(event: DragEvent) {
     event.preventDefault();
     const draggedServerId = dragState.value.draggingServerId;
-    
     if (!draggedServerId || !dragState.value.sourceFolder) return;
-    
-    // Remove from folder (will auto-delete folder if only 1 server left)
     removeServerFromFolder(draggedServerId);
 }
 
-function closeContextMenu() {
-    contextMenu.value.show = false;
-}
-
+// ── Popups ─────────────────────────────────────────────────────────
 function toggleFolderPopup(folderId: string, event: MouseEvent) {
     event.stopPropagation();
-    const button = event.currentTarget as HTMLElement;
-    const rect = button.getBoundingClientRect();
-    
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     folderPopup.value = {
         show: !folderPopup.value.show || folderPopup.value.folderId !== folderId,
         x: rect.right + 10,
@@ -425,27 +360,195 @@ function toggleFolderPopup(folderId: string, event: MouseEvent) {
     };
 }
 
-function closeFolderPopup() {
+function closeAll() {
+    contextMenu.value.show = false;
     folderPopup.value.show = false;
 }
 
-function closeAll() {
-    closeContextMenu();
-    closeFolderPopup();
-}
-
-onMounted(() => {
-    document.addEventListener('click', closeAll);
-});
-
-onUnmounted(() => {
-    document.removeEventListener('click', closeAll);
-});
+onMounted(() => document.addEventListener('click', closeAll));
+onUnmounted(() => document.removeEventListener('click', closeAll));
 </script>
+
 <style lang="css" scoped>
 .server-list-container {
     background-color: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 15px;
+}
+
+/* Rail scroll — hidden scrollbar (no jitter, no eaten pixels). */
+.rail-scroll {
+    overflow-y: auto;
+    overflow-x: visible;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.rail-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.rail-sep {
+    width: 32px;
+    margin: 2px auto;
+    background: hsl(var(--border) / 0.6);
+}
+
+/* ── Slot + indicator (shared with ServerRailIcon visuals) ── */
+.rail-slot {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.rail-indicator {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 4px;
+    height: 0;
+    border-radius: 0 4px 4px 0;
+    background: hsl(var(--foreground));
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: height 0.18s ease, opacity 0.18s ease;
+}
+.rail-slot:hover .rail-indicator { height: 18px; opacity: 0.6; }
+.rail-slot.is-active .rail-indicator { height: 36px; opacity: 1; }
+
+/* ── Generic rail icon button (home / folder / add) ── */
+.rail-icon-btn {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: hsl(var(--muted) / 0.6);
+    color: hsl(var(--foreground));
+    cursor: pointer;
+    transition: border-radius 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+.rail-slot:hover .rail-icon-btn,
+.rail-icon-btn.is-active {
+    border-radius: 16px;
+}
+.rail-home:hover { background: hsl(var(--primary) / 0.85); color: #fff; }
+.rail-home.is-active { background: hsl(var(--primary)); color: #fff; }
+.rail-folder:hover { background: hsl(var(--accent)); }
+.rail-add { color: #22c55e; }
+.rail-add:hover { background: #22c55e; color: #fff; }
+
+/* ── Folder mini preview (1–4 avatars, centered & wrapping) ── */
+.folder-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: 2px;
+    width: 34px;
+    height: 34px;
+}
+.folder-mini {
+    flex: 0 0 auto;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* ── Badges (folder button) ── */
+.rail-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+    font-size: 10px;
+    font-weight: 700;
+    border: 2px solid hsl(var(--card));
+}
+.rail-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid hsl(var(--card));
+}
+
+/* ── Folder popover ── */
+.rail-popover {
+    position: fixed;
+    z-index: 50;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    padding: 8px;
+}
+.rail-popover-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 48px);
+    gap: 8px;
+}
+
+/* ── Context menu ── */
+.rail-ctx {
+    position: fixed;
+    z-index: 50;
+    min-width: 160px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    padding: 4px;
+}
+.rail-ctx-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    color: hsl(var(--foreground));
+    font-size: 13px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    text-align: left;
+}
+.rail-ctx-item:hover { background: hsl(var(--accent)); }
+.rail-ctx-item--danger { color: hsl(var(--destructive)); }
+.rail-ctx-item--danger:hover { background: hsl(var(--destructive) / 0.12); }
+.rail-ctx-sep {
+    height: 1px;
+    margin: 4px 6px;
+    background: hsl(var(--border));
+}
+
+/* Popover/menu transition */
+.rail-pop-enter-active {
+    transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rail-pop-leave-active {
+    transition: opacity 0.1s ease, transform 0.1s ease;
+}
+.rail-pop-enter-from,
+.rail-pop-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateX(-4px);
 }
 </style>
