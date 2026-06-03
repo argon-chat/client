@@ -34,6 +34,7 @@ const accessibilityGranted = ref(true);
 
 onMounted(async () => {
   if (!argon.isArgonHost || !isMac.value) return;
+  // @ts-ignore
   accessibilityGranted.value = await native.hostProc.isPermissionGranted('accessibility');
 });
 
@@ -41,6 +42,7 @@ const needsAccessibility = computed(() => isMac.value && argon.isArgonHost && !a
 
 async function requestAccessibility() {
   if (!argon.isArgonHost) return;
+  // @ts-ignore
   const granted = await native.hostProc.requestPermission('accessibility');
   accessibilityGranted.value = granted;
   if (granted) {

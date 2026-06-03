@@ -64,6 +64,7 @@ export type MessageType =
   | 'get-context'
   | 'get-user'
   | 'get-participants'
+  | 'get-avatar'
   // Layout
   | 'layout-request'
   | 'layout-update'
@@ -81,6 +82,11 @@ export type MessageType =
   | 'rtc-get-ice-servers'
   | 'rtc-signal'
   | 'rtc-peer-state'
+  // Multiplayer session & messaging (relayed over the host transport)
+  | 'session-update'
+  | 'role-update'
+  | 'game-message'
+  | 'peer-left'
   // Heartbeat & Diagnostics
   | 'ping'
   | 'pong'

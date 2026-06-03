@@ -66,7 +66,7 @@ export function generateMockUser(overrides?: Partial<EphemeralUser>): EphemeralU
   return {
     ephemeralId: `dev-user-${Math.random().toString(36).slice(2, 10)}`,
     displayName: 'Dev Player',
-    avatarUrl: null,
+    avatarId: null,
     role: 'player',
     state: 'active',
     ...overrides,

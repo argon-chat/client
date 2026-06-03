@@ -71,7 +71,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
       loaded.value = true;
       return;
     }
-
+    // @ts-ignore
     const raw = await native.hostProc.getConfig();
 
     // DevMode
@@ -97,6 +97,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const setValue_raw = async (req: SetRequest) => {
+    // @ts-ignore
     const updated = await native.hostProc.setConfigValue(req);
     if (!updated?.value) {
       throw new Error("Config update failed");
@@ -138,6 +139,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
         break;
     }
 
+    // @ts-ignore
     const updated = await native.hostProc.setConfigValue(req);
     if (!updated?.value) {
       throw new Error("Config update failed");

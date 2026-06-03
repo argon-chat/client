@@ -1,8 +1,9 @@
 <template>
     <div class="flex flex-col h-full gap-3">
     <div ref="mediaChannelContainer" class="media-channel flex flex-col flex-1 min-h-0 transition-all duration-300 relative">
-        <!-- Top Info Overlay -->
-        <div class="media-info-bar">
+        <!-- Top Info Overlay (hidden while a game occupies the channel in-place,
+             to avoid overlapping the PlayFrame panel header) -->
+        <div v-show="!activity.isActive || activity.isPopout" class="media-info-bar">
             <div class="info-pill channel-title" :title="channelName">
                 <Volume2 class="w-3.5 h-3.5 shrink-0" />
                 <span class="channel-title-name">{{ channelName }}</span>
@@ -25,19 +26,21 @@
 
         <!-- Content area -->
         <div class="media-content">
-            <!-- Empty state: no one in the channel -->
-            <div v-if="allUsers.length === 0" class="empty-state">
-                <div class="empty-state-icon">
-                    <Users2 class="w-10 h-10" />
-                </div>
-                <span class="empty-state-title">{{ t("empty_channel") }}</span>
-                <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
-            </div>
+            <!-- Join/Watch banner for activities started by other people -->
+            <ActivityBanner />
 
-            <!--   Activity Mode: Game + participants below
-            <template v-else-if="activity?.isActive">
-                <PlayFramePanel class="flex-1 min-h-0" />
-                
+            <!-- Activity Mode: Game stage + participants strip below -->
+            <div v-if="activity.isActive" class="activity-mode">
+                <div class="activity-stage">
+                    <!-- PlayFramePanel teleports out to the overlay when popped -->
+                    <PlayFramePanel />
+                    <div v-if="activity.isPopout" class="popout-placeholder">
+                        <Gamepad2 class="w-8 h-8" />
+                        <span>{{ activity.currentGame?.title }} — playing in popout</span>
+                        <button class="dock-btn" @click="activity.togglePopout()">Bring back</button>
+                    </div>
+                </div>
+
                 <div class="flex flex-row gap-2 overflow-x-auto w-full shrink-0" style="max-height: 8rem;">
                     <ParticipantCard
                         v-for="[userId, user] in allUsers"
@@ -59,8 +62,17 @@
                         icon-position="top-1 right-1"
                         @video-ref="setVideoRef" />
                 </div>
-            </template> -->
-            
+            </div>
+
+            <!-- Empty state: no one in the channel -->
+            <div v-else-if="allUsers.length === 0" class="empty-state">
+                <div class="empty-state-icon">
+                    <Users2 class="w-10 h-10" />
+                </div>
+                <span class="empty-state-title">{{ t("empty_channel") }}</span>
+                <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
+            </div>
+
             <!-- Normal Voice Channel View -->
             <Transition v-else name="stream-layout" mode="out-in">
                 <!-- Stream Mode: Main video + horizontal thumbnails -->
@@ -169,19 +181,22 @@ import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
+import ActivityBanner from "./playframe/ActivityBanner.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
 import {
-    Signal, Users2, Volume2,
+    Signal, Users2, Volume2, Gamepad2,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
 const api = useApi();
 const pool = usePoolStore();
 const { playframeActive } = useFeatureFlags();
+const activity = usePlayFrameActivity();
 const { t } = useLocale();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
@@ -266,6 +281,50 @@ onUnmounted(() => {
     min-height: 0;
     padding: 1rem;
     gap: 0.75rem;
+}
+
+/* Activity (PlayFrame) mode */
+.activity-mode {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0.5rem;
+}
+
+.activity-stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+.popout-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px dashed hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--muted) / 0.3);
+    color: hsl(var(--muted-foreground));
+    font-size: 13px;
+}
+
+.dock-btn {
+    padding: 6px 14px;
+    border-radius: calc(var(--radius) - 4px);
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.dock-btn:hover {
+    opacity: 0.9;
 }
 
 /* Empty state */

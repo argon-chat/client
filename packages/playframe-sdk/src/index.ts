@@ -89,6 +89,21 @@ export type {
   // Input
   InputCapabilities,
   GamepadInfo,
+  // WebRTC P2P
+  IceServer,
+  IceServersConfig,
+  RtcSignalMessage,
+  RtcSignalType,
+  RtcPeerState,
+  RtcIceCandidate,
+  // Multiplayer session & messaging
+  LaunchIntent,
+  LaunchInfo,
+  SessionLifecycle,
+  SessionMode,
+  SessionUpdatePayload,
+  GameMessageInPayload,
+  GameMessageOutPayload,
   // Protocol
   ProtocolError,
   ErrorCode,

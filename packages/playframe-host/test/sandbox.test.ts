@@ -22,10 +22,10 @@ import type { Permission } from '@argon/playframe';
 describe('buildSandboxAttribute', () => {
   test('includes base flags', () => {
     const sandbox = buildSandboxAttribute([]);
-    
-    // Should include default flags
+
+    // Should include allow-scripts, but NOT allow-same-origin (sandbox escape).
     expect(sandbox).toContain('allow-scripts');
-    expect(sandbox).toContain('allow-same-origin');
+    expect(sandbox).not.toContain('allow-same-origin');
   });
 
   test('adds pointer-lock flag', () => {

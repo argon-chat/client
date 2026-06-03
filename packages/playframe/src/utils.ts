@@ -294,7 +294,7 @@ export function mergeCspDirectives(
  */
 export function createFrameLimiter(targetFps: number) {
   let lastFrameTime = 0;
-  const minFrameInterval = 1000 / targetFps;
+  let minFrameInterval = 1000 / targetFps;
 
   return {
     shouldRender(timestamp: number): boolean {
@@ -307,7 +307,7 @@ export function createFrameLimiter(targetFps: number) {
     },
 
     setTargetFps(fps: number): void {
-      // minFrameInterval = 1000 / fps; // Commented out as it's a const
+      minFrameInterval = 1000 / fps;
     },
 
     reset(): void {

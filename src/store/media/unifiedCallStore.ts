@@ -82,6 +82,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         screencast: boolean;
         volume: number[];
         audioGraph: RemoteAudioGraph | null;
+        /** Raw PlayFrame activity presence attribute (JSON string) if running a game */
+        pfActivity?: string;
       }
     >
   >({});
@@ -439,6 +441,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       audioGraph: null,
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
+      pfActivity: p.attributes?.pfActivity || undefined,
     };
 
     // Add guest user to realtime channel if in channel mode
@@ -499,6 +502,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       if (pm) {
         pm.mutedAll = x.isMutedAll === "true";
         pm.screencast = x.isScreencast === "true";
+        // PlayFrame presence: only update when the key is part of this change set
+        if ("pfActivity" in x) {
+          pm.pfActivity = x.pfActivity || undefined;
+        }
         logger.info(
           `[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`,
         );

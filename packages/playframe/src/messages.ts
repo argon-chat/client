@@ -9,6 +9,7 @@ import type { MessageEnvelope, ResponseEnvelope, ProtocolError } from './protoco
 import type {
   EphemeralUser,
   EphemeralSpace,
+  ParticipantRole,
   GameContext,
   LayoutConfig,
   LayoutState,
@@ -137,6 +138,19 @@ export interface GetParticipantsResponse {
   participants: EphemeralUser[];
   /** Total count (may differ if paginated) */
   totalCount: number;
+}
+
+/**
+ * Request avatar image bytes for an opaque avatar token. The host fetches the
+ * image (trusted side) and returns a data URL, so the game never sees the CDN.
+ */
+export interface GetAvatarPayload {
+  avatarId: string;
+}
+
+export interface GetAvatarResponse {
+  /** Image as a data URL (e.g. `data:image/png;base64,...`) or null if unavailable */
+  dataUrl: string | null;
 }
 
 // ============================================================================
@@ -375,6 +389,65 @@ export interface LogPayload {
 }
 
 // ============================================================================
+// Multiplayer Session & Messaging
+// ============================================================================
+
+export type SessionLifecycle = 'menu' | 'waiting' | 'playing' | 'gameover';
+export type SessionMode = 'solo' | 'multiplayer';
+
+/**
+ * Game → host: report the current multiplayer session status so the host app
+ * can publish presence (joinable/state) to the rest of the channel.
+ */
+export interface SessionUpdatePayload {
+  state: SessionLifecycle;
+  mode: SessionMode;
+  /** Whether another participant may join right now */
+  joinable: boolean;
+  /** Whether others may watch this session live (game streams state) */
+  spectatable: boolean;
+  playerCount: number;
+  maxPlayers: number;
+}
+
+/**
+ * Game → host: the local participant's effective role changed (e.g. a spectator
+ * was approved to become a player by the authoritative game). Lets the app
+ * update presence/UI to match.
+ */
+export interface RoleUpdatePayload {
+  role: ParticipantRole;
+}
+
+/**
+ * Game → host: send arbitrary game data to a peer (or broadcast).
+ * The host relays it over its transport (LiveKit data channel).
+ */
+export interface GameMessageOutPayload {
+  /** Target peer ephemeral id; omit to broadcast to all participants */
+  to?: string;
+  data: unknown;
+  /** Reliable (ordered) vs lossy (low-latency). Defaults to reliable. */
+  reliable?: boolean;
+}
+
+/**
+ * Host → game: an inbound game message relayed from another peer.
+ */
+export interface GameMessageInPayload {
+  from: string;
+  data: unknown;
+}
+
+/**
+ * Host → game: a peer (player or spectator) left the session/room. The game
+ * reacts (end the match, drop to menu, stop streaming, etc.).
+ */
+export interface PeerLeftPayload {
+  peerId: string;
+}
+
+// ============================================================================
 // Message Type Mapping
 // ============================================================================
 
@@ -390,6 +463,7 @@ export interface MessagePayloadMap {
   'get-context': GetContextPayload;
   'get-user': GetUserPayload;
   'get-participants': GetParticipantsPayload;
+  'get-avatar': GetAvatarPayload;
   // Layout
   'layout-request': LayoutRequestPayload;
   'layout-update': LayoutUpdatePayload;
@@ -407,6 +481,11 @@ export interface MessagePayloadMap {
   'rtc-get-ice-servers': RtcGetIceServersPayload;
   'rtc-signal': RtcSignalPayload;
   'rtc-peer-state': RtcPeerStatePayload;
+  // Multiplayer session & messaging
+  'session-update': SessionUpdatePayload;
+  'role-update': RoleUpdatePayload;
+  'game-message': GameMessageOutPayload | GameMessageInPayload;
+  'peer-left': PeerLeftPayload;
   // Heartbeat
   'ping': PingPayload;
   'pong': PongPayload;
@@ -419,6 +498,7 @@ export interface ResponsePayloadMap {
   'get-context': GetContextResponse;
   'get-user': GetUserResponse;
   'get-participants': GetParticipantsResponse;
+  'get-avatar': GetAvatarResponse;
   'layout-request': LayoutRequestResponse;
   'resize-request': ResizeRequestResponse;
   'input-capabilities': InputCapabilitiesResponse;

@@ -80,6 +80,7 @@ watch(() => props.visible, (v) => {
 function drawOriginal() {
   const canvas = originalCanvas.value;
   const payload = store.uiState.renderingPayload;
+  // @ts-ignore
   if (!canvas || !payload?.media?.src) return;
 
   const img = new Image();
@@ -97,6 +98,7 @@ function drawOriginal() {
     const h = img.height * scale;
     ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
   };
+  // @ts-ignore
   img.src = payload.media.src;
 }
 

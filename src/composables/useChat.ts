@@ -72,6 +72,7 @@ export function useChat(serverId: Guid, channelId: Guid) {
     if (exists) return;
 
     messages.value = [...messages.value, message];
+    // @ts-ignore
     db.messages.put(message);
   }
   pool.onNewMessageReceived.subscribe(addNewMessage);

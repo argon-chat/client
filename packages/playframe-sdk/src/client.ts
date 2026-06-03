@@ -33,6 +33,7 @@ import {
   type GetContextResponse,
   type GetUserResponse,
   type GetParticipantsResponse,
+  type GetAvatarResponse,
   type LayoutRequestResponse,
   type ResizeRequestResponse,
   type InputCapabilitiesResponse,
@@ -51,6 +52,10 @@ import {
   type RtcPeerState,
   type RtcGetIceServersResponse,
   type RtcSignalResponse,
+  // Multiplayer session & messaging
+  type SessionUpdatePayload,
+  type GameMessageInPayload,
+  type LaunchInfo,
   RequestTracker,
   EventEmitter,
   PLAYFRAME_PROTOCOL_ID,
@@ -87,6 +92,10 @@ export interface PlayFrameClientEvents {
   rtcSignal: { from: string; signal: RtcSignalMessage };
   /** Peer connection state changed */
   rtcPeerState: RtcPeerState;
+  /** Game message received from another peer (multiplayer/spectate) */
+  message: GameMessageInPayload;
+  /** A peer (player or spectator) left the session/room */
+  peerLeft: { peerId: string };
   /** Error occurred */
   error: { error: ProtocolError; fatal: boolean };
   /** Ping received (for latency measurement) */
@@ -310,6 +319,17 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
    */
   getSpace(): EphemeralSpace | null {
     return this.context?.space ?? null;
+  }
+
+  /**
+   * Resolve an opaque avatar token (from `EphemeralUser.avatarId`) to a data URL.
+   * The host fetches the image bytes; the game never sees the CDN or a real id.
+   * Returns null if unavailable.
+   */
+  async getAvatar(avatarId: string): Promise<string | null> {
+    this.ensureConnected();
+    const response = await this.request<GetAvatarResponse>('get-avatar', { avatarId });
+    return response.dataUrl;
   }
 
   /**
@@ -537,6 +557,60 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
   }
 
   // ==========================================================================
+  // Multiplayer Session & Messaging API
+  // ==========================================================================
+
+  /**
+   * How this game instance was launched (multiplayer intent + session id).
+   * `null` for standalone or when the host did not provide launch info.
+   */
+  getLaunch(): LaunchInfo | null {
+    return this.context?.launch ?? null;
+  }
+
+  /**
+   * Report the current multiplayer session status to the host so it can
+   * publish presence (joinable / state) to the rest of the channel.
+   */
+  updateSession(info: SessionUpdatePayload): void {
+    if (!this.isConnected()) return;
+    this.send('session-update', info);
+  }
+
+  /**
+   * Report that the local participant's effective role changed (e.g. a spectator
+   * was approved to play). Lets the host app update presence/UI.
+   */
+  notifyRole(role: GameContext['user']['role']): void {
+    if (!this.isConnected()) return;
+    this.send('role-update', { role });
+  }
+
+  /**
+   * Send game data to a specific peer (by ephemeral id). Requires the
+   * `networking` permission. Use `reliable: false` for high-rate, lossy state.
+   */
+  sendTo(to: string, data: unknown, opts?: { reliable?: boolean }): void {
+    this.sendGameMessage({ to, data, reliable: opts?.reliable });
+  }
+
+  /**
+   * Broadcast game data to all other participants (players + spectators).
+   */
+  broadcast(data: unknown, opts?: { reliable?: boolean }): void {
+    this.sendGameMessage({ data, reliable: opts?.reliable });
+  }
+
+  private sendGameMessage(payload: { to?: string; data: unknown; reliable?: boolean }): void {
+    if (!this.isConnected()) return;
+    if (!this.context?.permissions.granted.includes('networking')) {
+      this.log('warn', 'Networking permission not granted (game-message dropped)');
+      return;
+    }
+    this.send('game-message', payload);
+  }
+
+  // ==========================================================================
   // Diagnostics API
   // ==========================================================================
 
@@ -644,6 +718,15 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
         // Peer state update from host
         const peerStatePayload = message.payload as { state: RtcPeerState };
         this.emit('rtcPeerState', peerStatePayload.state);
+        break;
+
+      case 'game-message':
+        // Inbound game data relayed from another peer
+        this.emit('message', message.payload as GameMessageInPayload);
+        break;
+
+      case 'peer-left':
+        this.emit('peerLeft', message.payload as { peerId: string });
         break;
 
       case 'ping':

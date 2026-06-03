@@ -35,7 +35,9 @@ export const REQUEST_TIMEOUT = 5000;
  */
 export const DEFAULT_SANDBOX_FLAGS = [
   'allow-scripts',           // Required for game logic
-  'allow-same-origin',       // Required for some APIs (careful with this)
+  // 'allow-same-origin' intentionally omitted: with allow-scripts it permits
+  //   sandbox escape, and would run the game on the app's own origin. Games run
+  //   in an opaque origin and talk to the host only via postMessage.
   // 'allow-popups',         // Disabled - no popups
   // 'allow-forms',          // Disabled - no form submission
   // 'allow-top-navigation', // Disabled - no navigation

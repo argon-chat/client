@@ -17,8 +17,12 @@ export interface EphemeralUser {
   ephemeralId: string;
   /** Display name (may be anonymized based on privacy settings) */
   displayName: string;
-  /** Avatar URL (proxied through Argon CDN for privacy) */
-  avatarUrl: string | null;
+  /**
+   * Opaque, session-scoped avatar token (NOT a URL or real file id). Fetch the
+   * image bytes via `client.getAvatar(avatarId)` — the host returns a data URL,
+   * so the game never sees the CDN and cannot make network requests itself.
+   */
+  avatarId: string | null;
   /** User's role in the current session */
   role: ParticipantRole;
   /** User's current state */
@@ -89,6 +93,20 @@ export interface GameContext {
   permissions: GrantedPermissions;
   /** Host capabilities */
   capabilities: HostCapabilities;
+  /** How this game instance was launched (multiplayer intent) */
+  launch?: LaunchInfo;
+}
+
+/** Why/how a game instance was launched, for multiplayer coordination. */
+export type LaunchIntent =
+  | 'new'       // Fresh start (host); game shows its own menu
+  | 'join'      // Joining an existing session as a player
+  | 'spectate'; // Watching an in-progress session (view-only)
+
+export interface LaunchInfo {
+  intent: LaunchIntent;
+  /** Shared session id all participants of one activity agree on */
+  sessionId: string;
 }
 
 export interface GameInfo {

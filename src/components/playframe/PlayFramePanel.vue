@@ -1,41 +1,55 @@
 <template>
-  <Transition name="slide-up">
-    <div v-if="activity.isActive" class="playframe-panel">
+  <!-- When popped out, the panel (and its live iframe) teleports into the
+       fullscreen overlay target without remounting the host. -->
+  <Teleport to="#playframe-popout-target" :disabled="!activity.isPopout">
+    <div v-if="activity.isActive" class="playframe-panel" :class="{ 'is-popout': activity.isPopout }">
       <div class="playframe-header">
         <div class="game-info">
           <Gamepad2 class="w-5 h-5" />
           <span class="game-title">{{ activity.currentGame?.title }}</span>
-          <Badge variant="outline" class="ml-2">
+          <Badge v-if="roleLabel" variant="secondary" class="ml-2">
+            {{ roleLabel }}
+          </Badge>
+          <Badge variant="outline" class="ml-1">
             {{ activity.hostState }}
           </Badge>
         </div>
         <div class="controls">
-          <Button 
-            v-if="activity.hostState === 'ready'" 
-            variant="ghost" 
+          <Button
+            v-if="activity.hostState === 'ready'"
+            variant="ghost"
             size="icon"
             @click="activity.pauseActivity()"
           >
             <Pause class="w-4 h-4" />
           </Button>
-          <Button 
-            v-if="activity.hostState === 'paused'" 
-            variant="ghost" 
+          <Button
+            v-if="activity.hostState === 'paused'"
+            variant="ghost"
             size="icon"
             @click="activity.resumeActivity()"
           >
             <Play class="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
+            size="icon"
+            :title="activity.isPopout ? 'Dock' : 'Pop out'"
+            @click="activity.togglePopout()"
+          >
+            <Shrink v-if="activity.isPopout" class="w-4 h-4" />
+            <ExternalLink v-else class="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
             size="icon"
             @click="toggleFullscreen"
           >
             <Maximize2 v-if="!isFullscreen" class="w-4 h-4" />
             <Minimize2 v-else class="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             class="text-destructive hover:text-destructive"
             @click="activity.stopActivity()"
@@ -45,10 +59,12 @@
         </div>
       </div>
 
-      <div 
-        ref="gameContainer" 
+      <div
+        ref="gameContainer"
         class="game-container"
         :class="{ fullscreen: isFullscreen }"
+        @pointerenter="focusGame"
+        @pointerdown="focusGame"
       >
         <!-- Game iframe will be inserted here by PlayFrameHost -->
         <div v-if="activity.hostState === 'loading'" class="loading-overlay">
@@ -64,11 +80,11 @@
         </div>
       </div>
     </div>
-  </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useLocale } from "@/store/system/localeStore";
 import { Button } from "@argon/ui/button";
@@ -82,6 +98,8 @@ import {
   Minimize2,
   Loader2,
   AlertCircle,
+  ExternalLink,
+  Shrink,
 } from "lucide-vue-next";
 
 const { t } = useLocale();
@@ -90,11 +108,42 @@ const activity = usePlayFrameActivity();
 const gameContainer = ref<HTMLElement | null>(null);
 const isFullscreen = ref(false);
 
-// Start game when container is available
+const roleLabel = computed(() => {
+  switch (activity.myRole) {
+    case "host":
+      return "Host";
+    case "player":
+      return "Player";
+    case "spectator":
+      return "Spectating";
+    default:
+      return null;
+  }
+});
+
+// The game iframe is sandboxed (opaque origin); keyboard input only reaches it
+// while the iframe element holds focus. Nothing focuses it automatically, so we
+// focus it on ready, on click, and after it moves between surfaces (popout).
+function focusGame() {
+  const iframe = gameContainer.value?.querySelector("iframe");
+  iframe?.focus({ preventScroll: true });
+}
+
 watch(
-  () => activity.isPickerOpen,
-  async (selected) => {
-    // Game selection handled by picker, we just provide the container
+  () => activity.hostState,
+  async (state) => {
+    if (state === "ready") {
+      await nextTick();
+      focusGame();
+    }
+  }
+);
+
+watch(
+  () => activity.isPopout,
+  async () => {
+    await nextTick();
+    focusGame();
   }
 );
 
@@ -153,21 +202,27 @@ defineExpose({
 .playframe-panel {
   display: flex;
   flex-direction: column;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   height: 100%;
+}
+
+.playframe-panel.is-popout {
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
 .playframe-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: hsl(var(--muted));
-  border-bottom: 1px solid hsl(var(--border));
+  padding: 6px 8px 6px 12px;
+  background: hsl(var(--card) / 0.4);
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
   flex-shrink: 0;
 }
 
@@ -175,23 +230,28 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
+  color: hsl(var(--foreground));
+}
+
+.game-info :deep(svg) {
+  color: hsl(var(--primary));
 }
 
 .game-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .controls {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
 .game-container {
   position: relative;
   flex: 1;
   min-height: 0;
-  background: #000;
+  background: hsl(var(--background));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,19 +283,9 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-}
-
-/* Animations */
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
+  background: hsl(var(--background) / 0.85);
+  backdrop-filter: blur(4px);
+  color: hsl(var(--foreground));
+  font-size: 13px;
 }
 </style>

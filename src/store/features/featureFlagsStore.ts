@@ -1,8 +1,9 @@
 import { logger } from "@argon/core";
-import { FeatureFlagData } from "@argon/glue";
+import { FeatureFlagActivated } from "@argon/glue";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useApi } from "@/store/system/apiStore";
+import { useBus } from "@/store/realtime/busStore";
 
 export const FeatureFlagKeys = {
   DASHBOARD_DIALPAD_ACTIVE: "af.dashboard.dialpad.active",
@@ -25,6 +26,7 @@ export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKe
 
 export const useFeatureFlags = defineStore("featureFlags", () => {
   const api = useApi();
+  const bus = useBus();
 
   const flags = ref<Record<string, boolean>>({
     [FeatureFlagKeys.DASHBOARD_DIALPAD_ACTIVE]: true,
@@ -32,7 +34,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.PROFILE_COINS_ACTIVE]: true,
     [FeatureFlagKeys.LEVELING_ACTIVE]: true,
     [FeatureFlagKeys.NOTIFICATION_ACTIVE]: false,
-    [FeatureFlagKeys.PLAYFRAME_ACTIVE]: true,
+    [FeatureFlagKeys.PLAYFRAME_ACTIVE]: false,
     [FeatureFlagKeys.USER_SETTINGS_PASSKEY_ACTIVE]: true,
     [FeatureFlagKeys.USER_SETTINGS_AUTO_DELETE_ACCOUNT_ACTIVE]: false,
     [FeatureFlagKeys.DASHBOARD_ECHO_ACTIVE]: true,
@@ -66,6 +68,18 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     return flags.value[flagKey] ?? false;
   }
 
+  function subscribeToEvents(): void {
+    bus.onServerEvent<FeatureFlagActivated>("FeatureFlagActivated", (event) => {
+      if (!(event.flagId in flags.value)) {
+        logger.debug("Ignoring activation for unknown feature flag", event.flagId);
+        return;
+      }
+
+      flags.value[event.flagId] = event.isEnabled;
+      logger.info("Feature flag activated", event.flagId, event.isEnabled, event.variant);
+    });
+  }
+
   const dialpadActive = computed(() => flags.value[FeatureFlagKeys.DASHBOARD_DIALPAD_ACTIVE]);
   const inventoryActive = computed(() => flags.value[FeatureFlagKeys.INVENTORY_ACTIVE]);
   const profileCoinsActive = computed(() => flags.value[FeatureFlagKeys.PROFILE_COINS_ACTIVE]);
@@ -85,6 +99,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     flags,
     isLoaded,
     loadFeatureFlags,
+    subscribeToEvents,
     isEnabled,
     dialpadActive,
     inventoryActive,

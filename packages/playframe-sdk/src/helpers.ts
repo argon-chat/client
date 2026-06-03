@@ -249,11 +249,11 @@ export function createInputManager(options: InputManagerOptions = {}): InputMana
     touches: new Map(),
   };
   
-  const handlers: Array<[string, EventListener]> = [];
-  
-  function addHandler(type: string, handler: EventListener): void {
-    element.addEventListener(type, handler);
-    handlers.push([type, handler]);
+  const handlers: Array<[EventTarget, string, EventListener]> = [];
+
+  function addHandler(target: EventTarget, type: string, handler: EventListener): void {
+    target.addEventListener(type, handler);
+    handlers.push([target, type, handler]);
   }
   
   return {
@@ -275,72 +275,74 @@ export function createInputManager(options: InputManagerOptions = {}): InputMana
     },
     
     start(): void {
-      // Keyboard
-      addHandler('keydown', ((e: KeyboardEvent) => {
+      // Keyboard is global: bind to window so it works regardless of which
+      // element holds focus inside the document (a body-only listener misses
+      // events whose target is <html>, e.g. after a programmatic iframe focus).
+      addHandler(window, 'keydown', ((e: KeyboardEvent) => {
         state.keys.add(e.code);
         if (preventDefaults) e.preventDefault();
       }) as EventListener);
-      
-      addHandler('keyup', ((e: KeyboardEvent) => {
+
+      addHandler(window, 'keyup', ((e: KeyboardEvent) => {
         state.keys.delete(e.code);
         if (preventDefaults) e.preventDefault();
       }) as EventListener);
-      
-      // Mouse
-      addHandler('mousemove', ((e: MouseEvent) => {
+
+      // Mouse (relative to the game element)
+      addHandler(element, 'mousemove', ((e: MouseEvent) => {
         state.mouse.x = e.clientX;
         state.mouse.y = e.clientY;
         state.mouse.movementX += e.movementX;
         state.mouse.movementY += e.movementY;
       }) as EventListener);
-      
-      addHandler('mousedown', ((e: MouseEvent) => {
+
+      addHandler(element, 'mousedown', ((e: MouseEvent) => {
         state.mouse.buttons = e.buttons;
         if (preventDefaults) e.preventDefault();
       }) as EventListener);
-      
-      addHandler('mouseup', ((e: MouseEvent) => {
+
+      addHandler(element, 'mouseup', ((e: MouseEvent) => {
         state.mouse.buttons = e.buttons;
       }) as EventListener);
-      
+
       // Touch
-      addHandler('touchstart', ((e: TouchEvent) => {
+      addHandler(element, 'touchstart', ((e: TouchEvent) => {
         for (const touch of e.changedTouches) {
           state.touches.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
         }
         if (preventDefaults) e.preventDefault();
       }) as EventListener);
-      
-      addHandler('touchmove', ((e: TouchEvent) => {
+
+      addHandler(element, 'touchmove', ((e: TouchEvent) => {
         for (const touch of e.changedTouches) {
           state.touches.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
         }
         if (preventDefaults) e.preventDefault();
       }) as EventListener);
-      
-      addHandler('touchend', ((e: TouchEvent) => {
+
+      addHandler(element, 'touchend', ((e: TouchEvent) => {
         for (const touch of e.changedTouches) {
           state.touches.delete(touch.identifier);
         }
       }) as EventListener);
-      
-      addHandler('touchcancel', ((e: TouchEvent) => {
+
+      addHandler(element, 'touchcancel', ((e: TouchEvent) => {
         for (const touch of e.changedTouches) {
           state.touches.delete(touch.identifier);
         }
       }) as EventListener);
-      
-      // Blur - clear all input state
-      addHandler('blur', (() => {
+
+      // Blur - clear all input state (window-level so focus loss is caught)
+      addHandler(window, 'blur', (() => {
         state.keys.clear();
         state.mouse.buttons = 0;
         state.touches.clear();
       }) as EventListener);
     },
-    
+
     stop(): void {
-      for (const [type, handler] of handlers) {
-        element.removeEventListener(type, handler);
+      for (const [target, type, handler] of handlers) {
+        target.removeEventListener(type, handler);
       }
       handlers.length = 0;
     },

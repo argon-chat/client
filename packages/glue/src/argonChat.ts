@@ -1182,6 +1182,8 @@ export enum ArgonAuthMode
   EmailPassword = 0,
   EmailOtp = 1,
   EmailPasswordOtp = 2,
+  PasskeyOnly = 3,
+  PasskeyWithOtp = 4,
 }
 
 
@@ -3784,6 +3786,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isUserProfileUpdated(): this is UserProfileUpdated {
     return this.UnionKey === "UserProfileUpdated";
   }
+  public isFeatureFlagActivated(): this is FeatureFlagActivated {
+    return this.UnionKey === "FeatureFlagActivated";
+  }
 
 }
 
@@ -4252,6 +4257,14 @@ export class UserProfileUpdated extends IArgonEvent
   UnionIndex: number = 57;
 }
 
+export class FeatureFlagActivated extends IArgonEvent
+{
+  constructor(public userId: guid, public flagId: string, public isEnabled: bool, public variant: string | null) { super(); }
+
+  UnionKey: string = "FeatureFlagActivated";
+  UnionIndex: number = 58;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -4378,6 +4391,8 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<UltimaGiftReceived>("UltimaGiftReceived").read(reader);
     else if (unionIndex == 57)
       value = IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").read(reader);
+    else if (unionIndex == 58)
+      value = IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").read(reader);
 
     else throw new Error();
   
@@ -4562,6 +4577,9 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 57) {
         IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").write(writer, value as UserProfileUpdated);
+    }
+    else if (value.UnionIndex == 58) {
+        IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").write(writer, value as FeatureFlagActivated);
     }
   
     else throw new Error();
@@ -5558,6 +5576,26 @@ IonFormatterStorage.register("UserProfileUpdated", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FeatureFlagActivated", {
+  read(reader: CborReader): FeatureFlagActivated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const flagId = IonFormatterStorage.get<string>('string').read(reader);
+    const isEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
+    const variant = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new FeatureFlagActivated(userId, flagId, isEnabled, variant);
+  },
+  write(writer: CborWriter, value: FeatureFlagActivated): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<string>('string').write(writer, value.flagId);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isEnabled);
+    IonFormatterStorage.writeNullable<string>(writer, value.variant, 'string');
     writer.writeEndArray();
   }
 });

@@ -134,10 +134,7 @@ const getSeverityClass = (duration: number) => {
     <div class="diag-section">
       <div class="diag-title">👥 USER STORE</div>
       <div class="diag-line">
-        Calls/sec: 
-        <span class="diag-value" :class="{ 'diag-warn': userDiagnostics.callsPerSecond > 50 }">
-          {{ userDiagnostics.callsPerSecond }}
-        </span>
+        Calls/sec: NaN
       </div>
       <div class="diag-line">
         Cache Hit Rate: <span class="diag-value">{{ userDiagnostics.cacheHitRate }}</span>

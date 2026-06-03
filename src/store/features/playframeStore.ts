@@ -1,7 +1,10 @@
 /**
  * PlayFrame Activity Store
- * 
- * Manages PlayFrame game activity state in voice channels.
+ *
+ * Manages PlayFrame game activity state in voice channels: launching (as host,
+ * joining player, or spectator), multiplayer presence (broadcast to the channel
+ * via LiveKit participant attributes), and the SFU data-channel transport for
+ * game messages + WebRTC signaling.
  */
 
 import { defineStore } from "pinia";
@@ -18,18 +21,30 @@ import type {
   SessionInfo,
   GameContext,
   Permission,
+  ParticipantRole,
   IceServersConfig,
   RtcSignalMessage,
   RtcPeerState,
+  SessionUpdatePayload,
+  SessionLifecycle,
+  SessionMode,
+  LaunchIntent,
 } from "@argon/playframe";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
+import { cdnUrl } from "@/store/system/fileStorage";
 import { logger } from "@argon/core";
+import { toast } from "@argon/ui/toast";
 import { v4 as uuidv4 } from "uuid";
+import type { Room } from "livekit-client";
+import {
+  createPlayFrameChannel,
+  type PlayFrameChannel,
+} from "@/lib/playframe/playframeChannel";
 
 // ============================================================================
-// Mock Game Registry (будет заменён на API)
+// Game Registry (mock — будет заменён на API)
 // ============================================================================
 
 export interface GameManifest extends GameInfo {
@@ -40,7 +55,6 @@ export interface GameManifest extends GameInfo {
   permissions: Permission[];
 }
 
-// Mock games for development
 const MOCK_GAMES: GameManifest[] = [
   {
     id: "pong",
@@ -52,7 +66,7 @@ const MOCK_GAMES: GameManifest[] = [
     thumbnail: "/games/pong/thumbnail.png",
     maxPlayers: 2,
     minPlayers: 1,
-    permissions: ["keyboard", "audio"],
+    permissions: ["keyboard", "audio", "networking"],
   },
   {
     id: "snake",
@@ -69,6 +83,36 @@ const MOCK_GAMES: GameManifest[] = [
 ];
 
 // ============================================================================
+// Presence
+// ============================================================================
+
+/** Activity presence broadcast to the channel via a LiveKit participant attribute. */
+export interface ActivityPresence {
+  hostId: string;
+  hostName: string;
+  gameId: string;
+  gameTitle: string;
+  sessionId: string;
+  state: SessionLifecycle;
+  mode: SessionMode;
+  joinable: boolean;
+  spectatable: boolean;
+  playerCount: number;
+  maxPlayers: number;
+}
+
+const PRESENCE_ATTR = "pfActivity";
+
+interface PendingLaunch {
+  game: GameManifest;
+  intent: LaunchIntent;
+  sessionId: string;
+  role: ParticipantRole;
+  /** userId of the activity host (self for `new`, remote for join/spectate) */
+  hostId: string;
+}
+
+// ============================================================================
 // Store
 // ============================================================================
 
@@ -80,30 +124,61 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
   // Current activity state
   const isActive = ref(false);
   const currentGame = ref<GameManifest | null>(null);
-  const pendingGame = ref<GameManifest | null>(null);
   const host = shallowRef<PlayFrameHost | null>(null);
+  const channel = shallowRef<PlayFrameChannel | null>(null);
   const hostState = ref<HostState>("idle");
   const context = ref<GameContext | null>(null);
   const sessionId = ref<string | null>(null);
   const error = ref<string | null>(null);
 
-  // Participants in the activity
+  // My role in the current activity + who hosts it
+  const myRole = ref<ParticipantRole | null>(null);
+  const myHostId = ref<string | null>(null);
+  // Latest lifecycle reported by the game (menu/waiting/playing/gameover)
+  const sessionLifecycle = ref<SessionLifecycle | null>(null);
+
+  // Launch awaiting the panel to mount its container
+  const pendingLaunch = ref<PendingLaunch | null>(null);
+
+  // Participants in the activity (for the panel strip)
   const participants = ref<EphemeralUser[]>([]);
 
-  // Game picker state
+  // Game picker / popout UI
   const isPickerOpen = ref(false);
+  const isPopout = ref(false);
 
-  // Available games
   const availableGames = computed(() => MOCK_GAMES);
 
-  // Can start activity (must be in voice channel)
   const canStartActivity = computed(() => {
     return voice.isConnected && voice.mode === "channel" && voice.connectedVoiceChannelId;
   });
 
-  /**
-   * Open the game picker
-   */
+  // Activities advertised by OTHER participants in the channel (presence attr)
+  const channelActivities = computed<ActivityPresence[]>(() => {
+    const out: ActivityPresence[] = [];
+    for (const p of Object.values(voice.participants)) {
+      if (!p.pfActivity) continue;
+      try {
+        const a = JSON.parse(p.pfActivity) as ActivityPresence;
+        a.hostId = a.hostId || p.userId;
+        a.hostName = a.hostName || p.displayName;
+        out.push(a);
+      } catch {
+        /* ignore malformed presence */
+      }
+    }
+    return out;
+  });
+
+  // Activities you can act on (not the one you're already in)
+  const joinableActivities = computed(() =>
+    channelActivities.value.filter((a) => a.sessionId !== sessionId.value),
+  );
+
+  // ==========================================================================
+  // Picker / popout
+  // ==========================================================================
+
   function openPicker() {
     if (!canStartActivity.value) {
       logger.warn("[PlayFrame] Cannot start activity - not in voice channel");
@@ -112,117 +187,143 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     isPickerOpen.value = true;
   }
 
-  /**
-   * Close the game picker
-   */
   function closePicker() {
     isPickerOpen.value = false;
   }
 
-  /**
-   * Select a game and show the panel (first phase)
-   * The actual host is created when initializeHost is called with the container
-   */
+  function togglePopout() {
+    isPopout.value = !isPopout.value;
+  }
+
+  function closePopout() {
+    isPopout.value = false;
+  }
+
+  // ==========================================================================
+  // Launch entry points
+  // ==========================================================================
+
+  /** Start a brand-new activity as host (game shows its own Solo/Multiplayer menu). */
   function selectGame(game: GameManifest): void {
-    if (!canStartActivity.value) {
+    const meUser = me.me;
+    if (!canStartActivity.value || !meUser) {
       error.value = "Must be in a voice channel to start an activity";
       return;
     }
+    beginLaunch({
+      game,
+      intent: "new",
+      sessionId: uuidv4(),
+      role: "host",
+      hostId: meUser.userId,
+    });
+  }
 
-    logger.log(`[PlayFrame] Selected game: ${game.title}`);
-    pendingGame.value = game;
-    currentGame.value = game;
+  /** Join an existing multiplayer activity as a player. */
+  function joinActivity(presence: ActivityPresence): void {
+    const game = MOCK_GAMES.find((g) => g.id === presence.gameId);
+    if (!game || !canStartActivity.value) return;
+    beginLaunch({
+      game,
+      intent: "join",
+      sessionId: presence.sessionId,
+      role: "player",
+      hostId: presence.hostId,
+    });
+  }
+
+  /** Watch an in-progress activity as a spectator (view-only). */
+  function spectateActivity(presence: ActivityPresence): void {
+    const game = MOCK_GAMES.find((g) => g.id === presence.gameId);
+    if (!game || !canStartActivity.value) return;
+    beginLaunch({
+      game,
+      intent: "spectate",
+      sessionId: presence.sessionId,
+      role: "spectator",
+      hostId: presence.hostId,
+    });
+  }
+
+  /** Phase 1: stage the launch + show the panel; the host mounts when the panel provides a container. */
+  function beginLaunch(launch: PendingLaunch): void {
+    logger.log(`[PlayFrame] Launch ${launch.intent}: ${launch.game.title}`);
+    pendingLaunch.value = launch;
+    currentGame.value = launch.game;
+    sessionId.value = launch.sessionId;
+    myRole.value = launch.role;
+    myHostId.value = launch.hostId;
     hostState.value = "loading";
     isActive.value = true;
     isPickerOpen.value = false;
   }
 
-  /**
-   * Initialize the host with the container (second phase)
-   * Called by PlayFramePanel when it mounts
-   */
+  /** Phase 2: called by PlayFramePanel once its container is in the DOM. */
   async function initializeHost(container: HTMLElement): Promise<boolean> {
-    const game = pendingGame.value;
-    if (!game) {
-      logger.warn("[PlayFrame] No pending game to initialize");
+    const launch = pendingLaunch.value;
+    if (!launch) {
+      logger.warn("[PlayFrame] No pending launch to initialize");
       return false;
     }
-
-    if (host.value) {
-      logger.warn("[PlayFrame] Host already initialized");
-      return true;
-    }
-
-    return startActivity(game, container);
+    if (host.value) return true;
+    return startActivity(launch, container);
   }
 
-  /**
-   * Start an activity with the given game
-   */
-  async function startActivity(game: GameManifest, container: HTMLElement): Promise<boolean> {
+  // ==========================================================================
+  // Host lifecycle
+  // ==========================================================================
+
+  async function startActivity(launch: PendingLaunch, container: HTMLElement): Promise<boolean> {
     if (!canStartActivity.value) {
       error.value = "Must be in a voice channel to start an activity";
       return false;
     }
-
-    // Only stop if there's an existing host (not just pending state)
-    if (host.value) {
-      await stopActivity();
-    }
+    if (host.value) await stopActivity();
 
     try {
-      logger.log(`[PlayFrame] Starting activity: ${game.title}`);
-
+      const { game, intent, role } = launch;
       currentGame.value = game;
-      sessionId.value = uuidv4();
+      sessionId.value = launch.sessionId;
+      myRole.value = role;
+      myHostId.value = launch.hostId;
       error.value = null;
       isActive.value = true;
 
-      // Build ephemeral user from current user
       const currentUser = me.me;
-      if (!currentUser) {
-        throw new Error("No current user");
-      }
+      if (!currentUser) throw new Error("No current user");
 
+      // Peer id == userId so every client in the room shares one peer namespace.
       const ephemeralUser: EphemeralUser = {
-        ephemeralId: uuidv4(), // Generate ephemeral ID
+        ephemeralId: currentUser.userId,
         displayName: currentUser.displayName || "Player",
-        avatarUrl: currentUser.avatarFileId || null,
-        role: "host",
+        avatarId: avatarTokenFor(currentUser.avatarFileId),
+        role,
         state: "active",
       };
 
-      // Build ephemeral space from voice channel
       const channelId = voice.connectedVoiceChannelId;
-      if (!channelId) {
-        throw new Error("No voice channel");
-      }
+      if (!channelId) throw new Error("No voice channel");
 
-      const channel = await pool.getChannel(channelId);
+      const ch = await pool.getChannel(channelId);
       const ephemeralSpace: EphemeralSpace = {
-        ephemeralId: uuidv4(),
-        name: channel?.name || "Game Room",
+        ephemeralId: launch.sessionId,
+        name: ch?.name || "Game Room",
         type: "voice-channel",
         maxParticipants: 10,
         participantCount: Object.keys(voice.participants).length + 1,
         isPrivate: false,
       };
 
-      // Build session info
       const session: SessionInfo = {
-        sessionId: sessionId.value,
+        sessionId: launch.sessionId,
         startedAt: Date.now(),
         state: "playing",
       };
 
-      // Get participants from voice channel
-      const voiceParticipants = await getParticipants();
-      participants.value = voiceParticipants;
+      participants.value = await getParticipants();
 
-      // Resolve game URL to absolute (needed for PlayFrameHost)
       const gameUrl = new URL(game.url, window.location.origin).href;
 
-      // Create PlayFrame host
       const hostConfig: PlayFrameHostConfig = {
         gameUrl,
         container,
@@ -236,70 +337,72 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
         user: ephemeralUser,
         space: ephemeralSpace,
         session,
+        launch: { intent, sessionId: launch.sessionId },
         autoGrantPermissions: game.permissions,
         getParticipants,
+        resolveAvatar,
         rtcConfig: {
-          getIceServers: mockGetIceServers,
-          relaySignal: mockRelaySignal,
+          getIceServers,
+          relaySignal,
           onPeerStateChange: handlePeerStateChange,
+        },
+        messaging: {
+          send: (from, to, data, reliable) =>
+            channel.value?.sendGameMessage(from, to, data, reliable),
+        },
+        onSessionUpdate: handleSessionUpdate,
+        onRoleChange: (r) => {
+          myRole.value = r;
         },
         devConfig: {
           enabled: import.meta.env.DEV,
           showOverlay: true,
           logMessages: true,
-          disableCsp: import.meta.env.DEV, // CSP can block in dev
-          disableWatchdog: import.meta.env.DEV, // Disable watchdog in dev for easier debugging
+          disableCsp: import.meta.env.DEV,
+          disableWatchdog: import.meta.env.DEV,
         },
       };
 
       const newHost = new PlayFrameHost(hostConfig);
 
-      // Setup event listeners
+      // SFU data-channel transport (game messages + WebRTC signaling).
+      const lkRoom = voice.room as Room | null;
+      if (lkRoom) {
+        channel.value = createPlayFrameChannel(lkRoom, {
+          onSignal: (from, signal) => newHost.relaySignalToGame(from, signal),
+          onGameMessage: (from, data) => newHost.deliverMessage(from, data),
+        });
+      } else {
+        logger.warn("[PlayFrame] No LiveKit room - multiplayer disabled");
+      }
+
       newHost.on("ready", (ctx) => {
-        logger.log("[PlayFrame] Game ready", ctx);
         context.value = ctx;
         hostState.value = "ready";
       });
-
-      newHost.on("pause", ({ reason }) => {
-        logger.log("[PlayFrame] Game paused:", reason);
-        hostState.value = "paused";
-      });
-
-      newHost.on("resume", () => {
-        logger.log("[PlayFrame] Game resumed");
-        hostState.value = "ready";
-      });
-
+      newHost.on("pause", () => (hostState.value = "paused"));
+      newHost.on("resume", () => (hostState.value = "ready"));
       newHost.on("terminate", ({ reason, message }) => {
         logger.log("[PlayFrame] Game terminated:", reason, message);
         stopActivity();
       });
-
       newHost.on("error", ({ error: err, fatal }) => {
         logger.error("[PlayFrame] Game error:", err, fatal);
         error.value = err.message;
-        if (fatal) {
-          stopActivity();
-        }
+        if (fatal) stopActivity();
       });
-
       newHost.on("participantJoin", (user) => {
-        logger.log("[PlayFrame] Participant joined:", user.displayName);
         participants.value = [...participants.value, user];
       });
-
       newHost.on("participantLeave", ({ ephemeralId }) => {
-        logger.log("[PlayFrame] Participant left:", ephemeralId);
         participants.value = participants.value.filter((p) => p.ephemeralId !== ephemeralId);
       });
 
       host.value = markRaw(newHost);
       hostState.value = "loading";
-      pendingGame.value = null;
+      pendingLaunch.value = null;
 
       await newHost.start();
-
       return true;
     } catch (e) {
       logger.error("[PlayFrame] Failed to start activity:", e);
@@ -309,11 +412,16 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     }
   }
 
-  /**
-   * Stop the current activity
-   */
   async function stopActivity() {
     logger.log("[PlayFrame] Stopping activity");
+
+    // Clear my advertised presence (host only) before tearing down transport.
+    if (myRole.value === "host") publishPresence(null);
+
+    if (channel.value) {
+      channel.value.dispose();
+      channel.value = null;
+    }
 
     if (host.value) {
       try {
@@ -331,63 +439,153 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     hostState.value = "idle";
     participants.value = [];
     error.value = null;
+    isPopout.value = false;
+    myRole.value = null;
+    myHostId.value = null;
+    sessionLifecycle.value = null;
+    pendingLaunch.value = null;
+
+    // Drop session-scoped avatar tokens/cache
+    avatarFileByToken.clear();
+    avatarTokenByFile.clear();
+    avatarDataCache.clear();
   }
 
-  /**
-   * Pause the current activity
-   */
   function pauseActivity() {
     host.value?.pause("user-requested");
   }
 
-  /**
-   * Resume the current activity
-   */
   function resumeActivity() {
     host.value?.resume();
   }
 
-  /**
-   * Get current participants
-   */
+  // ==========================================================================
+  // Multiplayer session presence + messaging
+  // ==========================================================================
+
+  /** Game reported its session status → reflect into channel presence (host only). */
+  function handleSessionUpdate(info: SessionUpdatePayload) {
+    sessionLifecycle.value = info.state;
+    if (myRole.value !== "host") return;
+
+    const cur = currentGame.value;
+    const meUser = me.me;
+    if (!cur || !meUser || !sessionId.value) return;
+
+    publishPresence({
+      hostId: meUser.userId,
+      hostName: meUser.displayName || "Player",
+      gameId: cur.id,
+      gameTitle: cur.title,
+      sessionId: sessionId.value,
+      state: info.state,
+      mode: info.mode,
+      joinable: info.joinable,
+      spectatable: info.spectatable,
+      playerCount: info.playerCount,
+      maxPlayers: info.maxPlayers,
+    });
+  }
+
+  function publishPresence(presence: ActivityPresence | null) {
+    const lkRoom = voice.room as Room | null;
+    if (!lkRoom) return;
+    lkRoom.localParticipant
+      .setAttributes({ [PRESENCE_ATTR]: presence ? JSON.stringify(presence) : "" })
+      .catch((e) => logger.warn("[PlayFrame] setAttributes failed", e));
+  }
+
   async function getParticipants(): Promise<EphemeralUser[]> {
     const result: EphemeralUser[] = [];
-
-    // Add current user
     const currentUser = me.me;
     if (currentUser) {
       result.push({
-        ephemeralId: uuidv4(),
+        ephemeralId: currentUser.userId,
         displayName: currentUser.displayName || "You",
-        avatarUrl: currentUser.avatarFileId || null,
-        role: "host",
+        avatarId: avatarTokenFor(currentUser.avatarFileId),
+        role: myRole.value ?? "host",
         state: "active",
       });
     }
-
-    // Add voice channel participants
-    for (const [userId, participant] of Object.entries(voice.participants)) {
+    for (const userId of Object.keys(voice.participants)) {
       const user = await pool.getUser(userId);
       if (user) {
         result.push({
-          ephemeralId: uuidv4(),
+          ephemeralId: userId,
           displayName: user.displayName || "Player",
-          avatarUrl: user.avatarFileId || null,
+          avatarId: avatarTokenFor(user.avatarFileId),
           role: "player",
           state: "active",
         });
       }
     }
-
     return result;
   }
 
-  // ============================================================================
-  // Mock WebRTC Functions (будут заменены на настоящие)
-  // ============================================================================
+  // ==========================================================================
+  // Avatars (opaque tokens → data URLs, fetched host-side; games never see CDN)
+  // ==========================================================================
 
-  async function mockGetIceServers(): Promise<IceServersConfig> {
-    // In production, this would fetch from the server
+  const avatarFileByToken = new Map<string, string>(); // token → real fileId
+  const avatarTokenByFile = new Map<string, string>(); // fileId → token
+  const avatarDataCache = new Map<string, string>(); // token → data URL
+
+  /** Mint (or reuse) an opaque session token for a real avatar file id. */
+  function avatarTokenFor(fileId: string | null | undefined): string | null {
+    if (!fileId) return null;
+    let token = avatarTokenByFile.get(fileId);
+    if (!token) {
+      token = uuidv4();
+      avatarTokenByFile.set(fileId, token);
+      avatarFileByToken.set(token, fileId);
+    }
+    return token;
+  }
+
+  /** Host-side avatar resolver passed to the PlayFrameHost. */
+  async function resolveAvatar(token: string): Promise<string | null> {
+    const cached = avatarDataCache.get(token);
+    if (cached) return cached;
+    const fileId = avatarFileByToken.get(token);
+    if (!fileId) return null;
+    const dataUrl = await imageToDataUrl(cdnUrl(fileId));
+    if (dataUrl) avatarDataCache.set(token, dataUrl);
+    return dataUrl;
+  }
+
+  /**
+   * Load an image cross-origin (the CDN serves CORS headers, as the overlay
+   * relies on) and re-encode it as a small data URL so we can hand bytes — not
+   * a URL — to the sandboxed game.
+   */
+  function imageToDataUrl(url: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const size = 64;
+          const c = document.createElement("canvas");
+          c.width = size;
+          c.height = size;
+          const cx = c.getContext("2d");
+          if (!cx) return resolve(null);
+          cx.drawImage(img, 0, 0, size, size);
+          resolve(c.toDataURL("image/png"));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
+  // ==========================================================================
+  // WebRTC (legacy P2P path, still available over the same channel)
+  // ==========================================================================
+
+  async function getIceServers(): Promise<IceServersConfig> {
     return {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -398,32 +596,64 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     };
   }
 
-  async function mockRelaySignal(
-    from: string,
-    to: string,
-    signal: RtcSignalMessage
-  ): Promise<boolean> {
-    // In production, this would send through the signaling server
-    logger.log("[PlayFrame] Mock relay signal:", from, "->", to, signal.type);
-    return true;
+  async function relaySignal(from: string, to: string, signal: RtcSignalMessage): Promise<boolean> {
+    if (!channel.value) return false;
+    return channel.value.relaySignal(from, to, signal);
   }
 
   function handlePeerStateChange(userId: string, state: RtcPeerState) {
     logger.log("[PlayFrame] Peer state change:", userId, state);
   }
 
-  // ============================================================================
-  // Cleanup on voice disconnect
-  // ============================================================================
+  // ==========================================================================
+  // Auto-cleanup / participant leave
+  // ==========================================================================
 
+  /** Take over my own game instance after the activity host went away. */
+  function promoteToHost() {
+    toast({ title: "Host left — back to the menu" });
+    myRole.value = "host";
+    myHostId.value = me.me?.userId ?? null;
+    sessionId.value = uuidv4(); // a fresh session if I start a new game
+  }
+
+  // Leaving voice ends the activity.
   watch(
     () => voice.isConnected,
     (connected) => {
-      if (!connected && isActive.value) {
-        logger.log("[PlayFrame] Voice disconnected, stopping activity");
-        stopActivity();
+      if (!connected && isActive.value) stopActivity();
+    },
+  );
+
+  // Detect participants leaving the voice room → tell the local game (so it can
+  // react: end match, drop to menu, stop streaming). If the activity host left,
+  // promote myself first so my game becomes its own host at the menu.
+  let prevParticipantIds = Object.keys(voice.participants);
+  watch(
+    () => Object.keys(voice.participants),
+    (cur) => {
+      const left = prevParticipantIds.filter((id) => !cur.includes(id));
+      prevParticipantIds = cur;
+      if (!isActive.value || left.length === 0) return;
+      for (const id of left) {
+        if (id === myHostId.value && myRole.value !== "host") promoteToHost();
+        host.value?.notifyPeerLeft(id);
       }
-    }
+    },
+  );
+
+  // Host stayed in the room but cleared its activity presence → also end for me.
+  watch(
+    channelActivities,
+    (acts) => {
+      if (!isActive.value || myRole.value === "host" || !sessionId.value) return;
+      if (!acts.some((a) => a.sessionId === sessionId.value)) {
+        const old = myHostId.value;
+        promoteToHost();
+        if (old) host.value?.notifyPeerLeft(old);
+      }
+    },
+    { deep: true },
   );
 
   return {
@@ -437,19 +667,28 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     error,
     participants,
     isPickerOpen,
-    
+    isPopout,
+    myRole,
+    sessionLifecycle,
+
     // Computed
     availableGames,
     canStartActivity,
-    
+    channelActivities,
+    joinableActivities,
+
     // Actions
     openPicker,
     closePicker,
     selectGame,
+    joinActivity,
+    spectateActivity,
     initializeHost,
     startActivity,
     stopActivity,
     pauseActivity,
     resumeActivity,
+    togglePopout,
+    closePopout,
   };
 });

@@ -217,15 +217,15 @@ describe('createInputManager', () => {
     const state = input.getState();
     expect(state.keys.size).toBe(0);
 
-    // Simulate keydown
+    // Keyboard is bound to window (global), not the game element
     const keydownEvent = new KeyboardEvent('keydown', { code: 'KeyA' });
-    container.dispatchEvent(keydownEvent);
+    window.dispatchEvent(keydownEvent);
 
     expect(input.isKeyDown('KeyA')).toBe(true);
 
     // Simulate keyup
     const keyupEvent = new KeyboardEvent('keyup', { code: 'KeyA' });
-    container.dispatchEvent(keyupEvent);
+    window.dispatchEvent(keyupEvent);
 
     expect(input.isKeyDown('KeyA')).toBe(false);
 
@@ -299,15 +299,15 @@ describe('createInputManager', () => {
     const input = createInputManager({ element: container, preventDefaults: false });
     input.start();
 
-    // Set some state
+    // Set some state (keyboard + blur are window-level)
     const keydownEvent = new KeyboardEvent('keydown', { code: 'KeyW' });
-    container.dispatchEvent(keydownEvent);
+    window.dispatchEvent(keydownEvent);
 
     expect(input.isKeyDown('KeyW')).toBe(true);
 
     // Blur should clear
     const blurEvent = new FocusEvent('blur');
-    container.dispatchEvent(blurEvent);
+    window.dispatchEvent(blurEvent);
 
     expect(input.isKeyDown('KeyW')).toBe(false);
     expect(input.getState().mouse.buttons).toBe(0);
@@ -320,9 +320,9 @@ describe('createInputManager', () => {
     input.start();
     input.stop();
 
-    // Events should no longer be tracked
+    // Events should no longer be tracked (keyboard is window-level)
     const keydownEvent = new KeyboardEvent('keydown', { code: 'KeyA' });
-    container.dispatchEvent(keydownEvent);
+    window.dispatchEvent(keydownEvent);
 
     // Key should not be registered since listener was removed
     // Note: This depends on the state not being modified after stop

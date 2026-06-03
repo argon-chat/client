@@ -46,6 +46,7 @@ import {
   type ReactionRemoved,
 } from "@argon/glue";
 import { useNotificationStore } from "@/store/data/notificationStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 
 export const useEventStore = defineStore("events", () => {
@@ -108,6 +109,9 @@ export const useEventStore = defineStore("events", () => {
   const subscribeToEvents = () => {
     const notificationStore = useNotificationStore();
     notificationStore.subscribeToEvents();
+
+    const featureFlags = useFeatureFlags();
+    featureFlags.subscribeToEvents();
 
     const botInteraction = useBotInteraction();
     botInteraction.subscribe();

@@ -105,10 +105,12 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
   async function register(desc: HotkeyDescriptor) {
     logger.log("hotkeyRegister", desc);
+    // @ts-ignore
     if (argon.isArgonHost) await native.hostProc.hotkeyRegister(desc);
   }
   async function unregister(id: string) {
     logger.log("hotkeyUnregister", id);
+    // @ts-ignore
     if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(id);
   }
 
@@ -116,6 +118,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
     console.log("[HOTKEY-STORE] syncHotkey", hk.id, hk);
 
     try {
+      // @ts-ignore
       if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hk.id);
       console.log("[HOTKEY-STORE] unregistered", hk.id);
     } catch (e) {
@@ -134,6 +137,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
     try {
       console.log("[HOTKEY-STORE] register start");
+      // @ts-ignore
       if (argon.isArgonHost) await native.hostProc.hotkeyRegister(hk);
       console.log("[HOTKEY-STORE] register OK");
       console.log("[HOTKEY-STORE] enable OK");
@@ -145,10 +149,12 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
   async function syncAll() {
     for (const hk of allHotKeys.values()) {
+      // @ts-ignore
       if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hk.id);
 
       if (hk.chord.buttons.length != 0 /*&& !hk.disabled*/) {
         if (argon.isArgonHost) {
+          // @ts-ignore
           await native.hostProc.hotkeyRegister(hk);
         }
       }
@@ -157,6 +163,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
 
   async function remove(hotkeyId: string) {
     if (allHotKeys.delete(hotkeyId))
+      // @ts-ignore
       if (argon.isArgonHost) await native.hostProc.hotkeyUnregister(hotkeyId);
   }
 
@@ -164,11 +171,13 @@ export const useHotkeys = defineStore("hotkeys", () => {
     if (!argon.isArgonHost) {
       throw new Error("Hotkey capture available only in desktop app");
     }
-
+// @ts-ignore
     await native.hostProc.hotkeyPause();
     try {
+      // @ts-ignore
       return await native.hostProc.hotkeyCaptureOnce();
     } finally {
+      // @ts-ignore
       await native.hostProc.hotkeyResume();
     }
   }
@@ -184,7 +193,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
         hotkeyExecuted$.next({ keyId: x.hotkeyId, phase: x.phase });
       }
     );
-    
+    // @ts-ignore
     native.hostProc.hotkeyFired(populatePinnedFn);
   }
 

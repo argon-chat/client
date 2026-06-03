@@ -117,6 +117,7 @@ const props = defineProps<{
     isRunning: boolean
 }>()
 
+// @ts-ignore
 const isNativeAvailable = computed(() => argon.isArgonHost)
 const isActive = ref(false)
 const error = ref<string | null>(null)
@@ -131,6 +132,7 @@ async function start() {
         error.value = null
         
         const config = props.renderer.getInitConfig()
+        // @ts-ignore
         await native.overlayController.init(config)
         console.log('[NativeBridge] Initialized:', config, 'mode:', renderMode.value)
         
@@ -155,6 +157,7 @@ async function start() {
                     const totalTiles = bridgeTiles.length
                     
                     if (capture.fullRefresh) {
+                        // @ts-ignore
                         await native.overlayController.sendFullFrame({
                             timestamp: Math.floor(capture.timestamp),
                             width: capture.screenWidth,
@@ -164,6 +167,7 @@ async function start() {
                         })
                         console.log('[NativeBridge] Sent full frame:', totalTiles, 'tiles, transparent:', capture.transparentSkipped)
                     } else if (bridgeTiles.length > 0) {
+                        // @ts-ignore
                         await native.overlayController.sendDelta({
                             timestamp: Math.floor(capture.timestamp),
                             // @ts-ignore
@@ -257,7 +261,9 @@ async function stop() {
     
     if (isActive.value) {
         try {
+            // @ts-ignore
             await native.overlayController.clear()
+            // @ts-ignore
             await native.overlayController.dispose()
         } catch (e) {
             console.error('[NativeBridge] Stop error:', e)
@@ -270,6 +276,7 @@ async function stop() {
 
 async function clearOverlay() {
     try {
+        // @ts-ignore
         await native.overlayController.clear()
         console.log('[NativeBridge] Overlay cleared')
     } catch (e) {

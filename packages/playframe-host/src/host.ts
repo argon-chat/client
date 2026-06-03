@@ -38,6 +38,10 @@ import {
   type RtcPeerState,
   type RtcSignalPayload,
   type RtcPeerStatePayload,
+  // Multiplayer session & messaging
+  type LaunchInfo,
+  type SessionUpdatePayload,
+  type GameMessageOutPayload,
   createMessage,
   createResponse,
   isValidMessage,
@@ -157,8 +161,21 @@ export interface PlayFrameHostConfig {
     /** Called when peer state changes */
     onPeerStateChange?: (userId: string, state: RtcPeerState) => void;
   };
+  /** Multiplayer game messaging transport (e.g. LiveKit data channel). */
+  messaging?: {
+    /** Send game data from this user to a peer (or broadcast when `to` is null). */
+    send: (from: string, to: string | null, data: unknown, reliable: boolean) => void;
+  };
+  /** Called when the game reports its multiplayer session status. */
+  onSessionUpdate?: (info: SessionUpdatePayload) => void;
+  /** Called when the game reports the local participant's role changed. */
+  onRoleChange?: (role: EphemeralUser['role']) => void;
+  /** How this instance was launched (intent + shared session id), passed to the game. */
+  launch?: LaunchInfo;
   /** Callback to fetch participants */
   getParticipants?: () => Promise<EphemeralUser[]>;
+  /** Resolve an opaque avatar token to a data URL (host fetches the bytes). */
+  resolveAvatar?: (avatarId: string) => Promise<string | null>;
   /** Callback to request additional permissions from user */
   requestPermission?: (permission: Permission, reason?: string) => Promise<boolean>;
 }
@@ -187,6 +204,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   private gameOrigin: string | null = null;
   private context: GameContext | null = null;
   private layout: LayoutState | null = null;
+  private gameLayout: LayoutConfig = { mode: 'responsive' };
   private audioState: AudioState;
   private grantedPermissions: Set<Permission> = new Set();
   private watchdog: Watchdog | null = null;
@@ -406,9 +424,9 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   }
 
   private calculateLayout(viewport: Dimensions, isFullscreen: boolean): LayoutState {
-    // TODO: Use actual game layout config from handshake
-    const preferredLayout: LayoutConfig = { mode: 'responsive' };
-    
+    // Use the game's preferred layout (from handshake / layout-request)
+    const preferredLayout: LayoutConfig = this.gameLayout;
+
     let gameArea: Dimensions;
     
     switch (preferredLayout.mode) {
@@ -489,9 +507,12 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
 
   private setupMessageListener(): void {
     this.messageHandler = (event: MessageEvent) => {
-      // Validate origin
-      if (event.origin !== this.gameOrigin) return;
-      
+      // Only accept messages from our own game iframe. The iframe is sandboxed
+      // without allow-same-origin, so its origin is opaque ("null"); identity is
+      // enforced by matching the source window, not the origin string.
+      if (this.iframe && event.source !== this.iframe.contentWindow) return;
+      if (event.origin !== 'null' && event.origin !== this.gameOrigin) return;
+
       if (!isValidMessage(event.data)) return;
       
       const message = event.data as MessageEnvelope;
@@ -526,7 +547,11 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
       case 'get-participants':
         this.handleGetParticipants(message);
         break;
-      
+
+      case 'get-avatar':
+        this.handleGetAvatar(message);
+        break;
+
       case 'layout-request':
         this.handleLayoutRequest(message);
         break;
@@ -566,7 +591,19 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
       case 'rtc-peer-state':
         this.handleRtcPeerState(message);
         break;
-      
+
+      case 'session-update':
+        this.config.onSessionUpdate?.(message.payload as SessionUpdatePayload);
+        break;
+
+      case 'role-update':
+        this.config.onRoleChange?.((message.payload as { role: EphemeralUser['role'] }).role);
+        break;
+
+      case 'game-message':
+        this.handleGameMessage(message);
+        break;
+
       case 'pong':
         this.handlePong(message.payload as PongPayload);
         break;
@@ -595,6 +632,11 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
       return;
     }
     
+    // Remember the game's preferred layout for subsequent calculations
+    if (payload.preferredLayout) {
+      this.gameLayout = payload.preferredLayout;
+    }
+
     // Process permission requests
     const granted: Permission[] = [];
     const denied: Permission[] = [];
@@ -624,6 +666,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
         canRequestMore: (this.config.availablePermissions?.length ?? 0) > 0,
       },
       capabilities: this.getCapabilities(),
+      launch: this.config.launch,
     };
     
     // Calculate initial layout
@@ -690,6 +733,19 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     }
   }
 
+  private async handleGetAvatar(message: MessageEnvelope): Promise<void> {
+    const payload = message.payload as { avatarId?: string };
+    let dataUrl: string | null = null;
+    if (this.config.resolveAvatar && payload?.avatarId) {
+      try {
+        dataUrl = await this.config.resolveAvatar(payload.avatarId);
+      } catch {
+        dataUrl = null;
+      }
+    }
+    this.sendResponse(message.id, 'get-avatar', { dataUrl });
+  }
+
   private handleLayoutRequest(message: MessageEnvelope): void {
     // For now, accept all layout requests
     const payload = message.payload as { layout: LayoutConfig };
@@ -700,9 +756,10 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
       height: this.config.container.clientHeight,
     };
     
-    // TODO: Store and use the requested layout
+    // Store the requested layout so future recalculations honor it
+    this.gameLayout = payload.layout;
     this.layout = this.calculateLayout(viewport, this.layout?.isFullscreen ?? false);
-    
+
     this.sendResponse(message.id, 'layout-request', {
       accepted: true,
       layout: this.layout,
@@ -942,8 +999,44 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
    */
   relaySignalToGame(from: string, signal: RtcSignalMessage): void {
     if (this.state !== 'ready' && this.state !== 'paused') return;
-    
+
     this.send('rtc-signal', { from, signal });
+  }
+
+  /**
+   * Game → host outbound game message: relay over the messaging transport.
+   */
+  private handleGameMessage(message: MessageEnvelope): void {
+    if (!this.grantedPermissions.has('networking')) return;
+    if (!this.config.messaging) return;
+
+    const payload = message.payload as GameMessageOutPayload;
+    this.config.messaging.send(
+      this.config.user.ephemeralId,
+      payload.to ?? null,
+      payload.data,
+      payload.reliable ?? true,
+    );
+  }
+
+  /**
+   * Deliver an inbound game message (from another peer) to this game instance.
+   * Called by the host application when it receives a message off its transport.
+   */
+  deliverMessage(from: string, data: unknown): void {
+    if (this.state !== 'ready' && this.state !== 'paused') return;
+
+    this.send('game-message', { from, data });
+  }
+
+  /**
+   * Tell the game a peer (player/spectator) left, so it can react (end match,
+   * drop to menu, stop streaming). Called by the host app on participant leave.
+   */
+  notifyPeerLeft(peerId: string): void {
+    if (this.state !== 'ready' && this.state !== 'paused') return;
+
+    this.send('peer-left', { peerId });
   }
 
   // ==========================================================================
@@ -951,11 +1044,10 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   // ==========================================================================
 
   private getPostMessageTarget(): string {
-    // In dev mode, use '*' to avoid sandbox origin issues
-    if (this.config.devConfig?.enabled) {
-      return '*';
-    }
-    return this.gameOrigin!;
+    // The game iframe runs in an opaque origin (no allow-same-origin), which
+    // cannot be addressed by a concrete targetOrigin. We post to the specific
+    // iframe contentWindow, so '*' here does not widen who receives the message.
+    return '*';
   }
 
   private send<T>(type: MessageType, payload: T): void {

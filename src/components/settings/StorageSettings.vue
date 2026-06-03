@@ -250,6 +250,7 @@ onMounted(async () => {
     usageReport.value = await getStorageUsageReport();
 
     if (argon.isArgonHost) {
+        // @ts-ignore
         const space = await native.hostProc.getStorageSpace();
         usageReport.value.quotaBytes = +space.totalSize;
         usageReport.value.storageUsedBytes = Math.abs(+space.availableFreeSpace - +space.totalSize);

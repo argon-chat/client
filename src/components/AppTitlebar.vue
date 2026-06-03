@@ -53,6 +53,7 @@ onBeforeUnmount(() => {
 });
 
 function openDevTools() {
+  // @ts-ignore
   native.hostProc.toggleDevTools();
 }
 

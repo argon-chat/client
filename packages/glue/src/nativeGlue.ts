@@ -5,12 +5,13 @@ import { createElectronClient } from "./electronClient";
 const _hasWindow = typeof window !== "undefined";
 
 if (_hasWindow && !("ahid" in window)) {
+  // @ts-ignore
   window["ahid"] = 0;
 }
 
 const map = new Map<number, (event: INativeEvent) => void>();
 var index = 0;
-
+// @ts-ignore
 class ArgonHostProxy implements IArgon {
   on<T extends INativeEvent>(
     key: T["UnionKey"],
@@ -28,6 +29,7 @@ class ArgonHostProxy implements IArgon {
   }
 
   get ahid(): number {
+    // @ts-ignore
     return _hasWindow ? window.ahid : 0;
   }
 
@@ -88,14 +90,16 @@ let native: NativeProxy | undefined;
 let argon: ArgonHostProxy | undefined;
 
 if (_hasWindow) {
+  // @ts-ignore
   window.argon = deepFreeze(new ArgonHostProxy());
 
   window.addEventListener("native_abi", (e) => {
+    // @ts-ignore
     const reader = new CborReader(e.detail.bytes);
     const result =
       IonFormatterStorage.get<INativeEvent>("INativeEvent").read(reader);
     console.log("Received:", result);
-
+// @ts-ignore
     const handler = map.get(e.detail.idx);
 
     if (handler) {
@@ -104,6 +108,7 @@ if (_hasWindow) {
   });
 
   native = new NativeProxy();
+  // @ts-ignore
   argon = window.argon;
 
   (window as any).native = native;

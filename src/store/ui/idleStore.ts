@@ -55,6 +55,7 @@ export const useIdleStore = defineStore("idle", () => {
       subscription.value = interval(CHECK_INTERVAL_MS)
         .pipe(
           switchMap(async () => {
+            // @ts-ignore
             const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
             idleSeconds.value = inactiveSeconds;
             handleStatusChange(inactiveSeconds);

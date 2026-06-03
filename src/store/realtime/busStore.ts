@@ -30,6 +30,7 @@ export const useBus = defineStore("bus", () => {
       switch (msg.type) {
         case "event":
           // Events arrive already decoded from worker
+          logger.log("Received event from worker:", msg.event);
           argonEventBus.next(msg.event as IArgonEvent);
           break;
 

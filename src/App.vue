@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/shared/ErrorBoundary.vue";
 import ReconnectOverlay from "./components/overlays/ReconnectOverlay.vue";
 import DvdBounce from "./components/overlays/DvdBounce.vue";
 import GamePicker from "./components/playframe/GamePicker.vue";
+import PlayFrameOverlay from "./components/playframe/PlayFrameOverlay.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
 import { useTheme } from "@/composables/useTheme";
@@ -75,6 +76,7 @@ watch(() => call.audioDeviceError, (err) => {
   <DiagnosticsOverlay v-if="showDiagnostics" />
   <ReconnectOverlay />
   <GamePicker />
+  <PlayFrameOverlay />
   <DvdBounce />
   <BotInteractionModal />
   <AudioDeviceErrorModal 

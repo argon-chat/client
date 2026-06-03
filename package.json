@@ -10,8 +10,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "bun run build:games && vite",
+    "build": "bun run build:games && vite build",
+    "build:games": "bun run scripts/build-games.ts",
+    "build:games:watch": "bun run scripts/build-games.ts --watch",
     "build:packages": "bun run --filter './packages/*' build",
     "validate": "vue-tsc --noEmit -p tsconfig.app.json"
   },
@@ -64,6 +66,7 @@
     "clsx": "^2.1.1",
     "consola": "^3.4.2",
     "dexie": "^4.4.2",
+    "dompurify": "^3.4.7",
     "dtln-rs": "^1.0.4",
     "epic-spinners": "^2.0.0",
     "grid-layout-plus": "^1.1.1",

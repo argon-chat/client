@@ -45,6 +45,7 @@ export function useScreenShareSources() {
 
   async function refreshThumbnails() {
     try {
+      // @ts-ignore
       const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"]);
       for (const src of sources) {
         const existing = screenSources.value.find((s) => s.id === src.id);

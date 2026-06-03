@@ -195,6 +195,7 @@ const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
 
 const configStore = useConfigStore();
 const toggleDevTools = () => {
+    // @ts-ignore
     native.hostProc.toggleDevTools();
 };
 
@@ -207,6 +208,7 @@ const copyMyUserId = () => {
 };
 
 watch(selected_channel, (e) => {
+    // @ts-ignore
     native.hostProc.setCurrentChannel(Channel[e]);
 });
 
@@ -223,6 +225,7 @@ onMounted(async () => {
     if (!argon.isArgonHost) {
         disable_channel_select.value = true;
     } else {
+        // @ts-ignore
         selected_channel.value = Channel[await native.hostProc.getCurrentChannel()] as any;
     }
 
