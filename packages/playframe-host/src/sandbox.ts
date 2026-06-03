@@ -165,15 +165,13 @@ export function createGameIframe(options: CreateIframeOptions): HTMLIFrameElemen
   
   // Security attributes
   iframe.sandbox.value = buildSandboxAttribute(options.permissions, options.sandboxConfig);
-  
-  // CSP via csp attribute (supported in some browsers)
-  // Skip if cspConfig is explicitly null (dev mode)
-  if (options.cspConfig !== null) {
-    const gameOrigin = new URL(options.src).origin;
-    const csp = buildGameCsp(gameOrigin, options.cspConfig);
-    iframe.setAttribute('csp', csp);
-  }
-  
+
+  // NOTE: we deliberately do NOT set the `csp` iframe attribute (CSP Embedded
+  // Enforcement). It refuses to display any framed document that doesn't itself
+  // deliver an equally-strong CSP (or `Allow-CSP-From`), which a static,
+  // sandboxed (opaque-origin) game page cannot. Games instead self-deliver a
+  // strict CSP via a <meta http-equiv> tag in their HTML (see build-games.ts).
+
   // Feature policy / Permissions policy
   iframe.allow = buildPermissionsPolicy(options.permissions);
   

@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Strict self-delivered CSP. Bundle is inlined (script 'unsafe-inline'),
+       game makes no network requests (connect-src 'none'); avatars arrive as
+       data URLs from the host via postMessage (img-src data: blob:). -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; base-uri 'none'; form-action 'none'">
   <title>Snake - Argon Game</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,8 +38,7 @@
 <body>
   <div id="loading">Connecting to Argon...</div>
   <canvas id="game"></canvas>
-  <!-- Bundled (IIFE) from client/games/snake/main.ts via `bun run build:games`.
-       Classic script (not module) so it loads in the opaque-origin sandbox. -->
-  <script src="./bundle.js"></script>
+  <!-- PLAYFRAME_BUNDLE: build-games.ts inlines the IIFE bundle here -->
+  <!--PLAYFRAME_BUNDLE-->
 </body>
 </html>

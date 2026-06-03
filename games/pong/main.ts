@@ -45,8 +45,6 @@ let myId = "";
 let hostId = ""; // for players: the authoritative host's peer id
 let player2Id = ""; // for host: the joined player's peer id
 const spectators = new Set<string>(); // for host: peers currently watching
-let requested = false; // spectator: a join request is pending
-let spectateNotice = ""; // spectator: transient message (e.g. "Slot full")
 let winner: 1 | 2 = 1;
 
 let w = 0;
@@ -211,11 +209,12 @@ function normalized(): PongState {
 function reportSession(): void {
   if (!client || role !== "host") return;
   const playerCount = mode === "multiplayer" && player2Id ? 2 : 1;
-  const joinable = mode === "multiplayer" && screen === "waiting";
   const state = screen === "menu" ? "menu" : screen === "waiting" ? "waiting" : screen === "gameover" ? "gameover" : "playing";
-  // Pong streams authoritative state, so any live match (solo vs bot included)
-  // can be watched.
-  const spectatable = screen === "playing";
+  // Pong always lets people in while active — the game decides on entry whether
+  // they become a player (open slot) or a spectator. State stream lets watchers
+  // see live play (solo vs bot included).
+  const joinable = state !== "gameover";
+  const spectatable = state === "playing";
   client.updateSession({ state, mode, joinable, spectatable, playerCount, maxPlayers: 2 });
 }
 
@@ -270,15 +269,24 @@ function backToMenuAsHost(): void {
   reportSession();
 }
 
-/** The opponent left a multiplayer match: reopen the lobby for a new player. */
+/** The opponent left: pull in a waiting spectator, else reopen the lobby. */
 function opponentLeft(): void {
   player2Id = "";
   rightId = "";
   remoteInput.up = false;
   remoteInput.down = false;
   mode = "multiplayer";
-  screen = "waiting";
-  reportSession();
+
+  const next = spectators.values().next().value as string | undefined;
+  if (next) {
+    spectators.delete(next);
+    player2Id = next;
+    net?.approve(next);
+    startMatch();
+  } else {
+    screen = "waiting";
+    reportSession();
+  }
 }
 
 // --- render ---
@@ -398,12 +406,10 @@ function render(): void {
   }
   drawField(toViewPx());
   if (role === "spectator") {
-    const msg =
-      spectateNotice || (requested ? "Requested to play…" : "Spectating — Space to request to play");
     ctx.fillStyle = "#a1a1aa";
     ctx.font = "13px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(msg, w / 2, h - 20);
+    ctx.fillText("Spectating", w / 2, h - 20);
   } else {
     ctx.fillStyle = "#6b7280";
     ctx.font = "14px sans-serif";
@@ -432,13 +438,6 @@ function onKeydown(e: KeyboardEvent): void {
   } else if (screen === "gameover" && role === "host" && (e.key === " " || e.key === "Enter")) {
     e.preventDefault();
     rematch();
-  } else if (role === "spectator" && (e.key === " " || e.key === "Enter")) {
-    // spectator asks the host's game to let them play
-    e.preventDefault();
-    if (!requested) {
-      requested = true;
-      net?.reqJoin();
-    }
   }
 }
 
@@ -507,26 +506,14 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
   });
 
   net = createPongNet(c, {
-    // host: a player announced join
-    onJoin: (from) => {
-      if (role === "host" && mode === "multiplayer" && screen === "waiting" && !player2Id) {
-        player2Id = from;
-        startMatch();
-      }
-    },
     onInput: (from, up, down) => {
       if (role === "host" && from === player2Id) {
         remoteInput.up = up;
         remoteInput.down = down;
       }
     },
-    // host: a spectator started watching → stream state + sync identities
-    onSpectate: (from) => {
-      if (role !== "host") return;
-      spectators.add(from);
-      net?.roster(leftId, rightId);
-    },
-    // host: a spectator asks to play → approve if the slot is open, else deny
+    // host: someone joined the activity → the GAME decides their role.
+    // Open opponent slot → make them a player; otherwise → spectator.
     onReqJoin: (from) => {
       if (role !== "host") return;
       if (!player2Id) {
@@ -536,23 +523,23 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
         net?.approve(from);
         startMatch();
       } else {
-        net?.deny(from);
+        spectators.add(from);
+        net?.roster(leftId, rightId);
+        net?.deny(from); // "no open slot" → you're a spectator
       }
     },
-    // spectator: the host approved → become a player
+    // joiner: the host made me a player
     onApprove: () => {
-      if (role !== "spectator") return;
       role = "player";
       rightId = myId;
       mode = "multiplayer";
-      requested = false;
       screen = "playing";
       client?.notifyRole("player");
     },
+    // joiner: no open slot → watch instead (host already streams to me)
     onDeny: () => {
-      requested = false;
-      spectateNotice = "Slot full";
-      setTimeout(() => (spectateNotice = ""), 2000);
+      role = "spectator";
+      client?.notifyRole("spectator");
     },
     onRoster: (_from, p1, p2) => {
       leftId = p1;
@@ -598,15 +585,12 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
       leftId = myId;
       screen = "menu";
       reportSession();
-    } else if (intent === "join") {
-      role = "player";
-      rightId = myId; // joiner controls the right paddle
-      screen = "connecting";
-      net.join(); // tell the host we're here
     } else {
+      // Unified join: ask the host's game to let us in. The game decides whether
+      // we become a player (open slot) or a spectator (slot full).
       role = "spectator";
       screen = "connecting";
-      net.spectate(); // tell the host to stream state to us
+      net.reqJoin();
     }
     c.log("info", `Pong connected as ${role}`);
   } catch (e) {

@@ -170,9 +170,12 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     return out;
   });
 
-  // Activities you can act on (not the one you're already in)
+  // Activities you can act on: not your own, and the game allows entry
+  // (joinable or watchable). Solo-only games (e.g. snake) are excluded.
   const joinableActivities = computed(() =>
-    channelActivities.value.filter((a) => a.sessionId !== sessionId.value),
+    channelActivities.value.filter(
+      (a) => a.sessionId !== sessionId.value && (a.joinable || a.spectatable),
+    ),
   );
 
   // ==========================================================================
@@ -219,26 +222,17 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     });
   }
 
-  /** Join an existing multiplayer activity as a player. */
+  /**
+   * Join an activity (Discord-style). We always launch with intent "join" and a
+   * view-only "spectator" role; the GAME decides whether to promote us to a
+   * player (open slot) or keep us watching, then reports back via notifyRole.
+   */
   function joinActivity(presence: ActivityPresence): void {
     const game = MOCK_GAMES.find((g) => g.id === presence.gameId);
     if (!game || !canStartActivity.value) return;
     beginLaunch({
       game,
       intent: "join",
-      sessionId: presence.sessionId,
-      role: "player",
-      hostId: presence.hostId,
-    });
-  }
-
-  /** Watch an in-progress activity as a spectator (view-only). */
-  function spectateActivity(presence: ActivityPresence): void {
-    const game = MOCK_GAMES.find((g) => g.id === presence.gameId);
-    if (!game || !canStartActivity.value) return;
-    beginLaunch({
-      game,
-      intent: "spectate",
       sessionId: presence.sessionId,
       role: "spectator",
       hostId: presence.hostId,
@@ -682,7 +676,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     closePicker,
     selectGame,
     joinActivity,
-    spectateActivity,
     initializeHost,
     startActivity,
     stopActivity,

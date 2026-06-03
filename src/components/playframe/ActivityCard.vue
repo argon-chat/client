@@ -1,29 +1,16 @@
 <template>
-  <!-- Mirrors ParticipantCard's shell so it drops into the media grid as a tile. -->
+  <!-- Mirrors ParticipantCard's shell so it drops into the media grid as a tile.
+       Single "Join" — the game decides if you end up a player or a spectator. -->
   <div class="participant-card activity-card" :class="className" :style="customStyle">
     <div class="ac-body">
       <div class="ac-icon">
-        <Gamepad2 class="w-7 h-7" />
+        <Gamepad2 class="w-6 h-6" />
       </div>
       <div class="ac-title">{{ presence.gameTitle }}</div>
-      <div class="ac-status">{{ statusText }}</div>
-      <Button v-if="presence.joinable" size="sm" class="ac-btn" @click="activity.joinActivity(presence)">
-        Join Activity
+      <div class="ac-sub">{{ presence.hostName }} · {{ statusText }}</div>
+      <Button size="sm" class="ac-btn" @click="activity.joinActivity(presence)">
+        Join
       </Button>
-      <Button
-        v-else-if="canWatch"
-        size="sm"
-        variant="secondary"
-        class="ac-btn"
-        @click="activity.spectateActivity(presence)"
-      >
-        Watch
-      </Button>
-    </div>
-
-    <!-- Bottom name overlay (matches participant cards) -->
-    <div class="participant-overlay text-center">
-      <span class="participant-name text-xs">{{ presence.hostName }}</span>
     </div>
   </div>
 </template>
@@ -45,15 +32,11 @@ const props = defineProps<{
 
 const activity = usePlayFrameActivity();
 
-const canWatch = computed(
-  () => props.presence.spectatable && props.presence.state === "playing",
-);
-
 const statusText = computed(() => {
   const a = props.presence;
-  if (a.state === "waiting") return `Waiting for players (${a.playerCount}/${a.maxPlayers})`;
-  if (a.state === "playing") return a.mode === "solo" ? "Solo vs bot" : "Match in progress";
-  if (a.state === "gameover") return "Match finished";
+  if (a.state === "waiting") return "In lobby";
+  if (a.state === "playing") return a.mode === "solo" ? "Solo vs bot" : "In progress";
+  if (a.state === "gameover") return "Finished";
   return "In lobby";
 });
 </script>
@@ -65,14 +48,10 @@ const statusText = computed(() => {
   border-radius: 12px;
   overflow: hidden;
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.5);
+  border: 1px solid hsl(var(--primary) / 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.activity-card {
-  border-color: hsl(var(--primary) / 0.4);
 }
 
 .ac-body {
@@ -80,8 +59,9 @@ const statusText = computed(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
+  max-width: 100%;
   text-align: center;
 }
 
@@ -89,44 +69,31 @@ const statusText = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: hsl(var(--primary) / 0.15);
   color: hsl(var(--primary));
+  flex-shrink: 0;
 }
 
 .ac-title {
   font-weight: 600;
   font-size: 14px;
   color: hsl(var(--foreground));
+  line-height: 1.1;
 }
 
-.ac-status {
+.ac-sub {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ac-btn {
-  margin-top: 4px;
-}
-
-.participant-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, hsl(var(--card) / 0.9), hsl(var(--card) / 0.5) 60%, transparent);
-  padding: 1.5rem 0.5rem 0.375rem;
-  display: flex;
-  justify-content: center;
-}
-
-.participant-name {
-  color: hsl(var(--muted-foreground));
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-top: 2px;
 }
 </style>
