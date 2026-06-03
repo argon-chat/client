@@ -26,11 +26,8 @@
 
         <!-- Content area -->
         <div class="media-content">
-            <!-- Join/Watch banner for activities started by other people -->
-            <ActivityBanner />
-
             <!-- Activity Mode: Game stage + participants strip below -->
-            <div v-if="activity.isActive" class="activity-mode">
+            <div v-if="playframeActive && activity.isActive" class="activity-mode">
                 <div class="activity-stage">
                     <!-- PlayFramePanel teleports out to the overlay when popped -->
                     <PlayFramePanel />
@@ -114,13 +111,19 @@
                             icon-position="top-1 right-1"
                             @click="toggleFocus"
                             @video-ref="setVideoRef" />
+                        <ActivityCard
+                            v-for="a in activityTiles"
+                            :key="a.sessionId"
+                            :presence="a"
+                            class-name="flex-shrink-0"
+                            :custom-style="{ width: '15rem', height: '8.5rem' }" />
                     </div>
                 </div>
 
                 <!-- Grid Mode: All users in grid or vertical layout -->
                 <div v-else key="grid-mode" class="flex-1 flex items-center justify-center">
-                    <!-- 2 Users: Vertical Stack -->
-                    <div v-if="allUsers.length === 2" class="flex gap-6 items-center justify-center" style="flex-direction: column;">
+                    <!-- 2 Tiles: Vertical Stack -->
+                    <div v-if="tileCount === 2" class="flex gap-6 items-center justify-center" style="flex-direction: column;">
                         <ParticipantCard
                             v-for="[userId, user] in allUsers"
                             :key="userId"
@@ -136,12 +139,18 @@
                             :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }"
                             @click="toggleFocus"
                             @video-ref="setVideoRef" />
+                        <ActivityCard
+                            v-for="a in activityTiles"
+                            :key="a.sessionId"
+                            :presence="a"
+                            class-name="flex-shrink-0"
+                            :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }" />
                     </div>
 
                     <!-- Other: Grid Layout -->
-                    <div v-else class="grid gap-4 place-items-center place-content-center" 
+                    <div v-else class="grid gap-4 place-items-center place-content-center"
                         style="grid-auto-rows: minmax(min-content, max-content);"
-                        :class="gridClasses">
+                        :class="gridColsClass">
                         <ParticipantCard
                             v-for="[userId, user] in allUsers"
                             :key="userId"
@@ -154,9 +163,15 @@
                             :video-source="getPreferredSource(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="w-full"
-                            :custom-style="gridCardStyle(allUsers.length)"
+                            :custom-style="gridCardStyle(tileCount)"
                             @click="toggleFocus"
                             @video-ref="setVideoRef" />
+                        <ActivityCard
+                            v-for="a in activityTiles"
+                            :key="a.sessionId"
+                            :presence="a"
+                            class-name="w-full"
+                            :custom-style="gridCardStyle(tileCount)" />
                     </div>
                 </div>
             </Transition>
@@ -185,7 +200,7 @@ import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
-import ActivityBanner from "./playframe/ActivityBanner.vue";
+import ActivityCard from "./playframe/ActivityCard.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
 import {
@@ -216,7 +231,6 @@ const {
     mainStreamer,
     otherUsers,
     hasActiveStream,
-    gridClasses,
     gridCardStyle,
     isSpeaking,
     hasVideo,
@@ -228,6 +242,18 @@ const {
     toggleFocus,
     qualityConnection,
 } = useMediaLayout(() => selectedChannelId.value);
+
+// Activities others started (shown as grid tiles until you join one).
+const activityTiles = computed(() =>
+    playframeActive && !activity.isActive ? activity.joinableActivities : [],
+);
+// Participant tiles + activity tiles, used for grid sizing.
+const tileCount = computed(() => allUsers.value.length + activityTiles.value.length);
+const gridColsClass = computed(() => ({
+    "grid-cols-1": tileCount.value === 1,
+    "grid-cols-2": tileCount.value >= 3 && tileCount.value <= 4,
+    "grid-cols-3": tileCount.value > 4,
+}));
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);

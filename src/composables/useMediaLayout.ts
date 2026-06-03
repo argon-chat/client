@@ -185,10 +185,16 @@ export function useMediaLayout(
   const isHeadphoneMuted = (uid: Guid) => muteStates.value.get(uid)?.headphoneMuted ?? false;
 
   const isPlayingActivity = (uid: Guid) => {
-    if (!activity.isActive) return false;
-    return activity.participants.some(
-      (p) => p.displayName === users.value.get(uid)?.User.displayName,
-    );
+    // Someone else hosting an activity that is actually in-play (channel presence).
+    // While a multiplayer host waits for player 2 the state is "waiting", not
+    // "playing", so no icon is drawn until the match really starts.
+    const remote = activity.channelActivities.find((a) => a.hostId === uid);
+    if (remote) return remote.state === "playing";
+    // My own hosted activity (presence isn't published for self).
+    if (activity.isActive && activity.myRole === "host" && uid === me.me?.userId) {
+      return activity.sessionLifecycle === "playing";
+    }
+    return false;
   };
 
   const toggleFocus = (userId: Guid) => {
