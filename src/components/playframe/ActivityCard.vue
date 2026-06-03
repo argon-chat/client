@@ -1,6 +1,6 @@
 <template>
   <!-- Mirrors ParticipantCard's shell so it drops into the media grid as a tile.
-       Single "Join" — the game decides if you end up a player or a spectator. -->
+       Single "Join" — the game decides if you end up playing or just watching. -->
   <div class="participant-card activity-card" :class="className" :style="customStyle">
     <div class="ac-body">
       <div class="ac-icon">

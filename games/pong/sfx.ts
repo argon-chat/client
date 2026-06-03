@@ -7,7 +7,17 @@
  * (browsers block audio until then).
  */
 
-export type SfxKind = "hit" | "wall" | "score" | "win" | "lose" | "count" | "go";
+export type SfxKind =
+  | "hit"
+  | "wall"
+  | "score"
+  | "win"
+  | "lose"
+  | "count"
+  | "go"
+  | "power"
+  | "life"
+  | "multi";
 
 export interface Sfx {
   /** Play a cue (no-op until audio is unlocked by a gesture). */
@@ -52,6 +62,22 @@ const RECIPES: Record<SfxKind, ToneSpec[]> = {
   count: [{ type: "sine", freq: 660, dur: 0.08, gain: 0.2 }],
   // higher "GO!" tone
   go: [{ type: "sine", freq: 990, dur: 0.18, gain: 0.25 }],
+  // power-up collected: quick rising two-note sparkle
+  power: [
+    { type: "square", freq: 660, dur: 0.07, gain: 0.2, at: 0 },
+    { type: "square", freq: 990, dur: 0.1, gain: 0.2, at: 0.07 },
+  ],
+  // extra life / shield: warm rising triad
+  life: [
+    { type: "triangle", freq: 523, dur: 0.09, gain: 0.24, at: 0 },
+    { type: "triangle", freq: 784, dur: 0.16, gain: 0.24, at: 0.09 },
+  ],
+  // multiball burst: noisy fast arpeggio
+  multi: [
+    { type: "sawtooth", freq: 440, dur: 0.05, gain: 0.18, at: 0 },
+    { type: "sawtooth", freq: 620, dur: 0.05, gain: 0.18, at: 0.05 },
+    { type: "sawtooth", freq: 880, dur: 0.08, gain: 0.18, at: 0.1 },
+  ],
 };
 
 export function createSfx(): Sfx {

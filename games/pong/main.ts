@@ -1,10 +1,17 @@
 /**
  * Pong — PlayFrame multiplayer reference game.
  *
- * In-canvas lobby (Solo / Multiplayer), host-authoritative netcode over the
- * SFU messaging API, and a read-only spectator view. Launch intent decides the
- * role: `new` → host menu, `join` → player 2, `spectate` → watcher. Runs
- * standalone (solo vs AI) when opened outside a PlayFrame host.
+ * Host-authoritative netcode over the SFU messaging API with:
+ *  - an explicit lobby where the host configures the match (win mode, power-ups)
+ *    and starts it,
+ *  - host-configurable win modes (first-to 7/12/30, or "stack" tug-of-war),
+ *  - random power-ups (multiball / speed / extra-life) that only count for the
+ *    player whose paddle last touched the ball,
+ *  - watching: anyone can connect and watch the live match without interrupting
+ *    it, and claim an open slot seamlessly at the next point.
+ *
+ * "Watching" is a game concept only — the PlayFrame platform has no spectator
+ * role. Runs standalone (host vs bot) when opened outside a PlayFrame host.
  */
 
 import {
@@ -14,21 +21,41 @@ import {
   configureCanvas,
   isInPlayFrame,
 } from "@argon/playframe-sdk";
-import { createPongNet, type PongNet, type PongState } from "./net";
-import { createStateBuffer, type StateBuffer } from "./interp";
+import {
+  createPongNet,
+  DEFAULT_CONFIG,
+  type PongNet,
+  type PongState,
+  type MatchConfig,
+  type WinMode,
+  type PowerKind,
+  type Phase,
+} from "./net";
+import { createPaddleBuffer, createBallField } from "./interp";
 import { createSfx, type Sfx } from "./sfx";
 
 // --- constants ---
 const PADDLE_W = 12;
 const PADDLE_H = 90;
 const BALL = 12;
+const R = BALL / 2;
+const WALL_X = 30; // paddle inset from each side
 const PADDLE_SPEED = 560;
-const AI_SPEED = 320;
+const AI_SPEED = 340;
 const BALL_SPEED = 420;
-const MAX_BALL_SPEED = 1100;
-const WIN_SCORE = 7;
-const STATE_HZ = 30;
+const MAX_BALL_SPEED = 1150;
+const SPEED_PUP_MULT = 1.25;
+const MAX_BALLS = 50;
+const POWERUP_MAX = 3; // concurrent on field
+const POWERUP_EVERY = 7; // seconds between spawns
+const POWERUP_R = 15;
+const STACK_START = 10;
 const COUNTDOWN_SECS = 3;
+const STATE_HZ = 30;
+const BOT = "@bot";
+
+const WIN_MODES: WinMode[] = ["7", "12", "30", "stack"];
+const POWER_KINDS: PowerKind[] = ["multi", "speed", "life"];
 
 // --- dom ---
 const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -36,45 +63,78 @@ const ctx = canvas.getContext("2d")!;
 const loading = document.getElementById("loading");
 
 // --- roles / screens ---
-type Role = "host" | "player" | "spectator";
-type Screen = "menu" | "waiting" | "connecting" | "countdown" | "playing" | "gameover";
+type Role = "host" | "player" | "watcher";
+type Screen = Phase | "connecting";
 let role: Role = "host";
-let mode: "solo" | "multiplayer" = "solo";
-let screen: Screen = "menu";
+let screen: Screen = "lobby";
+let cfg: MatchConfig = { ...DEFAULT_CONFIG };
 
 let client: PlayFrameClient | null = null;
 let net: PongNet | null = null;
 let myId = "";
-let hostId = ""; // for players: the authoritative host's peer id
-let player2Id = ""; // for host: the joined player's peer id
-const spectators = new Set<string>(); // for host: peers currently watching
+let hostId = ""; // non-host: authoritative host peer id
+let leftId = ""; // host (left paddle) peer id
+let rightId = ""; // right paddle: BOT, a player id, or "" (open)
+const watchers = new Set<string>(); // host: connected non-playing peers
+let pendingClaim = ""; // host: watcher waiting to take the right slot at next point
 let winner: 1 | 2 = 1;
 
 let w = 0;
 let h = 0;
 
-// host-authoritative pixel sim
-const sim = { p1Y: 0, p2Y: 0, ballX: 0, ballY: 0, vx: BALL_SPEED, vy: 0, s1: 0, s2: 0 };
-// player/spectator render state: snapshots are buffered + interpolated to kill
-// jitter (scores read from the buffer's latest raw snapshot).
-const buffer: StateBuffer = createStateBuffer();
-// player-2 input received by the host
+// --- host-authoritative sim (pixel space) ---
+interface SimBall {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  o: 0 | 1 | 2;
+}
+interface SimPower {
+  id: number;
+  x: number;
+  y: number;
+  k: PowerKind;
+}
+const sim = {
+  p1Y: 0,
+  p2Y: 0,
+  s1: 0,
+  s2: 0,
+  life1: 0,
+  life2: 0,
+  balls: [] as SimBall[],
+  powerups: [] as SimPower[],
+  phase: "normal" as "normal" | "stack",
+};
 const remoteInput = { up: false, down: false };
+let ballSeq = 0;
+let powerSeq = 0;
+let powerupAccum = 0;
+let serveDir = 1; // direction of the next serve when the field empties
 
-// Pre-match countdown (host counts down; clients follow `countdown` messages).
-let countdown = 0;
-let countdownAccum = 0;
-
-// Client-side prediction for my own paddle (player only): integrated locally
-// from my input for instant response, lightly reconciled to the host at rest.
-// Stored as a 0..1 fraction of the free vertical travel.
-let predP2 = 0.5;
+// --- client render state ---
+const paddleBuf = createPaddleBuffer();
+const ballField = createBallField();
+const cli = {
+  s1: 0,
+  s2: 0,
+  l1: 0,
+  l2: 0,
+  pus: [] as { x: number; y: number; k: PowerKind }[],
+  stack: false,
+};
+let predP2 = 0.5; // player: own-paddle prediction (0..1 of free travel)
+let lastUp = false;
+let lastDown = false;
 
 let sfx: Sfx;
 let input: ReturnType<typeof createInputManager>;
 let stateAccum = 0;
+const sfxCooldown: Record<string, number> = {};
 
-// roster + identities (names/avatars) for a more personal HUD
+// --- roster (names/avatars) ---
 interface PlayerInfo {
   name: string;
   avatarId: string | null;
@@ -82,8 +142,6 @@ interface PlayerInfo {
   requested?: boolean;
 }
 const players = new Map<string, PlayerInfo>();
-let leftId = ""; // activity host peer id
-let rightId = ""; // joined player peer id
 
 async function refreshPlayers(): Promise<void> {
   if (!client) return;
@@ -104,7 +162,6 @@ async function refreshPlayers(): Promise<void> {
   }
 }
 
-// Avatar bytes come from the host as a data URL (no CDN access from the game).
 async function loadAvatar(id: string): Promise<void> {
   const info = players.get(id);
   if (!client || !info || !info.avatarId || info.img || info.requested) return;
@@ -120,9 +177,13 @@ async function loadAvatar(id: string): Promise<void> {
 }
 
 // --- helpers ---
-function clamp(v: number, lo: number, hi: number) {
+function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
+const clamp01 = (v: number) => clamp(v, 0, 1);
+const freeH = () => h - PADDLE_H;
+const winN = () => (cfg.win === "stack" ? 0 : Number(cfg.win));
+const rightIsHuman = () => !!rightId && rightId !== BOT;
 
 function resize(): void {
   const size = configureCanvas(
@@ -132,265 +193,398 @@ function resize(): void {
   );
   w = size.width;
   h = size.height;
-  sim.p1Y = clamp(sim.p1Y, 0, h - PADDLE_H);
-  sim.p2Y = clamp(sim.p2Y, 0, h - PADDLE_H);
+  sim.p1Y = clamp(sim.p1Y, 0, freeH());
+  sim.p2Y = clamp(sim.p2Y, 0, freeH());
 }
 
-function centerBall(dir: number): void {
-  sim.ballX = w / 2;
-  sim.ballY = h / 2;
-  sim.vx = BALL_SPEED * dir;
-  sim.vy = (Math.random() - 0.5) * BALL_SPEED;
+// ===========================================================================
+// Host simulation
+// ===========================================================================
+
+function makeBall(x: number, y: number, vx: number, vy: number, o: 0 | 1 | 2): SimBall {
+  return { id: ++ballSeq, x, y, vx, vy, o };
+}
+
+function spawnServe(dir: number): void {
+  sim.balls = [makeBall(w / 2, h / 2, BALL_SPEED * dir, (Math.random() - 0.5) * BALL_SPEED, 0)];
 }
 
 function resetMatch(): void {
-  sim.s1 = 0;
-  sim.s2 = 0;
-  sim.p1Y = h / 2 - PADDLE_H / 2;
-  sim.p2Y = h / 2 - PADDLE_H / 2;
-  centerBall(Math.random() > 0.5 ? 1 : -1);
+  sim.phase = cfg.win === "stack" ? "stack" : "normal";
+  sim.s1 = sim.s2 = cfg.win === "stack" ? STACK_START : 0;
+  sim.life1 = sim.life2 = 0;
+  sim.p1Y = sim.p2Y = h / 2 - PADDLE_H / 2;
+  sim.powerups = [];
+  powerupAccum = 0;
+  remoteInput.up = remoteInput.down = false;
+  serveDir = Math.random() > 0.5 ? 1 : -1;
+  spawnServe(serveDir);
 }
 
-// --- host simulation ---
-function updateSim(dt: number): void {
-  // left paddle = host keyboard
-  if (input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp")) sim.p1Y -= PADDLE_SPEED * dt;
-  if (input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown")) sim.p1Y += PADDLE_SPEED * dt;
-  sim.p1Y = clamp(sim.p1Y, 0, h - PADDLE_H);
-
-  // right paddle = AI (solo) or remote player input (multiplayer)
-  if (mode === "solo") {
-    const target = sim.ballY - PADDLE_H / 2;
-    sim.p2Y += clamp(target - sim.p2Y, -AI_SPEED * dt, AI_SPEED * dt);
-  } else {
-    if (remoteInput.up) sim.p2Y -= PADDLE_SPEED * dt;
-    if (remoteInput.down) sim.p2Y += PADDLE_SPEED * dt;
+function aiTargetY(): number {
+  let best: SimBall | null = null;
+  let bestX = -Infinity;
+  for (const b of sim.balls) {
+    if (b.vx > 0 && b.x > bestX) {
+      bestX = b.x;
+      best = b;
+    }
   }
-  sim.p2Y = clamp(sim.p2Y, 0, h - PADDLE_H);
-
-  // ball
-  sim.ballX += sim.vx * dt;
-  sim.ballY += sim.vy * dt;
-  if (sim.ballY <= 0 || sim.ballY >= h - BALL) {
-    sim.vy *= -1;
-    sim.ballY = clamp(sim.ballY, 0, h - BALL);
-    emitSfx("wall");
-  }
-  if (sim.ballX <= 30 + PADDLE_W && sim.ballY + BALL >= sim.p1Y && sim.ballY <= sim.p1Y + PADDLE_H && sim.vx < 0) {
-    bounce(sim.p1Y, 1);
-  }
-  if (sim.ballX + BALL >= w - 30 - PADDLE_W && sim.ballY + BALL >= sim.p2Y && sim.ballY <= sim.p2Y + PADDLE_H && sim.vx > 0) {
-    bounce(sim.p2Y, -1);
-  }
-  if (sim.ballX < 0) {
-    sim.s2++;
-    onPoint();
-  } else if (sim.ballX > w) {
-    sim.s1++;
-    onPoint();
-  }
+  if (!best) best = sim.balls[0] ?? null;
+  return best ? best.y - PADDLE_H / 2 : sim.p2Y;
 }
 
-function bounce(paddleY: number, dir: number): void {
-  const hit = (sim.ballY - paddleY) / PADDLE_H - 0.5;
-  const speed = Math.min(Math.abs(sim.vx) * 1.06, MAX_BALL_SPEED);
-  sim.vx = speed * dir;
-  sim.vy = hit * speed * 1.4;
-  emitSfx("hit");
-}
-
-function onPoint(): void {
-  if (sim.s1 >= WIN_SCORE || sim.s2 >= WIN_SCORE) {
-    winner = sim.s1 > sim.s2 ? 1 : 2;
-    screen = "gameover";
-    net?.over(winner);
-    // Host is player 1 → win jingle when left wins, loss otherwise.
-    sfx.play(winner === 1 ? "win" : "lose");
-    reportSession();
-  } else {
-    emitSfx("score");
-    centerBall(sim.s1 > sim.s2 ? -1 : 1);
-  }
-}
-
-/** Host: play a cue locally and broadcast it so every client hears it too. */
-function emitSfx(k: "hit" | "wall" | "score"): void {
+function emitSfx(k: "hit" | "wall" | "score" | "power" | "life"): void {
+  const now = performance.now();
+  if (now - (sfxCooldown[k] ?? 0) < 60) return; // throttle (multiball spams collisions)
+  sfxCooldown[k] = now;
   sfx.play(k);
   net?.sfx(k);
 }
 
+function bounce(b: SimBall, paddleY: number, dir: 1 | -1, nudgeX: number): void {
+  const rel = (b.y - paddleY) / PADDLE_H - 0.5; // -0.5..0.5
+  const speed = Math.min(Math.abs(b.vx) * 1.06, MAX_BALL_SPEED);
+  b.vx = speed * dir;
+  b.vy = rel * speed * 1.4;
+  b.x = nudgeX;
+  emitSfx("hit");
+}
+
+/** A ball owned by a player overlapped a power-up → apply its effect. */
+function collectPower(b: SimBall, pu: SimPower, spawnQueue: SimBall[]): void {
+  const side = b.o; // 1 or 2 (guaranteed by caller)
+  if (pu.k === "life") {
+    if (side === 1) sim.life1++;
+    else sim.life2++;
+    sfx.play("life");
+    net?.sfx("life");
+  } else if (pu.k === "speed") {
+    for (const ball of sim.balls) {
+      ball.vx = clamp(ball.vx * SPEED_PUP_MULT, -MAX_BALL_SPEED, MAX_BALL_SPEED);
+      ball.vy = clamp(ball.vy * SPEED_PUP_MULT, -MAX_BALL_SPEED, MAX_BALL_SPEED);
+    }
+    emitSfx("power");
+  } else {
+    // multiball: each existing ball spawns 2 clones (×3), capped at MAX_BALLS
+    const base = [...sim.balls];
+    for (const ball of base) {
+      for (let i = 0; i < 2; i++) {
+        if (sim.balls.length + spawnQueue.length >= MAX_BALLS) break;
+        const ang = (Math.random() - 0.5) * 0.9;
+        const cos = Math.cos(ang);
+        const sn = Math.sin(ang);
+        spawnQueue.push(
+          makeBall(ball.x, ball.y, ball.vx * cos - ball.vy * sn, ball.vx * sn + ball.vy * cos, ball.o),
+        );
+      }
+    }
+    sfx.play("multi");
+    net?.sfx("power");
+  }
+}
+
+function scorePoint(side: 1 | 2): void {
+  if (sim.phase === "stack") {
+    if (side === 1) {
+      sim.s1++;
+      sim.s2 = Math.max(0, sim.s2 - 1);
+    } else {
+      sim.s2++;
+      sim.s1 = Math.max(0, sim.s1 - 1);
+    }
+    if (sim.s2 <= 0) return endMatch(1);
+    if (sim.s1 <= 0) return endMatch(2);
+  } else {
+    if (side === 1) sim.s1++;
+    else sim.s2++;
+    const n = winN();
+    if (sim.s1 >= n) return endMatch(1);
+    if (sim.s2 >= n) return endMatch(2);
+  }
+  // serve toward the side that conceded
+  serveDir = side === 1 ? 1 : -1;
+  emitSfx("score");
+}
+
+function updateSim(dt: number): void {
+  // left paddle = host keyboard
+  if (input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp")) sim.p1Y -= PADDLE_SPEED * dt;
+  if (input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown")) sim.p1Y += PADDLE_SPEED * dt;
+  sim.p1Y = clamp(sim.p1Y, 0, freeH());
+
+  // right paddle = AI (bot) or remote player input
+  if (rightIsHuman()) {
+    if (remoteInput.up) sim.p2Y -= PADDLE_SPEED * dt;
+    if (remoteInput.down) sim.p2Y += PADDLE_SPEED * dt;
+  } else {
+    const target = aiTargetY();
+    sim.p2Y += clamp(target - sim.p2Y, -AI_SPEED * dt, AI_SPEED * dt);
+  }
+  sim.p2Y = clamp(sim.p2Y, 0, freeH());
+
+  const leftFace = WALL_X + PADDLE_W;
+  const rightFace = w - WALL_X - PADDLE_W;
+  const survivors: SimBall[] = [];
+  const spawnQueue: SimBall[] = [];
+  let pointScored = false;
+
+  for (const b of sim.balls) {
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    // walls
+    if (b.y <= R) {
+      b.y = R;
+      b.vy = Math.abs(b.vy);
+      emitSfx("wall");
+    } else if (b.y >= h - R) {
+      b.y = h - R;
+      b.vy = -Math.abs(b.vy);
+      emitSfx("wall");
+    }
+
+    // paddles
+    if (b.vx < 0 && b.x - R <= leftFace && b.x >= WALL_X && b.y >= sim.p1Y - R && b.y <= sim.p1Y + PADDLE_H + R) {
+      bounce(b, sim.p1Y, 1, leftFace + R);
+      b.o = 1;
+    } else if (
+      b.vx > 0 && b.x + R >= rightFace && b.x <= w - WALL_X && b.y >= sim.p2Y - R && b.y <= sim.p2Y + PADDLE_H + R
+    ) {
+      bounce(b, sim.p2Y, -1, rightFace - R);
+      b.o = 2;
+    }
+
+    // power-ups (only the ball's owning player collects)
+    if (b.o !== 0 && sim.powerups.length) {
+      for (let i = sim.powerups.length - 1; i >= 0; i--) {
+        const pu = sim.powerups[i];
+        const dx = b.x - pu.x;
+        const dy = b.y - pu.y;
+        if (dx * dx + dy * dy <= (R + POWERUP_R) * (R + POWERUP_R)) {
+          sim.powerups.splice(i, 1);
+          collectPower(b, pu, spawnQueue);
+        }
+      }
+    }
+
+    // scoring (with extra-life shield)
+    if (b.x < -BALL) {
+      if (sim.life1 > 0) {
+        sim.life1--;
+        b.x = R + 1;
+        b.vx = Math.abs(b.vx);
+        b.o = 0;
+        survivors.push(b);
+      } else {
+        scorePoint(2);
+        pointScored = true;
+      }
+    } else if (b.x > w + BALL) {
+      if (sim.life2 > 0) {
+        sim.life2--;
+        b.x = w - R - 1;
+        b.vx = -Math.abs(b.vx);
+        b.o = 0;
+        survivors.push(b);
+      } else {
+        scorePoint(1);
+        pointScored = true;
+      }
+    } else {
+      survivors.push(b);
+    }
+  }
+
+  sim.balls = survivors.concat(spawnQueue).slice(0, MAX_BALLS);
+  if (screen !== "playing") return; // endMatch may have fired mid-loop
+
+  if (sim.balls.length === 0) spawnServe(serveDir);
+
+  // a watcher claimed the slot → swap them in seamlessly at the point boundary
+  if (pointScored && pendingClaim) applyClaim();
+
+  // power-up spawns
+  if (cfg.powerups && sim.balls.length > 0) {
+    powerupAccum += dt;
+    if (powerupAccum >= POWERUP_EVERY && sim.powerups.length < POWERUP_MAX) {
+      powerupAccum = 0;
+      sim.powerups.push({
+        id: ++powerSeq,
+        x: w * (0.3 + Math.random() * 0.4),
+        y: h * (0.2 + Math.random() * 0.6),
+        k: POWER_KINDS[(Math.random() * POWER_KINDS.length) | 0],
+      });
+    }
+  }
+}
+
 function normalized(): PongState {
   return {
-    bx: (sim.ballX + BALL / 2) / w,
-    by: (sim.ballY + BALL / 2) / h,
-    p1: sim.p1Y / (h - PADDLE_H),
-    p2: sim.p2Y / (h - PADDLE_H),
+    balls: sim.balls.map((b) => ({ id: b.id, x: b.x / w, y: b.y / h, vx: b.vx / w, vy: b.vy / h, o: b.o })),
+    p1: sim.p1Y / freeH(),
+    p2: sim.p2Y / freeH(),
     s1: sim.s1,
     s2: sim.s2,
+    l1: sim.life1,
+    l2: sim.life2,
+    pus: sim.powerups.map((p) => ({ id: p.id, x: p.x / w, y: p.y / h, k: p.k })),
+    ph: sim.phase === "stack" ? 1 : 0,
   };
 }
 
-// --- session presence (host only; SDK ignores for non-hosts) ---
-function reportSession(): void {
-  if (!client || role !== "host") return;
-  const playerCount = mode === "multiplayer" && player2Id ? 2 : 1;
-  const state = screen === "menu" ? "menu" : screen === "waiting" ? "waiting" : screen === "gameover" ? "gameover" : "playing";
-  // Pong always lets people in while active — the game decides on entry whether
-  // they become a player (open slot) or a spectator. State stream lets watchers
-  // see live play (solo vs bot included).
-  const joinable = state !== "gameover";
-  const spectatable = state === "playing";
-  // Ephemeral ids of who's actually playing (left + right paddle) so the app
-  // can flag every player's card as in-game, not only the host's.
-  const players = [leftId, mode === "multiplayer" ? rightId : ""].filter(Boolean);
-  client.updateSession({ state, mode, joinable, spectatable, playerCount, maxPlayers: 2, players });
+// ===========================================================================
+// Host: lobby / roster / session presence
+// ===========================================================================
+
+function broadcastLobby(): void {
+  if (role !== "host") return;
+  net?.lobby(cfg, leftId, rightId, screen as Phase);
 }
 
-// --- transitions ---
+function reportSession(): void {
+  if (!client || role !== "host") return;
+  const state =
+    screen === "lobby" ? "waiting" : screen === "gameover" ? "gameover" : "playing";
+  const players2 = [leftId, rightIsHuman() ? rightId : ""].filter(Boolean);
+  client.updateSession({
+    state,
+    mode: rightIsHuman() ? "multiplayer" : "solo",
+    joinable: true, // anyone can always connect to watch / sit in the lobby
+    playerCount: players2.length,
+    maxPlayers: 2,
+    players: players2,
+  });
+}
 
-/**
- * Host: freeze the ball and run a 3-2-1 countdown before play. Each tick is
- * broadcast so players/spectators show the same number; the match goes live
- * when it hits zero (see the host branch in the frame loop).
- */
+function enterLobby(): void {
+  screen = "lobby";
+  sim.powerups = [];
+  broadcastLobby();
+  reportSession();
+}
+
+function startMatch(): void {
+  if (!rightIsHuman()) rightId = BOT; // solo vs bot if nobody claimed the slot
+  resetMatch();
+  beginCountdown();
+}
+
 function beginCountdown(): void {
   countdown = COUNTDOWN_SECS;
   countdownAccum = 0;
-  predP2 = 0.5; // recenter the predicted paddle for the new point
+  predP2 = 0.5;
   screen = "countdown";
   if (role === "host") {
     net?.countdown(countdown);
     sfx.play("count");
+    broadcastLobby();
     reportSession();
   }
 }
 
-function startSolo(): void {
-  mode = "solo";
-  leftId = myId;
-  rightId = "";
-  resetMatch();
-  net?.roster(myId, ""); // tell any watchers who's playing (right = bot)
-  beginCountdown();
-}
-
-function startMultiplayerHost(): void {
-  mode = "multiplayer";
-  screen = "waiting";
-  reportSession(); // joinable presence → others see a Join button
-}
-
-function startMatch(): void {
-  leftId = myId;
-  rightId = player2Id;
-  resetMatch();
-  net?.roster(myId, player2Id);
-  void refreshPlayers();
-  beginCountdown();
+function endMatch(side: 1 | 2): void {
+  winner = side;
+  screen = "gameover";
+  net?.over(side);
+  sfx.play(side === 1 ? "win" : "lose"); // host is player 1
+  broadcastLobby();
+  reportSession();
 }
 
 function rematch(): void {
   resetMatch();
-  if (role === "host") {
-    net?.rematch();
-    beginCountdown();
-  }
+  beginCountdown();
 }
 
-/** The authoritative host left: take over this instance and drop to the menu. */
-function backToMenuAsHost(): void {
-  role = "host";
-  mode = "solo";
-  hostId = "";
-  player2Id = "";
-  spectators.clear();
-  buffer.clear();
-  leftId = myId;
-  rightId = "";
-  screen = "menu";
+/** Seamlessly move the pending watcher into the right slot (no restart). */
+function applyClaim(): void {
+  if (!pendingClaim) return;
+  rightId = pendingClaim;
+  watchers.delete(pendingClaim);
+  pendingClaim = "";
+  remoteInput.up = remoteInput.down = false;
+  void refreshPlayers();
+  broadcastLobby();
   reportSession();
 }
 
-/** The opponent left: pull in a waiting spectator, else reopen the lobby. */
-function opponentLeft(): void {
-  player2Id = "";
-  rightId = "";
-  remoteInput.up = false;
-  remoteInput.down = false;
-  mode = "multiplayer";
+// countdown state (shared host + client)
+let countdown = 0;
+let countdownAccum = 0;
 
-  const next = spectators.values().next().value as string | undefined;
-  if (next) {
-    spectators.delete(next);
-    player2Id = next;
-    net?.approve(next);
-    startMatch();
-  } else {
-    screen = "waiting";
-    reportSession();
-  }
+// ===========================================================================
+// Host: take over after the authoritative host disappears
+// ===========================================================================
+
+function backToLobbyAsHost(): void {
+  role = "host";
+  hostId = "";
+  leftId = myId;
+  rightId = "";
+  watchers.clear();
+  pendingClaim = "";
+  ballField.clear();
+  paddleBuf.clear();
+  enterLobby();
 }
 
-// --- render ---
-interface ViewPx {
+// ===========================================================================
+// Rendering
+// ===========================================================================
+
+interface RenderView {
   p1Y: number;
   p2Y: number;
-  ballX: number;
-  ballY: number;
+  balls: { x: number; y: number }[]; // pixel centers
+  powerups: { x: number; y: number; k: PowerKind }[];
   s1: number;
   s2: number;
+  l1: number;
+  l2: number;
+  stack: boolean;
 }
 
-function toViewPx(): ViewPx {
-  if (role === "host") {
-    return { p1Y: sim.p1Y, p2Y: sim.p2Y, ballX: sim.ballX, ballY: sim.ballY, s1: sim.s1, s2: sim.s2 };
-  }
-
-  const freeH = h - PADDLE_H;
-  // Smoothed ball + opponent paddle from the interpolation buffer; scores from
-  // the latest raw snapshot (discrete values must not lag behind).
-  const smooth = buffer.sample(performance.now());
-  const latest = buffer.latest();
-  if (!smooth || !latest) {
-    return { p1Y: freeH / 2, p2Y: freeH / 2, ballX: w / 2, ballY: h / 2, s1: 0, s2: 0 };
-  }
-
-  // I'm the right paddle (p2). Render my own paddle from local prediction for
-  // zero input lag; spectators have no own paddle, so they use the snapshot.
-  const p2 = role === "player" ? predP2 : smooth.p2;
-
+function hostView(): RenderView {
   return {
-    p1Y: smooth.p1 * freeH,
-    p2Y: p2 * freeH,
-    ballX: smooth.bx * w - BALL / 2,
-    ballY: smooth.by * h - BALL / 2,
-    s1: latest.s1,
-    s2: latest.s2,
+    p1Y: sim.p1Y,
+    p2Y: sim.p2Y,
+    balls: sim.balls.map((b) => ({ x: b.x, y: b.y })),
+    powerups: sim.powerups.map((p) => ({ x: p.x, y: p.y, k: p.k })),
+    s1: sim.s1,
+    s2: sim.s2,
+    l1: sim.life1,
+    l2: sim.life2,
+    stack: sim.phase === "stack",
   };
 }
 
-/** Player only: integrate my paddle locally from input, reconcile at rest. */
-function updatePrediction(dt: number): void {
-  const freeH = Math.max(1, h - PADDLE_H);
-  const fracSpeed = PADDLE_SPEED / freeH; // 0..1 units per second
-  const up = input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp");
-  const down = input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown");
-
-  if (up) predP2 -= fracSpeed * dt;
-  if (down) predP2 += fracSpeed * dt;
-  predP2 = clamp(predP2, 0, 1);
-
-  // While idle, ease toward the authoritative position to cancel any drift
-  // (no reconcile while moving → no rubber-banding against my own input).
-  if (!up && !down) {
-    const auth = buffer.latest()?.p2;
-    if (auth != null) predP2 += (auth - predP2) * Math.min(1, dt * 5);
-  }
+function clientView(now: number, dt: number): RenderView {
+  const fh = freeH();
+  const pad = paddleBuf.sample(now);
+  const p1 = pad?.p1 ?? 0.5;
+  const p2 = role === "player" ? predP2 : pad?.p2 ?? 0.5;
+  const rb = ballField.step(now, dt);
+  return {
+    p1Y: p1 * fh,
+    p2Y: p2 * fh,
+    balls: rb.map((b) => ({ x: b.x * w, y: b.y * h })),
+    powerups: cli.pus.map((p) => ({ x: p.x * w, y: p.y * h, k: p.k })),
+    s1: cli.s1,
+    s2: cli.s2,
+    l1: cli.l1,
+    l2: cli.l2,
+    stack: cli.stack,
+  };
 }
 
-function drawField(v: ViewPx): void {
+const POWER_COLOR: Record<PowerKind, string> = { multi: "#22d3ee", speed: "#f59e0b", life: "#4ade80" };
+const POWER_LETTER: Record<PowerKind, string> = { multi: "M", speed: "S", life: "+" };
+
+function drawField(v: RenderView): void {
   ctx.fillStyle = "#0b0b0f";
   ctx.fillRect(0, 0, w, h);
+
   ctx.strokeStyle = "#2a2a33";
   ctx.setLineDash([10, 14]);
   ctx.beginPath();
@@ -398,26 +592,66 @@ function drawField(v: ViewPx): void {
   ctx.lineTo(w / 2, h);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // power-ups
+  for (const p of v.powerups) {
+    ctx.fillStyle = POWER_COLOR[p.k];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, POWERUP_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#0b0b0f";
+    ctx.font = "bold 16px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(POWER_LETTER[p.k], p.x, p.y + 1);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  // paddles
   ctx.fillStyle = "#4ade80";
-  ctx.fillRect(30, v.p1Y, PADDLE_W, PADDLE_H);
+  ctx.fillRect(WALL_X, v.p1Y, PADDLE_W, PADDLE_H);
   ctx.fillStyle = "#f87171";
-  ctx.fillRect(w - 30 - PADDLE_W, v.p2Y, PADDLE_W, PADDLE_H);
+  ctx.fillRect(w - WALL_X - PADDLE_W, v.p2Y, PADDLE_W, PADDLE_H);
+
+  // balls
   ctx.fillStyle = "#fafafa";
-  ctx.fillRect(v.ballX, v.ballY, BALL, BALL);
+  for (const b of v.balls) ctx.fillRect(b.x - R, b.y - R, BALL, BALL);
+
+  // scores
+  ctx.fillStyle = "#fafafa";
   ctx.font = "48px monospace";
   ctx.textAlign = "center";
   ctx.fillText(String(v.s1), w / 4, 64);
   ctx.fillText(String(v.s2), (w * 3) / 4, 64);
 
+  // extra-life pips
+  drawLives(w / 4, v.l1);
+  drawLives((w * 3) / 4, v.l2);
+
+  if (v.stack) {
+    ctx.fillStyle = "#a1a1aa";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("STACK", w / 2, 28);
+  }
+
   drawPlayerTag(w / 4, leftId, "Player 1");
-  drawPlayerTag((w * 3) / 4, rightId, mode === "solo" ? "CPU" : "Player 2");
+  drawPlayerTag((w * 3) / 4, rightId === BOT || !rightId ? "" : rightId, rightId === BOT ? "CPU" : "Open");
+}
+
+function drawLives(cx: number, n: number): void {
+  if (n <= 0) return;
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "14px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("+".repeat(Math.min(n, 5)), cx, 86);
 }
 
 function drawPlayerTag(cx: number, id: string, fallback: string): void {
   const entry = id ? players.get(id) : undefined;
   const name = entry?.name ?? fallback;
   const r = 14;
-  const cy = 100;
+  const cy = 116;
 
   if (entry?.img) {
     ctx.save();
@@ -426,11 +660,6 @@ function drawPlayerTag(cx: number, id: string, fallback: string): void {
     ctx.clip();
     ctx.drawImage(entry.img, cx - r, cy - r, r * 2, r * 2);
     ctx.restore();
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
   } else {
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
@@ -440,7 +669,7 @@ function drawPlayerTag(cx: number, id: string, fallback: string): void {
     ctx.font = "bold 14px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(name.charAt(0).toUpperCase(), cx, cy + 1);
+    ctx.fillText((name || "?").charAt(0).toUpperCase(), cx, cy + 1);
     ctx.textBaseline = "alphabetic";
   }
 
@@ -448,6 +677,55 @@ function drawPlayerTag(cx: number, id: string, fallback: string): void {
   ctx.font = "13px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(name, cx, cy + r + 16);
+}
+
+function overlay(title: string, lines: string[]): void {
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "#fafafa";
+  ctx.textAlign = "center";
+  ctx.font = "bold 32px system-ui, sans-serif";
+  ctx.fillText(title, w / 2, h / 2 - 40);
+  ctx.font = "16px system-ui, sans-serif";
+  ctx.fillStyle = "#a1a1aa";
+  lines.forEach((l, i) => ctx.fillText(l, w / 2, h / 2 + i * 26));
+}
+
+function winLabel(): string {
+  return cfg.win === "stack" ? "Stack (tug from 10)" : `First to ${cfg.win}`;
+}
+
+function drawLobby(): void {
+  drawField(emptyView());
+  const hostLines = [
+    `Win: ${winLabel()}    Power-ups: ${cfg.powerups ? "ON" : "OFF"}`,
+    rightIsHuman() ? `Opponent: ${players.get(rightId)?.name ?? "Player 2"}` : "Opponent: CPU (solo)",
+    "",
+    "1/2/3/4 — win 7 / 12 / 30 / stack    P — power-ups",
+    "Enter — start match",
+  ];
+  const watcherLines = [
+    `Win: ${winLabel()}    Power-ups: ${cfg.powerups ? "ON" : "OFF"}`,
+    rightIsHuman() ? "Both slots taken — you're watching" : "Right slot open",
+    "",
+    !rightIsHuman() ? "J — take the right slot" : "Waiting for the host…",
+  ];
+  overlay("PONG — Lobby", role === "host" ? hostLines : watcherLines);
+}
+
+function emptyView(): RenderView {
+  const fh = freeH();
+  return {
+    p1Y: fh / 2,
+    p2Y: fh / 2,
+    balls: [],
+    powerups: [],
+    s1: cfg.win === "stack" ? STACK_START : 0,
+    s2: cfg.win === "stack" ? STACK_START : 0,
+    l1: 0,
+    l2: 0,
+    stack: cfg.win === "stack",
+  };
 }
 
 function drawCountdown(): void {
@@ -461,86 +739,123 @@ function drawCountdown(): void {
   ctx.textBaseline = "alphabetic";
 }
 
-function overlay(title: string, lines: string[]): void {
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "#fafafa";
-  ctx.textAlign = "center";
-  ctx.font = "bold 32px system-ui, sans-serif";
-  ctx.fillText(title, w / 2, h / 2 - 30);
-  ctx.font = "16px system-ui, sans-serif";
-  ctx.fillStyle = "#a1a1aa";
-  lines.forEach((l, i) => ctx.fillText(l, w / 2, h / 2 + 10 + i * 26));
-}
-
-function render(): void {
-  if (screen === "menu") {
-    drawField(toViewPx());
-    overlay("PONG", ["Press 1 — Solo (vs AI)", "Press 2 — Multiplayer"]);
-    return;
-  }
-  if (screen === "waiting") {
-    drawField(toViewPx());
-    overlay("Waiting for opponent…", ["Others can Join from the channel", "Press Esc to cancel"]);
+function render(now: number, dt: number): void {
+  if (screen === "lobby") {
+    drawLobby();
     return;
   }
   if (screen === "connecting") {
-    drawField(toViewPx());
-    overlay(role === "spectator" ? "Connecting to match…" : "Joining match…", []);
+    drawField(emptyView());
+    overlay("Connecting…", []);
     return;
   }
+
+  const v = role === "host" ? hostView() : clientView(now, dt);
+  drawField(v);
+
   if (screen === "countdown") {
-    drawField(toViewPx());
     drawCountdown();
     return;
   }
-  drawField(toViewPx());
-  if (role === "spectator") {
+
+  // footer hint
+  if (role === "watcher") {
     ctx.fillStyle = "#a1a1aa";
     ctx.font = "13px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Spectating", w / 2, h - 20);
+    ctx.fillText(rightIsHuman() ? "Watching" : "Watching — press J to play", w / 2, h - 20);
   } else {
     ctx.fillStyle = "#6b7280";
     ctx.font = "14px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("W / S  or  ↑ / ↓ to move", w / 2, h - 20);
   }
+
   if (screen === "gameover") {
     const youWon = (role === "host" && winner === 1) || (role === "player" && winner === 2);
-    const canRematch = role === "host";
-    overlay(role === "spectator" ? `Player ${winner} wins` : youWon ? "You win!" : "You lose", [
-      canRematch ? "Press Space to rematch" : "Waiting for host…",
+    overlay(role === "watcher" ? `Player ${winner} wins` : youWon ? "You win!" : "You lose", [
+      role === "host" ? "Space — rematch    Esc — lobby" : "Waiting for host…",
     ]);
   }
 }
 
-// --- key handling (menus) ---
+// ===========================================================================
+// Input (menus / lobby / claim)
+// ===========================================================================
+
+function cycleWin(mode: WinMode): void {
+  if (role !== "host") return;
+  cfg = { ...cfg, win: mode };
+  broadcastLobby();
+  reportSession();
+}
+
 function onKeydown(e: KeyboardEvent): void {
-  if (screen === "menu" && role === "host") {
-    if (e.key === "1") startSolo();
-    else if (e.key === "2") startMultiplayerHost();
-  } else if (screen === "waiting" && e.key === "Escape") {
-    // cancel back to menu
-    screen = "menu";
-    mode = "solo";
-    reportSession();
-  } else if (screen === "gameover" && role === "host" && (e.key === " " || e.key === "Enter")) {
-    e.preventDefault();
-    rematch();
+  sfx?.unlock();
+
+  if (screen === "lobby") {
+    if (role === "host") {
+      if (e.key === "1") cycleWin("7");
+      else if (e.key === "2") cycleWin("12");
+      else if (e.key === "3") cycleWin("30");
+      else if (e.key === "4") cycleWin("stack");
+      else if (e.key.toLowerCase() === "p") {
+        cfg = { ...cfg, powerups: !cfg.powerups };
+        broadcastLobby();
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        startMatch();
+      }
+    } else if (e.key.toLowerCase() === "j" && !rightIsHuman()) {
+      net?.claim();
+    }
+    return;
+  }
+
+  // watchers can request the open slot mid-match (seamless at next point)
+  if (role === "watcher" && e.key.toLowerCase() === "j" && !rightIsHuman()) {
+    net?.claim();
+    return;
+  }
+
+  if (screen === "gameover" && role === "host") {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      rematch();
+    } else if (e.key === "Escape") {
+      enterLobby();
+    }
   }
 }
 
-// --- boot ---
+/** Player only: integrate my paddle locally from input for zero-lag response. */
+function updatePrediction(dt: number): void {
+  const fracSpeed = PADDLE_SPEED / Math.max(1, freeH());
+  if (input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp")) predP2 -= fracSpeed * dt;
+  if (input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown")) predP2 += fracSpeed * dt;
+  predP2 = clamp01(predP2);
+}
+
+/** Player only: send paddle input to the host only when it changes (reliable). */
+function sendInput(): void {
+  const up = input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp");
+  const down = input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown");
+  if (up === lastUp && down === lastDown) return;
+  lastUp = up;
+  lastDown = down;
+  if (net && hostId) net.input(hostId, up, down);
+}
+
+// ===========================================================================
+// Boot
+// ===========================================================================
+
 function startGame(): void {
   if (loading) loading.style.display = "none";
   resize();
-  resetMatch();
   window.addEventListener("resize", resize);
   window.addEventListener("keydown", onKeydown);
 
-  // WebAudio needs a user gesture before it can make sound; unlock on the first
-  // key/pointer the game sees.
   sfx = createSfx();
   const unlock = () => sfx.unlock();
   window.addEventListener("keydown", unlock, { once: true });
@@ -551,9 +866,8 @@ function startGame(): void {
 
   const loop = createFrameLoop(
     (dt) => {
+      const now = performance.now();
       if (role === "host" && screen === "countdown") {
-        // 3-2-1 → GO: tick once per second, broadcasting each remaining count,
-        // then go live. Ball stays frozen until then.
         countdownAccum += dt;
         while (countdownAccum >= 1 && countdown > 0) {
           countdownAccum -= 1;
@@ -567,6 +881,7 @@ function startGame(): void {
           screen = "playing";
           sfx.play("go");
           net?.start();
+          broadcastLobby();
           reportSession();
         }
       } else if (role === "host" && screen === "playing") {
@@ -574,15 +889,13 @@ function startGame(): void {
         stateAccum += dt;
         if (net && stateAccum >= 1 / STATE_HZ) {
           stateAccum = 0;
-          // Only put state on the wire when someone consumes it: a real
-          // opponent (multiplayer) or at least one spectator.
-          if (mode === "multiplayer" || spectators.size > 0) net.state(normalized());
+          if (rightIsHuman() || watchers.size > 0) net.state(normalized());
         }
-      } else if (role === "player" && screen === "playing" && net && hostId) {
+      } else if (role === "player" && screen === "playing") {
         updatePrediction(dt);
-        net.input(hostId, input.isKeyDown("KeyW") || input.isKeyDown("ArrowUp"), input.isKeyDown("KeyS") || input.isKeyDown("ArrowDown"));
+        sendInput();
       }
-      render();
+      render(now, dt);
     },
     { targetFps: 60, pauseOnHidden: true },
   );
@@ -591,9 +904,9 @@ function startGame(): void {
   if (isInPlayFrame()) {
     void connectToHost(loop);
   } else {
-    // Standalone dev: solo menu
     role = "host";
-    screen = "menu";
+    leftId = myId;
+    screen = "lobby";
   }
 }
 
@@ -613,69 +926,79 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
 
   c.on("peerLeft", ({ peerId }) => {
     if (role === "host") {
-      if (peerId === player2Id) opponentLeft();
-      else spectators.delete(peerId);
+      if (peerId === rightId) {
+        // the human opponent left → fall back to the bot, keep playing
+        rightId = BOT;
+        remoteInput.up = remoteInput.down = false;
+        broadcastLobby();
+        reportSession();
+      }
+      watchers.delete(peerId);
+      if (peerId === pendingClaim) pendingClaim = "";
     } else if (peerId === hostId) {
-      backToMenuAsHost();
+      backToLobbyAsHost();
     }
   });
 
   net = createPongNet(c, {
+    // ---- host side ----
+    onHello: (from) => {
+      if (role !== "host" || from === myId) return;
+      watchers.add(from);
+      void refreshPlayers();
+      broadcastLobby(); // bring the newcomer's lobby/roster up to date — no restart
+    },
+    onClaim: (from) => {
+      if (role !== "host" || rightIsHuman()) return;
+      if (screen === "lobby") {
+        rightId = from;
+        watchers.delete(from);
+        void refreshPlayers();
+        broadcastLobby();
+        reportSession();
+      } else {
+        pendingClaim = from; // seamless swap at the next point (see updateSim)
+      }
+    },
     onInput: (from, up, down) => {
-      if (role === "host" && from === player2Id) {
+      if (role === "host" && from === rightId) {
         remoteInput.up = up;
         remoteInput.down = down;
       }
     },
-    // host: someone joined the activity → the GAME decides their role.
-    // Open opponent slot → make them a player; otherwise → spectator.
-    onReqJoin: (from) => {
-      if (role !== "host") return;
-      if (!player2Id) {
-        player2Id = from;
-        spectators.delete(from);
-        mode = "multiplayer";
-        net?.approve(from);
-        startMatch();
-      } else {
-        spectators.add(from);
-        net?.roster(leftId, rightId);
-        net?.deny(from); // "no open slot" → you're a spectator
+    // ---- client side ----
+    onLobby: (from, cfg2, left, right, phase) => {
+      if (role === "host") return;
+      hostId = hostId || from;
+      cfg = cfg2;
+      leftId = left;
+      rightId = right;
+      const wasPlayer = role === "player";
+      role = right === myId ? "player" : "watcher";
+      if (role === "player" && !wasPlayer) {
+        predP2 = 0.5;
+        lastUp = lastDown = false;
+        client?.notifyRole("player");
       }
-    },
-    // joiner: the host made me a player
-    onApprove: () => {
-      role = "player";
-      rightId = myId;
-      mode = "multiplayer";
-      screen = "playing";
-      client?.notifyRole("player");
-    },
-    // joiner: no open slot → watch instead (host already streams to me)
-    onDeny: () => {
-      role = "spectator";
-      client?.notifyRole("spectator");
-    },
-    onRoster: (_from, p1, p2) => {
-      leftId = p1;
-      rightId = p2;
+      // mirror the host's phase (unless we're mid-countdown locally)
+      if (phase === "lobby") screen = "lobby";
+      else if (phase === "gameover") screen = "gameover";
+      else if (screen === "connecting" || screen === "lobby") screen = phase;
       void refreshPlayers();
     },
-    // player/spectator: pre-match countdown tick from the host
     onCountdown: (_from, secs) => {
       if (role === "host") return;
       countdown = secs;
       predP2 = 0.5;
       if (screen !== "countdown") {
-        buffer.clear();
+        ballField.clear();
+        paddleBuf.clear();
         screen = "countdown";
       }
       sfx.play("count");
     },
-    // player/spectator: receive authoritative state
     onStart: (from) => {
       hostId = hostId || from;
-      if (!leftId) leftId = from;
       if (role !== "host") {
         predP2 = 0.5;
         screen = "playing";
@@ -684,26 +1007,23 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
     },
     onState: (from, s) => {
       hostId = hostId || from;
-      if (!leftId) leftId = from;
-      buffer.push(s); // interpolation buffer smooths 30 Hz → 60 fps
-      if (role !== "host" && screen !== "gameover" && screen !== "countdown") {
-        screen = "playing";
-      }
+      if (role === "host") return;
+      cli.s1 = s.s1;
+      cli.s2 = s.s2;
+      cli.l1 = s.l1;
+      cli.l2 = s.l2;
+      cli.pus = s.pus.map((p) => ({ x: p.x, y: p.y, k: p.k }));
+      cli.stack = s.ph === 1;
+      paddleBuf.push(s.p1, s.p2);
+      ballField.update(s.balls);
+      if (screen === "connecting" || screen === "lobby") screen = "playing"; // a match is live → watch it
     },
     onOver: (_from, won) => {
       if (role === "host") return;
       winner = won;
       screen = "gameover";
-      // I'm player 2 when I'm a player; spectators hear the winner's jingle.
       if (role === "player") sfx.play(won === 2 ? "win" : "lose");
       else sfx.play("win");
-    },
-    onRematch: () => {
-      if (role === "host") return;
-      buffer.clear();
-      predP2 = 0.5;
-      countdown = COUNTDOWN_SECS;
-      screen = "countdown";
     },
     onSfx: (_from, k) => sfx.play(k),
   });
@@ -719,20 +1039,23 @@ async function connectToHost(loop: ReturnType<typeof createFrameLoop>): Promise<
     if (intent === "new") {
       role = "host";
       leftId = myId;
-      screen = "menu";
+      rightId = "";
+      screen = "lobby";
+      broadcastLobby();
       reportSession();
     } else {
-      // Unified join: ask the host's game to let us in. The game decides whether
-      // we become a player (open slot) or a spectator (slot full).
-      role = "spectator";
+      // Connect as a watcher; the host's lobby/state decides what we see and the
+      // game lets us claim an open slot. Never interrupts the running match.
+      role = "watcher";
       screen = "connecting";
-      net.reqJoin();
+      net.hello();
     }
     c.log("info", `Pong connected as ${role}`);
   } catch (e) {
     console.warn("[pong] connect failed, running standalone:", e);
     role = "host";
-    screen = "menu";
+    leftId = myId;
+    screen = "lobby";
   }
 }
 

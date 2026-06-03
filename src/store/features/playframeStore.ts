@@ -1,8 +1,9 @@
 /**
  * PlayFrame Activity Store
  *
- * Manages PlayFrame game activity state in voice channels: launching (as host,
- * joining player, or spectator), multiplayer presence (broadcast to the channel
+ * Manages PlayFrame game activity state in voice channels: launching (as host
+ * or joining participant — the game decides play vs watch), multiplayer
+ * presence (broadcast to the channel
  * via LiveKit participant attributes), and the SFU data-channel transport for
  * game messages + WebRTC signaling.
  */
@@ -96,7 +97,6 @@ export interface ActivityPresence {
   state: SessionLifecycle;
   mode: SessionMode;
   joinable: boolean;
-  spectatable: boolean;
   playerCount: number;
   maxPlayers: number;
   /** Ephemeral/user ids actively playing — used to flag each player's card. */
@@ -110,7 +110,7 @@ interface PendingLaunch {
   intent: LaunchIntent;
   sessionId: string;
   role: ParticipantRole;
-  /** userId of the activity host (self for `new`, remote for join/spectate) */
+  /** userId of the activity host (self for `new`, remote for `join`) */
   hostId: string;
 }
 
@@ -173,11 +173,12 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     return out;
   });
 
-  // Activities you can act on: not your own, and the game allows entry
-  // (joinable or watchable). Solo-only games (e.g. snake) are excluded.
+  // Activities you can act on: not your own, and the game allows entry. The
+  // game decides on connect whether you play or just watch. Solo-only games
+  // (e.g. snake) advertise joinable=false and are excluded.
   const joinableActivities = computed(() =>
     channelActivities.value.filter(
-      (a) => a.sessionId !== sessionId.value && (a.joinable || a.spectatable),
+      (a) => a.sessionId !== sessionId.value && a.joinable,
     ),
   );
 
@@ -226,9 +227,9 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
   }
 
   /**
-   * Join an activity (Discord-style). We always launch with intent "join" and a
-   * view-only "spectator" role; the GAME decides whether to promote us to a
-   * player (open slot) or keep us watching, then reports back via notifyRole.
+   * Join an activity (Discord-style). We always launch with intent "join"; the
+   * GAME decides whether we play (open slot) or just watch the live match, and
+   * reports any promotion back via notifyRole.
    */
   function joinActivity(presence: ActivityPresence): void {
     const game = MOCK_GAMES.find((g) => g.id === presence.gameId);
@@ -237,7 +238,7 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
       game,
       intent: "join",
       sessionId: presence.sessionId,
-      role: "spectator",
+      role: "player",
       hostId: presence.hostId,
     });
   }
@@ -478,7 +479,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
       state: info.state,
       mode: info.mode,
       joinable: info.joinable,
-      spectatable: info.spectatable,
       playerCount: info.playerCount,
       maxPlayers: info.maxPlayers,
       players: info.players ?? [],

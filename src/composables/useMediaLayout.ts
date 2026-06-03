@@ -194,7 +194,7 @@ export function useMediaLayout(
       if (a.hostId === uid || a.players.includes(uid)) return true;
     }
     // My own hosted activity (self presence isn't broadcast). Only the host
-    // reports a live lifecycle; players/spectators rely on the loop above.
+    // reports a live lifecycle; players/watchers rely on the loop above.
     if (activity.isActive && activity.myRole === "host" && uid === me.me?.userId) {
       return activity.sessionLifecycle === "playing";
     }

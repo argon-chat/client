@@ -113,7 +113,7 @@ export interface GetUserResponse {
  */
 export interface GetParticipantsPayload {
   /** Filter by role */
-  role?: 'host' | 'player' | 'spectator' | 'all';
+  role?: 'host' | 'player' | 'all';
   /** Include disconnected participants */
   includeDisconnected?: boolean;
 }
@@ -386,24 +386,21 @@ export type SessionMode = 'solo' | 'multiplayer';
 export interface SessionUpdatePayload {
   state: SessionLifecycle;
   mode: SessionMode;
-  /** Whether another participant may join right now */
+  /** Whether another participant may connect right now (to play or watch). */
   joinable: boolean;
-  /** Whether others may watch this session live (game streams state) */
-  spectatable: boolean;
   playerCount: number;
   maxPlayers: number;
   /**
-   * Ephemeral ids of the participants actively playing (not spectators). The
-   * host app broadcasts these in channel presence so every client can show the
-   * "in-game" indicator on each player's card — not just the host's.
+   * Ephemeral ids of the participants actively playing. The host app broadcasts
+   * these in channel presence so every client can show the "in-game" indicator
+   * on each player's card — not just the host's.
    */
   players?: string[];
 }
 
 /**
- * Game → host: the local participant's effective role changed (e.g. a spectator
- * was approved to become a player by the authoritative game). Lets the app
- * update presence/UI to match.
+ * Game → host: the local participant's effective role changed (e.g. a watcher
+ * the game promoted to a player). Lets the app update presence/UI to match.
  */
 export interface RoleUpdatePayload {
   role: ParticipantRole;
@@ -430,7 +427,7 @@ export interface GameMessageInPayload {
 }
 
 /**
- * Host → game: a peer (player or spectator) left the session/room. The game
+ * Host → game: a peer (player or watcher) left the session/room. The game
  * reacts (end the match, drop to menu, stop streaming, etc.).
  */
 export interface PeerLeftPayload {

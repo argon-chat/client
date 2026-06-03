@@ -31,10 +31,12 @@ export interface EphemeralUser {
   gameData?: Record<string, unknown>;
 }
 
-export type ParticipantRole = 
+// Protocol-level roles only. Whether a connected participant is actively
+// playing or just watching is a GAME concern, not the platform's — games track
+// watchers internally and report the active players via SessionUpdatePayload.
+export type ParticipantRole =
   | 'host'      // Session creator/owner
-  | 'player'    // Active participant
-  | 'spectator' // View-only participant
+  | 'player'    // Connected participant
   | 'pending';  // Waiting to join
 
 export type ParticipantState =
@@ -97,11 +99,14 @@ export interface GameContext {
   launch?: LaunchInfo;
 }
 
-/** Why/how a game instance was launched, for multiplayer coordination. */
+/**
+ * Why/how a game instance was launched, for multiplayer coordination. Joining
+ * is intentionally one intent — the GAME decides whether a joiner plays or
+ * watches (the platform has no spectator concept).
+ */
 export type LaunchIntent =
-  | 'new'       // Fresh start (host); game shows its own menu
-  | 'join'      // Joining an existing session as a player
-  | 'spectate'; // Watching an in-progress session (view-only)
+  | 'new'    // Fresh start (host); game shows its own menu/lobby
+  | 'join';  // Connecting to an existing session (game decides play vs watch)
 
 export interface LaunchInfo {
   intent: LaunchIntent;

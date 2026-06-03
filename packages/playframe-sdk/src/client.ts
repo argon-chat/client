@@ -297,7 +297,7 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
    * Get all participants in the session.
    */
   async getParticipants(options?: {
-    role?: 'host' | 'player' | 'spectator' | 'all';
+    role?: 'host' | 'player' | 'all';
     includeDisconnected?: boolean;
   }): Promise<{ participants: EphemeralUser[]; totalCount: number }> {
     this.ensureConnected();
@@ -572,8 +572,8 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
   }
 
   /**
-   * Report that the local participant's effective role changed (e.g. a spectator
-   * was approved to play). Lets the host app update presence/UI.
+   * Report that the local participant's effective role changed (e.g. a watcher
+   * the game promoted to a player). Lets the host app update presence/UI.
    */
   notifyRole(role: GameContext['user']['role']): void {
     if (!this.isConnected()) return;
@@ -589,7 +589,7 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
   }
 
   /**
-   * Broadcast game data to all other participants (players + spectators).
+   * Broadcast game data to all other participants (players + watchers).
    */
   broadcast(data: unknown, opts?: { reliable?: boolean }): void {
     this.sendGameMessage({ data, reliable: opts?.reliable });

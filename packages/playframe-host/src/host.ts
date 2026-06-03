@@ -998,7 +998,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   }
 
   /**
-   * Tell the game a peer (player/spectator) left, so it can react (end match,
+   * Tell the game a peer (player/watcher) left, so it can react (end match,
    * drop to menu, stop streaming). Called by the host app on participant leave.
    */
   notifyPeerLeft(peerId: string): void {

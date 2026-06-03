@@ -95,9 +95,7 @@ const roleLabel = computed(() => {
     case "host":
       return "Host";
     case "player":
-      return "Player";
-    case "spectator":
-      return "Spectating";
+      return "In game";
     default:
       return null;
   }

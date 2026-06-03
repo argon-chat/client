@@ -58,8 +58,7 @@ async function connectToHost(engine: ReturnType<typeof createSnakeEngine>): Prom
     client.updateSession({
       state: "playing",
       mode: "solo",
-      joinable: false,
-      spectatable: false, // no netcode → not watchable
+      joinable: false, // solo, no netcode → nobody can join or watch
       playerCount: 1,
       maxPlayers: 1,
     });
