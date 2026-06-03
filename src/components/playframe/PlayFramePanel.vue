@@ -16,22 +16,6 @@
         </div>
         <div class="controls">
           <Button
-            v-if="activity.hostState === 'ready'"
-            variant="ghost"
-            size="icon"
-            @click="activity.pauseActivity()"
-          >
-            <Pause class="w-4 h-4" />
-          </Button>
-          <Button
-            v-if="activity.hostState === 'paused'"
-            variant="ghost"
-            size="icon"
-            @click="activity.resumeActivity()"
-          >
-            <Play class="w-4 h-4" />
-          </Button>
-          <Button
             variant="ghost"
             size="icon"
             :title="activity.isPopout ? 'Dock' : 'Pop out'"
@@ -91,8 +75,6 @@ import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
 import {
   Gamepad2,
-  Pause,
-  Play,
   X,
   Maximize2,
   Minimize2,

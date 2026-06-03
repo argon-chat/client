@@ -99,6 +99,8 @@ export interface ActivityPresence {
   spectatable: boolean;
   playerCount: number;
   maxPlayers: number;
+  /** Ephemeral/user ids actively playing — used to flag each player's card. */
+  players: string[];
 }
 
 const PRESENCE_ATTR = "pfActivity";
@@ -162,6 +164,7 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
         const a = JSON.parse(p.pfActivity) as ActivityPresence;
         a.hostId = a.hostId || p.userId;
         a.hostName = a.hostName || p.displayName;
+        a.players = a.players || [];
         out.push(a);
       } catch {
         /* ignore malformed presence */
@@ -365,6 +368,12 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
         channel.value = createPlayFrameChannel(lkRoom, {
           onSignal: (from, signal) => newHost.relaySignalToGame(from, signal),
           onGameMessage: (from, data) => newHost.deliverMessage(from, data),
+          // A peer left the activity (closed the game but stayed in voice) →
+          // tell the local game so the host can react (end match, drop to menu).
+          onPeerLeave: (from) => {
+            newHost.notifyPeerLeft(from);
+            participants.value = participants.value.filter((p) => p.ephemeralId !== from);
+          },
         });
       } else {
         logger.warn("[PlayFrame] No LiveKit room - multiplayer disabled");
@@ -374,8 +383,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
         context.value = ctx;
         hostState.value = "ready";
       });
-      newHost.on("pause", () => (hostState.value = "paused"));
-      newHost.on("resume", () => (hostState.value = "ready"));
       newHost.on("terminate", ({ reason, message }) => {
         logger.log("[PlayFrame] Game terminated:", reason, message);
         stopActivity();
@@ -413,6 +420,10 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     if (myRole.value === "host") publishPresence(null);
 
     if (channel.value) {
+      // Tell the other participants I'm leaving the activity (covers the case
+      // where I close the game but stay in the voice room).
+      const myUserId = me.me?.userId;
+      if (myUserId) channel.value.sendLeave(myUserId);
       channel.value.dispose();
       channel.value = null;
     }
@@ -445,14 +456,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     avatarDataCache.clear();
   }
 
-  function pauseActivity() {
-    host.value?.pause("user-requested");
-  }
-
-  function resumeActivity() {
-    host.value?.resume();
-  }
-
   // ==========================================================================
   // Multiplayer session presence + messaging
   // ==========================================================================
@@ -478,6 +481,7 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
       spectatable: info.spectatable,
       playerCount: info.playerCount,
       maxPlayers: info.maxPlayers,
+      players: info.players ?? [],
     });
   }
 
@@ -679,8 +683,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
     initializeHost,
     startActivity,
     stopActivity,
-    pauseActivity,
-    resumeActivity,
     togglePopout,
     closePopout,
   };

@@ -3,8 +3,9 @@
  *
  * Wires the framework-agnostic Snake engine (ported from the app's
  * `useSnakeGame` composable) to the real @argon/playframe-sdk: high score is
- * persisted through `createGameStorage`, and host pause/resume/terminate map to
- * the engine. Runs standalone (no host) when opened directly.
+ * persisted through `createGameStorage`. Pause is owned by the game (the engine
+ * handles P/Esc and tab-hidden itself); host terminate maps to the engine.
+ * Runs standalone (no host) when opened directly.
  */
 
 import {
@@ -48,8 +49,6 @@ async function connectToHost(engine: ReturnType<typeof createSnakeEngine>): Prom
     layout: { mode: "responsive" },
   });
 
-  client.on("pause", () => engine.pause());
-  client.on("resume", () => engine.resume());
   client.on("terminate", () => engine.destroy());
 
   try {

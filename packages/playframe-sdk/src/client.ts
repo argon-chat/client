@@ -42,7 +42,6 @@ import {
   type GamepadResponse,
   type AudioContextResponse,
   type PingPayload,
-  type PauseReason,
   type TerminateReason,
   type LayoutUpdatePayload,
   type AudioStatePayload,
@@ -72,10 +71,6 @@ export interface PlayFrameClientEvents {
   connected: GameContext;
   /** Connection lost */
   disconnected: { reason: string };
-  /** Game paused */
-  pause: { reason: PauseReason };
-  /** Game resumed */
-  resume: void;
   /** Game terminated */
   terminate: { reason: TerminateReason; message?: string };
   /** Layout changed */
@@ -123,12 +118,11 @@ export interface PlayFrameClientConfig {
 // SDK State
 // ============================================================================
 
-export type ClientState = 
+export type ClientState =
   | 'disconnected'
   | 'connecting'
   | 'handshaking'
   | 'connected'
-  | 'paused'
   | 'terminated';
 
 // ============================================================================
@@ -155,8 +149,8 @@ export type ClientState =
  * await client.requestPointerLock(true);
  * 
  * // Listen for events
- * client.on('pause', () => {
- *   // Handle pause
+ * client.on('terminate', () => {
+ *   // Clean up
  * });
  * ```
  */
@@ -266,7 +260,7 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
    * Check if the client is connected.
    */
   isConnected(): boolean {
-    return this.state === 'connected' || this.state === 'paused';
+    return this.state === 'connected';
   }
 
   // ==========================================================================
@@ -684,16 +678,6 @@ export class PlayFrameClient extends EventEmitter<PlayFrameClientEvents> {
 
     // Handle push messages from host
     switch (message.type) {
-      case 'pause':
-        this.state = 'paused';
-        this.emit('pause', message.payload as { reason: PauseReason });
-        break;
-
-      case 'resume':
-        this.state = 'connected';
-        this.emit('resume', undefined);
-        break;
-
       case 'terminate':
         this.state = 'terminated';
         this.cleanup();

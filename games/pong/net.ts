@@ -18,18 +18,23 @@ export interface PongState {
   s2: number; // right score
 }
 
+/** Networked sound cues the host emits so every client plays them in sync. */
+export type SfxKind = "hit" | "wall" | "score";
+
 type NetMsg =
   | { t: "join" }
   | { t: "spectate" }
   | { t: "req-join" }
   | { t: "approve-join" }
   | { t: "deny-join" }
+  | { t: "countdown"; secs: number }
   | { t: "start" }
   | { t: "state"; s: PongState }
   | { t: "input"; up: boolean; down: boolean }
   | { t: "over"; winner: 1 | 2 }
   | { t: "rematch" }
-  | { t: "roster"; p1: string; p2: string };
+  | { t: "roster"; p1: string; p2: string }
+  | { t: "sfx"; k: SfxKind };
 
 export interface PongNetHooks {
   onJoin?: (from: string) => void;
@@ -37,12 +42,14 @@ export interface PongNetHooks {
   onReqJoin?: (from: string) => void;
   onApprove?: (from: string) => void;
   onDeny?: (from: string) => void;
+  onCountdown?: (from: string, secs: number) => void;
   onStart?: (from: string) => void;
   onState?: (from: string, s: PongState) => void;
   onInput?: (from: string, up: boolean, down: boolean) => void;
   onOver?: (from: string, winner: 1 | 2) => void;
   onRematch?: (from: string) => void;
   onRoster?: (from: string, p1: string, p2: string) => void;
+  onSfx?: (from: string, k: SfxKind) => void;
 }
 
 export interface PongNet {
@@ -56,6 +63,8 @@ export interface PongNet {
   approve(to: string): void;
   /** host → spectator: request denied, slot full (reliable, directed) */
   deny(to: string): void;
+  /** host → all: pre-match countdown tick, `secs` remaining (reliable) */
+  countdown(secs: number): void;
   /** host → all: match started (reliable) */
   start(): void;
   /** host → all: authoritative state (lossy broadcast) */
@@ -68,6 +77,8 @@ export interface PongNet {
   rematch(): void;
   /** host → all: who is left (p1) / right (p2) by peer id (reliable) */
   roster(p1: string, p2: string): void;
+  /** host → all: play a synced sound cue (lossy broadcast) */
+  sfx(k: SfxKind): void;
 }
 
 export function createPongNet(client: PlayFrameClient, hooks: PongNetHooks): PongNet {
@@ -90,6 +101,9 @@ export function createPongNet(client: PlayFrameClient, hooks: PongNetHooks): Pon
       case "deny-join":
         hooks.onDeny?.(from);
         break;
+      case "countdown":
+        hooks.onCountdown?.(from, m.secs);
+        break;
       case "start":
         hooks.onStart?.(from);
         break;
@@ -108,6 +122,9 @@ export function createPongNet(client: PlayFrameClient, hooks: PongNetHooks): Pon
       case "roster":
         hooks.onRoster?.(from, m.p1, m.p2);
         break;
+      case "sfx":
+        hooks.onSfx?.(from, m.k);
+        break;
     }
   });
 
@@ -117,6 +134,7 @@ export function createPongNet(client: PlayFrameClient, hooks: PongNetHooks): Pon
     reqJoin: () => client.broadcast({ t: "req-join" } satisfies NetMsg, { reliable: true }),
     approve: (to) => client.sendTo(to, { t: "approve-join" } satisfies NetMsg, { reliable: true }),
     deny: (to) => client.sendTo(to, { t: "deny-join" } satisfies NetMsg, { reliable: true }),
+    countdown: (secs) => client.broadcast({ t: "countdown", secs } satisfies NetMsg, { reliable: true }),
     start: () => client.broadcast({ t: "start" } satisfies NetMsg, { reliable: true }),
     state: (s) => client.broadcast({ t: "state", s } satisfies NetMsg, { reliable: false }),
     input: (to, up, down) =>
@@ -124,5 +142,6 @@ export function createPongNet(client: PlayFrameClient, hooks: PongNetHooks): Pon
     over: (winner) => client.broadcast({ t: "over", winner } satisfies NetMsg, { reliable: true }),
     rematch: () => client.broadcast({ t: "rematch" } satisfies NetMsg, { reliable: true }),
     roster: (p1, p2) => client.broadcast({ t: "roster", p1, p2 } satisfies NetMsg, { reliable: true }),
+    sfx: (k) => client.broadcast({ t: "sfx", k } satisfies NetMsg, { reliable: false }),
   };
 }

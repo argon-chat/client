@@ -167,12 +167,12 @@ describe('PlayFrameClient Events', () => {
   test('once listener fires only once', () => {
     let count = 0;
 
-    client.once('resume', () => {
+    client.once('disconnected', () => {
       count++;
     });
 
-    (client as any).emit('resume', undefined);
-    (client as any).emit('resume', undefined);
+    (client as any).emit('disconnected', { reason: 'test' });
+    (client as any).emit('disconnected', { reason: 'test' });
 
     expect(count).toBe(1);
   });
@@ -181,12 +181,12 @@ describe('PlayFrameClient Events', () => {
     let count = 0;
     const handler = () => { count++; };
 
-    client.on('resume', handler);
-    (client as any).emit('resume', undefined);
+    client.on('disconnected', handler);
+    (client as any).emit('disconnected', { reason: 'test' });
     expect(count).toBe(1);
 
-    client.off('resume', handler);
-    (client as any).emit('resume', undefined);
+    client.off('disconnected', handler);
+    (client as any).emit('disconnected', { reason: 'test' });
     expect(count).toBe(1);
   });
 });

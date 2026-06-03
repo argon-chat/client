@@ -115,6 +115,5 @@ export type {
   ProtocolError,
   ErrorCode,
   MessageType,
-  PauseReason,
   TerminateReason,
 } from '@argon/playframe';

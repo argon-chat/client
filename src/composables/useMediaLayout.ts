@@ -185,12 +185,16 @@ export function useMediaLayout(
   const isHeadphoneMuted = (uid: Guid) => muteStates.value.get(uid)?.headphoneMuted ?? false;
 
   const isPlayingActivity = (uid: Guid) => {
-    // Someone else hosting an activity that is actually in-play (channel presence).
-    // While a multiplayer host waits for player 2 the state is "waiting", not
-    // "playing", so no icon is drawn until the match really starts.
-    const remote = activity.channelActivities.find((a) => a.hostId === uid);
-    if (remote) return remote.state === "playing";
-    // My own hosted activity (presence isn't published for self).
+    // Any channel activity that's actually in-play and counts `uid` as a player
+    // (host OR a joined player — presence carries the full player list, so the
+    // icon syncs to every participant, not only the host). While a multiplayer
+    // host waits for player 2 the state is "waiting", so no icon shows yet.
+    for (const a of activity.channelActivities) {
+      if (a.state !== "playing") continue;
+      if (a.hostId === uid || a.players.includes(uid)) return true;
+    }
+    // My own hosted activity (self presence isn't broadcast). Only the host
+    // reports a live lifecycle; players/spectators rely on the loop above.
     if (activity.isActive && activity.myRole === "host" && uid === me.me?.userId) {
       return activity.sessionLifecycle === "playing";
     }

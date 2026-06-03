@@ -29,7 +29,6 @@ import {
   type HandshakePayload,
   type HandshakeAckPayload,
   type PongPayload,
-  type PauseReason,
   type TerminateReason,
   // WebRTC
   type IceServer,
@@ -79,10 +78,6 @@ export interface PlayFrameHostEvents {
   load: void;
   /** Handshake completed */
   ready: GameContext;
-  /** Game paused */
-  pause: { reason: PauseReason };
-  /** Game resumed */
-  resume: void;
   /** Game terminated */
   terminate: { reason: TerminateReason; message?: string };
   /** Layout changed */
@@ -189,7 +184,6 @@ export type HostState =
   | 'loading'
   | 'handshaking'
   | 'ready'
-  | 'paused'
   | 'terminated'
   | 'error';
 
@@ -309,32 +303,6 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     this.updateDevOverlay({ state: 'ready' });
     
     return context;
-  }
-
-  /**
-   * Pause the game.
-   */
-  pause(reason: PauseReason = 'host-requested'): void {
-    if (this.state !== 'ready') return;
-    
-    this.state = 'paused';
-    this.send('pause', { reason });
-    this.emit('pause', { reason });
-    
-    this.updateDevOverlay({ state: 'paused' });
-  }
-
-  /**
-   * Resume the game.
-   */
-  resume(): void {
-    if (this.state !== 'paused') return;
-    
-    this.state = 'ready';
-    this.send('resume', { reason: 'host-requested' });
-    this.emit('resume', undefined);
-    
-    this.updateDevOverlay({ state: 'ready' });
   }
 
   /**
@@ -998,7 +966,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
    * Called by the host application when it receives a signal destined for this user.
    */
   relaySignalToGame(from: string, signal: RtcSignalMessage): void {
-    if (this.state !== 'ready' && this.state !== 'paused') return;
+    if (this.state !== 'ready') return;
 
     this.send('rtc-signal', { from, signal });
   }
@@ -1024,7 +992,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
    * Called by the host application when it receives a message off its transport.
    */
   deliverMessage(from: string, data: unknown): void {
-    if (this.state !== 'ready' && this.state !== 'paused') return;
+    if (this.state !== 'ready') return;
 
     this.send('game-message', { from, data });
   }
@@ -1034,7 +1002,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
    * drop to menu, stop streaming). Called by the host app on participant leave.
    */
   notifyPeerLeft(peerId: string): void {
-    if (this.state !== 'ready' && this.state !== 'paused') return;
+    if (this.state !== 'ready') return;
 
     this.send('peer-left', { peerId });
   }
@@ -1140,28 +1108,16 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   }
 
   private setupVisibilityListener(): void {
+    // Pause/resume is owned entirely by the game (the SDK frame loop pauses on
+    // `document.hidden`). The host only forwards the visibility flag so games
+    // that care about audio focus can react.
     document.addEventListener('visibilitychange', () => {
       this.audioState.visible = !document.hidden;
       this.sendAudioState();
-      
-      if (document.hidden) {
-        this.pause('background');
-      } else {
-        this.resume();
-      }
     });
   }
 
   private setupInputListeners(): void {
-    // Handle Escape key for pause
-    if (this.config.inputConfig?.interceptEscape !== false) {
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && this.state === 'ready') {
-          this.pause('user-requested');
-        }
-      });
-    }
-    
     // Handle pointer lock change
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === this.iframe;

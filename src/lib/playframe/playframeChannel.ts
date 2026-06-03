@@ -4,9 +4,11 @@
  * Activity participants are already in the same LiveKit voice room, so all
  * PlayFrame peer traffic rides the SFU data channel (`publishData` /
  * `RoomEvent.DataReceived`) — no separate signaling backend, no P2P/TURN.
- * Two topics share one subscription:
- *   - `pf-signal` : WebRTC offer/answer/ice (legacy P2P path, still supported)
- *   - `pf-game`   : generic game messages (inputs / state / lobby coordination)
+ * Three topics share one subscription:
+ *   - `pf-signal`  : WebRTC offer/answer/ice (legacy P2P path, still supported)
+ *   - `pf-game`    : generic game messages (inputs / state / lobby coordination)
+ *   - `pf-control` : activity control plane (e.g. a participant explicitly
+ *                    leaving the game while staying in the voice room)
  *
  * Peer identity is the LiveKit participant identity (the Argon userId), which is
  * also used as the PlayFrame ephemeral id, so every client shares one namespace.
@@ -18,6 +20,7 @@ import { logger } from "@argon/core";
 
 const SIGNAL_TOPIC = "pf-signal";
 const GAME_TOPIC = "pf-game";
+const CONTROL_TOPIC = "pf-control";
 
 interface SignalPacket {
   v: 1;
@@ -32,9 +35,17 @@ interface GamePacket {
   data: unknown;
 }
 
+interface ControlPacket {
+  v: 1;
+  from: string;
+  kind: "leave";
+}
+
 export interface PlayFrameChannelHandlers {
   onSignal?: (from: string, signal: RtcSignalMessage) => void;
   onGameMessage?: (from: string, data: unknown) => void;
+  /** A participant explicitly left the activity (without leaving voice). */
+  onPeerLeave?: (from: string) => void;
 }
 
 export interface PlayFrameChannel {
@@ -42,6 +53,8 @@ export interface PlayFrameChannel {
   relaySignal(from: string, to: string, signal: RtcSignalMessage): Promise<boolean>;
   /** Send a game message to a peer (or broadcast when `to` is null). */
   sendGameMessage(from: string, to: string | null, data: unknown, reliable: boolean): void;
+  /** Broadcast that this participant is leaving the activity. */
+  sendLeave(from: string): void;
   dispose(): void;
 }
 
@@ -68,6 +81,11 @@ export function createPlayFrameChannel(
         const packet = JSON.parse(decoder.decode(payload)) as GamePacket;
         if (packet?.v === 1 && packet.from) {
           handlers.onGameMessage?.(packet.from, packet.data);
+        }
+      } else if (topic === CONTROL_TOPIC) {
+        const packet = JSON.parse(decoder.decode(payload)) as ControlPacket;
+        if (packet?.v === 1 && packet.from && packet.kind === "leave") {
+          handlers.onPeerLeave?.(packet.from);
         }
       }
     } catch (e) {
@@ -102,6 +120,16 @@ export function createPlayFrameChannel(
           topic: GAME_TOPIC,
         })
         .catch((e) => logger.warn("[PlayFrame] sendGameMessage failed", e));
+    },
+
+    sendLeave(from): void {
+      const packet: ControlPacket = { v: 1, from, kind: "leave" };
+      room.localParticipant
+        .publishData(encoder.encode(JSON.stringify(packet)), {
+          reliable: true,
+          topic: CONTROL_TOPIC,
+        })
+        .catch((e) => logger.warn("[PlayFrame] sendLeave failed", e));
     },
 
     dispose(): void {

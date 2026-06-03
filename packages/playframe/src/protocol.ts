@@ -57,8 +57,6 @@ export type MessageType =
   | 'handshake'
   | 'handshake-ack'
   | 'ready'
-  | 'pause'
-  | 'resume'
   | 'terminate'
   // Identity & Context
   | 'get-context'

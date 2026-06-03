@@ -66,22 +66,6 @@ export interface ReadyPayload {
   ready: true;
 }
 
-export interface PausePayload {
-  /** Reason for pause */
-  reason: PauseReason;
-}
-
-export type PauseReason =
-  | 'background'      // Window/tab lost focus
-  | 'user-requested'  // User pressed pause
-  | 'host-requested'  // Host app requested pause
-  | 'error';          // Error occurred
-
-export interface ResumePayload {
-  /** Reason for resume */
-  reason: 'foreground' | 'user-requested' | 'host-requested';
-}
-
 export interface TerminatePayload {
   /** Reason for termination */
   reason: TerminateReason;
@@ -408,6 +392,12 @@ export interface SessionUpdatePayload {
   spectatable: boolean;
   playerCount: number;
   maxPlayers: number;
+  /**
+   * Ephemeral ids of the participants actively playing (not spectators). The
+   * host app broadcasts these in channel presence so every client can show the
+   * "in-game" indicator on each player's card — not just the host's.
+   */
+  players?: string[];
 }
 
 /**
@@ -456,8 +446,6 @@ export interface MessagePayloadMap {
   'handshake': HandshakePayload;
   'handshake-ack': HandshakeAckPayload;
   'ready': ReadyPayload;
-  'pause': PausePayload;
-  'resume': ResumePayload;
   'terminate': TerminatePayload;
   // Context
   'get-context': GetContextPayload;
