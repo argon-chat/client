@@ -19,7 +19,7 @@ import type { NetBall } from "./net";
 const PADDLE_DELAY_MS = 100;
 const PADDLE_HISTORY_MS = 600;
 /** Cap forward ball extrapolation so a dropped packet can't fling a ball away. */
-const BALL_MAX_AHEAD_MS = 150;
+const BALL_MAX_AHEAD_MS = 120;
 /** Rendered-position correction rate (higher = snappier, lower = smoother). */
 const BALL_CORRECT_RATE = 18;
 
@@ -147,11 +147,22 @@ export function createBallField(): BallField {
       const out: RenderBall[] = [];
       const smooth = 1 - Math.exp(-dt * BALL_CORRECT_RATE);
       for (const [id, b] of balls) {
+        // 1) Dead-reckon the rendered position by the ball's own velocity. Easing a
+        //    rendered point toward a *moving* target leaves a steady-state lag of
+        //    v/RATE — at Pong's ball speeds that's tens of pixels behind, which is
+        //    exactly why clients saw the ball bounce short of the paddle. Advancing
+        //    by velocity first removes that lag entirely.
+        b.rx += b.vx * dt;
+        b.ry += b.vy * dt;
+        // 2) Decay only the residual error toward the authoritative position
+        //    extrapolated to now (the cap bounds it if a packet is late).
         const ahead = Math.min(now - b.snapT, BALL_MAX_AHEAD_MS) / 1000;
         const tx = clamp01(b.ax + b.vx * ahead);
         const ty = clamp01(b.ay + b.vy * ahead);
         b.rx += (tx - b.rx) * smooth;
         b.ry += (ty - b.ry) * smooth;
+        b.rx = clamp01(b.rx);
+        b.ry = clamp01(b.ry);
         out.push({ id, x: b.rx, y: b.ry, o: b.o });
       }
       return out;

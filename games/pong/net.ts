@@ -29,7 +29,7 @@ export const DEFAULT_CONFIG: MatchConfig = { win: "7", powerups: true };
 // Normalized world snapshot (0..1) so every client renders at its own size
 // ---------------------------------------------------------------------------
 
-export type PowerKind = "multi" | "speed" | "life";
+export type PowerKind = "multi" | "speed" | "slow" | "life" | "grow" | "shrink";
 
 export interface NetBall {
   id: number;
@@ -57,6 +57,8 @@ export interface PongState {
   l2: number; // right shield/extra-life charges
   pus: NetPower[]; // active power-ups
   ph: 0 | 1; // 0 = normal scoring, 1 = stack/tug phase
+  ph1: number; // left paddle height fraction of field height (grow/shrink)
+  ph2: number; // right paddle height fraction
 }
 
 /** Networked sound cues the host emits so every client plays them in sync. */

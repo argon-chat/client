@@ -210,6 +210,7 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   // Dev mode
   private devOverlay: ReturnType<typeof createDebugOverlay> | null = null;
   private messageLogger: ReturnType<typeof createMessageLogger> | null = null;
+  private devStatsTimer: ReturnType<typeof setInterval> | null = null;
   
   // Input state
   private pointerLocked = false;
@@ -299,10 +300,35 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
     
     this.state = 'ready';
     this.emit('ready', context);
-    
+
     this.updateDevOverlay({ state: 'ready' });
-    
+    this.startDevStats();
+
     return context;
+  }
+
+  /**
+   * Drive the dev overlay's live stats. The watchdog (which normally pings the
+   * game for latency) is disabled in dev, so we ping here ourselves and refresh
+   * the participant count — otherwise the overlay would sit at 0ms / 0 players.
+   */
+  private startDevStats(): void {
+    if (!this.config.devConfig?.enabled || !this.devOverlay) return;
+    this.updateDevOverlay({ participantCount: 1 });
+    let seq = 0;
+    this.devStatsTimer = setInterval(() => {
+      this.send('ping', { hostTime: Date.now(), seq: seq++ });
+      void (async () => {
+        try {
+          const ps = this.config.getParticipants
+            ? await this.config.getParticipants()
+            : [this.config.user];
+          this.updateDevOverlay({ participantCount: ps.length });
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 1000);
   }
 
   /**
@@ -1185,6 +1211,12 @@ export class PlayFrameHost extends EventEmitter<PlayFrameHostEvents> {
   // ==========================================================================
 
   private cleanup(): void {
+    // Stop dev stats loop
+    if (this.devStatsTimer) {
+      clearInterval(this.devStatsTimer);
+      this.devStatsTimer = null;
+    }
+
     // Stop watchdog
     this.watchdog?.stop();
     this.watchdog = null;

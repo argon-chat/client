@@ -240,26 +240,48 @@ export function createDebugOverlay(container: HTMLElement): {
   
   container.appendChild(overlay);
   render();
-  
+
+  // Self-measured FPS: the host page has no game loop of its own, so the overlay
+  // samples its own requestAnimationFrame rate (a good proxy for render health).
+  let rafId = 0;
+  let frames = 0;
+  let lastFpsT = performance.now();
+  const fpsLoop = (): void => {
+    frames++;
+    const now = performance.now();
+    if (now - lastFpsT >= 500) {
+      const fps = Math.round((frames * 1000) / (now - lastFpsT));
+      frames = 0;
+      lastFpsT = now;
+      if (fps !== data.fps) {
+        data.fps = fps;
+        render();
+      }
+    }
+    rafId = requestAnimationFrame(fpsLoop);
+  };
+  rafId = requestAnimationFrame(fpsLoop);
+
   return {
     update(newData: Partial<DebugOverlayData>): void {
       data = { ...data, ...newData };
       render();
     },
-    
+
     show(): void {
       overlay.style.display = 'block';
     },
-    
+
     hide(): void {
       overlay.style.display = 'none';
     },
-    
+
     toggle(): void {
       overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
     },
-    
+
     destroy(): void {
+      cancelAnimationFrame(rafId);
       overlay.remove();
     },
   };

@@ -36,7 +36,6 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { logger } from "@argon/core";
-import { toast } from "@argon/ui/toast";
 import { v4 as uuidv4 } from "uuid";
 import type { Room } from "livekit-client";
 import {
@@ -609,7 +608,6 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
 
   /** Take over my own game instance after the activity host went away. */
   function promoteToHost() {
-    toast({ title: "Host left — back to the menu" });
     myRole.value = "host";
     myHostId.value = me.me?.userId ?? null;
     sessionId.value = uuidv4(); // a fresh session if I start a new game
