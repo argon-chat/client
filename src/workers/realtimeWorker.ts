@@ -68,6 +68,58 @@ let hubConnection: signalR.HubConnection | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let shouldReconnect = true;
 
+// --- Replay cursors ---
+// Last stream entry id we processed per delivery channel. On reconnect we hand these to
+// the server (Resume) so it can re-send anything we missed during the gap. They live for
+// the worker's lifetime — a transient drop or a hard close→reconnect keeps the same worker,
+// so the cursors survive; a full teardown (terminate) intentionally resets them.
+let userCursor: string | null = null;
+const spaceCursors = new Map<string, string>();
+let hasConnectedBefore = false;
+
+// Compare Redis stream ids of the form "<unixMs>-<seq>". Returns <0, 0, >0.
+function compareStreamIds(a: string, b: string): number {
+  const ai = a.indexOf("-");
+  const bi = b.indexOf("-");
+  const aMs = Number(a.slice(0, ai));
+  const bMs = Number(b.slice(0, bi));
+  if (aMs !== bMs) return aMs < bMs ? -1 : 1;
+  const aSeq = Number(a.slice(ai + 1));
+  const bSeq = Number(b.slice(bi + 1));
+  if (aSeq !== bSeq) return aSeq < bSeq ? -1 : 1;
+  return 0;
+}
+
+// Returns false if the entry id is not newer than what we've already applied (duplicate,
+// e.g. a replayed event that also arrived live). Advances the cursor when it is newer.
+function advanceCursor(get: () => string | null, set: (id: string) => void, entryId: string): boolean {
+  const cur = get();
+  if (cur && compareStreamIds(entryId, cur) <= 0) return false;
+  set(entryId);
+  return true;
+}
+
+async function resumeSession() {
+  if (!hubConnection) return;
+  try {
+    const spaceCursorsObj: Record<string, string> = {};
+    for (const [k, v] of spaceCursors) spaceCursorsObj[k] = v;
+
+    const ack: any = await hubConnection.invoke("Resume", userCursor, spaceCursorsObj);
+    const needFull = ack?.needFullResync ?? ack?.NeedFullResync ?? false;
+    if (needFull) {
+      postLog("warn", "Resume reported a gap — full resync required");
+      self.postMessage({ type: "needFullResync" });
+    } else {
+      postLog("info", "Resume completed, missed events replayed");
+    }
+  } catch (e: any) {
+    // Couldn't resume — safest is to rebuild state from scratch.
+    postLog("error", "Resume failed, requesting full resync", e?.message);
+    self.postMessage({ type: "needFullResync" });
+  }
+}
+
 async function connect(endpoint: string) {
   shouldReconnect = true;
 
@@ -109,9 +161,12 @@ async function connect(endpoint: string) {
       .configureLogging(signalR.LogLevel.Information)
       .build();
 
-    hubConnection.on("forSelf", (data: string) => {
+    hubConnection.on("forSelf", (data: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
+        // Skip duplicates (a replayed event that also arrived live); advance the cursor.
+        if (entryId && !advanceCursor(() => userCursor, (id) => (userCursor = id), entryId))
+          return;
         const event = decodeEvent(data);
         self.postMessage({ type: "event", channel: "forSelf", event });
       } catch (e: any) {
@@ -119,9 +174,12 @@ async function connect(endpoint: string) {
       }
     });
 
-    hubConnection.on("broadcastSpace", (data: string) => {
+    hubConnection.on("broadcastSpace", (data: string, spaceId?: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
+        if (spaceId && entryId &&
+            !advanceCursor(() => spaceCursors.get(spaceId) ?? null, (id) => spaceCursors.set(spaceId, id), entryId))
+          return;
         const event = decodeEvent(data);
         self.postMessage({ type: "event", channel: "broadcastSpace", event });
       } catch (e: any) {
@@ -137,6 +195,8 @@ async function connect(endpoint: string) {
     hubConnection.onreconnected((connectionId) => {
       postLog("info", "SignalR reconnected", connectionId);
       self.postMessage({ type: "state", state: "connected" });
+      // Re-subscription happened server-side in OnConnectedAsync; now pull whatever we missed.
+      void resumeSession();
     });
 
     hubConnection.onclose((error) => {
@@ -152,6 +212,11 @@ async function connect(endpoint: string) {
     await hubConnection.start();
     postLog("info", "SignalR connected successfully", hubConnection.connectionId);
     self.postMessage({ type: "state", state: "connected" });
+
+    // A fresh start() after a hard close is also a reconnection (SignalR's own
+    // auto-reconnect was exhausted). Pull missed events; skip on the very first connect.
+    if (hasConnectedBefore) void resumeSession();
+    hasConnectedBefore = true;
 
     startHeartbeat();
   } catch (error: any) {

@@ -141,26 +141,54 @@ export const useSystemStore = defineStore("system", () => {
       if (hasRequestRetry("signalr", "connection")) {
         stopRequestRetry("signalr", "connection");
       }
-
-      // If it was a long reconnect, reload server data
-      if (isLongReconnecting.value) {
-        (async () => {
-          try {
-            const { usePoolStore } = await import("../");
-            const poolStore = usePoolStore();
-            await poolStore.loadServerDetails();
-
-            const { useNotificationStore } = await import("../data/notificationStore");
-            const notificationStore = useNotificationStore();
-            await notificationStore.initFromGlobalBadges();
-          } catch (e) {
-            console.error("Failed to reload server details after reconnect:", e);
-          } finally {
-            isLongReconnecting.value = false;
-          }
-        })();
-      }
+      // Actual recovery (resync / full reload) is driven by bus.reconnected below,
+      // which also covers the hard-close → manual reconnect path that never toggles
+      // isSignalRReconnecting.
     }
+  });
+
+  // Recover from realtime desync whenever the connection is re-established.
+  // Short hiccups (VPN switch) drop us off the hub briefly; any JoinedToChannelUser /
+  // LeavedFromChannelUser events during the gap are lost, leaving the voice channel
+  // member list stale (someone audible but not shown). For a short reconnect we cheaply
+  // reconcile the *current* voice channel against LiveKit (which never lost track of who
+  // is in the room). A long reconnect does a full reload since more than voice may drift.
+  bus.reconnected.subscribe(() => {
+    void (async () => {
+      const wasLong = isLongReconnecting.value;
+      isLongReconnecting.value = false;
+      try {
+        if (wasLong) {
+          const { usePoolStore } = await import("../");
+          await usePoolStore().loadServerDetails();
+
+          const { useNotificationStore } = await import("../data/notificationStore");
+          await useNotificationStore().initFromGlobalBadges();
+        } else {
+          const { useUnifiedCall } = await import("../media/unifiedCallStore");
+          await useUnifiedCall().reconcileVoiceMembersFromLiveKit();
+        }
+      } catch (e) {
+        console.error("Failed to recover state after reconnect:", e);
+      }
+    })();
+  });
+
+  // Server's replay buffer couldn't guarantee continuity (we were gone too long) — the
+  // missed-events fast path is unavailable, so rebuild everything from scratch.
+  bus.needFullResync.subscribe(() => {
+    void (async () => {
+      isLongReconnecting.value = false;
+      try {
+        const { usePoolStore } = await import("../");
+        await usePoolStore().loadServerDetails();
+
+        const { useNotificationStore } = await import("../data/notificationStore");
+        await useNotificationStore().initFromGlobalBadges();
+      } catch (e) {
+        console.error("Failed full resync after reconnect:", e);
+      }
+    })();
   });
 
   IonWsClient.on("reconnecting", (x, t) => {

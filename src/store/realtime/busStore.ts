@@ -13,6 +13,14 @@ export type EventWithServerId<T> = { spaceId: string } & T;
 export const useBus = defineStore("bus", () => {
   const argonEventBus = new Subject<IArgonEvent>();
   const userEventBus = new Subject<IArgonEvent>();
+  // Fires whenever the realtime connection is re-established after having been
+  // connected before (transient auto-reconnect OR hard close → manual reconnect).
+  // Used to resync state that may have drifted while events were missed.
+  const reconnected = new Subject<void>();
+  let everConnected = false;
+  // Fires when the server's replay buffer couldn't guarantee continuity on Resume
+  // (cursor trimmed / too far behind) — the client must rebuild state from scratch.
+  const needFullResync = new Subject<void>();
   const isSignalRReconnecting = ref(false);
   const nextReconnectAttempt = ref<number | null>(null);
   const reconnectAttemptCount = ref(0);
@@ -62,9 +70,14 @@ export const useBus = defineStore("bus", () => {
           if (msg.state === "reconnecting") {
             isSignalRReconnecting.value = true;
           } else if (msg.state === "connected") {
+            const isReconnection = everConnected;
+            everConnected = true;
             isSignalRReconnecting.value = false;
             nextReconnectAttempt.value = null;
             reconnectAttemptCount.value = 0;
+            // Re-establishment (not first connect): events may have been missed
+            // during the gap — notify listeners to resync.
+            if (isReconnection) reconnected.next();
           } else if (msg.state === "disconnected") {
             // Will auto-reconnect inside worker
           }
@@ -73,6 +86,10 @@ export const useBus = defineStore("bus", () => {
         case "reconnectInfo":
           reconnectAttemptCount.value = msg.attemptCount;
           nextReconnectAttempt.value = msg.nextAttemptAt;
+          break;
+
+        case "needFullResync":
+          needFullResync.next();
           break;
 
         case "log":
@@ -178,6 +195,8 @@ export const useBus = defineStore("bus", () => {
     isSignalRReconnecting,
     nextReconnectAttempt,
     reconnectAttemptCount,
-    retryConnectionNow
+    retryConnectionNow,
+    reconnected,
+    needFullResync
   };
 });

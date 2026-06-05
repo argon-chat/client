@@ -513,6 +513,76 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
   }
 
+  /**
+   * Reconcile the realtime channel member list against LiveKit's participant list.
+   *
+   * LiveKit runs on its own connection and stays authoritative about who is actually
+   * in the voice channel even while the realtime (SignalR) hub is down. If the hub
+   * drops briefly (VPN switch, network hiccup) we miss JoinedToChannelUser /
+   * LeavedFromChannelUser events and the member list goes stale — classic "audible but
+   * not shown" desync. Here we trust LiveKit: add anyone it sees but the store is
+   * missing, drop anyone the store has but LiveKit doesn't. Known users come from the
+   * local cache for free; only genuinely unknown ones cost a single PrefetchUser.
+   */
+  async function reconcileVoiceMembersFromLiveKit() {
+    if (mode.value !== "channel") return;
+    const channelId = connectedVoiceChannelId.value;
+    const r = room.value;
+    if (!channelId || !r) return;
+
+    const rt = realtimeStore.getRealtimeChannel(channelId);
+    if (!rt) return;
+
+    const spaceId = rt.Channel.spaceId;
+
+    // Source of truth: self + everyone LiveKit currently sees in the room
+    const liveIds = new Set<string>();
+    liveIds.add(me.me!.userId);
+    for (const id of r.remoteParticipants.keys()) liveIds.add(id);
+
+    // Add LiveKit participants the store is missing
+    for (const uid of liveIds) {
+      if (rt.Users.has(uid)) continue;
+
+      const isGuest =
+        uid.toLowerCase().startsWith("ccccfcfa") ||
+        uid.toLowerCase().startsWith("guest-");
+
+      if (isGuest) {
+        const rp = r.remoteParticipants.get(uid);
+        const displayName =
+          rp?.name || rp?.metadata || `Guest ${uid.substring(0, 8)}`;
+        realtimeStore.addUserToChannel(channelId, uid, {
+          userId: uid,
+          displayName,
+          username: `guest_${uid.substring(0, 8)}`,
+          avatarFileId: null,
+        } as any);
+        continue;
+      }
+
+      // Known user → from cache (free); unknown → single fetch
+      let user = await pool.getUser(uid);
+      if (!user) {
+        try {
+          const fetched = await api.serverInteraction.PrefetchUser(spaceId, uid);
+          if (fetched) {
+            await pool.trackUser(fetched);
+            user = fetched as any;
+          }
+        } catch (e) {
+          logger.error(`[CALL] reconcile: failed to fetch user ${uid}`, e);
+        }
+      }
+      if (user) realtimeStore.addUserToChannel(channelId, uid, user as any);
+    }
+
+    // Drop store members LiveKit no longer sees (missed Leaved during the gap)
+    for (const uid of [...rt.Users.keys()]) {
+      if (!liveIds.has(uid)) realtimeStore.removeUserFromChannel(channelId, uid);
+    }
+  }
+
   async function updateRtcStats() {
     if (!room.value) {
       logger.warn("updateRtcStats", "no room defined");
@@ -1342,5 +1412,6 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     toggleCamera,
     setVolume,
     leave,
+    reconcileVoiceMembersFromLiveKit,
   };
 });
