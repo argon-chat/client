@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="relative h-full w-full flex flex-col min-h-0 bg-card"
-    :style="{ '--chat-width': chatWidth + 'px' }"
-  >
+  <div :class="cn('relative h-full w-full flex flex-col min-h-0 bg-card', externalClass)">
     <!-- ═══ Typing indicator ═══ -->
     <Transition name="typing-slide">
       <div
@@ -22,129 +19,40 @@
       </div>
     </Transition>
 
-    <!-- ═══ Virtual scroll area ═══ -->
-    <div
-      ref="parentRef"
-      :class="cn('flex-1 min-h-0 overflow-y-scroll px-9 pb-2 chat-scrollbar', externalClass)"
-      style="overflow-anchor: none"
-    >
-      <!-- Top spacer -->
-      <div :style="{ height: topSpace + 'px' }" />
-
-      <!-- Rendered items in normal flow -->
-      <div
-        v-for="item in renderedItems"
-        :key="String(item.key)"
-        class="w-full"
-        :class="highlightedIdx === item.index ? 'highlight-flash' : ''"
-        style="contain: content; content-visibility: auto; contain-intrinsic-size: auto 64px"
-      >
-        <div
-          v-if="messages[item.index]"
-          :ref="(el) => measureElement(el as HTMLElement, item.key)"
-          :data-msg-key="String(item.key)"
-          :data-index="item.index"
-          v-memo="[
-            item.key,
-            messages[item.index]?._failed,
-            messages[item.index]?._optimistic,
-            messages[item.index]?.text,
-            messages[item.index]?.entities?.length,
-            messages[item.index]?.reactions?.length,
-            groupingMap[item.index]?.isFirstInGroup,
-            groupingMap[item.index]?.isLastInGroup,
-            groupingMap[item.index]?.showDate,
-          ]"
-        >
-          <DateSeparator
-            v-if="groupingMap[item.index]?.showDate"
-            :date="messages[item.index].timeSent.date"
-          />
-
-          <MessageItem
-            :message="messages[item.index]"
-            :get-msg-by-id="getMessageById"
-            :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
-            :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
-            :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
-            @dblclick="() => emit('select-reply', messages[item.index])"
-            @reply="(msg) => emit('select-reply', msg)"
-            @retry="retryMessage"
-            @open-lightbox="onOpenLightbox"
-            @scroll-to-message="scrollToMessage"
-          />
-        </div>
-      </div>
-
-      <!-- Bottom spacer -->
-      <div :style="{ height: bottomSpace + 'px' }" />
-    </div>
-
-    <!-- ═══ Loading older spinner ═══ -->
-    <Transition name="fade-slide">
-      <div
-        v-if="isLoadingOlder"
-        class="absolute top-0 inset-x-0 flex justify-center py-3 z-5 bg-gradient-to-b from-card to-transparent pointer-events-none"
-      >
-        <Loader2Icon class="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    </Transition>
-
-    <!-- ═══ Empty state ═══ -->
-    <div
-      v-if="!isLoading && !messages.length"
-      class="flex-1 flex flex-col items-center justify-center gap-3 min-h-0"
-    >
-      <div class="w-14 h-14 rounded-2xl bg-muted/25 flex items-center justify-center text-muted-foreground/45">
-        <MessageSquareIcon class="w-7 h-7" />
-      </div>
-      <p class="text-sm text-muted-foreground/60">{{ t('no_messages_yet') }}</p>
-    </div>
-
-    <!-- ═══ Lightbox (single shared instance) ═══ -->
-    <ImageLightbox
-      :images="lbImages"
-      :initial-index="lbIndex"
-      :is-open="lbOpen"
-      :time-sent="lbTime"
-      @close="lbOpen = false"
+    <!-- ═══ Message list (two-sided in DMs) ═══ -->
+    <ChatMessageList
+      ref="listRef"
+      class="flex-1 min-h-0"
+      two-sided
+      :source="getMessages"
+      :grouping-map="groupingMap"
+      :get-message-by-id="getMessageById"
+      :is-loading="isLoading"
+      :is-loading-older="isLoadingOlder"
+      :is-scrolled-up="isScrolledUp"
+      :new-messages-count="newMessagesCount"
+      @select-reply="(m) => emit('select-reply', m)"
+      @retry="retryMessage"
+      @near-top="onNearTop"
+      @scroll-state="onScrollState"
+      @reset-unread="onResetUnread"
     />
-
-    <!-- ═══ Scroll-to-bottom FAB ═══ -->
-    <Transition name="fab-pop">
-      <button
-        v-if="isScrolledUp"
-        class="absolute bottom-4 right-6 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-card text-foreground/70 border border-border/35 cursor-pointer shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:text-foreground"
-        @click="scrollToBottomAndReset"
-      >
-        <CircleArrowDown class="w-5 h-5" />
-        <span
-          v-if="newMessagesCount > 0"
-          class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center"
-        >
-          {{ newMessagesCount > 99 ? '99+' : newMessagesCount }}
-        </span>
-      </button>
-    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from "vue";
-import { CircleArrowDown, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { cn } from "@argon/core";
-import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
+import type { ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
-import MessageItem from "@/components/MessageItem.vue";
-import ImageLightbox from "@/components/chats/ImageLightbox.vue";
-import DateSeparator from "@/components/chats/DateSeparator.vue";
+import ChatMessageList from "@/components/chats/ChatMessageList.vue";
 
 import { useLocale } from "@/store/system/localeStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useDirectMessages } from "@/composables/useDirectMessages";
-import { useChatScroll } from "@/composables/useChatScroll";
+import { useMessageGrouping } from "@/composables/useMessageGrouping";
 import { useApi } from "@/store/system/apiStore";
 
 // ── Stores ──
@@ -176,102 +84,7 @@ const typingText = computed(() => {
   return t("typing.many");
 });
 
-// ── Lightbox state ──
-
-const lbOpen = ref(false);
-const lbImages = ref<MessageEntityAttachment[]>([]);
-const lbIndex = ref(0);
-const lbTime = ref<Date | null>(null);
-
-function onOpenLightbox(images: MessageEntityAttachment[], index: number, timeSent: Date | null) {
-  lbImages.value = images;
-  lbIndex.value = index;
-  lbTime.value = timeSent;
-  lbOpen.value = true;
-}
-
-// ── Reply-scroll highlight ──
-
-const highlightedIdx = ref<number | null>(null);
-let hlTimer: ReturnType<typeof setTimeout> | null = null;
-
-function scrollToMessage(messageId: bigint) {
-  const idx = messages.value.findIndex((m) => m.messageId === messageId);
-  if (idx < 0) return;
-  scrollToIndex(idx);
-  highlightedIdx.value = idx;
-  if (hlTimer) clearTimeout(hlTimer);
-  hlTimer = setTimeout(() => (highlightedIdx.value = null), 1500);
-}
-
-// ── Grouping map (messages → visual metadata) ──
-
-const GROUP_GAP_MS = 5 * 60 * 1000;
-
-interface GroupMeta {
-  isGrouped: boolean;
-  isFirstInGroup: boolean;
-  isLastInGroup: boolean;
-  showDate: boolean;
-}
-
-const groupingMap = computed<GroupMeta[]>(() => {
-  const msgs = messages.value;
-  const len = msgs.length;
-  const out: GroupMeta[] = new Array(len);
-
-  for (let i = 0; i < len; i++) {
-    const msg = msgs[i];
-
-    // Date separator: first message or different calendar day
-    let showDate = i === 0;
-    if (!showDate && i > 0) {
-      const prev = msgs[i - 1]?.timeSent?.date;
-      const curr = msg?.timeSent?.date;
-      if (prev && curr) {
-        showDate =
-          prev.getFullYear() !== curr.getFullYear() ||
-          prev.getMonth() !== curr.getMonth() ||
-          prev.getDate() !== curr.getDate();
-      }
-    }
-
-    if (!msg?.sender) {
-      out[i] = { isGrouped: false, isFirstInGroup: true, isLastInGroup: true, showDate };
-      continue;
-    }
-
-    const prev = i > 0 ? msgs[i - 1] : null;
-    const next = i < len - 1 ? msgs[i + 1] : null;
-
-    const samePrev =
-      !!prev?.sender &&
-      prev.sender === msg.sender &&
-      !prev._optimistic &&
-      !!msg.timeSent?.date &&
-      !!prev.timeSent?.date &&
-      Math.abs(msg.timeSent.date.getTime() - prev.timeSent.date.getTime()) < GROUP_GAP_MS &&
-      !showDate;
-
-    const sameNext =
-      !!next?.sender &&
-      next.sender === msg.sender &&
-      !msg._optimistic &&
-      !!msg.timeSent?.date &&
-      !!next.timeSent?.date &&
-      Math.abs(next.timeSent.date.getTime() - msg.timeSent.date.getTime()) < GROUP_GAP_MS;
-
-    out[i] = {
-      isGrouped: samePrev,
-      isFirstInGroup: !samePrev,
-      isLastInGroup: !sameNext,
-      showDate,
-    };
-  }
-  return out;
-});
-
-// ── Composables ──
+// ── Data ──
 
 const {
   messages, hasReachedEnd, isLoading, isLoadingOlder,
@@ -282,23 +95,25 @@ const {
   cleanup: cleanupMessages,
 } = useDirectMessages(() => props.peerId);
 
-const {
-  parentRef, chatWidth, renderedItems, totalHeight, topSpace, bottomSpace, measureElement,
-  scrollToBottomImmediate, scrollToBottom, scrollToIndex,
-  onScrollNearTop, onScroll: onScrollState,
-  createScrollSaver, resetScroller,
-} = useChatScroll(messages);
+const { groupingMap } = useMessageGrouping(messages);
+
+// Stable getter — passes the real shallowRef into the list (keeps triggerRef reactivity).
+const getMessages = () => messages;
+
+// ── List ref ──
+
+const listRef = ref<InstanceType<typeof ChatMessageList> | null>(null);
+function scrollToBottomImmediate() {
+  listRef.value?.scrollToBottomImmediate();
+}
 
 // ── Scroll callbacks ──
 
-onScrollNearTop(() => {
+function onNearTop() {
   if (!isLoadingOlder.value && !hasReachedEnd.value) {
-    loadOlderMessages({
-      beforePrepend: () => { /* browser overflow-anchor handles scroll stability */ },
-      afterPrepend: () => {},
-    });
+    loadOlderMessages({ beforePrepend: () => {}, afterPrepend: () => {} });
   }
-});
+}
 
 const markedReadForPeer = ref<string | null>(null);
 
@@ -306,7 +121,7 @@ function markDmAsRead() {
   if (markedReadForPeer.value === props.peerId) return;
   markedReadForPeer.value = props.peerId;
 
-  const chat = recentChats.recent.find(x => x.peerId === props.peerId);
+  const chat = recentChats.recent.find((x) => x.peerId === props.peerId);
   const unread = chat?.unreadCount ?? 0;
 
   recentChats.markRead(props.peerId);
@@ -318,19 +133,17 @@ function markDmAsRead() {
   api.userChatInteractions.MarkChatRead(props.peerId as Guid).catch(() => {});
 }
 
-onScrollState(({ distanceFromBottom }) => {
+function onScrollState(distanceFromBottom: number) {
   const was = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
   if (was && !isScrolledUp.value) newMessagesCount.value = 0;
 
-  // Mark DM as read when at bottom
   if (distanceFromBottom <= 100) {
     markDmAsRead();
   }
-});
+}
 
-function scrollToBottomAndReset() {
-  scrollToBottom();
+function onResetUnread() {
   newMessagesCount.value = 0;
   isScrolledUp.value = false;
 }
@@ -345,15 +158,14 @@ watch(
   () => props.peerId,
   async (newId) => {
     markedReadForPeer.value = null;
-    resetScroller();
-    subscribeToNewMessages(newId, () => scrollToBottomImmediate());
-    await loadInitialMessages(() => scrollToBottomImmediate());
+    listRef.value?.resetScroller();
+    subscribeToNewMessages(newId, () => listRef.value?.scrollToBottomImmediate());
+    await loadInitialMessages(() => listRef.value?.scrollToBottomImmediate());
   },
   { immediate: true },
 );
 
 onUnmounted(() => {
-  if (hlTimer) clearTimeout(hlTimer);
   cleanupMessages();
 });
 </script>
@@ -384,38 +196,5 @@ onUnmounted(() => {
 .typing-slide-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-4px);
-}
-
-/* ── Fade-slide (loading spinner) ── */
-.fade-slide-enter-active { transition: opacity 0.2s ease; }
-.fade-slide-leave-active { transition: opacity 0.15s ease; }
-.fade-slide-enter-from,
-.fade-slide-leave-to { opacity: 0; }
-
-/* ── FAB pop transition ── */
-.fab-pop-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.fab-pop-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.fab-pop-enter-from { opacity: 0; transform: translateY(8px) scale(0.9); }
-.fab-pop-leave-to { opacity: 0; transform: translateY(4px) scale(0.95); }
-
-/* ── Reply-scroll highlight flash ── */
-@keyframes highlight-bg {
-  0% { background: hsl(var(--primary) / 0.15); }
-  100% { background: transparent; }
-}
-.highlight-flash {
-  animation: highlight-bg 1.5s ease-out;
-  border-radius: 8px;
-}
-
-/* ── Custom scrollbar ── */
-.chat-scrollbar::-webkit-scrollbar { width: 6px; }
-.chat-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.chat-scrollbar::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--foreground) / 0.2);
-  border-radius: 3px;
-}
-.chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--foreground) / 0.3);
 }
 </style>

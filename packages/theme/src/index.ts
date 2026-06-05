@@ -145,6 +145,9 @@ export function useTheme(config: ThemeConfig = {}) {
     const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
     const enableBlur = persistedValue<boolean>("appearance.enableBlur", true);
 
+    // Chat density (self-contained — not gated by the global UI-density flag)
+    const chatDensity = persistedValue<string>("appearance.chatDensity", "comfortable");
+
     // Accessibility settings
     const timestampFormat = persistedValue<string>("appearance.timestampFormat", "24h");
     const highContrast = persistedValue<boolean>("appearance.highContrast", false);
@@ -207,6 +210,9 @@ export function useTheme(config: ThemeConfig = {}) {
 
     // Store timestamp format for use in components
     root.setAttribute("data-timestamp-format", timestampFormat.value);
+
+    // Chat density — drives the --chat-* spacing tokens via CSS.
+    root.setAttribute("data-chat-density", chatDensity.value);
   };
 
   return {

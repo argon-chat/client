@@ -6,6 +6,9 @@ import type { ChatMessage } from "@/composables/useChatMessages";
 
 const SCROLL_NEAR_TOP_THRESHOLD = 300;
 const SCROLL_NEAR_BOTTOM_THRESHOLD = 120;
+/** Distance from bottom (px) within which the list auto-follows new content.
+    Matches the views' "scrolled up" threshold so following + FAB stay in sync. */
+const SCROLL_PIN_THRESHOLD = 100;
 
 /** Selector for anchor-able message elements inside the scroll container */
 const ANCHOR_QUERY = "[data-msg-key]";
@@ -225,7 +228,7 @@ export function useChatScroll(
   let onScrollTopCallback: (() => void) | null = null;
   let onScrollCallback: ScrollStateCallback | null = null;
 
-  const { isAnimating, consumeNeedCheck } = useHeavyAnimationCheck();
+  const { isAnimating } = useHeavyAnimationCheck();
 
   // ── Virtual scroller ──
 
@@ -234,7 +237,7 @@ export function useChatScroll(
     scrollContainer: parentRef,
     estimateHeight: (item, index) => estimateMessageHeight(item, index),
     getKey: (item) => item.messageId?.toString() ?? Math.random().toString(),
-    maxBatchSize: 20,
+    pinThreshold: SCROLL_PIN_THRESHOLD,
     nearBottomThreshold: SCROLL_NEAR_BOTTOM_THRESHOLD,
     nearTopThreshold: SCROLL_NEAR_TOP_THRESHOLD,
     onNearBottom: () => {
@@ -259,8 +262,9 @@ export function useChatScroll(
   });
 
   // ── Additional scroll state reporting ──
-  // The virtual scroller handles its own scroll events for rendering,
-  // but we also need to report scroll state for UI (FAB, unread counter, ACK).
+  // The virtual scroller handles its own scroll events for rendering, but the UI
+  // (FAB, unread counter, ACK) also needs scroll state on every scroll — not only
+  // when near the bottom. Report it here, rAF-throttled.
 
   let scrollReportTicking = false;
 
@@ -269,21 +273,14 @@ export function useChatScroll(
     scrollReportTicking = true;
     requestAnimationFrame(() => {
       scrollReportTicking = false;
-      if (!parentRef.value) return;
-
-      // Check deferred animation
+      const box = parentRef.value;
+      if (!box) return;
+      // Skip mid heavy animation; the scroller self-corrects via ResizeObserver.
       if (isAnimating.value) return;
-      if (consumeNeedCheck()) {
-        // Post-animation check — let the scroller recompute
-        scroller.scheduleUpdate();
-      }
 
-      const { scrollTop, scrollHeight, clientHeight } = parentRef.value;
+      const { scrollTop, scrollHeight, clientHeight } = box;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-      if (onScrollCallback) {
-        onScrollCallback({ scrollTop, scrollHeight, clientHeight, distanceFromBottom });
-      }
+      onScrollCallback?.({ scrollTop, scrollHeight, clientHeight, distanceFromBottom });
     });
   }
 
@@ -352,6 +349,10 @@ export function useChatScroll(
     /** Spacer heights for flow layout */
     topSpace: scroller.topSpace,
     bottomSpace: scroller.bottomSpace,
+    /** Live distance from the bottom (px) — shared source of truth */
+    distanceFromBottom: scroller.distanceFromBottom,
+    /** Whether the viewport is pinned to the bottom */
+    atBottom: scroller.atBottom,
     /** Register element for measurement */
     measureElement: scroller.measureElement,
     scrollToBottomImmediate,

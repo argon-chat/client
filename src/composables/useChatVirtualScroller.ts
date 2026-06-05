@@ -24,85 +24,170 @@ export interface ChatVirtualScrollerOptions<T> {
   scrollContainer: Ref<HTMLElement | undefined>;
   estimateHeight: (item: T, index: number) => number;
   getKey: (item: T, index: number) => string | number;
+  /** Accepted for API compatibility — no longer used (window is viewport-bounded). */
   maxBatchSize?: number;
   verticalPadding?: number;
-  renderAtLeastFromBottom?: (viewportH: number) => number;
+  /** Distance from bottom (px) within which we auto-follow new content. */
+  pinThreshold?: number;
   nearBottomThreshold?: number;
   nearTopThreshold?: number;
   onNearBottom?: () => void;
   onNearTop?: () => void;
 }
 
-// ── Composable ──
-
+/**
+ * Custom virtual scroller for chat.
+ *
+ * Design notes (see plan): cumulative offsets are cached and recomputed
+ * incrementally from the first dirty index; the visible window is found with a
+ * binary search; element heights flow in through a single ResizeObserver (no
+ * per-render getBoundingClientRect); "pinned to bottom" is a single tolerant
+ * source of truth; programmatic scrolls are detected by value comparison rather
+ * than an event counter.
+ */
 export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
   const {
     list,
     scrollContainer,
     estimateHeight,
     getKey,
-    maxBatchSize = 20,
     verticalPadding = 0,
-    renderAtLeastFromBottom = () => 0,
+    pinThreshold = 120,
     nearBottomThreshold = 120,
     nearTopThreshold = 300,
     onNearBottom,
     onNearTop,
   } = opts;
 
-  const OVERSCAN = 0.25; // fraction of viewport to render beyond edges
+  const OVERSCAN = 0.4; // fraction of viewport rendered beyond each edge
 
-  // Reactive output
+  // ── Reactive output ──
   const totalHeight = ref(0);
   const topSpace = ref(0);
   const bottomSpace = ref(0);
   const renderedItems: ShallowRef<VirtualItem<T>[]> = shallowRef([]);
+  /** Live distance (px) from the bottom; mirrors the scroll position. */
+  const distanceFromBottom = ref(0);
+  /** Whether the viewport is pinned to the bottom (within pinThreshold). */
+  const atBottom = ref(true);
 
-  // Per-item height cache
-  interface ItemMeta { h: number; y: number }
-  const meta = new Map<string | number, ItemMeta>();
+  // ── Layout model ──
+  interface Entry {
+    key: string | number;
+    h: number;
+    y: number;
+    index: number;
+  }
+  const meta = new Map<string | number, Entry>();
+  let order: Entry[] = [];
+  let firstDirty = 0; // index from which cumulative offsets need recompute
+  let contentH = verticalPadding * 2;
 
-  // Internal state
+  // ── Internal state ──
   let viewH = 0;
   let ro: ResizeObserver | null = null;
   let frame: number | null = null;
   let dead = false;
   let paused = false;
-  let prevFirstKey: string | number | null = null;
+  let listChanged = true;
 
-  // ── Scroll suppression (like tweb's setScrollPositionSilently) ──
-  let skipScrollEvents = 0; // counter: how many scroll events to skip
-
-  // ── Pinned-to-bottom state ──
+  // Pinned-to-bottom: whether the viewport is at the bottom (tracked from the
+  // user's own scrolls). It alone does NOT cause snapping — see snapRequested.
   let pinnedToBottom = true;
 
-  // ── Anchor tracking ──
-  let anchorKey: string | number | null = null;
-  let anchorY = 0; // anchor item's layout offset at last render
+  // A snap to the bottom is wanted on the next render because content changed
+  // (append / media growth) while pinned. Cleared once consumed. This is what
+  // keeps user wheel-scrolls from being yanked back: scroll events never set it.
+  let snapRequested = false;
 
-  // ── Render cause tracking ──
-  // 'scroll' = user scrolled, 'resize' = ResizeObserver height change, 'other' = list change etc
-  let renderCause: 'scroll' | 'resize' | 'other' = 'other';
+  // Anchor (first visible item) — used to keep position stable across prepends
+  // and above-viewport height changes while NOT pinned.
+  let anchorKey: string | number | null = null;
+  let anchorY = 0;
+
+  // Programmatic-scroll guard: the scrollTop value we last wrote ourselves.
+  let lastProgrammaticTop = -1;
 
   const elToKey = new WeakMap<Element, string | number>();
   const tracked = new Set<Element>();
 
-  // ── Helpers ──
+  // ── Layout helpers ──
 
-  function ensureMeta(key: string | number, item: T, idx: number): ItemMeta {
-    let m = meta.get(key);
-    if (!m) {
-      const est = estimateHeight(item, idx);
-      m = { h: est, y: 0 };
-      meta.set(key, m);
+  function rebuildOrder() {
+    const items = list.value;
+    const n = items.length;
+    const next: Entry[] = new Array(n);
+    const seen = new Set<string | number>();
+    for (let i = 0; i < n; i++) {
+      const key = getKey(items[i], i);
+      seen.add(key);
+      let e = meta.get(key);
+      if (!e) {
+        e = { key, h: estimateHeight(items[i], i), y: 0, index: i };
+        meta.set(key, e);
+      } else {
+        e.index = i;
+      }
+      next[i] = e;
     }
-    return m;
+    // Prune metas for keys no longer present (keeps the map bounded).
+    if (meta.size > n) {
+      for (const k of meta.keys()) if (!seen.has(k)) meta.delete(k);
+    }
+    order = next;
+    firstDirty = 0;
   }
 
-  /** Set scrollTop without triggering a re-render from the scroll event */
+  function ensureLayout() {
+    const n = order.length;
+    if (firstDirty >= n) return; // offsets are clean
+    let y = firstDirty === 0
+      ? verticalPadding
+      : order[firstDirty - 1].y + order[firstDirty - 1].h;
+    for (let i = firstDirty; i < n; i++) {
+      order[i].y = y;
+      y += order[i].h;
+    }
+    contentH = y + verticalPadding;
+    firstDirty = n;
+  }
+
+  function ensureReady() {
+    if (listChanged) {
+      rebuildOrder();
+      listChanged = false;
+    }
+    ensureLayout();
+  }
+
+  /** First index whose bottom edge is below `targetY` (binary search). */
+  function findStart(targetY: number): number {
+    let lo = 0;
+    let hi = order.length - 1;
+    let res = order.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const e = order[mid];
+      if (e.y + e.h > targetY) {
+        res = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return res;
+  }
+
+  /** Set scrollTop without it being misread as a user scroll. */
   function setScrollTopSilently(box: HTMLElement, value: number) {
-    skipScrollEvents++;
     box.scrollTop = value;
+    lastProgrammaticTop = box.scrollTop; // read back the clamped value
+  }
+
+  function updateScrollState(box: HTMLElement) {
+    const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+    distanceFromBottom.value = Math.max(0, dist);
+    atBottom.value = dist <= pinThreshold;
   }
 
   // ── Main render pass ──
@@ -111,174 +196,89 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     const box = scrollContainer.value;
     if (!box || dead || paused) return;
 
+    ensureReady();
     const items = list.value;
-    const n = items.length;
+    const n = order.length;
+
     if (!n) {
-      totalHeight.value = verticalPadding * 2;
+      contentH = verticalPadding * 2;
+      totalHeight.value = contentH;
       topSpace.value = 0;
       bottomSpace.value = 0;
       renderedItems.value = [];
+      anchorKey = null;
       return;
     }
 
     viewH = box.clientHeight || 600;
-
-    // 1) Compute full layout
-    let y = verticalPadding;
-    const layout: { key: string | number; m: ItemMeta; idx: number }[] = new Array(n);
-    for (let i = 0; i < n; i++) {
-      const item = items[i];
-      const key = getKey(item, i);
-      const m = ensureMeta(key, item, i);
-      m.y = y;
-      y += m.h;
-      layout[i] = { key, m, idx: i };
-    }
-    const contentH = y + verticalPadding;
     totalHeight.value = contentH;
 
-    // 2) Detect prepend FIRST (before anchor compensation, to avoid double-shift)
-    const firstKey = layout[0].key;
-    let prependShift = 0;
-    const hasPrepend = prevFirstKey != null && firstKey !== prevFirstKey;
-    if (
-      scrollTopOverride == null &&
-      !pinnedToBottom &&
-      hasPrepend
-    ) {
-      for (let i = 0; i < n; i++) {
-        if (layout[i].key === prevFirstKey) {
-          prependShift = layout[i].m.y - verticalPadding;
-          break;
-        }
-      }
-    }
-    prevFirstKey = firstKey;
+    // Snap to bottom only when content changed while pinned — never on a plain
+    // user scroll (that would fight the wheel / drag).
+    const doSnap = scrollTopOverride == null && pinnedToBottom && snapRequested;
+    snapRequested = false;
 
-    // 3) Determine scrollTop to use for this render
+    // 1) Decide the scrollTop this pass renders for.
     let top: number;
-    let topSource = '';
-
     if (scrollTopOverride != null) {
       top = scrollTopOverride;
-      topSource = 'override';
-    } else if (pinnedToBottom) {
+    } else if (doSnap) {
       top = Math.max(0, contentH - viewH);
-      topSource = 'pinned';
     } else {
       top = box.scrollTop;
-      topSource = 'scrollTop';
-
-      // Anchor compensation: if the anchor item moved in layout (due to height changes
-      // from ResizeObserver/measureElement), adjust scrollTop to prevent visual jump.
-      // Skip during prepend (prepend shift handles that case separately).
-      if (!hasPrepend && anchorKey != null) {
-        const am = meta.get(anchorKey);
-        if (am && am.y !== anchorY) {
-          const delta = am.y - anchorY;
-          // Only compensate small deltas (large ones are from prepend/list changes)
-          if (Math.abs(delta) < viewH) {
+      // Anchor compensation (only while not pinned): if the first-visible item
+      // shifted (prepend or above-viewport height change), move scrollTop by the
+      // same delta so the content under the user's eyes stays put.
+      if (!pinnedToBottom && anchorKey != null) {
+        const ae = meta.get(anchorKey);
+        if (ae && ae.y !== anchorY) {
+          const delta = ae.y - anchorY;
+          if (Math.abs(delta) < contentH) {
             top += delta;
-            topSource = 'anchor';
             setScrollTopSilently(box, top);
           }
         }
       }
-
-      // Apply prepend shift
-      if (prependShift > 0) {
-        top += prependShift;
-        topSource = 'prepend';
-      }
     }
 
-    // Clamp top to valid range — prevents empty renders when content shrinks
+    // Clamp to a valid range (prevents empty renders when content shrinks).
     const maxTop = Math.max(0, contentH - viewH);
     if (top > maxTop) {
       top = maxTop;
-      topSource = 'clamped';
-      if (scrollTopOverride == null && !pinnedToBottom) {
-        setScrollTopSilently(box, top);
-      }
+      if (scrollTopOverride == null && !pinnedToBottom) setScrollTopSilently(box, top);
     }
     if (top < 0) top = 0;
 
-    // 4) Determine visible range
+    // 2) Visible range.
     const vTop = top - OVERSCAN * viewH;
     const vBot = top + viewH * (1 + OVERSCAN);
 
-    // Find start index — first item whose bottom edge is in the viewport
-    let start = 0;
-    let foundStart = false;
-    for (let i = 0; i < n; i++) {
-      if (layout[i].m.y + layout[i].m.h > vTop) { start = i; foundStart = true; break; }
-    }
-    // If nothing found (all items above viewport), render from the last items
-    if (!foundStart) start = Math.max(0, n - 1);
+    let start = findStart(vTop);
+    if (start < 0) start = 0;
 
-    const bottomPin = n - renderAtLeastFromBottom(viewH);
-    start = Math.max(0, Math.min(start, bottomPin));
-
-    // 5) Collect visible items
     const out: VirtualItem<T>[] = [];
-    const prev = renderedItems.value;
-    const prevKeys = new Set(prev.map((v) => v.key));
-    let newCount = 0;
-    let end = start;
-
     for (let i = start; i < n; i++) {
-      const { key, m } = layout[i];
-      const item = items[i];
-
-      const vis = (m.y + m.h > vTop || i >= bottomPin) && m.y < vBot;
-      if (!prevKeys.has(key) && vis) newCount++;
-      if (newCount > maxBatchSize) break;
-
-      if (vis) {
-        out.push({ payload: item, index: i, height: m.h, offset: m.y, key });
-        end = i + 1;
-      } else if (out.length) {
-        break;
-      }
+      const e = order[i];
+      if (e.y > vBot) break;
+      out.push({ payload: items[i], index: i, height: e.h, offset: e.y, key: e.key });
     }
-
-    // If no items passed visibility, don't update — keep previous render and retry
     if (!out.length) {
-      enqueue();
-      return;
+      // Safety net: render the last item so the list is never blank.
+      const i = n - 1;
+      const e = order[i];
+      out.push({ payload: items[i], index: i, height: e.h, offset: e.y, key: e.key });
+      start = i;
     }
+    const end = out[out.length - 1].index + 1;
 
-    // 6) Compute spacers
-    const topH = start > 0 ? layout[start].m.y - verticalPadding : 0;
-    const bottomH = end > 0 && end < n
-      ? contentH - verticalPadding - (layout[end - 1].m.y + layout[end - 1].m.h)
-      : 0;
-    const newTopSpace = Math.max(0, topH);
-    const prevTopSpace = topSpace.value;
+    // 3) Spacers.
+    topSpace.value = Math.max(0, order[start].y - verticalPadding);
+    bottomSpace.value = Math.max(
+      0,
+      contentH - verticalPadding - (order[end - 1].y + order[end - 1].h),
+    );
 
-    // Compensate scrollTop when topSpace changes due to height measurement (not window shift).
-    // Only when the first rendered item is the SAME — meaning the window didn't shift,
-    // only heights of items inside the spacer changed.
-    const prevFirstRenderedKey = prev.length ? prev[0].key : null;
-    const curFirstRenderedKey = out.length ? out[0].key : null;
-    if (
-      renderCause === 'resize' &&
-      newTopSpace !== prevTopSpace &&
-      prevFirstRenderedKey != null &&
-      prevFirstRenderedKey === curFirstRenderedKey &&
-      !pinnedToBottom &&
-      scrollTopOverride == null &&
-      prependShift === 0
-    ) {
-      const spaceDelta = newTopSpace - prevTopSpace;
-      setScrollTopSilently(box, box.scrollTop + spaceDelta);
-      top += spaceDelta;
-    }
-
-    topSpace.value = newTopSpace;
-    bottomSpace.value = Math.max(0, bottomH);
-
-    // 7) Unobserve elements leaving render window
+    // 4) Stop observing elements that left the window.
     const kept = new Set(out.map((v) => v.key));
     for (const el of tracked) {
       const k = elToKey.get(el);
@@ -291,38 +291,26 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
     renderedItems.value = out;
 
-    // 8) Save anchor for next render: first visible item
-    if (out.length) {
-      anchorKey = out[0].key;
-      anchorY = out[0].offset;
-    }
+    // 5) Save the anchor (first visible item) for the next pass.
+    anchorKey = out[0].key;
+    anchorY = out[0].offset;
 
-    // 9) Post-render scroll adjustments (after Vue updates DOM)
-    if (prependShift > 0 && !pinnedToBottom) {
-      const shift = prependShift;
+    // 6) When following new content, re-snap to the true bottom after the DOM
+    // updates. This is what makes the list follow async media (GIFs/images)
+    // growing below — but only because content changed, not on user scroll.
+    if (doSnap) {
       nextTick(() => {
-        if (!dead && box.isConnected) {
-          setScrollTopSilently(box, box.scrollTop + shift);
-        }
-      });
-    }
-
-    if (pinnedToBottom && scrollTopOverride == null) {
-      // Snap to actual bottom after DOM update
-      nextTick(() => {
-        if (!dead && box.isConnected) {
+        if (!dead && box.isConnected && pinnedToBottom) {
           setScrollTopSilently(box, box.scrollHeight);
+          updateScrollState(box);
         }
       });
     }
 
-    // 10) Edge callbacks
-    const actualDistFromBottom = contentH - top - viewH;
-    if (onNearBottom && actualDistFromBottom <= nearBottomThreshold) onNearBottom();
+    // 7) Edge callbacks.
+    const dist = contentH - top - viewH;
+    if (onNearBottom && dist <= nearBottomThreshold) onNearBottom();
     if (onNearTop && top <= nearTopThreshold) onNearTop();
-
-    // Reset render cause
-    renderCause = 'other';
   }
 
   // ── Scheduling ──
@@ -335,30 +323,24 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     });
   }
 
-  // ── Scroll event handler ──
+  // ── Scroll handler ──
 
   function onScroll() {
-    if (skipScrollEvents > 0) {
-      skipScrollEvents--;
-      return;
-    }
-    // User-initiated scroll: update pinned state
     const box = scrollContainer.value;
-    if (box) {
-      const distFromBottom = box.scrollHeight - box.scrollTop - box.clientHeight;
-      pinnedToBottom = distFromBottom <= 1;
-    }
-    renderCause = 'scroll';
+    if (!box) return;
+    // Ignore our own programmatic writes.
+    if (Math.abs(box.scrollTop - lastProgrammaticTop) <= 2) return;
+    const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+    pinnedToBottom = dist <= pinThreshold;
+    distanceFromBottom.value = Math.max(0, dist);
+    atBottom.value = pinnedToBottom;
     enqueue();
   }
 
-  // ── ResizeObserver callback ──
+  // ── ResizeObserver ──
 
   function onResize(entries: ResizeObserverEntry[]) {
-    const box = scrollContainer.value;
-    let dirty = false;
-    let scrollDelta = 0;
-
+    let changed = false;
     for (const e of entries) {
       if (!e.target.isConnected) {
         ro?.unobserve(e.target);
@@ -370,53 +352,43 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       if (k == null) continue;
       const m = meta.get(k);
       if (!m) continue;
-      const h = e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height;
-      if (Math.abs(h - m.h) > 0.5) {
-        const diff = h - m.h;
+      const h = e.borderBoxSize?.[0]?.blockSize
+        ?? (e.target as HTMLElement).getBoundingClientRect().height;
+      if (h > 0 && Math.abs(h - m.h) > 0.5) {
         m.h = h;
-        dirty = true;
-
-        // Immediate scroll compensation: if this element is above the viewport center,
-        // its height change shifts everything below (including what user sees).
-        // Compensate scrollTop NOW to prevent 1-frame jitter.
-        if (box && !pinnedToBottom) {
-          const el = e.target as HTMLElement;
-          const elRect = el.getBoundingClientRect();
-          const boxRect = box.getBoundingClientRect();
-          // Element's bottom is above viewport center → it's above what user focuses on
-          if (elRect.bottom < boxRect.top + boxRect.height / 2) {
-            scrollDelta += diff;
-          }
-        }
+        if (m.index < firstDirty) firstDirty = m.index;
+        changed = true;
       }
     }
-
-    if (scrollDelta !== 0 && box && !pinnedToBottom) {
-      setScrollTopSilently(box, box.scrollTop + scrollDelta);
-      // Update anchorY to reflect the shift, so render() doesn't double-compensate
-      anchorY += scrollDelta;
-    }
-    if (dirty) {
-      renderCause = 'resize';
+    if (changed) {
+      // Heights grew/shrank while at the bottom (e.g. media loaded) → keep following.
+      if (pinnedToBottom) snapRequested = true;
       enqueue();
     }
   }
 
-  /** Called from template :ref — measures and observes an element. */
+  /** Called from the template :ref — registers an element for measurement. */
   function measureElement(el: HTMLElement | null, key: string | number) {
     if (!el || !el.isConnected) return;
-    const h = el.getBoundingClientRect().height;
+    if (tracked.has(el)) return; // already observed; RO owns subsequent deltas
+
+    elToKey.set(el, key);
+    tracked.add(el);
+
+    // Measure once up front so the first paint uses the real height instead of
+    // the estimate (bounded: only newly-entering elements, not every render).
     const m = meta.get(key);
-    if (m && h > 0 && Math.abs(h - m.h) > 0.5) {
-      m.h = h;
-      renderCause = 'resize';
-      queueMicrotask(() => enqueue());
+    if (m) {
+      const h = el.getBoundingClientRect().height;
+      if (h > 0 && Math.abs(h - m.h) > 0.5) {
+        m.h = h;
+        if (m.index < firstDirty) firstDirty = m.index;
+        if (pinnedToBottom) snapRequested = true;
+        enqueue();
+      }
     }
-    if (!tracked.has(el)) {
-      elToKey.set(el, key);
-      tracked.add(el);
-      ro?.observe(el);
-    }
+
+    ro?.observe(el); // the RO delivers later height changes (media load, reactions…)
   }
 
   // ── Public API ──
@@ -429,74 +401,57 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       renderAtBottom();
     } else {
       box.scrollTo({ top: box.scrollHeight, behavior });
+      lastProgrammaticTop = box.scrollHeight;
     }
   }
 
-  /**
-   * Render items from the end of the list, then set scrollTop to bottom.
-   * Used for initial load and channel switch.
-   */
+  /** Render the tail of the list and pin scrollTop to the bottom. */
   function renderAtBottom() {
     const box = scrollContainer.value;
     if (!box || dead) return;
-
-    // Cancel any pending RAF
     if (frame != null) { cancelAnimationFrame(frame); frame = null; }
 
-    const items = list.value;
-    const n = items.length;
-    if (!n) return;
-
     paused = false;
-    pinnedToBottom = true;
-
-    // Compute layout so render() has correct meta
-    let y = verticalPadding;
-    for (let i = 0; i < n; i++) {
-      const item = items[i];
-      const key = getKey(item, i);
-      const m = ensureMeta(key, item, i);
-      m.y = y;
-      y += m.h;
+    ensureReady();
+    if (!order.length) {
+      render();
+      return;
     }
-    const contentH = y + verticalPadding;
 
-    // Render with scrollTop at the very bottom
+    pinnedToBottom = true;
     const fakeTop = Math.max(0, contentH - (box.clientHeight || 600));
     render(fakeTop);
 
-    // After Vue updates spacer DOM, set actual scrollTop
+    // After spacers commit, snap to the real bottom; double-tap to absorb the
+    // ResizeObserver's first height corrections.
     nextTick(() => {
-      if (!dead && box.isConnected) {
-        setScrollTopSilently(box, box.scrollHeight);
-        // Double-tap: ResizeObserver may fire and change heights
-        requestAnimationFrame(() => {
-          if (!dead && box.isConnected && pinnedToBottom) {
-            setScrollTopSilently(box, box.scrollHeight);
-          }
-        });
-      }
+      if (dead || !box.isConnected) return;
+      setScrollTopSilently(box, box.scrollHeight);
+      updateScrollState(box);
+      requestAnimationFrame(() => {
+        if (!dead && box.isConnected && pinnedToBottom) {
+          setScrollTopSilently(box, box.scrollHeight);
+          updateScrollState(box);
+        }
+      });
     });
   }
 
   function scrollToIndex(index: number, align: "start" | "center" | "end" = "start") {
     const box = scrollContainer.value;
     if (!box) return;
-    const items = list.value;
-    if (index < 0 || index >= items.length) return;
+    ensureReady();
+    if (index < 0 || index >= order.length) return;
 
-    const key = getKey(items[index], index);
-    let m = meta.get(key);
-    if (!m) { render(); m = meta.get(key); }
-    if (!m) return;
-
+    const e = order[index];
     let target: number;
-    if (align === "center") target = m.y - viewH / 2 + m.h / 2;
-    else if (align === "end") target = m.y - viewH + m.h;
-    else target = m.y;
+    if (align === "center") target = e.y - viewH / 2 + e.h / 2;
+    else if (align === "end") target = e.y - viewH + e.h;
+    else target = e.y;
 
     pinnedToBottom = false;
-    box.scrollTop = Math.max(0, target);
+    setScrollTopSilently(box, Math.max(0, target));
+    updateScrollState(box);
     enqueue();
   }
 
@@ -509,30 +464,51 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
   function resetState() {
     paused = true;
     pinnedToBottom = true;
+    snapRequested = false;
     anchorKey = null;
     anchorY = 0;
-    skipScrollEvents = 0;
+    lastProgrammaticTop = -1;
     for (const el of tracked) ro?.unobserve(el);
     tracked.clear();
     meta.clear();
-    prevFirstKey = null;
+    order = [];
+    firstDirty = 0;
+    listChanged = true;
+    contentH = verticalPadding * 2;
     renderedItems.value = [];
-    totalHeight.value = verticalPadding * 2;
+    totalHeight.value = contentH;
     topSpace.value = 0;
     bottomSpace.value = 0;
+    distanceFromBottom.value = 0;
+    atBottom.value = true;
     if (frame != null) { cancelAnimationFrame(frame); frame = null; }
   }
 
   // ── Lifecycle ──
 
-  watch(list, () => { paused = false; enqueue(); }, { flush: "post" });
+  watch(
+    list,
+    () => {
+      listChanged = true;
+      paused = false;
+      // Appends while pinned should follow to the bottom; prepends (not pinned)
+      // are handled by anchor compensation instead.
+      if (pinnedToBottom) snapRequested = true;
+      enqueue();
+    },
+    { flush: "post" },
+  );
 
   onMounted(() => {
     ro = new ResizeObserver(onResize);
     const box = scrollContainer.value;
     if (box) {
       box.addEventListener("scroll", onScroll, { passive: true });
-      const cro = new ResizeObserver(() => enqueue());
+      // Viewport resize (e.g. reply bar opens): stay at the bottom if pinned.
+      const cro = new ResizeObserver(() => {
+        if (pinnedToBottom) snapRequested = true;
+        enqueue();
+      });
       cro.observe(box);
       onUnmounted(() => cro.disconnect());
     }
@@ -540,7 +516,10 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
   watch(scrollContainer, (cur, prev) => {
     if (prev) prev.removeEventListener("scroll", onScroll);
-    if (cur) { cur.addEventListener("scroll", onScroll, { passive: true }); enqueue(); }
+    if (cur) {
+      cur.addEventListener("scroll", onScroll, { passive: true });
+      enqueue();
+    }
   });
 
   onUnmounted(() => {
@@ -558,6 +537,8 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     topSpace,
     bottomSpace,
     renderedItems,
+    distanceFromBottom,
+    atBottom,
     measureElement,
     scrollToBottom,
     renderAtBottom,

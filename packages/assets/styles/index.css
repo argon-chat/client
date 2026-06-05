@@ -51,11 +51,21 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.75rem;
-    
+
     /* Default density variables */
     --spacing: 0.75rem;
     --padding: 1rem;
     --gap: 0.75rem;
+
+    /* Chat bubble + spacing tokens (comfortable defaults).
+       Consumed by MessageItem / ChatMessageList; overridden per chat density. */
+    --chat-bubble-radius: 1rem;
+    --chat-bubble-tail: 7px;
+    --chat-group-gap: 0.75rem;   /* gap before a new sender group */
+    --chat-stack-gap: 0.125rem;  /* gap between stacked messages of one group */
+    --chat-row-gap: 0.5rem;      /* gap between avatar column and content */
+    --chat-bubble-px: 0.75rem;
+    --chat-bubble-py: 0.5rem;
   }
 
   .dark {
@@ -320,6 +330,17 @@
 .density-spacious .space-y-3 > * + * { margin-top: 0.875rem !important; }
 .density-spacious .space-y-4 > * + * { margin-top: 1.25rem !important; }
 .density-spacious .space-y-6 > * + * { margin-top: 1.75rem !important; }
+
+/* Chat density (independent of the feature-flagged global UI density).
+   Driven by data-chat-density on <html>; comfortable is the :root default. */
+:root[data-chat-density="compact"] {
+  --chat-group-gap: 0.4rem;
+  --chat-stack-gap: 0.075rem;
+  --chat-row-gap: 0.5rem;
+  --chat-bubble-px: 0.6rem;
+  --chat-bubble-py: 0.3rem;
+  --chat-bubble-radius: 0.85rem;
+}
 
 /* No blur class for accessibility */
 .no-blur * {

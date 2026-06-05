@@ -349,6 +349,34 @@
             </div>
         </div>
 
+        <!-- Chat -->
+        <div class="setting-card">
+            <div class="flex items-center gap-2 mb-4">
+                <MessageSquareIcon class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold">{{ t("chat") || 'Chat' }}</h3>
+            </div>
+
+            <div class="space-y-3">
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("chat_density") || 'Message density' }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("chat_density_desc") || 'Spacing between messages in the chat' }}</div>
+                    </div>
+                    <Select v-model="chatDensity">
+                        <SelectTrigger class="w-[150px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="comfortable">{{ t("chat_density_comfortable") || 'Comfortable' }}</SelectItem>
+                                <SelectItem value="compact">{{ t("chat_density_compact") || 'Compact' }}</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+        </div>
+
         <!-- Accessibility -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
@@ -456,6 +484,7 @@ import {
     GlassWaterIcon,
     InfoIcon,
     MonitorIcon,
+    MessageSquareIcon,
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
 import { useToast } from "@argon/ui/toast";
@@ -678,6 +707,9 @@ const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
 const enableBlur = persistedValue<boolean>("appearance.enableBlur", true);
 const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
 
+// Chat
+const chatDensity = persistedValue<string>("appearance.chatDensity", "comfortable");
+
 // Accessibility settings
 const timestampFormat = persistedValue<string>("appearance.timestampFormat", "24h");
 const highContrast = persistedValue<boolean>("appearance.highContrast", false);
@@ -783,7 +815,7 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
 
 // Watch all settings
 // TODO: Add uiScale back when webview2 zoom control is implemented
-watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, ultrawideThreshold, ultrawideMaxWidth, ultrawideCenterTitlebar, uiScale, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
+watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, ultrawideThreshold, ultrawideMaxWidth, ultrawideCenterTitlebar, uiScale, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, chatDensity, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
     applyAppearanceSettingsController();
 });
 
@@ -816,6 +848,7 @@ const resetToDefaults = () => {
     reduceMotion.value = false;
     enableBlur.value = true;
     smoothScroll.value = false;
+    chatDensity.value = "comfortable";
 
     // Reset accessibility settings
     timestampFormat.value = "24h";

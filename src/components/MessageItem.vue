@@ -3,6 +3,7 @@
     ╔══════════════════════════════════════════════════════╗
     ║  MessageItem — single message in the virtual list   ║
     ║  Handles: system, regular, emoji-only, attachments  ║
+    ║  Layout: one-sided (channels) or two-sided (DMs)    ║
     ╚══════════════════════════════════════════════════════╝
   -->
 
@@ -18,9 +19,10 @@
   <!-- ── Regular message ── -->
   <div
     v-else-if="user"
-    class="group/msg flex items-start gap-2"
+    class="group/msg flex items-start gap-[var(--chat-row-gap,0.5rem)]"
     :class="[
-      isFirstInGroup ? 'pt-3' : 'pt-0.5',
+      isRight ? 'flex-row-reverse' : '',
+      isFirstInGroup ? 'pt-[var(--chat-group-gap,0.75rem)]' : 'pt-[var(--chat-stack-gap,0.125rem)]',
       isOptimistic && !isFailed ? 'opacity-50' : '',
     ]"
     style="contain: layout style"
@@ -56,10 +58,14 @@
     </div>
 
     <!-- Content -->
-    <div class="flex flex-col items-start min-w-0 max-w-[85%]">
+    <div class="flex flex-col min-w-0 max-w-[85%]" :class="isRight ? 'items-end' : 'items-start'">
 
       <!-- Meta row: name + time + status badges -->
-      <div v-if="isFirstInGroup" class="flex items-center gap-1.5 mb-0.5">
+      <div
+        v-if="isFirstInGroup"
+        class="flex items-center gap-1.5 mb-0.5"
+        :class="isRight ? 'flex-row-reverse' : ''"
+      >
         <span
           class="text-[13px] font-semibold leading-none"
           :style="{ color: userColor }"
@@ -113,12 +119,13 @@
           <ContextMenuTrigger>
             <div
               class="msg-bubble-wrap relative inline-flex flex-col"
+              :class="isRight ? 'items-end' : 'items-start'"
               @mouseenter="onMouseEnter"
               @mouseleave="onMouseLeave"
             >
 
               <!-- ── Emoji-only message ── -->
-              <div v-if="isSingleEmoji" class="flex flex-col">
+              <div v-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
                 <ReplyPreview
                   v-if="replyMessage"
                   :reply-message="replyMessage"
@@ -140,21 +147,23 @@
               <div v-else class="flex flex-col relative" :style="mediaMaxWidth">
 
                 <!-- Images above the bubble -->
-                <AttachmentImageGrid
+                <div
                   v-if="imageAttachments.length"
-                  :images="imageAttachments"
                   class="overflow-hidden"
-                  :class="hasOnlyImages ? 'rounded-2xl' : 'rounded-t-2xl'"
-                  @open-lightbox="onImageClick"
-                />
+                  :style="{ borderRadius: mediaRadius }"
+                >
+                  <AttachmentImageGrid
+                    :images="imageAttachments"
+                    @open-lightbox="onImageClick"
+                  />
+                </div>
 
                 <!-- GIF media -->
                 <div
                   v-for="(gif, gi) in gifEntities"
                   :key="`gif-${gi}`"
                   class="gif-message relative overflow-hidden bg-muted"
-                  :class="hasOnlyImages ? 'rounded-2xl' : 'rounded-t-2xl'"
-                  :style="gifDims(gif)"
+                  :style="{ ...gifDims(gif), borderRadius: mediaRadius }"
                 >
                   <img
                     v-if="gif.previewUrl"
@@ -167,11 +176,9 @@
                 <!-- Text/file bubble -->
                 <div
                   v-if="!hasOnlyImages"
-                  class="flex flex-col px-3 py-2 text-foreground text-sm leading-[1.45] break-words whitespace-pre-wrap bg-muted max-w-[520px] min-w-[120px]"
-                  :class="[
-                    bubbleRadius,
-                    imageAttachments.length ? '!rounded-t-none' : '',
-                  ]"
+                  class="flex flex-col px-[var(--chat-bubble-px,0.75rem)] py-[var(--chat-bubble-py,0.5rem)] text-foreground text-sm leading-[1.45] break-words whitespace-pre-wrap max-w-[520px] min-w-[120px]"
+                  :class="bubbleBg"
+                  :style="{ borderRadius: bubbleRadius }"
                 >
                   <ReplyPreview
                     v-if="replyMessage"
@@ -228,7 +235,8 @@
               <!-- Failed state border -->
               <div
                 v-if="isFailed"
-                class="absolute inset-0 rounded-2xl border border-destructive/30 pointer-events-none"
+                class="absolute inset-0 border border-destructive/30 pointer-events-none"
+                :style="{ borderRadius: bubbleRadius }"
               />
 
               <!-- ── Bot controls ── -->
@@ -242,7 +250,7 @@
             </div>
           </ContextMenuTrigger>
 
-          <!-- ── Hover action bar (rendered outside bubble flow via Teleport to avoid z-index / overflow issues) ── -->
+          <!-- ── Hover action bar (Teleport to body to escape z-index / overflow) ── -->
           <Teleport to="body">
             <Transition
               enter-active-class="transition duration-100 ease-out"
@@ -357,7 +365,7 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
-import { useMessageContent, fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
+import { fragmentMessageText, useMessageContent, type IFrag } from "@/composables/useMessageContent";
 import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment, type MessageEntityGif } from "@argon/glue";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
@@ -384,7 +392,7 @@ import {
 } from "@argon/ui/context-menu";
 import {
   CopyIcon, ReplyIcon, AlertCircleIcon,
-  Loader2Icon, RefreshCwIcon, SmilePlusIcon, FlagIcon,
+  Loader2Icon, SmilePlusIcon, FlagIcon,
 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 
@@ -404,9 +412,6 @@ function tsFormat(): string {
   return _tsFmt;
 }
 
-// ── Emoji-only detection (via emojix) ──
-// No separate regex instance needed
-
 // ── Inline reply preview component ──
 const ReplyPreview = defineComponent({
   name: "ReplyPreview",
@@ -424,7 +429,7 @@ const ReplyPreview = defineComponent({
         "div",
         {
           class:
-            "flex items-stretch mb-1.5 rounded overflow-hidden cursor-pointer bg-foreground/[0.04] text-[13px] transition-colors hover:bg-foreground/[0.08]",
+            "flex items-stretch mb-1.5 rounded overflow-hidden cursor-pointer bg-foreground/[0.04] text-[13px] transition-colors hover:bg-foreground/[0.08] w-full",
         },
         [
           h("div", { class: "w-[3px] shrink-0 rounded-l-sm", style: { backgroundColor: color.value } }),
@@ -458,6 +463,8 @@ const props = defineProps<{
   isGrouped?: boolean;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  /** DM two-sided layout: own messages render on the right. */
+  twoSided?: boolean;
   canReact?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
 }>();
@@ -483,6 +490,9 @@ const reportTarget = ref({
   messageId: null as bigint | null,
 });
 
+// ── Layout side (channels: always left; DMs: own messages right) ──
+const isRight = computed(() => !!props.twoSided && isOwnMessage.value);
+
 // ── Hover actions (JS-based with debounced leave) ──
 const isHovered = ref(false);
 let _hoverTimer: ReturnType<typeof setTimeout> | undefined;
@@ -491,14 +501,15 @@ let _scrollParent: HTMLElement | null = null;
 
 const showActions = computed(() => isHovered.value || reactionPickerOpen.value);
 
-// Position the action bar above the bubble using getBoundingClientRect
-const actionBarPos = ref<{ top: number; left: number } | null>(null);
+// Position the action bar next to the bubble using getBoundingClientRect.
+const actionBarPos = ref<{ top: number; x: number; place: "left" | "right" } | null>(null);
 
 const actionBarStyle = computed(() => {
   if (!actionBarPos.value) return {};
   return {
     top: actionBarPos.value.top + 'px',
-    left: actionBarPos.value.left + 'px',
+    left: actionBarPos.value.x + 'px',
+    transform: actionBarPos.value.place === 'left' ? 'translateX(-100%)' : 'none',
     zIndex: '9999',
   };
 });
@@ -506,10 +517,9 @@ const actionBarStyle = computed(() => {
 function recalcPos() {
   if (!_hoveredEl) return;
   const rect = _hoveredEl.getBoundingClientRect();
-  actionBarPos.value = {
-    top: rect.top,
-    left: rect.right + 8,
-  };
+  actionBarPos.value = isRight.value
+    ? { top: rect.top, x: rect.left - 8, place: 'left' }
+    : { top: rect.top, x: rect.right + 8, place: 'right' };
 }
 
 function onScroll() {
@@ -535,7 +545,6 @@ function onMouseEnter(e: MouseEvent) {
   if (el?.classList?.contains('msg-bubble-wrap')) {
     _hoveredEl = el;
     recalcPos();
-    // Attach scroll listener to nearest scrollable ancestor
     if (!_scrollParent) {
       _scrollParent = findScrollParent(el);
       _scrollParent?.addEventListener('scroll', onScroll, { passive: true });
@@ -565,7 +574,7 @@ const userColor = computed(() => userColors.getColorByUserId(props.message.sende
 
 const { isSystemMessage, systemMessageText } = useMessageContent(() => props.message);
 
-// Reactive fragments — recalculates when text/entities change (fixes the stale-text bug)
+// Reactive fragments — recalculates when text/entities change.
 const fragments = computed<IFrag[]>(() =>
   fragmentMessageText(props.message.text, props.message.entities),
 );
@@ -615,6 +624,8 @@ const hasOnlyImages = computed(
     !props.message.text?.trim(),
 );
 
+const hasMediaAbove = computed(() => imageAttachments.value.length > 0 || gifEntities.value.length > 0);
+
 // ── Emoji-only detection ──
 
 const isSingleEmoji = computed(() => {
@@ -638,16 +649,39 @@ const failedError = computed(() => props.message._error);
 const hasControls = computed(() => (props.message.controls ?? []).length > 0);
 const hasReactions = computed(() => (props.message.reactions ?? []).length > 0);
 
-// ── Bubble radius (top-left is the "tail" side) ──
+// ── Bubble look (tail bubbles) ──
+// Soft corners away from the avatar; a small "tail" corner on the avatar side.
+
+const RAD = "var(--chat-bubble-radius, 1rem)";
+const TAIL = "var(--chat-bubble-tail, 7px)";
+
+const bubbleBg = computed(() => (isRight.value ? "bg-primary/15" : "bg-muted"));
+
+/** Build a `border-radius` shorthand mapping inner=avatar-side, outer=far-side. */
+function radiusShorthand(innerTop: string, outerTop: string, innerBot: string, outerBot: string) {
+  // border-radius: top-left top-right bottom-right bottom-left
+  return isRight.value
+    ? `${outerTop} ${innerTop} ${innerBot} ${outerBot}`
+    : `${innerTop} ${outerTop} ${outerBot} ${innerBot}`;
+}
 
 const bubbleRadius = computed(() => {
-  const first = props.isFirstInGroup;
-  const last = props.isLastInGroup;
-  // tail: rounded-tl-sm, everything else: rounded-*-2xl
-  if (first && last) return "rounded-tl-sm rounded-tr-2xl rounded-br-2xl rounded-bl-2xl";
-  if (first) return "rounded-tl-sm rounded-tr-2xl rounded-br-sm rounded-bl-sm";
-  if (last) return "rounded-tl-sm rounded-tr-2xl rounded-br-2xl rounded-bl-2xl";
-  return "rounded-tl-sm rounded-tr-2xl rounded-br-sm rounded-bl-sm";
+  const last = props.isLastInGroup ?? true;
+  const innerTop = hasMediaAbove.value ? "0px" : TAIL;
+  const outerTop = hasMediaAbove.value ? "0px" : RAD;
+  const innerBot = last ? RAD : TAIL;
+  const outerBot = RAD;
+  return radiusShorthand(innerTop, outerTop, innerBot, outerBot);
+});
+
+const mediaRadius = computed(() => {
+  const last = props.isLastInGroup ?? true;
+  const onlyMedia = hasOnlyImages.value;
+  const innerTop = TAIL;
+  const outerTop = RAD;
+  const innerBot = onlyMedia ? (last ? RAD : TAIL) : "0px";
+  const outerBot = onlyMedia ? RAD : "0px";
+  return radiusShorthand(innerTop, outerTop, innerBot, outerBot);
 });
 
 // ── Media max-width (derived from CSS var) ──
