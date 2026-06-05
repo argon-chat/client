@@ -30,7 +30,7 @@ const root = resolve(import.meta.dir, "..");
 const gamesDir = resolve(root, "games");
 
 // Each game = a folder under client/games/ with `main.ts` + `index.html`.
-const GAMES = ["pong", "snake"] as const;
+const GAMES = ["pong", "snake", "battleship"] as const;
 
 const isWatch = process.argv.includes("--watch");
 const PLACEHOLDER = "<!--PLAYFRAME_BUNDLE-->";

@@ -54,6 +54,19 @@ export function persisted<T>(id: string, initial_value: T): PersistedRef<T> {
   };
 }
 
+// One-shot, non-reactive read of a value written by persistedValue().
+// Always reflects the latest persisted state (persistedValue writes through to
+// localStorage on every change), so it's safe to call from non-Vue contexts.
+export function readPersistedValue<T>(key: string, defaultValue: T): T {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return defaultValue;
+  try {
+    return superjson.parse(raw) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 export function persistedValue<T extends object | string | number | boolean>(
   key: string,
   defaultValue: T extends number

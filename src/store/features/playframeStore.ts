@@ -79,7 +79,20 @@ const MOCK_GAMES: GameManifest[] = [
     maxPlayers: 1,
     minPlayers: 1,
     permissions: ["keyboard"],
-  },
+  }
+  /*,
+  {
+    id: "battleship",
+    version: "1.0.0",
+    title: "Sea Battle",
+    description: "Turn-based naval combat — sink the enemy fleet",
+    developer: "Argon Games",
+    url: "/games/battleship/index.html",
+    thumbnail: "/games/battleship/thumbnail.png",
+    maxPlayers: 2,
+    minPlayers: 1,
+    permissions: ["keyboard", "audio", "networking"],
+  },*/
 ];
 
 // ============================================================================

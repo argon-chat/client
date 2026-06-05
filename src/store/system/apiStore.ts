@@ -4,6 +4,7 @@ import { useConfig } from "@/store/system/remoteConfig";
 import { createClient } from "@argon/glue";
 import { IonCallContext, IonInterceptor } from "@argon-chat/ion.webcore";
 import { useAuthStore } from "@/store/auth/authStore";
+import { readPersistedValue } from "@argon/storage";
 import { v7 } from "uuid";
 
 export function lazy<T>(getter: () => T): ComputedRef<T> {
@@ -40,12 +41,28 @@ class AuthInterceptor implements IonInterceptor {
   }
 }
 
+// Threads the user's current app locale into every request so the backend (and bots)
+// know which language to use. Read fresh per request so language switches take effect live.
+class LocaleInterceptor implements IonInterceptor {
+  async invokeAsync(
+    ctx: IonCallContext,
+    next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    ctx.requestHeaders = {
+      ...ctx.requestHeaders,
+      "x-argon-locale": readPersistedValue<string>("locale", "en"),
+    };
+    await next(ctx, signal);
+  }
+}
+
 export const useApi = defineStore("api", () => {
   const cfg = useConfig();
   const authLazy = lazy(() => useAuthStore());
 
   const rpcClient = computed(() =>
-    createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy)])
+    createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy), new LocaleInterceptor()])
   );
 
   const apiEndpoint = computed(() => cfg.apiEndpoint);

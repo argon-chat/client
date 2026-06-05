@@ -297,7 +297,7 @@ function scaleBallSpeeds(mult: number): void {
 
 /** A ball owned by a player overlapped a power-up → apply its effect. */
 function collectPower(b: SimBall, pu: SimPower, spawnQueue: SimBall[]): void {
-  const side = b.o; // 1 or 2 (guaranteed by caller)
+  const side = b.o as 1 | 2; // 1 or 2 (guaranteed by caller)
   switch (pu.k) {
     case "life":
       if (side === 1) sim.life1++;
