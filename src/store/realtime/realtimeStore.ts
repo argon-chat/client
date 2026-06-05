@@ -114,6 +114,18 @@ export const useRealtimeStore = defineStore("realtime", () => {
   };
 
   /**
+   * Refresh the cached user data (avatar/name/username) for a user across every channel
+   * they're sitting in. The voice list renders from this snapshot, so without this it keeps
+   * showing the old avatar after a UserUpdated event (other lists read reactive DB rows).
+   */
+  const updateUserData = (userId: Guid, user: Partial<RealtimeUser>) => {
+    for (const channel of realtimeChannels.values()) {
+      const existing = channel.Users.get(userId);
+      if (existing) Object.assign(existing.User, user);
+    }
+  };
+
+  /**
    * Set user property in channel
    */
   const setUserProperty = (
@@ -269,6 +281,7 @@ export const useRealtimeStore = defineStore("realtime", () => {
     getRealtimeChannel,
     addUserToChannel,
     removeUserFromChannel,
+    updateUserData,
     setUserProperty,
     setUserPropertyQuery,
     setUserSpeaking,

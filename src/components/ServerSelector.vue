@@ -7,21 +7,6 @@
         @dragover.prevent="onDragOverUncategorized"
         @drop="onDropToUncategorized"
       >
-        <!-- Home -->
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <div class="rail-slot group" :class="{ 'is-active': model == null }">
-              <span class="rail-indicator" />
-              <button class="rail-icon-btn rail-home" :class="{ 'is-active': model == null }" @click="goHome">
-                <IconHome class="w-4 h-4" />
-              </button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right" :side-offset="12" class="font-medium">{{ t('dashboard') }}</TooltipContent>
-        </Tooltip>
-
-        <Separator class="rail-sep" />
-
         <!-- Pinned -->
         <template v-if="pinnedServers.length > 0">
           <ServerRailIcon
@@ -174,7 +159,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon
 import ArgonAvatar from "./ArgonAvatar.vue"
 import ServerRailIcon from "./ServerRailIcon.vue"
 import { Plus, Flag } from "lucide-vue-next"
-import { IconPin, IconPinFilled, IconHome } from '@tabler/icons-vue'
+import { IconPin, IconPinFilled } from '@tabler/icons-vue'
 import { ArgonSpaceBase, ReportTargetKind } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
 import { useLocale } from "@/store/system/localeStore"
@@ -271,8 +256,6 @@ const select = (id: string) => {
     if (space) addRecentSpace(space);
     emit("select", id);
 };
-
-const goHome = () => emit("home");
 
 const initials = (name: string) =>
     name.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('');

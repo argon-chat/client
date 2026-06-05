@@ -229,6 +229,12 @@ export const useEventStore = defineStore("events", () => {
 
     bus.onServerEvent<UserUpdated>("UserUpdated", (x) => {
       userStore.trackUser(x.dto);
+      // Keep the voice-channel member snapshots in sync — they don't read from the DB.
+      realtimeStore.updateUserData(x.dto.userId, {
+        avatarFileId: x.dto.avatarFileId,
+        displayName: x.dto.displayName,
+        username: x.dto.username,
+      });
       if (x.dto.userId === me.me?.userId) {
         me.me.avatarFileId = x.dto.avatarFileId;
         me.me.displayName = x.dto.displayName;
