@@ -41,6 +41,14 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: "hidden",
+      rollupOptions: {
+        input: {
+          // Main app shell.
+          main: path.resolve(__dirname, "index.html"),
+          // Lean in-game overlay window (offscreen WebGPU renderer only).
+          overlay: path.resolve(__dirname, "overlay.html"),
+        },
+      },
     },
     css: {
       postcss: {

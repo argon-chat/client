@@ -16,6 +16,7 @@ import PlayFrameOverlay from "./components/playframe/PlayFrameOverlay.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
 import { useTheme } from "@/composables/useTheme";
+import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { logger } from "@argon/core";
 import { useSystemStore } from "./store";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
@@ -29,6 +30,9 @@ const showDiagnostics = ref(false);
 
 const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
+
+// Stream voice-channel state to the native in-game overlay (Electron only; no-op otherwise).
+useOverlayPublisher();
 
 
 

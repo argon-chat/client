@@ -82,16 +82,7 @@
                         :diagnostics="diagnostics"
                     />
                     
-                    <FrameCapture
-                        :renderer="renderer"
-                        :isRunning="isRunning"
-                    />
-                    
-                    <NativeBridge
-                        ref="nativeBridgeRef"
-                        :renderer="renderer"
-                        :isRunning="isRunning"
-                    />
+                    <OverlayNativeControls :members="voiceMembers" />
                 </div>
             </div>
         </div>
@@ -105,14 +96,14 @@ import { useRealtimeStore } from '@/store/realtime/realtimeStore'
 import { useUserColors } from '@/store/chat/userColors'
 import { useSystemStore } from '@/store/system/systemStore'
 import { useMe } from '@/store/auth/meStore'
+import { cdnUrl } from '@/store/system/fileStorage'
 import { OverlayRenderer, VoiceMembersWidget, type VoiceMember, type CanvasSizeMode, type OverlayDiagnostics, type IOverlayRenderer, type WidgetAnchor } from '@/lib/overlay'
 
 // Components
 import VoiceMembersList from './VoiceMembersList.vue'
 import OverlayControls from './OverlayControls.vue'
 import OverlayDiagnosticsView from './OverlayDiagnostics.vue'
-import FrameCapture from './FrameCapture.vue'
-import NativeBridge from './NativeBridge.vue'
+import OverlayNativeControls from './OverlayNativeControls.vue'
 
 // Stores
 const voice = useUnifiedCall()
@@ -124,7 +115,6 @@ const me = useMe()
 // Refs
 const canvasContainer = ref<HTMLDivElement | null>(null)
 const overlayCanvas = ref<HTMLCanvasElement | null>(null)
-const nativeBridgeRef = ref<InstanceType<typeof NativeBridge> | null>(null)
 
 // State
 const isRunning = ref(false)
@@ -141,9 +131,9 @@ const customHeight = ref(1080)
 const actualCanvasSize = ref({ width: 0, height: 0 })
 
 // Overlay display options
-const globalOpacity = ref(1.0)
-const showWidgetBackground = ref(true)
-const showMemberCards = ref(true)
+const globalOpacity = ref(0.45)
+const showWidgetBackground = ref(false)
+const showMemberCards = ref(false)
 const screenPadding = ref(20)
 const widgetPadding = ref(12)
 const memberSpacing = ref(6)
@@ -274,7 +264,7 @@ const voiceMembers = computed<VoiceMember[]>(() => {
                 members.push({
                     userId,
                     displayName: user.User?.displayName ?? 'Unknown',
-                    avatarUrl: user.User?.avatarFileId ?? null,
+                    avatarUrl: user.User?.avatarFileId ? cdnUrl(user.User.avatarFileId) : null,
                     avatarColor: userColors.getColorByUserId(userId),
                     isSpeaking,
                     isMuted,
@@ -337,6 +327,24 @@ watch(testMembers, () => {
         voiceMembersWidget.setMembers(voiceMembers.value)
     }
 }, { deep: true })
+
+// Forward widget display params (opacity/padding/anchor/…) to the native overlay window.
+watch(
+    [globalOpacity, showWidgetBackground, showMemberCards, screenPadding, widgetPadding, memberSpacing, widgetAnchor],
+    () => {
+        const bridge = (window as any).argonOverlay
+        bridge?.publishWidgetConfig?.({
+            globalOpacity: globalOpacity.value,
+            showWidgetBackground: showWidgetBackground.value,
+            showMemberCards: showMemberCards.value,
+            screenPadding: screenPadding.value,
+            widgetPadding: widgetPadding.value,
+            memberSpacing: memberSpacing.value,
+            widgetAnchor: widgetAnchor.value,
+        })
+    },
+    { immediate: true }
+)
 
 function handleResize() {
     if (!canvasContainer.value || !overlayCanvas.value || !rendererInstance) return
@@ -406,8 +414,7 @@ async function startOverlay() {
 
 function stopOverlay() {
     stopDiagnostics()
-    nativeBridgeRef.value?.stop()
-    
+
     if (rendererInstance) {
         rendererInstance.stop()
         rendererInstance.dispose()

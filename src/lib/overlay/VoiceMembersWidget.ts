@@ -364,40 +364,39 @@ export class VoiceMembersWidget extends BaseWidget {
         var texColor = textureSample(texData, texSampler, input.uv);
         var color = texColor * input.color;
         
-        // Avatar circle mask + glow
+        // Avatar circle mask + speaking ring. Everything is kept INSIDE the quad
+        // (max radius 0.5) so the ring/glow never gets clipped at the quad edges —
+        // that clipping was what made the highlighted avatar look "cut at the corners".
         if (input.extra.y > 0.5) {
           let center = vec2f(0.5, 0.5);
           let dist = distance(input.uv, center);
-          let radius = 0.46;
-          let smoothEdge = 0.04;
-          let circleMask = 1.0 - smoothstep(radius - smoothEdge, radius, dist);
-          
-          // Speaking glow ring
+
+          // Avatar disc — leave a little room for the ring within the quad.
+          let avatarRadius = 0.44;
+          let circleMask = 1.0 - smoothstep(avatarRadius - 0.012, avatarRadius + 0.012, dist);
+          var outColor = vec4f(color.rgb, color.a * circleMask);
+
           let glowIntensity = input.extra.x;
-          if (glowIntensity > 0.0) {
-            let pulse = sin(uniforms.time * 4.0) * 0.15 + 0.85;
-            let glowColor = vec3f(0.52, 1.0, 0.35);
-            
-            // Inner ring glow
-            let ringWidth = 0.08;
-            let ringCenter = radius + ringWidth * 0.5;
-            let ringDist = abs(dist - ringCenter);
-            let ringGlow = (1.0 - smoothstep(0.0, ringWidth, ringDist)) * glowIntensity * pulse;
-            
-            // Outer glow halo
-            let outerGlow = (1.0 - smoothstep(radius, radius + 0.25, dist)) * glowIntensity * pulse * 0.4;
-            
-            // Combine
-            let glowAlpha = max(ringGlow * 0.8, outerGlow * 0.5);
-            color = vec4f(
-              mix(color.rgb, glowColor, ringGlow * 0.5) + glowColor * outerGlow,
-              max(color.a * circleMask, glowAlpha)
+          if (glowIntensity > 0.001) {
+            let ringColor = vec3f(0.33, 0.86, 0.45); // calm green
+
+            // Clean ring hugging the avatar edge, fully inside the quad.
+            let ringMid = 0.47;
+            let ringHalf = 0.026;
+            let ring = (1.0 - smoothstep(0.0, ringHalf, abs(dist - ringMid))) * glowIntensity;
+
+            // Soft halo that fades to zero exactly at the quad edge (0.5) → no clip.
+            let outerGlow = (1.0 - smoothstep(ringMid, 0.5, dist)) * glowIntensity * 0.22;
+
+            outColor = vec4f(
+              mix(outColor.rgb, ringColor, clamp(ring, 0.0, 1.0)) + ringColor * outerGlow * 0.6,
+              max(outColor.a, max(ring, outerGlow))
             );
-          } else {
-            color = vec4f(color.rgb, color.a * circleMask);
           }
+
+          return outColor;
         }
-        
+
         return color;
       }
     `;
@@ -819,13 +818,15 @@ export class VoiceMembersWidget extends BaseWidget {
   // ==================== Widget Lifecycle ====================
 
   update(deltaTime: number): void {
-    const lerpSpeed = 8;
-
+    // Smooth speaking glow: ease toward the target so it fades in/out instead of
+    // snapping. The transition settles within the render kick window, then holds.
+    const lerpSpeed = 12;
+    const dt = Math.min(deltaTime, 0.05); // clamp to avoid jumps after a stall
     for (const anim of this.animations.values()) {
       const diff = anim.targetGlow - anim.speakingGlow;
-      if (Math.abs(diff) > 0.01) {
-        anim.speakingGlow += diff * Math.min(deltaTime * lerpSpeed, 1);
-      } else if (anim.speakingGlow !== anim.targetGlow) {
+      if (Math.abs(diff) > 0.001) {
+        anim.speakingGlow += diff * Math.min(dt * lerpSpeed, 1);
+      } else {
         anim.speakingGlow = anim.targetGlow;
       }
     }

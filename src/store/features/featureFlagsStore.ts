@@ -20,6 +20,7 @@ export const FeatureFlagKeys = {
   BOOSTS_ACTIVE: "af.boosts.active",
   SPLIT_VIEW_ACTIVE: "af.split-view.active",
   UI_DENSITY_ACTIVE: "af.ui-density.active",
+  OVERLAY_GAMES_ENABLED: "af.overlay.games.enabled",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -43,6 +44,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.BOOSTS_ACTIVE]: false,
     [FeatureFlagKeys.SPLIT_VIEW_ACTIVE]: false,
     [FeatureFlagKeys.UI_DENSITY_ACTIVE]: false,
+    [FeatureFlagKeys.OVERLAY_GAMES_ENABLED]: false,
   });
 
   const isLoaded = ref(false);
@@ -94,6 +96,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const boostsActive = computed(() => flags.value[FeatureFlagKeys.BOOSTS_ACTIVE]);
   const splitViewActive = computed(() => flags.value[FeatureFlagKeys.SPLIT_VIEW_ACTIVE]);
   const uiDensityActive = computed(() => flags.value[FeatureFlagKeys.UI_DENSITY_ACTIVE]);
+  const overlayGamesEnabled = computed(() => flags.value[FeatureFlagKeys.OVERLAY_GAMES_ENABLED]);
 
   return {
     flags,
@@ -115,5 +118,6 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     boostsActive,
     splitViewActive,
     uiDensityActive,
+    overlayGamesEnabled,
   };
 });
