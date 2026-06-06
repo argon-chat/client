@@ -5,13 +5,14 @@
         :style="customStyle"
         @click="$emit('click', userId)">
         
-        <video 
-            v-if="hasVideo" 
-            :ref="(el) => $emit('video-ref', el, userId, videoSource)" 
-            autoplay 
-            playsinline 
-            muted 
-            class="participant-video" />
+        <video
+            v-if="hasVideo"
+            :ref="(el) => $emit('video-ref', el, userId, videoSource)"
+            autoplay
+            playsinline
+            muted
+            class="participant-video"
+            :style="{ objectFit: videoFit }" />
 
         <ArgonAvatar 
             v-else 
@@ -72,6 +73,7 @@ interface Props {
     iconPosition?: string;
     centered?: boolean;
     videoSource?: string;
+    videoFit?: "cover" | "contain";
 }
 
 withDefaults(defineProps<Props>(), {
@@ -88,6 +90,7 @@ withDefaults(defineProps<Props>(), {
     iconPosition: 'top-2 right-2',
     centered: true,
     videoSource: 'camera',
+    videoFit: 'cover',
 });
 
 defineEmits<{
@@ -99,7 +102,7 @@ defineEmits<{
 <style scoped>
 .participant-card {
     position: relative;
-    border-radius: 12px;
+    border-radius: var(--radius);
     overflow: hidden;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);

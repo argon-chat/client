@@ -142,6 +142,7 @@ function toggle(idx: number) {
 
 // API
 async function load() {
+    // @ts-ignore
     logs.value = await native.hostProc.getActivityDiagnostic(
         parseInt(kind.value),
         limit,

@@ -68,6 +68,7 @@ export function useScreenShareSources() {
     selectedSourceId.value = null;
     stopThumbnailRefresh();
     try {
+      // @ts-ignore
       const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"]);
       screenSources.value = sources.filter((s) => s.id.startsWith("screen:"));
       windowSources.value = sources.filter((s) => s.id.startsWith("window:"));

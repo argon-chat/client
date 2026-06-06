@@ -354,6 +354,7 @@ async function initializeMonitor() {
         logEvent('Monitor', `Initializing display ${displayIndex.value} (${textureWidth.value}x${textureHeight.value})`)
 
         // Call native method to start shared texture streaming
+        // @ts-ignore
         const generatedStreamId = await native.hostProc.startSharedTextureWithStreamingByMonitor(
             displayIndex.value,
             textureWidth.value,

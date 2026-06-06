@@ -19,17 +19,61 @@
 
             <div class="ctrl-divider" />
 
-            <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
-                <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px]" />
-                <ScreenShare v-else class="w-[18px] h-[18px]" />
+            <!-- Screen share + (while sharing) target switch -->
+            <div class="ctrl-split">
+                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
+                    <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px]" />
+                    <ScreenShare v-else class="w-[18px] h-[18px]" />
+                </button>
+                <button class="ctrl-chevron" :title="t('switch_monitor')" :disabled="!isConnected" @click="openSharePicker">
+                    <ChevronUp class="w-3 h-3" />
+                </button>
+            </div>
+
+            <!-- System / desktop audio toggle -->
+            <button
+                class="ctrl-btn"
+                :class="{ 'ctrl-btn--active': voice.systemAudioEnabled }"
+                :title="t('system_audio')"
+                @click="voice.toggleSystemAudio()"
+                :disabled="!isConnected">
+                <Volume2 v-if="voice.systemAudioEnabled" class="w-[18px] h-[18px]" />
+                <VolumeX v-else class="w-[18px] h-[18px]" />
             </button>
 
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
-            <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
-                <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px]" />
-                <CameraIcon v-else class="w-[18px] h-[18px]" />
-            </button>
+            <!-- Camera + device switch -->
+            <div class="ctrl-split">
+                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
+                    <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px]" />
+                    <CameraIcon v-else class="w-[18px] h-[18px]" />
+                </button>
+                <Popover v-model:open="camMenuOpen">
+                    <PopoverTrigger as-child>
+                        <button class="ctrl-chevron" :title="t('switch_camera')" :disabled="!isConnected">
+                            <ChevronUp class="w-3 h-3" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="end" class="ctrl-popover">
+                        <div class="ctrl-popover-title">{{ t('camera') }}</div>
+                        <div v-if="cams.length === 0" class="device-row device-row--empty">
+                            {{ t('no_cameras_found') }}
+                        </div>
+                        <button
+                            v-for="d in cams"
+                            :key="d.deviceId"
+                            class="device-row"
+                            :class="{ active: d.deviceId === activeCamId }"
+                            :disabled="switching"
+                            @click="pickCam(d.deviceId)">
+                            <CameraIcon class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">{{ d.label || t('camera') }}</span>
+                            <Check v-if="d.deviceId === activeCamId" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
+                    </PopoverContent>
+                </Popover>
+            </div>
 
             <button v-if="showPlayframe" class="ctrl-btn" :class="{ 'ctrl-btn--active': activity.isActive }" @click="activity.openPicker()" :disabled="!isConnected">
                 <Gamepad2 class="w-[18px] h-[18px]" />
@@ -39,20 +83,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed, watch } from "vue";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
+import { usePreference } from "@/store/ui/preferenceStore";
+import { useLocale } from "@/store/system/localeStore";
+import { audio } from "@/lib/audio/AudioManager";
 import ScreenSharePicker from "./ScreenSharePicker.vue";
+import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
+    ChevronUp, Check, Volume2, VolumeX,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
 const sys = useSystemStore();
 const activity = usePlayFrameActivity();
+const pref = usePreference();
+const { t } = useLocale();
 
 defineProps<{
     isConnected: boolean;
@@ -66,11 +117,15 @@ defineEmits<{
 
 const sharePicker = ref<InstanceType<typeof ScreenSharePicker> | null>(null);
 
+const openSharePicker = () => {
+    if (sharePicker.value) sharePicker.value.open = true;
+};
+
 const toggleScreenCast = () => {
     if (voice.isSharing) {
         voice.stopScreenShare();
-    } else if (sharePicker.value) {
-        sharePicker.value.open = true;
+    } else {
+        openSharePicker();
     }
 };
 
@@ -82,11 +137,34 @@ async function goShare(opts: {
     frameRate: number;
     maxBitrate: number;
 }) {
+    // Picker is also used to switch the source mid-share → swap, don't re-prompt-toggle.
     if (voice.isSharing) {
-        await voice.stopScreenShare();
-        return;
+        await voice.switchScreenShare(opts);
+    } else {
+        await voice.startScreenShare(opts);
     }
-    await voice.startScreenShare(opts);
+}
+
+// --- Camera device switcher ---
+const cams = ref<MediaDeviceInfo[]>([]);
+const camMenuOpen = ref(false);
+const switching = ref(false);
+const activeCamId = computed(() => pref.defaultVideoDevice);
+
+watch(camMenuOpen, async (open) => {
+    // Enumerate lazily on open — labels populate after camera permission is granted once.
+    if (open) cams.value = await audio.enumerateDevicesByKind("videoinput");
+});
+
+async function pickCam(deviceId: string) {
+    if (switching.value) return;
+    switching.value = true;
+    camMenuOpen.value = false;
+    try {
+        await voice.switchCamera(deviceId);
+    } finally {
+        switching.value = false;
+    }
 }
 </script>
 
@@ -154,6 +232,105 @@ async function goShare(opts: {
 
 .ctrl-btn:disabled:hover {
     background: transparent;
+}
+
+/* Split control: primary button + flush chevron sub-button */
+.ctrl-split {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.ctrl-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 38px;
+    border: none;
+    background: transparent;
+    color: hsl(var(--foreground) / 0.55);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.ctrl-chevron:hover {
+    background: hsl(var(--foreground) / 0.08);
+    color: hsl(var(--foreground));
+}
+
+.ctrl-chevron:disabled {
+    color: hsl(var(--muted-foreground) / 0.35);
+    cursor: not-allowed;
+}
+
+.ctrl-chevron:disabled:hover {
+    background: transparent;
+}
+
+/* Device popover */
+.ctrl-popover {
+    width: auto;
+    min-width: 220px;
+    max-width: 300px;
+    padding: 6px;
+    border-radius: var(--radius);
+}
+
+.ctrl-popover-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    padding: 4px 8px 6px;
+}
+
+.device-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border-radius: calc(var(--radius) - 4px);
+    font-size: 12px;
+    color: hsl(var(--foreground) / 0.85);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    text-align: left;
+}
+
+.device-row:hover {
+    background: hsl(var(--foreground) / 0.08);
+    color: hsl(var(--foreground));
+}
+
+.device-row.active {
+    color: hsl(var(--foreground));
+    background: hsl(var(--primary) / 0.12);
+}
+
+.device-row:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.device-row--empty {
+    color: hsl(var(--muted-foreground));
+    cursor: default;
+}
+
+.device-row--empty:hover {
+    background: transparent;
+}
+
+.device-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Controls reveal transition */

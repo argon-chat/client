@@ -38,7 +38,7 @@
                     </div>
                 </div>
 
-                <div class="flex flex-row gap-2 overflow-x-auto w-full shrink-0" style="max-height: 8rem;">
+                <div ref="activityStripArea" class="flex flex-row gap-2 overflow-x-auto overflow-y-hidden w-full shrink-0" style="height: 6.5rem;">
                     <ParticipantCard
                         v-for="[userId, user] in allUsers"
                         :key="userId"
@@ -54,7 +54,7 @@
                         :avatar-size="60"
                         :icon-size="16"
                         class-name="flex-shrink-0"
-                        :custom-style="{ width: '10rem', height: '6rem' }"
+                        :custom-style="tileStyle(activityStrip)"
                         name-class="text-xs"
                         icon-position="top-1 right-1"
                         @video-ref="setVideoRef" />
@@ -73,25 +73,27 @@
             <!-- Normal Voice Channel View -->
             <Transition v-else name="stream-layout" mode="out-in">
                 <!-- Stream Mode: Main video + horizontal thumbnails -->
-                <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0 items-center justify-center">
-                    <ParticipantCard
-                        :user-id="mainStreamer.User.userId"
-                        :display-name="mainStreamer.User.displayName"
-                        :is-speaking="isSpeaking(mainStreamer.User.userId)"
-                        :is-muted="isMuted(mainStreamer.User.userId)"
-                        :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
-                        :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
-                        :has-video="hasVideo(mainStreamer.User.userId)"
-                        :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
-                        :avatar-size="180"
-                        class="flex-1 min-h-0"
-                        :custom-style="{ maxWidth: '100%', width: '100%' }"
-                        name-class="text-base"
-                        :centered="false"
-                        icon-position="top-2 left-2"
-                        @video-ref="setVideoRef" />
+                <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0">
+                    <div ref="mainArea" class="flex-1 min-h-0 w-full flex items-center justify-center">
+                        <ParticipantCard
+                            :user-id="mainStreamer.User.userId"
+                            :display-name="mainStreamer.User.displayName"
+                            :is-speaking="isSpeaking(mainStreamer.User.userId)"
+                            :is-muted="isMuted(mainStreamer.User.userId)"
+                            :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
+                            :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
+                            :has-video="hasVideo(mainStreamer.User.userId)"
+                            :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
+                            :avatar-size="180"
+                            :custom-style="tileStyle(mainTile)"
+                            name-class="text-base"
+                            :centered="false"
+                            video-fit="contain"
+                            icon-position="top-2 left-2"
+                            @video-ref="setVideoRef" />
+                    </div>
 
-                    <div class="flex flex-row gap-3 overflow-x-auto w-full" style="max-height: 10rem;">
+                    <div v-if="stripCount > 0" ref="stripArea" class="flex flex-row gap-3 overflow-x-auto overflow-y-hidden w-full shrink-0" style="height: clamp(6rem, 18%, 11rem);">
                         <ParticipantCard
                             v-for="[userId, user] in otherUsers"
                             :key="userId"
@@ -106,7 +108,7 @@
                             :avatar-size="90"
                             :icon-size="18"
                             class-name="flex-shrink-0"
-                            :custom-style="{ width: '15rem', height: '8.5rem' }"
+                            :custom-style="tileStyle(strip)"
                             name-class="text-xs"
                             icon-position="top-1 right-1"
                             @click="toggleFocus"
@@ -116,63 +118,34 @@
                             :key="a.sessionId"
                             :presence="a"
                             class-name="flex-shrink-0"
-                            :custom-style="{ width: '15rem', height: '8.5rem' }" />
+                            :custom-style="tileStyle(strip)" />
                     </div>
                 </div>
 
-                <!-- Grid Mode: All users in grid or vertical layout -->
-                <div v-else key="grid-mode" class="flex-1 flex items-center justify-center">
-                    <!-- 2 Tiles: Vertical Stack -->
-                    <div v-if="tileCount === 2" class="flex gap-6 items-center justify-center" style="flex-direction: column;">
-                        <ParticipantCard
-                            v-for="[userId, user] in allUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            class-name="flex-shrink-0"
-                            :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                        <ActivityCard
-                            v-for="a in activityTiles"
-                            :key="a.sessionId"
-                            :presence="a"
-                            class-name="flex-shrink-0"
-                            :custom-style="{ width: '40rem', minWidth: '40rem', aspectRatio: '16/9' }" />
-                    </div>
-
-                    <!-- Other: Grid Layout -->
-                    <div v-else class="grid gap-4 place-items-center place-content-center"
-                        style="grid-auto-rows: minmax(min-content, max-content);"
-                        :class="gridColsClass">
-                        <ParticipantCard
-                            v-for="[userId, user] in allUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            class-name="w-full"
-                            :custom-style="gridCardStyle(tileCount)"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                        <ActivityCard
-                            v-for="a in activityTiles"
-                            :key="a.sessionId"
-                            :presence="a"
-                            class-name="w-full"
-                            :custom-style="gridCardStyle(tileCount)" />
-                    </div>
+                <!-- Grid Mode: fluid 16:9 tiles that fill the area for any count -->
+                <div v-else key="grid-mode" ref="gridArea"
+                    class="flex-1 w-full min-h-0 flex flex-wrap gap-4 items-center justify-center content-center overflow-y-auto">
+                    <ParticipantCard
+                        v-for="[userId, user] in allUsers"
+                        :key="userId"
+                        :user-id="userId"
+                        :display-name="user.User.displayName"
+                        :is-speaking="isSpeaking(userId)"
+                        :is-muted="isMuted(userId)"
+                        :is-headphone-muted="isHeadphoneMuted(userId)"
+                        :has-video="hasVideo(userId)"
+                        :video-source="getPreferredSource(userId, 'camera')"
+                        :is-screen-sharing="isScreenSharing(userId)"
+                        class-name="flex-shrink-0"
+                        :custom-style="tileStyle(grid)"
+                        @click="toggleFocus"
+                        @video-ref="setVideoRef" />
+                    <ActivityCard
+                        v-for="a in activityTiles"
+                        :key="a.sessionId"
+                        :presence="a"
+                        class-name="flex-shrink-0"
+                        :custom-style="tileStyle(grid)" />
                 </div>
             </Transition>
         </div>
@@ -190,8 +163,10 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
+import { useElementSize } from "@vueuse/core";
 import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
+import { useResponsiveGrid } from "@/composables/useResponsiveGrid";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -231,7 +206,6 @@ const {
     mainStreamer,
     otherUsers,
     hasActiveStream,
-    gridCardStyle,
     isSpeaking,
     hasVideo,
     getPreferredSource,
@@ -247,13 +221,32 @@ const {
 const activityTiles = computed(() =>
     playframeActive && !activity.isActive ? activity.joinableActivities : [],
 );
-// Participant tiles + activity tiles, used for grid sizing.
-const tileCount = computed(() => allUsers.value.length + activityTiles.value.length);
-const gridColsClass = computed(() => ({
-    "grid-cols-1": tileCount.value === 1,
-    "grid-cols-2": tileCount.value >= 3 && tileCount.value <= 4,
-    "grid-cols-3": tileCount.value > 4,
-}));
+// --- Fluid tile sizing: measure each region and let the solver pick the
+// optimal column count for a 16:9 grid that fills the space without overflow. ---
+const gridArea = ref<HTMLElement | null>(null);
+const stripArea = ref<HTMLElement | null>(null);
+const mainArea = ref<HTMLElement | null>(null);
+const activityStripArea = ref<HTMLElement | null>(null);
+const { width: gW, height: gH } = useElementSize(gridArea);
+const { width: sW, height: sH } = useElementSize(stripArea);
+const { width: mW, height: mH } = useElementSize(mainArea);
+const { width: aW, height: aH } = useElementSize(activityStripArea);
+
+// Participant tiles + activity tiles drive the grid; only non-main tiles fill the strip.
+const gridCount = computed(() => allUsers.value.length + activityTiles.value.length);
+const stripCount = computed(() => otherUsers.value.length + activityTiles.value.length);
+
+const grid = useResponsiveGrid({ width: gW, height: gH, count: gridCount, gap: 16, maxTileWidth: 720, minTileWidth: 150 });
+const strip = useResponsiveGrid({ width: sW, height: sH, count: stripCount, gap: 12, singleRow: true });
+const mainTile = useResponsiveGrid({ width: mW, height: mH, count: 1 });
+const activityStrip = useResponsiveGrid({ width: aW, height: aH, count: () => allUsers.value.length, gap: 8, singleRow: true });
+
+const tileStyle = (g: { tileWidth: number; tileHeight: number }) => ({
+    width: g.tileWidth ? `${g.tileWidth}px` : undefined,
+    height: g.tileHeight ? `${g.tileHeight}px` : undefined,
+    aspectRatio: "16 / 9",
+    flex: "0 0 auto",
+});
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);

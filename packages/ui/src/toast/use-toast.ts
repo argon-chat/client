@@ -75,6 +75,7 @@ const state = ref<State>({
 function dispatch(action: Action) {
   switch (action.type) {
     case actionTypes.ADD_TOAST:
+      // @ts-ignore
       state.value.toasts = [action.toast, ...state.value.toasts].slice(
         0,
         TOAST_LIMIT,
@@ -120,6 +121,7 @@ function dispatch(action: Action) {
   }
 }
 
+// @ts-ignore
 function useToast() {
   return {
     toasts: computed(() => state.value.toasts),

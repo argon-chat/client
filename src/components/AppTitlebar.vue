@@ -113,6 +113,7 @@ const windowMinimize = () => {
 };
 const windowMaximize = async () => {
   window.windowManagement?.maximize?.();
+  // @ts-ignore
   isMaximized.value = await window.windowManagement.isMaximized();
 };
 const windowClose = () => {

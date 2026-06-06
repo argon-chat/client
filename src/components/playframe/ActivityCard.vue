@@ -45,7 +45,7 @@ const statusText = computed(() => {
 /* Shell — kept in sync with ParticipantCard.vue */
 .participant-card {
   position: relative;
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--primary) / 0.4);

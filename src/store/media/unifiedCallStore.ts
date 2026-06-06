@@ -34,6 +34,16 @@ import { useSystemStore } from "@/store/system/systemStore";
 import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
 import { usePexStore } from "@/store/data/permissionStore";
+import { usePreference } from "@/store/ui/preferenceStore";
+
+export interface ScreenShareOpts {
+  deviceId: string | null;
+  systemAudio: "include" | "exclude";
+  width?: number;
+  height?: number;
+  frameRate?: number;
+  maxBitrate?: number;
+}
 
 export const useUnifiedCall = defineStore("unifiedCall", () => {
   const api = useApi();
@@ -82,6 +92,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         screencast: boolean;
         volume: number[];
         audioGraph: RemoteAudioGraph | null;
+        /** Separate graph for the user's screen-share (desktop) audio track */
+        screenAudioGraph: RemoteAudioGraph | null;
         /** Raw PlayFrame activity presence attribute (JSON string) if running a game */
         pfActivity?: string;
       }
@@ -127,6 +139,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   const isSharing = ref(false);
   let screenTrackPub: any = null;
+  let screenAudioTrackPub: any = null;
+  // Last options used to start the active share — lets us restart the capture
+  // (e.g. to add system audio mid-share) against the same source without a re-prompt.
+  const lastShareOpts = ref<ScreenShareOpts | null>(null);
+  // Reflects whether the active (or next) share forwards system/desktop audio.
+  const systemAudioEnabled = ref(false);
 
   const isCameraOn = ref(false);
   let cameraTrackPub: any = null;
@@ -439,6 +457,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       muted: isInitiallyMuted,
       volume: [savedVolume],
       audioGraph: null,
+      screenAudioGraph: null,
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
       pfActivity: p.attributes?.pfActivity || undefined,
@@ -1132,6 +1151,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         muted: pub.isMuted,
         volume: [savedVolume],
         audioGraph: null,
+        screenAudioGraph: null,
         mutedAll: false,
         screencast: false,
       };
@@ -1144,8 +1164,23 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
 
     if (track.kind === Track.Kind.Audio) {
-      // Check if audio graph already exists for this user
       const existing = participants[uid];
+      const isScreenAudio =
+        (track.source || pub.source) === Track.Source.ScreenShareAudio;
+
+      if (isScreenAudio) {
+        // Desktop/system audio from a screen share — separate graph so it plays
+        // alongside the mic and never lights the "speaking" ring.
+        if (existing?.screenAudioGraph) {
+          logger.warn(`[CALL] Screen-audio graph already exists for ${uid}, skipping`);
+          return;
+        }
+        logger.info(`[CALL] Setting up screen-audio graph for ${uid}`);
+        disposables.addSubscription(setupScreenAudioGraph(uid, track));
+        return;
+      }
+
+      // Microphone audio
       if (existing?.audioGraph) {
         logger.warn(
           `[CALL] Audio graph already exists for ${uid}, skipping duplicate setup`,
@@ -1173,8 +1208,17 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     if (track.kind === "audio") {
       track.detach();
-      // Dispose audio graph if exists
       const pdata = participants[uid];
+      const isScreenAudio =
+        (track.source || pub.source) === Track.Source.ScreenShareAudio;
+      if (isScreenAudio) {
+        if (pdata?.screenAudioGraph) {
+          pdata.screenAudioGraph.dispose();
+          pdata.screenAudioGraph = null;
+        }
+        return;
+      }
+      // Dispose mic audio graph if exists
       if (pdata?.audioGraph) {
         pdata.audioGraph.dispose();
         pdata.audioGraph = null;
@@ -1228,11 +1272,45 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
   }
 
+  /**
+   * Graph for a participant's screen-share (desktop) audio. Unlike the mic graph
+   * it has no speaking detection (desktop audio must not light the speaking ring),
+   * but it shares the same per-user volume + deafen state so the volume slider and
+   * headphone-mute affect it too.
+   */
+  function setupScreenAudioGraph(userId: string, track: RemoteTrack) {
+    const pdata = participants[userId];
+    if (pdata?.screenAudioGraph) {
+      return new Subscription(() => {});
+    }
+
+    const savedVolume = userVolume.getUserVolume(userId);
+    const isMutedAll = sys.headphoneMuted;
+
+    const screenAudioGraph = audio.createRemoteAudioGraph({
+      track: (track as any).mediaStreamTrack,
+      label: "Screen Audio",
+      initialVolume: isMutedAll ? 0 : savedVolume,
+      isMutedAll,
+      // no onSpeakingChange — desktop audio should never mark the user as speaking
+    });
+
+    if (pdata) {
+      pdata.screenAudioGraph = screenAudioGraph;
+    }
+
+    return new Subscription(() => {
+      screenAudioGraph.dispose();
+    });
+  }
+
   function setVolume(userId: string, vol: number, skipSave = false) {
     const u = participants[userId];
-    if (!u || !u.audioGraph) return;
+    if (!u || (!u.audioGraph && !u.screenAudioGraph)) return;
 
-    u.audioGraph.setVolume(vol);
+    u.audioGraph?.setVolume(vol);
+    // Keep the user's desktop-audio at the same level as their voice.
+    u.screenAudioGraph?.setVolume(vol);
     u.volume = [vol];
 
     if (!skipSave) {
@@ -1247,14 +1325,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     }
   }
 
-  async function startScreenShare(opts: {
-    deviceId: string | null;
-    systemAudio: "include" | "exclude";
-    width?: number;
-    height?: number;
-    frameRate?: number;
-    maxBitrate?: number;
-  }) {
+  async function startScreenShare(opts: ScreenShareOpts) {
     if (!room.value) return;
 
     const fr = opts.frameRate ?? 30;
@@ -1286,7 +1357,28 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         maxFramerate: fr,
       },
     });
+
+    // Publish the desktop/system audio captured alongside the video. Electron's
+    // display-media handler returns `audio: "loopback"` when system audio is
+    // requested, so the stream carries a real audio track — forward it to the room.
+    const audioTrack = stream.getAudioTracks()[0];
+    if (opts.systemAudio === "include" && audioTrack) {
+      const sysAudio = new LocalAudioTrack(audioTrack);
+      sysAudio.source = Track.Source.ScreenShareAudio;
+      try {
+        screenAudioTrackPub = await room.value.localParticipant.publishTrack(sysAudio, {
+          dtx: false, // keep continuous music/game audio intact (DTX is for speech gaps)
+          red: false,
+          audioPreset: AudioPresets.musicHighQualityStereo,
+        });
+      } catch (err) {
+        logger.error("[CALL] Failed to publish system audio:", err);
+      }
+    }
+
     isSharing.value = true;
+    lastShareOpts.value = { ...opts };
+    systemAudioEnabled.value = opts.systemAudio === "include";
 
     // Add local screen share to videoTracks
     const localId = me.me!.userId;
@@ -1300,6 +1392,15 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       const localId = me.me!.userId;
       videoTracks.delete(videoTrackKey(localId, Track.Source.ScreenShare));
 
+      if (screenAudioTrackPub) {
+        try {
+          await room.value?.localParticipant.unpublishTrack(screenAudioTrackPub.track, true);
+        } catch (err) {
+          logger.warn("[CALL] Failed to unpublish system audio:", err);
+        }
+        screenAudioTrackPub = null;
+      }
+
       await room.value?.localParticipant.setScreenShareEnabled(false);
       screenTrackPub = null;
       isSharing.value = false;
@@ -1311,8 +1412,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (isCameraOn.value) return;
 
     try {
+      const dev = deviceId || usePreference().defaultVideoDevice || undefined;
       const cam = await createLocalVideoTrack({
-        deviceId: deviceId || undefined,
+        deviceId: dev,
         resolution: VideoPresets.h720.resolution,
       });
 
@@ -1349,6 +1451,54 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     } else {
       await startCamera(deviceId);
     }
+  }
+
+  /**
+   * Switch the active webcam device. Persists the choice; if the camera is live
+   * it restarts the track on the new device (LiveKit has no live replaceTrack here).
+   */
+  async function switchCamera(deviceId: string) {
+    usePreference().defaultVideoDevice = deviceId;
+    if (!isCameraOn.value) return;
+    await stopCamera();
+    await startCamera(deviceId);
+  }
+
+  /** Switch the screen-share target/source by restarting the capture with new opts. */
+  async function switchScreenShare(opts: ScreenShareOpts) {
+    if (isSharing.value) await stopScreenShare();
+    await startScreenShare(opts);
+  }
+
+  /**
+   * Toggle system/desktop audio. While sharing: turning OFF unpublishes the audio
+   * track instantly; turning ON re-captures the same source with audio (the stored
+   * source id makes Electron auto-select it, so there is no picker re-prompt).
+   * Outside a share it just records the preference for the next share.
+   */
+  async function toggleSystemAudio() {
+    systemAudioEnabled.value = !systemAudioEnabled.value;
+    if (!isSharing.value || !lastShareOpts.value) return;
+
+    const want = systemAudioEnabled.value ? "include" : "exclude";
+    if (lastShareOpts.value.systemAudio === want) return;
+
+    if (want === "exclude") {
+      // Stop forwarding desktop audio without interrupting the video.
+      if (screenAudioTrackPub) {
+        try {
+          await room.value?.localParticipant.unpublishTrack(screenAudioTrackPub.track, true);
+        } catch (err) {
+          logger.warn("[CALL] Failed to unpublish system audio:", err);
+        }
+        screenAudioTrackPub = null;
+      }
+      lastShareOpts.value = { ...lastShareOpts.value, systemAudio: "exclude" };
+      return;
+    }
+
+    // Turning ON: audio wasn't captured, so restart the capture with the same source.
+    await switchScreenShare({ ...lastShareOpts.value, systemAudio: "include" });
   }
 
   bus.onServerEvent<CallIncoming>("CallIncoming", handleIncoming);
@@ -1390,6 +1540,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isSharing,
     isCameraOn,
+    systemAudioEnabled,
+    lastShareOpts,
 
     isCpuConstrained,
     audioDeviceError,
@@ -1407,9 +1559,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     joinVoiceChannel,
     startScreenShare,
     stopScreenShare,
+    switchScreenShare,
+    toggleSystemAudio,
     startCamera,
     stopCamera,
     toggleCamera,
+    switchCamera,
     setVolume,
     leave,
     reconcileVoiceMembersFromLiveKit,
