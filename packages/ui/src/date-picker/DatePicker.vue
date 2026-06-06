@@ -225,7 +225,7 @@ const triggerClasses = computed(() => cn(
           <Calendar
             :model-value="(modelValue as DateValue)"
             initial-focus
-            :default-placeholder="calendarPlaceholder"
+            :default-placeholder="(calendarPlaceholder as DateValue)"
             :layout="layout"
             :min-value="minValue"
             :max-value="maxValue"

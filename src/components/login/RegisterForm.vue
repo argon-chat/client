@@ -299,7 +299,7 @@ const steps = computed(() => [
                                     <DatePicker 
                                         v-model="brithDate" 
                                         :placeholder="t('dob')" 
-                                        :max-value="today(getLocalTimeZone()).subtract({ years: 14 })"
+                                        :max-value="(today(getLocalTimeZone()).subtract({ years: 14 }) as any)"
                                         :disabled="isLoading" 
                                         :date-format="{ year: 'numeric', month: '2-digit', day: '2-digit' }"
                                         clearable

@@ -21,7 +21,7 @@ const onClickUrl = () => {
   const fullyUrl = `https://${props.entity.domain}${props.entity.path}`;
   if (isArgonDomain(props.entity.domain)) {
     if (argon.isArgonHost) window.open(fullyUrl, "_blank", "noopener");
-    else native.hostProc.openUrl(fullyUrl);
+    else native?.hostProc.openUrl(fullyUrl);
     return;
   }
   toast({

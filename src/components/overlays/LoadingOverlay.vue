@@ -10,52 +10,25 @@ function reloadPage() {
 
 <template>
   <div v-if="appState.isInitializing" class="loading-overlay">
-    <div class="loading-content">
-      <Transition name="spinner-fade" mode="out-in">
-        <div v-if="!appState.hasInitError" key="spinner" class="loading-spinner"></div>
-        <div v-else key="error" class="error-icon-wrapper">
-          <div class="error-icon">⚠</div>
+    <Transition name="fade" mode="out-in">
+      <!-- Loading: bouncing Argon logo (no progress UI) -->
+      <div v-if="!appState.hasInitError" key="loading" class="loader">
+        <div class="bouncer">
+          <svg class="logo" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" d="M114.54,88.82c5.35-2.75,9.96-6.72,13.46-11.53c-4.67-3.14-9.86-5.56-15.4-7.09c0.01-24.5-6.29-48.6-18.25-69.73c-7.96,8.45-14.3,18.49-18.62,29.31c-7.66-1.22-15.65-1.06-23.27,0.31C48.13,19.15,41.74,9.02,33.71,0.47C21.76,21.62,15.45,45.7,15.46,70.2c-5.54,1.53-10.73,3.95-15.4,7.09c3.49,4.82,8.1,8.78,13.46,11.53c-3.64,2.85-6.74,6.37-9.14,10.33c5.87,4.32,12.67,7.48,20.05,9.09c19.68,25.4,59.51,25.41,79.2,0c7.38-1.61,14.18-4.78,20.05-9.09C121.28,95.19,118.18,91.68,114.54,88.82z M23.7,68.22c0,0,4.13-2.07,12.4-2.07c8.27,0,19.64,11.37,19.64,11.37s-8.27,6.2-19.64,9.3C32.11,87.91,26.8,77.52,23.7,68.22z M64,98.19c-5.71,0-10.33-4.13-10.33-12.4c1.04-0.35,2.16-0.62,3.3-0.85l3,6.02l1.21-6.61c1.9-0.14,3.84-0.14,5.75,0.01l1.22,6.65l3.01-6.05c1.1,0.23,2.17,0.49,3.18,0.82C74.33,94.05,69.71,98.19,64,98.19z M92.99,86.03c-11.37-3.1-19.63-9.3-19.63-9.3s11.37-11.37,19.63-11.37s12.4,2.07,12.4,2.07C102.29,76.73,96.98,87.12,92.99,86.03z" />
+          </svg>
         </div>
-      </Transition>
+        <div class="shadow"></div>
+      </div>
 
-      <Transition name="title-fade" mode="out-in">
-        <h2 v-if="!appState.hasInitError" key="loading" class="loading-title">
-          Initializing Argon
-        </h2>
-        <h2 v-else key="error" class="loading-title error-title">
-          Initialization Failed
-        </h2>
-      </Transition>
-
-      <Transition name="fade-slide" mode="out-in">
-        <p v-if="!appState.hasInitError" key="step" class="loading-step">
-          {{ appState.loadingStep }}
-        </p>
-        <p v-else key="error-msg" class="error-message">
-          {{ appState.initError }}
-        </p>
-      </Transition>
-
-      <Transition name="bar-fade">
-        <div v-if="!appState.hasInitError" class="loading-bar" :class="{ 'loading-bar-error': appState.hasInitError }">
-          <div class="loading-progress" :class="{ 'loading-progress-error': appState.hasInitError }"
-            :style="{ width: `${(appState.loadingProgress / appState.totalSteps) * 100}%` }">
-          </div>
-        </div>
-      </Transition>
-
-      <Transition name="fade">
-        <p v-if="!appState.hasInitError" class="loading-percent">
-          {{ Math.round((appState.loadingProgress / appState.totalSteps) * 100) }}%
-        </p>
-      </Transition>
-
-      <Transition name="button-bounce">
-        <button v-if="appState.hasInitError" @click="reloadPage" class="retry-button">
-          Retry
-        </button>
-      </Transition>
-    </div>
+      <!-- Error: keep the failure + retry affordance -->
+      <div v-else key="error" class="loader loader-error">
+        <div class="error-icon">⚠</div>
+        <h2 class="error-title">Initialization Failed</h2>
+        <p class="error-message">{{ appState.initError }}</p>
+        <button @click="reloadPage" class="retry-button">Retry</button>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -66,40 +39,57 @@ function reloadPage() {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(10px);
+  background: #09090b;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  overflow: hidden;
 }
 
-.loading-content {
+.loader {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 14px;
+}
+
+/* Bouncing logo */
+.bouncer {
+  animation: logo-bounce 0.6s ease-in-out infinite;
+}
+
+.logo {
+  display: block;
+  width: 76px;
+  height: 76px;
+  color: #3b82f6;
+}
+
+.shadow {
+  width: 56px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.35), transparent 70%);
+  animation: shadow-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes logo-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { transform: scaleX(1); opacity: 0.5; }
+  50% { transform: scaleX(0.7); opacity: 0.25; }
+}
+
+/* Error state */
+.loader-error {
+  gap: 1rem;
   max-width: 400px;
   padding: 2rem;
-}
-
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(99, 102, 241, 0.1);
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.error-icon-wrapper {
-  position: relative;
+  text-align: center;
 }
 
 .error-icon {
@@ -110,112 +100,28 @@ function reloadPage() {
 }
 
 @keyframes error-shake {
-
-  0%,
-  100% {
-    transform: translateX(0) rotate(0deg);
-  }
-
-  25% {
-    transform: translateX(-10px) rotate(-5deg);
-  }
-
-  75% {
-    transform: translateX(10px) rotate(5deg);
-  }
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-10px) rotate(-5deg); }
+  75% { transform: translateX(10px) rotate(5deg); }
 }
 
 @keyframes error-pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 0.9;
-  }
-}
-
-.loading-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #fafafa;
-  margin: 0;
-  transition: color 0.5s ease;
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
 }
 
 .error-title {
+  font-size: 1.5rem;
+  font-weight: 600;
   color: #ef4444;
+  margin: 0;
   animation: title-glow 1.5s ease-in-out;
 }
 
 @keyframes title-glow {
-  0% {
-    text-shadow: 0 0 0 transparent;
-  }
-
-  50% {
-    text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-  }
-
-  100% {
-    text-shadow: 0 0 0 transparent;
-  }
-}
-
-.loading-step {
-  font-size: 0.875rem;
-  color: #a1a1aa;
-  margin: 0;
-  text-align: center;
-  min-height: 1.5rem;
-}
-
-.loading-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(99, 102, 241, 0.2);
-  border-radius: 2px;
-  overflow: hidden;
-  transition: background 0.5s ease;
-}
-
-.loading-bar-error {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.loading-progress {
-  height: 100%;
-  background: linear-gradient(90deg, #6366f1, #818cf8);
-  transition: width 0.3s ease, background 0.5s ease;
-  border-radius: 2px;
-}
-
-.loading-progress-error {
-  background: linear-gradient(90deg, #ef4444, #f87171);
-  animation: progress-error-flash 0.5s ease-in-out;
-}
-
-@keyframes progress-error-flash {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.loading-percent {
-  font-size: 0.75rem;
-  color: #71717a;
-  margin: 0;
-  font-weight: 500;
+  0% { text-shadow: 0 0 0 transparent; }
+  50% { text-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+  100% { text-shadow: 0 0 0 transparent; }
 }
 
 .error-message {
@@ -255,52 +161,7 @@ function reloadPage() {
   transform: translateY(0);
 }
 
-/* Transition animations */
-.spinner-fade-enter-active,
-.spinner-fade-leave-active {
-  transition: all 0.5s ease;
-}
-
-.spinner-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.5) rotate(-180deg);
-}
-
-.spinner-fade-leave-to {
-  opacity: 0;
-  transform: scale(1.5) rotate(180deg);
-}
-
-.title-fade-enter-active,
-.title-fade-leave-active {
-  transition: all 0.4s ease;
-}
-
-.title-fade-enter-from {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-
-.title-fade-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateX(-30px);
-}
-
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateX(30px);
-}
-
+/* Fade between loading and error */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -309,38 +170,5 @@ function reloadPage() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.bar-fade-leave-active {
-  transition: all 0.5s ease;
-}
-
-.bar-fade-leave-to {
-  opacity: 0;
-  transform: scaleY(0);
-}
-
-.button-bounce-enter-active {
-  animation: bounce-in 0.6s ease;
-}
-
-@keyframes bounce-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.3) translateY(50px);
-  }
-
-  50% {
-    transform: scale(1.05) translateY(-10px);
-  }
-
-  70% {
-    transform: scale(0.95) translateY(5px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
 }
 </style>

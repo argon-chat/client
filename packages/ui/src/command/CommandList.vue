@@ -6,9 +6,7 @@ import { computed, type HTMLAttributes } from "vue";
 
 const props = withDefaults(
   defineProps<ComboboxContentProps & { class?: HTMLAttributes["class"] }>(),
-  {
-    dismissable: false,
-  },
+  {},
 );
 const emits = defineEmits<ComboboxContentEmits>();
 

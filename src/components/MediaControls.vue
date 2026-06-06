@@ -7,10 +7,35 @@
 
             <div class="ctrl-divider" />
 
-            <button class="ctrl-btn" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
-                <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px]" />
-                <Mic v-else class="w-[18px] h-[18px]" />
-            </button>
+            <!-- Microphone + device switch -->
+            <div class="ctrl-split">
+                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
+                    <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px]" />
+                    <Mic v-else class="w-[18px] h-[18px]" />
+                </button>
+                <Popover v-model:open="micMenuOpen">
+                    <PopoverTrigger as-child>
+                        <button class="ctrl-chevron" :title="t('switch_microphone')"><ChevronUp class="w-3 h-3" /></button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start" class="ctrl-popover">
+                        <div class="ctrl-popover-title">{{ t('microphone') }}</div>
+                        <div v-if="mics.length === 0" class="device-row device-row--empty">
+                            {{ t('no_microphones_found') }}
+                        </div>
+                        <button
+                            v-for="d in mics"
+                            :key="d.deviceId"
+                            class="device-row"
+                            :class="{ active: d.deviceId === activeMicId }"
+                            :disabled="micSwitching"
+                            @click="pickMic(d.deviceId)">
+                            <Mic class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">{{ d.label || t('microphone') }}</span>
+                            <Check v-if="d.deviceId === activeMicId" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
+                    </PopoverContent>
+                </Popover>
+            </div>
 
             <button class="ctrl-btn" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
                 <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px]" />
@@ -19,27 +44,50 @@
 
             <div class="ctrl-divider" />
 
-            <!-- Screen share + (while sharing) target switch -->
+            <!-- Screen share + options menu (system audio / source / quality) -->
             <div class="ctrl-split">
                 <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
                     <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px]" />
                     <ScreenShare v-else class="w-[18px] h-[18px]" />
                 </button>
-                <button class="ctrl-chevron" :title="t('switch_monitor')" :disabled="!isConnected" @click="openSharePicker">
-                    <ChevronUp class="w-3 h-3" />
-                </button>
-            </div>
+                <Popover v-model:open="shareMenuOpen">
+                    <PopoverTrigger as-child>
+                        <button class="ctrl-chevron" :title="t('screencast')" :disabled="!isConnected"><ChevronUp class="w-3 h-3" /></button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="end" class="ctrl-popover">
+                        <!-- System / desktop audio -->
+                        <button class="device-row" :class="{ active: voice.systemAudioEnabled }" @click="voice.toggleSystemAudio()">
+                            <Volume2 v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 shrink-0" />
+                            <VolumeX v-else class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">{{ t('system_audio') }}</span>
+                            <Check v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
 
-            <!-- System / desktop audio toggle -->
-            <button
-                class="ctrl-btn"
-                :class="{ 'ctrl-btn--active': voice.systemAudioEnabled }"
-                :title="t('system_audio')"
-                @click="voice.toggleSystemAudio()"
-                :disabled="!isConnected">
-                <Volume2 v-if="voice.systemAudioEnabled" class="w-[18px] h-[18px]" />
-                <VolumeX v-else class="w-[18px] h-[18px]" />
-            </button>
+                        <div class="menu-sep" />
+
+                        <!-- Change source (monitor / window) -->
+                        <button class="device-row" @click="changeSource">
+                            <Monitor class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">{{ t('switch_monitor') }}</span>
+                        </button>
+
+                        <!-- Quality (only meaningful while live) -->
+                        <template v-if="voice.isSharing">
+                            <div class="menu-sep" />
+                            <div class="ctrl-popover-title">{{ t('quality') }}</div>
+                            <button
+                                v-for="q in qualityPresets"
+                                :key="q.label"
+                                class="device-row"
+                                :class="{ active: q.w === currentQualityWidth }"
+                                @click="applyQuality(q)">
+                                <span class="device-name">{{ q.label }}</span>
+                                <Check v-if="q.w === currentQualityWidth" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                            </button>
+                        </template>
+                    </PopoverContent>
+                </Popover>
+            </div>
 
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
@@ -91,12 +139,13 @@ import { usePreference } from "@/store/ui/preferenceStore";
 import { useLocale } from "@/store/system/localeStore";
 import { audio } from "@/lib/audio/AudioManager";
 import ScreenSharePicker from "./ScreenSharePicker.vue";
+import { qualityPresets } from "@/composables/useScreenShareSources";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX,
+    ChevronUp, Check, Volume2, VolumeX, Monitor,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
@@ -142,6 +191,47 @@ async function goShare(opts: {
         await voice.switchScreenShare(opts);
     } else {
         await voice.startScreenShare(opts);
+    }
+}
+
+// --- Screen-share options menu ---
+const shareMenuOpen = ref(false);
+const currentQualityWidth = computed(() => voice.lastShareOpts?.width);
+
+const changeSource = () => {
+    shareMenuOpen.value = false;
+    openSharePicker();
+};
+
+async function applyQuality(q: (typeof qualityPresets)[number]) {
+    shareMenuOpen.value = false;
+    if (!voice.isSharing || !voice.lastShareOpts) return;
+    await voice.switchScreenShare({
+        ...voice.lastShareOpts,
+        width: q.w,
+        height: q.h,
+        maxBitrate: q.maxBitrate,
+    });
+}
+
+// --- Microphone device switcher ---
+const mics = ref<MediaDeviceInfo[]>([]);
+const micMenuOpen = ref(false);
+const micSwitching = ref(false);
+const activeMicId = computed(() => audio.getInputDevice().value);
+
+watch(micMenuOpen, async (open) => {
+    if (open) mics.value = await audio.enumerateDevicesByKind("audioinput");
+});
+
+async function pickMic(deviceId: string) {
+    if (micSwitching.value) return;
+    micSwitching.value = true;
+    micMenuOpen.value = false;
+    try {
+        await audio.setInputDevice(deviceId);
+    } finally {
+        micSwitching.value = false;
     }
 }
 
@@ -269,7 +359,7 @@ async function pickCam(deviceId: string) {
     background: transparent;
 }
 
-/* Device popover */
+/* Device / options popover */
 .ctrl-popover {
     width: auto;
     min-width: 220px;
@@ -285,6 +375,12 @@ async function pickCam(deviceId: string) {
     text-transform: uppercase;
     color: hsl(var(--muted-foreground));
     padding: 4px 8px 6px;
+}
+
+.menu-sep {
+    height: 1px;
+    background: hsl(var(--border) / 0.5);
+    margin: 4px 6px;
 }
 
 .device-row {

@@ -42,7 +42,7 @@
             <p v-if="comp.description" class="text-xs text-muted-foreground">{{ comp.description }}</p>
             <Select
               :model-value="formValues[comp.customId]"
-              @update:model-value="(val: string) => formValues[comp.customId] = val"
+              @update:model-value="(val) => formValues[comp.customId] = (val as string)"
             >
               <SelectTrigger>
                 <SelectValue :placeholder="comp.placeholder || 'Select...'" />

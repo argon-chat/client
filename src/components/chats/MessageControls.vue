@@ -23,7 +23,7 @@
         <Select
           v-else-if="ctrl.type === ControlType.StringSelect"
           :disabled="ctrl.disabled || false"
-          @update:model-value="(val: string) => onSelectChange(ctrl, val)"
+          @update:model-value="(val) => onSelectChange(ctrl, val as string)"
         >
           <SelectTrigger class="control-select-trigger">
             <SelectValue :placeholder="ctrl.placeholder || t('select_option') || 'Select...'" />

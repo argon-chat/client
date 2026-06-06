@@ -110,7 +110,7 @@ async function startRecord() {
     playUiBeep(720, 0.04, 0.02, null);
 
     try {
-        const chord = await native.hostProc.hotkeyCaptureOnce();
+        const chord = await native?.hostProc.hotkeyCaptureOnce();
 
         if (!chord || !chord.buttons.length) {
             captureError.value = "Empty hotkey";
