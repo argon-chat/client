@@ -99,6 +99,7 @@
   "level_system_upgrade": "Coins can be upgraded up to level 5. Each time you reach level 100 again, your coin gets upgraded. But here's the catch: you need to reach level 100 five times to max out your coin!",
   "level_system_note": "Important: On January 1st, you start earning a new coin for the new year. Your level continues to grow, but previous year's coins can no longer be upgraded, so make sure to reach level 100 before the year ends!",
   "activity": "Activity",
+  "overlay": "Game Overlay",
   "no_activity": "No any activity..",
   "bio": "Bio",
   "greetings": {

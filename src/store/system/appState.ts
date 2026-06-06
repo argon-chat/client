@@ -57,6 +57,11 @@ export const useAppState = defineStore("app", () => {
     await useMe().completeInit();
     await useIdleStore().init();
     await useActivity().init();
+
+    const { useGameOverlaySettings } = await import(
+      "@/store/features/gameOverlaySettingsStore"
+    );
+    useGameOverlaySettings().init();
   }
 
   async function initializeArgonApp(): Promise<boolean> {

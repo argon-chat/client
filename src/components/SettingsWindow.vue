@@ -63,6 +63,7 @@ import AppearanceSettings from "./settings/AppearanceSettings.vue";
 import { useLocale } from "@/store/system/localeStore";
 import StorageSettings from "./settings/StorageSettings.vue";
 import ActivityLog from "./settings/ActivityLog.vue";
+import GameOverlaySettings from "./settings/GameOverlaySettings.vue";
 import UltimaSettings from "./settings/UltimaSettings.vue";
 import BoostSettings from "./settings/BoostSettings.vue";
 import TransactionSettings from "./settings/TransactionSettings.vue";
@@ -96,6 +97,7 @@ const CATEGORY_CONFIG: Category[] = [
     { id: "hotkeys" },
     { id: "languages" },
     { id: "storages" },
+    { id: "overlay" },
     { id: "activity", disabled: false }
 ];
 
@@ -103,6 +105,8 @@ const categories = computed<Category[]>(() =>
     CATEGORY_CONFIG.map(cat => {
         if (cat.id === "activity")
             return { ...cat, hidden: !configStore.devModeEnabled };
+        if (cat.id === "overlay")
+            return { ...cat, hidden: !featureFlags.overlayGamesEnabled };
         if (cat.id === "ultima" || cat.id === "transactions")
             return { ...cat, hidden: !featureFlags.ultimaActive };
         if (cat.id === "boosts")
@@ -128,6 +132,7 @@ const categoryComponents: Record<string, any> = {
     hotkeys: HotKeySettings,
     languages: LanguageSettings,
     storages: StorageSettings,
+    overlay: GameOverlaySettings,
     activity: ActivityLog
 };
 
