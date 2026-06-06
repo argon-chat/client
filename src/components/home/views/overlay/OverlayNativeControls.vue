@@ -45,6 +45,37 @@
         <div v-else class="text-amber-400">Native stats unavailable (overlay plugin not loaded?)</div>
       </div>
 
+      <!-- Activation diagnostics: why is / isn't the overlay up for a real game? -->
+      <div class="text-[10px] space-y-0.5 pt-1 border-t border-zinc-700/50">
+        <div>
+          Flag <span class="text-zinc-400">af.overlay.games.enabled</span>:
+          <span :class="overlayFlag ? 'text-green-400' : 'text-red-400'">{{ overlayFlag ? 'ON' : 'OFF' }}</span>
+          <span v-if="!overlayFlag" class="text-amber-400"> — auto-overlay disabled</span>
+        </div>
+        <div>Why: <span class="text-foreground">{{ status.reason ?? '—' }}</span></div>
+        <div v-if="status.currentGame">
+          Current game: <span class="text-foreground">{{ status.currentGame.name }}</span> (pid {{ status.currentGame.pid }})
+        </div>
+        <div v-else>Current game: <span class="text-zinc-400">none</span></div>
+        <div v-if="status.trackedGames?.length">
+          Tracked: {{ status.trackedGames.map((g: any) => `${g.name}#${g.pid}`).join(', ') }}
+        </div>
+        <div v-if="status.windowInfo">
+          Window: hwnd {{ status.windowInfo.hwnd }} · mon {{ status.windowInfo.monitorIndex }} · {{ status.windowInfo.w }}×{{ status.windowInfo.h }}
+        </div>
+      </div>
+
+      <!-- Activation log -->
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted-foreground">Activation log</label>
+        <div class="max-h-40 overflow-y-auto rounded-md bg-zinc-900/60 border border-zinc-700/50 p-1.5 font-mono text-[9px] leading-relaxed">
+          <div v-if="!status.log?.length" class="text-zinc-500">— no events yet —</div>
+          <div v-for="(e, i) in reversedLog" :key="i" class="text-zinc-300">
+            <span class="text-zinc-500">{{ fmtTime(e.ts) }}</span> {{ e.msg }}
+          </div>
+        </div>
+      </div>
+
       <!-- Target monitor -->
       <div class="space-y-1">
         <label class="text-[10px] text-muted-foreground">Target monitor</label>
@@ -94,10 +125,23 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { VoiceMember } from '@/lib/overlay'
+import { useFeatureFlags } from '@/store/features/featureFlagsStore'
 
 const props = defineProps<{ members: VoiceMember[] }>()
+
+const featureFlags = useFeatureFlags()
+const overlayFlag = computed(() => featureFlags.overlayGamesEnabled)
+
+const reversedLog = computed<{ ts: number; msg: string }[]>(() =>
+  [...((status.value.log as { ts: number; msg: string }[]) ?? [])].reverse(),
+)
+
+function fmtTime(ts: number): string {
+  const d = new Date(ts)
+  return `${d.toLocaleTimeString('en-GB', { hour12: false })}.${String(d.getMilliseconds()).padStart(3, '0')}`
+}
 
 interface DisplayInfo {
   index: number

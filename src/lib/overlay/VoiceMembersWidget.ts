@@ -1056,17 +1056,14 @@ export class VoiceMembersWidget extends BaseWidget {
       }
 
       if (avatarTex) {
-        const glowPadding = glowIntensity > 0 ? 4 : 0;
-        const drawX = avatarX - glowPadding;
-        const drawY = avatarY - glowPadding;
-        const drawSize = avatarSize + glowPadding * 2;
-
+        // Fixed quad — the speaking ring/glow lives inside it (see the shader), so
+        // the avatar must NOT grow when talking.
         const avatarFirstVertex = vertexOffset;
         addQuad(
-          drawX,
-          drawY,
-          drawSize,
-          drawSize,
+          avatarX,
+          avatarY,
+          avatarSize,
+          avatarSize,
           0,
           0,
           1,
