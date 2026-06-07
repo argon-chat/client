@@ -358,6 +358,14 @@ export interface SendMessageReadback {
 };
 
 
+export interface DrawingSession {
+  sessionId: string;
+  streamerId: guid;
+  allowedDrawers: IonArray<guid>;
+  defaultTtlMs: i4;
+};
+
+
 export interface ChannelReadState {
   channelId: guid;
   spaceId: guid | null;
@@ -570,6 +578,16 @@ export enum StartStreamError
 }
 
 
+export enum DrawingDenyReason
+{
+  NONE = 0,
+  FEATURE_DISABLED = 1,
+  NOT_STREAMING = 2,
+  NO_PERMISSION = 3,
+  INTERNAL_ERROR = 4,
+}
+
+
 export enum TypingKind
 {
   TYPING = 0,
@@ -777,6 +795,23 @@ export enum RedeemError
   EXPIRED = 2,
   LIMIT_REACHED = 3,
   ALREADY = 4,
+}
+
+
+export interface PrivacyRuleView {
+  key: string;
+  mode: PrivacyRuleMode;
+  scopeSpaceId: guid | null;
+  allow: IonArray<guid>;
+  deny: IonArray<guid>;
+};
+
+
+export enum PrivacyRuleMode
+{
+  EVERYBODY = 0,
+  CONTACTS = 1,
+  NOBODY = 2,
 }
 
 
@@ -1136,6 +1171,7 @@ export enum ArgonEntitlement
   Speak = 2097152n as any,
   Video = 4194304n as any,
   Stream = 8388608n as any,
+  CanDrawOnStream = 16777216n as any,
   UseASIO = 1073741824n as any,
   AdditionalStreams = 2147483648n as any,
   DisconnectMember = 1099511627776n as any,
@@ -3598,6 +3634,108 @@ IonFormatterStorage.register("FailedStartStream", {
   write(writer: CborWriter, value: FailedStartStream): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<StartStreamError>('StartStreamError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IStartDrawingResult implements IIonUnion<IStartDrawingResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isDrawingStarted(): this is DrawingStarted {
+    return this.UnionKey === "DrawingStarted";
+  }
+  public isDrawingDenied(): this is DrawingDenied {
+    return this.UnionKey === "DrawingDenied";
+  }
+
+}
+
+
+export class DrawingStarted extends IStartDrawingResult
+{
+  constructor(public session: DrawingSession) { super(); }
+
+  UnionKey: string = "DrawingStarted";
+  UnionIndex: number = 0;
+}
+
+export class DrawingDenied extends IStartDrawingResult
+{
+  constructor(public error: DrawingDenyReason) { super(); }
+
+  UnionKey: string = "DrawingDenied";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IStartDrawingResult", {
+  read(reader: CborReader): IStartDrawingResult {
+    reader.readStartArray();
+    let value: IStartDrawingResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<DrawingStarted>("DrawingStarted").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<DrawingDenied>("DrawingDenied").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IStartDrawingResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<DrawingStarted>("DrawingStarted").write(writer, value as DrawingStarted);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<DrawingDenied>("DrawingDenied").write(writer, value as DrawingDenied);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("DrawingStarted", {
+  read(reader: CborReader): DrawingStarted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const session = IonFormatterStorage.get<DrawingSession>('DrawingSession').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new DrawingStarted(session);
+  },
+  write(writer: CborWriter, value: DrawingStarted): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<DrawingSession>('DrawingSession').write(writer, value.session);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("DrawingDenied", {
+  read(reader: CborReader): DrawingDenied {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<DrawingDenyReason>('DrawingDenyReason').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new DrawingDenied(error);
+  },
+  write(writer: CborWriter, value: DrawingDenied): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<DrawingDenyReason>('DrawingDenyReason').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -9857,6 +9995,26 @@ IonFormatterStorage.register("SendMessageReadback", {
   }
 });
 
+IonFormatterStorage.register("DrawingSession", {
+  read(reader: CborReader): DrawingSession {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const streamerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const allowedDrawers = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const defaultTtlMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { sessionId, streamerId, allowedDrawers, defaultTtlMs };
+  },
+  write(writer: CborWriter, value: DrawingSession): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.streamerId);
+    IonFormatterStorage.writeArray<guid>(writer, value.allowedDrawers, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.defaultTtlMs);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ChannelReadState", {
   read(reader: CborReader): ChannelReadState {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -10174,6 +10332,17 @@ IonFormatterStorage.register("StartStreamError", {
     return StartStreamError[num] !== undefined ? num as StartStreamError : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: StartStreamError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DrawingDenyReason", {
+  read(reader: CborReader): DrawingDenyReason {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return DrawingDenyReason[num] !== undefined ? num as DrawingDenyReason : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: DrawingDenyReason): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -10527,6 +10696,39 @@ IonFormatterStorage.register("RedeemError", {
   write(writer: CborWriter, value: RedeemError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PrivacyRuleMode", {
+  read(reader: CborReader): PrivacyRuleMode {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return PrivacyRuleMode[num] !== undefined ? num as PrivacyRuleMode : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: PrivacyRuleMode): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PrivacyRuleView", {
+  read(reader: CborReader): PrivacyRuleView {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const mode = IonFormatterStorage.get<PrivacyRuleMode>('PrivacyRuleMode').read(reader);
+    const scopeSpaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const allow = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const deny = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { key, mode, scopeSpaceId, allow, deny };
+  },
+  write(writer: CborWriter, value: PrivacyRuleView): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<PrivacyRuleMode>('PrivacyRuleMode').write(writer, value.mode);
+    IonFormatterStorage.writeNullable<guid>(writer, value.scopeSpaceId, 'guid');
+    IonFormatterStorage.writeArray<guid>(writer, value.allow, 'guid');
+    IonFormatterStorage.writeArray<guid>(writer, value.deny, 'guid');
+    writer.writeEndArray();
   }
 });
 
@@ -11823,6 +12025,8 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
+  StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
+  StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
@@ -11922,6 +12126,15 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IPrivacyInteraction extends IIonService
+{
+  GetPrivacyRule(key: string, spaceId: guid | null): Promise<PrivacyRuleView>;
+  SetPrivacyRule(key: string, mode: PrivacyRuleMode, spaceId: guid | null, allow: IonArray<guid>, deny: IonArray<guid>): Promise<bool>;
 }
 
 
@@ -12106,6 +12319,8 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
+  StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
+  StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
@@ -12205,6 +12420,15 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IPrivacyInteraction extends IIonService
+{
+  GetPrivacyRule(key: string, spaceId: guid | null): Promise<PrivacyRuleView>;
+  SetPrivacyRule(key: string, mode: PrivacyRuleMode, spaceId: guid | null, allow: IonArray<guid>, deny: IonArray<guid>): Promise<bool>;
 }
 
 
@@ -12812,6 +13036,35 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IInterlinkStreamResult>("IInterlinkStreamResult", writer.data, this.signal);
+  }
+  async StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "StartDrawingSession");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IStartDrawingResult>("IStartDrawingResult", writer.data, this.signal);
+  }
+  async StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "StopDrawingSession");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, sessionId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
   async KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "KickMemberFromChannel");
@@ -13645,6 +13898,48 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
 }
 
 IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
+
+export class PrivacyInteraction_Executor extends ServiceExecutor<IPrivacyInteraction> implements IPrivacyInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetPrivacyRule(key: string, spaceId: guid | null): Promise<PrivacyRuleView> {
+    const req = new IonRequest(this.ctx, "IPrivacyInteraction", "GetPrivacyRule");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<string>('string').write(writer, key);
+    IonFormatterStorage.writeNullable<guid>(writer, spaceId, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<PrivacyRuleView>("PrivacyRuleView", writer.data, this.signal);
+  }
+  async SetPrivacyRule(key: string, mode: PrivacyRuleMode, spaceId: guid | null, allow: IonArray<guid>, deny: IonArray<guid>): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IPrivacyInteraction", "SetPrivacyRule");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<string>('string').write(writer, key);
+    IonFormatterStorage.get<PrivacyRuleMode>('PrivacyRuleMode').write(writer, mode);
+    IonFormatterStorage.writeNullable<guid>(writer, spaceId, 'guid');
+    IonFormatterStorage.writeArray<guid>(writer, allow, 'guid');
+    IonFormatterStorage.writeArray<guid>(writer, deny, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IPrivacyInteraction>('PrivacyInteraction', PrivacyInteraction_Executor);
 
 export class ReportInteraction_Executor extends ServiceExecutor<IReportInteraction> implements IReportInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -14797,6 +15092,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "GifInteraction") return IonFormatterStorage.createExecutor("GifInteraction", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
+        if (propKey === "PrivacyInteraction") return IonFormatterStorage.createExecutor("PrivacyInteraction", ctx, controller.signal);
         if (propKey === "ReportInteraction") return IonFormatterStorage.createExecutor("ReportInteraction", ctx, controller.signal);
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
@@ -14821,6 +15117,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     GifInteraction: IGifInteraction;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
+    PrivacyInteraction: IPrivacyInteraction;
     ReportInteraction: IReportInteraction;
     SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
