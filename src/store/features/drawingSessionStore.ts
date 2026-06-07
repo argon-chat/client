@@ -254,7 +254,7 @@ export const useDrawingSession = defineStore("drawingSession", () => {
   // ── Server broadcasts (viewer side) ───────────────────────────────
 
   bus.onServerEvent<DrawingSessionStarted>("DrawingSessionStarted", (ev) => {
-    sessions.set(ev.streamerId, {
+    sessions.set(ev.ownerId, {
       sessionId: ev.sessionId,
       allowedDrawers: new Set<string>((ev.allowedDrawers as unknown as string[]) ?? []),
       defaultTtlMs: ev.defaultTtlMs || DEFAULT_TTL_MS,

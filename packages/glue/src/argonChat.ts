@@ -360,7 +360,7 @@ export interface SendMessageReadback {
 
 export interface DrawingSession {
   sessionId: string;
-  streamerId: guid;
+  ownerId: guid;
   allowedDrawers: IonArray<guid>;
   defaultTtlMs: i4;
 };
@@ -3927,6 +3927,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isFeatureFlagActivated(): this is FeatureFlagActivated {
     return this.UnionKey === "FeatureFlagActivated";
   }
+  public isDrawingSessionStarted(): this is DrawingSessionStarted {
+    return this.UnionKey === "DrawingSessionStarted";
+  }
+  public isDrawingSessionEnded(): this is DrawingSessionEnded {
+    return this.UnionKey === "DrawingSessionEnded";
+  }
 
 }
 
@@ -4403,6 +4409,22 @@ export class FeatureFlagActivated extends IArgonEvent
   UnionIndex: number = 58;
 }
 
+export class DrawingSessionStarted extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public sessionId: string, public ownerId: guid, public allowedDrawers: IonArray<guid>, public defaultTtlMs: i4) { super(); }
+
+  UnionKey: string = "DrawingSessionStarted";
+  UnionIndex: number = 59;
+}
+
+export class DrawingSessionEnded extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public sessionId: string) { super(); }
+
+  UnionKey: string = "DrawingSessionEnded";
+  UnionIndex: number = 60;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -4531,6 +4553,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").read(reader);
     else if (unionIndex == 58)
       value = IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").read(reader);
+    else if (unionIndex == 59)
+      value = IonFormatterStorage.get<DrawingSessionStarted>("DrawingSessionStarted").read(reader);
+    else if (unionIndex == 60)
+      value = IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").read(reader);
 
     else throw new Error();
   
@@ -4718,6 +4744,12 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 58) {
         IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").write(writer, value as FeatureFlagActivated);
+    }
+    else if (value.UnionIndex == 59) {
+        IonFormatterStorage.get<DrawingSessionStarted>("DrawingSessionStarted").write(writer, value as DrawingSessionStarted);
+    }
+    else if (value.UnionIndex == 60) {
+        IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").write(writer, value as DrawingSessionEnded);
     }
   
     else throw new Error();
@@ -5734,6 +5766,48 @@ IonFormatterStorage.register("FeatureFlagActivated", {
     IonFormatterStorage.get<string>('string').write(writer, value.flagId);
     IonFormatterStorage.get<bool>('bool').write(writer, value.isEnabled);
     IonFormatterStorage.writeNullable<string>(writer, value.variant, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("DrawingSessionStarted", {
+  read(reader: CborReader): DrawingSessionStarted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    const ownerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const allowedDrawers = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const defaultTtlMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new DrawingSessionStarted(spaceId, channelId, sessionId, ownerId, allowedDrawers, defaultTtlMs);
+  },
+  write(writer: CborWriter, value: DrawingSessionStarted): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ownerId);
+    IonFormatterStorage.writeArray<guid>(writer, value.allowedDrawers, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.defaultTtlMs);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("DrawingSessionEnded", {
+  read(reader: CborReader): DrawingSessionEnded {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new DrawingSessionEnded(spaceId, channelId, sessionId);
+  },
+  write(writer: CborWriter, value: DrawingSessionEnded): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
     writer.writeEndArray();
   }
 });
@@ -9999,16 +10073,16 @@ IonFormatterStorage.register("DrawingSession", {
   read(reader: CborReader): DrawingSession {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const sessionId = IonFormatterStorage.get<string>('string').read(reader);
-    const streamerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const ownerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const allowedDrawers = IonFormatterStorage.readArray<guid>(reader, 'guid');
     const defaultTtlMs = IonFormatterStorage.get<i4>('i4').read(reader);
     reader.readEndArrayAndSkip(arraySize - 4);
-    return { sessionId, streamerId, allowedDrawers, defaultTtlMs };
+    return { sessionId, ownerId, allowedDrawers, defaultTtlMs };
   },
   write(writer: CborWriter, value: DrawingSession): void {
     writer.writeStartArray(4);
     IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.streamerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ownerId);
     IonFormatterStorage.writeArray<guid>(writer, value.allowedDrawers, 'guid');
     IonFormatterStorage.get<i4>('i4').write(writer, value.defaultTtlMs);
     writer.writeEndArray();
