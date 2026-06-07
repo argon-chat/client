@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
-import { ref, computed, shallowRef, triggerRef } from "vue";
+import { ref, computed, shallowRef, triggerRef, watch } from "vue";
 import { logger } from "@argon/core";
+import { native } from "@argon/glue/native";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
@@ -57,6 +58,33 @@ export const useNotificationStore = defineStore("notifications", () => {
 
   const totalSystemBadge = computed(
     () => notifications.value.friendRequests + notifications.value.inventory + notifications.value.system,
+  );
+
+  // Single "the user has something unread right now" signal — system notifications,
+  // unread DMs, or any unread channel / mention across spaces.
+  const hasAnyUnread = computed(() => {
+    if (totalSystemBadge.value > 0) return true;
+    if (unreadDmCount.value > 0) return true;
+    for (const sb of spaceBadges.value.values()) {
+      if (sb.unreadChannelCount > 0 || sb.totalMentions > 0) return true;
+    }
+    return false;
+  });
+
+  // Reflect unread state onto the desktop tray icon (native host only).
+  watch(
+    hasAnyUnread,
+    (has) => {
+      try {
+        if (argon?.isArgonHost) {
+          // @ts-ignore — dynamic HostProc RPC method
+          native?.hostProc.setTrayNotificationIndicator(has);
+        }
+      } catch (e) {
+        logger.error("[NotificationStore] Failed to update tray indicator:", e);
+      }
+    },
+    { immediate: true },
   );
 
   function isChannelUnread(channelId: Guid, lastMessageId: bigint): boolean {
@@ -470,6 +498,7 @@ export const useNotificationStore = defineStore("notifications", () => {
 
     // Getters
     totalSystemBadge,
+    hasAnyUnread,
     isChannelUnread,
     channelMentionCount,
     effectiveMuteLevel,

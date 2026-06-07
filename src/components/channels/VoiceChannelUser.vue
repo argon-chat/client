@@ -1,8 +1,11 @@
 <template>
-  <div class="flex items-center py-0.5 px-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors duration-150">
-    <ArgonAvatar 
-      :fallback="user.User.displayName" 
-      :fileId="user.User.avatarFileId" 
+  <div
+    class="flex items-center py-0.5 px-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-all duration-150"
+    :class="{ 'opacity-55': connecting }"
+  >
+    <ArgonAvatar
+      :fallback="user.User.displayName"
+      :fileId="user.User.avatarFileId"
       :userId="user.userId"
       :class="[
         'w-7 h-7 rounded-full mr-3 transition-all duration-300 ease-in-out flex-shrink-0',
@@ -11,31 +14,38 @@
     />
     <span class="text-sm truncate" :title="user.User.displayName">{{ user.User.displayName }}</span>
     <div class="flex items-center gap-1 ml-auto flex-shrink-0">
-      <MicOffIcon v-if="isMuted" class="w-4 h-4 text-destructive/70" />
-      <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-4 h-4 text-destructive/70" />
-      <ScreenShare v-if="user.isScreenShare" class="w-4 h-4 text-primary" />
-      <RadiusIcon v-if="user.isRecording" class="w-4 h-4 text-destructive" />
+      <span v-if="connecting" class="flex items-center" :title="t('connecting')">
+        <Loader2Icon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+      </span>
+      <template v-else>
+        <MicOffIcon v-if="isMuted" class="w-4 h-4 text-destructive/70" />
+        <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-4 h-4 text-destructive/70" />
+        <ScreenShare v-if="user.isScreenShare" class="w-4 h-4 text-primary" />
+        <RadiusIcon v-if="user.isRecording" class="w-4 h-4 text-destructive" />
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon } from 'lucide-vue-next';
+import { MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon, Loader2 as Loader2Icon } from 'lucide-vue-next';
 import ArgonAvatar from './../ArgonAvatar.vue';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import { useSystemStore } from '@/store/system/systemStore';
 import { useMe } from '@/store/auth/meStore';
-import type { Guid } from '@argon-chat/ion.webcore';
+import { useLocale } from '@/store/system/localeStore';
 import type { IRealtimeChannelUser } from '@/store/realtime/realtimeStore';
 
 const props = defineProps<{
   user: IRealtimeChannelUser;
+  connecting?: boolean;
 }>();
 
 const voice = useUnifiedCall();
 const sys = useSystemStore();
 const me = useMe();
+const { t } = useLocale();
 
 const isSpeaking = computed(() => {
   // Explicitly track speaking.size to ensure Vue detects changes in the Set

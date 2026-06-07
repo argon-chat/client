@@ -87,7 +87,7 @@
       <li v-for="user in voiceUsers.Users.values()" :key="user.userId">
         <ContextMenu>
           <ContextMenuTrigger :disabled="!voice.isConnected">
-            <VoiceChannelUser :user="user" />
+            <VoiceChannelUser :user="user" :connecting="isUserConnecting(user.userId)" />
           </ContextMenuTrigger>
           <ContextMenuContent class="w-64">
             <ContextMenuLabel v-show="user.userId != me.me?.userId">
@@ -207,10 +207,22 @@ const channelMentions = computed(() => {
 const channelMuted = computed(() => ntf.isTargetMuted(props.channel.channelId) || ntf.isTargetMuted(props.channel.spaceId));
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
-const isConnectedVoiceChannel = computed(() => 
-  props.channel.type === ChannelType.Voice && 
+const isConnectedVoiceChannel = computed(() =>
+  props.channel.type === ChannelType.Voice &&
   voice.connectedVoiceChannelId === props.channel.channelId
 );
+
+// A user shows in the presence list as soon as they join, but their actual voice
+// (LiveKit media) connects a moment later. Show a "connecting" indicator during that
+// gap. We can only tell for the channel we're connected to (that's where we have
+// LiveKit data): self is connecting until the room reports connected; a peer is
+// connecting until their participant appears in the room.
+const isUserConnecting = (userId: string) => {
+  if (voice.connectedVoiceChannelId !== props.channel.channelId) return false;
+  if (userId === me.me?.userId) return !voice.isConnected;
+  if (!voice.isConnected) return true;
+  return !voice.participants[userId];
+};
 
 const meetingDetailsOpened = vueRef(false);
 const currentMeetingInfo = vueRef<any>(null);

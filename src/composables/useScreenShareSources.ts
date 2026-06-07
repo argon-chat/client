@@ -10,16 +10,16 @@ export interface ScreenSource {
 }
 
 export const qualityPresets = [
-  { label: "720p", w: 1280, h: 720, maxBitrate: 2_500_000 },
-  { label: "1080p", w: 1920, h: 1080, maxBitrate: 5_000_000 },
-  { label: "1440p", w: 2560, h: 1440, maxBitrate: 8_000_000 },
-  { label: "4K", w: 3840, h: 2160, maxBitrate: 14_000_000 },
+  { label: "720p", w: 1280, h: 720, maxBitrate: 2_500_000, premium: false },
+  { label: "1080p", w: 1920, h: 1080, maxBitrate: 5_000_000, premium: false },
+  { label: "1440p", w: 2560, h: 1440, maxBitrate: 8_000_000, premium: true },
+  { label: "4K", w: 3840, h: 2160, maxBitrate: 14_000_000, premium: true },
 ] as const;
 
 export const fpsPresets = [
-  { label: "15 fps", value: "15" },
-  { label: "30 fps", value: "30" },
-  { label: "60 fps", value: "60" },
+  { label: "15 fps", value: "15", premium: false },
+  { label: "30 fps", value: "30", premium: false },
+  { label: "60 fps", value: "60", premium: true },
 ] as const;
 
 export function useScreenShareSources() {

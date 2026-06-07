@@ -155,7 +155,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
     <!-- App icon (home) + breadcrumb -->
     <button class="titlebar-brand" @click="goHome" :title="t('dashboard')">
       <IconSw class="brand-icon" :class="{ 'brand-icon--active': isHome }" />
-      <span v-if="ntf.totalSystemBadge > 0" class="brand-badge"></span>
+      <span v-if="ntf.hasAnyUnread" class="brand-badge"></span>
     </button>
 
     <div class="titlebar-separator"></div>

@@ -141,9 +141,8 @@ export function useTheme(config: ThemeConfig = {}) {
     const uiDensity = persistedValue<string>("appearance.uiDensity", "comfortable");
     const borderRadius = persistedValue<number>("appearance.borderRadius", 0.75);
     const accentColor = persistedValue<string>("appearance.accentColor", "blue");
-    const enableAnimations = persistedValue<boolean>("appearance.enableAnimations", true);
+    // Animations and blur are always on; only the accessibility "reduce motion" toggle remains.
     const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
-    const enableBlur = persistedValue<boolean>("appearance.enableBlur", true);
 
     // Chat density (self-contained — not gated by the global UI-density flag)
     const chatDensity = persistedValue<string>("appearance.chatDensity", "comfortable");
@@ -185,17 +184,13 @@ export function useTheme(config: ThemeConfig = {}) {
     const densityEnabled = config.uiDensityEnabled?.() ?? false;
     root.classList.add(`density-${densityEnabled ? uiDensity.value : "comfortable"}`);
 
-    // Apply animations
-    if (!enableAnimations.value || reduceMotion.value) {
-      root.style.setProperty("--transition-duration", "0ms");
-    } else {
-      root.style.setProperty("--transition-duration", "200ms");
-    }
+    // Apply animations — always on, except when the user opts into reduced motion.
+    root.style.setProperty("--transition-duration", reduceMotion.value ? "0ms" : "200ms");
 
-    // Apply blur
-    root.classList.toggle("no-blur", !enableBlur.value);
+    // Blur is always on now.
+    root.classList.remove("no-blur");
 
-    // Apply smooth scroll preference
+    // Apply smooth scroll preference (no longer user-toggleable; defaults to off).
     const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
     root.classList.toggle("no-smooth-scroll", !smoothScroll.value);
 

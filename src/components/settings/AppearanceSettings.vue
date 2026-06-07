@@ -317,34 +317,10 @@
             <div class="space-y-3">
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("enable_animations") }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("enable_animations_desc") }}</div>
-                    </div>
-                    <Switch v-model:checked="enableAnimations" />
-                </div>
-
-                <div class="setting-item">
-                    <div class="flex-1">
                         <div class="text-sm font-medium">{{ t("reduce_motion") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("reduce_motion_desc") }}</div>
                     </div>
                     <Switch v-model:checked="reduceMotion" />
-                </div>
-
-                <div class="setting-item">
-                    <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("enable_blur") }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("enable_blur_desc") }}</div>
-                    </div>
-                    <Switch v-model:checked="enableBlur" />
-                </div>
-
-                <div class="setting-item">
-                    <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("smooth_scroll") || 'Smooth scrolling' }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("smooth_scroll_desc") || 'Enable smooth scrolling animations in chat and lists' }}</div>
-                    </div>
-                    <Switch v-model:checked="smoothScroll" />
                 </div>
             </div>
         </div>
@@ -702,10 +678,9 @@ const uiDensity = persistedValue<string>("appearance.uiDensity", "comfortable");
 // const uiScale = persistedValue<number>("appearance.uiScale", 100);
 const borderRadius = persistedValue<number>("appearance.borderRadius", 0.75);
 const accentColor = persistedValue<string>("appearance.accentColor", "blue");
-const enableAnimations = persistedValue<boolean>("appearance.enableAnimations", true);
+// Blur and animations are always on (no longer user-toggleable); only the
+// accessibility "reduce motion" preference remains.
 const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
-const enableBlur = persistedValue<boolean>("appearance.enableBlur", true);
-const smoothScroll = persistedValue<boolean>("appearance.smoothScroll", false);
 
 // Chat
 const chatDensity = persistedValue<string>("appearance.chatDensity", "comfortable");
@@ -736,7 +711,6 @@ watch(uiScaleArray, (val) => uiScale.value = val[0]);
 const enableTransitions = () =>
     'startViewTransition' in document &&
     window.matchMedia('(prefers-reduced-motion: no-preference)').matches &&
-    enableAnimations.value &&
     !reduceMotion.value;
 
 // OLED check — forces solid material
@@ -815,7 +789,7 @@ const selectTheme = async (themeId: string, event: MouseEvent) => {
 
 // Watch all settings
 // TODO: Add uiScale back when webview2 zoom control is implemented
-watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, ultrawideThreshold, ultrawideMaxWidth, ultrawideCenterTitlebar, uiScale, borderRadius, accentColor, enableAnimations, reduceMotion, enableBlur, smoothScroll, chatDensity, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
+watch([currentTheme, fontFamily, fontSize, lineHeight, uiDensity, layoutMode, ultrawideThreshold, ultrawideMaxWidth, ultrawideCenterTitlebar, uiScale, borderRadius, accentColor, reduceMotion, chatDensity, timestampFormat, highContrast, dyslexiaFont, colorBlindMode], () => {
     applyAppearanceSettingsController();
 });
 
@@ -844,10 +818,7 @@ const resetToDefaults = () => {
     splitTrigger.value = "ctrlclick";
     borderRadius.value = 0.75;
     accentColor.value = "blue";
-    enableAnimations.value = true;
     reduceMotion.value = false;
-    enableBlur.value = true;
-    smoothScroll.value = false;
     chatDensity.value = "comfortable";
 
     // Reset accessibility settings
