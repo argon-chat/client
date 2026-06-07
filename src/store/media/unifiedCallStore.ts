@@ -35,6 +35,7 @@ import { DisposableBag } from "@argon/core";
 import { Subscription } from "rxjs";
 import { usePexStore } from "@/store/data/permissionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
+import { useDrawingSession } from "@/store/features/drawingSessionStore";
 
 export interface ScreenShareOpts {
   deviceId: string | null;
@@ -1384,6 +1385,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     const localId = me.me!.userId;
     videoTracks.set(videoTrackKey(localId, Track.Source.ScreenShare), vid);
 
+    // Open a screencast drawing session for this share (no-op unless flag + channel ctx).
+    try { useDrawingSession().beginStreamerSession(opts.deviceId); }
+    catch (e) { logger.warn("[CALL] beginStreamerSession failed", e); }
+
     screenTrackPub.once("ended", () => stopScreenShare());
   }
 
@@ -1391,6 +1396,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (screenTrackPub) {
       const localId = me.me!.userId;
       videoTracks.delete(videoTrackKey(localId, Track.Source.ScreenShare));
+
+      // Close the screencast drawing session tied to this share.
+      try { useDrawingSession().endStreamerSession(); }
+      catch (e) { logger.warn("[CALL] endStreamerSession failed", e); }
 
       if (screenAudioTrackPub) {
         try {

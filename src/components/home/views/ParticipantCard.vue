@@ -7,12 +7,19 @@
         
         <video
             v-if="hasVideo"
-            :ref="(el) => $emit('video-ref', el, userId, videoSource)"
+            :ref="(el) => onVideoRef(el)"
             autoplay
             playsinline
             muted
             class="participant-video"
             :style="{ objectFit: videoFit }" />
+
+        <!-- Screencast drawing surface (only over a screenshare with an active session). -->
+        <DrawOverlay
+            v-if="showDrawOverlay"
+            :target-id="userId"
+            :video="videoEl"
+            :fit="videoFit" />
 
         <ArgonAvatar 
             v-else 
@@ -53,7 +60,10 @@
 
 <script setup lang="ts">
 import type { Guid } from "@argon-chat/ion.webcore";
+import { computed, ref } from "vue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import DrawOverlay from "@/components/DrawOverlay.vue";
+import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon } from "lucide-vue-next";
 
 interface Props {
@@ -76,7 +86,7 @@ interface Props {
     videoFit?: "cover" | "contain";
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     isSpeaking: false,
     isMuted: false,
     isHeadphoneMuted: false,
@@ -93,10 +103,25 @@ withDefaults(defineProps<Props>(), {
     videoFit: 'cover',
 });
 
-defineEmits<{
+const emit = defineEmits<{
     (e: 'click', userId: Guid): void;
     (e: 'video-ref', el: any, userId: Guid, source: string): void;
 }>();
+
+const draw = useDrawingSession();
+const videoEl = ref<HTMLVideoElement | null>(null);
+
+function onVideoRef(el: any): void {
+    videoEl.value = (el as HTMLVideoElement) ?? null;
+    emit('video-ref', el, props.userId, props.videoSource);
+}
+
+// Show the drawing surface only over a screenshare video with an active session.
+const showDrawOverlay = computed(() =>
+    props.hasVideo &&
+    !!props.videoSource && props.videoSource.includes('screen') &&
+    draw.isSessionActive(props.userId),
+);
 </script>
 
 <style scoped>

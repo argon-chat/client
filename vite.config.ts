@@ -47,6 +47,8 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, "index.html"),
           // Lean in-game overlay window (offscreen WebGPU renderer only).
           overlay: path.resolve(__dirname, "overlay.html"),
+          // Lean screencast-drawing overlay window (offscreen 2D stroke renderer).
+          screencastOverlay: path.resolve(__dirname, "screencast-overlay.html"),
         },
       },
     },

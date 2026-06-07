@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Argon Screencast Overlay</title>
+    <style>
+      html, body, #overlay-app {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      /* Full-window transparent canvas; the native plugin composites alpha over the monitor. */
+      #overlay-app canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay-app"></div>
+    <script type="module" src="/src/screencast-overlay-main.ts"></script>
+  </body>
+</html>
