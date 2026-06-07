@@ -123,6 +123,11 @@
                 </Popover>
             </div>
 
+            <!-- Toggle the drawing toolbar on streams you're allowed to annotate -->
+            <button v-if="draw.canDrawAnywhere" class="ctrl-btn" :class="{ 'ctrl-btn--active': draw.drawMode }" @click="draw.toggleDrawMode()" :disabled="!isConnected" title="Draw on stream">
+                <Pencil class="w-[18px] h-[18px]" />
+            </button>
+
             <button v-if="showPlayframe" class="ctrl-btn" :class="{ 'ctrl-btn--active': activity.isActive }" @click="activity.openPicker()" :disabled="!isConnected">
                 <Gamepad2 class="w-[18px] h-[18px]" />
             </button>
@@ -135,6 +140,7 @@ import { ref, computed, watch } from "vue";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
+import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useLocale } from "@/store/system/localeStore";
 import { audio } from "@/lib/audio/AudioManager";
@@ -145,12 +151,13 @@ import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX, Monitor,
+    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
 const sys = useSystemStore();
 const activity = usePlayFrameActivity();
+const draw = useDrawingSession();
 const pref = usePreference();
 const { t } = useLocale();
 

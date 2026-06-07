@@ -13,7 +13,7 @@
  * active session whose drawer is in that set.
  */
 import { defineStore } from "pinia";
-import { reactive, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import type { Room, RemoteParticipant } from "livekit-client";
 import { RoomEvent } from "livekit-client";
 import { logger } from "@argon/core";
@@ -63,8 +63,6 @@ export const useDrawingSession = defineStore("drawingSession", () => {
   const decoder = new TextDecoder();
 
   let boundRoom: Room | null = null;
-  // The capture source id of the local user's current share (for the native overlay).
-  let myShareSourceId: string | null = null;
 
   const selfId = () => me.me?.userId ?? null;
 
@@ -162,9 +160,29 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     if (!sess) return false;
     const id = selfId();
     if (!id) return false;
-    if (targetId === id) return true; // annotate my own surface
+    if (targetId === id) return false; // the streamer doesn't draw on their own stream
     return sess.allowedDrawers.has(id);
   }
+
+  // ── Draw mode (toggled from MediaControls) ────────────────────────
+
+  /** Whether the brush UI is engaged (per-stream pointer capture still gated by canIDrawOn). */
+  const drawMode = ref(false);
+
+  /** True if there's at least one stream the local user is allowed to draw on. */
+  const canDrawAnywhere = computed(() => {
+    const id = selfId();
+    if (!id || !ff.screencastDrawingActive) return false;
+    for (const [target, s] of sessions) {
+      if (target !== id && s.allowedDrawers.has(id)) return true;
+    }
+    return false;
+  });
+
+  function toggleDrawMode(): void { drawMode.value = !drawMode.value; }
+
+  // Drop out of draw mode whenever nothing is drawable (session ended, left call, etc.).
+  watch(canDrawAnywhere, (ok) => { if (!ok) drawMode.value = false; });
 
   // ── Outgoing strokes (called by DrawOverlay) ──────────────────────
 
@@ -216,17 +234,16 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     const id = selfId();
     if (!c || !id) return;
 
-    myShareSourceId = sourceId;
     try {
       const res = await api.channelInteraction.StartDrawingSession(c.spaceId, c.channelId);
-      if (!res || !res.isDrawingStarted?.()) {
+      if (!res || !res.isDrawingStarted()) {
         logger.warn("[draw] StartDrawingSession denied", res);
         return;
       }
-      const s = res.session;
+      const s = res.session; // narrowed to DrawingStarted by the type guard
       sessions.set(id, {
         sessionId: s.sessionId,
-        allowedDrawers: new Set<string>(s.allowedDrawers ?? []),
+        allowedDrawers: new Set<string>((s.allowedDrawers as unknown as string[]) ?? []),
         defaultTtlMs: s.defaultTtlMs || DEFAULT_TTL_MS,
       });
       // Bring up the native overlay on the shared monitor.
@@ -243,7 +260,6 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     const id = selfId();
     const sess = id ? sessions.get(id) : undefined;
     try { (window as any).argonScreencastDraw?.stop?.(); } catch { /* not electron */ }
-    myShareSourceId = null;
     if (id) sessions.delete(id);
     if (c && sess) {
       try { await api.channelInteraction.StopDrawingSession(c.spaceId, c.channelId, sess.sessionId); }
@@ -278,6 +294,9 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     sessionFor,
     isSessionActive,
     canIDrawOn,
+    drawMode,
+    canDrawAnywhere,
+    toggleDrawMode,
     publish,
     clearOwn,
     beginStreamerSession,

@@ -156,7 +156,7 @@ export class StrokeCanvas {
   private drawStroke(s: LiveStroke, alpha: number, w: number, h: number): void {
     if (s.points.length === 0) return;
     const ctx = this.ctx;
-    const lineW = Math.max(1, s.width * w);
+    const lineW = Math.max(1.5, s.width * w);
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -165,56 +165,90 @@ export class StrokeCanvas {
     ctx.lineWidth = lineW;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    // Soft drop shadow → reads cleanly over both light and dark areas of the stream.
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = Math.max(2, lineW * 0.7);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = Math.max(1, lineW * 0.12);
 
     if (s.tool === "arrow") {
       this.drawArrow(s.points, lineW, w, h);
     } else {
-      this.drawBrush(s.points, w, h);
+      this.drawBrush(s.points, lineW, w, h);
     }
     ctx.restore();
   }
 
-  private drawBrush(points: NormPoint[], w: number, h: number): void {
+  /** Smooth freehand line: quadratic curves through the midpoints of consecutive samples. */
+  private drawBrush(points: NormPoint[], lineW: number, w: number, h: number): void {
     const ctx = this.ctx;
-    ctx.beginPath();
-    ctx.moveTo(points[0][0] * w, points[0][1] * h);
-    if (points.length === 1) {
-      // A dot — draw a small filled circle so single taps are visible.
-      ctx.arc(points[0][0] * w, points[0][1] * h, ctx.lineWidth / 2, 0, Math.PI * 2);
+    const pts = points.map((p) => ({ x: p[0] * w, y: p[1] * h }));
+
+    if (pts.length === 1) {
+      // A dot — single tap.
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, lineW / 2, 0, Math.PI * 2);
       ctx.fill();
       return;
     }
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i][0] * w, points[i][1] * h);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (pts.length === 2) {
+      ctx.lineTo(pts[1].x, pts[1].y);
+    } else {
+      // Curve through midpoints using each sample as a control point (Quadratic
+      // midpoint smoothing) — removes the polyline "kinks".
+      for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2;
+        const my = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+      }
+      const last = pts[pts.length - 1];
+      ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y, last.x, last.y);
     }
     ctx.stroke();
   }
 
+  /** Straight arrow from the first to the last sample, with a proportioned, rounded head. */
   private drawArrow(points: NormPoint[], lineW: number, w: number, h: number): void {
     const ctx = this.ctx;
-    const a = points[0];
-    const b = points[points.length - 1];
-    const x0 = a[0] * w, y0 = a[1] * h;
-    const x1 = b[0] * w, y1 = b[1] * h;
+    const ax = points[0][0] * w, ay = points[0][1] * h;
+    const bx = points[points.length - 1][0] * w, by = points[points.length - 1][1] * h;
 
-    // Shaft.
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) {
+      ctx.beginPath();
+      ctx.arc(bx, by, lineW / 2, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    const ang = Math.atan2(dy, dx);
+    // Head scales with line width; never more than half the arrow so short arrows stay readable.
+    const head = Math.min(len * 0.5, Math.max(lineW * 3.2, 16));
+    const spread = 0.42; // ~24° half-angle → a clean, not-too-wide head
+
+    // Shaft stops at the head's base so the round cap doesn't bulge through the tip.
+    const baseX = bx - Math.cos(ang) * head;
+    const baseY = by - Math.sin(ang) * head;
     ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(baseX, baseY);
     ctx.stroke();
 
-    // Head — scales with stroke width, clamped to the shaft length.
-    const dx = x1 - x0, dy = y1 - y0;
-    const len = Math.hypot(dx, dy) || 1;
-    const head = Math.min(len, Math.max(lineW * 4, 14));
-    const ang = Math.atan2(dy, dx);
-    const spread = Math.PI / 7;
-
+    // Head: filled triangle, then stroked with a round join so the corners are soft.
+    const c1x = bx - head * Math.cos(ang - spread), c1y = by - head * Math.sin(ang - spread);
+    const c2x = bx - head * Math.cos(ang + spread), c2y = by - head * Math.sin(ang + spread);
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x1 - head * Math.cos(ang - spread), y1 - head * Math.sin(ang - spread));
-    ctx.lineTo(x1 - head * Math.cos(ang + spread), y1 - head * Math.sin(ang + spread));
+    ctx.moveTo(bx, by);
+    ctx.lineTo(c1x, c1y);
+    ctx.lineTo(c2x, c2y);
     ctx.closePath();
+    ctx.lineWidth = Math.max(1, lineW * 0.6);
     ctx.fill();
+    ctx.stroke();
   }
 }

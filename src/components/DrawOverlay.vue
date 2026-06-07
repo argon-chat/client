@@ -67,7 +67,8 @@ const tool = ref<StrokeTool>("arrow");
 const color = ref("#ff3b30");
 const palette = ["#ff3b30", "#ffcc00", "#34c759", "#0a84ff", "#ffffff"];
 
-const canDraw = computed(() => draw.canIDrawOn(props.targetId));
+// Drawing is enabled only when allowed AND the toolbar is toggled on from MediaControls.
+const canDraw = computed(() => draw.canIDrawOn(props.targetId) && draw.drawMode);
 
 // ── Content-rect (letterbox) geometry ─────────────────────────────
 const contentRect = ref({ left: 0, top: 0, width: 0, height: 0 });
