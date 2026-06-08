@@ -79,6 +79,10 @@ let hardReconnectAttempts = 0;
 // so the cursors survive; a full teardown (terminate) intentionally resets them.
 let userCursor: string | null = null;
 const spaceCursors = new Map<string, string>();
+// Channel delivery groups this client wants to be in. SignalR groups are per-connection, so the
+// server-side membership is lost on every reconnect — we re-join all of these on (re)connect.
+// Updated by the subscribeChannel/unsubscribeChannel messages from the main thread.
+const subscribedChannels = new Set<string>();
 let hasConnectedBefore = false;
 
 // Compare Redis stream ids of the form "<unixMs>-<seq>". Returns <0, 0, >0.
@@ -212,6 +216,19 @@ async function connect(endpoint: string) {
       }
     });
 
+    // Channel-scoped content (messages/typing/reactions) for the channel(s) we've joined.
+    // No replay cursor: missed messages on a brief drop are recovered by the chat's own history
+    // load; typing is ephemeral and reactions load with their message.
+    hubConnection.on("broadcastChannel", (data: string, _channelId?: string) => {
+      try {
+        if (typeof data !== "string") throw new Error("expected base64 string");
+        const event = decodeEvent(data);
+        self.postMessage({ type: "event", channel: "broadcastChannel", event });
+      } catch (e: any) {
+        postLog("error", "Error processing broadcastChannel event", e?.message);
+      }
+    });
+
     hubConnection.onreconnecting((error) => {
       postLog("warn", "SignalR reconnecting...", error?.message);
       self.postMessage({ type: "state", state: "reconnecting" });
@@ -220,7 +237,9 @@ async function connect(endpoint: string) {
     hubConnection.onreconnected((connectionId) => {
       postLog("info", "SignalR reconnected", connectionId);
       self.postMessage({ type: "state", state: "connected" });
-      // Re-subscription happened server-side in OnConnectedAsync; now pull whatever we missed.
+      // Space re-subscription happens server-side in OnConnectedAsync; channel groups are this
+      // client's responsibility — re-join them — then pull whatever we missed.
+      resubscribeChannels();
       void resumeSession();
     });
 
@@ -241,6 +260,10 @@ async function connect(endpoint: string) {
     // auto-reconnect was exhausted). Pull missed events; skip on the very first connect.
     if (hasConnectedBefore) void resumeSession();
     hasConnectedBefore = true;
+
+    // (Re)join channel delivery groups for whatever the client currently has open. Also covers the
+    // race where the main thread requested a channel subscription before the hub was connected.
+    resubscribeChannels();
 
     startHeartbeat();
   } catch (error: any) {
@@ -288,6 +311,11 @@ async function invokeOnHub(method: string, args: any[]) {
   }
 }
 
+function resubscribeChannels() {
+  for (const channelId of subscribedChannels)
+    void invokeOnHub("SubscribeToChannel", [channelId]);
+}
+
 // --- Message handler ---
 self.onmessage = (e: MessageEvent) => {
   const msg = e.data;
@@ -297,6 +325,14 @@ self.onmessage = (e: MessageEvent) => {
       break;
     case "disconnect":
       disconnect();
+      break;
+    case "subscribeChannel":
+      subscribedChannels.add(msg.channelId);
+      void invokeOnHub("SubscribeToChannel", [msg.channelId]);
+      break;
+    case "unsubscribeChannel":
+      subscribedChannels.delete(msg.channelId);
+      void invokeOnHub("UnSubscribeToChannel", [msg.channelId]);
       break;
     case "tokenResponse": {
       const resolve = pendingTokenRequests.get(msg.requestId);

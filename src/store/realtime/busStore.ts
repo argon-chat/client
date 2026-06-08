@@ -78,6 +78,14 @@ export const useBus = defineStore("bus", () => {
             // Re-establishment (not first connect): events may have been missed
             // during the gap — notify listeners to resync.
             if (isReconnection) reconnected.next();
+            // (Re)assert the channel-delivery subscription for the currently-open channel. Covers
+            // the race where the channel was selected before the worker existed (postMessage no-op),
+            // and any reconnect where server-side group membership was lost.
+            void (async () => {
+              const { useChannelStore } = await import("@/store/data/channelStore");
+              const ch = useChannelStore().selectedTextChannel;
+              if (ch) subscribeToChannel(ch);
+            })();
           } else if (msg.state === "disconnected") {
             // Will auto-reconnect inside worker
           }
@@ -138,6 +146,16 @@ export const useBus = defineStore("bus", () => {
     logger.log(`Unsubscribed from space ${spaceId}`);
   }
 
+  // Channel-scoped delivery: the worker tracks these and re-joins them on every (re)connect, so
+  // channel content (messages/typing/reactions) reaches only viewers of the open channel.
+  async function subscribeToChannel(channelId: string) {
+    worker?.postMessage({ type: "subscribeChannel", channelId });
+  }
+
+  async function unsubscribeFromChannel(channelId: string) {
+    worker?.postMessage({ type: "unsubscribeChannel", channelId });
+  }
+
   function listenEvents(id: string) {}
 
   function onServerEvent<T extends IArgonEvent>(
@@ -190,6 +208,8 @@ export const useBus = defineStore("bus", () => {
     sendEventAsync,
     subscribeToSpace,
     unsubscribeFromSpace,
+    subscribeToChannel,
+    unsubscribeFromChannel,
     IAmTypingEvent,
     IAmStopTypingEvent,
     isSignalRReconnecting,

@@ -68,6 +68,14 @@ export const useChannelStore = defineStore("channel", () => {
   watch(selectedTextChannel, (newChannelId, oldChannelId) => {
     if (newChannelId !== oldChannelId) {
       onChannelChanged.next(newChannelId);
+      // Channel-scoped realtime: leave the previous channel's delivery group and join the new one,
+      // so messages/typing/reactions reach only current viewers. Lazy import to avoid a store cycle.
+      void (async () => {
+        const { useBus } = await import("@/store/realtime/busStore");
+        const bus = useBus();
+        if (oldChannelId) bus.unsubscribeFromChannel(oldChannelId);
+        if (newChannelId) bus.subscribeToChannel(newChannelId);
+      })();
     }
   });
 
