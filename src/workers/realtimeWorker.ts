@@ -67,6 +67,10 @@ function decodeEvent(data: string): IArgonEvent {
 let hubConnection: signalR.HubConnection | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let shouldReconnect = true;
+// Backoff attempt counter for the hard-close / start-failure manual reconnect path
+// (SignalR's own auto-reconnect is already exhausted by then). Reset to 0 on a successful
+// start(). Drives capped exponential backoff + jitter so clients don't reconnect in lockstep.
+let hardReconnectAttempts = 0;
 
 // --- Replay cursors ---
 // Last stream entry id we processed per delivery channel. On reconnect we hand these to
@@ -120,6 +124,23 @@ async function resumeSession() {
   }
 }
 
+// Schedule a manual reconnect with capped exponential backoff + equal jitter. The hard-close
+// and start()-failure paths previously retried at a fixed 5s with no jitter: a silo blip
+// dropped many clients that then reconnected in synchronized 5s waves forever, amplifying the
+// outage. Equal jitter spreads them out and the backoff relieves a struggling silo.
+function scheduleReconnect(endpoint: string) {
+  if (!shouldReconnect) return;
+  const base = Math.min(1000 * Math.pow(2, hardReconnectAttempts), 30000);
+  const delayMs = Math.round(base * 0.5 + Math.random() * base * 0.5);
+  hardReconnectAttempts++;
+  self.postMessage({
+    type: "reconnectInfo",
+    attemptCount: hardReconnectAttempts,
+    nextAttemptAt: Date.now() + delayMs,
+  });
+  setTimeout(() => connect(endpoint), delayMs);
+}
+
 async function connect(endpoint: string) {
   shouldReconnect = true;
 
@@ -146,10 +167,14 @@ async function connect(endpoint: string) {
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (retryContext) => {
-          const delayMs = Math.min(
+          // Equal jitter (half fixed backoff + half random), capped at 30s. Without jitter
+          // every client dropped by the same silo blip recomputes the identical delay and
+          // reconnects in lockstep waves, hammering the single silo exactly when it's weakest.
+          const base = Math.min(
             1000 * Math.pow(2, retryContext.previousRetryCount),
             30000
           );
+          const delayMs = Math.round(base * 0.5 + Math.random() * base * 0.5);
           self.postMessage({
             type: "reconnectInfo",
             attemptCount: retryContext.previousRetryCount,
@@ -203,13 +228,12 @@ async function connect(endpoint: string) {
       postLog("error", "SignalR connection closed", error?.message);
       self.postMessage({ type: "state", state: "disconnected" });
       stopHeartbeat();
-      if (shouldReconnect) {
-        setTimeout(() => connect(endpoint), 5000);
-      }
+      scheduleReconnect(endpoint);
     });
 
     self.postMessage({ type: "state", state: "connecting" });
     await hubConnection.start();
+    hardReconnectAttempts = 0; // healthy connection — reset hard-reconnect backoff
     postLog("info", "SignalR connected successfully", hubConnection.connectionId);
     self.postMessage({ type: "state", state: "connected" });
 
@@ -222,9 +246,7 @@ async function connect(endpoint: string) {
   } catch (error: any) {
     postLog("error", "SignalR connection error", error?.message);
     self.postMessage({ type: "state", state: "disconnected" });
-    if (shouldReconnect) {
-      setTimeout(() => connect(endpoint), 5000);
-    }
+    scheduleReconnect(endpoint);
   }
 }
 
