@@ -26,13 +26,19 @@ const pool = usePoolStore();
 const appState = useAppState();
 const feedbackOpened = ref(false);
 
+// Unified titlebar — present on every view in the shell, gated only by the host flag.
+const showTitlebar = computed(() => window.devolution_titlebar === 0x1);
+
 // Shell mounts once at app start — boot the app here (replaces the old Entry view).
 onMounted(() => {
   appState.initApp();
+  // Expose the titlebar height (0 when absent) so modals can keep clear of the
+  // window controls. The titlebar is 38px tall — see AppTitlebar.vue.
+  document.documentElement.style.setProperty(
+    "--app-titlebar-height",
+    showTitlebar.value ? "38px" : "0px"
+  );
 });
-
-// Unified titlebar — present on every view in the shell, gated only by the host flag.
-const showTitlebar = computed(() => window.devolution_titlebar === 0x1);
 
 // Children read this to pad their content for the OS titlebar overlay area.
 provide("titlebarVisible", showTitlebar);

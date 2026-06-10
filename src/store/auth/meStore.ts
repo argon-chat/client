@@ -19,6 +19,8 @@ import {
   UserStatus,
 } from "@argon/glue";
 import { useAuthStore } from "@/store/auth/authStore";
+import { LEGAL } from "@/legal/generated";
+import { isLegalOutdated } from "@/legal/version";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -30,6 +32,9 @@ export const useMe = defineStore("me", () => {
   const featureFlags = useFeatureFlags();
   const me = ref(null as ExtendedUser | null);
   const meProfile = ref(null as ArgonUserProfile | null);
+
+  // Which legal documents the user must (re-)accept, or null if up to date.
+  const legalOutdated = ref<{ terms: boolean; privacy: boolean } | null>(null);
 
   const limitation = ref(null as LockedAuthStatus | null);
 
@@ -58,6 +63,27 @@ export const useMe = defineStore("me", () => {
   }
   async function getMeProfile(): Promise<ArgonUserProfile> {
     return await api.userInteraction.GetMyProfile();
+  }
+
+  async function refreshLegalState(): Promise<void> {
+    try {
+      const state = await api.userInteraction.GetMyLegalState();
+      const terms = isLegalOutdated(state.tosVersion, LEGAL.terms.current);
+      const privacy = isLegalOutdated(state.privacyVersion, LEGAL.privacy.current);
+      legalOutdated.value = terms || privacy ? { terms, privacy } : null;
+    } catch (e) {
+      // Fail open: a transient error here must not lock the user out of the app.
+      logger.warn("Failed to load legal acceptance state", e);
+      legalOutdated.value = null;
+    }
+  }
+
+  async function acceptLegal(): Promise<void> {
+    await api.userInteraction.AcceptLegal({
+      tosVersion: LEGAL.terms.current,
+      privacyVersion: LEGAL.privacy.current,
+    });
+    legalOutdated.value = null;
   }
 
   // For automatic status changes (idle detection) - doesn't touch preferredStatus
@@ -114,6 +140,7 @@ export const useMe = defineStore("me", () => {
 
     me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
     meProfile.value = await getMeProfile();
+    await refreshLegalState();
     logger.info("Received user info ", me.value);
     logger.info("Received user profile ", meProfile.value);
     
@@ -150,6 +177,9 @@ export const useMe = defineStore("me", () => {
   return {
     me,
     meProfile,
+    legalOutdated,
+    acceptLegal,
+    refreshLegalState,
     init,
     completeInit,
     WelcomeCommanderHasReceived,

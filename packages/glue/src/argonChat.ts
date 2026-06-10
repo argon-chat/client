@@ -1476,6 +1476,20 @@ export interface NewUserCredentialsInput {
   birthDate: dateonly;
   argreeOptionalEmails: bool;
   captchaToken: string | null;
+  tosVersion: string | null;
+  privacyVersion: string | null;
+};
+
+
+export interface LegalState {
+  tosVersion: string | null;
+  privacyVersion: string | null;
+};
+
+
+export interface AcceptLegalInput {
+  tosVersion: string;
+  privacyVersion: string;
 };
 
 
@@ -11875,11 +11889,13 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
     const birthDate = IonFormatterStorage.get<dateonly>('dateonly').read(reader);
     const argreeOptionalEmails = IonFormatterStorage.get<bool>('bool').read(reader);
     const captchaToken = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { email, username, password, displayName, argreeTos, birthDate, argreeOptionalEmails, captchaToken };
+    const tosVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const privacyVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { email, username, password, displayName, argreeTos, birthDate, argreeOptionalEmails, captchaToken, tosVersion, privacyVersion };
   },
   write(writer: CborWriter, value: NewUserCredentialsInput): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(10);
     IonFormatterStorage.get<string>('string').write(writer, value.email);
     IonFormatterStorage.get<string>('string').write(writer, value.username);
     IonFormatterStorage.get<string>('string').write(writer, value.password);
@@ -11888,6 +11904,40 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
     IonFormatterStorage.get<dateonly>('dateonly').write(writer, value.birthDate);
     IonFormatterStorage.get<bool>('bool').write(writer, value.argreeOptionalEmails);
     IonFormatterStorage.writeNullable<string>(writer, value.captchaToken, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.tosVersion, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.privacyVersion, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LegalState", {
+  read(reader: CborReader): LegalState {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const tosVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const privacyVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { tosVersion, privacyVersion };
+  },
+  write(writer: CborWriter, value: LegalState): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeNullable<string>(writer, value.tosVersion, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.privacyVersion, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AcceptLegalInput", {
+  read(reader: CborReader): AcceptLegalInput {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const tosVersion = IonFormatterStorage.get<string>('string').read(reader);
+    const privacyVersion = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { tosVersion, privacyVersion };
+  },
+  write(writer: CborWriter, value: AcceptLegalInput): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.tosVersion);
+    IonFormatterStorage.get<string>('string').write(writer, value.privacyVersion);
     writer.writeEndArray();
   }
 });
@@ -12313,6 +12363,8 @@ export interface IUserInteraction extends IIonService
   GetNotificationFeed(limit: i4, before: datetime | null): Promise<IonArray<SystemNotificationDto>>;
   MarkNotificationRead(notificationId: guid): Promise<void>;
   MarkAllNotificationsRead(type: string | null): Promise<void>;
+  GetMyLegalState(): Promise<LegalState>;
+  AcceptLegal(request: AcceptLegalInput): Promise<LegalState>;
 }
 
 
@@ -12607,6 +12659,8 @@ export interface IUserInteraction extends IIonService
   GetNotificationFeed(limit: i4, before: datetime | null): Promise<IonArray<SystemNotificationDto>>;
   MarkNotificationRead(notificationId: guid): Promise<void>;
   MarkAllNotificationsRead(type: string | null): Promise<void>;
+  GetMyLegalState(): Promise<LegalState>;
+  AcceptLegal(request: AcceptLegalInput): Promise<LegalState>;
 }
 
 
@@ -14954,6 +15008,32 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  async GetMyLegalState(): Promise<LegalState> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "GetMyLegalState");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<LegalState>("LegalState", writer.data, this.signal);
+  }
+  async AcceptLegal(request: AcceptLegalInput): Promise<LegalState> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "AcceptLegal");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<AcceptLegalInput>('AcceptLegalInput').write(writer, request);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<LegalState>("LegalState", writer.data, this.signal);
   }
 
 }

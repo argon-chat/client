@@ -3,6 +3,7 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { useAppState } from "@/store/system/appState";
 import { AuthorizationError } from "@argon/glue";
 import { DateOnly } from "@argon-chat/ion.webcore";
+import { LEGAL } from "@/legal/generated";
 import type { DateValue } from "reka-ui";
 
 function describeAuthError(error: AuthorizationError): string {
@@ -77,6 +78,8 @@ export function useAuthForm() {
           username: username.value,
           captchaToken: null,
           birthDate: decomposeDateOfBirth(),
+          tosVersion: LEGAL.terms.current,
+          privacyVersion: LEGAL.privacy.current,
         });
       } else {
         const error = await authStore.login(

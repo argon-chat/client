@@ -23,6 +23,7 @@ import {
 import { useLocale } from "@/store/system/localeStore";
 import { today, getLocalTimeZone } from "@internationalized/date";
 import { ref, computed, watch } from "vue";
+import LegalDocModal from "@/components/modals/LegalDocModal.vue";
 
 const { t } = useLocale();
 const props = defineProps<{
@@ -45,6 +46,14 @@ const {
 const currentStep = ref(1);
 const totalSteps = 3;
 const showPassword = ref(false);
+
+// Legal document viewer opened from the agreement-checkbox links.
+const legalOpen = ref(false);
+const legalDoc = ref<"terms" | "privacy">("terms");
+function openLegal(doc: "terms" | "privacy") {
+  legalDoc.value = doc;
+  legalOpen.value = true;
+}
 
 // Step validation
 const isStep1Valid = computed(() => email.value && displayName.value);
@@ -328,9 +337,9 @@ const steps = computed(() => [
                                         />
                                         <label for="agreeTos" class="text-sm cursor-pointer">
                                             {{ t("accept") }}
-                                            <a href="/tos" class="text-primary hover:underline">{{ t("terms") }}</a>
+                                            <button type="button" class="text-primary hover:underline" @click.stop.prevent="openLegal('terms')">{{ t("terms") }}</button>
                                             {{ t("and") }}
-                                            <a href="/privacy" class="text-primary hover:underline">{{ t("privacy_policy") }}</a>
+                                            <button type="button" class="text-primary hover:underline" @click.stop.prevent="openLegal('privacy')">{{ t("privacy_policy") }}</button>
                                             <span class="text-red-400">*</span>
                                         </label>
                                     </div>
@@ -384,6 +393,7 @@ const steps = computed(() => [
                     </CardFooter>
                 </Card>
             </form>
+        <LegalDocModal v-model:open="legalOpen" :doc="legalDoc" />
     </div>
 </template>
 

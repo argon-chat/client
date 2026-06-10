@@ -15,6 +15,7 @@
     "build:games": "bun run scripts/build-games.ts",
     "build:games:watch": "bun run scripts/build-games.ts --watch",
     "build:packages": "bun run --filter './packages/*' build",
+    "sync:legal": "bun run scripts/sync-legal.ts",
     "validate": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {

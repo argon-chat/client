@@ -15,6 +15,7 @@ import GamePicker from "./components/playframe/GamePicker.vue";
 import PlayFrameOverlay from "./components/playframe/PlayFrameOverlay.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
+import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { logger } from "@argon/core";
@@ -83,10 +84,11 @@ watch(() => call.audioDeviceError, (err) => {
   <PlayFrameOverlay />
   <DvdBounce />
   <BotInteractionModal />
-  <AudioDeviceErrorModal 
-    v-model:open="showAudioDeviceError" 
-    :error-type="call.audioDeviceError?.type ?? null" 
+  <AudioDeviceErrorModal
+    v-model:open="showAudioDeviceError"
+    :error-type="call.audioDeviceError?.type ?? null"
   />
+  <LegalUpdateGate />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
   <Island class="select-none" v-if="call.isCpuConstrained && call.isSharing" :title="t('cpu_throttling')">
     <template #icon>
