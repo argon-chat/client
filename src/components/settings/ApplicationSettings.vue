@@ -138,6 +138,18 @@
                 latest-version="99.0.0"
                 command="curl -fSL -o /tmp/argon-desktop.deb &quot;https://cdn.argon.gl/runtime/core-linux/99.0.0/argon-desktop.deb&quot; && sudo dpkg -i /tmp/argon-desktop.deb"
             />
+            <div v-if="autostartSupported" class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        {{ t("autostart") }}
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        {{ t("autostart_desc") }}
+                    </div>
+                </div>
+                <Switch :checked="autostartEnabled" :disabled="autostartBusy"
+                    @update:checked="toggleAutostart" />
+            </div>
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
@@ -194,6 +206,46 @@ const disable_channel_select = ref(false);
 const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
 
 const configStore = useConfigStore();
+
+// Launch-on-login toggle. Backed by the host bridge, which reads/writes the registry live (see
+// ArgonApp/src/autostart.ts) and keeps the same Run entry the installer seeds.
+const autostartSupported = ref(false);
+const autostartEnabled = ref(false);
+const autostartBusy = ref(false);
+
+type AutostartBridge = {
+    get: () => Promise<{ supported: boolean; enabled: boolean }>;
+    set: (enabled: boolean) => Promise<{ supported: boolean; enabled: boolean }>;
+};
+const autostartBridge = (): AutostartBridge | undefined => (window as any).argonAutostart;
+
+async function loadAutostart() {
+    const a = autostartBridge();
+    if (!a) return;
+    try {
+        const s = await a.get();
+        autostartSupported.value = !!s?.supported;
+        autostartEnabled.value = !!s?.enabled;
+    } catch (e) {
+        logger.error(e);
+    }
+}
+
+async function toggleAutostart(v: boolean) {
+    const a = autostartBridge();
+    if (!a) return;
+    autostartBusy.value = true;
+    try {
+        const s = await a.set(v);
+        // Reflect the actual registry state so a failed write never leaves the switch lying.
+        autostartEnabled.value = !!s?.enabled;
+    } catch (e) {
+        logger.error(e);
+    } finally {
+        autostartBusy.value = false;
+    }
+}
+
 const toggleDevTools = () => {
     // @ts-ignore
     native.hostProc.toggleDevTools();
@@ -222,6 +274,8 @@ watch(selected_api_endpoint, async (e) => {
 });
 
 onMounted(async () => {
+    void loadAutostart();
+
     if (!argon.isArgonHost) {
         disable_channel_select.value = true;
     } else {
