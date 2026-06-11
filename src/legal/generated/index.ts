@@ -3,7 +3,7 @@
 import type { Component } from "vue";
 import "./legal.css";
 import TermsCurrent from "./terms/10.06.2026.vue";
-import PrivacyCurrent from "./privacy/10.06.2026.vue";
+import PrivacyCurrent from "./privacy/11.06.2026.vue";
 
 export type LegalDoc = "terms" | "privacy";
 export interface LegalEntry {
@@ -15,5 +15,5 @@ export interface LegalEntry {
 
 export const LEGAL: Record<LegalDoc, LegalEntry> = {
   terms: { current: "10.06.2026", component: TermsCurrent },
-  privacy: { current: "10.06.2026", component: PrivacyCurrent },
+  privacy: { current: "11.06.2026", component: PrivacyCurrent },
 };
