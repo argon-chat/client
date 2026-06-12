@@ -46,7 +46,21 @@
                 <MicIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t("select_microphone") }}</h3>
             </div>
-            
+
+            <!-- Microphone Permission Banner (macOS) -->
+            <div v-if="needsMicPermission" class="permission-banner mb-4">
+                <div class="flex items-center gap-3">
+                    <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-yellow-200">{{ t("mic_permission_required") }}</p>
+                        <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("mic_permission_description") }}</p>
+                    </div>
+                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10" @click="grantMicPermission">
+                        {{ t("grant_access") }}
+                    </Button>
+                </div>
+            </div>
+
             <Select v-model="selectedMicrophone">
                 <SelectTrigger class="w-full">
                     <SelectValue :placeholder="t('no_microphone')" />
@@ -61,7 +75,7 @@
             </Select>
 
             <!-- Input VU Meter -->
-            <div class="mt-4 p-4 rounded-lg bg-background/50 border">
+            <div v-if="!needsMicPermission" class="mt-4 p-4 rounded-lg bg-background/50 border">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-sm font-medium flex items-center gap-2">
                         <ActivityIcon class="w-4 h-4" />
@@ -261,9 +275,23 @@
                 <VideoIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t("select_camera") }}</h3>
             </div>
-            
-            <Select 
-                v-model="selectedCamera" 
+
+            <!-- Camera Permission Banner (macOS) -->
+            <div v-if="needsCameraPermission" class="permission-banner mb-4">
+                <div class="flex items-center gap-3">
+                    <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-yellow-200">{{ t("camera_permission_required") }}</p>
+                        <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("camera_permission_description") }}</p>
+                    </div>
+                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10" @click="grantCameraPermission">
+                        {{ t("grant_access") }}
+                    </Button>
+                </div>
+            </div>
+
+            <Select
+                v-model="selectedCamera"
                 @update:modelValue="onCameraChange" 
                 :disabled="videoDevices.length === 0"
             >
@@ -294,7 +322,7 @@
                 </div>
             </Transition>
             
-            <div v-if="!videoActive && videoDevices.length > 0" class="mt-4 flex justify-center">
+            <div v-if="!videoActive && videoDevices.length > 0 && !needsCameraPermission" class="mt-4 flex justify-center">
                 <Button @click="startVideoPreview" variant="outline" class="w-full max-w-xs">
                     <VideoIcon class="w-4 h-4 mr-2" />
                     {{ t("test_camera") }}
@@ -352,6 +380,11 @@ import {
 } from "@argon/ui/select";
 import { audio } from "@/lib/audio/AudioManager";
 import type { NoiseSuppressionMode } from "@/lib/audio/AudioManager";
+import {
+    ensureMediaPermission,
+    isMediaPermissionGranted,
+    needsMediaPermissionGate,
+} from "@/lib/mediaPermissions";
 import { worklets } from "@/lib/audio/WorkletBase";
 import { DisposableBag, logger } from "@argon/core";
 import { useLocale } from "@/store/system/localeStore";
@@ -370,6 +403,7 @@ import {
     Loader2Icon,
     BellIcon,
     ScissorsIcon,
+    ShieldAlertIcon,
 } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -418,6 +452,22 @@ const videoActive = ref(false);
 // State
 const loaded = ref(false);
 const isPlayingSound = ref(false);
+
+// macOS media permissions. Default to granted so non-mac hosts never show the banners.
+const micPermissionGranted = ref(true);
+const cameraPermissionGranted = ref(true);
+const needsMicPermission = computed(() => needsMediaPermissionGate() && !micPermissionGranted.value);
+const needsCameraPermission = computed(() => needsMediaPermissionGate() && !cameraPermissionGranted.value);
+
+async function grantMicPermission() {
+    // Prompts if undecided; deep-links to System Settings if previously denied.
+    micPermissionGranted.value = await ensureMediaPermission("microphone");
+    if (micPermissionGranted.value) await startInputMonitoring();
+}
+
+async function grantCameraPermission() {
+    cameraPermissionGranted.value = await ensureMediaPermission("camera");
+}
 
 // Sound level
 const soundLevel = ref([preferenceStore.soundLevel]);
@@ -560,6 +610,10 @@ async function startInputMonitoring() {
         stopInputMonitoring();
         return;
     }
+
+    // On macOS the OS gates mic access — don't try to capture until it's granted
+    // (the permission banner drives the request).
+    if (!micPermissionGranted.value) return;
 
     try {
         // Raw mic for VU meter (shows pre-gate levels so user sees signal vs threshold)
@@ -779,6 +833,13 @@ onMounted(async () => {
         }),
     );
 
+    // On macOS, read (don't prompt) the current grant state up front so the banners can
+    // show. The banner buttons drive the actual prompt; we never auto-prompt on open.
+    if (needsMediaPermissionGate()) {
+        micPermissionGranted.value = await isMediaPermissionGranted("microphone");
+        cameraPermissionGranted.value = await isMediaPermissionGranted("camera");
+    }
+
     loaded.value = true;
 
     await startInputMonitoring();
@@ -810,6 +871,10 @@ onUnmounted(() => {
 
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
+}
+
+.permission-banner {
+    @apply rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-5 py-4;
 }
 
 .setting-item {

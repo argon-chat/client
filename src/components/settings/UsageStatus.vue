@@ -5,8 +5,8 @@
                 <ChartPieIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t("storage.space") }}</h3>
             </div>
-            <div v-if="quota > 0" class="text-sm font-medium text-muted-foreground">
-                {{ t("storage.total") }}: <span class="text-foreground">{{ fmt(quota) }}</span>
+            <div v-if="displayTotal > 0" class="text-sm font-medium text-muted-foreground">
+                {{ t("storage.total") }}: <span class="text-foreground">{{ fmt(displayTotal) }}</span>
             </div>
         </div>
 
@@ -15,23 +15,23 @@
             <div class="stat-item">
                 <DatabaseIcon class="w-4 h-4 text-primary/60" />
                 <div class="flex-1">
-                    <div class="text-xs text-muted-foreground">Used Space</div>
+                    <div class="text-xs text-muted-foreground">{{ t('storage.usedByApp') }}</div>
                     <div class="text-base font-semibold">{{ fmt(usedTotal) }}</div>
                 </div>
             </div>
-            <div v-if="quota > 0" class="stat-item">
+            <div v-if="displayFree > 0" class="stat-item">
                 <CheckCircle2Icon class="w-4 h-4 text-green-500/60" />
                 <div class="flex-1">
-                    <div class="text-xs text-muted-foreground">Available</div>
-                    <div class="text-base font-semibold">{{ fmt(freeBytes) }}</div>
+                    <div class="text-xs text-muted-foreground">{{ t('storage.freeOnDisk') }}</div>
+                    <div class="text-base font-semibold">{{ fmt(displayFree) }}</div>
                 </div>
             </div>
-            <div class="stat-item">
+            <div v-if="displayTotal > 0" class="stat-item">
                 <PercentIcon class="w-4 h-4 text-blue-500/60" />
                 <div class="flex-1">
-                    <div class="text-xs text-muted-foreground">Usage</div>
+                    <div class="text-xs text-muted-foreground">{{ t('storage.diskUsage') }}</div>
                     <div class="text-base font-semibold">
-                        {{ quota > 0 ? floorToFixed((usedTotal / quota) * 100, 1) : '100.0' }}%
+                        {{ floorToFixed(((displayTotal - displayFree) / displayTotal) * 100, 1) }}%
                     </div>
                 </div>
             </div>
@@ -39,9 +39,9 @@
 
         <!-- Progress Bar -->
         <div class="progress-container">
-            <div class="progress-bar" role="progressbar" 
+            <div class="progress-bar" role="progressbar"
                 :aria-valuemin="0"
-                :aria-valuemax="quota > 0 ? quota : usedTotal" 
+                :aria-valuemax="usedTotal"
                 :aria-valuenow="usedTotal"
                 aria-label="Used storage">
                 <template v-for="(s, i) in barSegments" :key="'seg-'+i">
@@ -70,12 +70,8 @@
             </div>
             
             <!-- Progress Labels -->
-            <div class="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                <span>0%</span>
-                <span v-if="quota > 0" class="font-medium">
-                    {{ floorToFixed((usedTotal / quota) * 100, 1) }}% used
-                </span>
-                <span v-if="quota > 0">100%</span>
+            <div class="flex items-center justify-center mt-2 text-xs text-muted-foreground">
+                <span class="font-medium">{{ t('storage.usedByApp') }}: {{ fmt(usedTotal) }}</span>
             </div>
         </div>
 
@@ -116,9 +112,13 @@ const props = defineProps<{
     groups: Group[]
     quotaBytes?: number | null
     storageUsedBytes?: number | null
+    diskTotalBytes?: number | null
+    diskFreeBytes?: number | null
 }>()
 
 const quota = computed(() => Number(props.quotaBytes ?? 0) || 0)
+const diskTotal = computed(() => Number(props.diskTotalBytes ?? 0) || 0)
+const diskFree = computed(() => Number(props.diskFreeBytes ?? 0) || 0)
 
 const SYSTEM = new Set(['indexedDB', 'fileSystem', 'serviceWorkerRegistrations']);
 const MEDIA = new Set(['images', 'stickers', 'gifs', 'videos']);
@@ -154,7 +154,18 @@ const ordered = computed(() => {
 
 const groupsSum = computed(() => ordered.value.reduce((s, g) => s + g.usedBytes, 0))
 const usedTotal = computed(() => toNum(props.storageUsedBytes ?? groupsSum.value))
-const freeBytes = computed(() => Math.max(0, quota.value > 0 ? quota.value - usedTotal.value : 0))
+
+// Disk-level context for the summary numbers. The category bar below stays
+// proportional to what Argon uses, but "Total"/"Available" reflect the real
+// drive when we have it (native), falling back to a passed quota otherwise.
+const displayTotal = computed(() => (diskTotal.value > 0 ? diskTotal.value : quota.value))
+const displayFree = computed(() =>
+    diskFree.value > 0
+        ? diskFree.value
+        : quota.value > 0
+            ? Math.max(0, quota.value - usedTotal.value)
+            : 0,
+)
 
 const OTHER_KEY = 'other'
 const withOther = computed(() => {
@@ -164,20 +175,20 @@ const withOther = computed(() => {
     return arr
 })
 
+// The bar shows what Argon uses, broken down by category (proportional to the
+// app's own total) — free disk space is a summary stat, not a bar segment.
 const barSegments = computed(() => {
-    const base = quota.value > 0 ? quota.value : usedTotal.value || 1
-    const segs = withOther.value.map(g => ({ name: g.name, bytes: g.usedBytes, percent: (g.usedBytes / base) * 100 }))
-    if (quota.value > 0 && freeBytes.value > 0) segs.push({ name: 'free', bytes: freeBytes.value, percent: (freeBytes.value / base) * 100 })
-    return segs.filter(s => s.bytes > 0)
+    const base = usedTotal.value || 1
+    return withOther.value
+        .map(g => ({ name: g.name, bytes: g.usedBytes, percent: (g.usedBytes / base) * 100 }))
+        .filter(s => s.bytes > 0)
 })
 
-const legendItems = computed(() => {
-    const items = withOther.value
+const legendItems = computed(() =>
+    withOther.value
         .filter(g => g.usedBytes > 0)
-        .map(g => ({ name: g.name, bytes: g.usedBytes, percent: pctOf(quota.value > 0 ? quota.value : usedTotal.value, g.usedBytes) }))
-    if (freeBytes.value > 0) items.push({ name: 'free', bytes: freeBytes.value, percent: pctOf(quota.value, freeBytes.value) })
-    return items
-});
+        .map(g => ({ name: g.name, bytes: g.usedBytes, percent: pctOf(usedTotal.value, g.usedBytes) })),
+);
 
 const floorToFixed = (num: number, decimals: number) => {
   const factor = 10 ** decimals;
@@ -191,9 +202,14 @@ const PALETTE: Record<string, string> = {
     gifs: '#ef4444', 
     videos: '#8b5cf6', 
     files: '#ef7c3a',
-    [SYSTEM_KEY]: '#06b6d4', 
-    [OTHER_KEY]: '#465779', 
-    free: 'var(--free-color)', 
+    mediaCache: '#a4fa60',
+    database: '#f59e0b',
+    serviceWorker: '#14b8a6',
+    shaders: '#8b5cf6',
+    logs: '#64748b',
+    [SYSTEM_KEY]: '#06b6d4',
+    [OTHER_KEY]: '#465779',
+    free: 'var(--free-color)',
 }
 const FALLBACK = ['#93c5fd', '#fde68a', '#bbf7d0', '#fecaca', '#ddd6fe', '#fca5a5', '#5eead4', '#a3a3a3']
 

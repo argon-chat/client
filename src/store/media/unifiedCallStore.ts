@@ -14,6 +14,7 @@ import {
 import { ref, reactive, computed } from "vue";
 
 import { audio, type RemoteAudioGraph } from "@/lib/audio/AudioManager";
+import { ensureMediaPermission } from "@/lib/mediaPermissions";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useTone } from "@/store/media/toneStore";
@@ -868,6 +869,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     try {
       const audioCtx = audio.getCurrentAudioContext();
 
+      // Prompt for mic access before capturing (macOS native host only — elsewhere a no-op).
+      await ensureMediaPermission("microphone");
+
       // Use virtual input stream from AudioManager - it already handles:
       // - Device selection & switching
       // - Input volume control via inputGainNode
@@ -1421,6 +1425,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (isCameraOn.value) return;
 
     try {
+      // Prompt for camera access before capturing (macOS native host only — elsewhere a no-op).
+      await ensureMediaPermission("camera");
+
       const dev = deviceId || usePreference().defaultVideoDevice || undefined;
       const cam = await createLocalVideoTrack({
         deviceId: dev,

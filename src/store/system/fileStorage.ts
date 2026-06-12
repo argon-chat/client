@@ -40,7 +40,38 @@ export function resolveAttachmentUrl(fileId: string, downloadUrl: string | null 
   return cdnUrl(fileId);
 }
 
+/** Single source of truth for the on-disk userData breakdown (native only). */
+type StorageBreakdown = { categories: Array<{ name: string; bytes: number }>; totalBytes: number };
+
 export async function getStorageUsageReport(): Promise<StorageUsageReport> {
+  // Native: walk the real userData footprint (cdn-cache + HTTP cache + IndexedDB
+  // + service worker + shaders…). navigator.storage.estimate() can't see most of
+  // these, so on desktop it badly undercounts — we replace it entirely.
+  if (isNative) {
+    try {
+      const res = (await (window as any).argonIpc.invoke(
+        "Storage",
+        "breakdown",
+        [],
+      )) as StorageBreakdown;
+
+      const total = res.categories.reduce((s, c) => s + (c.bytes || 0), 0);
+      const groups: GroupReport[] = res.categories.map((c) => ({
+        name: c.name,
+        usedBytes: c.bytes,
+        percentOfQuota: null,
+        percentOfGroupsTotal: total > 0 ? round2((c.bytes / total) * 100) : 0,
+      }));
+
+      // No meaningful quota for an app cache — leave it null so UsageStatus
+      // renders a proportional "what eats space" breakdown instead of a
+      // misleading bar against the whole system drive.
+      return { quotaBytes: null, storageUsedBytes: res.totalBytes, totalFreeBytes: null, groups };
+    } catch {
+      // fall through to the web estimate() path on RPC failure
+    }
+  }
+
   let quota: number | null = null;
   let storageUsed: number | null = null;
 
@@ -52,32 +83,10 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
     }
   } catch {}
 
-  const groupEntries: Array<{ name: string; usedBytes: number }> = [];
-
-  if (isNative) {
-    try {
-      const stats = await (window as any).argonIpc.invoke("CdnCache", "stats", []);
-      groupEntries.push({ name: "cdnCache", usedBytes: stats?.totalSize ?? 0 });
-    } catch {}
-  }
-
-  const groupsTotalUsed = groupEntries.reduce((s, g) => s + g.usedBytes, 0);
-
-  const groups: GroupReport[] = groupEntries.map((g) => ({
-    name: g.name,
-    usedBytes: g.usedBytes,
-    percentOfQuota:
-      quota && quota > 0 ? round2((g.usedBytes / quota) * 100) : null,
-    percentOfGroupsTotal:
-      groupsTotalUsed > 0 ? round2((g.usedBytes / groupsTotalUsed) * 100) : 0,
-  }));
-
   const totalFree =
-    quota != null
-      ? Math.max(0, quota - (storageUsed != null ? storageUsed : groupsTotalUsed))
-      : null;
+    quota != null && storageUsed != null ? Math.max(0, quota - storageUsed) : null;
 
-  return { quotaBytes: quota, storageUsedBytes: storageUsed, totalFreeBytes: totalFree, groups };
+  return { quotaBytes: quota, storageUsedBytes: storageUsed, totalFreeBytes: totalFree, groups: [] };
 }
 
 function round2(v: number) {
@@ -96,6 +105,20 @@ export const pruneIndexDb = async () => {
   const allIndexDbs = await indexedDB.databases();
   for (const db of allIndexDbs) {
     try { indexedDB.deleteDatabase(db.name ?? ""); } catch (e) { logger.error(e); }
+  }
+};
+
+/**
+ * Clear a single storage category by name (native only).
+ * `database` clears IndexedDB and requires a reload to drop open connections —
+ * the caller is responsible for reloading.
+ */
+export const pruneStorageCategory = async (category: string) => {
+  if (!isNative) return;
+  try {
+    await (window as any).argonIpc.invoke("Storage", "clear", [category]);
+  } catch (e) {
+    logger.error(e);
   }
 };
 

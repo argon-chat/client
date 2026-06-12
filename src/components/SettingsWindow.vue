@@ -79,6 +79,9 @@ const featureFlags = useFeatureFlags();
 // State
 const selectedCategory = ref("account");
 
+// The in-game overlay is Windows-only (libovl / layered windows), so hide its tab on macOS.
+const isMac = navigator.userAgent.includes("Mac");
+
 // Category configuration
 interface Category {
     id: string;
@@ -106,7 +109,7 @@ const categories = computed<Category[]>(() =>
         if (cat.id === "activity")
             return { ...cat, hidden: !configStore.devModeEnabled };
         if (cat.id === "overlay")
-            return { ...cat, hidden: !featureFlags.overlayGamesEnabled };
+            return { ...cat, hidden: !featureFlags.overlayGamesEnabled || isMac };
         if (cat.id === "ultima" || cat.id === "transactions")
             return { ...cat, hidden: !featureFlags.ultimaActive };
         if (cat.id === "boosts")

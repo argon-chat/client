@@ -6,11 +6,12 @@
                 <HardDriveIcon class="w-5 h-5 text-primary" />
                 <h3 class="text-lg font-semibold">{{ t('storage_overview') }}</h3>
             </div>
-            <UsageStatus 
-                v-if="usageReport" 
-                :groups="usageReport.groups" 
-                :quota-bytes="usageReport.quotaBytes"
-                :storage-used-bytes="usageReport.storageUsedBytes" 
+            <UsageStatus
+                v-if="usageReport"
+                :groups="usageReport.groups"
+                :storage-used-bytes="usageReport.storageUsedBytes"
+                :disk-total-bytes="diskTotal"
+                :disk-free-bytes="diskFree"
             />
         </div>
 
@@ -22,57 +23,36 @@
             </div>
             
             <div class="space-y-3">
-                <!-- Clear Media Cache -->
-                <Transition name="card-hover">
+                <!-- Per-category clear actions, driven by the real userData breakdown -->
+                <Transition name="card-hover" v-for="g in clearableGroups" :key="g.name">
                     <div class="action-item action-warning">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
-                                <ImageIcon class="w-4 h-4" />
-                                <span class="text-sm font-medium">{{ t('clear_media_cache') }}</span>
+                                <component :is="metaFor(g.name).icon" class="w-4 h-4" />
+                                <span class="text-sm font-medium">{{ label(g.name) }}</span>
+                                <span class="text-xs text-muted-foreground tabular-nums">· {{ fmt(g.usedBytes) }}</span>
                             </div>
                             <div class="text-xs text-muted-foreground">
-                                {{ t('clear_media_cache_desc') }}
+                                {{ t(metaFor(g.name).descKey) }}
                             </div>
                         </div>
                         <Button
-                            @click="onPruneCache"
+                            @click="onClearCategory(g.name)"
                             variant="outline"
                             size="sm"
-                            :disabled="isCacheClearing"
+                            :disabled="clearing !== null"
                             class="shrink-0"
                         >
-                            <Loader2Icon v-if="isCacheClearing" class="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2Icon v-if="clearing === g.name" class="w-4 h-4 mr-2 animate-spin" />
                             <Trash2Icon v-else class="w-4 h-4 mr-2" />
                             {{ t('clear') }}
                         </Button>
                     </div>
                 </Transition>
 
-                <!-- Clear System Cache -->
-                <Transition name="card-hover">
-                    <div class="action-item action-warning">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <FolderIcon class="w-4 h-4" />
-                                <span class="text-sm font-medium">{{ t('clear_system_cache') }}</span>
-                            </div>
-                            <div class="text-xs text-muted-foreground">
-                                {{ t('clear_system_cache_desc') }}
-                            </div>
-                        </div>
-                        <Button
-                            @click="onPruneIndexDb"
-                            variant="outline"
-                            size="sm"
-                            :disabled="isSystemCacheClearing"
-                            class="shrink-0"
-                        >
-                            <Loader2Icon v-if="isSystemCacheClearing" class="w-4 h-4 mr-2 animate-spin" />
-                            <Trash2Icon v-else class="w-4 h-4 mr-2" />
-                            {{ t('clear') }}
-                        </Button>
-                    </div>
-                </Transition>
+                <div v-if="clearableGroups.length === 0" class="text-xs text-muted-foreground px-1">
+                    {{ t('nothing_to_clear') }}
+                </div>
             </div>
         </div>
 
@@ -146,8 +126,8 @@ import { logger } from "@argon/core";
 import { useToast } from "@argon/ui/toast";
 import { Button } from "@argon/ui/button";
 import UsageStatus from "./UsageStatus.vue";
-import { onMounted, ref } from "vue";
-import { getStorageUsageReport, StorageUsageReport, pruneCache, pruneIndexDb, pruneAll } from "@/store/system/fileStorage";
+import { computed, onMounted, ref, type Component } from "vue";
+import { getStorageUsageReport, StorageUsageReport, pruneStorageCategory, pruneAll } from "@/store/system/fileStorage";
 import { native } from "@argon/glue/native";
 import {
     HardDriveIcon,
@@ -166,56 +146,50 @@ const toast = useToast();
 
 const usageReport = ref(null as StorageUsageReport | null);
 const me = useMe();
-const isCacheClearing = ref(false);
-const isSystemCacheClearing = ref(false);
 const isWiping = ref(false);
 const showConfirmDialog = ref(false);
+/** Name of the category currently being cleared, or null. */
+const clearing = ref<string | null>(null);
+/** Whole-disk context (native only) — used to show real free space. */
+const diskTotal = ref(0);
+const diskFree = ref(0);
 
-const onPruneCache = async () => {
-    if (isCacheClearing.value) return;
-    
-    try {
-        isCacheClearing.value = true;
-        await pruneCache();
-        toast.toast({
-            title: t('success'),
-            description: t('media_cache_cleared'),
-        });
-        // Refresh usage report
-        usageReport.value = await getStorageUsageReport();
-    } catch (error) {
-        logger.error("Failed to clear cache:", error);
-        toast.toast({
-            title: t('error'),
-            description: t('failed_clear_media_cache'),
-            variant: "destructive",
-        });
-    } finally {
-        isCacheClearing.value = false;
-    }
+/** Categories the user is allowed to clear, plus their icon + description copy. */
+const CATEGORY_META: Record<string, { icon: Component; descKey: string }> = {
+    mediaCache: { icon: ImageIcon, descKey: 'clear_media_cache_desc' },
+    serviceWorker: { icon: FolderIcon, descKey: 'clear_service_worker_desc' },
+    database: { icon: DatabaseIcon, descKey: 'clear_local_db_desc' },
 };
 
-const onPruneIndexDb = async () => {
-    if (isSystemCacheClearing.value) return;
-    
+const clearableGroups = computed(() =>
+    (usageReport.value?.groups ?? []).filter((g) => g.name in CATEGORY_META && g.usedBytes > 0),
+);
+
+const metaFor = (name: string) => CATEGORY_META[name] ?? { icon: FolderIcon, descKey: '' };
+const label = (name: string) => t(`storage.${name}`);
+
+function fmt(n: number): string {
+    const units = ['b', 'Kb', 'Mb', 'Gb', 'Tb'];
+    let i = 0, v = n;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    const digits = v < 10 && i > 0 ? 2 : v < 100 && i > 0 ? 1 : 0;
+    return `${v.toFixed(digits)} ${units[i]}`;
+}
+
+const onClearCategory = async (name: string) => {
+    if (clearing.value) return;
     try {
-        isSystemCacheClearing.value = true;
-        await pruneIndexDb();
-        toast.toast({
-            title: t('success'),
-            description: t('system_cache_cleared'),
-        });
-        // Refresh usage report
+        clearing.value = name;
+        await pruneStorageCategory(name);
+        // Clearing IndexedDB drops connections the app may still hold — reload.
+        if (name === 'database') { location.reload(); return; }
+        toast.toast({ title: t('success'), description: t('cache_cleared') });
         usageReport.value = await getStorageUsageReport();
     } catch (error) {
-        logger.error("Failed to clear system cache:", error);
-        toast.toast({
-            title: t('error'),
-            description: t('failed_clear_system_cache'),
-            variant: "destructive",
-        });
+        logger.error("Failed to clear storage category:", error);
+        toast.toast({ title: t('error'), description: t('failed_clear_cache'), variant: "destructive" });
     } finally {
-        isSystemCacheClearing.value = false;
+        clearing.value = null;
     }
 };
 
@@ -250,10 +224,12 @@ onMounted(async () => {
     usageReport.value = await getStorageUsageReport();
 
     if (argon.isArgonHost) {
-        // @ts-ignore
-        const space = await native.hostProc.getStorageSpace();
-        usageReport.value.quotaBytes = +space.totalSize;
-        usageReport.value.storageUsedBytes = Math.abs(+space.availableFreeSpace - +space.totalSize);
+        try {
+            // @ts-ignore
+            const space = await native.hostProc.getStorageSpace();
+            diskTotal.value = +space.totalSize || 0;
+            diskFree.value = +space.availableFreeSpace || 0;
+        } catch { /* disk context is optional */ }
     }
 });
 </script>
