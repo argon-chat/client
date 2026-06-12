@@ -31,14 +31,10 @@
 import { useLocale } from '@/store/system/localeStore';
 import { IconBolt } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
-import { useSpaceStore } from '@/store/data/serverStore';
-import { usePoolStore } from '@/store/data/poolStore';
-import { DeferFlag } from '@argon/core';
-import { logger } from '@argon/core';
+import { useWindow } from '@/store/ui/windowStore';
 
 const { t } = useLocale();
-const spaceStore = useSpaceStore();
-const poolStore = usePoolStore();
+const windows = useWindow();
 
 const channelCode = ref('');
 const isLoading = ref(false);
@@ -51,29 +47,13 @@ watch(channelCode, () => {
     }
 });
 
-const handleJoin = async () => {
+const handleJoin = () => {
     if (!channelCode.value.trim()) {
         error.value = t('please_enter_invite_code');
         return;
     }
-    
-    const e = new DeferFlag(isLoading);
-    try {
-        error.value = '';
-        logger.log(`[QuickJoinWidget] Joining server with invite code: ${channelCode.value}`);
-        
-        const result = await spaceStore.joinToServer(channelCode.value.trim());
-
-        if (result) {
-            error.value = result;
-            return;
-        }
-        
-        channelCode.value = '';
-        poolStore.refershDatas();
-        
-    } finally {
-        e[Symbol.dispose]();
-    }
+    // Show the invite preview first; the user confirms the join from there.
+    windows.openInvitePreview(channelCode.value.trim());
+    channelCode.value = '';
 };
 </script>

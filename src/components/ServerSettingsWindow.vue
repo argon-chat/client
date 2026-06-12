@@ -13,15 +13,19 @@
             </DrawerHeader>
 
             <div class="settings-layout justify-between flex min-h-full space-x-4">
-                <nav class="settings-nav w-1/6 p-4 text-white space-y-2 rounded-lg isolate min-w-max">
-                    <Button v-for="category in categories" :key="category.id"
-                        :variant="selectedCategory !== category.id ? 'ghost' : 'default'"
-                        @click="selectedCategory = category.id" :style="{ willChange: 'transform' }"
-                        class="nav-item px-4 py-2 rounded-md w-full transition-none">
-                        {{ category.id }}
-                    </Button>
+                <nav class="settings-nav w-1/6 p-3 text-white space-y-1 rounded-lg isolate min-w-max">
+                    <button
+                        v-for="category in categories"
+                        :key="category.id"
+                        @click="selectedCategory = category.id"
+                        class="nav-item"
+                        :class="{ 'nav-item--active': selectedCategory === category.id }"
+                    >
+                        <component :is="category.icon" class="w-4 h-4 shrink-0" />
+                        <span>{{ category.label }}</span>
+                    </button>
                 </nav>
-                <div class="settings-content w-1/2 p-6  text-white w-[100%]">
+                <div class="settings-content flex-1 p-6 text-white">
                     <component :is="selectedCategoryComponent" />
                 </div>
             </div>
@@ -30,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import {
     Drawer,
     DrawerContent,
@@ -38,34 +42,45 @@ import {
     DrawerTitle,
     DrawerDescription,
 } from "@argon/ui/drawer";
-import { Button } from "@argon/ui/button";
+import { CircleXIcon, UserIcon, LinkIcon, ShieldIcon, BotIcon } from "lucide-vue-next";
 import { useWindow } from "@/store/ui/windowStore";
-import { CircleXIcon } from "lucide-vue-next";
+import { usePexStore } from "@/store/data/permissionStore";
 import Invites from "@/components/settings/Invites.vue";
 import RolesSettings from "./settings/spaces/RolesSettings.vue";
 import ServerProfile from "./settings/spaces/ServerProfile.vue";
+import BotsSettings from "./settings/spaces/BotsSettings.vue";
 import { useLocale } from "@/store/system/localeStore";
 
 const windows = useWindow();
-
+const pex = usePexStore();
 const { t } = useLocale();
 
-const categories = ref([
-    { id: "profile", name: "Profile" },
-    { id: "archetypes", name: "Archetypes" },
-    { id: "invites", name: "Invites" },
-]);
+// Each category declares the permission required to see it, so the nav adapts
+// to what the current member is actually allowed to manage.
+const allCategories = [
+    { id: "profile", label: "Profile", icon: UserIcon, perm: "ManageServer", component: ServerProfile },
+    { id: "invites", label: "Invites", icon: LinkIcon, perm: "ManageServer", component: Invites },
+    { id: "archetypes", label: "Roles", icon: ShieldIcon, perm: "ManageArchetype", component: RolesSettings },
+    { id: "bots", label: "Bots", icon: BotIcon, perm: "ManageBots", component: BotsSettings },
+] as const;
 
-const selectedCategory = ref("profile");
+const categories = computed(() => allCategories.filter((c) => pex.has(c.perm)));
 
-const categoryComponents = {
-    profile: ServerProfile,
-    invites: Invites,
-    archetypes: RolesSettings,
-};
+const selectedCategory = ref<string>("profile");
 
 const selectedCategoryComponent = computed(
-    () => (categoryComponents as any)[selectedCategory.value],
+    () => categories.value.find((c) => c.id === selectedCategory.value)?.component ?? null,
+);
+
+// Keep the selection valid as permissions/categories resolve (e.g. a bots-only
+// admin opening settings should land on the Bots tab, not an empty Profile tab).
+watch(
+    categories,
+    (list) => {
+        if (list.length && !list.some((c) => c.id === selectedCategory.value))
+            selectedCategory.value = list[0].id;
+    },
+    { immediate: true },
 );
 
 const handleEscape = (event: KeyboardEvent) => {
@@ -94,16 +109,34 @@ onUnmounted(() => {
 }
 
 .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
     text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    color: hsl(0 0% 100% / 0.7);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.active-nav {
-    color: #ffffff;
-    background-color: #4b5563;
+.nav-item:hover {
+    background: hsl(0 0% 100% / 0.06);
+    color: #fff;
+}
+
+.nav-item--active {
+    background: hsl(0 0% 100% / 0.1);
+    color: #fff;
 }
 
 .settings-content {
     border-left: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-y: auto;
 }
 
 .close-button {

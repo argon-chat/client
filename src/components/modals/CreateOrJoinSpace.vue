@@ -74,9 +74,8 @@ import { useApi } from '@/store/system/apiStore'
 import { CreateSpaceError } from '@argon/glue'
 import InputWithError from '../shared/InputWithError.vue'
 import { logger } from '@argon/core'
-import { DeferFlag } from '@argon/core'
-import { useSpaceStore } from '@/store/data/serverStore'
 import { usePoolStore } from '@/store/data/poolStore'
+import { useWindow } from '@/store/ui/windowStore'
 
 const { t } = useLocale()
 
@@ -84,8 +83,8 @@ const isLoading = ref(false)
 const createLoading = ref(false)
 const createError = ref<string>('')
 const joinError = ref('');
-const spaceStore = useSpaceStore();
 const poolStore = usePoolStore();
+const windows = useWindow();
 
 const inviteCode = ref("")
 const spaceName = ref("")
@@ -128,26 +127,15 @@ function humanizeError(err: CreateSpaceError): string {
 }
 
 
-const join = async (code: string) => {
-    const e = new DeferFlag(isLoading);
-    try {
-        if (!inviteCode.value.trim()) {
-            joinError.value = "Please enter a valid invite code.";
-            return;
-        }
-        logger.log(`Joined server with invite code: ${inviteCode.value}`);
-        const result = await spaceStore.joinToServer(inviteCode.value.trim());
-
-        if (result) {
-            joinError.value = result;
-            return;
-        }
-        inviteCode.value = "";
-        open.value = false;
-        
-    } finally {
-        e[Symbol.dispose]();
+const join = (_code: string) => {
+    if (!inviteCode.value.trim()) {
+        joinError.value = "Please enter a valid invite code.";
+        return;
     }
+    // Show the invite preview first; the user confirms the join from there.
+    windows.openInvitePreview(inviteCode.value.trim());
+    inviteCode.value = "";
+    open.value = false;
 }
 
 const open = defineModel<boolean>('open', { type: Boolean, default: false })

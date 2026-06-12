@@ -16,6 +16,8 @@ import PlayFrameOverlay from "./components/playframe/PlayFrameOverlay.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
 import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
+import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
+import { initDeepLinks } from "@/lib/deeplink";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { logger } from "@argon/core";
@@ -47,6 +49,7 @@ mode.value = "dark";
 // Apply all appearance settings on app start
 onMounted(() => {
   applyAppearanceSettings();
+  initDeepLinks();
 });
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
@@ -89,6 +92,7 @@ watch(() => call.audioDeviceError, (err) => {
     :error-type="call.audioDeviceError?.type ?? null"
   />
   <LegalUpdateGate />
+  <InvitePreviewModal />
   <Island class="select-none" v-if="sys.isRequestRetrying && !sys.isLongReconnecting" :title="`Reconnecting`" />
   <Island class="select-none" v-if="call.isCpuConstrained && call.isSharing" :title="t('cpu_throttling')">
     <template #icon>

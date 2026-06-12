@@ -5,7 +5,7 @@
         v-show="pex.has('ManageServer') || pex.has('ManageChannels') || pex.has('ManageArchetype') || pex.has('ManageBots')"
     >
         <button
-            v-show="pex.has('ManageServer') || pex.has('ManageArchetype')"
+            v-show="pex.has('ManageServer') || pex.has('ManageArchetype') || pex.has('ManageBots')"
             @click="openServerSettings"
             title="Server settings"
         >
@@ -18,27 +18,18 @@
         >
             <FolderPlusIcon class="w-4 h-4" />
         </button>
-        <button
-            v-show="pex.has('ManageBots')"
-            @click="manageBotsOpened = true"
-            title="Manage bots"
-        >
-            <BotIcon class="w-4 h-4" />
-        </button>
 
         <AddChannelGroup v-model:open="addGroupOpened" :selected-space="selectedSpaceId" />
-        <ManageBots v-model:open="manageBotsOpened" :selected-space="selectedSpaceId" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { SettingsIcon, BotIcon, FolderPlusIcon } from "lucide-vue-next";
+import { SettingsIcon, FolderPlusIcon } from "lucide-vue-next";
 import { useMe } from "@/store/auth/meStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { shallowRef, onUnmounted } from "vue";
 import AddChannelGroup from "./modals/AddChannelGroup.vue";
-import ManageBots from "./modals/ManageBots.vue";
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
     type: String, required: true
@@ -47,7 +38,6 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 const me = useMe();
 const windows = useWindow();
 const pex = usePexStore();
-const manageBotsOpened = shallowRef(false);
 const addGroupOpened = shallowRef(false);
 
 async function openServerSettings() {
@@ -56,7 +46,6 @@ async function openServerSettings() {
 
 onUnmounted(() => {
     addGroupOpened.value = false;
-    manageBotsOpened.value = false;
 });
 </script>
 

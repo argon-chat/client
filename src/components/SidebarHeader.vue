@@ -10,17 +10,18 @@
         <div class="h-10 header-top-gradient rounded-t-lg" />
         <div class="absolute inset-0 flex items-start pt-1.5">
           <h2 class="text-lg font-bold header-space-name text-shadow-lg pl-4 pr-24 flex items-center gap-2">
-            <TooltipProvider v-if="isVerifiedSpace">
+            <TooltipProvider v-if="spaceBadge">
               <Tooltip>
                 <TooltipTrigger as-child>
                   <span class="relative group">
                     <PhSealCheck
-                      class="w-6 h-6 text-yellow-400 cursor-pointer transition-all duration-500 group-hover:rotate-[360deg] group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                      class="w-6 h-6 cursor-pointer transition-all duration-500 group-hover:rotate-[360deg] group-hover:scale-110"
+                      :class="spaceBadge.iconClass"
                       weight="fill" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" class="bg-gray-900 text-white px-2 py-1 rounded text-sm">
-                  Verified Space!
+                  {{ spaceBadge.label }}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -36,7 +37,7 @@
     </div>
 
     <!-- Boost mini-banner -->
-    <div v-if="spaceName" class="boost-strip">
+    <div v-if="spaceName && !spaceName.hideBoostStrip" class="boost-strip">
       <div class="boost-strip-inner">
         <RocketIcon class="w-3.5 h-3.5 text-violet-300" />
         <div class="boost-strip-bar">
@@ -86,11 +87,19 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
   type: String, required: true
 });
 
-const isVerifiedSpace = computed(() => {
-  return selectedSpaceId.value === "11111111-0000-1111-1111-111111111112";
-})
-
 const spaceName = useLiveQuery(() => db.servers.where("spaceId").equals(selectedSpaceId.value).first())
+
+// Verification/official badges are now driven by real space flags (server-controlled),
+// not a hardcoded space id. Official outranks verified when both are set.
+const spaceBadge = computed(() => {
+  const s = spaceName.value;
+  if (!s) return null;
+  if (s.isOfficial)
+    return { label: "Official Space", iconClass: "text-sky-400 group-hover:drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]" };
+  if (s.isVerified)
+    return { label: "Verified Space", iconClass: "text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" };
+  return null;
+});
 
 const boostBtnRef = ref<HTMLButtonElement | null>(null);
 const boosting = ref(false);

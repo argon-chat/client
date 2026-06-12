@@ -8,7 +8,7 @@ import {
   AcceptInviteError,
   ChannelType,
   InviteCode,
-  InviteCodeEntity,
+  ServerInvites,
 } from "@argon/glue";
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
@@ -46,6 +46,8 @@ export const useSpaceStore = defineStore("spaces", () => {
       switch (r.error) {
         case AcceptInviteError.EXPIRED:
           return "Invite code expired";
+        case AcceptInviteError.LIMIT_REACHED:
+          return "This invite has reached its usage limit";
         case AcceptInviteError.NOT_FOUND:
         case AcceptInviteError.YOU_ARE_BANNED:
           return "Invite code incorrect";
@@ -76,18 +78,30 @@ export const useSpaceStore = defineStore("spaces", () => {
     await api.channelInteraction.DeleteChannel(selectedServer, channelId);
   }
 
-  async function getServerInvites(): Promise<InviteCodeEntity[]> {
+  async function getServerInvites(): Promise<ServerInvites | null> {
     const selectedServer = pool.selectedServer;
-    if (!selectedServer) return [];
+    if (!selectedServer) return null;
 
     return api.serverInteraction.GetInviteCodes(selectedServer);
   }
 
-  async function addInvite(): Promise<InviteCode | null> {
+  /**
+   * Create an invite.
+   * @param expireMinutes minutes until expiry, or 0 for "never".
+   * @param maxUses maximum joins allowed, or 0 for "unlimited".
+   */
+  async function addInvite(expireMinutes: number, maxUses: number): Promise<InviteCode | null> {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return null;
 
-    return api.serverInteraction.CreateInviteCode(selectedServer);
+    return api.serverInteraction.CreateInviteCode(selectedServer, expireMinutes, maxUses);
+  }
+
+  async function revokeInvite(code: InviteCode): Promise<void> {
+    const selectedServer = pool.selectedServer;
+    if (!selectedServer) return;
+
+    await api.serverInteraction.RevokeInviteCode(selectedServer, code);
   }
 
   return {
@@ -98,6 +112,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     deleteChannel,
     getServerInvites,
     addInvite,
+    revokeInvite,
     createServer,
   };
 });

@@ -7,9 +7,18 @@ export type MediaPermission = "microphone" | "camera";
  * True only on the macOS native host, where the OS (TCC) gates mic/camera access and a
  * silent `NotAllowedError` is the default failure. On Windows, Linux and in the browser
  * `getUserMedia` drives its own permission flow, so the gate is unnecessary.
+ *
+ * NOTE: `argon.isArgonHost_MacOs` is unreliable — the preload hardcodes `ahid = 0x8`
+ * (the Windows bit) on every platform, so that getter is always false. Mirror the proven
+ * check used by the hotkeys Accessibility banner: any native host + a Mac user agent.
  */
 export function needsMediaPermissionGate(): boolean {
-  return argon.isArgonHost_MacOs && !!native;
+  return (
+    argon.isArgonHost &&
+    !!native &&
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("Mac")
+  );
 }
 
 /**

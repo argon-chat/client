@@ -1117,6 +1117,12 @@ export interface InviteCodeEntity {
 };
 
 
+export interface ServerInvites {
+  domain: string;
+  invites: IonArray<InviteCodeEntity>;
+};
+
+
 export interface InviteCode {
   inviteCode: string;
 };
@@ -1510,6 +1516,20 @@ export interface LegalState {
 export interface AcceptLegalInput {
   tosVersion: string;
   privacyVersion: string;
+};
+
+
+export interface InvitePreview {
+  spaceId: guid;
+  name: string;
+  description: string;
+  avatarFileId: string | null;
+  topBannerFileId: string | null;
+  inviteImageFileId: string | null;
+  isVerified: bool;
+  isOfficial: bool;
+  memberCount: i4;
+  onlineCount: i4;
 };
 
 
@@ -9061,6 +9081,108 @@ IonFormatterStorage.register("FailedJoin", {
 
 
 
+export abstract class IPreviewInviteResult implements IIonUnion<IPreviewInviteResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPreview(): this is SuccessPreview {
+    return this.UnionKey === "SuccessPreview";
+  }
+  public isFailedPreview(): this is FailedPreview {
+    return this.UnionKey === "FailedPreview";
+  }
+
+}
+
+
+export class SuccessPreview extends IPreviewInviteResult
+{
+  constructor(public preview: InvitePreview) { super(); }
+
+  UnionKey: string = "SuccessPreview";
+  UnionIndex: number = 0;
+}
+
+export class FailedPreview extends IPreviewInviteResult
+{
+  constructor(public error: AcceptInviteError) { super(); }
+
+  UnionKey: string = "FailedPreview";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPreviewInviteResult", {
+  read(reader: CborReader): IPreviewInviteResult {
+    reader.readStartArray();
+    let value: IPreviewInviteResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPreview>("SuccessPreview").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPreview>("FailedPreview").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IPreviewInviteResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPreview>("SuccessPreview").write(writer, value as SuccessPreview);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPreview>("FailedPreview").write(writer, value as FailedPreview);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPreview", {
+  read(reader: CborReader): SuccessPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const preview = IonFormatterStorage.get<InvitePreview>('InvitePreview').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessPreview(preview);
+  },
+  write(writer: CborWriter, value: SuccessPreview): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InvitePreview>('InvitePreview').write(writer, value.preview);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPreview", {
+  read(reader: CborReader): FailedPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPreview(error);
+  },
+  write(writer: CborWriter, value: FailedPreview): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
 {
   abstract UnionKey: string;
@@ -11350,6 +11472,22 @@ IonFormatterStorage.register("InviteCodeEntity", {
   }
 });
 
+IonFormatterStorage.register("ServerInvites", {
+  read(reader: CborReader): ServerInvites {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const domain = IonFormatterStorage.get<string>('string').read(reader);
+    const invites = IonFormatterStorage.readArray<InviteCodeEntity>(reader, 'InviteCodeEntity');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { domain, invites };
+  },
+  write(writer: CborWriter, value: ServerInvites): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.domain);
+    IonFormatterStorage.writeArray<InviteCodeEntity>(writer, value.invites, 'InviteCodeEntity');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("SpaceStats", {
   read(reader: CborReader): SpaceStats {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -12007,6 +12145,38 @@ IonFormatterStorage.register("AcceptLegalInput", {
   }
 });
 
+IonFormatterStorage.register("InvitePreview", {
+  read(reader: CborReader): InvitePreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const topBannerFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
+    const memberCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const onlineCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { spaceId, name, description, avatarFileId, topBannerFileId, inviteImageFileId, isVerified, isOfficial, memberCount, onlineCount };
+  },
+  write(writer: CborWriter, value: InvitePreview): void {
+    writer.writeStartArray(10);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<string>('string').write(writer, value.description);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.topBannerFileId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.memberCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.onlineCount);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UploadFileError", {
   read(reader: CborReader): UploadFileError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -12367,13 +12537,12 @@ export interface IServerInteraction extends IIonService
 {
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
-  GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
+  GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
   CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
   RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
   UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
   SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
-  GetInviteDomain(spaceId: guid): Promise<string>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
@@ -12419,6 +12588,7 @@ export interface IUserInteraction extends IIonService
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<IUpdateMeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
+  PreviewInvite(inviteCode: InviteCode): Promise<IPreviewInviteResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
@@ -12670,13 +12840,12 @@ export interface IServerInteraction extends IIonService
 {
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
-  GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
+  GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
   CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
   RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
   UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
   SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
-  GetInviteDomain(spaceId: guid): Promise<string>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
@@ -12722,6 +12891,7 @@ export interface IUserInteraction extends IIonService
   GetSpaces(): Promise<IonArray<ArgonSpaceBase>>;
   UpdateMe(request: UserEditInput): Promise<IUpdateMeResult>;
   JoinToSpace(inviteCode: InviteCode): Promise<IJoinToSpaceResult>;
+  PreviewInvite(inviteCode: InviteCode): Promise<IPreviewInviteResult>;
   BroadcastPresence(presence: UserActivityPresence): Promise<void>;
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
@@ -14467,7 +14637,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<RealtimeServerMember>("RealtimeServerMember", writer.data, this.signal);
   }
-  async GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>> {
+  async GetInviteCodes(spaceId: guid): Promise<ServerInvites> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetInviteCodes");
           
     const writer = new CborWriter();
@@ -14478,7 +14648,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<IonArray<InviteCodeEntity>>("IonArray<InviteCodeEntity>", writer.data, this.signal);
+    return await req.callAsyncT<ServerInvites>("ServerInvites", writer.data, this.signal);
   }
   async CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CreateInviteCode");
@@ -14550,19 +14720,6 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
     writer.writeEndArray();
           
     return await req.callAsyncT<SpaceStats>("SpaceStats", writer.data, this.signal);
-  }
-  async GetInviteDomain(spaceId: guid): Promise<string> {
-    const req = new IonRequest(this.ctx, "IServerInteraction", "GetInviteDomain");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<string>("string", writer.data, this.signal);
   }
   async PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "PrefetchUser");
@@ -14971,6 +15128,19 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<IJoinToSpaceResult>("IJoinToSpaceResult", writer.data, this.signal);
+  }
+  async PreviewInvite(inviteCode: InviteCode): Promise<IPreviewInviteResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "PreviewInvite");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, inviteCode);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPreviewInviteResult>("IPreviewInviteResult", writer.data, this.signal);
   }
   async BroadcastPresence(presence: UserActivityPresence): Promise<void> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "BroadcastPresence");
