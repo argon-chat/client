@@ -1054,6 +1054,10 @@ export interface ArgonSpaceBase {
   topBannerFileId: string | null;
   boostCount: i4;
   boostLevel: i4;
+  isVerified: bool;
+  isOfficial: bool;
+  hideBoostStrip: bool;
+  inviteImageFileId: string | null;
 };
 
 
@@ -1066,6 +1070,10 @@ export interface ArgonSpace {
   channels: IonArray<ArgonChannel>;
   members: IonArray<SpaceMember>;
   archetypes: IonArray<Archetype>;
+  isVerified: bool;
+  isOfficial: bool;
+  hideBoostStrip: bool;
+  inviteImageFileId: string | null;
 };
 
 
@@ -1104,11 +1112,23 @@ export interface InviteCodeEntity {
   issuerId: guid;
   expireTime: datetime;
   used: u8;
+  maxUses: i4;
+  createdAt: datetime;
 };
 
 
 export interface InviteCode {
   inviteCode: string;
+};
+
+
+export interface SpaceStats {
+  memberCount: i4;
+  onlineCount: i4;
+  channelCount: i4;
+  boostCount: i4;
+  boostLevel: i4;
+  createdAt: datetime;
 };
 
 
@@ -1525,6 +1545,7 @@ export enum AcceptInviteError
   NOT_FOUND = 1,
   EXPIRED = 2,
   YOU_ARE_BANNED = 3,
+  LIMIT_REACHED = 4,
 }
 
 
@@ -11111,11 +11132,15 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     const topBannerFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 7);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel };
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
+    const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
+    const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel, isVerified, isOfficial, hideBoostStrip, inviteImageFileId };
   },
   write(writer: CborWriter, value: ArgonSpaceBase): void {
-    writer.writeStartArray(7);
+    writer.writeStartArray(11);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -11123,6 +11148,10 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     IonFormatterStorage.writeNullable<string>(writer, value.topBannerFileId, 'string');
     IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
     IonFormatterStorage.get<i4>('i4').write(writer, value.boostLevel);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
+    IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
     writer.writeEndArray();
   }
 });
@@ -11138,11 +11167,15 @@ IonFormatterStorage.register("ArgonSpace", {
     const channels = IonFormatterStorage.readArray<ArgonChannel>(reader, 'ArgonChannel');
     const members = IonFormatterStorage.readArray<SpaceMember>(reader, 'SpaceMember');
     const archetypes = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes };
+    const isVerified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
+    const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
+    const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes, isVerified, isOfficial, hideBoostStrip, inviteImageFileId };
   },
   write(writer: CborWriter, value: ArgonSpace): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(12);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -11151,6 +11184,10 @@ IonFormatterStorage.register("ArgonSpace", {
     IonFormatterStorage.writeArray<ArgonChannel>(writer, value.channels, 'ArgonChannel');
     IonFormatterStorage.writeArray<SpaceMember>(writer, value.members, 'SpaceMember');
     IonFormatterStorage.writeArray<Archetype>(writer, value.archetypes, 'Archetype');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isVerified);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
+    IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
     writer.writeEndArray();
   }
 });
@@ -11295,16 +11332,44 @@ IonFormatterStorage.register("InviteCodeEntity", {
     const issuerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const expireTime = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const used = IonFormatterStorage.get<u8>('u8').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 5);
-    return { code, spaceId, issuerId, expireTime, used };
+    const maxUses = IonFormatterStorage.get<i4>('i4').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { code, spaceId, issuerId, expireTime, used, maxUses, createdAt };
   },
   write(writer: CborWriter, value: InviteCodeEntity): void {
-    writer.writeStartArray(5);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, value.code);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.issuerId);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.expireTime);
     IonFormatterStorage.get<u8>('u8').write(writer, value.used);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxUses);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceStats", {
+  read(reader: CborReader): SpaceStats {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const memberCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const onlineCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const channelCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { memberCount, onlineCount, channelCount, boostCount, boostLevel, createdAt };
+  },
+  write(writer: CborWriter, value: SpaceStats): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.memberCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.onlineCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.channelCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.boostLevel);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
     writer.writeEndArray();
   }
 });
@@ -12303,7 +12368,12 @@ export interface IServerInteraction extends IIonService
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
   GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
-  CreateInviteCode(spaceId: guid): Promise<InviteCode>;
+  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
+  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
+  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
+  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
+  GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
+  GetInviteDomain(spaceId: guid): Promise<string>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
@@ -12313,6 +12383,8 @@ export interface IServerInteraction extends IIonService
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
+  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
 
@@ -12599,7 +12671,12 @@ export interface IServerInteraction extends IIonService
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
   GetInviteCodes(spaceId: guid): Promise<IonArray<InviteCodeEntity>>;
-  CreateInviteCode(spaceId: guid): Promise<InviteCode>;
+  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
+  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
+  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
+  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
+  GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
+  GetInviteDomain(spaceId: guid): Promise<string>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
@@ -12609,6 +12686,8 @@ export interface IServerInteraction extends IIonService
   CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
+  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
 }
 
@@ -14401,8 +14480,66 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IonArray<InviteCodeEntity>>("IonArray<InviteCodeEntity>", writer.data, this.signal);
   }
-  async CreateInviteCode(spaceId: guid): Promise<InviteCode> {
+  async CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CreateInviteCode");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<i4>('i4').write(writer, expireMinutes);
+    IonFormatterStorage.get<i4>('i4').write(writer, maxUses);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<InviteCode>("InviteCode", writer.data, this.signal);
+  }
+  async RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "RevokeInviteCode");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, code);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "UpdateSpaceInfo");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, name);
+    IonFormatterStorage.get<string>('string').write(writer, description);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "SetBoostStripHidden");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<bool>('bool').write(writer, hidden);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetSpaceStats(spaceId: guid): Promise<SpaceStats> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetSpaceStats");
           
     const writer = new CborWriter();
       
@@ -14412,7 +14549,20 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<InviteCode>("InviteCode", writer.data, this.signal);
+    return await req.callAsyncT<SpaceStats>("SpaceStats", writer.data, this.signal);
+  }
+  async GetInviteDomain(spaceId: guid): Promise<string> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetInviteDomain");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<string>("string", writer.data, this.signal);
   }
   async PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "PrefetchUser");
@@ -14523,6 +14673,33 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
   }
   async CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadInviteImage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadInviteImage");
           
     const writer = new CborWriter();
       
