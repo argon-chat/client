@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { useIdle, useTimestamp } from "@vueuse/core";
-import { interval, switchMap, type Subscription } from "rxjs";
+import { interval, switchMap, retry, type Subscription } from "rxjs";
 import { useMe } from "@/store/auth/meStore";
 import { ref } from "vue";
 import { UserStatus } from "@argon/glue";
@@ -55,26 +55,41 @@ export const useIdleStore = defineStore("idle", () => {
       subscription.value = interval(CHECK_INTERVAL_MS)
         .pipe(
           switchMap(async () => {
-            // @ts-ignore
-            const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
-            idleSeconds.value = inactiveSeconds;
-            handleStatusChange(inactiveSeconds);
+            try {
+              // @ts-ignore
+              const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
+              idleSeconds.value = inactiveSeconds;
+              handleStatusChange(inactiveSeconds);
+            } catch (e) {
+              // A transient IPC failure (e.g. host not ready right after launch)
+              // must not tear down the stream — otherwise idle tracking dies for
+              // the whole session and the user stays Online forever.
+              console.warn("[IdleStore] idle tick failed", e);
+            }
           }),
+          // Belt-and-suspenders: if anything still errors the stream, restart it
+          // after a short delay instead of letting the subscription die.
+          retry({ delay: 5000 }),
         )
         .subscribe();
     } else {
       const { lastActive } = useIdle(IDLE_TIME_SECONDS * 1000);
       const now = useTimestamp({ interval: 1000 });
-      
+
       subscription.value = interval(CHECK_INTERVAL_MS)
         .pipe(
           switchMap(async () => {
-            const inactiveSeconds = Math.floor(
-              (now.value - lastActive.value) / 1000,
-            );
-            idleSeconds.value = inactiveSeconds;
-            handleStatusChange(inactiveSeconds);
+            try {
+              const inactiveSeconds = Math.floor(
+                (now.value - lastActive.value) / 1000,
+              );
+              idleSeconds.value = inactiveSeconds;
+              handleStatusChange(inactiveSeconds);
+            } catch (e) {
+              console.warn("[IdleStore] idle tick failed", e);
+            }
           }),
+          retry({ delay: 5000 }),
         )
         .subscribe();
     }
