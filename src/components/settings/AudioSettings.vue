@@ -394,6 +394,7 @@ import { DisposableBag, logger } from "@argon/core";
 import { useLocale } from "@/store/system/localeStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useTone } from "@/store/media/toneStore";
+import { useWindow } from "@/store/ui/windowStore";
 import { 
     MicIcon, 
     HeadphonesIcon,
@@ -417,6 +418,7 @@ import type { Subscription } from "rxjs";
 const { t } = useLocale();
 const preferenceStore = usePreference();
 const tone = useTone();
+const windows = useWindow();
 
 // Noise suppression mode
 const noiseSuppressionMode = ref<NoiseSuppressionMode>(preferenceStore.noiseSuppressionMode);
@@ -631,8 +633,11 @@ async function startInputMonitoring() {
 
     try {
         // Hold the mic for as long as this monitor is open (released in stopInputMonitoring).
-        await audio.acquireInput();
-        inputAcquired = true;
+        // Idempotent: never take more than one reference even if start runs twice.
+        if (!inputAcquired) {
+            await audio.acquireInput();
+            inputAcquired = true;
+        }
 
         // Raw mic for VU meter (shows pre-gate levels so user sees signal vs threshold)
         inputMediaStream = await audio.createRawInputMediaStream();
@@ -693,6 +698,7 @@ function stopInputMonitoring() {
 let outputVUMeter: { dispose: () => void } | null = null;
 
 async function startOutputMonitoring() {
+    if (outputVUMeter) return; // already monitoring — don't leak a second subscription
     try {
         // Use stereo output level monitoring from master output
         outputVUMeter = audio.onOutputLevelStereoChanged((left, right) => {
@@ -868,6 +874,21 @@ onMounted(async () => {
 
     await startInputMonitoring();
     await startOutputMonitoring();
+});
+
+// The settings Drawer keeps this component mounted when closed, so onUnmounted doesn't fire
+// on close. Start/stop capture with the window's open state so the mic (and camera preview)
+// are released the moment the settings window closes, not only when the tab is switched away.
+watch(() => windows.settingsOpen, (open) => {
+    if (!loaded.value) return;
+    if (open) {
+        if (!isInputVUEnabled.value) startInputMonitoring();
+        startOutputMonitoring();
+    } else {
+        stopInputMonitoring();
+        stopOutputMonitoring();
+        stopVideoPreview();
+    }
 });
 
 onBeforeUnmount(() => {
