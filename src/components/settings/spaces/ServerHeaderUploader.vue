@@ -92,7 +92,7 @@ watch(
     if (!props.spaceId) return;
     if (!props.headerFileId) return;
 
-    blobSrc.value = cdnUrl(props.headerFileId);
+    blobSrc.value = cdnUrl(props.headerFileId, props.spaceId);
     loaded.value = true;
   },
 );
@@ -104,7 +104,7 @@ onMounted(async () => {
       return;
     }
 
-    blobSrc.value = cdnUrl(props.headerFileId);
+    blobSrc.value = cdnUrl(props.headerFileId, props.spaceId);
     loaded.value = true;
   }
 });

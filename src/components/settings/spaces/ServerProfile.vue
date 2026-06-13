@@ -30,26 +30,13 @@
 
             <div class="space-y-2">
               <label class="text-sm font-medium">{{ t("server_name") }}</label>
-              <Input v-model="serverName" :placeholder="t('server_name')" :disabled="!canManageServer" />
-            </div>
-
-            <div class="space-y-2">
-              <label class="text-sm font-medium">{{ t("description") }}</label>
-              <textarea
-                v-model="serverDescription"
-                :placeholder="t('description')"
-                :disabled="!canManageServer"
-                rows="3"
-                maxlength="1024"
-                class="server-description"
-              />
-            </div>
-
-            <div class="flex justify-end">
-              <Button @click="updateServerInfo" :disabled="!canManageServer || !infoDirty || isUpdating" size="sm">
-                <Loader2 v-if="isUpdating" class="w-4 h-4 mr-2 animate-spin" />
-                {{ t("save") }}
-              </Button>
+              <div class="flex items-center gap-2">
+                <Input v-model="serverName" :placeholder="t('server_name')" :disabled="!canManageServer" class="flex-1" />
+                <Button @click="updateServerInfo" :disabled="!canManageServer || !infoDirty || isUpdating" size="sm">
+                  <Loader2 v-if="isUpdating" class="w-4 h-4 mr-2 animate-spin" />
+                  {{ t("save") }}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -115,12 +102,10 @@
 
         <div class="space-y-2">
           <label class="text-sm font-medium text-muted-foreground">{{ t("server_id") }}</label>
-          <div class="flex items-center gap-2">
-            <Input :value="currentSpace.spaceId" readonly class="font-mono text-sm" />
-            <Button @click="copyServerId" size="sm" variant="outline">
-              <CopyIcon class="w-4 h-4" />
-            </Button>
-          </div>
+          <button class="id-field" @click="copyServerId" :title="t('copy')">
+            <code class="id-value">{{ currentSpace.spaceId }}</code>
+            <CopyIcon class="w-4 h-4 shrink-0 text-muted-foreground" />
+          </button>
         </div>
       </div>
 
@@ -219,8 +204,8 @@ const currentSpace = useLiveQuery(() => db.servers.where("spaceId").equals(space
 const canManageServer = computed(() => pex.has("ManageServer"));
 
 const serverName = ref("");
-const serverDescription = ref("");
 const isUpdating = ref(false);
+const nameInitialized = ref(false);
 
 const stats = ref<SpaceStats | null>(null);
 
@@ -232,20 +217,19 @@ const deleteConfirmationName = ref("");
 const isDeletingServer = ref(false);
 
 const infoDirty = computed(
-  () =>
-    !!currentSpace.value &&
-    (serverName.value.trim() !== currentSpace.value.name ||
-      (serverDescription.value ?? "") !== (currentSpace.value.description ?? "")),
+  () => !!currentSpace.value && serverName.value.trim() !== currentSpace.value.name,
 );
 
-// Keep the editable fields in sync with the live space record.
+// Populate the editable name once, when the space first loads — later live updates
+// (e.g. SpaceDetailsUpdated) must not clobber what the user is typing. Keep the boost
+// toggle mirrored from the record.
 watch(
   currentSpace,
   (s) => {
     if (!s) return;
-    if (!infoDirty.value) {
+    if (!nameInitialized.value) {
       serverName.value = s.name;
-      serverDescription.value = s.description ?? "";
+      nameInitialized.value = true;
     }
     hideBoost.value = !!s.hideBoostStrip;
   },
@@ -279,7 +263,11 @@ async function updateServerInfo() {
   if (!spaceId.value || !serverName.value.trim() || !infoDirty.value) return;
   isUpdating.value = true;
   try {
-    await api.serverInteraction.UpdateSpaceInfo(spaceId.value, serverName.value.trim(), serverDescription.value ?? "");
+    await api.serverInteraction.UpdateSpaceInfo(
+      spaceId.value,
+      serverName.value.trim(),
+      currentSpace.value?.description ?? "",
+    );
     await pool.loadServerDetails?.();
     toast({ title: t("server_updated"), description: t("server_name_updated") });
   } catch {
@@ -340,20 +328,32 @@ onMounted(loadStats);
   overflow: hidden;
 }
 
-.server-description {
+.id-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   width: 100%;
-  resize: vertical;
   border-radius: 0.5rem;
   border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
+  background: hsl(var(--muted) / 0.4);
   padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.server-description:focus {
-  outline: none;
-  border-color: hsl(var(--primary) / 0.6);
+.id-field:hover {
+  background: hsl(var(--muted) / 0.7);
+  border-color: hsl(var(--border));
+}
+
+.id-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stat-tile {

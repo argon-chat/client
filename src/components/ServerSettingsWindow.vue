@@ -12,8 +12,8 @@
                 </button>
             </DrawerHeader>
 
-            <div class="settings-layout justify-between flex min-h-full space-x-4">
-                <nav class="settings-nav w-1/6 p-3 text-white space-y-1 rounded-lg isolate min-w-max">
+            <div class="settings-layout justify-center flex flex-1 space-x-4">
+                <nav class="settings-nav flex-shrink-0 w-48 p-3 text-white space-y-1 rounded-lg isolate">
                     <button
                         v-for="category in categories"
                         :key="category.id"
@@ -25,7 +25,7 @@
                         <span>{{ category.label }}</span>
                     </button>
                 </nav>
-                <div class="settings-content flex-1 p-6 text-white">
+                <div class="settings-content flex-1 p-6 pb-8 text-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     <component :is="selectedCategoryComponent" />
                 </div>
             </div>
@@ -136,7 +136,13 @@ onUnmounted(() => {
 
 .settings-content {
     border-left: 1px solid rgba(255, 255, 255, 0.1);
-    overflow-y: auto;
+}
+
+/* Bottom spacer so the last card can be fully scrolled into view. */
+.settings-content::after {
+    content: '';
+    display: block;
+    height: 8rem;
 }
 
 .close-button {
