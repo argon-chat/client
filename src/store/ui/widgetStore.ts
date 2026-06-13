@@ -11,9 +11,12 @@ export const useWidgetStore = defineStore('widgets', () => {
         { i: 'recent-spaces', x: 0, y: 4, w: 1, h: 4, minW: 1, minH: 4, maxW: 2, maxH: 8 },
         { i: 'daily-stats', x: 1, y: 0, w: 1, h: 4, minW: 1, minH: 4, maxW: 2, maxH: 6 },
         { i: 'level', x: 2, y: 0, w: 1, h: 1, minW: 1, minH: 1, maxW: 1, maxH: 1, isResizable: false },
-        { i: 'voice-control', x: 2, y: 1, w: 1, h: 4, minW: 1, minH: 4, maxW: 2, maxH: 6 },
-        { i: 'quick-join', x: 2, y: 5, w: 1, h: 2, minW: 1, minH: 2, maxW: 2, maxH: 4 },
+        { i: 'quick-join', x: 2, y: 1, w: 1, h: 2, minW: 1, minH: 2, maxW: 2, maxH: 4 },
     ];
+
+    // Widget ids the dashboard can render. Anything else in a persisted layout (e.g. the
+    // removed 'voice-control' audio widget) is dropped on load so it never tries to render.
+    const KNOWN_WIDGET_IDS = new Set(defaultLayout.map((w) => w.i));
 
     const layout = ref<WidgetLayout[]>([]);
     const isEditMode = ref(false);
@@ -23,7 +26,9 @@ export const useWidgetStore = defineStore('widgets', () => {
         const savedLayout = localStorage.getItem('dashboard-layout');
         if (savedLayout) {
             try {
-                layout.value = JSON.parse(savedLayout);
+                const parsed = JSON.parse(savedLayout) as WidgetLayout[];
+                // Drop any widgets that no longer exist (e.g. the removed audio widget).
+                layout.value = parsed.filter((w) => KNOWN_WIDGET_IDS.has(w.i));
             } catch (e) {
                 layout.value = [...defaultLayout];
             }

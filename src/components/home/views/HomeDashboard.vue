@@ -78,7 +78,6 @@ import ActiveNowWidget from '@/components/home/widgets/ActiveNowWidget.vue';
 import RecentSpacesWidget from '@/components/home/widgets/RecentSpacesWidget.vue';
 import DailyStatsWidget from '@/components/home/widgets/DailyStatsWidget.vue';
 import LevelWidget from '@/components/home/widgets/LevelWidget.vue';
-import VoiceControlWidget from '@/components/home/widgets/VoiceControlWidget.vue';
 import QuickJoinWidget from '@/components/home/widgets/QuickJoinWidget.vue';
 
 const { t } = useLocale();
@@ -94,7 +93,6 @@ const getWidgetComponent = (widgetId: string | number) => {
         'recent-spaces': RecentSpacesWidget,
         'daily-stats': DailyStatsWidget,
         'level': LevelWidget,
-        'voice-control': VoiceControlWidget,
         'quick-join': QuickJoinWidget,
     };
     return components[id];

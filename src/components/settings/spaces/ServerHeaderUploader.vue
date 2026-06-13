@@ -1,5 +1,5 @@
 <template>
-  <div class="server-header-uploader relative group w-full h-32 rounded-lg overflow-hidden">
+  <div class="server-header-uploader relative group w-full overflow-hidden">
     <label class="cursor-pointer block w-full h-full">
       <input 
         type="file" 
@@ -187,5 +187,8 @@ async function uploadServerHeader(data: string | Blob | File): Promise<string> {
 <style scoped>
 .server-header-uploader {
   background-color: #1a1a2e;
+  /* Match the sidebar banner's display ratio (w-72 / 8rem = 288:128 = 9:4) so the
+     preview shows the exact same crop the user will see in SidebarHeader. */
+  aspect-ratio: 9 / 4;
 }
 </style>

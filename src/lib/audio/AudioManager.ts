@@ -20,10 +20,19 @@ class AppAudioManagement extends BaseAudioManagement {
   }
 }
 
+const isMac = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac");
+
 // App-specific audio instance with worklet path pointing to public/audio
 const audio = new AppAudioManagement({
   workletBasePath: '/audio',
   sampleRate: 48000,
+  // Don't grab the microphone at startup — only when something actually needs input
+  // (joining voice, the settings monitor). Avoids the mic being held the moment the app
+  // launches, and on macOS avoids a permission prompt before the user does anything.
+  autoInitialize: false,
+  // macOS: release the mic when no consumer holds it, so the OS "mic in use" indicator
+  // doesn't stay on while idle. Windows keeps the mic warm (its prior behavior).
+  releaseInputWhenIdle: isMac,
   noiseSuppressorUrls: {
     rnnoiseWorklet: rnnoiseWorkletPath,
     rnnoiseWasm: rnnoiseWasmPath,

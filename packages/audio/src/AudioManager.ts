@@ -123,6 +123,14 @@ export interface IAudioManagement {
   // Streams
   getVirtualInputStream(): Promise<MediaStream>;
   createRawInputMediaStream(): Promise<MediaStream>;
+  /**
+   * Reference-counted hold on the live microphone. Each consumer that needs real input
+   * (a voice call, the settings monitor) calls acquireInput() and later releaseInput().
+   * The real device is attached on the first acquire and — when `releaseInputWhenIdle` is
+   * set — detached again once the last holder releases, so the mic isn't held while idle.
+   */
+  acquireInput(): Promise<MediaStream>;
+  releaseInput(): void;
   
   // Media elements
   createAudioElement(stream?: MediaStream): Promise<Disposable<HTMLAudioElement>>;
@@ -193,6 +201,12 @@ export interface AudioManagerConfig {
   enableInputLevelMonitoring?: boolean;
   /** Automatically initialize virtual input stream on startup. Default: true */
   autoInitialize?: boolean;
+  /**
+   * Release (detach) the real microphone from the virtual stream once no consumer holds
+   * it via acquireInput(), instead of keeping it attached. Default: false (mic stays warm).
+   * Enable on macOS so the OS "microphone in use" state isn't held while idle.
+   */
+  releaseInputWhenIdle?: boolean;
   /** URLs for noise suppressor worklets and WASM binaries (resolved via ?url imports) */
   noiseSuppressorUrls?: NoiseSuppressorUrls;
 }
@@ -243,6 +257,8 @@ export class AudioManagement implements IAudioManagement {
   private inputGainNode: GainNode | null = null;
   private virtualStreamInitialized = false;
   private virtualStreamInitPromise: Promise<MediaStream> | null = null;
+  // Number of live consumers holding the real mic via acquireInput()/releaseInput().
+  private inputRefCount = 0;
   
   // Virtual output stream architecture
   private outputAnalyserNode: AnalyserNode | null = null;
@@ -282,6 +298,7 @@ export class AudioManagement implements IAudioManagement {
       sampleRate: config.sampleRate ?? 48000,
       enableInputLevelMonitoring: config.enableInputLevelMonitoring ?? false,
       autoInitialize: config.autoInitialize ?? true,
+      releaseInputWhenIdle: config.releaseInputWhenIdle ?? false,
     };
     this.audioCtx = new AudioContext({ sampleRate: this.config.sampleRate });
     if (config.noiseSuppressorUrls) {
@@ -573,8 +590,9 @@ export class AudioManagement implements IAudioManagement {
     this.inputDeviceId.value = deviceId;
     localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, deviceId);
     
-    // If virtual stream is initialized, switch the microphone
-    if (this.virtualStreamInitialized) {
+    // Switch the live microphone only if one is currently attached. If the mic was
+    // detached while idle, just remember the device — the next acquire grabs it.
+    if (this.virtualStreamInitialized && this.currentMicStream) {
       try {
         await this.connectMicrophoneToVirtualStream(deviceId);
         logger.info('[AudioManagement] Microphone switched successfully to:', deviceId);
@@ -985,7 +1003,36 @@ export class AudioManagement implements IAudioManagement {
     if (!this.virtualStreamInitialized) {
       return this.initVirtualStream();
     }
+    // The graph persists but the real mic may have been detached while idle
+    // (see releaseInput / releaseInputWhenIdle) — reattach it on demand.
+    if (!this.currentMicStream) {
+      await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
+    }
     return this.virtualStreamDestination!.stream;
+  }
+
+  async acquireInput(): Promise<MediaStream> {
+    const stream = await this.getVirtualInputStream(); // ensures the mic is attached
+    this.inputRefCount++;
+    return stream;
+  }
+
+  releaseInput(): void {
+    if (this.inputRefCount > 0) this.inputRefCount--;
+    if (this.inputRefCount === 0 && this.config.releaseInputWhenIdle) {
+      this.detachMicrophone();
+    }
+  }
+
+  /**
+   * Detach the real microphone from the virtual stream, stopping the device track but
+   * keeping the gain/destination graph intact (so the virtual stream object stays valid
+   * and goes silent). The mic is reattached lazily by the next getVirtualInputStream().
+   */
+  detachMicrophone(): void {
+    if (!this.currentMicStream && !this.currentMicSource) return;
+    this.cleanupCurrentMicSource();
+    logger.info('[AudioManagement] Microphone detached (no active input consumers)');
   }
 
   async createRawInputMediaStream(): Promise<MediaStream> {

@@ -399,6 +399,7 @@ const streamInfo = ref<string>('')
 
 // Stereo VU meter
 let stereoVuMeterDisposable: Disposable<AudioWorkletNode> | null = null
+let debugInputAcquired = false
 
 // Event log
 interface LogEvent { time: string; type: string; data: string }
@@ -681,6 +682,10 @@ onMounted(async () => {
         audio.onOutputLevelChanged((level) => { outputLevel.value = Math.round(level) }),
     )
     
+    // Hold the mic for the lifetime of this debug view (released on unmount).
+    await audio.acquireInput();
+    debugInputAcquired = true;
+
     // Setup stereo VU meter for microphone input
     try {
         stereoVuMeterDisposable = await audio.createVirtualVUMeterStereo((left, right) => {
@@ -714,6 +719,10 @@ onUnmounted(() => {
     if (stereoVuMeterDisposable) {
         stereoVuMeterDisposable.dispose()
         stereoVuMeterDisposable = null
+    }
+    if (debugInputAcquired) {
+        audio.releaseInput()
+        debugInputAcquired = false
     }
 })
 

@@ -615,6 +615,10 @@ async function refreshDeviceLists() {
 }
 
 // Input monitoring
+// Tracks whether THIS panel currently holds an input reference, so stop() releases
+// exactly what start() acquired and never under-decrements a live call's hold.
+let inputAcquired = false;
+
 async function startInputMonitoring() {
     if (isInputVUEnabled.value) {
         stopInputMonitoring();
@@ -626,6 +630,10 @@ async function startInputMonitoring() {
     if (!micPermissionGranted.value) return;
 
     try {
+        // Hold the mic for as long as this monitor is open (released in stopInputMonitoring).
+        await audio.acquireInput();
+        inputAcquired = true;
+
         // Raw mic for VU meter (shows pre-gate levels so user sees signal vs threshold)
         inputMediaStream = await audio.createRawInputMediaStream();
         inputSource = audio.getCurrentAudioContext().createMediaStreamSource(inputMediaStream);
@@ -666,6 +674,12 @@ function stopInputMonitoring() {
     inputSource = null;
     inputMediaStream = null;
     stmNode.value = null;
+
+    // Release the mic hold taken in startInputMonitoring (detaches on macOS when idle).
+    if (inputAcquired) {
+        audio.releaseInput();
+        inputAcquired = false;
+    }
 
     setTimeout(() => {
         inputLeftVolume.value = 0;

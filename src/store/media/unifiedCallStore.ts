@@ -218,6 +218,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     ping.value = -1;
     disposables.dispose();
 
+    // Release the mic held for this call (detaches the device on macOS when idle).
+    audio.releaseInput();
+
     isSharing.value = false;
     screenTrackPub = null;
 
@@ -876,7 +879,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       // - Device selection & switching
       // - Input volume control via inputGainNode
       // - Audio processing chain
-      const virtualStream = await audio.getVirtualInputStream();
+      // acquireInput() holds the real mic for the lifetime of the call; leave() releases it.
+      const virtualStream = await audio.acquireInput();
       const virtualTrack = virtualStream.getAudioTracks()[0];
 
       if (!virtualTrack) {
