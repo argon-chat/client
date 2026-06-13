@@ -53,10 +53,12 @@
                     <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-yellow-200">{{ t("mic_permission_required") }}</p>
-                        <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("mic_permission_description") }}</p>
+                        <p class="text-xs text-yellow-200/60 mt-0.5">
+                            {{ micPermissionBlocked ? t("mic_permission_blocked_description") : t("mic_permission_description") }}
+                        </p>
                     </div>
-                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10" @click="grantMicPermission">
-                        {{ t("grant_access") }}
+                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0" @click="grantMicPermission">
+                        {{ micPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
                     </Button>
                 </div>
             </div>
@@ -282,10 +284,12 @@
                     <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-yellow-200">{{ t("camera_permission_required") }}</p>
-                        <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("camera_permission_description") }}</p>
+                        <p class="text-xs text-yellow-200/60 mt-0.5">
+                            {{ cameraPermissionBlocked ? t("camera_permission_blocked_description") : t("camera_permission_description") }}
+                        </p>
                     </div>
-                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10" @click="grantCameraPermission">
-                        {{ t("grant_access") }}
+                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0" @click="grantCameraPermission">
+                        {{ cameraPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
                     </Button>
                 </div>
             </div>
@@ -456,17 +460,23 @@ const isPlayingSound = ref(false);
 // macOS media permissions. Default to granted so non-mac hosts never show the banners.
 const micPermissionGranted = ref(true);
 const cameraPermissionGranted = ref(true);
+// "blocked" = the OS denied it. macOS won't show the prompt again, so the only path back is
+// System Settings + a restart. We learn this after a request attempt comes back false.
+const micPermissionBlocked = ref(false);
+const cameraPermissionBlocked = ref(false);
 const needsMicPermission = computed(() => needsMediaPermissionGate() && !micPermissionGranted.value);
 const needsCameraPermission = computed(() => needsMediaPermissionGate() && !cameraPermissionGranted.value);
 
 async function grantMicPermission() {
     // Prompts if undecided; deep-links to System Settings if previously denied.
     micPermissionGranted.value = await ensureMediaPermission("microphone");
+    micPermissionBlocked.value = !micPermissionGranted.value;
     if (micPermissionGranted.value) await startInputMonitoring();
 }
 
 async function grantCameraPermission() {
     cameraPermissionGranted.value = await ensureMediaPermission("camera");
+    cameraPermissionBlocked.value = !cameraPermissionGranted.value;
 }
 
 // Sound level
