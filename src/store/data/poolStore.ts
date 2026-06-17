@@ -56,11 +56,30 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     // Process servers in parallel batches
     const BATCH_SIZE = 5; // Limit concurrent server loads to avoid overwhelming API
-    
+
+    // `status` is a single global field per user (db.users is keyed by userId, not per-server),
+    // so the "mark everyone not in the member list offline" reconciliation must run ONCE against
+    // the union of every server's members. Doing it per-server marks users offline merely because
+    // they belong to a *different* server — with >1 server that leaves almost everyone showing
+    // offline. We collect every seen member id here and reconcile once, after all servers load.
+    const seenUserIds = new Set<Guid>();
+
     for (let i = 0; i < servers.length; i += BATCH_SIZE) {
       const batch = servers.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(server => loadSingleServerDetails(server)));
+      const batchResults = await Promise.all(batch.map(server => loadSingleServerDetails(server)));
+      for (const ids of batchResults)
+        for (const id of ids) seenUserIds.add(id);
     }
+
+    // Single reconciliation pass: any cached user absent from every server we just loaded is
+    // offline. init() already reset everyone to offline, so this only catches users who were
+    // cached online from a previous run but no longer appear in any member snapshot.
+    await db.users
+      .filter(user => !seenUserIds.has(user.userId))
+      .modify(user => {
+        user.status = UserStatus.Offline;
+        user.activity = undefined;
+      });
 
     const duration = performance.now() - startTime;
     logger.log(`[PoolStore] loadServerDetails completed in ${duration.toFixed(0)}ms for ${servers.length} servers`);
@@ -69,9 +88,12 @@ export const usePoolStore = defineStore("data-pool", () => {
   /**
    * Load details for a single server with parallel API calls
    */
-  const loadSingleServerDetails = async (server: ArgonSpaceBase) => {
+  const loadSingleServerDetails = async (server: ArgonSpaceBase): Promise<Guid[]> => {
     const startTime = performance.now();
     const spaceId = server.spaceId;
+    // Member ids seen for this server — returned to loadServerDetails so it can reconcile
+    // offline users once across the union of all servers (status is a global per-user field).
+    let memberUserIds: Guid[] = [];
 
     try {
       // Parallel fetch all server data
@@ -120,14 +142,8 @@ export const usePoolStore = defineStore("data-pool", () => {
           await db.users.bulkPut(usersToTrack);
         }
 
-        // Set offline status for users not in the list
-        const excludeSet = new Set(users.filter(x => x.member).map(x => x.member.userId));
-        await db.users
-          .filter(user => !excludeSet.has(user.userId))
-          .modify(user => {
-            user.status = UserStatus.Offline;
-            user.activity = undefined;
-          });
+        // Hand these ids back so the caller can reconcile offline users once, across all servers.
+        memberUserIds = users.filter(x => x.member).map(x => x.member.userId);
       }
 
       // Process channel groups
@@ -158,6 +174,8 @@ export const usePoolStore = defineStore("data-pool", () => {
     } catch (e) {
       logger.error(e, `[PoolStore] Critical error loading server ${spaceId}`);
     }
+
+    return memberUserIds;
   };
 
   /**

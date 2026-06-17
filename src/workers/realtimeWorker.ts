@@ -241,6 +241,9 @@ async function connect(endpoint: string) {
       // client's responsibility — re-join them — then pull whatever we missed.
       resubscribeChannels();
       void resumeSession();
+      // The reconnect re-ran OnConnectedAsync server-side, which reset the session to Online —
+      // re-assert our real status right away instead of waiting for the next heartbeat tick.
+      sendHeartbeatNow();
     });
 
     hubConnection.onclose((error) => {
@@ -283,14 +286,19 @@ function disconnect() {
 }
 
 // --- Heartbeat ---
+// Ask the main thread for the current status and push it to the server now. The server starts a
+// (re)connected session as Online by default and only learns the real status from a heartbeat, so
+// firing one immediately — instead of waiting up to a full interval — collapses the window where a
+// DnD/Away user briefly looks Online to everyone after connecting.
+function sendHeartbeatNow() {
+  if (hubConnection?.state === signalR.HubConnectionState.Connected)
+    self.postMessage({ type: "heartbeatRequest" });
+}
+
 function startHeartbeat() {
   stopHeartbeat();
-  heartbeatInterval = setInterval(() => {
-    if (hubConnection?.state === signalR.HubConnectionState.Connected) {
-      // Request main thread to provide current status and invoke heartbeat
-      self.postMessage({ type: "heartbeatRequest" });
-    }
-  }, 15000);
+  sendHeartbeatNow();
+  heartbeatInterval = setInterval(sendHeartbeatNow, 15000);
 }
 
 function stopHeartbeat() {
