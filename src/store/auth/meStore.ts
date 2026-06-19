@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from "@/store/auth/authStore";
 import { LEGAL } from "@/legal/generated";
 import { isLegalOutdated } from "@/legal/version";
+import { runWhenOnline } from "@/lib/net/connectivity";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -113,9 +114,15 @@ export const useMe = defineStore("me", () => {
   async function init(): Promise<boolean> {
     const authStore = useAuthStore();
 
-    const result = await api.identityInteraction.GetMyAuthorization(
-      authStore.token!,
-      authStore.getRefreshToken()
+    // Token exchange must never run against a server we can't reach: while offline
+    // we park instead of hammering, and a connection that drops mid-flight is
+    // retried once it's back — it is NOT mistaken for a rejected session below
+    // (only a real `isBadAuthStatus()` verdict from the server logs the user out).
+    const result = await runWhenOnline(() =>
+      api.identityInteraction.GetMyAuthorization(
+        authStore.token!,
+        authStore.getRefreshToken()
+      )
     );
 
     logger.info("GetMyAuthorization", result);

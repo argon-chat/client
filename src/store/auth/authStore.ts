@@ -125,6 +125,15 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const logout = () => {
+    // Best-effort: announce intentional offline so others don't see us linger for the disconnect
+    // grace window. Fire-and-forget + lazy import to avoid a circular store dependency; if the realtime
+    // connection is already gone the server-side grace covers it.
+    void (async () => {
+      try {
+        const { useBus } = await import("@/store/realtime/busStore");
+        await useBus().goOffline();
+      } catch { /* not connected — grace handles offline */ }
+    })();
     user.value = null;
     _token.value = null;
     isAuthenticated.value = false;

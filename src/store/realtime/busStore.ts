@@ -136,6 +136,13 @@ export const useBus = defineStore("bus", () => {
     worker?.postMessage({ type: "invoke", method: "IAmStopTyping", args: [channelId] });
   }
 
+  // Tell the server this client is going offline intentionally (logout / quit / account switch) so
+  // others see it immediately instead of waiting out the disconnect grace window. Best-effort: if the
+  // connection is already gone the server-side grace covers it anyway.
+  async function goOffline() {
+    worker?.postMessage({ type: "invoke", method: "GoOffline", args: [] });
+  }
+
   async function subscribeToSpace(spaceId: string) {
     worker?.postMessage({ type: "invoke", method: "SubscribeToSpace", args: [spaceId] });
     logger.log(`Subscribed to space ${spaceId}`);
@@ -206,6 +213,7 @@ export const useBus = defineStore("bus", () => {
     onUserEvent,
     doListenMyEvents,
     sendEventAsync,
+    goOffline,
     subscribeToSpace,
     unsubscribeFromSpace,
     subscribeToChannel,
