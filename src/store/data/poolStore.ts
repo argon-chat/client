@@ -10,6 +10,7 @@ import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import { useEventStore } from "@/store/realtime/eventStore";
 import { useMessageStore } from "@/store/data/messageStore";
 import { db } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
 import { ChannelType, UserStatus, type ArgonSpaceBase, type ArgonUser, type RealtimeChannel, type RealtimeServerMember } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -339,6 +340,11 @@ export const usePoolStore = defineStore("data-pool", () => {
 
   // Initialize permissions watcher
   archetypeStore.initPermissionsWatcher(() => selectedServer.value);
+
+  // Seamless account switch: drop the selected server so the new account starts at home.
+  onSessionReset(() => {
+    selectedServer.value = null;
+  });
 
   // ===========================================
   // LEGACY API - for backward compatibility

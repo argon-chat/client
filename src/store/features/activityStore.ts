@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { useApi } from "@/store/system/apiStore";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { ref, watch } from "vue";
 import { logger } from "@argon/core";
 import { ActivityPresenceKind } from "@argon/glue";
@@ -25,6 +26,12 @@ export const useActivity = defineStore("activity", () => {
   // Last presence received from the main process, BEFORE per-game gating — kept so a
   // settings toggle can re-evaluate publication without waiting for the next change.
   const lastRawPresence = ref<Presence>(null);
+
+  // Seamless account switch: clear broadcast presence so the new account starts clean.
+  onSessionReset(() => {
+    lastPublishedPresence.value = null;
+    lastRawPresence.value = null;
+  });
 
   function isSamePresence(a: Presence, b: Presence): boolean {
     if (a === b) return true;

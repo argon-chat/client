@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useApi } from "@/store/system/apiStore";
 import { logger } from "@argon/core";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 
 export const useCallManager = defineStore("callManager", () => {
   const api = useApi();
@@ -12,6 +13,12 @@ export const useCallManager = defineStore("callManager", () => {
 
   const activeCallId = ref<string | null>(null);
   const activePeerId = ref<string | null>(null);
+
+  // Seamless account switch: clear active-call tracking (the call itself is left by the orchestrator).
+  onSessionReset(() => {
+    activeCallId.value = null;
+    activePeerId.value = null;
+  });
 
   const incomingCall = computed(() => call.incoming);
   const hasIncoming = computed(() => call.incoming !== null);

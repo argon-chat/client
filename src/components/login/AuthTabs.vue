@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { TabType, useAuthForm } from "@/composables/useAuthForm";
+import { TabType, useAuthForm, type AuthFormMode } from "@/composables/useAuthForm";
 
 import LoginForm from "./LoginForm.vue";
 import RegisterForm from "./RegisterForm.vue";
 import OtpForm from "./OtpForm.vue";
 import ResetRequestForm from "./ResetRequestForm.vue";
 import ResetConfirmForm from "./ResetConfirmForm.vue";
+import SelfHostedForm from "./SelfHostedForm.vue";
 import { computed } from "vue";
 
-const auth = useAuthForm();
+const props = defineProps<{ mode?: AuthFormMode }>();
+const auth = useAuthForm({ mode: props.mode });
 
 const tabValueForTabs = computed({
   get: () => auth.tabValue.value,
@@ -24,6 +26,7 @@ const tabValueForTabs = computed({
       <OtpForm v-else-if="tabValueForTabs == 'otp-code'" key="otp" :auth="auth" />
       <ResetRequestForm v-else-if="tabValueForTabs === 'pass-reset'" key="reset-request" :auth="auth" />
       <ResetConfirmForm v-else-if="tabValueForTabs === 'otp-reset'" key="reset-confirm" :auth="auth" />
+      <SelfHostedForm v-else-if="tabValueForTabs === 'self-hosted'" key="self-hosted" :auth="auth" />
       <div v-else key="error">error {{ tabValueForTabs }}</div>
     </Transition>
   </div>

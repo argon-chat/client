@@ -4,6 +4,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { db, type CachedProfile } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import type { ArgonUserProfile } from "@argon/glue";
 import { UserProfileUpdated } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -71,6 +72,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
   async function invalidateUser(userId: string) {
     await db.profileCache.where("userId").equals(userId).delete();
   }
+
+  // Seamless account switch: drop in-flight profile fetches. The cached profiles live in the
+  // per-account Dexie DB (swapped on switch), so there's nothing else to clear here.
+  onSessionReset(() => {
+    pending.clear();
+  });
 
   // Subscribe to realtime event
   bus.onServerEvent<UserProfileUpdated>("UserProfileUpdated", (e) => {

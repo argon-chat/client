@@ -1,15 +1,22 @@
 <template>
   <div class="user-bar" v-if="me.me">
-    <div class="user-info" style="width: 150px;">
-      <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
-        :user-id="me.me.userId" />
-      <div class="user-details items-start">
-        <span class="user-name">{{ me.me?.displayName }}</span>
-        <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
-          {{ t(`status_${me.me?.currentStatus}`) }}
-        </span>
-      </div>
-    </div>
+    <Popover>
+      <PopoverTrigger as-child>
+        <button type="button" class="user-info" style="width: 150px;">
+          <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
+            :user-id="me.me.userId" />
+          <div class="user-details items-start">
+            <span class="user-name">{{ me.me?.displayName }}</span>
+            <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
+              {{ t(`status_${me.me?.currentStatus}`) }}
+            </span>
+          </div>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" class="w-auto p-0">
+        <AccountSwitcher @add="addAccountOpen = true" />
+      </PopoverContent>
+    </Popover>
 
     <div class="control-bar">
       <div class="controls">
@@ -18,19 +25,26 @@
         </button>
       </div>
     </div>
+
+    <AddAccountModal v-model:open="addAccountOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
 import { useWindow } from "@/store/ui/windowStore";
 import { Settings } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
+import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
+import AccountSwitcher from "@/components/account/AccountSwitcher.vue";
+import AddAccountModal from "@/components/account/AddAccountModal.vue";
 
 const { t } = useLocale();
 const windows = useWindow();
 const me = useMe();
+const addAccountOpen = ref(false);
 </script>
 
 <style scoped>

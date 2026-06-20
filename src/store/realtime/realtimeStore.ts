@@ -4,6 +4,7 @@ import { type Reactive, reactive, ref, shallowReactive } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { ArgonChannel, RealtimeChannelUser, LinkedMeetingInfo } from "@argon/glue";
 import type { RealtimeUser } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 
 /**
  * Extended user in realtime channel with states
@@ -34,6 +35,11 @@ export const useRealtimeStore = defineStore("realtime", () => {
   const realtimeChannels = reactive(
     new Map<Guid, Reactive<IRealtimeChannel>>()
   );
+
+  // Seamless account switch: clear all live voice-channel state.
+  onSessionReset(() => {
+    realtimeChannels.clear();
+  });
 
   /**
    * Create default realtime channel user

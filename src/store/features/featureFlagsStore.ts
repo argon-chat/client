@@ -4,6 +4,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 
 export const FeatureFlagKeys = {
   DASHBOARD_DIALPAD_ACTIVE: "af.dashboard.dialpad.active",
@@ -30,7 +31,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const api = useApi();
   const bus = useBus();
 
-  const flags = ref<Record<string, boolean>>({
+  const defaultFlags = (): Record<string, boolean> => ({
     [FeatureFlagKeys.DASHBOARD_DIALPAD_ACTIVE]: true,
     [FeatureFlagKeys.INVENTORY_ACTIVE]: true,
     [FeatureFlagKeys.PROFILE_COINS_ACTIVE]: true,
@@ -49,7 +50,15 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.SCREENCAST_DRAWING]: false,
   });
 
+  const flags = ref<Record<string, boolean>>(defaultFlags());
+
   const isLoaded = ref(false);
+
+  // Seamless account switch: reset to defaults; loadFeatureFlags() repopulates for the new account.
+  onSessionReset(() => {
+    flags.value = defaultFlags();
+    isLoaded.value = false;
+  });
 
   async function loadFeatureFlags(): Promise<void> {
     try {

@@ -4,6 +4,7 @@ import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { type Ref, onUnmounted, ref, watch, reactive } from "vue";
 import { db } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { type ArgonChannel, ChannelType } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
@@ -183,6 +184,12 @@ export const useChannelStore = defineStore("channel", () => {
 
     return prunedCount;
   };
+
+  // Seamless account switch: clear channel selection for the incoming account.
+  onSessionReset(() => {
+    selectedChannel.value = null;
+    selectedTextChannel.value = null;
+  });
 
   return {
     selectedChannel,

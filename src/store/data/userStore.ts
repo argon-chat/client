@@ -7,6 +7,7 @@ import { from, shareReplay } from "rxjs";
 import { type Ref, computed, ref, watch, type ComputedRef, reactive } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { type RealtimeUser, db } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import {
   type ArgonUser,
   UserStatus,
@@ -46,6 +47,18 @@ export const useUserStore = defineStore("user", () => {
 
   // Ignored users - users that failed to fetch from server
   const ignoredUsers = new Set<Guid>();
+
+  // Seamless account switch: drop all live user subscriptions (bound to the old DB) and caches.
+  onSessionReset(() => {
+    for (const entry of reactiveUserCache.values()) {
+      try { entry.subscription.unsubscribe(); } catch { /* ignore */ }
+    }
+    reactiveUserCache.clear();
+    userCache.clear();
+    pendingRequests.clear();
+    requestTimestamps.clear();
+    ignoredUsers.clear();
+  });
 
   // Diagnostics - make reactive!
   const diagnostics = reactive({

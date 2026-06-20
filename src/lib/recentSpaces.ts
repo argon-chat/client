@@ -1,8 +1,13 @@
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import type { ArgonSpaceBase } from '@argon/glue';
+import { userScopedKey } from '@/lib/userScopedStorage';
+import { onSessionReset } from '@/store/system/sessionLifecycle';
 
-const STORAGE_KEY = 'argon_recent_spaces';
-const VIEW_MODE_KEY = 'argon_recent_spaces_view';
+// Keys are computed per-access (not cached at module load) so a seamless account switch — which does
+// NOT reload the page — reads/writes the active account's namespace.
+const storageKey = () => userScopedKey('argon_recent_spaces');
+const viewModeKey = () => userScopedKey('argon_recent_spaces_view');
+const lastChannelKey = () => userScopedKey('argon_last_channels');
 const MAX_RECENT = 5;
 
 interface RecentSpace {
@@ -16,12 +21,18 @@ interface RecentSpace {
 const recentSpaces = ref<RecentSpace[]>([]);
 let _loaded = false;
 
+// Seamless account switch: drop the in-memory list so it reloads from the new account's key.
+onSessionReset(() => {
+    recentSpaces.value = [];
+    _loaded = false;
+});
+
 // Load from localStorage
 function loadRecentSpaces() {
     if (_loaded) return;
     _loaded = true;
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(storageKey());
         if (stored) {
             recentSpaces.value = JSON.parse(stored);
         }
@@ -34,7 +45,7 @@ function loadRecentSpaces() {
 // Save to localStorage
 function saveRecentSpaces() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentSpaces.value));
+        localStorage.setItem(storageKey(), JSON.stringify(recentSpaces.value));
     } catch (e) {
         console.error('Failed to save recent spaces:', e);
     }
@@ -45,7 +56,7 @@ export function addRecentSpace(space: ArgonSpaceBase) {
     loadRecentSpaces();
     const existingIndex = recentSpaces.value.findIndex(s => s.spaceId === space.spaceId);
     const existingSpace = existingIndex !== -1 ? recentSpaces.value[existingIndex] : null;
-    
+
     const recentSpace: RecentSpace = {
         spaceId: space.spaceId,
         name: space.name,
@@ -53,30 +64,30 @@ export function addRecentSpace(space: ArgonSpaceBase) {
         lastVisited: Date.now(),
         isPinned: existingSpace?.isPinned || false
     };
-    
+
     if (existingIndex !== -1) {
         // Update existing entry
         recentSpaces.value.splice(existingIndex, 1);
     }
-    
+
     // Add to beginning
     recentSpaces.value.unshift(recentSpace);
-    
+
     // Keep only MAX_RECENT items (but don't remove pinned)
     const unpinned = recentSpaces.value.filter(s => !s.isPinned);
     const pinned = recentSpaces.value.filter(s => s.isPinned);
-    
+
     if (unpinned.length > MAX_RECENT) {
         recentSpaces.value = [...pinned, ...unpinned.slice(0, MAX_RECENT)];
     }
-    
+
     saveRecentSpaces();
 }
 
 // Get recent spaces
 export function useRecentSpaces() {
     loadRecentSpaces();
-    
+
     return {
         recentSpaces,
         addRecentSpace,
@@ -96,7 +107,7 @@ export function togglePin(spaceId: string) {
 // View mode management
 export function getViewMode(): 'list' | 'grid' {
     try {
-        const stored = localStorage.getItem(VIEW_MODE_KEY);
+        const stored = localStorage.getItem(viewModeKey());
         return stored === 'grid' ? 'grid' : 'list';
     } catch (e) {
         return 'list';
@@ -105,18 +116,15 @@ export function getViewMode(): 'list' | 'grid' {
 
 export function setViewMode(mode: 'list' | 'grid') {
     try {
-        localStorage.setItem(VIEW_MODE_KEY, mode);
+        localStorage.setItem(viewModeKey(), mode);
     } catch (e) {
         console.error('Failed to save view mode:', e);
     }
 }
 
-// Last channel per space
-const LAST_CHANNEL_KEY = 'argon_last_channels';
-
 function loadLastChannels(): Record<string, string> {
     try {
-        const stored = localStorage.getItem(LAST_CHANNEL_KEY);
+        const stored = localStorage.getItem(lastChannelKey());
         return stored ? JSON.parse(stored) : {};
     } catch {
         return {};
@@ -127,7 +135,7 @@ export function setLastChannel(spaceId: string, channelId: string) {
     const map = loadLastChannels();
     map[spaceId] = channelId;
     try {
-        localStorage.setItem(LAST_CHANNEL_KEY, JSON.stringify(map));
+        localStorage.setItem(lastChannelKey(), JSON.stringify(map));
     } catch (e) {
         console.error('Failed to save last channel:', e);
     }

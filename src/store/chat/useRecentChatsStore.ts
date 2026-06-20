@@ -4,6 +4,7 @@ import type { UserChat } from "@argon/glue";
 import type { DateTimeOffset, Guid } from "@argon-chat/ion.webcore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { RealtimeUser } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { logger } from "@argon/core";
 
 function toTsDate(dto: DateTimeOffset | null | undefined): number {
@@ -28,6 +29,11 @@ export interface RecentChatVm {
 export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   const recent = ref<RecentChatVm[]>([]);
   const pool = usePoolStore();
+
+  // Seamless account switch: clear DM list for the incoming account.
+  onSessionReset(() => {
+    recent.value = [];
+  });
 
   async function mergeUserInfo(chat: UserChat): Promise<RecentChatVm> {
     const user: RealtimeUser | undefined = await pool.getUser(chat.peerId);

@@ -15,6 +15,8 @@ import { usePreference } from "@/store/ui/preferenceStore";
 import router from "@/router";
 import { useConfigStore } from "@/store/ui/configStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useInstance } from "@/store/system/instanceStore";
+import { useAccounts } from "@/store/auth/accountsStore";
 
 // Initialize worklets with audio getter to break circular dependency
 initWorklets(() => audio);
@@ -44,6 +46,20 @@ export const useAppState = defineStore("app", () => {
     if (!continueNext) {
       router.push({ path: "/blocked.pg" });
       return false; // blocked
+    }
+    // Finalize a legacy→registry migration now that the user id is known (reloads into the
+    // per-account Dexie DB). No-op outside the one-time migration.
+    const accounts = useAccounts();
+    if (accounts.isMigrating) {
+      const me = useMe().me;
+      if (me) {
+        await accounts.finalizeMigration({
+          userId: me.userId,
+          displayName: me.displayName,
+          avatarFileId: me.avatarFileId ?? null,
+        });
+        return false; // reloading
+      }
     }
     return true;
   }
@@ -80,6 +96,20 @@ export const useAppState = defineStore("app", () => {
           }
         },
       },
+      // Multi-account: project the active account (instance endpoints + token/rft) BEFORE any RPC,
+      // Dexie or session restore. Migrates a legacy single-session into the registry on first run.
+      {
+        label: "Loading accounts...",
+        run: () => {
+          const accounts = useAccounts();
+          accounts.migrateLegacySessionIfNeeded();
+          if (!accounts.applyActiveAtBoot()) useInstance(); // no account → official default instance
+          void accounts.gcOrphanDbs(); // reap DBs of accounts removed in a previous session
+        },
+      },
+      // Restore the active instance (self-hosted / enterprise) and re-point endpoints BEFORE any
+      // RPC, SignalR or session restore touches the network. No-op when an account is active.
+      { label: "Resolving instance...", run: () => { useInstance(); } },
       { label: "Initializing audio engine...", run: () => useTone().init() },
       { label: "Restoring session...", run: () => auth.restoreSession() },
       { label: "Loading AI predictor...", run: () => usePredictor().init() },

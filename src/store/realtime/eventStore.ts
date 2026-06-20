@@ -6,6 +6,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
 import { db } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useUserStore } from "@/store/data/userStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useArchetypeStore } from "@/store/data/archetypeStore";
@@ -63,6 +64,11 @@ export const useEventStore = defineStore("events", () => {
   const onReactionRemoved = new Subject<ReactionRemoved & { spaceId: string }>();
 
   const pendingUserFetches = new Map<string, Promise<void>>();
+
+  // Seamless account switch: drop in-flight user-fetch dedup entries from the old account.
+  onSessionReset(() => {
+    pendingUserFetches.clear();
+  });
 
   /**
    * Check if userId is a guest user by GUID prefix

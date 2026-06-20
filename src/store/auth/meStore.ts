@@ -19,9 +19,12 @@ import {
   UserStatus,
 } from "@argon/glue";
 import { useAuthStore } from "@/store/auth/authStore";
+import { useAccounts } from "@/store/auth/accountsStore";
 import { LEGAL } from "@/legal/generated";
 import { isLegalOutdated } from "@/legal/version";
 import { runWhenOnline } from "@/lib/net/connectivity";
+import { userScopedKey } from "@/lib/userScopedStorage";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -47,7 +50,7 @@ export const useMe = defineStore("me", () => {
   );
 
   const preferredStatus = useLocalStorage<UserStatus>(
-    "preferredStatus",
+    userScopedKey("preferredStatus"),
     UserStatus.Online,
     { listenToStorageChanges: true, writeDefaults: true }
   );
@@ -58,6 +61,15 @@ export const useMe = defineStore("me", () => {
   }
 
   const WelcomeCommanderHasReceived = ref(false);
+
+  // Seamless account switch: clear the current user; init() repopulates for the incoming account.
+  onSessionReset(() => {
+    me.value = null;
+    meProfile.value = null;
+    legalOutdated.value = null;
+    limitation.value = null;
+    WelcomeCommanderHasReceived.value = false;
+  });
 
   async function getMe() {
     return await api.userInteraction.GetMe();
@@ -128,12 +140,16 @@ export const useMe = defineStore("me", () => {
     logger.info("GetMyAuthorization", result);
 
     if (result.isBadAuthStatus()) {
+      // The active account's session is no longer valid. Flag it for re-auth (drops its stale token
+      // so the next boot lands on login instead of looping) but keep the account + its cached data.
+      useAccounts().markActiveNeedsReauth();
       useAuthStore().logout();
       location.reload();
       return false;
     }
     else if (result.isGoodAuthStatus()) {
       useAuthStore().setAuthToken(result.token);
+      useAccounts().updateActiveTokens(result.token);
     }
     else if (result.isLockedAuthStatus()) {
       limitation.value = result;

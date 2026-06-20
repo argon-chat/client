@@ -1,8 +1,9 @@
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
+import { userScopedKey } from "@/lib/userScopedStorage";
 
 export const useUserVolumeStore = defineStore("userVolume", () => {
-  const volumes = useLocalStorage<Record<string, number>>("userVolumes_v2", {}, {
+  const volumes = useLocalStorage<Record<string, number>>(userScopedKey("userVolumes_v2"), {}, {
     mergeDefaults: true,
   });
 

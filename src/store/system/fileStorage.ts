@@ -1,5 +1,6 @@
 import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
+import { useInstance } from "@/store/system/instanceStore";
 
 export type GroupReport = {
   name: string;
@@ -18,13 +19,21 @@ export type StorageUsageReport = {
 const isNative = typeof window !== "undefined" && "argonIpc" in window;
 
 export function cdnUrl(fileId: string, spaceId: Guid | null = null): string {
-  if (isNative) {
-    if (spaceId )
+  const inst = useInstance();
+  // Official native build → the dedicated app://cdn cache (its upstream is the official geo-CDN).
+  if (isNative && inst.isOfficial) {
+    if (spaceId)
       return `app://cdn/s/${spaceId}/banner/${fileId}`;
-    else 
+    else
       return `app://cdn/${fileId}`;
   }
-  return `https://cdn.argon.gl/${fileId}`;
+  const base = inst.active.endpoints.cdn.replace(/\/+$/, "");
+  const full = `${base}/${fileId}`;
+  // Self-hosted/managed native build → keep local caching, but against THIS instance's CDN, by
+  // routing through the generic app://cdn-proxy interceptor (same path geo-CDN downloads use).
+  if (isNative)
+    return `app://cdn-proxy/${encodeURIComponent(full)}`;
+  return full;
 }
 
 /**

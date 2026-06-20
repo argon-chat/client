@@ -1,6 +1,9 @@
 import { ref } from 'vue';
+import { userScopedKey } from '@/lib/userScopedStorage';
+import { onSessionReset } from '@/store/system/sessionLifecycle';
 
-const STORAGE_KEY = 'argon_server_organization';
+// Computed per-access so a seamless (no-reload) account switch targets the active account's namespace.
+const storageKey = () => userScopedKey('argon_server_organization');
 
 export interface ServerFolder {
     id: string;
@@ -22,12 +25,18 @@ const organization = ref<ServerOrganization>({
 
 let _loaded = false;
 
+// Seamless account switch: drop the in-memory organization so it reloads from the new account's key.
+onSessionReset(() => {
+    organization.value = { pinnedServerIds: [], folders: [] };
+    _loaded = false;
+});
+
 // Load from localStorage
 function loadOrganization() {
     if (_loaded) return;
     _loaded = true;
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(storageKey());
         if (stored) {
             organization.value = JSON.parse(stored);
         }
@@ -47,7 +56,7 @@ function ensureLoaded() {
 // Save to localStorage
 function saveOrganization() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(organization.value));
+        localStorage.setItem(storageKey(), JSON.stringify(organization.value));
     } catch (e) {
         console.error('Failed to save server organization:', e);
     }

@@ -2,6 +2,7 @@ import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useApi } from "@/store/system/apiStore";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import {
   type UltimaPricing,
   type UltimaSubscriptionInfo,
@@ -27,6 +28,15 @@ export const useUltimaStore = defineStore("ultima", () => {
   const transactions = ref<UltimaTransaction[]>([]);
   const pricing = ref<UltimaPricing | null>(null);
   const loading = ref(false);
+
+  // Seamless account switch: clear subscription/boost state; init() repopulates for the new account.
+  onSessionReset(() => {
+    subscription.value = null;
+    boosts.value = [];
+    transactions.value = [];
+    pricing.value = null;
+    loading.value = false;
+  });
 
   const isSubscribed = computed(() =>
     subscription.value !== null &&

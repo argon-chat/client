@@ -7,6 +7,7 @@ import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useTone } from "@/store/media/toneStore";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import {
   type ChannelReadState,
   type MuteSettingsDto,
@@ -53,6 +54,21 @@ export const useNotificationStore = defineStore("notifications", () => {
   // ACK debounce
   const pendingAck = new Map<Guid, { messageId: bigint; spaceId: Guid | null }>();
   let ackTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Seamless account switch: flush any pending read-acks for the OLD account, then clear all badges
+  // and counters. initFromGlobalBadges() repopulates for the incoming account.
+  onSessionReset(() => {
+    try { flushAcksImmediate(); } catch { /* ignore */ }
+    readStates.value = new Map();
+    muteSettings.value = new Map();
+    spaceBadges.value = new Map();
+    unreadDmCount.value = 0;
+    notifications.value = { friendRequests: 0, inventory: 0, system: 0 };
+    notificationFeed.value = [];
+    pendingAck.clear();
+    if (ackTimer) { clearTimeout(ackTimer); ackTimer = null; }
+    initialized.value = false;
+  });
 
   // ── Getters ────────────────────────────────────────────
 

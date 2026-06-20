@@ -8,6 +8,7 @@ import { defineStore } from "pinia";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { db } from "@/store/db/dexie";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useMe } from "@/store/auth/meStore";
 import {
   type Archetype,
@@ -180,6 +181,13 @@ export const useArchetypeStore = defineStore("archetype", () => {
 
   onUnmounted(() => {
     currentSubscription?.unsubscribe();
+  });
+
+  // Seamless account switch: drop the permissions liveQuery (bound to the old DB) and clear perms.
+  onSessionReset(() => {
+    currentSubscription?.unsubscribe();
+    currentSubscription = null;
+    currentServerPermissions.value = new Set();
   });
 
   return {

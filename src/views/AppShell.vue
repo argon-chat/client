@@ -5,10 +5,21 @@
     <div class="shell-content relative flex flex-1 min-h-0">
       <RouterView v-slot="{ Component }">
         <Transition name="shell-view" mode="out-in">
-          <component :is="Component" />
+          <!-- Keyed by sessionEpoch so a seamless account switch remounts the whole authed tree,
+               rebinding component-scoped Dexie liveQueries to the new account's DB. -->
+          <component :is="Component" :key="sessionEpoch" />
         </Transition>
       </RouterView>
     </div>
+
+    <Transition name="switch-fade">
+      <div v-if="isSwitchingAccount" class="account-switch-overlay">
+        <div class="account-switch-card">
+          <Loader2Icon class="w-6 h-6 animate-spin text-primary" />
+          <span>{{ t("switching_account") }}</span>
+        </div>
+      </div>
+    </Transition>
 
     <SendUserFeedback v-model:open="feedbackOpened" />
   </div>
@@ -20,8 +31,12 @@ import AppTitlebar from "@/components/AppTitlebar.vue";
 import SendUserFeedback from "@/components/modals/SendUserFeedback.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useAppState } from "@/store/system/appState";
+import { sessionEpoch, isSwitchingAccount } from "@/store/system/sessionLifecycle";
+import { useLocale } from "@/store/system/localeStore";
+import { Loader2Icon } from "lucide-vue-next";
 import router from "@/router";
 
+const { t } = useLocale();
 const pool = usePoolStore();
 const appState = useAppState();
 const feedbackOpened = ref(false);
@@ -72,5 +87,37 @@ function onHome() {
   opacity: 0;
   transform: scale(1.012);
   filter: blur(3px);
+}
+
+/* Account-switch masking overlay. */
+.account-switch-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--background) / 0.85);
+  backdrop-filter: blur(8px);
+}
+.account-switch-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.35);
+}
+.switch-fade-enter-active,
+.switch-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.switch-fade-enter-from,
+.switch-fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -8,7 +8,6 @@ import QRStyled from "./QRStyled.vue";
 import SmoothResize from "../shared/SmoothResize.vue";
 import BorderTrace from "../shared/BorderTrace.vue";
 import { ExclamationTriangleIcon } from "@radix-icons/vue";
-import { useApi } from "@/store/system/apiStore";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import {
@@ -20,12 +19,19 @@ import {
     QrCodeIcon,
     EyeIcon,
     EyeOffIcon,
+    ServerIcon,
 } from "lucide-vue-next";
 
 const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
-const { email, password, isLoading, goToResetPass, onSubmit, authError } = props.auth;
-const api = useApi();
+const {
+  email, password, isLoading, goToResetPass, onSubmit, authError,
+  prepareEmailStep, effectiveOfficial, effectiveBranding, showQr, useOfficial, isEnroll,
+} = props.auth;
+
+// Local busy flag for the email step's async resolution (separate from auth's isLoading,
+// which only covers the actual sign-in call).
+const stepBusy = ref(false);
 
 const titles = [
   { title: t("greetings.good_to_see_you.title"), desc: t("greetings.good_to_see_you.desc") },
@@ -57,30 +63,22 @@ onMounted(() => {
   focusActiveInput();
 });
 
-async function getLoginScenario(email: string): Promise<"pwd" | "otp" | "pwd-otp" | ""> {
-  const scenario = await api.identityInteraction.GetAuthorizationScenarioFor({ email: email, phone: null, username: null });
-
-  if (!scenario) {
-    authError.value = "Account does not exist";
-    return "";
-  }
-
-  if (scenario == "EmailPassword") return "pwd";
-  if (scenario == "EmailPasswordOtp") return "pwd-otp";
-  if (scenario == "EmailOtp") return "otp";
-  return "pwd";
-}
-
 async function handleNext() {
-  if (!email.value) return;
-  const scenario = await getLoginScenario(email.value);
-
-  if (!scenario) return;
-
-  if (scenario === "pwd") {
-    step.value = "password";
-  } else if (scenario === "otp") {
-    onSubmit();
+  if (!email.value || stepBusy.value) return;
+  stepBusy.value = true;
+  try {
+    // Resolve the target instance (enterprise/SaaS or self-hosted) and check the auth scenario.
+    // Branches primary vs enroll inside useAuthForm so the live session is never disturbed in the
+    // "add account" modal.
+    const scenario = await prepareEmailStep(email.value);
+    if (!scenario) return;
+    if (scenario === "pwd" || scenario === "pwd-otp") {
+      step.value = "password";
+    } else if (scenario === "otp") {
+      onSubmit();
+    }
+  } finally {
+    stepBusy.value = false;
   }
 }
 
@@ -122,6 +120,16 @@ watch(password, () => {
         </div>
         <CardTitle class="text-2xl font-bold text-white">{{ heading.title }}</CardTitle>
         <CardDescription class="text-muted-foreground">{{ heading.desc }}</CardDescription>
+
+        <div v-if="!effectiveOfficial" class="flex items-center justify-center gap-2 mt-3">
+          <span class="instance-chip">
+            <ServerIcon class="w-3.5 h-3.5 text-primary" />
+            {{ t("connected_to") }} {{ effectiveBranding.displayName }}
+          </span>
+          <button type="button" @click="useOfficial" class="text-xs text-primary hover:underline">
+            {{ t("use_official") }}
+          </button>
+        </div>
       </CardHeader>
 
       <CardContent class="pt-4">
@@ -195,7 +203,7 @@ watch(password, () => {
                   <EyeIcon v-else class="w-4 h-4" />
                 </button>
               </div>
-              <div class="flex justify-end mt-1">
+              <div v-if="!isEnroll" class="flex justify-end mt-1">
                 <a @click="goToResetPass" class="cursor-pointer text-xs text-primary hover:underline transition">
                   {{ t("forgot_password") }}
                 </a>
@@ -209,10 +217,10 @@ watch(password, () => {
         <Button
           v-if="step === 'email'"
           type="submit"
-          :disabled="isLoading || !email"
+          :disabled="isLoading || stepBusy || !email"
           class="w-full btn-primary"
         >
-          <Loader2Icon v-if="isLoading" class="w-4 h-4 mr-2 animate-spin" />
+          <Loader2Icon v-if="isLoading || stepBusy" class="w-4 h-4 mr-2 animate-spin" />
           <template v-else>
             {{ t("continue") }}
             <ArrowRightIcon class="w-4 h-4 ml-2" />
@@ -238,19 +246,35 @@ watch(password, () => {
             {{ t("create_one") }}
           </a>
         </p>
+
+        <button
+          v-if="effectiveOfficial"
+          type="button"
+          @click="props.auth.goToSelfHosted()"
+          class="inline-flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ServerIcon class="w-3.5 h-3.5" />
+          {{ t("self_hosted_connect_cta") }}
+        </button>
       </CardFooter>
     </form>
 
-    <div class="w-px bg-border/50"></div>
+    <!-- QR sign-in is scanned by the official Argon mobile app, so it only applies to the official
+         instance. On a self-hosted / managed instance it collapses away with a smooth animation. -->
+    <Transition name="qr-collapse">
+      <div v-if="showQr" class="qr-wrap flex">
+        <div class="w-px bg-border/50"></div>
 
-    <div class="flex flex-col justify-center items-center p-6 w-[220px] text-center space-y-4 bg-background/30">
-      <div class="icon-box-sm">
-        <QrCodeIcon class="w-5 h-5 text-primary" />
+        <div class="flex flex-col justify-center items-center p-6 w-[220px] text-center space-y-4 bg-background/30">
+          <div class="icon-box-sm">
+            <QrCodeIcon class="w-5 h-5 text-primary" />
+          </div>
+          <p class="text-sm font-medium text-white">{{ t("qr_code_login") }}</p>
+          <QRStyled :value="qrLoginUrl" :size="140" level="M" class="rounded-lg shadow-lg" />
+          <p class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
+        </div>
       </div>
-      <p class="text-sm font-medium text-white">{{ t("qr_code_login") }}</p>
-      <QRStyled :value="qrLoginUrl" :size="140" level="M" class="rounded-lg shadow-lg" />
-      <p class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
-    </div>
+    </Transition>
   </Card>
 </template>
 
@@ -292,5 +316,35 @@ watch(password, () => {
 .slide-fade-leave-to {
   opacity: 0;
   transform: translateY(-2px);
+}
+
+.instance-chip {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+         bg-primary/10 border border-primary/20 text-white;
+}
+
+/* QR panel collapse — width + opacity so it slides away smoothly when switching to a
+   self-hosted/managed instance. The Card has overflow-hidden, so the card width shrinks cleanly. */
+.qr-wrap {
+  max-width: 240px;
+}
+
+.qr-collapse-enter-active,
+.qr-collapse-leave-active {
+  transition: max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+  overflow: hidden;
+}
+
+.qr-collapse-enter-from,
+.qr-collapse-leave-to {
+  max-width: 0;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qr-collapse-enter-active,
+  .qr-collapse-leave-active {
+    transition: none;
+  }
 }
 </style>
