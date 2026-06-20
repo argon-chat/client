@@ -42,18 +42,113 @@ export interface VoiceMember {
   isSpeaking: boolean
   isMuted: boolean
   isDeafened: boolean
+  /** Member is currently sharing their screen (renders a badge). */
+  isScreenShare?: boolean
+}
+
+/** A single message shown in the chat-peek overlay widget. */
+export interface OverlayChatMessage {
+  id: string
+  author: string
+  authorColor: string
+  text: string
+}
+
+export type OverlayNotificationKind = 'dm' | 'mention' | 'join' | 'record' | 'online' | 'info'
+
+/** A transient toast shown in the notifications overlay widget. */
+export interface OverlayNotification {
+  id: string
+  kind: OverlayNotificationKind
+  title: string
+  body?: string
+  /** Accent color (hex). Defaults per-kind if omitted. */
+  color?: string
 }
 
 /**
  * Widget anchor position
  */
-export type WidgetAnchor = 
-  | 'top-left' 
-  | 'top-right' 
-  | 'bottom-left' 
+export type WidgetAnchor =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
   | 'bottom-right'
   | 'top-center'
   | 'bottom-center'
+
+/**
+ * Known overlay widget kinds. Each maps to a widget class instantiated in the
+ * overlay window and a layout entry in {@link OverlayHudConfig.widgets}.
+ */
+export type OverlayWidgetType = 'voice' | 'notifications' | 'chat'
+
+/** Voice widget presentation modes. */
+export type VoiceLayoutMode =
+  | 'list'     // vertical cards: avatar + name + status
+  | 'bar'      // horizontal strip: avatar + name chips
+  | 'avatars'  // compact: avatars only (no names/cards)
+  | 'grid'     // wrapped avatar grid
+
+/**
+ * Per-widget placement + appearance. Produced by the in-app layout editor and
+ * pushed to the overlay window via the widget-config IPC channel.
+ */
+export interface OverlayWidgetLayout {
+  /** Whether the widget is mounted/rendered at all. */
+  visible: boolean
+  /** Anchor corner/edge the widget pins to. */
+  anchor: WidgetAnchor
+  /** Logical-px offset from the anchored position (drag editor writes this). */
+  offsetX: number
+  offsetY: number
+  /** UI scale multiplier for this widget (0.5–2.0). */
+  scale: number
+  /** Per-widget opacity 0–1 (multiplied with the global overlay opacity). */
+  opacity: number
+}
+
+/** Voice-widget-specific appearance, independent of placement. */
+export interface VoiceWidgetConfig {
+  mode: VoiceLayoutMode
+  showNames: boolean
+  showWidgetBackground: boolean
+  showMemberCards: boolean
+  /** Render a live mic-level meter under each speaking member. */
+  showVolume: boolean
+}
+
+/** Chat-peek-widget-specific appearance. */
+export interface ChatWidgetConfig {
+  /** Max messages kept on screen. */
+  maxLines: number
+  /** Auto-fade a message this many ms after it arrives (0 = never). */
+  fadeAfterMs: number
+}
+
+/** Notifications-widget-specific appearance. */
+export interface NotificationsWidgetConfig {
+  /** How long each toast stays before auto-dismiss (ms). */
+  durationMs: number
+  /** Max toasts stacked at once. */
+  maxStack: number
+}
+
+/**
+ * Full overlay HUD configuration. Single source of truth pushed to the overlay
+ * window; drives which widgets mount, where, and how they look.
+ */
+export interface OverlayHudConfig {
+  /** Global opacity multiplier applied to every widget (0–1). */
+  globalOpacity: number
+  /** Base inset (logical px) from the screen edge for every anchored widget. */
+  screenPadding: number
+  /** Per widget-type placement/appearance. */
+  widgets: Record<OverlayWidgetType, OverlayWidgetLayout>
+  voice: VoiceWidgetConfig
+  chat: ChatWidgetConfig
+  notifications: NotificationsWidgetConfig
+}
 
 /**
  * Widget configuration
@@ -76,6 +171,11 @@ export interface WidgetConfig {
   screenPadding: number
   /** Anchor position for the widget (default 'top-left') */
   anchor: WidgetAnchor
+  /** Free-placement offset (logical px) from the anchored position (default 0). */
+  offsetX: number
+  offsetY: number
+  /** Per-widget UI scale multiplier (default 1). */
+  scale: number
 }
 
 /**

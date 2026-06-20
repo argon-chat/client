@@ -35,17 +35,6 @@
           <Slider :min="0.1" :max="1" :step="0.05" v-model="opacityArray" />
         </div>
 
-        <!-- Position -->
-        <div class="space-y-2">
-          <label class="text-sm">Position</label>
-          <Select v-model="settings.overlayAnchor">
-            <SelectTrigger class="w-[220px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="a in anchors" :key="a.value" :value="a.value">{{ a.label }}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <!-- Edge padding -->
         <div class="space-y-2">
           <div class="flex justify-between text-sm">
@@ -54,6 +43,9 @@
           </div>
           <Slider :min="0" :max="120" :step="2" v-model="paddingArray" />
         </div>
+
+        <!-- Widgets + drag layout editor -->
+        <OverlayLayoutEditor />
       </div>
     </div>
 
@@ -137,21 +129,13 @@
 import { computed } from "vue";
 import { Switch } from "@argon/ui/switch";
 import { Slider } from "@argon/ui/slider";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@argon/ui/select";
 import { Badge } from "@argon/ui/badge";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 import { Gamepad2, Monitor, Radio, TriangleAlert, X } from "lucide-vue-next";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
-import type { WidgetAnchor } from "@/lib/overlay";
+import OverlayLayoutEditor from "./OverlayLayoutEditor.vue";
 
 const settings = useGameOverlaySettings();
-
-const anchors: { value: WidgetAnchor; label: string }[] = [
-  { value: "top-left", label: "Top left" },
-  { value: "top-right", label: "Top right" },
-  { value: "bottom-left", label: "Bottom left" },
-  { value: "bottom-right", label: "Bottom right" },
-];
 
 // Sliders bind to a number[] — bridge to the single persisted values.
 const opacityArray = computed<number[]>({

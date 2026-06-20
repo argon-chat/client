@@ -1,7 +1,16 @@
 import { persistedValue } from "@argon/storage";
 import { defineStore } from "pinia";
 import { computed, watch } from "vue";
-import type { WidgetAnchor } from "@/lib/overlay";
+import {
+  defaultHudConfig,
+  normalizeHudConfig,
+  type WidgetAnchor,
+  type OverlayHudConfig,
+  type OverlayWidgetType,
+  type OverlayWidgetLayout,
+  type VoiceLayoutMode,
+  type VoiceWidgetConfig,
+} from "@/lib/overlay";
 
 /**
  * One persisted record per game the app has ever detected (Discord-style "registered
@@ -30,6 +39,8 @@ export interface GameSettingsSnapshot {
   overlayScreenPadding: number;
   activityPublishEnabled: boolean;
   games: Record<string, { overlayEnabled: boolean; activityPublish: boolean }>;
+  /** Full HUD config (per-widget placement/appearance) for the overlay window. */
+  hud: OverlayHudConfig;
 }
 
 export function normalizeGameId(path: string, name: string): string {
@@ -46,6 +57,9 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
 
   // ── Global activity-publication toggle ──
   const activityPublishEnabled = persistedValue<boolean>("argon.overlay.activityPublish", true);
+
+  // ── Rich HUD config (per-widget placement/appearance) — reactive, deep-persisted ──
+  const hud = persistedValue<OverlayHudConfig>("argon.overlay.hud", defaultHudConfig());
 
   // ── Per-game journal (reactive object → deep-persisted) ──
   const games = persistedValue<Record<string, GameEntry>>("argon.overlay.games", {});
@@ -102,6 +116,31 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     delete games[id];
   }
 
+  // ── HUD config mutators (used by the layout editor + settings) ──
+
+  /** Build a complete, plain HUD payload, folding the legacy global controls in. */
+  function buildHud(): OverlayHudConfig {
+    const h = normalizeHudConfig(hud);
+    h.globalOpacity = overlayOpacity.value;
+    h.screenPadding = overlayScreenPadding.value;
+    // The legacy "Position" select still drives the voice widget's anchor.
+    h.widgets.voice.anchor = overlayAnchor.value;
+    return h;
+  }
+
+  function setVoiceMode(mode: VoiceLayoutMode): void {
+    hud.voice.mode = mode;
+  }
+  function setVoiceAppearance(patch: Partial<VoiceWidgetConfig>): void {
+    Object.assign(hud.voice, patch);
+  }
+  function setWidgetLayout(type: OverlayWidgetType, patch: Partial<OverlayWidgetLayout>): void {
+    Object.assign(hud.widgets[type], patch);
+  }
+  function resetHud(): void {
+    Object.assign(hud, defaultHudConfig());
+  }
+
   function snapshot(): GameSettingsSnapshot {
     const g: Record<string, { overlayEnabled: boolean; activityPublish: boolean }> = {};
     for (const [id, e] of Object.entries(games)) {
@@ -114,6 +153,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
       overlayScreenPadding: overlayScreenPadding.value,
       activityPublishEnabled: activityPublishEnabled.value,
       games: g,
+      hud: buildHud(),
     };
   }
 
@@ -127,6 +167,9 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     initialized = true;
     const bridge = (globalThis as any).argonOverlay;
     if (!bridge) return;
+
+    // Backfill any HUD fields added since this config was first persisted.
+    Object.assign(hud, normalizeHudConfig(hud));
 
     // A game was detected by the native plugin — record it (and resolve any unsupported flag).
     bridge.onGameDetected?.((g: { path?: string; name?: string }) => {
@@ -145,7 +188,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
 
     // Push settings to main whenever anything relevant changes.
     watch(
-      [overlayEnabled, overlayOpacity, overlayAnchor, overlayScreenPadding, activityPublishEnabled, games],
+      [overlayEnabled, overlayOpacity, overlayAnchor, overlayScreenPadding, activityPublishEnabled, games, hud],
       () => push(),
       { deep: true },
     );
@@ -163,12 +206,17 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     activityPublishEnabled,
     games,
     gamesList,
+    hud,
     recordGame,
     setGameOverlay,
     setGameActivity,
     markUnsupported,
     markSupported,
     removeGame,
+    setVoiceMode,
+    setVoiceAppearance,
+    setWidgetLayout,
+    resetHud,
     snapshot,
     init,
   };

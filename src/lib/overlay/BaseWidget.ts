@@ -3,12 +3,19 @@
  * Abstract base for all overlay widgets
  */
 
-import type { IWidget, WidgetConfig, OverlayRenderContext, Vec2, WidgetAnchor } from './types'
+import type {
+  IWidget,
+  WidgetConfig,
+  OverlayRenderContext,
+  Vec2,
+  WidgetAnchor,
+  OverlayWidgetLayout,
+} from './types'
 
 export abstract class BaseWidget implements IWidget {
   public readonly id: string
   public config: WidgetConfig
-  
+
   constructor(id: string, position: Vec2 = { x: 0, y: 0 }, size: Vec2 = { x: 200, y: 100 }) {
     this.id = id
     this.config = {
@@ -23,32 +30,71 @@ export abstract class BaseWidget implements IWidget {
       memberSpacing: 6,
       screenPadding: 20,
       anchor: 'top-left',
+      offsetX: 0,
+      offsetY: 0,
+      scale: 1,
     }
   }
-  
+
   abstract update(deltaTime: number): void
   abstract render(ctx: OverlayRenderContext): void
-  
+
   dispose(): void {
     // Override in subclasses if cleanup needed
   }
-  
+
   setPosition(x: number, y: number): void {
     this.config.position.x = x
     this.config.position.y = y
   }
-  
+
   setSize(width: number, height: number): void {
     this.config.size.x = width
     this.config.size.y = height
   }
-  
+
   setVisible(visible: boolean): void {
     this.config.visible = visible
   }
-  
+
   setOpacity(opacity: number): void {
     this.config.opacity = Math.max(0, Math.min(1, opacity))
+  }
+
+  setAnchor(anchor: WidgetAnchor): void {
+    this.config.anchor = anchor
+  }
+
+  setScreenPadding(padding: number): void {
+    this.config.screenPadding = Math.max(0, Math.min(400, padding))
+  }
+
+  setScale(scale: number): void {
+    this.config.scale = Math.max(0.5, Math.min(2, scale))
+  }
+
+  /** Apply a placement entry from the HUD config (anchor + offset + scale + opacity + visibility). */
+  applyLayout(layout: OverlayWidgetLayout): void {
+    this.config.anchor = layout.anchor
+    this.config.offsetX = layout.offsetX
+    this.config.offsetY = layout.offsetY
+    this.config.visible = layout.visible
+    this.setScale(layout.scale)
+    this.setOpacity(layout.opacity)
+  }
+
+  /**
+   * Whether the widget needs the renderer to keep producing frames (running
+   * animations, live timers, pending texture loads). The overlay window uses
+   * this to extend its idle settle window. Default: false (static content).
+   */
+  needsContinuousRender(): boolean {
+    return false
+  }
+
+  /** Whether this widget currently has anything to draw (drives visibility gating). */
+  hasContent(): boolean {
+    return true
   }
 }
 

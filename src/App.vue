@@ -20,6 +20,8 @@ import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
+import { useOverlayChatPublisher } from "@/composables/useOverlayChatPublisher";
+import { useOverlayNotificationsPublisher } from "@/composables/useOverlayNotificationsPublisher";
 import { logger } from "@argon/core";
 import { useSystemStore } from "./store";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
@@ -34,8 +36,11 @@ const showDiagnostics = ref(false);
 const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
 
-// Stream voice-channel state to the native in-game overlay (Electron only; no-op otherwise).
+// Stream voice-channel state + chat peek + toasts to the native in-game overlay
+// (Electron only; no-op otherwise).
 useOverlayPublisher();
+useOverlayChatPublisher();
+useOverlayNotificationsPublisher();
 
 
 

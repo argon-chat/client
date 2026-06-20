@@ -23,6 +23,7 @@ export interface OverlayMember {
   isSpeaking: boolean;
   isMuted: boolean;
   isDeafened: boolean;
+  isScreenShare: boolean;
 }
 
 export function useOverlayPublisher(): void {
@@ -74,6 +75,7 @@ export function useOverlayPublisher(): void {
         isSpeaking: voice.speaking.has(userId),
         isMuted,
         isDeafened,
+        isScreenShare: (user as { isScreenShare?: boolean }).isScreenShare ?? false,
       });
     }
     return result;
