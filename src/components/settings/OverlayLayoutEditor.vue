@@ -239,8 +239,8 @@ function boxStyle(w: WidgetMeta): Record<string, string> {
     { x: pw.value, y: ph.value },
     { x: bw, y: bh },
     store.overlayScreenPadding * s,
-    w.layout.offsetX * s,
-    w.layout.offsetY * s,
+    w.layout.offsetX, // fraction of canvas — same on preview and real screen
+    w.layout.offsetY,
   );
   return {
     left: `${pos.x}px`,
@@ -264,12 +264,13 @@ function startDrag(type: OverlayWidgetType, e: PointerEvent): void {
 }
 function onDrag(e: PointerEvent): void {
   if (!drag) return;
-  const s = scale.value || 1;
-  const dx = (e.clientX - drag.startX) / s;
-  const dy = (e.clientY - drag.startY) / s;
+  // Offset is a fraction of the screen → divide the pixel delta by the preview size.
+  const dx = (e.clientX - drag.startX) / (pw.value || 1);
+  const dy = (e.clientY - drag.startY) / (ph.value || 1);
+  const clamp = (n: number) => Math.max(-1, Math.min(1, n));
   store.setWidgetLayout(drag.type, {
-    offsetX: Math.round(drag.offX + dx),
-    offsetY: Math.round(drag.offY + dy),
+    offsetX: clamp(drag.offX + dx),
+    offsetY: clamp(drag.offY + dy),
   });
 }
 function endDrag(): void {

@@ -19,8 +19,12 @@ import type {
 export const OVERLAY_WIDGET_TYPES: OverlayWidgetType[] = ['voice', 'chat', 'notifications']
 
 /**
- * Top-left screen position (logical px) for a widget of `size`, given its anchor,
- * the base edge padding and any free-placement offset.
+ * Top-left position (in `canvas` units) for a widget of `size`, given its anchor,
+ * the base edge padding and a free-placement offset.
+ *
+ * `offsetX`/`offsetY` are **fractions of the canvas** (−1..1), NOT pixels — this
+ * keeps placement identical across screen resolutions, so the editor preview and
+ * the real overlay agree regardless of the game's monitor size.
  */
 export function computeAnchoredPosition(
   anchor: WidgetAnchor,
@@ -47,7 +51,7 @@ export function computeAnchoredPosition(
     case 'bottom-center': x = centerX; y = bottom; break
     default: x = left; y = top
   }
-  return { x: x + offsetX, y: y + offsetY }
+  return { x: x + offsetX * canvas.x, y: y + offsetY * canvas.y }
 }
 
 /** Whether an anchor pins to the right edge (used for horizontal growth direction). */
@@ -125,6 +129,13 @@ export function normalizeHudConfig(raw: unknown): OverlayHudConfig {
       const w = r.widgets[type]
       if (w && typeof w === 'object') base.widgets[type] = { ...base.widgets[type], ...w }
     }
+  }
+  // Offsets are now screen fractions (−1..1). Anything outside that range is a
+  // legacy pixel value from the old model → drop it back to the anchor.
+  for (const type of OVERLAY_WIDGET_TYPES) {
+    const wl = base.widgets[type]
+    if (!Number.isFinite(wl.offsetX) || Math.abs(wl.offsetX) > 1.5) wl.offsetX = 0
+    if (!Number.isFinite(wl.offsetY) || Math.abs(wl.offsetY) > 1.5) wl.offsetY = 0
   }
   if (r.voice && typeof r.voice === 'object') base.voice = { ...base.voice, ...r.voice }
   if (r.chat && typeof r.chat === 'object') base.chat = { ...base.chat, ...r.chat }
