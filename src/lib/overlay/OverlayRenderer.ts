@@ -520,7 +520,27 @@ export class OverlayRenderer {
       this.device = await this.adapter.requestDevice({
         requiredFeatures,
       })
-      
+
+      // Surface GPU device loss + validation errors. A lost device (driver
+      // reset/TDR, out-of-memory, or the GPU process going away) or an
+      // uncaptured error is the usual prelude to the overlay's native renderer
+      // tearing down — which otherwise only shows up downstream as a cryptic
+      // "external Instance reference no longer exists" with no stated cause.
+      this.device.lost
+        .then((info) => {
+          const line = `[Overlay] WebGPU device lost: reason=${info.reason} message=${info.message || '(none)'}`
+          // reason 'destroyed' is the expected path when we tear the overlay down.
+          if (info.reason === 'destroyed') console.log(line)
+          else console.error(line)
+        })
+        .catch(() => {
+          /* ignore */
+        })
+      this.device.addEventListener('uncapturederror', (e: unknown) => {
+        const err = (e as GPUUncapturedErrorEvent)?.error as GPUError | undefined
+        console.error('[Overlay] WebGPU uncaptured error:', err?.message ?? e)
+      })
+
       this.context = this.canvas.getContext('webgpu')
       if (!this.context) {
         console.error('[Overlay] Failed to get WebGPU context')
