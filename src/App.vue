@@ -18,6 +18,7 @@ import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue
 import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
+import { initDesktopTaskbar } from "@/lib/desktopTaskbar";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { useOverlayChatPublisher } from "@/composables/useOverlayChatPublisher";
@@ -55,6 +56,7 @@ mode.value = "dark";
 onMounted(() => {
   applyAppearanceSettings();
   initDeepLinks();
+  initDesktopTaskbar();
 });
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];

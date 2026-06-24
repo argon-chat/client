@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, shallowRef, triggerRef, watch } from "vue";
 import { logger } from "@argon/core";
 import { native } from "@argon/glue/native";
+import { renderOverlayBadge } from "@/lib/taskbarBadge";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
@@ -87,21 +88,52 @@ export const useNotificationStore = defineStore("notifications", () => {
     return false;
   });
 
-  // Reflect unread state onto the desktop tray icon (native host only).
+  // The number of things actively demanding attention — DMs, mentions, and system
+  // notifications. Drives the numeric taskbar/dock badge (plain unread channels don't count,
+  // matching how other chat apps badge only "pings").
+  const pingCount = computed(() => {
+    let total = unreadDmCount.value + totalSystemBadge.value;
+    for (const sb of spaceBadges.value.values()) total += sb.totalMentions;
+    return total;
+  });
+
+  // Reflect unread state onto the desktop tray icon + taskbar overlay / dock badge (native host only).
   watch(
-    hasAnyUnread,
-    (has) => {
+    [hasAnyUnread, pingCount],
+    ([has, pings]) => {
+      if (!argon?.isArgonHost) return;
       try {
-        if (argon?.isArgonHost) {
+        // @ts-ignore — dynamic HostProc RPC method
+        native?.hostProc.setTrayNotificationIndicator(has);
+
+        if (navigator.userAgent.includes("Win")) {
+          const icon = renderOverlayBadge(pings, has);
+          const desc = pings > 0 ? `${pings} new` : has ? "New" : "";
           // @ts-ignore — dynamic HostProc RPC method
-          native?.hostProc.setTrayNotificationIndicator(has);
+          native?.hostProc.setOverlayBadge(icon, desc, pings);
+        } else {
+          // macOS dock / Linux Unity badge — count only (no overlay image).
+          // @ts-ignore — dynamic HostProc RPC method
+          native?.hostProc.setOverlayBadge(null, "", pings);
         }
       } catch (e) {
-        logger.error("[NotificationStore] Failed to update tray indicator:", e);
+        logger.error("[NotificationStore] Failed to update tray/taskbar badge:", e);
       }
     },
     { immediate: true },
   );
+
+  // Pulse the taskbar button (Windows) / bounce the dock (macOS) on a real ping when the window
+  // isn't focused — the host decides whether to actually flash based on focus.
+  function flashForAttention() {
+    if (!argon?.isArgonHost) return;
+    try {
+      // @ts-ignore — dynamic HostProc RPC method
+      native?.hostProc.flashTaskbar();
+    } catch (e) {
+      logger.error("[NotificationStore] Failed to flash taskbar:", e);
+    }
+  }
 
   function isChannelUnread(channelId: Guid, lastMessageId: bigint): boolean {
     const rs = readStates.value.get(channelId);
@@ -240,12 +272,14 @@ export const useNotificationStore = defineStore("notifications", () => {
     const mute = effectiveMuteLevel(e.channelId, e.spaceId);
     if (mute !== MuteLevelType.All) {
       tone.playNotificationSound();
+      flashForAttention();
     }
   }
 
   function handleDirectMessageSent(e: DirectMessageSent) {
     if (e.receiverId === me.me?.userId) {
       unreadDmCount.value++;
+      flashForAttention();
     }
   }
 
