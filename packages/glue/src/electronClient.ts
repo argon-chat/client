@@ -5,6 +5,8 @@ interface ArgonIpcBridge {
   onEvent(callback: (event: any) => void): void;
   onPinnedFn(callback: (fnId: number, data: any) => void): void;
   onPresenceUpdate(callback: (presence: any) => void): void;
+  /** True exactly once when this renderer load followed a crash-triggered reload. */
+  consumeCrashRecovery?(): Promise<boolean>;
 }
 
 declare global {

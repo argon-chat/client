@@ -57,6 +57,8 @@ onMounted(() => {
   applyAppearanceSettings();
   initDeepLinks();
   initDesktopTaskbar();
+  // If this load followed a renderer crash, rejoin the voice channel we were in.
+  void call.maybeRecoverVoiceAfterCrash();
 });
 
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];

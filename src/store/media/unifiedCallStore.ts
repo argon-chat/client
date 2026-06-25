@@ -11,7 +11,8 @@ import {
   createLocalVideoTrack,
   VideoPresets,
 } from "livekit-client";
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
+import { persistedValue } from "@argon/storage";
 
 import { audio, type RemoteAudioGraph } from "@/lib/audio/AudioManager";
 import { ensureMediaPermission } from "@/lib/mediaPermissions";
@@ -65,6 +66,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   const callId = ref<string | null>(null);
   const targetId = ref<string | null>(null);
   const connectedVoiceChannelId = ref<string | null>(null);
+
+  // Persisted across renderer reloads (localStorage) so we can auto-rejoin the
+  // channel after a renderer crash. Empty string = not in a voice channel;
+  // cleared on an explicit leave(). See maybeRecoverVoiceAfterCrash().
+  const lastVoiceServerId = persistedValue<string>("argon:lastVoiceServerId", "");
+  const lastVoiceChannelId = persistedValue<string>("argon:lastVoiceChannelId", "");
 
   const isConnecting = ref(false);
   const isConnected = ref(false);
@@ -204,6 +211,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     callId.value = null;
     targetId.value = null;
     connectedVoiceChannelId.value = null;
+    // Explicit leave → don't auto-rejoin if the renderer later crashes/reloads.
+    lastVoiceServerId.value = "";
+    lastVoiceChannelId.value = "";
 
     isConnecting.value = false;
     isConnected.value = false;
@@ -342,6 +352,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     callId.value = `channel-${channelId}`;
     targetId.value = channelId;
     connectedVoiceChannelId.value = channelId;
+    // Remember where we are so a crash-triggered reload can rejoin (see below).
+    lastVoiceServerId.value = String(selected);
+    lastVoiceChannelId.value = channelId;
 
     await joinLiveKit({
       token: join.token,
@@ -351,6 +364,48 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     });
 
     startTimersRTT();
+  }
+
+  // After a renderer crash the Electron host reloads the page and flags the load
+  // as a crash recovery. If we were in a voice channel when it happened (persisted
+  // across the reload), rejoin it automatically. This fires ONLY on a real crash —
+  // the host hands out the flag exactly once, so a normal restart never rejoins.
+  // We wait until the user is back in the same server before rejoining so the
+  // Interlink call targets the right place.
+  async function maybeRecoverVoiceAfterCrash() {
+    try {
+      const recovered = await (window as any).argonIpc?.consumeCrashRecovery?.();
+      if (!recovered) return;
+
+      const serverId = lastVoiceServerId.value;
+      const channelId = lastVoiceChannelId.value;
+      if (!serverId || !channelId) return;
+
+      logger.warn("[CALL] crash recovery — will rejoin voice", { serverId, channelId });
+
+      const rejoin = async (): Promise<boolean> => {
+        if (String(pool.selectedServer ?? "") !== serverId) return false;
+        await joinVoiceChannel(channelId);
+        return true;
+      };
+
+      if (await rejoin()) return;
+
+      // Server not active yet (auth + server list still loading post-reload) —
+      // rejoin as soon as we're back in it, then stop watching.
+      const stop = watch(
+        () => pool.selectedServer,
+        () => {
+          void rejoin().then((done) => {
+            if (done) stop();
+          });
+        },
+      );
+      // Don't watch forever if the user never returns to that server.
+      setTimeout(() => stop(), 60_000);
+    } catch (e) {
+      logger.error("[CALL] crash recovery failed", e);
+    }
   }
 
   function startTimersRTT() {
@@ -1577,6 +1632,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     acceptIncomingCall,
     rejectIncomingCall,
     joinVoiceChannel,
+    maybeRecoverVoiceAfterCrash,
     startScreenShare,
     stopScreenShare,
     switchScreenShare,
