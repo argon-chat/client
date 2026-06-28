@@ -143,12 +143,25 @@ function onKeydown(e: KeyboardEvent) {
 
 async function download() {
   if (!currentSrc.value || !currentImage.value) return;
-  const a = document.createElement("a");
-  a.href = currentSrc.value;
-  a.download = currentImage.value.fileName || "image";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Fetch into a blob and download via a same-origin object URL. A cross-origin
+  // CDN href with `download` is ignored by the browser, which then *navigates* to
+  // it — that fires pagehide/beforeunload and LiveKit tears down the active voice
+  // call ("Page leave detected, disconnecting"). A blob: URL never navigates.
+  try {
+    const resp = await fetch(currentSrc.value);
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = currentImage.value.fileName || "image";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    /* download failed — leave the call untouched */
+  }
 }
 
 onBeforeUnmount(() => {

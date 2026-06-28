@@ -15,6 +15,7 @@ import GamePicker from "./components/playframe/GamePicker.vue";
 import PlayFrameOverlay from "./components/playframe/PlayFrameOverlay.vue";
 import BotInteractionModal from "./components/modals/BotInteractionModal.vue";
 import AudioDeviceErrorModal from "./components/modals/AudioDeviceErrorModal.vue";
+import CallSystemErrorModal from "./components/modals/CallSystemErrorModal.vue";
 import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
@@ -83,6 +84,12 @@ watch(() => call.audioDeviceError, (err) => {
   if (err) showAudioDeviceError.value = true;
 });
 
+const showCallSystemError = ref(false);
+
+watch(() => call.connectError, (err) => {
+  if (err) showCallSystemError.value = true;
+});
+
 </script>
 
 <template>
@@ -99,6 +106,10 @@ watch(() => call.audioDeviceError, (err) => {
   <AudioDeviceErrorModal
     v-model:open="showAudioDeviceError"
     :error-type="call.audioDeviceError?.type ?? null"
+  />
+  <CallSystemErrorModal
+    v-model:open="showCallSystemError"
+    :message="call.connectError?.message ?? null"
   />
   <LegalUpdateGate />
   <InvitePreviewModal />

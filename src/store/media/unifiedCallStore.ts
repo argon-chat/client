@@ -160,6 +160,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   const isCpuConstrained = ref(false);
   const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
+  // Set when joining voice fails at the system level (LiveKit connect or mic publish).
+  // Surfaced as a "system failure" popup; cleared on leave() and on a new attempt.
+  const connectError = ref<{ message: string } | null>(null);
   let cpuConstrainedResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ping = ref(-1);
@@ -239,6 +242,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isCpuConstrained.value = false;
     audioDeviceError.value = null;
+    connectError.value = null;
     if (cpuConstrainedResetTimer) {
       clearTimeout(cpuConstrainedResetTimer);
       cpuConstrainedResetTimer = null;
@@ -760,6 +764,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     return stats;
   }
 
+  function formatConnectError(err: unknown): string {
+    if (err instanceof Error) {
+      return err.name && err.name !== "Error" ? `${err.name}: ${err.message}` : err.message;
+    }
+    return String(err);
+  }
+
   async function joinLiveKit(opts: {
     token: string;
     callId: string;
@@ -921,6 +932,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     } catch (err) {
       logger.error("LiveKit connect failed", err);
       await leave();
+      connectError.value = { message: formatConnectError(err) };
       return;
     }
 
@@ -1020,6 +1032,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     } catch (err) {
       logger.error("mic publish failed", err);
       await leave();
+      connectError.value = { message: formatConnectError(err) };
       return;
     }
 
@@ -1620,6 +1633,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isCpuConstrained,
     audioDeviceError,
+    connectError,
 
     ping,
     pingHistory,
