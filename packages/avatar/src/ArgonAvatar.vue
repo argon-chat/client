@@ -3,10 +3,13 @@ import { Avatar, AvatarFallback } from "@argon/ui/avatar";
 import { Skeleton } from "@argon/ui/skeleton";
 import { computed, ref, type HTMLAttributes } from "vue";
 
+// Standalone package (no pinia/config access) used in official contexts (overlay). Mirrors the main
+// app's by-fileId scheme: the API 302s /files/{fileId} to the nearest regional mirror. Native goes
+// through app://cdn (Electron points it at the official API file-redirect).
 const isNative = typeof window !== "undefined" && "argonIpc" in window;
 function cdnUrl(fileId: string): string {
   if (isNative) return `app://cdn/${fileId}`;
-  return `https://cdn.argon.gl/${fileId}`;
+  return `https://api.argon.gl/files/${fileId}`;
 }
 
 const props = withDefaults(

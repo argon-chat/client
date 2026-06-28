@@ -1,6 +1,7 @@
 import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
 import { useInstance } from "@/store/system/instanceStore";
+import { useConfig } from "@/store/system/remoteConfig";
 
 export type GroupReport = {
   name: string;
@@ -18,34 +19,39 @@ export type StorageUsageReport = {
 
 const isNative = typeof window !== "undefined" && "argonIpc" in window;
 
-export function cdnUrl(fileId: string, spaceId: Guid | null = null): string {
+/**
+ * Every file (avatar / banner / attachment) resolves to a single region-agnostic, by-fileId URL on
+ * THIS instance's API: `{apiEndpoint}/files/{fileId}`. The API 302s it to the nearest reachable
+ * regional mirror at fetch time (geo decided then, never baked in), so a transient VPN/region can't
+ * pin a dead cross-region URL. The api base comes from the client's own config, so self-hosted
+ * instances point at their own server automatically. `spaceId` is no longer needed (the server
+ * resolves the S3 key from the fileId) — kept for call-site compatibility.
+ */
+export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   const inst = useInstance();
-  // Official native build → the dedicated app://cdn cache (its upstream is the official geo-CDN).
-  if (isNative && inst.isOfficial) {
-    if (spaceId)
-      return `app://cdn/s/${spaceId}/banner/${fileId}`;
-    else
-      return `app://cdn/${fileId}`;
-  }
-  const base = inst.active.endpoints.cdn.replace(/\/+$/, "");
-  const full = `${base}/${fileId}`;
-  // Self-hosted/managed native build → keep local caching, but against THIS instance's CDN, by
-  // routing through the generic app://cdn-proxy interceptor (same path geo-CDN downloads use).
+  // Official native → the dedicated app://cdn cache (Electron resolves it against the official API
+  // file-redirect and caches the resolved bytes under a stable, region-independent key).
+  if (isNative && inst.isOfficial)
+    return `app://cdn/${fileId}`;
+  const full = `${apiBase()}/files/${fileId}`;
+  // Self-hosted/managed native → cache locally against THIS instance's API via the generic
+  // app://cdn-proxy interceptor (cache key is the stable api URL, so no region poisoning).
   if (isNative)
     return `app://cdn-proxy/${encodeURIComponent(full)}`;
   return full;
 }
 
+function apiBase(): string {
+  return useConfig().apiEndpoint.replace(/\/+$/, "");
+}
+
 /**
- * Resolve URL for message attachments.
- * Uses server-provided downloadUrl when available; falls back to legacy cdnUrl(fileId).
- * In native (Electron), routes geo-CDN URLs through app://cdn-proxy/ for local caching.
+ * Resolve URL for message attachments. We deliberately IGNORE any server-provided downloadUrl and
+ * build from the fileId instead: building from the stable fileId means a stale URL that was cached
+ * into chat history (e.g. during a VPN blip) can never poison rendering — the region is always
+ * resolved fresh by the API redirect.
  */
-export function resolveAttachmentUrl(fileId: string, downloadUrl: string | null | undefined): string {
-  if (downloadUrl) {
-    if (isNative) return `app://cdn-proxy/${encodeURIComponent(downloadUrl)}`;
-    return downloadUrl;
-  }
+export function resolveAttachmentUrl(fileId: string, _downloadUrl?: string | null): string {
   return cdnUrl(fileId);
 }
 

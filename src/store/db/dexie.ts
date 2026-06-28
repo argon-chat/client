@@ -79,6 +79,11 @@ export class PoolDatabase extends Dexie {
     this.version(3).stores({
       profileCache: "key, userId, spaceId",
     });
+    // v4: purge the message cache once. Older rows baked an absolute, region-specific attachment
+    // `downloadUrl` into the cached message entities; a transient VPN/region could pin a dead
+    // cross-region URL there forever. URLs are now region-agnostic (resolved per-fetch by the server
+    // geo-redirect), so we drop the stale cache and let it refill clean on next channel open.
+    this.version(4).stores({}).upgrade((tx) => tx.table("messages").clear());
   }
 }
 
