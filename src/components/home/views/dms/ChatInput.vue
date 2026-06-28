@@ -28,7 +28,7 @@
                         @tab-change="handlePickerTabChange">
                       <template #tab-content="{ tabId, searchQuery }">
                         <GifPicker
-                          v-if="tabId === 'gif'"
+                          v-if="tabId === 'gif' && gifsSelectorActive"
                           :search-query="searchQuery"
                           @select="handleGifSelectDm"
                           @select-saved="handleSavedGifSelectDm"
@@ -82,12 +82,17 @@ import type { GifItem, SavedGif } from "@argon/glue";
 import GifPicker from "@/components/chats/GifPicker.vue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { storeToRefs } from "pinia";
 const { t } = useLocale();
 
-// ── GIF tab ──
-const gifContentTabs: ContentTab[] = [
-  { id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' },
-];
+// ── GIF tab (gated behind af.chat.gifs-selector) ──
+const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
+const gifContentTabs = computed<ContentTab[]>(() =>
+  gifsSelectorActive.value
+    ? [{ id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' }]
+    : [],
+);
 const gifSearchQuery = ref('');
 const handlePickerTabChange = (_tabId: string) => {
   gifSearchQuery.value = '';
