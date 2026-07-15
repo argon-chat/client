@@ -2,7 +2,12 @@
     "name": "argon.ui",
     "root": "./dist",
     "output": "./publish",
-    "compression": false,
-	"deduplication": true,
-	"scramble": true
+    "compression": true,
+    "codec": "zstd",
+    "sharding": true,
+    "shardSizeMb": 2,
+    "align": 4096,
+    "deterministic": true,
+    "deduplication": true,
+    "scramble": true
 }
