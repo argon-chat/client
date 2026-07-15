@@ -6,6 +6,7 @@
     "codec": "zstd",
     "sharding": true,
     "shardSizeMb": 2,
+    "fixedShards": false,
     "align": 4096,
     "deterministic": true,
     "deduplication": true,
