@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
+import type { VideoQuality } from "livekit-client";
 import { usePoolStore, type IRealtimeChannelUserWithData } from "@/store/data/poolStore";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useMe } from "@/store/auth/meStore";
@@ -178,6 +179,68 @@ export function useMediaLayout(
   const isVideoPaused = (uid: Guid, prefer: "camera" | "screen_share" = "camera") =>
     voice.isVideoPaused(uid, getPreferredSource(uid, prefer));
 
+  /** Whether the local user switched this tile's video off (see call store). */
+  const isVideoHidden = (uid: Guid, prefer: "camera" | "screen_share" = "camera") =>
+    voice.isVideoHidden(uid, getPreferredSource(uid, prefer));
+
+  /** Server-reported link quality for one participant, for a per-tile warning badge. */
+  const qualityOf = (uid: Guid) => voice.participantQuality.get(uid) ?? null;
+
+  /** Set when the SFU refused to give us this participant's track. */
+  const subscriptionErrorOf = (uid: Guid) => voice.subscriptionErrors.get(uid) ?? null;
+
+  /**
+   * Live receive stats for a tile, already collected once a second by the call store.
+   * Shown on hover so "why does this look bad" is answerable without a debug overlay.
+   */
+  const videoStats = (uid: Guid) => {
+    const d = voice.diagnostics.get(uid);
+    if (!d) return null;
+    return {
+      width: d.width as number | null,
+      height: d.height as number | null,
+      codec: (d.codec as string | null)?.split("/").pop() ?? null,
+      bitrateKbps: d.bitrateKbps as number | null,
+      packetsLost: (d.videoPacketsLost ?? d.audioPacketsLost) as number | null,
+    };
+  };
+
+  /**
+   * Aspect ratio of the incoming picture, so a 16:10, ultrawide or portrait share
+   * fills the main tile instead of sitting in letterbox bars inside a forced 16:9.
+   */
+  const videoAspectRatio = (uid: Guid) => {
+    const d = voice.diagnostics.get(uid);
+    const w = d?.width as number | undefined;
+    const h = d?.height as number | undefined;
+    if (!w || !h) return "16 / 9";
+    return `${w} / ${h}`;
+  };
+
+  /**
+   * The per-tile bindings every ParticipantCard needs, in one object — there are eight
+   * call sites across the channel and DM views and they must not drift apart.
+   */
+  const tileProps = (uid: Guid, prefer: "camera" | "screen_share" = "camera") => {
+    const source = getPreferredSource(uid, prefer);
+    return {
+      videoSource: source,
+      isVideoPaused: voice.isVideoPaused(uid, source),
+      isVideoHidden: voice.isVideoHidden(uid, source),
+      videoQuality: voice.videoQualityOf(uid, source),
+      isPinned: isPinned(uid),
+      connectionQuality: qualityOf(uid),
+      subscriptionError: subscriptionErrorOf(uid),
+      stats: videoStats(uid),
+    };
+  };
+
+  const setVideoHidden = (uid: Guid, source: string, hidden: boolean) =>
+    voice.setVideoHidden(uid, source, hidden);
+
+  const setVideoQuality = (uid: Guid, source: string, quality: VideoQuality) =>
+    voice.setVideoQuality(uid, source, quality);
+
   const isScreenSharing = (uid: Guid) => {
     const myId = me.me?.userId;
     if (uid === myId) return voice.isSharing;
@@ -212,14 +275,25 @@ export function useMediaLayout(
     focusedUserId.value = focusedUserId.value === userId ? null : userId;
   };
 
-  const qualityConnection = computed<"NONE" | "GREEN" | "ORANGE" | "RED">(() => {
-    if (!voice.isConnected) return "NONE";
-    const ms = parseInt(String(voice.ping).replace("ms", "").trim(), 10);
-    if (!ms || ms <= 0) return "NONE";
-    if (ms < 50) return "GREEN";
-    if (ms < 100) return "ORANGE";
-    return "RED";
-  });
+  /** True when this tile is pinned by hand, as opposed to being main by default. */
+  const isPinned = (uid: Guid) => focusedUserId.value === uid;
+
+  const clearFocus = () => {
+    focusedUserId.value = null;
+  };
+
+  /**
+   * The participant the server currently hears as loudest. Only meaningful for
+   * auto-focus in the grid; the per-tile speaking ring stays on our own VU meter,
+   * which reacts faster.
+   */
+  const activeSpeakerId = computed(() => voice.activeSpeakerId);
+
+  // The call store owns this: it prefers the server's own quality report (real packet
+  // loss and jitter) and only falls back to RTT before the first report arrives.
+  const qualityConnection = computed<"NONE" | "GREEN" | "ORANGE" | "RED">(
+    () => voice.qualityConnection as "NONE" | "GREEN" | "ORANGE" | "RED",
+  );
 
   return {
     allUsers,
@@ -234,11 +308,22 @@ export function useMediaLayout(
     hasScreenShareVideo,
     getPreferredSource,
     isVideoPaused,
+    isVideoHidden,
+    qualityOf,
+    subscriptionErrorOf,
+    videoStats,
+    videoAspectRatio,
+    tileProps,
+    setVideoHidden,
+    setVideoQuality,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
     isPlayingActivity,
     toggleFocus,
+    isPinned,
+    clearFocus,
+    activeSpeakerId,
     qualityConnection,
   };
 }

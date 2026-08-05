@@ -10,6 +10,8 @@ import {
   LocalAudioTrack,
   AudioPresets,
   ConnectionQuality,
+  SubscriptionError,
+  VideoQuality,
   createLocalVideoTrack,
   isLocalParticipant,
   VideoPresets,
@@ -120,6 +122,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   // those tiles instead of leaving them looking broken.
   const pausedVideoTracks = reactive(new Set<string>());
 
+  // Videos the local user chose not to receive at all (per tile), and per-tile caps on
+  // the quality we ask the SFU for. Both are viewer-side only — nothing is signalled to
+  // the publisher, and neither survives a reconnect.
+  const hiddenVideoTracks = reactive(new Set<string>());
+  const videoQualityOverrides = reactive(new Map<string, VideoQuality>());
+
+  /** Server-reported connection quality per participant, including ourselves. */
+  const participantQuality = reactive(new Map<string, ConnectionQuality>());
+
+  /** Tracks the SFU refused to give us, keyed by user id, with a readable reason. */
+  const subscriptionErrors = reactive(new Map<string, string>());
+
+  /** Loudest participant per the server's own detection (not our local VU meter). */
+  const activeSpeakerId = ref<string | null>(null);
+
   function videoTrackKey(uid: string, source: string) {
     return `${uid}:${source}`;
   }
@@ -151,11 +168,56 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     for (const key of [...pausedVideoTracks]) {
       if (key.startsWith(uid + ":")) pausedVideoTracks.delete(key);
     }
+    for (const key of [...hiddenVideoTracks]) {
+      if (key.startsWith(uid + ":")) hiddenVideoTracks.delete(key);
+    }
+    for (const key of [...videoQualityOverrides.keys()]) {
+      if (key.startsWith(uid + ":")) videoQualityOverrides.delete(key);
+    }
   }
 
   /** Whether the SFU has paused delivery of this user's video (adaptive streaming). */
   function isVideoPaused(uid: string, source: string) {
     return pausedVideoTracks.has(videoTrackKey(uid, source));
+  }
+
+  /** Whether the local user has switched this tile's video off. */
+  function isVideoHidden(uid: string, source: string) {
+    return hiddenVideoTracks.has(videoTrackKey(uid, source));
+  }
+
+  function videoQualityOf(uid: string, source: string) {
+    return videoQualityOverrides.get(videoTrackKey(uid, source)) ?? VideoQuality.HIGH;
+  }
+
+  /** The remote publication behind a tile, if that participant is still in the room. */
+  function publicationFor(uid: string, source: string) {
+    const p = room.value?.remoteParticipants.get(uid);
+    return p?.getTrackPublication(source as Track.Source);
+  }
+
+  /**
+   * Stop (or resume) receiving a specific tile's video. Unlike the adaptive pause this
+   * is deliberate and sticky: the SFU sends nothing at all until it's switched back on.
+   */
+  function setVideoHidden(uid: string, source: string, hidden: boolean) {
+    const pub = publicationFor(uid, source);
+    if (!pub) return;
+    pub.setEnabled(!hidden);
+    const key = videoTrackKey(uid, source);
+    if (hidden) hiddenVideoTracks.add(key);
+    else hiddenVideoTracks.delete(key);
+  }
+
+  /**
+   * Cap the quality we ask for on one tile. Adaptive streaming still applies on top —
+   * LiveKit takes whichever of the two is smaller — so this can only ask for less.
+   */
+  function setVideoQuality(uid: string, source: string, quality: VideoQuality) {
+    const pub = publicationFor(uid, source);
+    if (!pub) return;
+    pub.setVideoQuality(quality);
+    videoQualityOverrides.set(videoTrackKey(uid, source), quality);
   }
 
   const speaking = reactive(new Set<string>());
@@ -187,10 +249,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   // Server-reported quality for our own participant: derived from real packet loss and
   // jitter, unlike a bare RTT reading. Falls back to ping until the first report lands.
   const networkQuality = ref<ConnectionQuality>(ConnectionQuality.Unknown);
-  // Browsers block audio until the page has been interacted with. Under webAudioMix
-  // that shows up as a silent call rather than an error, so surface it and let the
-  // user unblock it with a click.
+  // Browsers block audio (and video) until the page has been interacted with. Under
+  // webAudioMix that shows up as a silent call rather than an error, so surface it and
+  // let the user unblock it with a click.
   const audioPlaybackBlocked = ref(false);
+  const videoPlaybackBlocked = ref(false);
+  const playbackBlocked = computed(
+    () => audioPlaybackBlocked.value || videoPlaybackBlocked.value,
+  );
   const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
   // Set when joining voice fails at the system level (LiveKit connect or mic publish).
   // Surfaced as a "system failure" popup; cleared on leave() and on a new attempt.
@@ -241,19 +307,35 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   });
 
   /**
-   * Retry audio output after the browser blocked it. Resumes our own AudioContext
-   * (the remote graphs hang off it) and then lets LiveKit unblock its elements.
-   * Must be called from a user gesture.
+   * Retry output after the browser blocked it. Resumes our own AudioContext (the remote
+   * graphs hang off it) and then lets LiveKit unblock its own elements. Must be called
+   * from a user gesture.
    */
-  async function unblockAudioPlayback() {
+  async function unblockPlayback() {
     const r = room.value;
     try {
       const ctx = audio.getCurrentAudioContext();
       if (ctx.state === "suspended") await ctx.resume();
-      if (r) await r.startAudio();
+      if (r) {
+        await r.startAudio();
+        await r.startVideo();
+      }
       audioPlaybackBlocked.value = r ? !r.canPlaybackAudio : false;
+      videoPlaybackBlocked.value = r ? !r.canPlaybackVideo : false;
     } catch (err) {
-      logger.error("[CALL] failed to unblock audio playback", err);
+      logger.error("[CALL] failed to unblock playback", err);
+    }
+  }
+
+  /** Human-readable reason for a refused track subscription. */
+  function describeSubscriptionError(reason?: SubscriptionError) {
+    switch (reason) {
+      case SubscriptionError.SE_CODEC_UNSUPPORTED:
+        return "codec not supported by this device";
+      case SubscriptionError.SE_TRACK_NOTFOUND:
+        return "track no longer exists";
+      default:
+        return "subscription refused";
     }
   }
 
@@ -286,10 +368,16 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     Object.keys(participants).forEach((key) => delete participants[key]);
     videoTracks.clear();
     pausedVideoTracks.clear();
+    hiddenVideoTracks.clear();
+    videoQualityOverrides.clear();
+    participantQuality.clear();
+    subscriptionErrors.clear();
+    activeSpeakerId.value = null;
     speaking.clear();
     incoming.value = null;
     networkQuality.value = ConnectionQuality.Unknown;
     audioPlaybackBlocked.value = false;
+    videoPlaybackBlocked.value = false;
 
     stopTimerRTT();
     ping.value = -1;
@@ -931,14 +1019,41 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       else pausedVideoTracks.delete(key);
     });
 
+    // Reported for every participant, so the UI can point at whose link is bad rather
+    // than only showing our own.
     r.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+      participantQuality.set(participant.identity, quality);
       if (isLocalParticipant(participant)) networkQuality.value = quality;
+    });
+
+    r.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      activeSpeakerId.value = speakers[0]?.identity ?? null;
+    });
+
+    r.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant, reason) => {
+      const message = describeSubscriptionError(reason);
+      logger.error(`[CALL] track subscription failed for ${participant.identity}`, {
+        trackSid,
+        reason,
+      });
+      subscriptionErrors.set(participant.identity, message);
+    });
+
+    r.on(RoomEvent.TrackSubscribed, (_t, _pub, participant) => {
+      subscriptionErrors.delete(participant.identity);
     });
 
     r.on(RoomEvent.AudioPlaybackStatusChanged, () => {
       audioPlaybackBlocked.value = !r.canPlaybackAudio;
       if (audioPlaybackBlocked.value) {
         logger.warn("[CALL] audio playback blocked by the browser");
+      }
+    });
+
+    r.on(RoomEvent.VideoPlaybackStatusChanged, () => {
+      videoPlaybackBlocked.value = !r.canPlaybackVideo;
+      if (videoPlaybackBlocked.value) {
+        logger.warn("[CALL] video playback blocked by the browser");
       }
     });
 
@@ -1148,8 +1263,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isConnecting.value = false;
     isConnected.value = true;
-    // The event only fires on a change, so take the initial reading ourselves.
+    // The events only fire on a change, so take the initial readings ourselves.
     audioPlaybackBlocked.value = !r.canPlaybackAudio;
+    videoPlaybackBlocked.value = !r.canPlaybackVideo;
     tone.playSoftEnterSound();
 
     // Process already connected participants
@@ -1743,6 +1859,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     hasVideoTrack,
     pausedVideoTracks,
     isVideoPaused,
+    isVideoHidden,
+    setVideoHidden,
+    videoQualityOf,
+    setVideoQuality,
+    participantQuality,
+    subscriptionErrors,
+    activeSpeakerId,
     speaking,
     incoming,
 
@@ -1754,7 +1877,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     isCpuConstrained,
     audioDeviceError,
     audioPlaybackBlocked,
-    unblockAudioPlayback,
+    videoPlaybackBlocked,
+    playbackBlocked,
+    unblockPlayback,
     connectError,
 
     adaptiveStreamActive,

@@ -48,8 +48,10 @@
                         :is-muted="isMuted(userId)"
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
-                        :video-source="getPreferredSource(userId, 'camera')"
-                        :is-video-paused="isVideoPaused(userId, 'camera')"
+                        v-bind="tileProps(userId, 'camera')"
+                        @toggle-pin="toggleFocus"
+                        @set-video-hidden="setVideoHidden"
+                        @set-video-quality="setVideoQuality"
                         :is-screen-sharing="isScreenSharing(userId)"
                         :is-playing="isPlayingActivity(userId)"
                         :avatar-size="60"
@@ -84,10 +86,13 @@
                             :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
                             :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                             :has-video="hasVideo(mainStreamer.User.userId)"
-                            :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
-                            :is-video-paused="isVideoPaused(mainStreamer.User.userId, 'screen_share')"
+                            v-bind="tileProps(mainStreamer.User.userId, 'screen_share')"
+                            @toggle-pin="toggleFocus"
+                            @set-video-hidden="setVideoHidden"
+                            @set-video-quality="setVideoQuality"
                             :avatar-size="180"
                             :custom-style="tileStyle(mainTile)"
+                            :aspect-ratio="videoAspectRatio(mainStreamer.User.userId)"
                             name-class="text-base"
                             :centered="false"
                             video-fit="contain"
@@ -105,8 +110,10 @@
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                        :is-video-paused="isVideoPaused(userId, 'camera')"
+                            v-bind="tileProps(userId, 'camera')"
+                        @toggle-pin="toggleFocus"
+                        @set-video-hidden="setVideoHidden"
+                        @set-video-quality="setVideoQuality"
                             :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="90"
                             :icon-size="18"
@@ -137,8 +144,10 @@
                         :is-muted="isMuted(userId)"
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
-                        :video-source="getPreferredSource(userId, 'camera')"
-                        :is-video-paused="isVideoPaused(userId, 'camera')"
+                        v-bind="tileProps(userId, 'camera')"
+                        @toggle-pin="toggleFocus"
+                        @set-video-hidden="setVideoHidden"
+                        @set-video-quality="setVideoQuality"
                         :is-screen-sharing="isScreenSharing(userId)"
                         class-name="flex-shrink-0"
                         :custom-style="tileStyle(grid)"
@@ -213,7 +222,10 @@ const {
     isSpeaking,
     hasVideo,
     getPreferredSource,
-    isVideoPaused,
+    tileProps,
+    setVideoHidden,
+    setVideoQuality,
+    videoAspectRatio,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,

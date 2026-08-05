@@ -22,7 +22,10 @@ const {
     isSpeaking,
     hasVideo,
     getPreferredSource,
-    isVideoPaused,
+    tileProps,
+    setVideoHidden,
+    setVideoQuality,
+    videoAspectRatio,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
@@ -104,8 +107,11 @@ onUnmounted(() => {
                         :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
                         :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                         :has-video="hasVideo(mainStreamer.User.userId)"
-                        :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
-                        :is-video-paused="isVideoPaused(mainStreamer.User.userId, 'screen_share')"
+                        v-bind="tileProps(mainStreamer.User.userId, 'screen_share')"
+                        @toggle-pin="toggleFocus"
+                        @set-video-hidden="setVideoHidden"
+                        @set-video-quality="setVideoQuality"
+                        :aspect-ratio="videoAspectRatio(mainStreamer.User.userId)"
                         :avatar-size="180"
                         class="flex-1 min-h-0"
                         :custom-style="{ maxWidth: '100%', width: '100%' }"
@@ -124,8 +130,10 @@ onUnmounted(() => {
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                            :is-video-paused="isVideoPaused(userId, 'camera')"
+                            v-bind="tileProps(userId, 'camera')"
+                            @toggle-pin="toggleFocus"
+                            @set-video-hidden="setVideoHidden"
+                            @set-video-quality="setVideoQuality"
                             :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="80"
                             :icon-size="16"
@@ -151,8 +159,10 @@ onUnmounted(() => {
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                            :is-video-paused="isVideoPaused(userId, 'camera')"
+                            v-bind="tileProps(userId, 'camera')"
+                            @toggle-pin="toggleFocus"
+                            @set-video-hidden="setVideoHidden"
+                            @set-video-quality="setVideoQuality"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="flex-1 min-w-0"
                             :custom-style="{ height: '100%', maxHeight: '20rem' }"
@@ -173,8 +183,10 @@ onUnmounted(() => {
                             :is-muted="isMuted(userId)"
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
-                            :video-source="getPreferredSource(userId, 'camera')"
-                            :is-video-paused="isVideoPaused(userId, 'camera')"
+                            v-bind="tileProps(userId, 'camera')"
+                            @toggle-pin="toggleFocus"
+                            @set-video-hidden="setVideoHidden"
+                            @set-video-quality="setVideoQuality"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="w-full"
                             :custom-style="gridCardStyle(allUsers.length)"
