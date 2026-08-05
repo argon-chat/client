@@ -85,6 +85,19 @@
                                 <Check v-if="q.w === currentQualityWidth" class="w-3.5 h-3.5 ml-auto shrink-0" />
                             </button>
                         </template>
+
+                        <div class="menu-sep" />
+
+                        <!-- Incoming video: let the server pick a resolution per tile, or
+                             force full quality everywhere at the cost of bandwidth. -->
+                        <button class="device-row" :class="{ active: pref.adaptiveVideoQuality }" @click="pref.adaptiveVideoQuality = !pref.adaptiveVideoQuality">
+                            <Gauge class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">
+                                {{ t('adaptive_video_quality') }}
+                                <span v-if="voice.adaptiveSettingPending" class="device-hint">{{ t('adaptive_video_quality_pending') }}</span>
+                            </span>
+                            <Check v-if="pref.adaptiveVideoQuality" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
                     </PopoverContent>
                 </Popover>
             </div>
@@ -151,7 +164,7 @@ import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil,
+    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
@@ -434,6 +447,13 @@ async function pickCam(deviceId: string) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.device-hint {
+    display: block;
+    font-size: 10px;
+    line-height: 1.3;
+    color: hsl(var(--muted-foreground));
 }
 
 /* Controls reveal transition */

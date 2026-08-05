@@ -17,7 +17,7 @@
   "dependencies": {
     "@argon/core": "workspace:*",
     "@argon/glue": "workspace:*",
-    "livekit-client": "^2.11.1"
+    "livekit-client": "^2.21.0"
   },
   "peerDependencies": {
     "pinia": "^3.0.0",

@@ -171,6 +171,13 @@ export function useMediaLayout(
     return "camera";
   };
 
+  /**
+   * Whether the video a card would show is currently paused by adaptive streaming
+   * (tile off-screen or hidden), so the picture is a frozen last frame.
+   */
+  const isVideoPaused = (uid: Guid, prefer: "camera" | "screen_share" = "camera") =>
+    voice.isVideoPaused(uid, getPreferredSource(uid, prefer));
+
   const isScreenSharing = (uid: Guid) => {
     const myId = me.me?.userId;
     if (uid === myId) return voice.isSharing;
@@ -226,6 +233,7 @@ export function useMediaLayout(
     hasCameraVideo,
     hasScreenShareVideo,
     getPreferredSource,
+    isVideoPaused,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import {
   Room,
+  RoomEvent,
   RemoteTrack,
   RemoteTrackPublication,
   RemoteParticipant,
@@ -8,7 +9,9 @@ import {
   Track,
   LocalAudioTrack,
   AudioPresets,
+  ConnectionQuality,
   createLocalVideoTrack,
+  isLocalParticipant,
   VideoPresets,
 } from "livekit-client";
 import { ref, reactive, computed, watch } from "vue";
@@ -112,6 +115,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   // key = "userId:source" e.g. "abc:camera", "abc:screen_share"
   const videoTracks = reactive(new Map<string, RemoteTrack | LocalVideoTrack>());
 
+  // Same keys as videoTracks. Under adaptive streaming the SFU stops sending a track
+  // whose tile is off-screen or hidden, which freezes the last frame — the UI marks
+  // those tiles instead of leaving them looking broken.
+  const pausedVideoTracks = reactive(new Set<string>());
+
   function videoTrackKey(uid: string, source: string) {
     return `${uid}:${source}`;
   }
@@ -140,6 +148,14 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     for (const key of [...videoTracks.keys()]) {
       if (key.startsWith(uid + ":")) videoTracks.delete(key);
     }
+    for (const key of [...pausedVideoTracks]) {
+      if (key.startsWith(uid + ":")) pausedVideoTracks.delete(key);
+    }
+  }
+
+  /** Whether the SFU has paused delivery of this user's video (adaptive streaming). */
+  function isVideoPaused(uid: string, source: string) {
+    return pausedVideoTracks.has(videoTrackKey(uid, source));
   }
 
   const speaking = reactive(new Set<string>());
@@ -159,6 +175,22 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
   let cameraTrackPub: any = null;
 
   const isCpuConstrained = ref(false);
+  // Whether the live room was created with adaptive streaming on. LiveKit fixes both
+  // adaptiveStream and dynacast at construction, so flipping the preference mid-call
+  // can't take effect until we build the next Room — adaptiveSettingPending says so.
+  const adaptiveStreamActive = ref(false);
+  const adaptiveSettingPending = computed(
+    () =>
+      isConnected.value &&
+      adaptiveStreamActive.value !== usePreference().adaptiveVideoQuality,
+  );
+  // Server-reported quality for our own participant: derived from real packet loss and
+  // jitter, unlike a bare RTT reading. Falls back to ping until the first report lands.
+  const networkQuality = ref<ConnectionQuality>(ConnectionQuality.Unknown);
+  // Browsers block audio until the page has been interacted with. Under webAudioMix
+  // that shows up as a silent call rather than an error, so surface it and let the
+  // user unblock it with a click.
+  const audioPlaybackBlocked = ref(false);
   const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
   // Set when joining voice fails at the system level (LiveKit connect or mic publish).
   // Surfaced as a "system failure" popup; cleared on leave() and on a new attempt.
@@ -190,11 +222,40 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
   const qualityConnection = computed(() => {
     if (!isConnected.value) return "NONE";
+
+    switch (networkQuality.value) {
+      case ConnectionQuality.Excellent:
+        return "GREEN";
+      case ConnectionQuality.Good:
+        return "ORANGE";
+      case ConnectionQuality.Poor:
+      case ConnectionQuality.Lost:
+        return "RED";
+    }
+
+    // Nothing reported yet (first seconds of a call) — fall back to signalling RTT.
     if (ping.value < 0) return "NONE";
     if (ping.value < 50) return "GREEN";
     if (ping.value < 100) return "ORANGE";
     return "RED";
   });
+
+  /**
+   * Retry audio output after the browser blocked it. Resumes our own AudioContext
+   * (the remote graphs hang off it) and then lets LiveKit unblock its elements.
+   * Must be called from a user gesture.
+   */
+  async function unblockAudioPlayback() {
+    const r = room.value;
+    try {
+      const ctx = audio.getCurrentAudioContext();
+      if (ctx.state === "suspended") await ctx.resume();
+      if (r) await r.startAudio();
+      audioPlaybackBlocked.value = r ? !r.canPlaybackAudio : false;
+    } catch (err) {
+      logger.error("[CALL] failed to unblock audio playback", err);
+    }
+  }
 
   async function leave() {
     logger.warn("[CALL] leave()");
@@ -224,8 +285,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     Object.keys(participants).forEach((key) => delete participants[key]);
     videoTracks.clear();
+    pausedVideoTracks.clear();
     speaking.clear();
     incoming.value = null;
+    networkQuality.value = ConnectionQuality.Unknown;
+    audioPlaybackBlocked.value = false;
 
     stopTimerRTT();
     ping.value = -1;
@@ -787,13 +851,41 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       return;
     }
 
+    // adaptiveStream makes the SFU send each video at the size its tile is drawn at and
+    // pause it when the tile isn't visible; dynacast then lets publishers drop the layers
+    // nobody ended up consuming. Both are read once here — see adaptiveSettingPending.
+    const adaptive = usePreference().adaptiveVideoQuality;
+    adaptiveStreamActive.value = adaptive;
+
     const r = new Room({
       loggerName: `${callId.value}-room`,
+      // 'screen' matches the tile's physical pixels, so a share stays readable on a
+      // scaled/HiDPI display instead of being downscaled to CSS pixels.
+      adaptiveStream: adaptive ? { pixelDensity: "screen" } : false,
+      dynacast: adaptive,
+      publishDefaults: {
+        // VP9 buys roughly a third off the wire versus the vp8 default at equal quality.
+        // It is an SVC codec, so one encode carries every layer instead of simulcast's
+        // three — cheaper to publish as well as to receive. Note the SDK pins screen
+        // share to L1T3 (vp9 cannot do multiple spatial layers on screen content), so
+        // shares adapt by framerate rather than resolution; they still pause outright
+        // when nobody is looking, which is where the real saving is.
+        videoCodec: "vp9",
+        // No vp8 fallback layer: publishing one costs a second encode and doubles
+        // upstream, which defeats the point. Everything Chromium-based, Firefox and
+        // Safari 16+ decode vp9 — older Safari/iOS would see no video at all.
+        backupCodec: false,
+      },
       webAudioMix: {
         audioContext: audio.getCurrentAudioContext(),
       },
     });
     room.value = r;
+
+    // Warm DNS/TLS to the SFU while we spend up to 2s probing TURN below, so
+    // connect() lands on an already-open connection. Failures are swallowed by
+    // the SDK — this is a hint, never a prerequisite for connect().
+    void r.prepareConnection(opts.rts.endpoint, opts.token);
 
     r.on("participantConnected", async (p: RemoteParticipant) => {
       logger.info(`[CALL] participantConnected event:`, p.identity);
@@ -830,6 +922,24 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     r.on("connectionStateChanged", (st) => {
       isConnected.value = st === "connected";
+    });
+
+    r.on(RoomEvent.TrackStreamStateChanged, (pub, state, participant) => {
+      if (pub.kind !== Track.Kind.Video) return;
+      const key = videoTrackKey(participant.identity, pub.source);
+      if (state === Track.StreamState.Paused) pausedVideoTracks.add(key);
+      else pausedVideoTracks.delete(key);
+    });
+
+    r.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+      if (isLocalParticipant(participant)) networkQuality.value = quality;
+    });
+
+    r.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+      audioPlaybackBlocked.value = !r.canPlaybackAudio;
+      if (audioPlaybackBlocked.value) {
+        logger.warn("[CALL] audio playback blocked by the browser");
+      }
     });
 
     r.on("reconnecting", () => (isReconnecting.value = true));
@@ -974,13 +1084,13 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         `[CALL] Publishing virtual mic track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`,
       );
 
+      // simulcast/degradationPreference are video-only and were carried over from an
+      // older SDK; the SDK now also picks the right degradation preference per source.
       await r.localParticipant.publishTrack(mic, {
         red: true,
-        simulcast: true,
         stopMicTrackOnMute: false,
         audioPreset: AudioPresets.musicStereo,
         forceStereo: true,
-        degradationPreference: "maintain-resolution",
       });
 
       // Setup speaking detector using VU meter from AudioManager (runs in AudioWorklet thread)
@@ -1038,6 +1148,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isConnecting.value = false;
     isConnected.value = true;
+    // The event only fires on a change, so take the initial reading ourselves.
+    audioPlaybackBlocked.value = !r.canPlaybackAudio;
     tone.playSoftEnterSound();
 
     // Process already connected participants
@@ -1280,6 +1392,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     if (track.kind === "video") {
       const source = track.source || pub.source || 'unknown';
       videoTracks.delete(videoTrackKey(uid, source));
+      pausedVideoTracks.delete(videoTrackKey(uid, source));
       return;
     }
 
@@ -1418,17 +1531,21 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
-      audio: opts.systemAudio === "include",
+      // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
+      // other participants' voices coming from our speakers aren't echoed back into the
+      // room. Unknown constraint names are dropped where unsupported, and Electron's
+      // loopback path builds the audio track in the main process regardless.
+      audio:
+        opts.systemAudio === "include"
+          ? ({ restrictOwnAudio: true } as unknown as MediaTrackConstraints)
+          : false,
     });
 
     const vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
     vid.source = Track.Source.ScreenShare;
 
+    // A ScreenShare-source track takes screenShareEncoding; videoEncoding is ignored here.
     screenTrackPub = await room.value.localParticipant.publishTrack(vid, {
-      videoEncoding: {
-        maxBitrate: opts.maxBitrate ?? 5_000_000,
-        maxFramerate: fr,
-      },
       screenShareEncoding: {
         maxBitrate: opts.maxBitrate ?? 5_000_000,
         maxFramerate: fr,
@@ -1506,9 +1623,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
         resolution: VideoPresets.h720.resolution,
       });
 
+      // No simulcast flag: vp9 is SVC, so the layers come from scalabilityMode
+      // (L3T3_KEY) in a single encode and the flag is ignored.
       cameraTrackPub = await room.value.localParticipant.publishTrack(cam, {
         videoEncoding: VideoPresets.h720.encoding,
-        simulcast: true,
       });
       isCameraOn.value = true;
 
@@ -1623,6 +1741,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     videoTrackKey,
     getVideoTracksForUser,
     hasVideoTrack,
+    pausedVideoTracks,
+    isVideoPaused,
     speaking,
     incoming,
 
@@ -1633,7 +1753,12 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     isCpuConstrained,
     audioDeviceError,
+    audioPlaybackBlocked,
+    unblockAudioPlayback,
     connectError,
+
+    adaptiveStreamActive,
+    adaptiveSettingPending,
 
     ping,
     pingHistory,

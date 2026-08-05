@@ -14,6 +14,13 @@
             class="participant-video"
             :style="{ objectFit: videoFit }" />
 
+        <!-- Adaptive streaming stopped delivering this track, so the picture is a frozen
+             last frame — say so rather than letting it read as a stuck stream. -->
+        <div v-if="hasVideo && isVideoPaused" class="video-paused-badge">
+            <PauseIcon class="w-3 h-3" />
+            <span>{{ t('video_paused') }}</span>
+        </div>
+
         <!-- Screencast drawing surface (only over a screenshare with an active session). -->
         <DrawOverlay
             v-if="showDrawOverlay"
@@ -64,7 +71,8 @@ import { computed, ref } from "vue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import DrawOverlay from "@/components/DrawOverlay.vue";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
-import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon } from "lucide-vue-next";
+import { useLocale } from "@/store/system/localeStore";
+import { MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon, Pause as PauseIcon } from "lucide-vue-next";
 
 interface Props {
     userId: Guid;
@@ -73,6 +81,7 @@ interface Props {
     isMuted?: boolean;
     isHeadphoneMuted?: boolean;
     hasVideo?: boolean;
+    isVideoPaused?: boolean;
     isScreenSharing?: boolean;
     isPlaying?: boolean;
     avatarSize?: number;
@@ -91,6 +100,7 @@ const props = withDefaults(defineProps<Props>(), {
     isMuted: false,
     isHeadphoneMuted: false,
     hasVideo: false,
+    isVideoPaused: false,
     isScreenSharing: false,
     isPlaying: false,
     avatarSize: 120,
@@ -109,6 +119,7 @@ const emit = defineEmits<{
 }>();
 
 const draw = useDrawingSession();
+const { t } = useLocale();
 const videoEl = ref<HTMLVideoElement | null>(null);
 
 function onVideoRef(el: any): void {
@@ -187,6 +198,25 @@ const showDrawOverlay = computed(() =>
 }
 
 /* Streaming badge */
+.video-paused-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: hsl(var(--background) / 0.75);
+    color: hsl(var(--muted-foreground));
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    backdrop-filter: blur(4px);
+    z-index: 5;
+}
+
 .streaming-badge {
     position: absolute;
     top: 6px;

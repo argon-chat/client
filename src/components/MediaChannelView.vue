@@ -49,6 +49,7 @@
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
                         :video-source="getPreferredSource(userId, 'camera')"
+                        :is-video-paused="isVideoPaused(userId, 'camera')"
                         :is-screen-sharing="isScreenSharing(userId)"
                         :is-playing="isPlayingActivity(userId)"
                         :avatar-size="60"
@@ -84,6 +85,7 @@
                             :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                             :has-video="hasVideo(mainStreamer.User.userId)"
                             :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
+                            :is-video-paused="isVideoPaused(mainStreamer.User.userId, 'screen_share')"
                             :avatar-size="180"
                             :custom-style="tileStyle(mainTile)"
                             name-class="text-base"
@@ -104,6 +106,7 @@
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
                             :video-source="getPreferredSource(userId, 'camera')"
+                        :is-video-paused="isVideoPaused(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="90"
                             :icon-size="18"
@@ -135,6 +138,7 @@
                         :is-headphone-muted="isHeadphoneMuted(userId)"
                         :has-video="hasVideo(userId)"
                         :video-source="getPreferredSource(userId, 'camera')"
+                        :is-video-paused="isVideoPaused(userId, 'camera')"
                         :is-screen-sharing="isScreenSharing(userId)"
                         class-name="flex-shrink-0"
                         :custom-style="tileStyle(grid)"
@@ -209,6 +213,7 @@ const {
     isSpeaking,
     hasVideo,
     getPreferredSource,
+    isVideoPaused,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,

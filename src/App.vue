@@ -119,6 +119,15 @@ watch(() => call.connectError, (err) => {
       <span class="i-lucide-cpu text-lg" style="color: wheat;" />
     </template>
   </Island>
+  <!-- Autoplay policy silenced the call; the click that dismisses this is the gesture
+       that unblocks it. -->
+  <div v-if="call.audioPlaybackBlocked" @click="call.unblockAudioPlayback()">
+    <Island class="select-none" :title="t('audio_blocked_click')">
+      <template #icon>
+        <span class="i-lucide-volume-x text-lg" style="color: wheat;" />
+      </template>
+    </Island>
+  </div>
 
   <LoadingOverlay />
 

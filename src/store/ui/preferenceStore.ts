@@ -64,6 +64,15 @@ export const usePreference = defineStore("preference", () => {
 
   const defaultVideoDevice = persistedValue<string>("defaultVideoDevice", "");
 
+  // Let the SFU send each video only at the resolution its tile is actually drawn
+  // at, and pause tracks whose tile is off-screen. Off = every stream always at full
+  // quality (sharper small tiles, much more bandwidth and CPU). LiveKit fixes this at
+  // room creation, so a change lands on the next voice connection — see unifiedCallStore.
+  const adaptiveVideoQuality = persistedValue<boolean>(
+    "adaptiveVideoQuality",
+    true,
+  );
+
   return {
     forceToMono,
 
@@ -87,5 +96,6 @@ export const usePreference = defineStore("preference", () => {
     isEnable_playNotificationSound,
     isEnable_playRingSound,
     defaultVideoDevice,
+    adaptiveVideoQuality,
   };
 });

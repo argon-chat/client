@@ -22,6 +22,7 @@ const {
     isSpeaking,
     hasVideo,
     getPreferredSource,
+    isVideoPaused,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
@@ -104,6 +105,7 @@ onUnmounted(() => {
                         :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
                         :has-video="hasVideo(mainStreamer.User.userId)"
                         :video-source="getPreferredSource(mainStreamer.User.userId, 'screen_share')"
+                        :is-video-paused="isVideoPaused(mainStreamer.User.userId, 'screen_share')"
                         :avatar-size="180"
                         class="flex-1 min-h-0"
                         :custom-style="{ maxWidth: '100%', width: '100%' }"
@@ -123,6 +125,7 @@ onUnmounted(() => {
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
                             :video-source="getPreferredSource(userId, 'camera')"
+                            :is-video-paused="isVideoPaused(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             :avatar-size="80"
                             :icon-size="16"
@@ -149,6 +152,7 @@ onUnmounted(() => {
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
                             :video-source="getPreferredSource(userId, 'camera')"
+                            :is-video-paused="isVideoPaused(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="flex-1 min-w-0"
                             :custom-style="{ height: '100%', maxHeight: '20rem' }"
@@ -170,6 +174,7 @@ onUnmounted(() => {
                             :is-headphone-muted="isHeadphoneMuted(userId)"
                             :has-video="hasVideo(userId)"
                             :video-source="getPreferredSource(userId, 'camera')"
+                            :is-video-paused="isVideoPaused(userId, 'camera')"
                             :is-screen-sharing="isScreenSharing(userId)"
                             class-name="w-full"
                             :custom-style="gridCardStyle(allUsers.length)"
