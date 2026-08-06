@@ -339,7 +339,8 @@ export class AudioManagement implements IAudioManagement {
     this.devices$.complete();
     this.inputLevel$.complete();
     this.outputLevel$.complete();
-    
+    this.audioDeviceError$.complete();
+
     // Remove device change listener
     if (this.deviceChangeHandler) {
       navigator.mediaDevices.removeEventListener('devicechange', this.deviceChangeHandler);
@@ -419,15 +420,24 @@ export class AudioManagement implements IAudioManagement {
     if (output) this.outputDeviceId.value = output;
     
     // Volumes
-    const inputVol = localStorage.getItem(STORAGE_KEYS.INPUT_VOLUME);
-    const outputVol = localStorage.getItem(STORAGE_KEYS.OUTPUT_VOLUME);
-    if (inputVol) {
-      this.inputVolume.value = parseFloat(inputVol);
-      this.inputVolume$.next(this.inputVolume.value);
+    // Clamped and NaN-checked: a corrupted entry used to reach the gain nodes as NaN,
+    // and a NaN gain silences the whole graph with no way back short of clearing storage.
+    const readVolume = (raw: string | null): number | null => {
+      if (raw === null) return null;
+      const parsed = Number.parseFloat(raw);
+      if (!Number.isFinite(parsed)) return null;
+      return Math.max(0, Math.min(100, parsed));
+    };
+
+    const inputVol = readVolume(localStorage.getItem(STORAGE_KEYS.INPUT_VOLUME));
+    const outputVol = readVolume(localStorage.getItem(STORAGE_KEYS.OUTPUT_VOLUME));
+    if (inputVol !== null) {
+      this.inputVolume.value = inputVol;
+      this.inputVolume$.next(inputVol);
     }
-    if (outputVol) {
-      this.outputVolume.value = parseFloat(outputVol);
-      this.outputVolume$.next(this.outputVolume.value);
+    if (outputVol !== null) {
+      this.outputVolume.value = outputVol;
+      this.outputVolume$.next(outputVol);
     }
     
     // Mute states
@@ -750,8 +760,12 @@ export class AudioManagement implements IAudioManagement {
       localStorage.setItem(STORAGE_KEYS.AUTO_GAIN_CONTROL, constraints.autoGainControl.toString());
     }
     
-    // Reconnect microphone if virtual stream is active and constraints changed
-    if (changed && this.virtualStreamInitialized) {
+    // Re-capture only if a live microphone is actually attached. Without the
+    // currentMicStream check (the one setInputDevice already makes) ticking a checkbox
+    // in settings re-opens the device while idle, which on macOS lights the system
+    // "microphone in use" indicator outside any call — the thing releaseInputWhenIdle
+    // exists to avoid. Detached mics pick the new constraints up on the next acquire.
+    if (changed && this.virtualStreamInitialized && this.currentMicStream) {
       await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
     }
   }
@@ -770,19 +784,21 @@ export class AudioManagement implements IAudioManagement {
       return;
     }
 
-    if (!this.inputGainNode || !this.virtualStreamDestination) {
-      return;
-    }
-
-    // Deactivate current suppressor
+    // The node is built even when the input pipeline doesn't exist yet. Settings are
+    // restored at startup, long before anything acquires the microphone, and bailing
+    // out here used to drop the user's choice on the floor for the whole session —
+    // rebuildInputPipeline() picks up whatever node exists when the pipeline is built.
     this.noiseSuppressor.deactivate();
 
-    if (mode !== "off") {
-      const ctx = this.getCurrentAudioContext();
-      await this.noiseSuppressor.activate(mode, ctx);
+    try {
+      if (mode !== "off") {
+        await this.noiseSuppressor.activate(mode, this.getCurrentAudioContext());
+      }
+    } finally {
+      // Always rewire: deactivate() already pulled the old node out of the chain, so
+      // skipping this on failure leaves the microphone disconnected from the destination.
+      this.rebuildInputPipeline();
     }
-
-    this.rebuildInputPipeline();
   }
 
   // ==================== INPUT GATE ====================
@@ -809,10 +825,9 @@ export class AudioManagement implements IAudioManagement {
     logger.info("[AudioManagement] setInputGateEnabled:", enabled);
     this.inputGateEnabled = enabled;
 
-    if (!this.inputGainNode || !this.virtualStreamDestination) {
-      return;
-    }
-
+    // Like the suppressor above, the node is created even before the input pipeline
+    // exists — settings are restored at startup and the pipeline only appears once
+    // something acquires the microphone.
     if (enabled && !this.inputGateNode) {
       // Create gate node
       const ctx = this.getCurrentAudioContext();
@@ -854,6 +869,11 @@ export class AudioManagement implements IAudioManagement {
 
   // ==================== INPUT PIPELINE WIRING ====================
 
+  /**
+   * (Re)connect everything downstream of the input gain node. Safe to call before the
+   * pipeline exists — it simply does nothing, and init calls it once the nodes are up,
+   * which is how settings restored at startup take effect.
+   */
   private rebuildInputPipeline(): void {
     if (!this.inputGainNode || !this.virtualStreamDestination) return;
 
@@ -891,20 +911,36 @@ export class AudioManagement implements IAudioManagement {
       return this.virtualStreamInitPromise;
     }
 
-    this.virtualStreamInitPromise = this._initVirtualStreamInternal();
-    return this.virtualStreamInitPromise;
+    // Only a *successful* init is cached. Keeping a rejected promise here meant one
+    // denied permission prompt (or one unplugged mic) poisoned every later attempt for
+    // the lifetime of the page, so the "will retry on first use" fallback never did.
+    const attempt = this._initVirtualStreamInternal();
+    this.virtualStreamInitPromise = attempt;
+    attempt.catch(() => {
+      if (this.virtualStreamInitPromise === attempt) {
+        this.virtualStreamInitPromise = null;
+      }
+    });
+    return attempt;
   }
 
   private async _initVirtualStreamInternal(): Promise<MediaStream> {
     const ctx = this.getCurrentAudioContext();
-    
-    // Create the permanent destination node - this stream never changes
-    this.virtualStreamDestination = ctx.createMediaStreamDestination();
-    
-    // Create a gain node for input volume control
-    this.inputGainNode = ctx.createGain();
-    this.inputGainNode.connect(this.virtualStreamDestination);
+
+    // Built once and reused: a retry after a failed microphone grab must not strand the
+    // previous destination node, because consumers may already hold its stream.
+    if (!this.virtualStreamDestination) {
+      this.virtualStreamDestination = ctx.createMediaStreamDestination();
+    }
+
+    // Wire the chain through whatever processing was configured earlier — a direct
+    // connect here would bypass a suppressor or gate restored from settings before
+    // this ran.
+    if (!this.inputGainNode) {
+      this.inputGainNode = ctx.createGain();
+    }
     this.applyInputVolume();
+    this.rebuildInputPipeline();
     
     // Connect the initial microphone
     await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
@@ -1351,10 +1387,15 @@ export class AudioManagement implements IAudioManagement {
     analyser.connect(gainNode);
     gainNode.connect(this.getOutputDestination());
 
-    // Apply initial volume
+    // `isMutedAll` only describes the moment the graph was created. It used to be read
+    // on every volume change, which latched the participant silent forever: subscribe to
+    // someone while deafened and undeafening later could never bring them back, because
+    // the caller's setVolume(saved) was still gated by the stale flag. An explicit
+    // setVolume is now authoritative — that is exactly how the caller undeafens.
     let currentVolume = initialVolume;
+    let deafened = isMutedAll;
     const applyVolume = (vol: number) => {
-      const g = isMutedAll ? 0 : Math.max(0, Math.min(vol / 100, 2.0));
+      const g = deafened ? 0 : Math.max(0, Math.min(vol / 100, 2.0));
       gainNode.gain.setValueAtTime(g, ctx.currentTime);
     };
     applyVolume(initialVolume);
@@ -1384,13 +1425,17 @@ export class AudioManagement implements IAudioManagement {
         onSpeakingChange?.(speakingState);
       }
 
-      requestAnimationFrame(detect);
+      rafId = requestAnimationFrame(detect);
     };
 
-    // Always run detection to track speaking state
-    detect();
+    // One 60fps analyser read per graph is not free, and a screen-share audio graph has
+    // no speaking indicator to feed — it is created without a callback precisely so that
+    // desktop audio never lights the speaking ring. Only run the loop for a real consumer.
+    let rafId: number | null = null;
+    if (onSpeakingChange) detect();
 
     const setVolume = (volume: number) => {
+      deafened = false;
       currentVolume = volume;
       applyVolume(volume);
       // Update tracking
@@ -1402,6 +1447,10 @@ export class AudioManagement implements IAudioManagement {
 
     const dispose = () => {
       stopped = true;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       // Remove from tracking
       this.remoteAudioGraphs.delete(graphId);
       try {
@@ -1654,17 +1703,31 @@ export class AudioManagement implements IAudioManagement {
    * Start monitoring input - lets you hear yourself through the output
    */
   async startInputMonitoring(): Promise<Disposable<void>> {
-    const virtualStream = await this.getVirtualInputStream();
-    const audioEl = await this.createAudioElement(virtualStream);
-    
-    logger.info('[AudioManagement] Input monitoring started');
-    
-    const dispose = async () => {
-      await audioEl.asyncDispose();
-      logger.info('[AudioManagement] Input monitoring stopped');
-    };
-    
-    return new Disposable(undefined as void, dispose);
+    // Take a real reference, not just the stream: getVirtualInputStream() attaches the
+    // mic but leaves the refcount at zero, so the next releaseInput() from an unrelated
+    // consumer (a call ending) would detach the device out from under this monitor.
+    const virtualStream = await this.acquireInput();
+    let released = false;
+
+    try {
+      const audioEl = await this.createAudioElement(virtualStream);
+      logger.info('[AudioManagement] Input monitoring started');
+
+      const dispose = async () => {
+        await audioEl.asyncDispose();
+        if (!released) {
+          released = true;
+          this.releaseInput();
+        }
+        logger.info('[AudioManagement] Input monitoring stopped');
+      };
+
+      return new Disposable(undefined as void, dispose);
+    } catch (err) {
+      released = true;
+      this.releaseInput();
+      throw err;
+    }
   }
 
   // ==================== UTILITIES ====================

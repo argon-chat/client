@@ -20,6 +20,7 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     include: ["test/**/*.test.ts"],
+    setupFiles: ["test/setup/webaudio.ts"],
     globals: false,
     restoreMocks: true,
   },
