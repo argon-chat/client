@@ -25,7 +25,6 @@ const {
     tileProps,
     setVideoHidden,
     setVideoQuality,
-    videoAspectRatio,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
@@ -111,7 +110,6 @@ onUnmounted(() => {
                         @toggle-pin="toggleFocus"
                         @set-video-hidden="setVideoHidden"
                         @set-video-quality="setVideoQuality"
-                        :aspect-ratio="videoAspectRatio(mainStreamer.User.userId)"
                         :avatar-size="180"
                         class="flex-1 min-h-0"
                         :custom-style="{ maxWidth: '100%', width: '100%' }"

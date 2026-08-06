@@ -2,14 +2,17 @@
   <ContextMenu>
     <ContextMenuTrigger as-child>
     <div
+        ref="cardEl"
         class="participant-card group"
         :class="[className, { 'participant-card--playing': isPlaying, 'participant-card--speaking': isSpeaking, 'participant-card--streaming': isScreenSharing, 'participant-card--pinned': isPinned }]"
-        :style="cardStyle"
+        :style="customStyle"
         @click="$emit('click', userId)"
-        @dblclick="showsVideo && enterFullscreen()">
+        @dblclick="showsVideo && toggleFullscreen()">
 
         <!-- showsVideo, not hasVideo: a tile the user switched off still has a track,
-             it just must not be rendered (or drawn on, or reported as paused). -->
+             it just must not be rendered (or drawn on, or reported as paused).
+             @pause: this is a live stream, so there is nothing to pause to — if the UA
+             or a PiP window stops it, start it again immediately. -->
         <video
             v-if="showsVideo"
             :ref="(el) => onVideoRef(el)"
@@ -17,7 +20,8 @@
             playsinline
             muted
             class="participant-video"
-            :style="{ objectFit: videoFit }" />
+            :style="{ objectFit: videoFit }"
+            @pause="resumePlayback" />
 
         <!-- Adaptive streaming stopped delivering this track, so the picture is a frozen
              last frame — say so rather than letting it read as a stuck stream. -->
@@ -37,7 +41,7 @@
             <button v-if="canPip" class="tile-action" :title="t('picture_in_picture')" @click="togglePip">
                 <PictureInPictureIcon class="w-3.5 h-3.5" />
             </button>
-            <button class="tile-action" :title="t('fullscreen')" @click="enterFullscreen">
+            <button class="tile-action" :title="t('fullscreen')" @click="toggleFullscreen">
                 <MaximizeIcon class="w-3.5 h-3.5" />
             </button>
         </div>
@@ -106,7 +110,7 @@
         </ContextMenuItem>
 
         <template v-if="showsVideo">
-            <ContextMenuItem @select="enterFullscreen">
+            <ContextMenuItem @select="toggleFullscreen">
                 <MaximizeIcon class="w-3.5 h-3.5 mr-2" />
                 {{ t('fullscreen') }}
             </ContextMenuItem>
@@ -194,8 +198,6 @@ interface Props {
         bitrateKbps: number | null;
     } | null;
     videoQuality?: VideoQuality;
-    /** Real picture aspect, so the tile isn't letterboxed inside a forced 16:9. */
-    aspectRatio?: string;
     avatarSize?: number;
     iconSize?: number;
     className?: string;
@@ -221,7 +223,6 @@ const props = withDefaults(defineProps<Props>(), {
     subscriptionError: null,
     stats: null,
     videoQuality: VideoQuality.HIGH,
-    aspectRatio: '',
     avatarSize: 120,
     iconSize: 24,
     className: '',
@@ -243,6 +244,7 @@ const emit = defineEmits<{
 const draw = useDrawingSession();
 const { t } = useLocale();
 const videoEl = ref<HTMLVideoElement | null>(null);
+const cardEl = ref<HTMLElement | null>(null);
 
 function onVideoRef(el: any): void {
     videoEl.value = (el as HTMLVideoElement) ?? null;
@@ -255,12 +257,6 @@ const showsVideo = computed(() => props.hasVideo && !props.isVideoHidden);
 const isPoorConnection = computed(
     () => props.connectionQuality === 'poor' || props.connectionQuality === 'lost',
 );
-
-// A caller can override the tile's aspect; otherwise whatever the layout passed stands.
-const cardStyle = computed(() => ({
-    ...(props.customStyle ?? {}),
-    ...(props.aspectRatio ? { aspectRatio: props.aspectRatio } : {}),
-}));
 
 const qualityChoices = [
     { label: 'quality_high', value: VideoQuality.HIGH },
@@ -288,15 +284,26 @@ async function togglePip(): Promise<void> {
     }
 }
 
-function enterFullscreen(): void {
-    const el = videoEl.value;
+/**
+ * Fullscreen the whole card, never the bare <video>: a video element taken fullscreen
+ * gets the UA's own media controls (which is how a live stream ended up pausable), and
+ * it would leave the drawing overlay and badges behind. Sizing comes from the
+ * :fullscreen rule in the stylesheet, which has to beat the inline tile dimensions.
+ */
+function toggleFullscreen(): void {
+    const el = cardEl.value;
     if (!el) return;
     try {
-        if (document.fullscreenElement) void document.exitFullscreen();
+        if (document.fullscreenElement === el) void document.exitFullscreen();
         else void el.requestFullscreen();
     } catch (e) {
         logger.warn('[tile] fullscreen failed', e);
     }
+}
+
+/** A live stream has no meaningful paused state — undo any pause we didn't ask for. */
+function resumePlayback(): void {
+    void videoEl.value?.play().catch(() => {});
 }
 
 // Show the drawing surface only over a screenshare video with an active session.
@@ -338,6 +345,25 @@ const showDrawOverlay = computed(() =>
 .participant-card--streaming {
     border-color: hsl(0 84% 60% / 0.5);
     box-shadow: 0 0 12px hsl(0 84% 60% / 0.2);
+}
+
+/* The tile carries inline width/height/aspect-ratio from the layout solver, so filling
+   the screen needs !important to win over them. */
+.participant-card:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    aspect-ratio: auto !important;
+    border: none;
+    border-radius: 0;
+    background: #000;
+}
+
+.participant-card:fullscreen .participant-video {
+    object-fit: contain !important;
 }
 
 /* Deliberately pinned by the user, as opposed to being main because it's the only share. */

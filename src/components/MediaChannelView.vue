@@ -91,8 +91,7 @@
                             @set-video-hidden="setVideoHidden"
                             @set-video-quality="setVideoQuality"
                             :avatar-size="180"
-                            :custom-style="tileStyle(mainTile)"
-                            :aspect-ratio="videoAspectRatio(mainStreamer.User.userId)"
+                            :custom-style="tileStyle(mainTile, mainRatio)"
                             name-class="text-base"
                             :centered="false"
                             video-fit="contain"
@@ -179,7 +178,7 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import { useElementSize } from "@vueuse/core";
 import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
-import { useResponsiveGrid } from "@/composables/useResponsiveGrid";
+import { useResponsiveGrid, tileStyle } from "@/composables/useResponsiveGrid";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -255,15 +254,11 @@ const stripCount = computed(() => otherUsers.value.length + activityTiles.value.
 
 const grid = useResponsiveGrid({ width: gW, height: gH, count: gridCount, gap: 16, maxTileWidth: 720, minTileWidth: 150 });
 const strip = useResponsiveGrid({ width: sW, height: sH, count: stripCount, gap: 12, singleRow: true });
-const mainTile = useResponsiveGrid({ width: mW, height: mH, count: 1 });
+// The main tile follows the real shape of the incoming picture, so an ultrawide or
+// portrait share isn't letterboxed inside a fixed 16:9 box.
+const mainRatio = computed(() => videoAspectRatio(mainStreamer.value?.User.userId));
+const mainTile = useResponsiveGrid({ width: mW, height: mH, count: 1, ratio: mainRatio });
 const activityStrip = useResponsiveGrid({ width: aW, height: aH, count: () => allUsers.value.length, gap: 8, singleRow: true });
-
-const tileStyle = (g: { tileWidth: number; tileHeight: number }) => ({
-    width: g.tileWidth ? `${g.tileWidth}px` : undefined,
-    height: g.tileHeight ? `${g.tileHeight}px` : undefined,
-    aspectRatio: "16 / 9",
-    flex: "0 0 auto",
-});
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);

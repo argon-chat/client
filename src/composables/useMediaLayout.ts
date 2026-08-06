@@ -197,24 +197,34 @@ export function useMediaLayout(
     const d = voice.diagnostics.get(uid);
     if (!d) return null;
     return {
-      width: d.width as number | null,
-      height: d.height as number | null,
+      width: (d.width ?? null) as number | null,
+      height: (d.height ?? null) as number | null,
       codec: (d.codec as string | null)?.split("/").pop() ?? null,
-      bitrateKbps: d.bitrateKbps as number | null,
-      packetsLost: (d.videoPacketsLost ?? d.audioPacketsLost) as number | null,
+      // The video track's own rolling bitrate, not the connection-wide estimate.
+      bitrateKbps: (d.videoBitrateKbps ?? null) as number | null,
     };
   };
 
   /**
-   * Aspect ratio of the incoming picture, so a 16:10, ultrawide or portrait share
-   * fills the main tile instead of sitting in letterbox bars inside a forced 16:9.
+   * Aspect (w/h) of the incoming picture, so a 16:10, ultrawide or portrait share fills
+   * the main tile instead of sitting in letterbox bars inside a forced 16:9.
+   *
+   * This feeds the grid solver rather than overriding CSS `aspect-ratio` on the tile:
+   * the solver always returns dimensions that fit the measured container, whereas a raw
+   * aspect-ratio takes over whenever the container measures 0 (a layout switch, a
+   * fullscreen transition) and lets the tile grow without any bound.
+   *
+   * Guarded on there actually being a track — diagnostics outlive the video by design,
+   * and a stale ratio would keep deforming the tile after a share ends.
    */
-  const videoAspectRatio = (uid: Guid) => {
+  const videoAspectRatio = (uid: Guid | null | undefined) => {
+    if (!uid || !hasVideo(uid)) return 16 / 9;
     const d = voice.diagnostics.get(uid);
     const w = d?.width as number | undefined;
     const h = d?.height as number | undefined;
-    if (!w || !h) return "16 / 9";
-    return `${w} / ${h}`;
+    if (!w || !h || !isFinite(w) || !isFinite(h)) return 16 / 9;
+    // Clamp to sane screen shapes so a bogus report can't produce a sliver tile.
+    return Math.min(3.5, Math.max(0.4, w / h));
   };
 
   /**

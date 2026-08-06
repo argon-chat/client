@@ -80,6 +80,27 @@ export function solveGrid(
   return best;
 }
 
+/**
+ * Inline style for one tile of a solved grid.
+ *
+ * `aspectRatio` is deliberately emitted only alongside pixel dimensions. Before the
+ * container is measured — a layout switch, a fullscreen transition — the solver returns
+ * zeroes, and a lone `aspect-ratio` on a flex item with no width or height to constrain
+ * it lets the tile expand without bound. Sizes and ratio travel together or not at all.
+ */
+export function tileStyle(
+  g: { tileWidth: number; tileHeight: number },
+  ratio = 16 / 9,
+): Record<string, string | undefined> {
+  const sized = g.tileWidth > 0 && g.tileHeight > 0;
+  return {
+    width: sized ? `${g.tileWidth}px` : undefined,
+    height: sized ? `${g.tileHeight}px` : undefined,
+    aspectRatio: sized ? String(ratio) : undefined,
+    flex: "0 0 auto",
+  };
+}
+
 /** Reactive wrapper around {@link solveGrid}. Feed it a measured size (e.g. useElementSize). */
 export function useResponsiveGrid(o: ResponsiveGridOpts) {
   return computed<GridResult>(() =>

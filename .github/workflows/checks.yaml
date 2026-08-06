@@ -1,0 +1,35 @@
+name: Checks
+
+# Deliberately separate from build.yaml_ (the publishing pipeline, currently disabled
+# by its trailing underscore). This one only reads: it type-checks and runs tests, and
+# never produces or uploads an artifact, so it is safe to have run on every push and PR.
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run validate
+
+      # App tests (vitest, Vue SFCs) and package tests (bun test) run separately —
+      # the packages import from "bun:test" and only bun can execute them.
+      - name: Test
+        run: bun run test

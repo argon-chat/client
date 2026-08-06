@@ -12,8 +12,10 @@ import {
   ConnectionQuality,
   SubscriptionError,
   VideoQuality,
+  RemoteVideoTrack,
   createLocalVideoTrack,
   isLocalParticipant,
+  isRemoteTrack,
   VideoPresets,
 } from "livekit-client";
 import { ref, reactive, computed, watch } from "vue";
@@ -370,6 +372,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     pausedVideoTracks.clear();
     hiddenVideoTracks.clear();
     videoQualityOverrides.clear();
+    diagnostics.clear();
     participantQuality.clear();
     subscriptionErrors.clear();
     activeSpeakerId.value = null;
@@ -834,6 +837,18 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
         const parsed = parseRtcStats(raw);
 
+        // The report above comes from the AUDIO receiver, and a receiver only ever
+        // reports its own stats — there is no video inbound-rtp in it. Video has to be
+        // read off the video track itself, which is also where LiveKit keeps a rolling
+        // bitrate for us.
+        const videoPub =
+          particant.getTrackPublication(Track.Source.ScreenShare) ??
+          particant.getTrackPublication(Track.Source.Camera);
+        const videoTrack = videoPub?.videoTrack;
+        const videoStats = isRemoteTrack(videoTrack)
+          ? await (videoTrack as RemoteVideoTrack).getReceiverStats()
+          : undefined;
+
         const diag = {
           // Audio Inbound RTP
           audioPacketsLost: parsed.inboundAudio?.packetsLost ?? null,
@@ -841,16 +856,22 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
           audioBytesReceived: parsed.inboundAudio?.bytesReceived ?? null,
           audioLevel: parsed.inboundAudio?.audioLevel ?? null,
 
-          // Video Inbound RTP (если есть)
-          videoPacketsLost: parsed.inboundVideo?.packetsLost ?? null,
-          videoJitter: parsed.inboundVideo?.jitter ?? null,
+          // Video Inbound RTP
+          videoPacketsLost: videoStats?.packetsLost ?? null,
+          videoJitter: videoStats?.jitter ?? null,
+          framesDropped: videoStats?.framesDropped ?? null,
 
-          // Resolution
-          width: parsed.inboundVideo?.frameWidth ?? null,
-          height: parsed.inboundVideo?.frameHeight ?? null,
+          // Resolution as actually decoded
+          width: videoStats?.frameWidth ?? null,
+          height: videoStats?.frameHeight ?? null,
 
-          // Codec
-          codec: parsed.codec?.mimeType ?? null,
+          // Codec: the video one when there's video, else whatever the audio side says
+          codec: videoStats?.mimeType ?? parsed.codec?.mimeType ?? null,
+
+          // What this participant's video is really costing us right now
+          videoBitrateKbps: videoTrack
+            ? Math.round(videoTrack.currentBitrate / 1000)
+            : null,
 
           // Candidate Pair (RTT, bitrate)
           rtt: parsed.candidatePair?.currentRoundTripTime ?? null,
@@ -985,6 +1006,9 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       delete participants[uid];
       speaking.delete(uid);
       deleteVideoTracksForUser(uid);
+      diagnostics.delete(uid);
+      participantQuality.delete(uid);
+      subscriptionErrors.delete(uid);
 
       // Remove guest user from realtime channel
       const isGuest = uid.toLowerCase().startsWith("fafccccc");
