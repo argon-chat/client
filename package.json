@@ -20,7 +20,8 @@
     "test": "bun run test:app && bun run test:packages",
     "test:app": "vitest run",
     "test:watch": "vitest",
-    "test:packages": "bun test packages"
+    "test:packages": "bun test playframe",
+    "test:coverage": "bun run scripts/coverage-report.ts"
   },
   "dependencies": {
     "@argon-chat/emojix": "workspace:*",
@@ -28,6 +29,7 @@
     "@argon/assets": "workspace:*",
     "@argon/audio": "workspace:*",
     "@argon/avatar": "workspace:*",
+    "@argon/calls": "workspace:*",
     "@argon/core": "workspace:*",
     "@argon/glue": "workspace:*",
     "@argon/i18n": "workspace:*",
@@ -127,7 +129,7 @@
     "happy-dom": "^20.11.1",
     "http-proxy-middleware": "^3.0.7",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.9.3",
+    "typescript": "6.0.3",
     "unplugin-icons": "^22.5.0",
     "vite": "^7.3.6",
     "vite-plugin-vue-devtools": "^8.2.1",

@@ -1,69 +1,114 @@
-// @argon/calls - WebRTC call management with LiveKit
-// Types for dependency injection
+// @argon/calls - Injected dependency contracts
+//
+// Everything the call manager needs from the host application. The package never
+// imports app stores directly: that is what keeps it a package rather than a second
+// copy of the app's state layer, and it is what makes the call logic testable.
 
 import type { Ref } from "vue";
 import type { Subscription } from "rxjs";
-import type { RtcEndpoint, CallIncoming, CallFinished, CallAccepted } from "@argon/glue";
+import type { CallIncoming, RtcEndpoint } from "@argon/glue";
 
-/**
- * Audio manager interface - must be provided by the app
- */
+export type CallMode = "none" | "dm" | "channel";
+
+export interface ScreenShareOpts {
+  deviceId: string | null;
+  systemAudio: "include" | "exclude";
+  width?: number;
+  height?: number;
+  frameRate?: number;
+  maxBitrate?: number;
+}
+
+export type AudioDeviceErrorType = "not-found" | "not-readable";
+
+export interface AudioDeviceError {
+  type: AudioDeviceErrorType;
+  message: string;
+}
+
+/** A per-participant playback graph owned by the audio engine. */
+export interface RemoteAudioGraph {
+  setVolume(volume: number): void;
+  dispose(): void;
+}
+
+export interface RemoteAudioGraphOptions {
+  track: MediaStreamTrack;
+  label?: string;
+  initialVolume?: number;
+  isMutedAll?: boolean;
+  onSpeakingChange?: (isSpeaking: boolean) => void;
+}
+
+/** Audio engine. Satisfied by @argon/audio's AudioManagement. */
 export interface ICallAudioManager {
   getCurrentAudioContext(): AudioContext;
-  getInputDevice(): Ref<string | null>;
-  getOutputDevice(): Ref<string | null>;
-  onInputDeviceChanged(cb: (deviceId: string) => void): Subscription;
-  createRtcProcessor(): AudioWorkletNode | null;
+  /** Reference-counted hold on the live microphone, released by releaseInput(). */
+  acquireInput(): Promise<MediaStream>;
+  releaseInput(): void;
+  createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph;
+  createVirtualVUMeter(onLevel: (level: number) => void): Promise<{ dispose(): void }>;
+  onAudioDeviceError(on: (error: AudioDeviceError) => void): Subscription;
 }
 
-/**
- * API client interface - must be provided by the app
- */
+export interface DingDongResult {
+  isSuccessDingDong(): boolean;
+  callId: string;
+  token: string;
+  rtc: RtcEndpoint;
+}
+
+export interface PickUpResult {
+  isSuccessPickUp(): boolean;
+  callId: string;
+  token: string;
+  rtc: RtcEndpoint;
+}
+
+export interface InterlinkResult {
+  isSuccessJoinVoice(): boolean;
+  token: string;
+  rtc: RtcEndpoint;
+}
+
 export interface ICallApiClient {
-  /** Start a direct call to another user */
-  startDirectCall(targetUserId: string): Promise<{
-    callId: string;
-    token: string;
-    rtc: RtcEndpoint;
-  } | null>;
-  
-  /** Accept an incoming call */
-  acceptCall(callId: string): Promise<{
-    token: string;
-    rtc: RtcEndpoint;
-  } | null>;
-  
-  /** Reject an incoming call */
-  rejectCall(callId: string): Promise<void>;
-  
-  /** Join a voice channel */
-  joinVoiceChannel(channelId: string): Promise<{
-    callId: string;
-    token: string;
-    rtc: RtcEndpoint;
-  } | null>;
-  
-  /** Leave the current call */
-  leaveCall(callId: string): Promise<void>;
+  callInteraction: {
+    DingDongCreep(peerUserId: string): Promise<DingDongResult | null>;
+    PickUpCall(callId: string): Promise<PickUpResult | null>;
+    RejectCall(callId: string): Promise<unknown>;
+  };
+  channelInteraction: {
+    Interlink(spaceId: string, channelId: string): Promise<InterlinkResult | null>;
+  };
+  serverInteraction: {
+    PrefetchUser(spaceId: string, userId: string): Promise<unknown>;
+  };
 }
 
-/**
- * User pool interface for looking up user info
- */
 export interface ICallUserPool {
-  getUser(userId: string): Promise<{ displayName: string } | null>;
+  readonly selectedServer: string | null;
+  getUser(userId: string): Promise<{ displayName?: string } | null | undefined>;
+  trackUser(user: unknown): Promise<unknown>;
+  readonly _realtimeStore: {
+    addUserToChannel(channelId: string, userId: string, user: unknown): void;
+    removeUserFromChannel(channelId: string, userId: string): void;
+  };
 }
 
-/**
- * Event bus interface for server events
- */
+export interface ICallRealtimeStore {
+  getRealtimeChannel(channelId: string): { Channel: { spaceId: string }; Users: Map<string, unknown> } | null | undefined;
+  addUserToChannel(channelId: string, userId: string, user: unknown): void;
+  removeUserFromChannel(channelId: string, userId: string): void;
+  setUserProperty(channelId: string, userId: string, mutate: (user: any) => void): void;
+}
+
 export interface ICallEventBus {
-  onServerEvent<T>(event: string, handler: (data: T) => void): Subscription;
+  // The handler is deliberately loose: hosts type their bus against their own event
+  // union, and pinning it here would make every real implementation unassignable.
+  // The return value must be unsubscribable so dispose() can let the bus go.
+  onServerEvent<T = unknown>(event: string, handler: (data: any) => void): { unsubscribe(): void };
 }
 
-/**
- * Tone player for call sounds
- */
 export interface ICallTonePlayer {
   playRingSound(): void;
   stopPlayRingSound(): void;
@@ -71,98 +116,69 @@ export interface ICallTonePlayer {
   playSoftLeaveSound(): void;
 }
 
-/**
- * System state interface
- */
+/** Local mute state, owned by the app so the tray and hotkeys can drive it too. */
 export interface ICallSystemState {
   readonly microphoneMuted: boolean;
   readonly headphoneMuted: boolean;
-  readonly muteEvent: { subscribe(handler: (muted: boolean) => void): Subscription };
-  readonly muteHeadphoneEvent: { subscribe(handler: (muted: boolean) => void): Subscription };
+  muteEvent: { subscribe(next: (muted: boolean) => void): Subscription };
+  muteHeadphoneEvent: { subscribe(next: (muted: boolean) => void): Subscription };
 }
 
-/**
- * User volume persistence
- */
 export interface ICallUserVolumeStore {
   getUserVolume(userId: string): number;
   setUserVolume(userId: string, volume: number): void;
 }
 
-/**
- * Current user info
- */
+export interface ICallPermissions {
+  has(permission: string): boolean;
+}
+
 export interface ICallCurrentUser {
-  readonly id: string;
-  readonly displayName: string;
+  readonly me: { userId: string } | null | undefined;
 }
 
-/**
- * Participant data in a call
- */
-export interface CallParticipant {
-  userId: string;
-  displayName: string;
-  muted: boolean;
-  mutedAll: boolean;
-  screencast: boolean;
-  volume: number[];
-  gain: GainNode | null;
+/** The slice of user preferences that affects a call. Written back on device switch. */
+export interface ICallPreferences {
+  adaptiveVideoQuality: boolean;
+  defaultVideoDevice: string;
 }
 
-/**
- * RTC diagnostics data
- */
-export interface RtcDiagnostics {
-  audioPacketsLost: number | null;
-  audioJitter: number | null;
-  audioBytesReceived: number | null;
-  audioLevel: number | null;
-  videoPacketsLost: number | null;
-  videoJitter: number | null;
-  width: number | null;
-  height: number | null;
-  codec: string | null;
-  rtt: number | null;
-  bitrateKbps: number | null;
-  transportPacketsSent: number | null;
-  transportPacketsReceived: number | null;
-  playoutDelay: number | null;
+/** Screencast drawing sessions; a no-op implementation is fine. */
+export interface ICallDrawingSession {
+  beginStreamerSession(sourceId: string | null): void;
+  endStreamerSession(): void;
 }
 
-/**
- * Audio device error info
- */
-export type AudioDeviceErrorType = 'not-found' | 'not-readable';
-
-export interface AudioDeviceError {
-  type: AudioDeviceErrorType;
-  message: string;
-}
-
-/**
- * Connection quality level
- */
-export type ConnectionQuality = "excellent" | "good" | "fair" | "poor";
-
-/**
- * Call mode
- */
-export type CallMode = "none" | "dm" | "channel";
-
-/**
- * Configuration for creating a call manager
- */
 export interface CallManagerConfig {
   audio: ICallAudioManager;
   api: ICallApiClient;
-  userPool: ICallUserPool;
-  eventBus: ICallEventBus;
-  tones: ICallTonePlayer;
-  system: ICallSystemState;
+  pool: ICallUserPool;
+  tone: ICallTonePlayer;
+  me: ICallCurrentUser;
+  bus: ICallEventBus;
+  sys: ICallSystemState;
   userVolume: ICallUserVolumeStore;
-  currentUser: ICallCurrentUser;
-  
-  /** Optional callback when realtime channel state should be updated */
-  onRealtimeUpdate?: (channelId: string, userId: string, update: Partial<{ volume: number[] }>) => void;
+  realtimeStore: ICallRealtimeStore;
+  pex: ICallPermissions;
+  preference: ICallPreferences;
+  drawing: ICallDrawingSession;
+
+  /**
+   * Storage that survives a renderer reload; used to rejoin voice after a crash.
+   * Narrowed to strings — that is all the manager stores, and a generic signature
+   * cannot be satisfied by implementations that map the type per value kind.
+   */
+  persistedValue(key: string, initial: string): Ref<string>;
+  /** Ask the OS for capture permission before touching a device (no-op on the web). */
+  ensureMediaPermission(kind: "microphone" | "camera"): Promise<unknown>;
+  /** True exactly once after a renderer crash, so voice can be rejoined automatically. */
+  consumeCrashRecovery(): Promise<boolean>;
+  /**
+   * Pre-select the screen-share source for the next getDisplayMedia call. On the
+   * desktop host this hands the id to the main process; elsewhere it does nothing and
+   * the browser's own picker is used.
+   */
+  selectScreenSource(sourceId: string, includeAudio: boolean): Promise<void>;
 }
+
+export type { CallIncoming };

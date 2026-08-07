@@ -31,6 +31,10 @@ dist-ssr
 
 *.tsbuildinfo
 
+# Coverage output. Written at the repo root and inside every package that has its own
+# vitest config, so this is deliberately unanchored.
+coverage/
+
 .vs/
 
 build/bin/

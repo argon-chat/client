@@ -33,3 +33,20 @@ jobs:
       # the packages import from "bun:test" and only bun can execute them.
       - name: Test
         run: bun run test
+
+      # Re-runs the suites per package to measure them in isolation, then writes a
+      # markdown table to the run summary. Not gated on a threshold: add --enforce to
+      # the command below to make a package dropping under 50% fail the build.
+      - name: Coverage
+        run: bun run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage/
+            packages/*/coverage/
+          retention-days: 14
+          if-no-files-found: warn

@@ -389,13 +389,11 @@
   "windows": "Windows",
   "no_screens_found": "No screens found",
   "no_windows_found": "No windows found",
-  "camera": "Camera",
   "switch_camera": "Switch camera",
   "switch_monitor": "Switch monitor",
   "no_cameras_found": "No cameras found",
   "system_audio": "System audio",
   "required_premium": "Required Premium",
-  "microphone": "Microphone",
   "switch_microphone": "Switch microphone",
   "no_microphones_found": "No microphones found",
   "empty_channel": "No one here yet",
@@ -1054,7 +1052,6 @@
   "trophy_coin_year_2026_coin_desc": "An exclusive trophy coin awarded to its creator, commemorating their achievements in 2026.",
   "trophy_coin_secret_impact_1_name": "Trophy: Secret Impact Coin",
   "trophy_coin_secret_impact_1_desc": "A legendary trophy coin granted to its original creator for their mysterious and impactful work.",
-
   "bots_manage": "Manage Bots",
   "bots_manage_description": "Search, install and manage bots for your server",
   "bots_search": "Search",
@@ -1077,7 +1074,6 @@
   "bots_approve_success": "Bot permissions approved successfully",
   "bots_approve_already_up_to_date": "Permissions are already up to date",
   "bots_pending_approval": "Bot requests extended permissions",
-
   "roles": "Archetypes",
   "bot_roles": "Bot Archetypes",
   "add_role": "Add Archetype",
@@ -1096,7 +1092,6 @@
   "approved": "Approved",
   "select_bot_role": "Select a bot archetype",
   "select_bot_role_hint": "Choose a bot archetype from the list to view its permissions",
-
   "ultima_monthly": "Monthly",
   "ultima_annual": "Annual",
   "ultima_best_value": "BEST VALUE",
@@ -1111,13 +1106,11 @@
   "ultima_boosts": "Boosts",
   "ultima_available": "Available",
   "ultima_n_available": "{n} available",
-
   "ultima_status_active": "Active",
   "ultima_status_cancelled": "Cancelled",
   "ultima_status_expired": "Expired",
   "ultima_status_grace": "Grace Period",
   "ultima_status_unknown": "Unknown",
-
   "ultima_server_boosts": "Space Boosts",
   "ultima_boosts_subtitle": "Power up your favorite spaces",
   "ultima_no_boosts": "No boosts yet",
@@ -1127,7 +1120,6 @@
   "ultima_boost_removed": "Boost removed",
   "ultima_boost_remove_failed": "Failed to remove boost",
   "ultima_get_more_boosts": "Get more boosts",
-
   "ultima_boost_source_sub": "Subscription",
   "ultima_boost_source_pack1": "Monthly (1)",
   "ultima_boost_source_pack3": "Monthly (3)",
@@ -1136,7 +1128,6 @@
   "ultima_boost_source_pack3_annual": "Annual (3)",
   "ultima_boost_source_pack5_annual": "Annual (5)",
   "ultima_boost_source_gift": "Gift",
-
   "ultima_boost_assign": "Assign",
   "ultima_boost_transfer": "Transfer",
   "ultima_boost_assign_to_space": "Assign to a space",
@@ -1170,7 +1161,6 @@
   "ultima_err_on_cooldown": "Transfer is on cooldown",
   "ultima_err_not_applied": "Boost is not applied to any space",
   "ultima_boost_confirm_remove": "Remove boost from this space?",
-
   "ultima_gift": "Gift Ultima",
   "ultima_gift_subtitle": "Spread the premium love",
   "ultima_gift_send_to": "Send to",
@@ -1182,7 +1172,6 @@
   "ultima_gift_1_month": "1 month",
   "ultima_gift_1_year": "1 year",
   "ultima_gift_send": "Send Gift",
-
   "ultima_perk_avatars": "Animated Avatars",
   "ultima_perk_avatars_desc": "Stand out everywhere",
   "ultima_perk_boosts": "Space Boosts",
@@ -1195,7 +1184,6 @@
   "ultima_perk_audio_desc": "Crystal clear calls",
   "ultima_perk_themes": "Custom Themes",
   "ultima_perk_themes_desc": "Make it yours",
-
   "ultima_checkout_title": "Complete Payment",
   "ultima_checkout_init": "Initializing secure payment...",
   "ultima_checkout_retry": "Retry",
@@ -1207,7 +1195,6 @@
   "ultima_checkout_coupon_remove": "Remove",
   "ultima_checkout_coupon_applied": "Discount: −{discount}",
   "ultima_checkout_coupon_invalid": "Invalid promo code",
-
   "ultima_checkout_failed": "Checkout failed",
   "ultima_err_already_subscribed": "Already subscribed.",
   "ultima_err_payment": "Payment error. Try again.",
@@ -1222,12 +1209,10 @@
   "ultima_err_self_gift": "Can't gift yourself.",
   "ultima_payment_completed": "Payment completed!",
   "ultima_invalid_token": "Invalid checkout token.",
-
   "ultima_premium_required": "Premium required",
   "ultima_premium_required_desc": "This feature is available only for Ultima Premium subscribers.",
   "ultima_upgrade": "Upgrade to Premium",
   "ultima_welcome": "Welcome to Ultima Premium!",
-
   "boosts": "Boosts",
   "transactions": "Transactions",
   "ultima_tx_payment_method": "Payment Method",
@@ -1241,7 +1226,6 @@
   "ultima_tx_type_boost": "Boost pack ({count}×)",
   "ultima_tx_type_subscription": "Subscription payment",
   "ultima_tx_type_payment": "Payment",
-
   "profile_customization": "Profile Customization",
   "custom_status": "Custom Status",
   "set_custom_status": "Set a custom status...",
@@ -1262,13 +1246,11 @@
   "status_dnd": "Do Not Disturb",
   "status_touch_grass": "Touch Grass",
   "status_offline": "Offline",
-
   "unlock_full_profile": "Unlock the full profile experience",
   "perk_animated_avatars": "Animated Avatars",
   "perk_custom_colors": "Custom Colors",
   "perk_profile_backgrounds": "Profile Backgrounds",
   "perk_custom_status": "Custom Status",
-
   "media_editor_enhance": "Enhance",
   "media_editor_brightness": "Brightness",
   "media_editor_contrast": "Contrast",
@@ -1439,7 +1421,6 @@
   "passkey_error_challenge_expired_title": "Expired",
   "passkey_error_bad_otp_title": "Invalid OTP",
   "passkey_error_nonce_expired_title": "Session Expired",
-
   "operator_verification": "Operator Verification",
   "operator_verifying_identity": "Verifying identity...",
   "operator_confirm_device": "Confirm the request on your security device",
@@ -1458,5 +1439,14 @@
   "operator_cert_failed": "Certificate Verification Failed",
   "operator_cert_failed_desc": "Certificate verification failed.",
   "operator_verify_error": "Verification Error",
-  "operator_verify_error_desc": "Failed to verify certificate. Ensure your YubiKey is connected."
+  "operator_verify_error_desc": "Failed to verify certificate. Ensure your YubiKey is connected.",
+  "choose_server_type": "Choose server type",
+  "enterprise_only": "Enterprise only",
+  "choose": "Choose",
+  "message": "Message",
+  "and": "and",
+  "recording": "Recording",
+  "ui_scale": "Interface scale",
+  "ui_scale_desc": "Make the whole interface larger or smaller (requires a restart)",
+  "line_height_normal": "Normal"
 }

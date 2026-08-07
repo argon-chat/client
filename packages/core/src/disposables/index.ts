@@ -1,4 +1,5 @@
 import { type Subject, Subscription } from "rxjs";
+import { logger } from "../logger";
 
 export class DisposableBag {
   subscription = new Subscription();
@@ -15,18 +16,60 @@ export class DisposableBag {
     this.subscription.add(sub);
   }
 
-  dispose() {
-    this.subscription.unsubscribe();
-    for (const d of this.disposers) d[Symbol.dispose]();
-    this.disposers = [];
+  /**
+   * Detach everything up front, so a member that throws mid-teardown cannot leave the
+   * bag holding disposers that were never run — and so the bag is immediately reusable.
+   */
+  #drain(): { subscription: Subscription; disposers: IDisposable[] } {
+    const taken = { subscription: this.subscription, disposers: this.disposers };
     this.subscription = new Subscription();
+    this.disposers = [];
+    return taken;
+  }
+
+  /**
+   * A bag is a teardown mechanism: one badly behaved member must not stop the rest from
+   * being released. Failures are reported and the loop continues, rather than
+   * propagating and stranding everything enrolled after the culprit.
+   */
+  #report(err: unknown): void {
+    logger.error("[DisposableBag] a disposer threw during teardown", err);
+  }
+
+  dispose() {
+    const { subscription, disposers } = this.#drain();
+
+    try {
+      subscription.unsubscribe();
+    } catch (err) {
+      this.#report(err);
+    }
+
+    for (const d of disposers) {
+      try {
+        d[Symbol.dispose]();
+      } catch (err) {
+        this.#report(err);
+      }
+    }
   }
 
   async asyncDispose() {
-    this.subscription.unsubscribe();
-    for (const d of this.disposers) await d[Symbol.asyncDispose]();
-    this.disposers = [];
-    this.subscription = new Subscription();
+    const { subscription, disposers } = this.#drain();
+
+    try {
+      subscription.unsubscribe();
+    } catch (err) {
+      this.#report(err);
+    }
+
+    for (const d of disposers) {
+      try {
+        await d[Symbol.asyncDispose]();
+      } catch (err) {
+        this.#report(err);
+      }
+    }
   }
 
   [Symbol.dispose]() {

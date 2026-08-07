@@ -1,12 +1,20 @@
 {
-  "extends": "../../tsconfig.app.json",
+  // Extends the shared base, not tsconfig.app.json. Inheriting the app config dragged
+  // in its `paths`, `allowImportingTsExtensions` and app-specific lib/target — none of
+  // which a package should depend on, and all of which would vanish the moment this
+  // directory became its own repository.
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "types": ["vite/client"]
+    "noEmit": true,
+    // The base turns declaration emit on for packages that are built. This one is
+    // consumed as source (package.json points main/types at ./src/index.ts), and
+    // asking TypeScript to name the manager's inferred return type drags in LiveKit's
+    // internal modules — RTCEngine, PCTransport and friends — which are not nameable
+    // from outside the SDK. Worth revisiting with an explicit CallManager interface if
+    // the package ever needs to ship .d.ts files.
+    "declaration": false,
+    "declarationMap": false
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

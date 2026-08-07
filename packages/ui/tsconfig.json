@@ -2,14 +2,19 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "baseUrl": ".",
+    // Consumed as source (main/types point at ./src/index.ts), so there are no .d.ts
+    // to emit — and asking for them fails anyway, because several inferred types
+    // reference @vue/shared internals that cannot be named from outside Vue.
+    "declaration": false,
+    "declarationMap": false,
+    // No baseUrl: it is deprecated in TypeScript 6 and stops working in 7. Since 4.4
+    // `paths` resolve relative to the config file, so these mean the same thing they
+    // did before — which is why the `ignoreDeprecations` escape hatch is gone too.
     "paths": {
       "@argon/core": ["../core/src"],
       "@argon/core/*": ["../core/src/*"]
-    },
-    "ignoreDeprecations": "6.0"
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue"],
-  "exclude": ["node_modules"],
-  "ignoreDeprecations": "6.0"
+  "exclude": ["node_modules"]
 }

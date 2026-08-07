@@ -20,8 +20,10 @@ const isDebugMode = ref(false);
 const snakeCanvas = ref<HTMLCanvasElement | null>(null);
 const snakeGame = useSnakeGame(snakeCanvas);
 
-// Update current time every 100ms for smooth countdown
-let timeInterval: NodeJS.Timeout | null = null;
+// Update current time every 100ms for smooth countdown.
+// Inferred from setInterval rather than NodeJS.Timeout: this runs in the browser, and
+// the NodeJS namespace is not available under TypeScript 6.
+let timeInterval: ReturnType<typeof setInterval> | null = null;
 
 // Debug mode hotkey (Alt+0 to toggle game overlay)
 const keys = useMagicKeys();

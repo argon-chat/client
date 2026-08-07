@@ -1,0 +1,14 @@
+{
+  // This package had no tsconfig at all, so nothing type-checked it on its own — the
+  // app's config reached in and compiled packages/*/src as if they were app files.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Consumed as source (main/types point at ./src), so no .d.ts to emit.
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["bun", "@types/audioworklet"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

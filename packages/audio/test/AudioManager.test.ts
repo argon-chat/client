@@ -125,7 +125,7 @@ vi.mock("@argon/core", async (importOriginal) => {
   return { ...actual, logger: { info() {}, warn() {}, error() {}, debug() {} } };
 });
 
-import { AudioManagement } from "@argon/audio";
+import { AudioManagement } from "../src";
 
 /** Follow the graph from `from`, reporting the node kinds reached, in order. */
 function chainFrom(from: FakeNode): string[] {

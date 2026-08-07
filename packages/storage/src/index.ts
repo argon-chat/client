@@ -34,10 +34,11 @@ export function persisted<T>(id: string, initial_value: T): PersistedRef<T> {
   }
 
   function set_key<K extends keyof T>(key: K, value: T[K]) {
-    const s = get_store();
-    // @ts-expect-error internal
+    // Fall back to the in-memory value: the initial value is never written through, so
+    // until the first set() there is nothing in storage and reading it returns null —
+    // which used to make the first set_key() throw.
+    const s = (get_store() ?? (store.value as T)) as T;
     s[key] = value;
-    // @ts-expect-error internal
     set(s);
   }
 

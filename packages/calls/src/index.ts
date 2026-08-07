@@ -1,23 +1,26 @@
 // @argon/calls - WebRTC call management with LiveKit
 
 export { createCallManager, type CallManager } from "./CallManager";
-export { createSpeakingDetector, type SpeakingDetectorOptions } from "./speakingDetector";
 export { parseRtcStats, type ParsedRtcStats } from "./rtcStats";
 
 export type {
+  CallManagerConfig,
+  CallMode,
+  ScreenShareOpts,
+  RemoteAudioGraph,
+  RemoteAudioGraphOptions,
+  AudioDeviceError,
+  AudioDeviceErrorType,
   ICallAudioManager,
   ICallApiClient,
   ICallUserPool,
+  ICallRealtimeStore,
   ICallEventBus,
   ICallTonePlayer,
   ICallSystemState,
   ICallUserVolumeStore,
+  ICallPermissions,
   ICallCurrentUser,
-  CallParticipant,
-  RtcDiagnostics,
-  ConnectionQuality,
-  CallMode,
-  CallManagerConfig,
-  AudioDeviceError,
-  AudioDeviceErrorType,
+  ICallPreferences,
+  ICallDrawingSession,
 } from "./types";

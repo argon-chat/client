@@ -23,7 +23,6 @@
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
 		"noFallthroughCasesInSwitch": true,
-		"baseUrl": ".",
 		"paths": {
 			"@/*": [
 				"./src/*"
@@ -36,6 +35,7 @@
 		"src/**/*.vue",
 		"packages/*/src/**/*.ts",
 		"packages/*/src/**/*.vue",
+		"test/**/*.ts",
 		"global.d.ts",
 		"argon.d.ts"
 	]
