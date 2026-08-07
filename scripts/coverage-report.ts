@@ -14,7 +14,7 @@
  * coverage is visible on the run page without opening artifacts or logs.
  */
 
-import { readdirSync, existsSync, appendFileSync } from "node:fs";
+import { readdirSync, existsSync, appendFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const TARGET = 50;
@@ -31,9 +31,23 @@ type Row = {
   error?: string;
 };
 
-const pct = (s: string, label: string): number | null => {
-  const m = s.match(new RegExp(`${label}\\s*:\\s*([\\d.]+)%`));
-  return m ? Number.parseFloat(m[1]) : null;
+/**
+ * Line coverage from vitest's json-summary report.
+ *
+ * Deliberately not scraped from the console table: the text summary is a rendering
+ * detail that depends on the reporter set and on whether a TTY is attached, and on CI
+ * it simply was not there — every package reported "no summary in output" while the
+ * runner exited cleanly. A machine-readable file has no such ambiguity.
+ */
+const readSummary = (dir: string): number | null => {
+  const file = join(dir, "coverage", "coverage-summary.json");
+  if (!existsSync(file)) return null;
+  try {
+    const total = JSON.parse(readFileSync(file, "utf8"))?.total?.lines?.pct;
+    return typeof total === "number" ? total : null;
+  } catch {
+    return null;
+  }
 };
 
 async function run(cmd: string[], cwd: string): Promise<{ output: string; code: number }> {
@@ -68,14 +82,27 @@ for (const name of readdirSync(PACKAGES).sort()) {
 
   if (hasVitest) {
     // bunx, not npx: this script already runs under bun, so bun is guaranteed to be on
-    // PATH while Node is not — depending on npx made every vitest package report an
-    // empty result on CI while looking fine locally.
-    const { output, code } = await run(["bunx", "vitest", "run", "--coverage"], dir);
-    const lines = pct(output, "Lines");
+    // PATH while Node is not. html is kept alongside json-summary so the uploaded
+    // artifact stays browsable rather than being a single JSON file.
+    rmSync(join(dir, "coverage"), { recursive: true, force: true });
+    const { output, code } = await run(
+      [
+        "bunx", "vitest", "run", "--coverage",
+        "--coverage.reporter=json-summary",
+        "--coverage.reporter=html",
+      ],
+      dir,
+    );
+    const lines = readSummary(dir);
     rows.push(
       lines !== null
         ? { name, runner: "vitest", lines }
-        : { name, runner: "vitest", lines: null, error: code === 0 ? "no summary in output" : tail(output) },
+        : {
+            name,
+            runner: "vitest",
+            lines: null,
+            error: code === 0 ? `no coverage-summary.json written — ${tail(output)}` : tail(output),
+          },
     );
   } else if (hasBunTests) {
     // bun's summary is a table, not a "Lines: x%" line — pull the All files row.
