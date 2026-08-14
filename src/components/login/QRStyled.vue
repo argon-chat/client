@@ -7,9 +7,12 @@ import { useTheme } from "@/composables/useTheme";
 const props = defineProps<{ value: string }>();
 const { currentTheme } = useTheme();
 
+// The salt exists so the periodic redraw is visibly a redraw. It has to go on as a query parameter,
+// which means picking the separator: appending "&" to a URL that has no "?" yet does not add a
+// parameter, it corrupts the last path segment — and the QR sign-in token *is* the last path segment.
 function makeQrUrl(base: string) {
   const salt = Math.random().toString(36).slice(2, 8);
-  return `${base}&_=${salt}`;
+  return `${base}${base.includes("?") ? "&" : "?"}_=${salt}`;
 }
 
 const timeRefresh = 30; 

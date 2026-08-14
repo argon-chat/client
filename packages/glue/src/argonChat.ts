@@ -746,6 +746,34 @@ export enum SaveGifError
 }
 
 
+export interface LoginRequestTicket {
+  token: string;
+  expiresAt: datetime;
+};
+
+
+export interface LoginRequestPreview {
+  clientName: string;
+  hostName: string | null;
+  ip: string;
+  region: string;
+  createdAt: datetime;
+  expiresAt: datetime;
+};
+
+
+export enum LoginRequestError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  EXPIRED = 2,
+  ALREADY_USED = 3,
+  DEVICE_MISMATCH = 4,
+  RATE_LIMITED = 5,
+  INTERNAL_ERROR = 6,
+}
+
+
 export enum BadAuthKind
 {
   SESSION_EXPIRED = 0,
@@ -951,6 +979,15 @@ export enum SubmitReportError
 }
 
 
+export interface SessionInfo {
+  sessionId: guid;
+  clientName: string;
+  region: string;
+  lastSeenAt: datetime;
+  isCurrent: bool;
+};
+
+
 export interface SecurityDetails {
   otpEnabled: bool;
   passkeys: IonArray<Passkey>;
@@ -974,6 +1011,15 @@ export interface AutoDeletePeriod {
   months: i4 | null;
   enabled: bool;
 };
+
+
+export enum SessionError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  CANNOT_REVOKE_CURRENT = 2,
+  INTERNAL_ERROR = 3,
+}
 
 
 export enum EmailChangeError
@@ -6133,6 +6179,578 @@ IonFormatterStorage.register("FailedSaveGif", {
 
 
 
+export abstract class ICreateLoginRequestResult implements IIonUnion<ICreateLoginRequestResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateLoginRequest(): this is SuccessCreateLoginRequest {
+    return this.UnionKey === "SuccessCreateLoginRequest";
+  }
+  public isFailedCreateLoginRequest(): this is FailedCreateLoginRequest {
+    return this.UnionKey === "FailedCreateLoginRequest";
+  }
+
+}
+
+
+export class SuccessCreateLoginRequest extends ICreateLoginRequestResult
+{
+  constructor(public ticket: LoginRequestTicket) { super(); }
+
+  UnionKey: string = "SuccessCreateLoginRequest";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateLoginRequest extends ICreateLoginRequestResult
+{
+  constructor(public error: LoginRequestError) { super(); }
+
+  UnionKey: string = "FailedCreateLoginRequest";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateLoginRequestResult", {
+  read(reader: CborReader): ICreateLoginRequestResult {
+    reader.readStartArray();
+    let value: ICreateLoginRequestResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateLoginRequest>("SuccessCreateLoginRequest").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateLoginRequest>("FailedCreateLoginRequest").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateLoginRequestResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateLoginRequest>("SuccessCreateLoginRequest").write(writer, value as SuccessCreateLoginRequest);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateLoginRequest>("FailedCreateLoginRequest").write(writer, value as FailedCreateLoginRequest);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateLoginRequest", {
+  read(reader: CborReader): SuccessCreateLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const ticket = IonFormatterStorage.get<LoginRequestTicket>('LoginRequestTicket').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreateLoginRequest(ticket);
+  },
+  write(writer: CborWriter, value: SuccessCreateLoginRequest): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestTicket>('LoginRequestTicket').write(writer, value.ticket);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateLoginRequest", {
+  read(reader: CborReader): FailedCreateLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateLoginRequest(error);
+  },
+  write(writer: CborWriter, value: FailedCreateLoginRequest): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestError>('LoginRequestError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILoginPollResult implements IIonUnion<ILoginPollResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isPendingLoginRequest(): this is PendingLoginRequest {
+    return this.UnionKey === "PendingLoginRequest";
+  }
+  public isApprovedLoginRequest(): this is ApprovedLoginRequest {
+    return this.UnionKey === "ApprovedLoginRequest";
+  }
+  public isRejectedLoginRequest(): this is RejectedLoginRequest {
+    return this.UnionKey === "RejectedLoginRequest";
+  }
+  public isFailedLoginPoll(): this is FailedLoginPoll {
+    return this.UnionKey === "FailedLoginPoll";
+  }
+
+}
+
+
+export class PendingLoginRequest extends ILoginPollResult
+{
+  constructor(public expiresAt: datetime) { super(); }
+
+  UnionKey: string = "PendingLoginRequest";
+  UnionIndex: number = 0;
+}
+
+export class ApprovedLoginRequest extends ILoginPollResult
+{
+  constructor(public token: string, public refreshToken: string | null) { super(); }
+
+  UnionKey: string = "ApprovedLoginRequest";
+  UnionIndex: number = 1;
+}
+
+export class RejectedLoginRequest extends ILoginPollResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "RejectedLoginRequest";
+  UnionIndex: number = 2;
+}
+
+export class FailedLoginPoll extends ILoginPollResult
+{
+  constructor(public error: LoginRequestError) { super(); }
+
+  UnionKey: string = "FailedLoginPoll";
+  UnionIndex: number = 3;
+}
+
+
+
+IonFormatterStorage.register("ILoginPollResult", {
+  read(reader: CborReader): ILoginPollResult {
+    reader.readStartArray();
+    let value: ILoginPollResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<PendingLoginRequest>("PendingLoginRequest").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<ApprovedLoginRequest>("ApprovedLoginRequest").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<RejectedLoginRequest>("RejectedLoginRequest").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<FailedLoginPoll>("FailedLoginPoll").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ILoginPollResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<PendingLoginRequest>("PendingLoginRequest").write(writer, value as PendingLoginRequest);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<ApprovedLoginRequest>("ApprovedLoginRequest").write(writer, value as ApprovedLoginRequest);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<RejectedLoginRequest>("RejectedLoginRequest").write(writer, value as RejectedLoginRequest);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<FailedLoginPoll>("FailedLoginPoll").write(writer, value as FailedLoginPoll);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("PendingLoginRequest", {
+  read(reader: CborReader): PendingLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new PendingLoginRequest(expiresAt);
+  },
+  write(writer: CborWriter, value: PendingLoginRequest): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ApprovedLoginRequest", {
+  read(reader: CborReader): ApprovedLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ApprovedLoginRequest(token, refreshToken);
+  },
+  write(writer: CborWriter, value: ApprovedLoginRequest): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.writeNullable<string>(writer, value.refreshToken, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("RejectedLoginRequest", {
+  read(reader: CborReader): RejectedLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new RejectedLoginRequest();
+  },
+  write(writer: CborWriter, value: RejectedLoginRequest): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLoginPoll", {
+  read(reader: CborReader): FailedLoginPoll {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLoginPoll(error);
+  },
+  write(writer: CborWriter, value: FailedLoginPoll): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestError>('LoginRequestError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILoginRequestPreviewResult implements IIonUnion<ILoginRequestPreviewResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessLoginRequestPreview(): this is SuccessLoginRequestPreview {
+    return this.UnionKey === "SuccessLoginRequestPreview";
+  }
+  public isFailedLoginRequestPreview(): this is FailedLoginRequestPreview {
+    return this.UnionKey === "FailedLoginRequestPreview";
+  }
+
+}
+
+
+export class SuccessLoginRequestPreview extends ILoginRequestPreviewResult
+{
+  constructor(public preview: LoginRequestPreview) { super(); }
+
+  UnionKey: string = "SuccessLoginRequestPreview";
+  UnionIndex: number = 0;
+}
+
+export class FailedLoginRequestPreview extends ILoginRequestPreviewResult
+{
+  constructor(public error: LoginRequestError) { super(); }
+
+  UnionKey: string = "FailedLoginRequestPreview";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILoginRequestPreviewResult", {
+  read(reader: CborReader): ILoginRequestPreviewResult {
+    reader.readStartArray();
+    let value: ILoginRequestPreviewResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessLoginRequestPreview>("SuccessLoginRequestPreview").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedLoginRequestPreview>("FailedLoginRequestPreview").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ILoginRequestPreviewResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessLoginRequestPreview>("SuccessLoginRequestPreview").write(writer, value as SuccessLoginRequestPreview);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedLoginRequestPreview>("FailedLoginRequestPreview").write(writer, value as FailedLoginRequestPreview);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessLoginRequestPreview", {
+  read(reader: CborReader): SuccessLoginRequestPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const preview = IonFormatterStorage.get<LoginRequestPreview>('LoginRequestPreview').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessLoginRequestPreview(preview);
+  },
+  write(writer: CborWriter, value: SuccessLoginRequestPreview): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestPreview>('LoginRequestPreview').write(writer, value.preview);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLoginRequestPreview", {
+  read(reader: CborReader): FailedLoginRequestPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLoginRequestPreview(error);
+  },
+  write(writer: CborWriter, value: FailedLoginRequestPreview): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestError>('LoginRequestError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IApproveLoginRequestResult implements IIonUnion<IApproveLoginRequestResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessApproveLoginRequest(): this is SuccessApproveLoginRequest {
+    return this.UnionKey === "SuccessApproveLoginRequest";
+  }
+  public isFailedApproveLoginRequest(): this is FailedApproveLoginRequest {
+    return this.UnionKey === "FailedApproveLoginRequest";
+  }
+
+}
+
+
+export class SuccessApproveLoginRequest extends IApproveLoginRequestResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessApproveLoginRequest";
+  UnionIndex: number = 0;
+}
+
+export class FailedApproveLoginRequest extends IApproveLoginRequestResult
+{
+  constructor(public error: LoginRequestError) { super(); }
+
+  UnionKey: string = "FailedApproveLoginRequest";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IApproveLoginRequestResult", {
+  read(reader: CborReader): IApproveLoginRequestResult {
+    reader.readStartArray();
+    let value: IApproveLoginRequestResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessApproveLoginRequest>("SuccessApproveLoginRequest").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedApproveLoginRequest>("FailedApproveLoginRequest").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IApproveLoginRequestResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessApproveLoginRequest>("SuccessApproveLoginRequest").write(writer, value as SuccessApproveLoginRequest);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedApproveLoginRequest>("FailedApproveLoginRequest").write(writer, value as FailedApproveLoginRequest);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessApproveLoginRequest", {
+  read(reader: CborReader): SuccessApproveLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessApproveLoginRequest();
+  },
+  write(writer: CborWriter, value: SuccessApproveLoginRequest): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedApproveLoginRequest", {
+  read(reader: CborReader): FailedApproveLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedApproveLoginRequest(error);
+  },
+  write(writer: CborWriter, value: FailedApproveLoginRequest): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestError>('LoginRequestError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRejectLoginRequestResult implements IIonUnion<IRejectLoginRequestResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRejectLoginRequest(): this is SuccessRejectLoginRequest {
+    return this.UnionKey === "SuccessRejectLoginRequest";
+  }
+  public isFailedRejectLoginRequest(): this is FailedRejectLoginRequest {
+    return this.UnionKey === "FailedRejectLoginRequest";
+  }
+
+}
+
+
+export class SuccessRejectLoginRequest extends IRejectLoginRequestResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRejectLoginRequest";
+  UnionIndex: number = 0;
+}
+
+export class FailedRejectLoginRequest extends IRejectLoginRequestResult
+{
+  constructor(public error: LoginRequestError) { super(); }
+
+  UnionKey: string = "FailedRejectLoginRequest";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRejectLoginRequestResult", {
+  read(reader: CborReader): IRejectLoginRequestResult {
+    reader.readStartArray();
+    let value: IRejectLoginRequestResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRejectLoginRequest>("SuccessRejectLoginRequest").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRejectLoginRequest>("FailedRejectLoginRequest").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRejectLoginRequestResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRejectLoginRequest>("SuccessRejectLoginRequest").write(writer, value as SuccessRejectLoginRequest);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRejectLoginRequest>("FailedRejectLoginRequest").write(writer, value as FailedRejectLoginRequest);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRejectLoginRequest", {
+  read(reader: CborReader): SuccessRejectLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRejectLoginRequest();
+  },
+  write(writer: CborWriter, value: SuccessRejectLoginRequest): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRejectLoginRequest", {
+  read(reader: CborReader): FailedRejectLoginRequest {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRejectLoginRequest(error);
+  },
+  write(writer: CborWriter, value: FailedRejectLoginRequest): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LoginRequestError>('LoginRequestError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IMyAuthStatus implements IIonUnion<IMyAuthStatus>
 {
   abstract UnionKey: string;
@@ -6499,6 +7117,108 @@ IonFormatterStorage.register("FailedSubmitReport", {
   write(writer: CborWriter, value: FailedSubmitReport): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<SubmitReportError>('SubmitReportError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRevokeSessionResult implements IIonUnion<IRevokeSessionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRevokeSession(): this is SuccessRevokeSession {
+    return this.UnionKey === "SuccessRevokeSession";
+  }
+  public isFailedRevokeSession(): this is FailedRevokeSession {
+    return this.UnionKey === "FailedRevokeSession";
+  }
+
+}
+
+
+export class SuccessRevokeSession extends IRevokeSessionResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRevokeSession";
+  UnionIndex: number = 0;
+}
+
+export class FailedRevokeSession extends IRevokeSessionResult
+{
+  constructor(public error: SessionError) { super(); }
+
+  UnionKey: string = "FailedRevokeSession";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRevokeSessionResult", {
+  read(reader: CborReader): IRevokeSessionResult {
+    reader.readStartArray();
+    let value: IRevokeSessionResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRevokeSession>("SuccessRevokeSession").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRevokeSession>("FailedRevokeSession").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRevokeSessionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRevokeSession>("SuccessRevokeSession").write(writer, value as SuccessRevokeSession);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRevokeSession>("FailedRevokeSession").write(writer, value as FailedRevokeSession);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRevokeSession", {
+  read(reader: CborReader): SuccessRevokeSession {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRevokeSession();
+  },
+  write(writer: CborWriter, value: SuccessRevokeSession): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRevokeSession", {
+  read(reader: CborReader): FailedRevokeSession {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SessionError>('SessionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRevokeSession(error);
+  },
+  write(writer: CborWriter, value: FailedRevokeSession): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SessionError>('SessionError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -10835,6 +11555,57 @@ IonFormatterStorage.register("SaveGifError", {
   }
 });
 
+IonFormatterStorage.register("LoginRequestTicket", {
+  read(reader: CborReader): LoginRequestTicket {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { token, expiresAt };
+  },
+  write(writer: CborWriter, value: LoginRequestTicket): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LoginRequestPreview", {
+  read(reader: CborReader): LoginRequestPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const clientName = IonFormatterStorage.get<string>('string').read(reader);
+    const hostName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const ip = IonFormatterStorage.get<string>('string').read(reader);
+    const region = IonFormatterStorage.get<string>('string').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { clientName, hostName, ip, region, createdAt, expiresAt };
+  },
+  write(writer: CborWriter, value: LoginRequestPreview): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<string>('string').write(writer, value.clientName);
+    IonFormatterStorage.writeNullable<string>(writer, value.hostName, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.ip);
+    IonFormatterStorage.get<string>('string').write(writer, value.region);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LoginRequestError", {
+  read(reader: CborReader): LoginRequestError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return LoginRequestError[num] !== undefined ? num as LoginRequestError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: LoginRequestError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("BadAuthKind", {
   read(reader: CborReader): BadAuthKind {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -11116,6 +11887,28 @@ IonFormatterStorage.register("SubmitReportError", {
   }
 });
 
+IonFormatterStorage.register("SessionInfo", {
+  read(reader: CborReader): SessionInfo {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const clientName = IonFormatterStorage.get<string>('string').read(reader);
+    const region = IonFormatterStorage.get<string>('string').read(reader);
+    const lastSeenAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const isCurrent = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { sessionId, clientName, region, lastSeenAt, isCurrent };
+  },
+  write(writer: CborWriter, value: SessionInfo): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sessionId);
+    IonFormatterStorage.get<string>('string').write(writer, value.clientName);
+    IonFormatterStorage.get<string>('string').write(writer, value.region);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastSeenAt);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isCurrent);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("AutoDeletePeriod", {
   read(reader: CborReader): AutoDeletePeriod {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -11175,6 +11968,17 @@ IonFormatterStorage.register("Passkey", {
     IonFormatterStorage.writeNullable<guid>(writer, value.aaGuid, 'guid');
     IonFormatterStorage.writeNullable<string>(writer, value.authenticatorName, 'string');
     writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SessionError", {
+  read(reader: CborReader): SessionError {
+    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
+    return SessionError[num] !== undefined ? num as SessionError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SessionError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
 
@@ -12473,6 +13277,11 @@ export interface IIdentityInteraction extends IIonService
   GetAuthorizationScenario(): Promise<string>;
   GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
   GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
+  CreateLoginRequest(): Promise<ICreateLoginRequestResult>;
+  PollLoginRequest(token: string): Promise<ILoginPollResult>;
+  PreviewLoginRequest(token: string): Promise<ILoginRequestPreviewResult>;
+  ApproveLoginRequest(token: string): Promise<IApproveLoginRequestResult>;
+  RejectLoginRequest(token: string): Promise<IRejectLoginRequestResult>;
 }
 
 
@@ -12528,6 +13337,9 @@ export interface ISecurityInteraction extends IIonService
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
   CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
+  GetSessions(): Promise<IonArray<SessionInfo>>;
+  RevokeSession(sessionId: guid): Promise<IRevokeSessionResult>;
+  RevokeAllSessions(): Promise<IRevokeSessionResult>;
 }
 
 
@@ -12776,6 +13588,11 @@ export interface IIdentityInteraction extends IIonService
   GetAuthorizationScenario(): Promise<string>;
   GetAuthorizationScenarioFor(data: UserLoginInput): Promise<string>;
   GetMyAuthorization(token: string, refreshToken: string | null): Promise<IMyAuthStatus>;
+  CreateLoginRequest(): Promise<ICreateLoginRequestResult>;
+  PollLoginRequest(token: string): Promise<ILoginPollResult>;
+  PreviewLoginRequest(token: string): Promise<ILoginRequestPreviewResult>;
+  ApproveLoginRequest(token: string): Promise<IApproveLoginRequestResult>;
+  RejectLoginRequest(token: string): Promise<IRejectLoginRequestResult>;
 }
 
 
@@ -12831,6 +13648,9 @@ export interface ISecurityInteraction extends IIonService
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
   CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
+  GetSessions(): Promise<IonArray<SessionInfo>>;
+  RevokeSession(sessionId: guid): Promise<IRevokeSessionResult>;
+  RevokeAllSessions(): Promise<IRevokeSessionResult>;
 }
 
 
@@ -14195,6 +15015,71 @@ export class IdentityInteraction_Executor extends ServiceExecutor<IIdentityInter
           
     return await req.callAsyncT<IMyAuthStatus>("IMyAuthStatus", writer.data, this.signal);
   }
+  async CreateLoginRequest(): Promise<ICreateLoginRequestResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "CreateLoginRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreateLoginRequestResult>("ICreateLoginRequestResult", writer.data, this.signal);
+  }
+  async PollLoginRequest(token: string): Promise<ILoginPollResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "PollLoginRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, token);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoginPollResult>("ILoginPollResult", writer.data, this.signal);
+  }
+  async PreviewLoginRequest(token: string): Promise<ILoginRequestPreviewResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "PreviewLoginRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, token);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoginRequestPreviewResult>("ILoginRequestPreviewResult", writer.data, this.signal);
+  }
+  async ApproveLoginRequest(token: string): Promise<IApproveLoginRequestResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "ApproveLoginRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, token);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IApproveLoginRequestResult>("IApproveLoginRequestResult", writer.data, this.signal);
+  }
+  async RejectLoginRequest(token: string): Promise<IRejectLoginRequestResult> {
+    const req = new IonRequest(this.ctx, "IIdentityInteraction", "RejectLoginRequest");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, token);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRejectLoginRequestResult>("IRejectLoginRequestResult", writer.data, this.signal);
+  }
 
 }
 
@@ -14598,6 +15483,45 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
     writer.writeEndArray();
           
     return await req.callAsyncT<ICompletePasskeyResult>("ICompletePasskeyResult", writer.data, this.signal);
+  }
+  async GetSessions(): Promise<IonArray<SessionInfo>> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetSessions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<SessionInfo>>("IonArray<SessionInfo>", writer.data, this.signal);
+  }
+  async RevokeSession(sessionId: guid): Promise<IRevokeSessionResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RevokeSession");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, sessionId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRevokeSessionResult>("IRevokeSessionResult", writer.data, this.signal);
+  }
+  async RevokeAllSessions(): Promise<IRevokeSessionResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RevokeAllSessions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRevokeSessionResult>("IRevokeSessionResult", writer.data, this.signal);
   }
 
 }

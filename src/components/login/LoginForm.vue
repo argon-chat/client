@@ -9,6 +9,7 @@ import SmoothResize from "../shared/SmoothResize.vue";
 import BorderTrace from "../shared/BorderTrace.vue";
 import { ExclamationTriangleIcon } from "@radix-icons/vue";
 import { useLocale } from "@/store/system/localeStore";
+import { useQrLogin } from "@/composables/useQrLogin";
 import InputWithError from "../shared/InputWithError.vue";
 import {
     MailIcon,
@@ -45,7 +46,12 @@ function pickRandomHeading() {
   heading.value = titles[Math.floor(Math.random() * titles.length)];
 }
 
-const qrLoginUrl = ref("https://www.youtube.com/watch?v=HIcSWuKMwOw");
+// Started only once the QR panel is actually on screen, and stopped again when it collapses: the
+// panel is hidden on self-hosted/managed instances, and asking the official instance for a code
+// nobody can see would just burn the per-IP create budget.
+const { state: qrState, qrValue, errorMessage: qrError, start: qrStart, stop: qrStop } = useQrLogin();
+watch(showQr, (visible) => (visible ? qrStart() : qrStop()), { immediate: true });
+
 const step = ref<"email" | "password">("email");
 const showPassword = ref(false);
 const formEl = ref<HTMLFormElement | null>(null);
@@ -270,8 +276,24 @@ watch(password, () => {
             <QrCodeIcon class="w-5 h-5 text-primary" />
           </div>
           <p class="text-sm font-medium text-white">{{ t("qr_code_login") }}</p>
-          <QRStyled :value="qrLoginUrl" :size="140" level="M" class="rounded-lg shadow-lg" />
-          <p class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
+
+          <!-- The code is only drawn once the server has issued one. Rendering an empty string would
+               produce a scannable QR that resolves to nothing, which is worse than a spinner. -->
+          <QRStyled v-if="qrValue" :value="qrValue" class="rounded-lg shadow-lg" />
+          <div v-else class="w-[220px] h-[220px] flex items-center justify-center">
+            <Loader2Icon class="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+
+          <p v-if="qrState === 'approved'" class="text-xs text-primary">
+            {{ t("qr_login_approved") }}
+          </p>
+          <p v-else-if="qrState === 'rejected'" class="text-xs text-red-400">
+            {{ t("qr_login_rejected") }}
+          </p>
+          <p v-else-if="qrState === 'error'" class="text-xs text-red-400">
+            {{ t(qrError) }}
+          </p>
+          <p v-else class="text-xs text-muted-foreground">{{ t("scan_with_app") }}</p>
         </div>
       </div>
     </Transition>
