@@ -225,6 +225,7 @@ export interface ArgonChannel {
   groupId: guid | null;
   fractionalIndex: string | null;
   lastMessageId: i8;
+  slowModeSeconds: i4 | null;
 };
 
 
@@ -481,6 +482,37 @@ export enum EntityType
   SystemUserJoined = 19,
   Attachment = 20,
   Gif = 21,
+}
+
+
+export enum UpdateChannelError
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  NAME_EMPTY = 3,
+  NAME_TOO_LONG = 4,
+  DESCRIPTION_TOO_LONG = 5,
+  SLOW_MODE_NOT_ALLOWED = 6,
+  NOT_A_TEXT_CHANNEL = 7,
+}
+
+
+export enum VoiceInviteError
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  CHANNEL_IS_NOT_VOICE = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  INTERNAL_ERROR = 4,
+}
+
+
+export enum DeleteMessageError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
 }
 
 
@@ -1216,6 +1248,7 @@ export interface ArgonUserProfile {
   nickEffectId: i4 | null;
   primaryColor: i4 | null;
   accentColor: i4 | null;
+  registeredAt: datetime | null;
 };
 
 
@@ -1265,6 +1298,7 @@ export enum ArgonEntitlement
   ManageEvents = 9007199254740992n as any,
   ManageBehaviour = 18014398509481984n as any,
   ManageServer = 36028797018963968n as any,
+  ManageMessages = 72057594037927936n as any,
 }
 
 
@@ -1506,6 +1540,7 @@ export interface UserEditInput {
   customStatusIconId: string | null;
   primaryColor: i4 | null;
   accentColor: i4 | null;
+  bio: string | null;
 };
 
 
@@ -1584,6 +1619,8 @@ export interface InvitePreview {
   isOfficial: bool;
   memberCount: i4;
   onlineCount: i4;
+  voiceChannelId: guid | null;
+  voiceChannelName: string | null;
 };
 
 
@@ -1610,6 +1647,7 @@ export enum UpdateMeError
   INVALID_PRESET_ID = 3,
   DISPLAY_NAME_TOO_LONG = 4,
   DISPLAY_NAME_EMPTY = 5,
+  BIO_TOO_LONG = 6,
 }
 
 
@@ -2927,6 +2965,314 @@ IonFormatterStorage.register("MessageEntityGif", {
 
 
 
+export abstract class IUpdateChannelResult implements IIonUnion<IUpdateChannelResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUpdateChannel(): this is SuccessUpdateChannel {
+    return this.UnionKey === "SuccessUpdateChannel";
+  }
+  public isFailedUpdateChannel(): this is FailedUpdateChannel {
+    return this.UnionKey === "FailedUpdateChannel";
+  }
+
+}
+
+
+export class SuccessUpdateChannel extends IUpdateChannelResult
+{
+  constructor(public channel: ArgonChannel) { super(); }
+
+  UnionKey: string = "SuccessUpdateChannel";
+  UnionIndex: number = 0;
+}
+
+export class FailedUpdateChannel extends IUpdateChannelResult
+{
+  constructor(public error: UpdateChannelError) { super(); }
+
+  UnionKey: string = "FailedUpdateChannel";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUpdateChannelResult", {
+  read(reader: CborReader): IUpdateChannelResult {
+    reader.readStartArray();
+    let value: IUpdateChannelResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUpdateChannel>("SuccessUpdateChannel").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUpdateChannel>("FailedUpdateChannel").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IUpdateChannelResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUpdateChannel>("SuccessUpdateChannel").write(writer, value as SuccessUpdateChannel);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUpdateChannel>("FailedUpdateChannel").write(writer, value as FailedUpdateChannel);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUpdateChannel", {
+  read(reader: CborReader): SuccessUpdateChannel {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessUpdateChannel(channel);
+  },
+  write(writer: CborWriter, value: SuccessUpdateChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUpdateChannel", {
+  read(reader: CborReader): FailedUpdateChannel {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<UpdateChannelError>('UpdateChannelError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUpdateChannel(error);
+  },
+  write(writer: CborWriter, value: FailedUpdateChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UpdateChannelError>('UpdateChannelError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICreateVoiceInviteResult implements IIonUnion<ICreateVoiceInviteResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateVoiceInvite(): this is SuccessCreateVoiceInvite {
+    return this.UnionKey === "SuccessCreateVoiceInvite";
+  }
+  public isFailedCreateVoiceInvite(): this is FailedCreateVoiceInvite {
+    return this.UnionKey === "FailedCreateVoiceInvite";
+  }
+
+}
+
+
+export class SuccessCreateVoiceInvite extends ICreateVoiceInviteResult
+{
+  constructor(public code: InviteCode, public url: string) { super(); }
+
+  UnionKey: string = "SuccessCreateVoiceInvite";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateVoiceInvite extends ICreateVoiceInviteResult
+{
+  constructor(public error: VoiceInviteError) { super(); }
+
+  UnionKey: string = "FailedCreateVoiceInvite";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateVoiceInviteResult", {
+  read(reader: CborReader): ICreateVoiceInviteResult {
+    reader.readStartArray();
+    let value: ICreateVoiceInviteResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateVoiceInvite>("SuccessCreateVoiceInvite").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateVoiceInvite>("FailedCreateVoiceInvite").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateVoiceInviteResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateVoiceInvite>("SuccessCreateVoiceInvite").write(writer, value as SuccessCreateVoiceInvite);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateVoiceInvite>("FailedCreateVoiceInvite").write(writer, value as FailedCreateVoiceInvite);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateVoiceInvite", {
+  read(reader: CborReader): SuccessCreateVoiceInvite {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const code = IonFormatterStorage.get<InviteCode>('InviteCode').read(reader);
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessCreateVoiceInvite(code, url);
+  },
+  write(writer: CborWriter, value: SuccessCreateVoiceInvite): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, value.code);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateVoiceInvite", {
+  read(reader: CborReader): FailedCreateVoiceInvite {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<VoiceInviteError>('VoiceInviteError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateVoiceInvite(error);
+  },
+  write(writer: CborWriter, value: FailedCreateVoiceInvite): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VoiceInviteError>('VoiceInviteError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IDeleteMessageResult implements IIonUnion<IDeleteMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDeleteMessage(): this is SuccessDeleteMessage {
+    return this.UnionKey === "SuccessDeleteMessage";
+  }
+  public isFailedDeleteMessage(): this is FailedDeleteMessage {
+    return this.UnionKey === "FailedDeleteMessage";
+  }
+
+}
+
+
+export class SuccessDeleteMessage extends IDeleteMessageResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessDeleteMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedDeleteMessage extends IDeleteMessageResult
+{
+  constructor(public error: DeleteMessageError) { super(); }
+
+  UnionKey: string = "FailedDeleteMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IDeleteMessageResult", {
+  read(reader: CborReader): IDeleteMessageResult {
+    reader.readStartArray();
+    let value: IDeleteMessageResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDeleteMessage>("SuccessDeleteMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDeleteMessage>("FailedDeleteMessage").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IDeleteMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDeleteMessage>("SuccessDeleteMessage").write(writer, value as SuccessDeleteMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDeleteMessage>("FailedDeleteMessage").write(writer, value as FailedDeleteMessage);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDeleteMessage", {
+  read(reader: CborReader): SuccessDeleteMessage {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessDeleteMessage();
+  },
+  write(writer: CborWriter, value: SuccessDeleteMessage): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDeleteMessage", {
+  read(reader: CborReader): FailedDeleteMessage {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<DeleteMessageError>('DeleteMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedDeleteMessage(error);
+  },
+  write(writer: CborWriter, value: FailedDeleteMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<DeleteMessageError>('DeleteMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IInvokeSlashCommandResult implements IIonUnion<IInvokeSlashCommandResult>
 {
   abstract UnionKey: string;
@@ -4042,6 +4388,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isDrawingSessionEnded(): this is DrawingSessionEnded {
     return this.UnionKey === "DrawingSessionEnded";
   }
+  public isMessageDeleted(): this is MessageDeleted {
+    return this.UnionKey === "MessageDeleted";
+  }
 
 }
 
@@ -4534,6 +4883,14 @@ export class DrawingSessionEnded extends IArgonEvent
   UnionIndex: number = 60;
 }
 
+export class MessageDeleted extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public byUserId: guid) { super(); }
+
+  UnionKey: string = "MessageDeleted";
+  UnionIndex: number = 61;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -4666,6 +5023,8 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<DrawingSessionStarted>("DrawingSessionStarted").read(reader);
     else if (unionIndex == 60)
       value = IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").read(reader);
+    else if (unionIndex == 61)
+      value = IonFormatterStorage.get<MessageDeleted>("MessageDeleted").read(reader);
 
     else throw new Error();
   
@@ -4859,6 +5218,9 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 60) {
         IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").write(writer, value as DrawingSessionEnded);
+    }
+    else if (value.UnionIndex == 61) {
+        IonFormatterStorage.get<MessageDeleted>("MessageDeleted").write(writer, value as MessageDeleted);
     }
   
     else throw new Error();
@@ -5917,6 +6279,26 @@ IonFormatterStorage.register("DrawingSessionEnded", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageDeleted", {
+  read(reader: CborReader): MessageDeleted {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageDeleted(spaceId, channelId, messageId, byUserId);
+  },
+  write(writer: CborWriter, value: MessageDeleted): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
     writer.writeEndArray();
   }
 });
@@ -10526,11 +10908,12 @@ IonFormatterStorage.register("ArgonChannel", {
     const groupId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const fractionalIndex = IonFormatterStorage.readNullable<string>(reader, 'string');
     const lastMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId };
+    const slowModeSeconds = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds };
   },
   write(writer: CborWriter, value: ArgonChannel): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(9);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -10539,6 +10922,7 @@ IonFormatterStorage.register("ArgonChannel", {
     IonFormatterStorage.writeNullable<guid>(writer, value.groupId, 'guid');
     IonFormatterStorage.writeNullable<string>(writer, value.fractionalIndex, 'string');
     IonFormatterStorage.get<i8>('i8').write(writer, value.lastMessageId);
+    IonFormatterStorage.writeNullable<i4>(writer, value.slowModeSeconds, 'i4');
     writer.writeEndArray();
   }
 });
@@ -11192,6 +11576,39 @@ IonFormatterStorage.register("EntityType", {
     return EntityType[num] !== undefined ? num as EntityType : (() => {throw new Error('invalid enum type')})();
   },
   write(writer: CborWriter, value: EntityType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UpdateChannelError", {
+  read(reader: CborReader): UpdateChannelError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return UpdateChannelError[num] !== undefined ? num as UpdateChannelError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: UpdateChannelError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("VoiceInviteError", {
+  read(reader: CborReader): VoiceInviteError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return VoiceInviteError[num] !== undefined ? num as VoiceInviteError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: VoiceInviteError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DeleteMessageError", {
+  read(reader: CborReader): DeleteMessageError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return DeleteMessageError[num] !== undefined ? num as DeleteMessageError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: DeleteMessageError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -12341,11 +12758,12 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const nickEffectId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
-    reader.readEndArrayAndSkip(arraySize - 14);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor };
+    const registeredAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 15);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(14);
+    writer.writeStartArray(15);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
@@ -12360,6 +12778,7 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<i4>(writer, value.nickEffectId, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
     writer.writeEndArray();
   }
 });
@@ -12778,11 +13197,12 @@ IonFormatterStorage.register("UserEditInput", {
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
-    reader.readEndArrayAndSkip(arraySize - 10);
-    return { displayName, avatarId, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, customStatus, customStatusIconId, primaryColor, accentColor };
+    const bio = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { displayName, avatarId, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, customStatus, customStatusIconId, primaryColor, accentColor, bio };
   },
   write(writer: CborWriter, value: UserEditInput): void {
-    writer.writeStartArray(10);
+    writer.writeStartArray(11);
     IonFormatterStorage.writeNullable<string>(writer, value.displayName, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.avatarId, 'string');
     IonFormatterStorage.writeNullable<i4>(writer, value.backgroundId, 'i4');
@@ -12793,6 +13213,7 @@ IonFormatterStorage.register("UserEditInput", {
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
     IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
+    IonFormatterStorage.writeNullable<string>(writer, value.bio, 'string');
     writer.writeEndArray();
   }
 });
@@ -12970,11 +13391,13 @@ IonFormatterStorage.register("InvitePreview", {
     const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
     const memberCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const onlineCount = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 10);
-    return { spaceId, name, description, avatarFileId, topBannerFileId, inviteImageFileId, isVerified, isOfficial, memberCount, onlineCount };
+    const voiceChannelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const voiceChannelName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { spaceId, name, description, avatarFileId, topBannerFileId, inviteImageFileId, isVerified, isOfficial, memberCount, onlineCount, voiceChannelId, voiceChannelName };
   },
   write(writer: CborWriter, value: InvitePreview): void {
-    writer.writeStartArray(10);
+    writer.writeStartArray(12);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -12985,6 +13408,8 @@ IonFormatterStorage.register("InvitePreview", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
     IonFormatterStorage.get<i4>('i4').write(writer, value.memberCount);
     IonFormatterStorage.get<i4>('i4').write(writer, value.onlineCount);
+    IonFormatterStorage.writeNullable<guid>(writer, value.voiceChannelId, 'guid');
+    IonFormatterStorage.writeNullable<string>(writer, value.voiceChannelName, 'string');
     writer.writeEndArray();
   }
 });
@@ -13191,9 +13616,12 @@ export interface IChannelInteraction extends IIonService
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
+  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult>;
+  CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
+  DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -13502,9 +13930,12 @@ export interface IChannelInteraction extends IIonService
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
+  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult>;
+  CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
+  DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -14148,6 +14579,39 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     await req.callAsync(writer.data, this.signal);
   }
+  async UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.writeNullable<string>(writer, name, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, description, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, slowModeSeconds, 'i4');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUpdateChannelResult>("IUpdateChannelResult", writer.data, this.signal);
+  }
+  async CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateVoiceInviteCode");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i4>('i4').write(writer, expireMinutes);
+    IonFormatterStorage.get<i4>('i4').write(writer, maxUses);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreateVoiceInviteResult>("ICreateVoiceInviteResult", writer.data, this.signal);
+  }
   async QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "QueryMessages");
           
@@ -14199,6 +14663,21 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<SendMessageReadback>("SendMessageReadback", writer.data, this.signal);
+  }
+  async DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IDeleteMessageResult>("IDeleteMessageResult", writer.data, this.signal);
   }
   async DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DisconnectFromVoiceChannel");
