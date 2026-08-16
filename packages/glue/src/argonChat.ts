@@ -12,15 +12,17 @@ import {
   CborWriter, 
   
   DateOnly, 
-  DateTimeOffset, 
+  IonDateTime, 
+  IonDecimal, 
   Duration, 
   TimeOnly, 
   Guid, 
   
   IonFormatterStorage,
 
-  IonArray, 
+  IonArray,
   IonMaybe,
+  IonPartial,
 
   IIonService,
   IIonUnion,
@@ -35,7 +37,13 @@ import {
 type guid = Guid;
 type timeonly = TimeOnly;
 type duration = Duration;
-type datetime = DateTimeOffset;
+// IonDateTime, never the deprecated `DateTimeOffset { date: Date; offsetMinutes }`
+// shape: `Date` is millisecond-resolution, so it cannot hold the 100ns ticks the
+// wire form carries, and the webcore "datetime" formatter now reads and writes
+// IonDateTime — leaving the old alias here would be a live type mismatch, not just
+// a lossy one.
+type datetime = IonDateTime;
+type decimal = IonDecimal;
 type dateonly = DateOnly;
 
 declare type bool = boolean;
@@ -13140,6 +13148,7 @@ IonFormatterStorage.register("DialCheckFailReason", {
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
+
 
 
 

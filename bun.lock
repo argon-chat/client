@@ -6,7 +6,7 @@
       "name": "ui",
       "dependencies": {
         "@argon-chat/emojix": "workspace:*",
-        "@argon-chat/ion.webcore": "^1.1.24",
+        "@argon-chat/ion.webcore": "^1.2.0",
         "@argon/assets": "workspace:*",
         "@argon/audio": "workspace:*",
         "@argon/avatar": "workspace:*",
@@ -347,7 +347,7 @@
 
     "@argon-chat/emojix": ["@argon-chat/emojix@workspace:packages/emojix"],
 
-    "@argon-chat/ion.webcore": ["@argon-chat/ion.webcore@1.1.24", "", {}, "sha512-EKG8rSct7gAnL2Ms/VRSFVb3QlJW9asTuOFHWXtuTLqsY0I1q3ITPBVAR6rK7/ygPUHlh8/oPAk4BxKLLo55cQ=="],
+    "@argon-chat/ion.webcore": ["@argon-chat/ion.webcore@1.2.0", "", {}, "sha512-CpQKnD23q/BvrYkVdTbMINv0ImSWJfiO8GY/oKEvw7P8uCzd2La9hkmnpDwJ1ucNMRe11s/pHawZCnt3b/Uw4g=="],
 
     "@argon/assets": ["@argon/assets@workspace:packages/assets"],
 
