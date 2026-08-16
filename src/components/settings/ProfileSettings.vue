@@ -373,6 +373,9 @@
           </div>
         </div>
 
+        <!-- Active Sessions Card -->
+        <ActiveSessions />
+
         <!-- Account Actions Card -->
         <div class="setting-card border-destructive/50">
           <div class="flex items-center gap-2 mb-4">
@@ -874,6 +877,7 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import AvatarCropDialog from "./AvatarCropDialog.vue";
+import ActiveSessions from "./ActiveSessions.vue";
 import ProfileCardPreview from "./ProfileCardPreview.vue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import QRStyled from "../login/QRStyled.vue";

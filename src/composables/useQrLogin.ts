@@ -104,12 +104,11 @@ export function useQrLogin() {
         return;
       }
 
-      if (result.isRejectedLoginRequest()) {
-        stop();
-        state.value = "rejected";
-        return;
-      }
-
+      // Checked before the rejection, and the order is load-bearing. Every branch above returns, so
+      // by this point TypeScript has narrowed the union by exclusion — and RejectedLoginRequest
+      // carries no payload, so excluding it excludes everything structurally assignable to it,
+      // which is the whole union. Narrowed to never, the failure branch stopped compiling. Leaving
+      // the empty member last means nothing is ever reached by excluding it.
       if (result.isFailedLoginPoll()) {
         // An expired code is the ordinary end of a request nobody scanned, not a failure to report:
         // ask for another one and let the QR redraw itself. Anything else is a real fault.
@@ -119,6 +118,12 @@ export function useQrLogin() {
         }
         stop();
         fail(result.error);
+        return;
+      }
+
+      if (result.isRejectedLoginRequest()) {
+        stop();
+        state.value = "rejected";
       }
     } catch (e) {
       // A dropped poll is not a dropped request — the server holds it for the full two minutes, so
