@@ -40,7 +40,7 @@
         >
           <DateSeparator
             v-if="groupingMap[item.index]?.showDate"
-            :date="messages[item.index].timeSent.date"
+            :date="messages[item.index].timeSent.toDate()"
           />
           <UnreadSeparator v-if="groupingMap[item.index]?.showUnread" />
 

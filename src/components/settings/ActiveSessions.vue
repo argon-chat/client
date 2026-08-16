@@ -277,7 +277,7 @@ function regionLabel(session: SessionInfo): string {
  * for; in practice it never shows.
  */
 function lastSeenLabel(session: SessionInfo): string {
-  const lastSeen = new Date(session.lastSeenAt.date).getTime();
+  const lastSeen = session.lastSeenAt.toDate().getTime();
   const minutes = Math.round((Date.now() - lastSeen) / 60000);
 
   if (minutes < 1) return t("sessions_last_seen_now");

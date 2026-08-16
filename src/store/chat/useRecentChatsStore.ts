@@ -1,15 +1,24 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { UserChat } from "@argon/glue";
-import type { DateTimeOffset, Guid } from "@argon-chat/ion.webcore";
+import type { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { RealtimeUser } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { logger } from "@argon/core";
 
-function toTsDate(dto: DateTimeOffset | null | undefined): number {
+/**
+ * Sort key only: milliseconds since the epoch, UTC.
+ *
+ * `unixTicks` is already offset-normalised, which is what the old
+ * `date.getTime() - offsetMinutes * 60_000` was reaching for by hand — so ordering no longer
+ * depends on every chat carrying the same offset. 100ns ticks are divided down to milliseconds
+ * to stay inside the safe integer range; two chats within the same millisecond keep their
+ * relative order from the previous comparison, which is all this needs.
+ */
+function toTsDate(dto: IonDateTime | null | undefined): number {
   if (!dto) return 0;
-  return dto.date.getTime() - dto.offsetMinutes * 60_000;
+  return Number(dto.unixTicks / 10_000n);
 }
 
 export interface RecentChatVm {
@@ -18,10 +27,10 @@ export interface RecentChatVm {
   status: number;
 
   isPinned: boolean;
-  pinnedAt: DateTimeOffset | null;
+  pinnedAt: IonDateTime | null;
 
   lastMsg: string | null;
-  lastMessageAt: DateTimeOffset;
+  lastMessageAt: IonDateTime;
 
   unreadCount: number;
 }
@@ -109,7 +118,7 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   function markPinned(
     peerId: string,
     value: boolean,
-    pinnedAt: DateTimeOffset | null
+    pinnedAt: IonDateTime | null
   ) {
     const chat = recent.value.find((x) => x.peerId === peerId);
     if (!chat) return;

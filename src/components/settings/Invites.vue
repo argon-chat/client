@@ -130,7 +130,7 @@ import { cdnUrl } from "@/store/system/fileStorage";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import { db } from "@/store/db/dexie";
 import type { InviteCodeEntity } from "@argon/glue";
-import type { DateTimeOffset } from "@argon-chat/ion.webcore";
+import type { IonDateTime } from "@argon-chat/ion.webcore";
 
 const { t } = useLocale();
 const servers = useSpaceStore();
@@ -216,10 +216,10 @@ function usesLabel(invite: InviteCodeEntity): string {
 }
 
 // Server models "never" as a far-future timestamp; treat anything >50y out as never.
-function isNever(dto: DateTimeOffset | null | undefined): boolean {
-  if (!dto?.date) return true;
+function isNever(dto: IonDateTime | null | undefined): boolean {
+  if (!dto) return true;
   const fiftyYears = 50 * 365 * 24 * 60 * 60 * 1000;
-  return new Date(dto.date).getTime() - Date.now() > fiftyYears;
+  return dto.toDate().getTime() - Date.now() > fiftyYears;
 }
 
 function expiryLabel(invite: InviteCodeEntity): string {
@@ -229,7 +229,7 @@ function expiryLabel(invite: InviteCodeEntity): string {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(invite.expireTime.date));
+  }).format(invite.expireTime.toDate());
 }
 
 function copyInvite(invite: InviteCodeEntity) {

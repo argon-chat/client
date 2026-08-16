@@ -23,7 +23,8 @@ const icon = computed(() => {
 
 const timeAgo = computed(() => {
   const now = Date.now();
-  const created = props.notification.createdAt.date.getTime();
+  // Elapsed time, so only the instant matters — the authored offset plays no part here.
+  const created = props.notification.createdAt.toDate().getTime();
   const diff = now - created;
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "now";

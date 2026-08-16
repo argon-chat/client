@@ -115,6 +115,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 
 import { FriendRequest, Friendship, SendFriendStatus, UserBlock } from "@argon/glue";
+import { IonDateTime } from "@argon-chat/ion.webcore";
 import AddFriendModal from "@/components/modals/AddFriendModal.vue";
 import { useBus } from "@/store/realtime/busStore";
 import { useFriendEvents } from "@/composables/useFriendEvents";
@@ -331,10 +332,9 @@ useFriendEvents({
         blocked.value.unshift({
             userId: meId.value,
             blockedId: e.blockId,
-            blockedAt: {
-                offsetMinutes: 0,
-                date: new Date()
-            }
+            // The event carries no timestamp, so this is a local stand-in until the next
+            // refresh replaces it with the server's. UTC, as the old literal was.
+            blockedAt: IonDateTime.now()
         });
 
         friends.value = friends.value.filter(x => x.friendId !== e.blockId);

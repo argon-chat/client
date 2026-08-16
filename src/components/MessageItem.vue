@@ -693,7 +693,9 @@ const mediaMaxWidth = computed(() => ({
 // ── Time formatting ──
 
 const formattedTime = computed(() => {
-  const d = props.message.timeSent.date;
+  // Rendered on the viewer's clock, not the sender's: `toDate()` keeps the instant and lets
+  // the browser apply the local zone, which is what the old `Date` field did.
+  const d = props.message.timeSent.toDate();
   if (tsFormat() === "12h") {
     const h = d.getHours() % 12 || 12;
     const m = d.getMinutes().toString().padStart(2, "0");
@@ -702,7 +704,7 @@ const formattedTime = computed(() => {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 });
 
-const formattedFullTime = useDateFormat(props.message.timeSent.date, "YYYY-MM-DD HH:mm:ss");
+const formattedFullTime = useDateFormat(props.message.timeSent.toDate(), "YYYY-MM-DD HH:mm:ss");
 
 // ── Actions ──
 
@@ -732,7 +734,7 @@ function onReportProfile(userId: string) {
 }
 
 function onImageClick(index: number) {
-  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.date ?? null);
+  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.toDate() ?? null);
 }
 
 function onPickReaction(emoji: string) {

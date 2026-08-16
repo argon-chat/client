@@ -6,6 +6,7 @@ import {
   nextTick,
 } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
+import { IonDateTime } from "@argon-chat/ion.webcore";
 import {
   type ArgonMessage,
   type DirectMessage,
@@ -385,7 +386,10 @@ export function useDirectMessages(peerId: () => Guid) {
     const retryMsg: ArgonMessage = {
       ...rest,
       messageId: newRandomId,
-      timeSent: { date: new Date(), offsetMinutes: 0 },
+      // Stamped at UTC, as the old `{ date, offsetMinutes: 0 }` literal was: the server
+      // rewrites this the moment the send is acknowledged, so it only has to render right
+      // locally in the meantime, and `toDate()` puts it back in the viewer's zone.
+      timeSent: IonDateTime.now(),
     };
     addOptimisticMessage(retryMsg, newRandomId);
 

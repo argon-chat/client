@@ -143,7 +143,7 @@ const user = {
 
 const details = {
   reasonCode: LockdownReason[me.limitation?.lockdownReason ?? 0],
-  until: me.limitation?.lockDownExpiration?.date.toUTCString(),
+  until: me.limitation?.lockDownExpiration?.toDate().toUTCString(),
   //violations: me.limitation.vi,
   isAllowedAppeal: me.limitation?.isAppealable ?? false,
 };

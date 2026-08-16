@@ -24,8 +24,7 @@ import {
   type DirectMessageSent,
   type MessageSent,
 } from "@argon/glue";
-import type { Guid } from "@argon-chat/ion.webcore";
-import { DateTimeOffset } from "@argon-chat/ion.webcore";
+import type { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 
 const NOTIFICATION_TYPES: Record<string, keyof NotificationBadges> = {
   friend_request_received: "friendRequests",
@@ -148,14 +147,14 @@ export const useNotificationStore = defineStore("notifications", () => {
   function effectiveMuteLevel(channelId: Guid, spaceId: Guid): MuteLevelType {
     const channelMute = muteSettings.value.get(channelId);
     if (channelMute) {
-      if (channelMute.expiresAt && channelMute.expiresAt.date < new Date()) {
+      if (channelMute.expiresAt && channelMute.expiresAt.toDate() < new Date()) {
         return MuteLevelType.None;
       }
       return channelMute.muteLevel;
     }
     const spaceMute = muteSettings.value.get(spaceId);
     if (spaceMute) {
-      if (spaceMute.expiresAt && spaceMute.expiresAt.date < new Date()) {
+      if (spaceMute.expiresAt && spaceMute.expiresAt.toDate() < new Date()) {
         return MuteLevelType.None;
       }
       return spaceMute.muteLevel;
@@ -166,7 +165,7 @@ export const useNotificationStore = defineStore("notifications", () => {
   function isTargetMuted(targetId: Guid): boolean {
     const s = muteSettings.value.get(targetId);
     if (!s) return false;
-    if (s.expiresAt && s.expiresAt.date < new Date()) return false;
+    if (s.expiresAt && s.expiresAt.toDate() < new Date()) return false;
     return s.muteLevel !== MuteLevelType.None;
   }
 
@@ -381,7 +380,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     targetType: MuteTargetKind,
     muteLevel: MuteLevelType,
     suppressEveryone: boolean,
-    expiresAt: DateTimeOffset | null,
+    expiresAt: IonDateTime | null,
   ) {
     const old = muteSettings.value.get(targetId);
     const dto: MuteSettingsDto = { targetId, targetType, muteLevel, suppressEveryone, expiresAt };
@@ -416,7 +415,7 @@ export const useNotificationStore = defineStore("notifications", () => {
 
   // ── Notification feed ──────────────────────────────────
 
-  async function loadNotificationFeed(limit: number = 25, before?: DateTimeOffset) {
+  async function loadNotificationFeed(limit: number = 25, before?: IonDateTime) {
     try {
       const items = await api.userInteraction.GetNotificationFeed(limit, before ?? null);
       if (before) {

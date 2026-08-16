@@ -80,7 +80,7 @@ import { refDebounced } from "@vueuse/core";
 import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, type ArgonMessage } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import GifPicker from "@/components/chats/GifPicker.vue";
-import { Guid } from "@argon-chat/ion.webcore";
+import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { storeToRefs } from "pinia";
@@ -496,7 +496,7 @@ const handleSend = async () => {
     replyId: props.replyTo?.messageId ?? null,
     channelId: props.receiverId,
     spaceId: "",
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me?.userId ?? "",
     text: plainText,
     entities,
@@ -561,7 +561,7 @@ const handleGifSelectDm = (gif: GifItem) => {
     replyId: props.replyTo?.messageId ?? null,
     channelId: props.receiverId,
     spaceId: "",
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me?.userId ?? "",
     text: '',
     entities: [optimisticGifEntity],
@@ -600,7 +600,7 @@ const handleSavedGifSelectDm = (gif: SavedGif) => {
     replyId: props.replyTo?.messageId ?? null,
     channelId: props.receiverId,
     spaceId: "",
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me?.userId ?? "",
     text: '',
     entities: [gifEntity],

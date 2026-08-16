@@ -52,7 +52,7 @@ export function useMessageGrouping(
       const prev = i > 0 ? msgs[i - 1] : null;
 
       // Date separator: first message or a new calendar day.
-      const showDate = i === 0 || !isSameDay(prev?.timeSent?.date, msg?.timeSent?.date);
+      const showDate = i === 0 || !isSameDay(prev?.timeSent?.toDate(), msg?.timeSent?.toDate());
 
       // Unread line: immediately after the last read message.
       let showUnread = false;
@@ -78,9 +78,9 @@ export function useMessageGrouping(
         !!prev?.sender &&
         prev.sender === msg.sender &&
         !prev._optimistic &&
-        !!msg.timeSent?.date &&
-        !!prev.timeSent?.date &&
-        Math.abs(msg.timeSent.date.getTime() - prev.timeSent.date.getTime()) < GROUP_GAP_MS &&
+        !!msg.timeSent &&
+        !!prev.timeSent &&
+        Math.abs(msg.timeSent.toDate().getTime() - prev.timeSent.toDate().getTime()) < GROUP_GAP_MS &&
         !showDate &&
         !showUnread;
 
@@ -88,9 +88,9 @@ export function useMessageGrouping(
         !!next?.sender &&
         next.sender === msg.sender &&
         !msg._optimistic &&
-        !!msg.timeSent?.date &&
-        !!next.timeSent?.date &&
-        Math.abs(next.timeSent.date.getTime() - msg.timeSent.date.getTime()) < GROUP_GAP_MS;
+        !!msg.timeSent &&
+        !!next.timeSent &&
+        Math.abs(next.timeSent.toDate().getTime() - msg.timeSent.toDate().getTime()) < GROUP_GAP_MS;
 
       out[i] = {
         isGrouped: samePrev,

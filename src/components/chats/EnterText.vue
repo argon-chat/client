@@ -306,7 +306,7 @@ import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
 import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
-import { Guid } from "@argon-chat/ion.webcore";
+import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
@@ -365,7 +365,7 @@ const handleGifSelect = (gif: GifItem) => {
     spaceId,
     text: '',
     entities: [optimisticGifEntity],
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me!.userId,
     reactions: [],
     controls: [],
@@ -409,7 +409,7 @@ const handleSavedGifSelect = (gif: SavedGif) => {
     spaceId,
     text: '',
     entities: [gifEntity],
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me!.userId,
     reactions: [],
     controls: [],
@@ -1327,7 +1327,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
     spaceId,
     text: plainText,
     entities: [...entities, ...optimisticAttachEntities],
-    timeSent: { date: new Date(), offsetMinutes: 0 },
+    timeSent: IonDateTime.now(),
     sender: me.me!.userId,
   } as ArgonMessage;
 

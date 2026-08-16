@@ -82,7 +82,7 @@ import { usePexStore } from '@/store/data/permissionStore';
 import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 import type { LinkedMeetingInfo } from '@argon/glue';
-import type { DateTimeOffset, Guid } from '@argon-chat/ion.webcore';
+import type { Guid, IonDateTime } from '@argon-chat/ion.webcore';
 
 const props = defineProps<{
   meetingInfo?: LinkedMeetingInfo;
@@ -98,9 +98,12 @@ const api = useApi();
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
 
-const formatDate = (dateTimeOffset?: DateTimeOffset) => {
-  if (!dateTimeOffset?.date) return '';
-  return new Date(dateTimeOffset.date).toLocaleString();
+// Shown to whoever opens the modal, so it is rendered on their clock: `toDate()` keeps the
+// instant and `toLocaleString` applies the viewer's zone, exactly as before. The meeting's own
+// offset stays on the `IonDateTime` for anything that needs the authored wall time.
+const formatDate = (startedAt?: IonDateTime) => {
+  if (!startedAt) return '';
+  return startedAt.toDate().toLocaleString();
 };
 
 const copyMeetingUrl = async () => {

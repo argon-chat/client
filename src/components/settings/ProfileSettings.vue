@@ -1073,6 +1073,10 @@ async function saveCustomization() {
       customStatusIconId: null,
       primaryColor: editPrimaryColor.value,
       accentColor: editAccentColor.value,
+      // `bio` became a required field on UserEditInput. The textarea and the change detection
+      // above already tracked it, so it was only ever missing from the request — sent the same
+      // way as customStatus, empty meaning "no value".
+      bio: editBio.value || null,
     });
 
     if (result.isSuccessUpdateMe()) {
@@ -1081,6 +1085,7 @@ async function saveCustomization() {
       }
       if (me.meProfile) {
         me.meProfile.customStatus = editCustomStatus.value || null;
+        me.meProfile.bio = editBio.value || null;
         me.meProfile.primaryColor = editPrimaryColor.value;
         me.meProfile.accentColor = editAccentColor.value;
         me.meProfile.backgroundId = editBackgroundId.value;
@@ -1935,7 +1940,7 @@ onMounted(async () => {
     passkeys.value = details.passkeys.map(pk => ({
       id: pk.id.toString(),
       name: pk.name,
-      createdAt: pk.createdAt.date,
+      createdAt: pk.createdAt.toDate(),
     }));
 
     autoDeletePeriod.value = details.autoDeletePeriod.enabled && details.autoDeletePeriod.months
@@ -1952,7 +1957,7 @@ onMounted(async () => {
         passkeys.value = event.details.passkeys.map(pk => ({
           id: pk.id.toString(),
           name: pk.name,
-          createdAt: pk.createdAt.date,
+          createdAt: pk.createdAt.toDate(),
         }));
 
         autoDeletePeriod.value = event.details.autoDeletePeriod.enabled && event.details.autoDeletePeriod.months

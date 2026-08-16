@@ -1,4 +1,5 @@
 import { ObjectDirective } from "vue";
+import type { IonDateTime } from "@argon-chat/ion.webcore";
 export {};
 type ArgonEntitlementUnion = 
   | 'None'
@@ -44,6 +45,18 @@ type ArgonEntitlementUnion =
 declare module '@vue/runtime-core' {
     interface GlobalDirectives {
         vPex: Directive<HTMLElement, ArgonEntitlementUnion>;
+    }
+}
+
+declare module '@vue/reactivity' {
+    // `UnwrapRef` rewrites every class instance it reaches into a plain mapped type of its
+    // public members. `IonDateTime` has a private `localTicks` getter, so the rewritten shape
+    // is no longer assignable back to `IonDateTime` and every `ref`/`reactive`/`computed`
+    // holding an Ion payload starts failing at the first function that expects the real type.
+    // It is an immutable value object with no nested refs, so there is nothing to unwrap —
+    // bail it out, which is exactly what this interface exists for.
+    interface RefUnwrapBailTypes {
+        ionValueTypes: IonDateTime;
     }
 }
 declare global {

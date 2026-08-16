@@ -5,6 +5,7 @@ import InventoryItemGranted from './InventoryItemGranted.vue';
 import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
 import { InventoryItem, RedeemError } from '@argon/glue';
+import { IonDateTime } from '@argon-chat/ion.webcore';
 import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@argon/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
@@ -252,7 +253,7 @@ function debugGrantTestItem() {
     instanceId: `debug-${Date.now()}`,
     giftable: true,
     usable: false,
-    grantedDate: { date: new Date(), offsetMinutes: 0 },
+    grantedDate: IonDateTime.now(),
     usableVector: null,
     receivedFrom: null,
     ttl: null,

@@ -205,7 +205,7 @@ import {
   Loader2,
 } from "lucide-vue-next";
 import { PhSealCheck } from "@phosphor-icons/vue";
-import type { DateTimeOffset } from "@argon-chat/ion.webcore";
+import type { IonDateTime } from "@argon-chat/ion.webcore";
 import type { SpaceStats } from "@argon/glue";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
 import ServerHeaderUploader from "./ServerHeaderUploader.vue";
@@ -261,15 +261,15 @@ watch(
   { immediate: true },
 );
 
-const formatDate = (date: DateTimeOffset) => {
-  if (!date?.date) return "";
+const formatDate = (date: IonDateTime) => {
+  if (!date) return "";
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(date.date));
+  }).format(date.toDate());
 };
 
 const onServerAvatarUpdated = () => pool.loadServerDetails?.();

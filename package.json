@@ -124,6 +124,7 @@
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.1.10",
+    "@vue/reactivity": "3.5.40",
     "@vue/test-utils": "^2.4.11",
     "autoprefixer": "^10.5.4",
     "happy-dom": "^20.11.1",

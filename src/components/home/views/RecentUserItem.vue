@@ -7,7 +7,7 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useLocale } from "@/store/system/localeStore";
 import { computed } from "vue";
 import { IconPin } from "@tabler/icons-vue";
-import type { DateTimeOffset } from "@argon-chat/ion.webcore";
+import type { IonDateTime } from "@argon-chat/ion.webcore";
 
 const me = useMe();
 const pool = usePoolStore();
@@ -17,7 +17,7 @@ const props = defineProps<{
     userId: string;
     displayName: string;
     lastMessage?: string | null;
-    lastMessageAt?: DateTimeOffset | null;
+    lastMessageAt?: IonDateTime | null;
     isPinned?: boolean;
     status?: UserStatus;
     unreadCount?: number;
@@ -67,9 +67,10 @@ const subtitleText = computed(() => {
 });
 
 const timeAgo = computed(() => {
-    if (!props.lastMessageAt?.date) return "";
+    if (!props.lastMessageAt) return "";
     const now = Date.now();
-    const ts = props.lastMessageAt.date.getTime();
+    // Elapsed time, so only the instant matters — the authored offset plays no part here.
+    const ts = props.lastMessageAt.toDate().getTime();
     const diff = now - ts;
     const min = Math.floor(diff / 60_000);
     if (min < 1) return t("now");
