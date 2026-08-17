@@ -68,6 +68,18 @@ describe("cached datetimes", () => {
     expect(row.profile.registeredAt).toBeNull();
   });
 
+  // Dexie fires `reading` on the raw result of a read, and a `get` for a key that is not cached
+  // resolves to `undefined` — so the hook runs on nothing. Every table is checked, not just the one
+  // that happened to blow up first: `profileCache.get` is simply the busiest miss in the app.
+  test.each([["messages"], ["members"], ["profileCache"]] as const)(
+    "%s tolerates a read that found nothing",
+    (table) => {
+      const db = new PoolDatabase(`probe-miss-${table}`);
+
+      expect(db[table].hook.reading.fire(undefined as any)).toBeUndefined();
+    },
+  );
+
   test("everything else on the row is left alone", () => {
     const db = new PoolDatabase("probe-untouched");
 

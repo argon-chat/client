@@ -97,19 +97,32 @@ export class PoolDatabase extends Dexie {
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
     // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier
     // version is discarded without a warning.
-    this.messages.hook("reading", (row) => {
+    this.messages.hook("reading", onRow((row) => {
       row.timeSent = liveDateTime(row.timeSent);
-      return row;
-    });
-    this.members.hook("reading", (row) => {
+    }));
+    this.members.hook("reading", onRow((row) => {
       row.joinedAt = liveDateTime(row.joinedAt);
-      return row;
-    });
-    this.profileCache.hook("reading", (row) => {
+    }));
+    this.profileCache.hook("reading", onRow((row) => {
       if (row.profile) row.profile.registeredAt = liveDateTime(row.profile.registeredAt);
-      return row;
-    });
+    }));
   }
+}
+
+/**
+ * Wraps a `reading` hook so it only ever sees an actual row.
+ *
+ * Dexie fires `reading` on the raw result of every read, and `Table.get` for a key that is not
+ * there resolves to `undefined` — the hook still runs, on nothing. A hook that reaches straight
+ * for a field therefore throws on a cache miss, which is the single most ordinary thing that can
+ * happen to a cache. The revived row is mutated in place and returned, matching what the hook
+ * contract expects.
+ */
+function onRow<T>(revive: (row: T) => void): (row: T) => T {
+  return (row) => {
+    if (row != null) revive(row);
+    return row;
+  };
 }
 
 /**
