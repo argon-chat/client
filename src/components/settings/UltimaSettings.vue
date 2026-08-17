@@ -229,6 +229,7 @@ import { Badge } from "@argon/ui/badge";
 import { useToast } from "@argon/ui/toast";
 import { Loader2 } from "lucide-vue-next";
 import { useUltimaStore } from "@/store/data/ultimaStore";
+import type { IonDateTime } from "@argon-chat/ion.webcore";
 import {
   UltimaPlan,
   UltimaSubscriptionStatus,
@@ -272,10 +273,12 @@ const subscriptionStatusLabel = computed(() => {
   }
 });
 
-function formatDate(date: unknown): string {
+// `expiresAt` is an IonDateTime now, so the old runtime sniff for a `{ date: Date }` shape
+// would never match again and every date would fall through to the string branch. Rendered on
+// the viewer's clock, as before.
+function formatDate(date: IonDateTime | null | undefined): string {
   if (!date) return "—";
-  // DateTimeOffset has { date: Date, offsetMinutes: number }
-  const d = typeof date === "object" && date !== null && "date" in date ? (date as { date: Date }).date : new Date(date as string);
+  const d = date.toDate();
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }

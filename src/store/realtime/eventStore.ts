@@ -10,6 +10,7 @@ import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useUserStore } from "@/store/data/userStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useArchetypeStore } from "@/store/data/archetypeStore";
+import { useSpaceStore } from "@/store/data/serverStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import {
   type ArgonMessage,
@@ -28,6 +29,8 @@ import {
   type UserUpdated,
   type ArchetypeCreated,
   type ArchetypeChanged,
+  type ArchetypeRemoved,
+  type ArchetypesReordered,
   type ChannelGroup,
   ChannelGroupCreated,
   ChannelGroupModified,
@@ -36,6 +39,8 @@ import {
   ChannelReordered,
   SpaceDetailsUpdated,
   SpaceBoostUpdated,
+  type SpaceDeletionScheduled,
+  type SpaceDeletionCancelled,
   type MeetingCreatedFor,
   type MeetingDeletedFor,
   type ReadStateUpdated,
@@ -58,6 +63,7 @@ export const useEventStore = defineStore("events", () => {
   const channelStore = useChannelStore();
   const archetypeStore = useArchetypeStore();
   const realtimeStore = useRealtimeStore();
+  const spaceStore = useSpaceStore();
 
   const onNewMessageReceived = new Subject<ArgonMessage>();
   const onReactionAdded = new Subject<ReactionAdded & { spaceId: string }>();
@@ -296,6 +302,16 @@ export const useEventStore = defineStore("events", () => {
       void archetypeStore.trackArchetype(x.data);
     });
 
+    bus.onServerEvent<ArchetypeRemoved>("ArchetypeRemoved", (x) => {
+      void archetypeStore.untrackArchetype(x.archetypeId);
+    });
+
+    // The whole hierarchy arrives at once because that is how the server writes it — ranks are
+    // rewritten together so two people dragging cannot interleave.
+    bus.onServerEvent<ArchetypesReordered>("ArchetypesReordered", (x) => {
+      for (const archetype of x.data) void archetypeStore.trackArchetype(archetype);
+    });
+
     bus.onServerEvent<RecordStarted>("RecordStarted", (x) => {
       realtimeStore.startRecording(x.channelId, x.byUserId);
     });
@@ -373,6 +389,16 @@ export const useEventStore = defineStore("events", () => {
           logger.error("Error handling SpaceDetailsUpdated", error);
         }
       })();
+    });
+
+    // Delivered to every member, not just the owner. The grace period only helps the people living
+    // in the space if they are told it started.
+    bus.onServerEvent<SpaceDeletionScheduled>("SpaceDeletionScheduled", (x) => {
+      spaceStore.setDeletionState(x.spaceId, x.state);
+    });
+
+    bus.onServerEvent<SpaceDeletionCancelled>("SpaceDeletionCancelled", (x) => {
+      spaceStore.setDeletionState(x.spaceId, null);
     });
 
     bus.onServerEvent<SpaceBoostUpdated>("SpaceBoostUpdated", (x: SpaceBoostUpdated) => {

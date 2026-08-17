@@ -9,6 +9,8 @@ import {
   ChannelType,
   InviteCode,
   ServerInvites,
+  SpaceDeletionStatus,
+  type SpaceDeletionState,
 } from "@argon/glue";
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
@@ -18,6 +20,27 @@ export const useSpaceStore = defineStore("spaces", () => {
   const isBeginConnect = ref(false);
   const isConnected = ref(false);
   const pool = usePoolStore();
+
+  /**
+   * Spaces with a deletion scheduled, by id.
+   *
+   * Held here rather than in `db.servers` because it is not part of `ArgonSpaceBase` and does not
+   * want to be cached: the countdown is only meaningful live, and a stale row read after the space
+   * is gone would show a date that already passed. Populated by the realtime events and by the
+   * settings screen when it opens.
+   */
+  const scheduledDeletions = ref(new Map<Guid, SpaceDeletionState>());
+
+  const setDeletionState = (spaceId: Guid, state: SpaceDeletionState | null) => {
+    const next = new Map(scheduledDeletions.value);
+
+    if (state === null || state.status === SpaceDeletionStatus.NONE) next.delete(spaceId);
+    else next.set(spaceId, state);
+
+    scheduledDeletions.value = next;
+  };
+
+  const deletionStateOf = (spaceId: Guid) => scheduledDeletions.value.get(spaceId) ?? null;
 
   async function createServer(name: string): Promise<boolean> {
     try {
@@ -107,6 +130,9 @@ export const useSpaceStore = defineStore("spaces", () => {
   return {
     isBeginConnect,
     isConnected,
+    scheduledDeletions,
+    setDeletionState,
+    deletionStateOf,
     joinToServer,
     addChannelToServer,
     deleteChannel,

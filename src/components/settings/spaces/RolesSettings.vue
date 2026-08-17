@@ -561,11 +561,23 @@ async function confirmDeleteArchetype() {
 
   deletingArchetype.value = true;
   try {
-    // TODO: call DeleteArchetype API when backend supports it
-    toast.toast({
-      title: t("fail_save"),
-      variant: "destructive",
-    });
+    const result = await api.archetypeInteraction.DeleteArchetype(
+      selectedArchetype.value.spaceId,
+      selectedArchetype.value.id,
+    );
+
+    if (result.isSuccessDeleteArchetype()) {
+      // Dropped locally as well as on the bus: the deleter should not have to wait for their own
+      // event to come back before the row leaves the list.
+      await pool.untrackArchetype(selectedArchetype.value.id);
+      selectedArchetypeId.value = null;
+      toast.toast({ title: t("saved"), duration: 1000 });
+    } else {
+      toast.toast({ title: t("fail_save"), variant: "destructive" });
+    }
+  } catch (e) {
+    logger.error("failed to delete archetype", e);
+    toast.toast({ title: t("fail_save"), variant: "destructive" });
   } finally {
     deletingArchetype.value = false;
   }

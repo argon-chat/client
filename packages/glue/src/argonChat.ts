@@ -90,7 +90,21 @@ export interface Archetype {
   isDefault: bool;
   iconFileId: string | null;
   entitlement: ArgonEntitlement;
+  order: i4 | null;
 };
+
+
+export enum ArchetypeError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  NO_PERMISSION = 2,
+  IS_DEFAULT = 3,
+  IS_LOCKED = 4,
+  IN_USE = 5,
+  INCOMPLETE_ORDER = 6,
+  INTERNAL_ERROR = 7,
+}
 
 
 export interface BotSearchResult {
@@ -1053,6 +1067,17 @@ export interface AutoDeletePeriod {
 };
 
 
+export interface DataExportStatus {
+  status: DataExportStatusKind;
+  exportId: guid | null;
+  startedAt: datetime | null;
+  completedAt: datetime | null;
+  downloadUrl: string | null;
+  itemsProcessed: i4;
+  totalItemsEstimate: i4;
+};
+
+
 export enum SessionError
 {
   NONE = 0,
@@ -1130,6 +1155,35 @@ export enum AutoDeleteError
   INVALID_PERIOD = 2,
   INTERNAL_ERROR = 3,
 }
+
+
+export enum DataExportStatusKind
+{
+  IDLE = 0,
+  QUEUED = 1,
+  COLLECTING = 2,
+  ASSEMBLING = 3,
+  COMPLETED = 4,
+  EXPIRED = 5,
+  FAILED = 6,
+}
+
+
+export enum DataExportError
+{
+  NONE = 0,
+  ALREADY_IN_PROGRESS = 1,
+  RATE_LIMITED = 2,
+  NOT_CONFIGURED = 3,
+}
+
+
+export interface SpaceDeletionState {
+  status: SpaceDeletionStatus;
+  scheduledAt: datetime | null;
+  executionAt: datetime | null;
+  isCommunity: bool;
+};
 
 
 export interface ArgonSpaceBase {
@@ -1250,6 +1304,25 @@ export interface ArgonUserProfile {
   accentColor: i4 | null;
   registeredAt: datetime | null;
 };
+
+
+export enum SpaceDeletionStatus
+{
+  NONE = 0,
+  SCHEDULED = 1,
+  EXECUTING = 2,
+}
+
+
+export enum SpaceDeletionError
+{
+  NONE = 0,
+  NOT_OWNER = 1,
+  ALREADY_SCHEDULED = 2,
+  NOT_SCHEDULED = 3,
+  ALREADY_EXECUTING = 4,
+  INTERNAL_ERROR = 5,
+}
 
 
 export enum UserStatus
@@ -1714,6 +1787,14 @@ export enum LockdownSeverity
 }
 
 
+export enum LookupError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  NO_ANCHOR = 2,
+}
+
+
 export interface RtcEndpoint {
   endpoint: string;
   ices: IonArray<IceEndpoint>;
@@ -1752,6 +1833,210 @@ export enum DialCheckFailReason
   INSUFFICIENT_POOL = 4,
   UNKNOWN_ERROR = 5,
 }
+
+
+
+export abstract class IDeleteArchetypeResult implements IIonUnion<IDeleteArchetypeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDeleteArchetype(): this is SuccessDeleteArchetype {
+    return this.UnionKey === "SuccessDeleteArchetype";
+  }
+  public isFailedDeleteArchetype(): this is FailedDeleteArchetype {
+    return this.UnionKey === "FailedDeleteArchetype";
+  }
+
+}
+
+
+export class SuccessDeleteArchetype extends IDeleteArchetypeResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessDeleteArchetype";
+  UnionIndex: number = 0;
+}
+
+export class FailedDeleteArchetype extends IDeleteArchetypeResult
+{
+  constructor(public error: ArchetypeError) { super(); }
+
+  UnionKey: string = "FailedDeleteArchetype";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IDeleteArchetypeResult", {
+  read(reader: CborReader): IDeleteArchetypeResult {
+    reader.readStartArray();
+    let value: IDeleteArchetypeResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDeleteArchetype>("SuccessDeleteArchetype").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDeleteArchetype>("FailedDeleteArchetype").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IDeleteArchetypeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDeleteArchetype>("SuccessDeleteArchetype").write(writer, value as SuccessDeleteArchetype);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDeleteArchetype>("FailedDeleteArchetype").write(writer, value as FailedDeleteArchetype);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDeleteArchetype", {
+  read(reader: CborReader): SuccessDeleteArchetype {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessDeleteArchetype();
+  },
+  write(writer: CborWriter, value: SuccessDeleteArchetype): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDeleteArchetype", {
+  read(reader: CborReader): FailedDeleteArchetype {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedDeleteArchetype(error);
+  },
+  write(writer: CborWriter, value: FailedDeleteArchetype): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArchetypeError>('ArchetypeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IReorderArchetypesResult implements IIonUnion<IReorderArchetypesResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessReorderArchetypes(): this is SuccessReorderArchetypes {
+    return this.UnionKey === "SuccessReorderArchetypes";
+  }
+  public isFailedReorderArchetypes(): this is FailedReorderArchetypes {
+    return this.UnionKey === "FailedReorderArchetypes";
+  }
+
+}
+
+
+export class SuccessReorderArchetypes extends IReorderArchetypesResult
+{
+  constructor(public archetypes: IonArray<Archetype>) { super(); }
+
+  UnionKey: string = "SuccessReorderArchetypes";
+  UnionIndex: number = 0;
+}
+
+export class FailedReorderArchetypes extends IReorderArchetypesResult
+{
+  constructor(public error: ArchetypeError) { super(); }
+
+  UnionKey: string = "FailedReorderArchetypes";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IReorderArchetypesResult", {
+  read(reader: CborReader): IReorderArchetypesResult {
+    reader.readStartArray();
+    let value: IReorderArchetypesResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessReorderArchetypes>("SuccessReorderArchetypes").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedReorderArchetypes>("FailedReorderArchetypes").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IReorderArchetypesResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessReorderArchetypes>("SuccessReorderArchetypes").write(writer, value as SuccessReorderArchetypes);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedReorderArchetypes>("FailedReorderArchetypes").write(writer, value as FailedReorderArchetypes);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessReorderArchetypes", {
+  read(reader: CborReader): SuccessReorderArchetypes {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const archetypes = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessReorderArchetypes(archetypes);
+  },
+  write(writer: CborWriter, value: SuccessReorderArchetypes): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<Archetype>(writer, value.archetypes, 'Archetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedReorderArchetypes", {
+  read(reader: CborReader): FailedReorderArchetypes {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedReorderArchetypes(error);
+  },
+  write(writer: CborWriter, value: FailedReorderArchetypes): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArchetypeError>('ArchetypeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
 
 
 
@@ -4391,6 +4676,18 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isMessageDeleted(): this is MessageDeleted {
     return this.UnionKey === "MessageDeleted";
   }
+  public isArchetypeRemoved(): this is ArchetypeRemoved {
+    return this.UnionKey === "ArchetypeRemoved";
+  }
+  public isArchetypesReordered(): this is ArchetypesReordered {
+    return this.UnionKey === "ArchetypesReordered";
+  }
+  public isSpaceDeletionScheduled(): this is SpaceDeletionScheduled {
+    return this.UnionKey === "SpaceDeletionScheduled";
+  }
+  public isSpaceDeletionCancelled(): this is SpaceDeletionCancelled {
+    return this.UnionKey === "SpaceDeletionCancelled";
+  }
 
 }
 
@@ -4891,6 +5188,38 @@ export class MessageDeleted extends IArgonEvent
   UnionIndex: number = 61;
 }
 
+export class ArchetypeRemoved extends IArgonEvent
+{
+  constructor(public spaceId: guid, public archetypeId: guid) { super(); }
+
+  UnionKey: string = "ArchetypeRemoved";
+  UnionIndex: number = 62;
+}
+
+export class ArchetypesReordered extends IArgonEvent
+{
+  constructor(public spaceId: guid, public data: IonArray<Archetype>) { super(); }
+
+  UnionKey: string = "ArchetypesReordered";
+  UnionIndex: number = 63;
+}
+
+export class SpaceDeletionScheduled extends IArgonEvent
+{
+  constructor(public spaceId: guid, public state: SpaceDeletionState) { super(); }
+
+  UnionKey: string = "SpaceDeletionScheduled";
+  UnionIndex: number = 64;
+}
+
+export class SpaceDeletionCancelled extends IArgonEvent
+{
+  constructor(public spaceId: guid) { super(); }
+
+  UnionKey: string = "SpaceDeletionCancelled";
+  UnionIndex: number = 65;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -5025,6 +5354,14 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").read(reader);
     else if (unionIndex == 61)
       value = IonFormatterStorage.get<MessageDeleted>("MessageDeleted").read(reader);
+    else if (unionIndex == 62)
+      value = IonFormatterStorage.get<ArchetypeRemoved>("ArchetypeRemoved").read(reader);
+    else if (unionIndex == 63)
+      value = IonFormatterStorage.get<ArchetypesReordered>("ArchetypesReordered").read(reader);
+    else if (unionIndex == 64)
+      value = IonFormatterStorage.get<SpaceDeletionScheduled>("SpaceDeletionScheduled").read(reader);
+    else if (unionIndex == 65)
+      value = IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").read(reader);
 
     else throw new Error();
   
@@ -5221,6 +5558,18 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 61) {
         IonFormatterStorage.get<MessageDeleted>("MessageDeleted").write(writer, value as MessageDeleted);
+    }
+    else if (value.UnionIndex == 62) {
+        IonFormatterStorage.get<ArchetypeRemoved>("ArchetypeRemoved").write(writer, value as ArchetypeRemoved);
+    }
+    else if (value.UnionIndex == 63) {
+        IonFormatterStorage.get<ArchetypesReordered>("ArchetypesReordered").write(writer, value as ArchetypesReordered);
+    }
+    else if (value.UnionIndex == 64) {
+        IonFormatterStorage.get<SpaceDeletionScheduled>("SpaceDeletionScheduled").write(writer, value as SpaceDeletionScheduled);
+    }
+    else if (value.UnionIndex == 65) {
+        IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").write(writer, value as SpaceDeletionCancelled);
     }
   
     else throw new Error();
@@ -6299,6 +6648,68 @@ IonFormatterStorage.register("MessageDeleted", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArchetypeRemoved", {
+  read(reader: CborReader): ArchetypeRemoved {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const archetypeId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ArchetypeRemoved(spaceId, archetypeId);
+  },
+  write(writer: CborWriter, value: ArchetypeRemoved): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.archetypeId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArchetypesReordered", {
+  read(reader: CborReader): ArchetypesReordered {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const data = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ArchetypesReordered(spaceId, data);
+  },
+  write(writer: CborWriter, value: ArchetypesReordered): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.writeArray<Archetype>(writer, value.data, 'Archetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceDeletionScheduled", {
+  read(reader: CborReader): SpaceDeletionScheduled {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const state = IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SpaceDeletionScheduled(spaceId, state);
+  },
+  write(writer: CborWriter, value: SpaceDeletionScheduled): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').write(writer, value.state);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceDeletionCancelled", {
+  read(reader: CborReader): SpaceDeletionCancelled {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SpaceDeletionCancelled(spaceId);
+  },
+  write(writer: CborWriter, value: SpaceDeletionCancelled): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     writer.writeEndArray();
   }
 });
@@ -9045,6 +9456,312 @@ IonFormatterStorage.register("FailedSetAutoDelete", {
 
 
 
+export abstract class IRequestDataExportResult implements IIonUnion<IRequestDataExportResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRequestDataExport(): this is SuccessRequestDataExport {
+    return this.UnionKey === "SuccessRequestDataExport";
+  }
+  public isFailedRequestDataExport(): this is FailedRequestDataExport {
+    return this.UnionKey === "FailedRequestDataExport";
+  }
+
+}
+
+
+export class SuccessRequestDataExport extends IRequestDataExportResult
+{
+  constructor(public exportId: guid) { super(); }
+
+  UnionKey: string = "SuccessRequestDataExport";
+  UnionIndex: number = 0;
+}
+
+export class FailedRequestDataExport extends IRequestDataExportResult
+{
+  constructor(public error: DataExportError) { super(); }
+
+  UnionKey: string = "FailedRequestDataExport";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRequestDataExportResult", {
+  read(reader: CborReader): IRequestDataExportResult {
+    reader.readStartArray();
+    let value: IRequestDataExportResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRequestDataExport>("SuccessRequestDataExport").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRequestDataExport>("FailedRequestDataExport").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRequestDataExportResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRequestDataExport>("SuccessRequestDataExport").write(writer, value as SuccessRequestDataExport);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRequestDataExport>("FailedRequestDataExport").write(writer, value as FailedRequestDataExport);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRequestDataExport", {
+  read(reader: CborReader): SuccessRequestDataExport {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const exportId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessRequestDataExport(exportId);
+  },
+  write(writer: CborWriter, value: SuccessRequestDataExport): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.exportId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRequestDataExport", {
+  read(reader: CborReader): FailedRequestDataExport {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<DataExportError>('DataExportError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRequestDataExport(error);
+  },
+  write(writer: CborWriter, value: FailedRequestDataExport): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<DataExportError>('DataExportError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRequestDeleteSpaceResult implements IIonUnion<IRequestDeleteSpaceResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRequestDeleteSpace(): this is SuccessRequestDeleteSpace {
+    return this.UnionKey === "SuccessRequestDeleteSpace";
+  }
+  public isFailedRequestDeleteSpace(): this is FailedRequestDeleteSpace {
+    return this.UnionKey === "FailedRequestDeleteSpace";
+  }
+
+}
+
+
+export class SuccessRequestDeleteSpace extends IRequestDeleteSpaceResult
+{
+  constructor(public state: SpaceDeletionState) { super(); }
+
+  UnionKey: string = "SuccessRequestDeleteSpace";
+  UnionIndex: number = 0;
+}
+
+export class FailedRequestDeleteSpace extends IRequestDeleteSpaceResult
+{
+  constructor(public error: SpaceDeletionError) { super(); }
+
+  UnionKey: string = "FailedRequestDeleteSpace";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRequestDeleteSpaceResult", {
+  read(reader: CborReader): IRequestDeleteSpaceResult {
+    reader.readStartArray();
+    let value: IRequestDeleteSpaceResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRequestDeleteSpace>("SuccessRequestDeleteSpace").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRequestDeleteSpace>("FailedRequestDeleteSpace").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: IRequestDeleteSpaceResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRequestDeleteSpace>("SuccessRequestDeleteSpace").write(writer, value as SuccessRequestDeleteSpace);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRequestDeleteSpace>("FailedRequestDeleteSpace").write(writer, value as FailedRequestDeleteSpace);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRequestDeleteSpace", {
+  read(reader: CborReader): SuccessRequestDeleteSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const state = IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessRequestDeleteSpace(state);
+  },
+  write(writer: CborWriter, value: SuccessRequestDeleteSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').write(writer, value.state);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRequestDeleteSpace", {
+  read(reader: CborReader): FailedRequestDeleteSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRequestDeleteSpace(error);
+  },
+  write(writer: CborWriter, value: FailedRequestDeleteSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICancelDeleteSpaceResult implements IIonUnion<ICancelDeleteSpaceResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCancelDeleteSpace(): this is SuccessCancelDeleteSpace {
+    return this.UnionKey === "SuccessCancelDeleteSpace";
+  }
+  public isFailedCancelDeleteSpace(): this is FailedCancelDeleteSpace {
+    return this.UnionKey === "FailedCancelDeleteSpace";
+  }
+
+}
+
+
+export class SuccessCancelDeleteSpace extends ICancelDeleteSpaceResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessCancelDeleteSpace";
+  UnionIndex: number = 0;
+}
+
+export class FailedCancelDeleteSpace extends ICancelDeleteSpaceResult
+{
+  constructor(public error: SpaceDeletionError) { super(); }
+
+  UnionKey: string = "FailedCancelDeleteSpace";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICancelDeleteSpaceResult", {
+  read(reader: CborReader): ICancelDeleteSpaceResult {
+    reader.readStartArray();
+    let value: ICancelDeleteSpaceResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCancelDeleteSpace>("SuccessCancelDeleteSpace").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCancelDeleteSpace>("FailedCancelDeleteSpace").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ICancelDeleteSpaceResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCancelDeleteSpace>("SuccessCancelDeleteSpace").write(writer, value as SuccessCancelDeleteSpace);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCancelDeleteSpace>("FailedCancelDeleteSpace").write(writer, value as FailedCancelDeleteSpace);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCancelDeleteSpace", {
+  read(reader: CborReader): SuccessCancelDeleteSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessCancelDeleteSpace();
+  },
+  write(writer: CborWriter, value: SuccessCancelDeleteSpace): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCancelDeleteSpace", {
+  read(reader: CborReader): FailedCancelDeleteSpace {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCancelDeleteSpace(error);
+  },
+  write(writer: CborWriter, value: FailedCancelDeleteSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ICheckoutResult implements IIonUnion<ICheckoutResult>
 {
   abstract UnionKey: string;
@@ -10293,6 +11010,210 @@ IonFormatterStorage.register("FailedPreview", {
 
 
 
+export abstract class ILookupUserResult implements IIonUnion<ILookupUserResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessLookupUser(): this is SuccessLookupUser {
+    return this.UnionKey === "SuccessLookupUser";
+  }
+  public isFailedLookupUser(): this is FailedLookupUser {
+    return this.UnionKey === "FailedLookupUser";
+  }
+
+}
+
+
+export class SuccessLookupUser extends ILookupUserResult
+{
+  constructor(public user: ArgonUser) { super(); }
+
+  UnionKey: string = "SuccessLookupUser";
+  UnionIndex: number = 0;
+}
+
+export class FailedLookupUser extends ILookupUserResult
+{
+  constructor(public error: LookupError) { super(); }
+
+  UnionKey: string = "FailedLookupUser";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILookupUserResult", {
+  read(reader: CborReader): ILookupUserResult {
+    reader.readStartArray();
+    let value: ILookupUserResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessLookupUser>("SuccessLookupUser").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedLookupUser>("FailedLookupUser").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ILookupUserResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessLookupUser>("SuccessLookupUser").write(writer, value as SuccessLookupUser);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedLookupUser>("FailedLookupUser").write(writer, value as FailedLookupUser);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessLookupUser", {
+  read(reader: CborReader): SuccessLookupUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const user = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessLookupUser(user);
+  },
+  write(writer: CborWriter, value: SuccessLookupUser): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonUser>('ArgonUser').write(writer, value.user);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLookupUser", {
+  read(reader: CborReader): FailedLookupUser {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LookupError>('LookupError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLookupUser(error);
+  },
+  write(writer: CborWriter, value: FailedLookupUser): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LookupError>('LookupError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILookupProfileResult implements IIonUnion<ILookupProfileResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessLookupProfile(): this is SuccessLookupProfile {
+    return this.UnionKey === "SuccessLookupProfile";
+  }
+  public isFailedLookupProfile(): this is FailedLookupProfile {
+    return this.UnionKey === "FailedLookupProfile";
+  }
+
+}
+
+
+export class SuccessLookupProfile extends ILookupProfileResult
+{
+  constructor(public profile: ArgonUserProfile) { super(); }
+
+  UnionKey: string = "SuccessLookupProfile";
+  UnionIndex: number = 0;
+}
+
+export class FailedLookupProfile extends ILookupProfileResult
+{
+  constructor(public error: LookupError) { super(); }
+
+  UnionKey: string = "FailedLookupProfile";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILookupProfileResult", {
+  read(reader: CborReader): ILookupProfileResult {
+    reader.readStartArray();
+    let value: ILookupProfileResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessLookupProfile>("SuccessLookupProfile").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedLookupProfile>("FailedLookupProfile").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ILookupProfileResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessLookupProfile>("SuccessLookupProfile").write(writer, value as SuccessLookupProfile);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedLookupProfile>("FailedLookupProfile").write(writer, value as FailedLookupProfile);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessLookupProfile", {
+  read(reader: CborReader): SuccessLookupProfile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessLookupProfile(profile);
+  },
+  write(writer: CborWriter, value: SuccessLookupProfile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLookupProfile", {
+  read(reader: CborReader): FailedLookupProfile {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LookupError>('LookupError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLookupProfile(error);
+  },
+  write(writer: CborWriter, value: FailedLookupProfile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LookupError>('LookupError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
 {
   abstract UnionKey: string;
@@ -10665,11 +11586,12 @@ IonFormatterStorage.register("Archetype", {
     const isDefault = IonFormatterStorage.get<bool>('bool').read(reader);
     const iconFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const entitlement = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 12);
-    return { id, spaceId, name, description, isMentionable, colour, isHidden, isLocked, isGroup, isDefault, iconFileId, entitlement };
+    const order = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { id, spaceId, name, description, isMentionable, colour, isHidden, isLocked, isGroup, isDefault, iconFileId, entitlement, order };
   },
   write(writer: CborWriter, value: Archetype): void {
-    writer.writeStartArray(12);
+    writer.writeStartArray(13);
     IonFormatterStorage.get<guid>('guid').write(writer, value.id);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
@@ -10682,7 +11604,19 @@ IonFormatterStorage.register("Archetype", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.isDefault);
     IonFormatterStorage.writeNullable<string>(writer, value.iconFileId, 'string');
     IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.entitlement);
+    IonFormatterStorage.writeNullable<i4>(writer, value.order, 'i4');
     writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ArchetypeError", {
+  read(reader: CborReader): ArchetypeError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return ArchetypeError[num] !== undefined ? num as ArchetypeError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: ArchetypeError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
 });
 
@@ -12396,6 +13330,43 @@ IonFormatterStorage.register("Passkey", {
   }
 });
 
+IonFormatterStorage.register("DataExportStatusKind", {
+  read(reader: CborReader): DataExportStatusKind {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return DataExportStatusKind[num] !== undefined ? num as DataExportStatusKind : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: DataExportStatusKind): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DataExportStatus", {
+  read(reader: CborReader): DataExportStatus {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const status = IonFormatterStorage.get<DataExportStatusKind>('DataExportStatusKind').read(reader);
+    const exportId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const startedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const completedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const itemsProcessed = IonFormatterStorage.get<i4>('i4').read(reader);
+    const totalItemsEstimate = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { status, exportId, startedAt, completedAt, downloadUrl, itemsProcessed, totalItemsEstimate };
+  },
+  write(writer: CborWriter, value: DataExportStatus): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<DataExportStatusKind>('DataExportStatusKind').write(writer, value.status);
+    IonFormatterStorage.writeNullable<guid>(writer, value.exportId, 'guid');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.startedAt, 'datetime');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.completedAt, 'datetime');
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.itemsProcessed);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.totalItemsEstimate);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("SessionError", {
   read(reader: CborReader): SessionError {
     const num = (IonFormatterStorage.get<u4>('u4').read(reader))
@@ -12470,6 +13441,48 @@ IonFormatterStorage.register("AutoDeleteError", {
   write(writer: CborWriter, value: AutoDeleteError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DataExportError", {
+  read(reader: CborReader): DataExportError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return DataExportError[num] !== undefined ? num as DataExportError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: DataExportError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SpaceDeletionStatus", {
+  read(reader: CborReader): SpaceDeletionStatus {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return SpaceDeletionStatus[num] !== undefined ? num as SpaceDeletionStatus : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SpaceDeletionStatus): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SpaceDeletionState", {
+  read(reader: CborReader): SpaceDeletionState {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const status = IonFormatterStorage.get<SpaceDeletionStatus>('SpaceDeletionStatus').read(reader);
+    const scheduledAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const executionAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const isCommunity = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { status, scheduledAt, executionAt, isCommunity };
+  },
+  write(writer: CborWriter, value: SpaceDeletionState): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<SpaceDeletionStatus>('SpaceDeletionStatus').write(writer, value.status);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.scheduledAt, 'datetime');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.executionAt, 'datetime');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isCommunity);
+    writer.writeEndArray();
   }
 });
 
@@ -12780,6 +13793,17 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
     writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceDeletionError", {
+  read(reader: CborReader): SpaceDeletionError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return SpaceDeletionError[num] !== undefined ? num as SpaceDeletionError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: SpaceDeletionError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
 });
 
@@ -13502,6 +14526,17 @@ IonFormatterStorage.register("LockdownSeverity", {
   }
 });
 
+IonFormatterStorage.register("LookupError", {
+  read(reader: CborReader): LookupError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return LookupError[num] !== undefined ? num as LookupError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: LookupError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("RtcEndpoint", {
   read(reader: CborReader): RtcEndpoint {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -13587,6 +14622,8 @@ export interface IArchetypeInteraction extends IIonService
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
   GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>>;
   DeleteEntitlementForChannel(spaceId: guid, channelId: guid, entitlementOverwriteId: guid): Promise<bool>;
+  DeleteArchetype(spaceId: guid, archetypeId: guid): Promise<IDeleteArchetypeResult>;
+  ReorderArchetypes(spaceId: guid, ordered: IonArray<guid>): Promise<IReorderArchetypesResult>;
 }
 
 
@@ -13771,6 +14808,9 @@ export interface ISecurityInteraction extends IIonService
   RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
+  RequestDataExport(): Promise<IRequestDataExportResult>;
+  GetDataExportStatus(): Promise<DataExportStatus>;
+  CancelDataExport(): Promise<void>;
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
   CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
@@ -13804,6 +14844,9 @@ export interface IServerInteraction extends IIonService
   BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
+  RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
+  CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
+  GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
 }
 
 
@@ -13842,6 +14885,8 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
+  LookupUser(userId: guid): Promise<ILookupUserResult>;
+  LookupProfile(userId: guid): Promise<ILookupProfileResult>;
   BeginUploadAvatar(): Promise<IUploadFileResult>;
   CompleteUploadAvatar(blobId: guid): Promise<void>;
   GetTodayStats(): Promise<TodayStats>;
@@ -13901,6 +14946,8 @@ export interface IArchetypeInteraction extends IIonService
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
   GetChannelEntitlementOverwrites(spaceId: guid, channelId: guid): Promise<IonArray<ChannelEntitlementOverwrite>>;
   DeleteEntitlementForChannel(spaceId: guid, channelId: guid, entitlementOverwriteId: guid): Promise<bool>;
+  DeleteArchetype(spaceId: guid, archetypeId: guid): Promise<IDeleteArchetypeResult>;
+  ReorderArchetypes(spaceId: guid, ordered: IonArray<guid>): Promise<IReorderArchetypesResult>;
 }
 
 
@@ -14085,6 +15132,9 @@ export interface ISecurityInteraction extends IIonService
   RemovePasskey(passkeyId: guid): Promise<IRemovePasskeyResult>;
   SetAutoDeletePeriod(months: i4 | null): Promise<ISetAutoDeleteResult>;
   GetAutoDeletePeriod(): Promise<AutoDeletePeriod>;
+  RequestDataExport(): Promise<IRequestDataExportResult>;
+  GetDataExportStatus(): Promise<DataExportStatus>;
+  CancelDataExport(): Promise<void>;
   GetSecurityDetails(): Promise<SecurityDetails>;
   BeginValidatePasskey(): Promise<IBeginPasskeyValidateResult>;
   CompleteValidatePasskey(authenticationResponse: string): Promise<ICompletePasskeyResult>;
@@ -14118,6 +15168,9 @@ export interface IServerInteraction extends IIonService
   BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
   CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
+  RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
+  CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
+  GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
 }
 
 
@@ -14156,6 +15209,8 @@ export interface IUserInteraction extends IIonService
   RemoveBroadcastPresence(): Promise<void>;
   GetMyFeatures(): Promise<IonArray<FeatureFlag>>;
   GetMyProfile(): Promise<ArgonUserProfile>;
+  LookupUser(userId: guid): Promise<ILookupUserResult>;
+  LookupProfile(userId: guid): Promise<ILookupProfileResult>;
   BeginUploadAvatar(): Promise<IUploadFileResult>;
   CompleteUploadAvatar(blobId: guid): Promise<void>;
   GetTodayStats(): Promise<TodayStats>;
@@ -14335,6 +15390,34 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async DeleteArchetype(spaceId: guid, archetypeId: guid): Promise<IDeleteArchetypeResult> {
+    const req = new IonRequest(this.ctx, "IArchetypeInteraction", "DeleteArchetype");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, archetypeId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IDeleteArchetypeResult>("IDeleteArchetypeResult", writer.data, this.signal);
+  }
+  async ReorderArchetypes(spaceId: guid, ordered: IonArray<guid>): Promise<IReorderArchetypesResult> {
+    const req = new IonRequest(this.ctx, "IArchetypeInteraction", "ReorderArchetypes");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.writeArray<guid>(writer, ordered, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IReorderArchetypesResult>("IReorderArchetypesResult", writer.data, this.signal);
   }
 
 }
@@ -15933,6 +17016,45 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
           
     return await req.callAsyncT<AutoDeletePeriod>("AutoDeletePeriod", writer.data, this.signal);
   }
+  async RequestDataExport(): Promise<IRequestDataExportResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "RequestDataExport");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRequestDataExportResult>("IRequestDataExportResult", writer.data, this.signal);
+  }
+  async GetDataExportStatus(): Promise<DataExportStatus> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetDataExportStatus");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<DataExportStatus>("DataExportStatus", writer.data, this.signal);
+  }
+  async CancelDataExport(): Promise<void> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "CancelDataExport");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
   async GetSecurityDetails(): Promise<SecurityDetails> {
     const req = new IonRequest(this.ctx, "ISecurityInteraction", "GetSecurityDetails");
           
@@ -16294,6 +17416,45 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IonArray<ChannelGroup>>("IonArray<ChannelGroup>", writer.data, this.signal);
   }
+  async RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "RequestDeleteSpace");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRequestDeleteSpaceResult>("IRequestDeleteSpaceResult", writer.data, this.signal);
+  }
+  async CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "CancelDeleteSpace");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICancelDeleteSpaceResult>("ICancelDeleteSpaceResult", writer.data, this.signal);
+  }
+  async GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetSpaceDeletionState");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SpaceDeletionState>("SpaceDeletionState", writer.data, this.signal);
+  }
 
 }
 
@@ -16605,6 +17766,32 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<ArgonUserProfile>("ArgonUserProfile", writer.data, this.signal);
+  }
+  async LookupUser(userId: guid): Promise<ILookupUserResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "LookupUser");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILookupUserResult>("ILookupUserResult", writer.data, this.signal);
+  }
+  async LookupProfile(userId: guid): Promise<ILookupProfileResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "LookupProfile");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILookupProfileResult>("ILookupProfileResult", writer.data, this.signal);
   }
   async BeginUploadAvatar(): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IUserInteraction", "BeginUploadAvatar");

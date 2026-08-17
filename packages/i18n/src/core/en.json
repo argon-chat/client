@@ -1473,5 +1473,10 @@
   "recording": "Recording",
   "ui_scale": "Interface scale",
   "ui_scale_desc": "Make the whole interface larger or smaller (requires a restart)",
-  "line_height_normal": "Normal"
+  "line_height_normal": "Normal",
+  "server_deletion_scheduled": "Deletion scheduled",
+  "server_deletion_scheduled_desc": "This space will be deleted on {date}. You can cancel any time before then.",
+  "server_deletion_cancelled": "Deletion cancelled",
+  "server_deletion_cancelled_desc": "This space is no longer scheduled for deletion.",
+  "cancel_server_deletion": "Cancel deletion"
 }

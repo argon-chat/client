@@ -388,6 +388,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     refreshAllArchetypesForServer: archetypeStore.refreshAllArchetypesForServer,
     getDetailedArchetypesAndRefreshDb: archetypeStore.getDetailedArchetypesAndRefreshDb,
     trackArchetype: archetypeStore.trackArchetype,
+    untrackArchetype: archetypeStore.untrackArchetype,
     trackMember: archetypeStore.trackMember,
     getMemberIdsByUserIds: archetypeStore.getMemberIdsByUserIds,
     getMemberIdsByUserIdsQuery: archetypeStore.getMemberIdsByUserIdsQuery,

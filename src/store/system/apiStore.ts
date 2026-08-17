@@ -71,6 +71,29 @@ export class LocaleInterceptor implements IonInterceptor {
   }
 }
 
+/**
+ * Carries a device proof to the one call that needs it.
+ *
+ * Only the refresh asks for proof of possession, and obtaining one costs a round trip of its own —
+ * so it cannot ride on every request, and it especially cannot ride on the call that fetches the
+ * challenge, which would recurse forever. The value is set for the duration of one call and cleared
+ * straight after.
+ */
+export const deviceProof = { pending: null as string | null };
+
+export class DeviceProofInterceptor implements IonInterceptor {
+  async invokeAsync(
+    ctx: IonCallContext,
+    next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    if (deviceProof.pending) {
+      ctx.requestHeaders = { ...ctx.requestHeaders, "Sec-Proof": deviceProof.pending };
+    }
+    await next(ctx, signal);
+  }
+}
+
 export const useApi = defineStore("api", () => {
   const cfg = useConfig();
   const authLazy = lazy(() => useAuthStore());
@@ -82,7 +105,7 @@ export const useApi = defineStore("api", () => {
 
   const rpcClient = computed(() => {
     void rpcEpoch.value;
-    return createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy), new LocaleInterceptor()]);
+    return createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy), new LocaleInterceptor(), new DeviceProofInterceptor()]);
   });
 
   function recycleClient() {

@@ -465,8 +465,9 @@ onMounted(async () => {
       .equals([props.userId, pool.selectedServer])
       .first();
     if (member?.joinedAt) {
-      const joinedDate = (member.joinedAt as any)?.date ?? member.joinedAt;
-      memberJoinedAt.value = new Date(joinedDate);
+      // Read straight off the entity: the row comes from Dexie, whose reading hook has already put
+      // IonDateTime's prototype back. The old `?.date` sniff was for the previous glue's shape.
+      memberJoinedAt.value = member.joinedAt.toDate();
     }
   }
 

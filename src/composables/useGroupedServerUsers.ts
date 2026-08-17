@@ -108,6 +108,9 @@ export function useGroupedServerUsers(serverId: Ref<Guid | null | undefined>) {
           entitlement: ArgonEntitlement.None,
           isDefault: false,
           iconFileId: null,
+          // Not a real archetype and never ranked by anyone: this bucket and "Offline" below are
+          // appended in a fixed position by the loop above, not sorted by rank.
+          order: null,
         },
         users: ungroupedUsers,
       });
@@ -128,6 +131,7 @@ export function useGroupedServerUsers(serverId: Ref<Guid | null | undefined>) {
           entitlement: ArgonEntitlement.None,
           isDefault: false,
           iconFileId: null,
+          order: null,
         },
         users: offlineUsers,
       });

@@ -138,14 +138,23 @@
             <h4 class="danger-action-title">{{ t("delete_server") }}</h4>
             <p class="danger-action-desc">{{ t("delete_server_desc") }}</p>
 
-            <button class="danger-btn" disabled @click="showDeleteServerDialog = true">
+            <!-- Once scheduled the button would be a second countdown to nowhere: what the owner
+                 needs from here on is the date and a way out of it. -->
+            <template v-if="isDeletionScheduled">
+              <p class="danger-action-desc">
+                {{ t("server_deletion_scheduled_desc", {
+                  date: deletionState?.executionAt?.toDate().toLocaleString() ?? "",
+                }) }}
+              </p>
+              <button class="danger-btn" :disabled="isDeletingServer" @click="cancelServerDeletion">
+                <span>{{ t("cancel_server_deletion") }}</span>
+              </button>
+            </template>
+
+            <button v-else class="danger-btn" @click="showDeleteServerDialog = true">
               <TrashIcon class="w-4 h-4" />
               <span>{{ t("delete_server") }}</span>
             </button>
-            <p class="danger-lock">
-              <LockIcon class="w-3.5 h-3.5" />
-              {{ t("temporarily_unavailable") }}
-            </p>
           </div>
         </div>
       </div>
@@ -201,15 +210,15 @@ import {
   BarChart3Icon,
   SlidersHorizontalIcon,
   RocketIcon,
-  LockIcon,
   Loader2,
 } from "lucide-vue-next";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import type { IonDateTime } from "@argon-chat/ion.webcore";
-import type { SpaceStats } from "@argon/glue";
+import { SpaceDeletionStatus, type SpaceStats } from "@argon/glue";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
 import ServerHeaderUploader from "./ServerHeaderUploader.vue";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useSpaceStore } from "@/store/data/serverStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";
@@ -219,6 +228,7 @@ import { db } from "@/store/db/dexie";
 
 const { t } = useLocale();
 const pool = usePoolStore();
+const spaces = useSpaceStore();
 const pex = usePexStore();
 const api = useApi();
 const { toast } = useToast();
@@ -326,9 +336,22 @@ async function confirmDeleteServer() {
   if (!currentSpace.value || deleteConfirmationName.value !== currentSpace.value.name) return;
   isDeletingServer.value = true;
   try {
-    // TODO: wire DeleteSpace RPC once available on the server.
-    toast({ title: t("server_deleted"), description: t("server_deleted_desc") });
-    showDeleteServerDialog.value = false;
+    const result = await api.serverInteraction.RequestDeleteSpace(currentSpace.value.spaceId);
+
+    if (result.isSuccessRequestDeleteSpace()) {
+      spaces.setDeletionState(currentSpace.value.spaceId, result.state);
+      // Deliberately not "deleted": the space is still here, and saying otherwise would send the
+      // owner away thinking it was gone while every member still sees it.
+      toast({
+        title: t("server_deletion_scheduled"),
+        description: t("server_deletion_scheduled_desc", {
+          date: result.state.executionAt?.toDate().toLocaleString() ?? "",
+        }),
+      });
+      showDeleteServerDialog.value = false;
+    } else {
+      toast({ title: t("error"), description: t("failed_to_delete_server"), variant: "destructive" });
+    }
   } catch {
     toast({ title: t("error"), description: t("failed_to_delete_server"), variant: "destructive" });
   } finally {
@@ -336,7 +359,46 @@ async function confirmDeleteServer() {
   }
 }
 
-onMounted(loadStats);
+// Read from the store rather than a local ref: SpaceDeletionScheduled/Cancelled arrive on the bus
+// and have to move this screen too, including when somebody else's client started the clock.
+const deletionState = computed(() =>
+  currentSpace.value ? spaces.deletionStateOf(currentSpace.value.spaceId) : null,
+);
+
+const isDeletionScheduled = computed(
+  () => deletionState.value?.status === SpaceDeletionStatus.SCHEDULED,
+);
+
+async function cancelServerDeletion() {
+  if (!currentSpace.value) return;
+  isDeletingServer.value = true;
+  try {
+    const result = await api.serverInteraction.CancelDeleteSpace(currentSpace.value.spaceId);
+
+    if (result.isSuccessCancelDeleteSpace()) {
+      spaces.setDeletionState(currentSpace.value.spaceId, null);
+      toast({
+        title: t("server_deletion_cancelled"),
+        description: t("server_deletion_cancelled_desc"),
+      });
+    } else {
+      toast({ title: t("error"), variant: "destructive" });
+    }
+  } finally {
+    isDeletingServer.value = false;
+  }
+}
+
+async function loadDeletionState() {
+  if (!currentSpace.value) return;
+  const state = await api.serverInteraction.GetSpaceDeletionState(currentSpace.value.spaceId);
+  spaces.setDeletionState(currentSpace.value.spaceId, state);
+}
+
+onMounted(async () => {
+  await loadStats();
+  await loadDeletionState();
+});
 </script>
 
 <style scoped>

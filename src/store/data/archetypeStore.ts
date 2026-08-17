@@ -72,6 +72,15 @@ export const useArchetypeStore = defineStore("archetype", () => {
   };
 
   /**
+   * Drop an archetype from the cache. Called from the realtime bus as well as after a local
+   * delete: the row has to go on every client, not just the one that pressed the button, or the
+   * member list keeps grouping people under a role that no longer exists.
+   */
+  const untrackArchetype = async (archetypeId: Guid) => {
+    await db.archetypes.delete(archetypeId);
+  };
+
+  /**
    * Add/update server member
    */
   const trackMember = async (member: SpaceMember) => {
@@ -195,6 +204,7 @@ export const useArchetypeStore = defineStore("archetype", () => {
     refreshAllArchetypesForServer,
     getDetailedArchetypesAndRefreshDb,
     trackArchetype,
+    untrackArchetype,
     trackMember,
     getMemberIdsByUserIds,
     getMemberIdsByUserIdsQuery,

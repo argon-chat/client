@@ -425,27 +425,21 @@ export const useUserStore = defineStore("user", () => {
     if (updated === 0) {
       logger.warn(`User ${userId} not found for status update, fetching from server...`);
       
-      // Try to fetch user from server (parallel requests, limit to first 5 servers)
+      // One call, not a shotgun across the first five servers. PrefetchUser needs a space id, so
+      // this used to guess which space the two of you shared and fire five requests hoping one
+      // landed — capped at five, so a user in the sixth was silently unresolvable. LookupUser takes
+      // the user id alone and lets the server find the relationship, whichever one it is.
       try {
-        const servers = await db.servers.limit(5).toArray();
-        
-        // Parallel fetch from multiple servers
-        const results = await Promise.allSettled(
-          servers.map(server => api.serverInteraction.PrefetchUser(server.spaceId, userId))
-        );
-        
-        // Find first successful result
-        for (let i = 0; i < results.length; i++) {
-          const result = results[i];
-          if (result.status === 'fulfilled' && result.value) {
-            await trackUser(result.value, status);
-            logger.info(`Successfully fetched and updated user ${userId} from server ${servers[i].spaceId}`);
-            return;
-          }
+        const result = await api.userInteraction.LookupUser(userId);
+
+        if (result.isSuccessLookupUser()) {
+          await trackUser(result.user, status);
+          return;
         }
-        
-        // Failed to fetch - ignore this user in future
-        logger.error(`Failed to fetch user ${userId} from any server, ignoring future updates`);
+
+        // NO_ANCHOR is a real answer, not a failure to reach: this account has no standing reason
+        // to know that one, so there is nothing to retry and no point asking again.
+        logger.warn(`Cannot resolve user ${userId}, ignoring future updates`);
         ignoredUsers.add(userId);
       } catch (err) {
         logger.error(`Error fetching user ${userId}:`, err);

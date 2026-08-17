@@ -292,8 +292,10 @@
                 </Button>
               </div>
 
-              <!-- Email Display -->
-              <div class="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/20">
+              <!-- Email Display. Gated like the phone block above: with no address on file there
+                   is nothing to mask, and the "verified" caption below would be claiming something
+                   about a blank. -->
+              <div v-if="userEmail" class="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/20">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
                     <MailIcon class="w-5 h-5 text-purple-500" />
@@ -1156,7 +1158,9 @@ const passkeyManager = new PasskeyManager(passkeyApiCallbacks);
 
 
 // Email State
-const userEmail = ref("user@example.com"); // TODO: Load from API
+// Empty until GetSecurityDetails answers in onMounted, and empty again if the account has no
+// address on file. Never a stand-in address: a plausible-looking one reads as "this is your email".
+const userEmail = ref("");
 const showChangeEmailDialog = ref(false);
 const showEmailVerificationDialog = ref(false);
 const newEmail = ref("");
@@ -1178,7 +1182,7 @@ const validateEmail = computed(() => {
 });
 
 // Phone State
-const userPhone = ref(""); // TODO: Load from API
+const userPhone = ref("");
 const showChangePhoneDialog = ref(false);
 const showPhoneVerificationDialog = ref(false);
 const showRemovePhoneDialog = ref(false);
@@ -1888,7 +1892,7 @@ const changePassword = async () => {
 };
 
 const maskEmail = (email: string) => {
-  if (!email || email === "user@example.com") return email;
+  if (!email) return email;
   const [local, domain] = email.split("@");
   if (!domain) return email;
   
@@ -1947,7 +1951,7 @@ onMounted(async () => {
       ? details.autoDeletePeriod.months.toString()
       : "disabled";
 
-    userEmail.value = details.email ?? "user@example.com";
+    userEmail.value = details.email ?? "";
     userPhone.value = details.phone ?? "";
 
     bus.onServerEvent<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated", (event) => {
@@ -1964,7 +1968,7 @@ onMounted(async () => {
           ? event.details.autoDeletePeriod.months.toString()
           : "disabled";
 
-        userEmail.value = event.details.email ?? "user@example.com";
+        userEmail.value = event.details.email ?? "";
         userPhone.value = event.details.phone ?? "";
       }
     });

@@ -1,6 +1,6 @@
 import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile } from "@argon/glue";
-import { Guid } from "@argon-chat/ion.webcore";
-import Dexie, { type Table } from "dexie";
+import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
+import Dexie, { type Table, type Transaction } from "dexie";
 
 /** ArgonMessage with a numeric _msgId for IndexedDB indexing (bigint can't be an IDB key) */
 export type StoredMessage = ArgonMessage & { _msgId: number };
@@ -84,7 +84,60 @@ export class PoolDatabase extends Dexie {
     // cross-region URL there forever. URLs are now region-agnostic (resolved per-fetch by the server
     // geo-redirect), so we drop the stale cache and let it refill clean on next channel open.
     this.version(4).stores({}).upgrade((tx) => tx.table("messages").clear());
+    // v5: everything the glue writes changed shape when ion moved `datetime` from
+    // `{ date: Date; offsetMinutes: number }` to `IonDateTime`, and rows written under the old
+    // contract cannot be read under the new one.
+    //
+    // The standing policy from here on: a version bump empties the whole cache rather than
+    // migrating it. Every table is a cache of server state and refills on the next open, so the
+    // cost is one cold start, and that is cheaper than a per-table upgrade path that has to be
+    // right about a contract that has already moved on.
+    this.version(5).stores({}).upgrade(purgeEverything);
+
+    // Registered after the last `stores()` call on purpose: `Version.stores()` runs
+    // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier
+    // version is discarded without a warning.
+    this.messages.hook("reading", (row) => {
+      row.timeSent = liveDateTime(row.timeSent);
+      return row;
+    });
+    this.members.hook("reading", (row) => {
+      row.joinedAt = liveDateTime(row.joinedAt);
+      return row;
+    });
+    this.profileCache.hook("reading", (row) => {
+      if (row.profile) row.profile.registeredAt = liveDateTime(row.profile.registeredAt);
+      return row;
+    });
   }
+}
+
+/**
+ * Rebuilds an `IonDateTime` that IndexedDB flattened on the way out. Null and already-live values
+ * pass through untouched.
+ *
+ * IndexedDB persists values with the structured clone algorithm, which copies own properties and
+ * drops the prototype. `IonDateTime` keeps its entire surface there — `toDate`, `toOffset`,
+ * `toString` — so without this a cached row comes back holding the right numbers and answers
+ * `timeSent.toDate is not a function` at the first call site. The type checker cannot see it: the
+ * value written and the value read have the same declared type.
+ *
+ * The cache is not what changed; the contract is. The previous glue spelled a datetime
+ * `{ date: Date; offsetMinutes: number }` — plain data, which survived the round trip intact.
+ */
+function liveDateTime<T>(value: T): T {
+  if (value == null || value instanceof IonDateTime) return value;
+
+  const flat = value as unknown as IonDateTime;
+  return new IonDateTime(flat.unixTicks, flat.offsetMinutes) as unknown as T;
+}
+
+/**
+ * Empties every store in the transaction. Written against `tx.storeNames` rather than a list, so a
+ * table added later is purged too without anyone having to remember this function exists.
+ */
+function purgeEverything(tx: Transaction): Promise<unknown> {
+  return Promise.all(tx.storeNames.map((store) => tx.table(store).clear()));
 }
 
 // Drop old database before creating new one
