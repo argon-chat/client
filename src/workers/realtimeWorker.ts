@@ -22,6 +22,7 @@ import { CborReader, IonFormatterStorage } from "@argon-chat/ion.webcore";
 import "@argon-chat/ion.webcore";
 import { EventBus_Executor } from "@argon/glue";
 import type { IArgonEvent } from "@argon/glue";
+import { DeliveryFilter } from "./streamDelivery";
 
 // --- Token request management ---
 let tokenRequestId = 0;
@@ -72,48 +73,34 @@ let shouldReconnect = true;
 // start(). Drives capped exponential backoff + jitter so clients don't reconnect in lockstep.
 let hardReconnectAttempts = 0;
 
-// --- Replay cursors ---
-// Last stream entry id we processed per delivery channel. On reconnect we hand these to
-// the server (Resume) so it can re-send anything we missed during the gap. They live for
-// the worker's lifetime — a transient drop or a hard close→reconnect keeps the same worker,
-// so the cursors survive; a full teardown (terminate) intentionally resets them.
-let userCursor: string | null = null;
-const spaceCursors = new Map<string, string>();
+// --- Replay state ---
+// One DeliveryFilter per delivery channel: it decides what to hand the main thread, and holds the
+// cursor we give the server on reconnect (Resume) so it can re-send anything we missed during the
+// gap. They live for the worker's lifetime — a transient drop or a hard close→reconnect keeps the
+// same worker, so they survive; a full teardown (terminate) intentionally resets them.
+const userDelivery = new DeliveryFilter();
+const spaceDelivery = new Map<string, DeliveryFilter>();
+
+function deliveryFor(spaceId: string): DeliveryFilter {
+  let filter = spaceDelivery.get(spaceId);
+  if (!filter) spaceDelivery.set(spaceId, (filter = new DeliveryFilter()));
+  return filter;
+}
+
 // Channel delivery groups this client wants to be in. SignalR groups are per-connection, so the
 // server-side membership is lost on every reconnect — we re-join all of these on (re)connect.
 // Updated by the subscribeChannel/unsubscribeChannel messages from the main thread.
 const subscribedChannels = new Set<string>();
 let hasConnectedBefore = false;
 
-// Compare Redis stream ids of the form "<unixMs>-<seq>". Returns <0, 0, >0.
-function compareStreamIds(a: string, b: string): number {
-  const ai = a.indexOf("-");
-  const bi = b.indexOf("-");
-  const aMs = Number(a.slice(0, ai));
-  const bMs = Number(b.slice(0, bi));
-  if (aMs !== bMs) return aMs < bMs ? -1 : 1;
-  const aSeq = Number(a.slice(ai + 1));
-  const bSeq = Number(b.slice(bi + 1));
-  if (aSeq !== bSeq) return aSeq < bSeq ? -1 : 1;
-  return 0;
-}
-
-// Returns false if the entry id is not newer than what we've already applied (duplicate,
-// e.g. a replayed event that also arrived live). Advances the cursor when it is newer.
-function advanceCursor(get: () => string | null, set: (id: string) => void, entryId: string): boolean {
-  const cur = get();
-  if (cur && compareStreamIds(entryId, cur) <= 0) return false;
-  set(entryId);
-  return true;
-}
-
 async function resumeSession() {
   if (!hubConnection) return;
   try {
     const spaceCursorsObj: Record<string, string> = {};
-    for (const [k, v] of spaceCursors) spaceCursorsObj[k] = v;
+    for (const [spaceId, filter] of spaceDelivery)
+      if (filter.cursor) spaceCursorsObj[spaceId] = filter.cursor;
 
-    const ack: any = await hubConnection.invoke("Resume", userCursor, spaceCursorsObj);
+    const ack: any = await hubConnection.invoke("Resume", userDelivery.cursor, spaceCursorsObj);
     const needFull = ack?.needFullResync ?? ack?.NeedFullResync ?? false;
     if (needFull) {
       postLog("warn", "Resume reported a gap — full resync required");
@@ -193,9 +180,9 @@ async function connect(endpoint: string) {
     hubConnection.on("forSelf", (data: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        // Skip duplicates (a replayed event that also arrived live); advance the cursor.
-        if (entryId && !advanceCursor(() => userCursor, (id) => (userCursor = id), entryId))
-          return;
+        // Skip duplicates (a replayed event that also arrived live), but nothing else — an event
+        // that simply arrives late still has to be shown.
+        if (entryId && !userDelivery.accept(entryId)) return;
         const event = decodeEvent(data);
         self.postMessage({ type: "event", channel: "forSelf", event });
       } catch (e: any) {
@@ -206,9 +193,7 @@ async function connect(endpoint: string) {
     hubConnection.on("broadcastSpace", (data: string, spaceId?: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        if (spaceId && entryId &&
-            !advanceCursor(() => spaceCursors.get(spaceId) ?? null, (id) => spaceCursors.set(spaceId, id), entryId))
-          return;
+        if (spaceId && entryId && !deliveryFor(spaceId).accept(entryId)) return;
         const event = decodeEvent(data);
         self.postMessage({ type: "event", channel: "broadcastSpace", event });
       } catch (e: any) {

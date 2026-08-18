@@ -1,4 +1,4 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile } from "@argon/glue";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type SpaceVersions } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import Dexie, { type Table, type Transaction } from "dexie";
 
@@ -38,6 +38,21 @@ export function toStoredMessage(msg: ArgonMessage): StoredMessage {
   return { ...msg, _msgId: Number(msg.messageId) };
 }
 
+/**
+ * The server's own version tokens for one space's cached parts, kept so the next bootstrap can say
+ * what it already has and be sent only what moved.
+ *
+ * The tokens are opaque — nothing here reads one, it is stored exactly as given and handed straight
+ * back. A row is only written once every part of that same answer landed in its table, because a
+ * token that outlives the data it describes is worse than no token: the server would answer "you
+ * already have it" about rows that are not there. For the same reason this table is emptied with
+ * every other one, never on its own.
+ */
+export interface StoredSpaceVersions {
+  spaceId: Guid;
+  versions: SpaceVersions;
+}
+
 export interface CachedProfile {
   key: string; // `${spaceId}:${userId}`
   spaceId: string;
@@ -55,6 +70,7 @@ export class PoolDatabase extends Dexie {
   archetypes!: Table<Archetype, Guid>;
   members!: Table<SpaceMember, Guid>;
   profileCache!: Table<CachedProfile, string>;
+  spaceVersions!: Table<StoredSpaceVersions, Guid>;
 
   constructor(name: string) {
     super(name);
@@ -93,6 +109,12 @@ export class PoolDatabase extends Dexie {
     // cost is one cold start, and that is cheaper than a per-table upgrade path that has to be
     // right about a contract that has already moved on.
     this.version(5).stores({}).upgrade(purgeEverything);
+    // v6: per-space version tokens for the bootstrap snapshot. Purges like every other bump — the
+    // new table starts empty either way, and arriving with no tokens is exactly the case the
+    // server already handles (it sends everything).
+    this.version(6).stores({
+      spaceVersions: "spaceId",
+    }).upgrade(purgeEverything);
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
     // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier

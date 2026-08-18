@@ -12,9 +12,9 @@ import { useMessageStore } from "@/store/data/messageStore";
 import { db } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
-import { ChannelType, UserStatus, type ArgonSpaceBase, type ArgonUser, type RealtimeChannel, type RealtimeServerMember } from "@argon/glue";
+import { ChannelType, UserStatus, type ArgonSpaceBase, type ArgonUser, type MemberPresence, type RealtimeChannel, type SpaceMember, type SpaceSnapshot, type SpaceVersions } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
-import { liveQuery, type Subscription } from "dexie";
+import { liveQuery, type IndexableType, type Subscription, type Table } from "dexie";
 
 /**
  * Refactored Pool Store - coordinator between specialized stores
@@ -87,7 +87,114 @@ export const usePoolStore = defineStore("data-pool", () => {
   };
 
   /**
-   * Load details for a single server with parallel API calls
+   * What the server already knows we hold for a space, so it can answer with only what moved.
+   *
+   * `channels` is deliberately dropped on the way out and never sent back. The channel part of a
+   * snapshot carries each voice channel's live occupancy, but its version covers only the channel
+   * rows and the caller's roles — so a matching version answers "your channel list is current" by
+   * sending no channels, and with them no occupancy, leaving voice channels looking empty until
+   * somebody joins or leaves one. Members, roles and groups are the bulk of the answer and stay
+   * versioned.
+   */
+  const knownVersions = async (spaceId: Guid): Promise<SpaceVersions | null> => {
+    const stored = await db.spaceVersions.get(spaceId);
+    return stored ? { ...stored.versions, channels: null } : null;
+  };
+
+  /** One line per space at startup: what the snapshot actually carried. */
+  const describeSnapshot = (snapshot: SpaceSnapshot | null): string => {
+    if (!snapshot) return "unavailable";
+
+    const part = (name: string, value: { length: number } | null) =>
+      `${name} ${value ? value.length : "unchanged"}`;
+
+    return [
+      part("members", snapshot.members),
+      part("channels", snapshot.channels),
+      part("groups", snapshot.groups),
+      part("roles", snapshot.archetypes),
+    ].join(", ");
+  };
+
+  /**
+   * Replaces a space's slice of a table with the list the server just sent.
+   *
+   * A part that arrives is the whole part — an empty one means the space genuinely has none of that
+   * thing — so whatever is left over locally is a member who left, a role that was deleted or a
+   * group that was removed while we were away. Now that a cached part can be kept on its version
+   * instead of being re-downloaded every start, nothing else would ever clear those rows.
+   *
+   * The surviving keys are read back off the `spaceId` index rather than filtered with `noneOf`, so
+   * the work is one key-only scan instead of an exclusion set the size of the roster.
+   */
+  const replaceSpaceRows = async <T, K extends IndexableType>(
+    table: Table<T, K>,
+    spaceId: Guid,
+    rows: T[],
+    keyOf: (row: T) => K,
+  ) => {
+    if (rows.length > 0) await table.bulkPut(rows);
+
+    const keep = new Set(rows.map(keyOf));
+    const stale = (await table.where("spaceId").equals(spaceId).primaryKeys()).filter(key => !keep.has(key));
+
+    if (stale.length > 0) {
+      await table.bulkDelete(stale);
+      logger.warn(`[PoolStore] Pruned ${stale.length} stale ${table.name} rows for ${spaceId}`);
+    }
+  };
+
+  /**
+   * userId -> identity for the roster of a space: from the snapshot when it sent one, from the cache
+   * when it did not.
+   */
+  const rosterUsers = async (spaceId: Guid, members: SpaceMember[] | null): Promise<Map<Guid, ArgonUser>> => {
+    const roster = members ?? await db.members.where("spaceId").equals(spaceId).toArray();
+    return new Map(roster.filter(m => m.user).map(m => [m.userId, m.user] as const));
+  };
+
+  /**
+   * Writes the user rows for a space. Identity comes from the roster when the server sent one;
+   * status and activity always come from presence, which is its own call for the same reason it is
+   * its own call on the server — presence moves every few seconds, so a version over it would never
+   * match.
+   *
+   * Returns false when the roster did not come and the cached user rows it stands for are not all
+   * there. That combination means the cache and its version token disagree, and the token is the one
+   * that has to go: dropping it costs one full bootstrap and repairs the cache.
+   */
+  const writeUsers = async (members: SpaceMember[] | null, presence: MemberPresence[] | null): Promise<boolean> => {
+    const byId = new Map((presence ?? []).map(p => [p.userId, p]));
+
+    if (members) {
+      const rows = members
+        .filter(m => m.user)
+        .map(m => ({
+          ...m.user,
+          status: byId.get(m.userId)?.status ?? UserStatus.Offline,
+          activity: byId.get(m.userId)?.activity ?? undefined,
+        }));
+
+      if (rows.length > 0) await db.users.bulkPut(rows);
+      return true;
+    }
+
+    if (!presence || presence.length === 0) return true;
+
+    const updated = await db.users.bulkUpdate(presence.map(p => ({
+      key: p.userId,
+      changes: { status: p.status, activity: p.activity ?? undefined },
+    })));
+
+    return updated === presence.length;
+  };
+
+  /**
+   * Load details for a single server: one versioned snapshot, plus presence alongside it.
+   *
+   * The snapshot is what used to be four independent calls (roles, members, channels, groups). Every
+   * part of it is versioned, so a client that already holds a part is told so instead of being sent
+   * the whole space again — which is what a client is on every sign-in after the first.
    */
   const loadSingleServerDetails = async (server: ArgonSpaceBase): Promise<Guid[]> => {
     const startTime = performance.now();
@@ -97,74 +204,52 @@ export const usePoolStore = defineStore("data-pool", () => {
     let memberUserIds: Guid[] = [];
 
     try {
-      // Parallel fetch all server data
-      const [archetypesResult, membersResult, channelsResult, groupsResult] = await Promise.allSettled([
-        api.serverInteraction.GetServerArchetypes(spaceId),
-        api.serverInteraction.GetMembers(spaceId),
-        api.serverInteraction.GetChannels(spaceId),
-        api.serverInteraction.GetChannelGroups(spaceId),
+      const [snapshotResult, presenceResult] = await Promise.allSettled([
+        api.serverInteraction.GetSpaceSnapshot(spaceId, await knownVersions(spaceId)),
+        api.serverInteraction.GetMemberPresence(spaceId),
       ]);
 
-      // Process archetypes
-      const serverArchetypes = archetypesResult.status === 'fulfilled' ? archetypesResult.value : [];
-      if (archetypesResult.status === 'rejected') {
-        logger.error(archetypesResult.reason, "failed receive archetypes for server", spaceId);
-      } else {
-        logger.log(`Loaded '${serverArchetypes.length}' archetypes for ${spaceId}`);
-        // Bulk save archetypes
-        if (serverArchetypes.length > 0) {
-          await db.archetypes.bulkPut(serverArchetypes);
-        }
-      }
+      if (snapshotResult.status === 'rejected')
+        logger.error(snapshotResult.reason, "failed receive snapshot for server", spaceId);
+      if (presenceResult.status === 'rejected')
+        logger.error(presenceResult.reason, "failed receive member presence for server", spaceId);
 
-      // Process members/users
-      const users = membersResult.status === 'fulfilled' ? membersResult.value : [];
-      if (membersResult.status === 'rejected') {
-        logger.error(membersResult.reason, "failed receive members for server", spaceId);
-      } else {
-        logger.log(`Loaded '${users.length}' users for ${spaceId}`);
-        
-        // Bulk save members
-        const members = users.map(u => u.member).filter(Boolean);
-        if (members.length > 0) {
-          await db.members.bulkPut(members);
-        }
+      const snapshot = snapshotResult.status === 'fulfilled' ? snapshotResult.value : null;
+      const presence = presenceResult.status === 'fulfilled' ? presenceResult.value : null;
 
-        // Bulk save/update users
-        const usersToTrack = users
-          .filter(u => u.member.user)
-          .map(u => ({
-            ...u.member.user,
-            status: u.status,
-            activity: u.presence ?? undefined,
-          }));
-        
-        if (usersToTrack.length > 0) {
-          await db.users.bulkPut(usersToTrack);
-        }
+      // A part is null when our version matched it, which is not the same as it being empty: an
+      // empty array means the space genuinely has none of that thing, and the cached rows go.
+      const archetypes = snapshot?.archetypes ?? null;
+      const members = snapshot?.members ?? null;
+      const groups = snapshot?.groups ?? null;
+      const channels = snapshot?.channels ?? null;
 
-        // Hand these ids back so the caller can reconcile offline users once, across all servers.
-        memberUserIds = users.filter(x => x.member).map(x => x.member.userId);
-      }
+      logger.log(`Snapshot for ${spaceId}: ${describeSnapshot(snapshot)}`);
 
-      // Process channel groups
-      const groups = groupsResult.status === 'fulfilled' ? groupsResult.value : [];
-      if (groupsResult.status === 'rejected') {
-        logger.error(groupsResult.reason, "failed receive channel groups for server", spaceId);
-      } else {
-        logger.log(`Loaded '${groups.length}' channel groups for ${spaceId}`);
-        if (groups.length > 0) {
-          await db.channelGroups.bulkPut(groups);
-        }
-      }
+      if (archetypes) await replaceSpaceRows(db.archetypes, spaceId, archetypes, a => a.id);
+      if (members) await replaceSpaceRows(db.members, spaceId, members, m => m.memberId);
+      if (groups) await replaceSpaceRows(db.channelGroups, spaceId, groups, g => g.groupId);
 
-      // Process channels
-      const channels = channelsResult.status === 'fulfilled' ? channelsResult.value : [];
-      if (channelsResult.status === 'rejected') {
-        logger.error(channelsResult.reason, "failed receive channels for server", spaceId);
-      } else {
-        logger.log(`Loaded '${channels.length}' channels for ${spaceId}`);
-        await processChannels(channels, users, spaceId);
+      // Unconditional: init() has just reset every cached user to offline, so the status half has to
+      // be written even for a space whose roster did not move.
+      const usersIntact = await writeUsers(members, presence);
+
+      const roster = await rosterUsers(spaceId, members);
+
+      if (channels) await processChannels(channels, roster, spaceId);
+
+      // Hand these ids back so the caller can reconcile offline users once, across all servers.
+      // Presence covers the whole roster and is the better source; the cache stands in when that
+      // call failed, or nobody in this space would survive the reconciliation pass.
+      memberUserIds = presence ? presence.map(p => p.userId) : [...roster.keys()];
+
+      // Last, and only after every part of this same answer landed: a token that outlives the rows
+      // it describes makes the server say "you already have it" about rows that are not there.
+      if (usersIntact && snapshot)
+        await db.spaceVersions.put({ spaceId, versions: snapshot.versions });
+      else if (!usersIntact) {
+        logger.warn(`[PoolStore] Cached users for ${spaceId} are incomplete, dropping its snapshot versions`);
+        await db.spaceVersions.delete(spaceId);
       }
 
       // Start listening to server events
@@ -182,13 +267,11 @@ export const usePoolStore = defineStore("data-pool", () => {
   /**
    * Process channels with bulk operations and parallel user prefetching
    */
-  const processChannels = async (channels: RealtimeChannel[], users: RealtimeServerMember[], spaceId: Guid) => {
+  const processChannels = async (channels: RealtimeChannel[], roster: Map<Guid, ArgonUser>, spaceId: Guid) => {
     const trackedIds: Guid[] = [];
     const channelsToSave: RealtimeChannel['channel'][] = [];
     const usersToPrefetch: Array<{ spaceId: Guid; userId: Guid }> = [];
     
-    // Map userId -> member data from server response
-    const membersMap = new Map(users.map(u => [u.member.userId, u]));
     // Map userId -> ArgonUser (for prefetched users)
     const prefetchedUsersMap = new Map<Guid, ArgonUser>();
 
@@ -205,8 +288,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       for (const uw of c.users) {
         if (isGuestUser(uw.userId)) continue;
         
-        const existingUser = membersMap.get(uw.userId);
-        if (!existingUser || !existingUser.member.user) {
+        if (!roster.has(uw.userId)) {
           usersToPrefetch.push({ spaceId: c.channel.spaceId, userId: uw.userId });
         }
       }
@@ -252,9 +334,8 @@ export const usePoolStore = defineStore("data-pool", () => {
           continue;
         }
 
-        // Try to get user from members map first, then from prefetched
-        const memberData = membersMap.get(uw.userId);
-        const user = memberData?.member.user ?? prefetchedUsersMap.get(uw.userId);
+        // The roster carries the identity; anyone missing from it was prefetched above.
+        const user = roster.get(uw.userId) ?? prefetchedUsersMap.get(uw.userId);
         
         if (!user) {
           logger.fatal("Cannot find user data", uw.userId);
