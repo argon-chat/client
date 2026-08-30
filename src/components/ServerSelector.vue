@@ -354,7 +354,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 
 <style lang="css" scoped>
 .server-list-container {
-    background-color: hsl(var(--card) / 0.9);
+    background-color: hsl(var(--card) / var(--card-alpha));
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: var(--radius);
 }

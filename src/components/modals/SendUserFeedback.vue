@@ -1,18 +1,18 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent
+        <DialogContent described
             class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8">
             <div
                 class="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-primary/5 pointer-events-none">
             </div>
 
             <div class="relative text-center space-y-2">
-                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+                <DialogTitle as="h2" class="text-3xl font-extrabold text-foreground tracking-wide leading-9">
                     {{ t('feedback_title') }}
-                </h2>
-                <p class="text-muted-foreground text-sm">
+                </DialogTitle>
+                <DialogDescription class="text-muted-foreground text-sm">
                     {{ t('feedback_subtitle') }}
-                </p>
+                </DialogDescription>
             </div>
 
             <div class="relative space-y-3">
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from '@argon/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@argon/ui/dialog'
 import { Button } from '@argon/ui/button'
 import { Label } from '@argon/ui/label'
 import { ref } from 'vue'

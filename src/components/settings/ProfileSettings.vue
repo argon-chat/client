@@ -737,7 +737,7 @@
 
     <!-- ═══ ULTIMA PREMIUM MODAL ═══ -->
     <Dialog v-if="ultimaActive" v-model:open="showUpsellModal">
-      <DialogContent class="max-w-[520px] p-0 bg-transparent border border-violet-500/30 rounded-3xl overflow-hidden gap-0" @interactOutside.prevent>
+      <DialogContent described class="max-w-[520px] p-0 bg-transparent border border-violet-500/30 rounded-3xl overflow-hidden gap-0" @interactOutside.prevent>
         <!-- Aurora background -->
         <div class="upsell-aurora">
           <div class="upsell-aurora-layer upsell-a1" />
@@ -784,8 +784,8 @@
           </div>
 
           <!-- Title -->
-          <h2 class="upsell-title"><span class="upsell-holo">Ultima</span></h2>
-          <p class="upsell-tagline">{{ t('unlock_full_profile') }}</p>
+          <DialogTitle as="h2" class="upsell-title"><span class="upsell-holo">Ultima</span></DialogTitle>
+          <DialogDescription class="upsell-tagline">{{ t('unlock_full_profile') }}</DialogDescription>
 
           <!-- Perks Grid -->
           <div class="upsell-perks">
@@ -877,6 +877,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@argon/ui/dialog";
 import AvatarCropDialog from "./AvatarCropDialog.vue";
 import ActiveSessions from "./ActiveSessions.vue";
@@ -1999,7 +2000,7 @@ onMounted(async () => {
 .setting-card {
   border-radius: 0.5rem;
   border: 1px solid hsl(var(--border) / 0.5);
-  background-color: hsl(var(--card) / 0.9);
+  background-color: hsl(var(--card) / var(--card-alpha));
   padding: 1.5rem;
 }
 

@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-[540px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-0 overflow-hidden">
+    <DialogContent described class="sm:max-w-[540px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-0 overflow-hidden">
       <!-- Header gradient -->
       <div class="relative px-8 pt-8 pb-6">
         <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-teal-500/10 pointer-events-none"></div>
@@ -10,10 +10,10 @@
             <IconDownload class="w-6 h-6 text-emerald-500" />
           </div>
           <div>
-            <h2 class="text-xl font-bold text-foreground">{{ t('linux_update_title') }}</h2>
-            <p class="text-sm text-muted-foreground mt-0.5">
+            <DialogTitle as="h2" class="text-xl font-bold text-foreground leading-7">{{ t('linux_update_title') }}</DialogTitle>
+            <DialogDescription class="text-sm text-muted-foreground mt-0.5">
               {{ t('linux_update_subtitle') }}
-            </p>
+            </DialogDescription>
           </div>
         </div>
       </div>
@@ -80,7 +80,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { Dialog, DialogContent, DialogFooter } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { IconDownload, IconArrowRight, IconCopy, IconCheck, IconInfoCircle } from "@tabler/icons-vue";
 import { useLocale } from "@/store/system/localeStore";

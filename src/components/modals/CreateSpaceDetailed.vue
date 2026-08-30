@@ -1,17 +1,17 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent
+    <DialogContent described
       class="sm:max-w-[720px] rounded-2xl p-0 
              bg-gradient-to-br from-black/90 via-zinc-900/90 to-black/90 backdrop-blur-2xl flex flex-col"
     >
       <!-- Header -->
       <div class="p-6 text-center shrink-0">
-        <h2 class="text-3xl font-extrabold text-white tracking-wide">
+        <DialogTitle as="h2" class="text-3xl font-extrabold text-white tracking-wide leading-9">
           {{ t("choose_server_type") }}
-        </h2>
-        <p class="text-gray-400 text-sm">
+        </DialogTitle>
+        <DialogDescription class="text-gray-400 text-sm">
           Pick the type of server that fits your needs ⚡
-        </p>
+        </DialogDescription>
       </div>
 
       <!-- Tabs -->
@@ -106,7 +106,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import { Dialog, DialogContent } from "@argon/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog"
 import { Button } from "@argon/ui/button"
 import { useLocale } from "@/store/system/localeStore"
 

@@ -309,6 +309,7 @@
   "group_name_required": "Требуется название категории",
   "failed_to_create_group": "Не удалось создать категорию",
   "invite_code": "Код приглашения",
+  "invite_preview_title": "Приглашение",
   "join_or_create_server": "Присоединиться или создать сервер",
   "servers": "Серверы",
   "users": "Пользователи",

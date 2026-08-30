@@ -645,7 +645,7 @@ function onCopyUserId() {
   position: relative;
   border-radius: 50%;
   padding: 3px;
-  border: 3px solid hsl(var(--card) / 0.9);
+  border: 3px solid hsl(var(--card) / var(--card-alpha));
   background: hsl(var(--card) / 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);

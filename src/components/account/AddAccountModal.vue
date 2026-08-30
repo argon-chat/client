@@ -15,7 +15,7 @@ const { t } = useLocale();
        self-hosted forms, but run against a one-off client so the current session is untouched. On
        success the new account is registered and switched into (reload). -->
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="w-auto max-w-fit border-0 bg-transparent p-0 shadow-none">
+    <DialogContent described class="w-auto max-w-fit border-0 bg-transparent p-0 shadow-none">
       <VisuallyHidden>
         <DialogTitle>{{ t("add_account_title") }}</DialogTitle>
         <DialogDescription>{{ t("add_account") }}</DialogDescription>

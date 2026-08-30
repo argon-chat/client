@@ -3,6 +3,10 @@
         <DialogContent class="sm:max-w-[420px] rounded-2xl border
              bg-card/95
              backdrop-blur-2xl p-8 pt-12">
+            <!-- Named for screen readers only: this dialog draws no heading of its own. -->
+            <VisuallyHidden>
+              <DialogTitle>{{ t("dial_pad") }}</DialogTitle>
+            </VisuallyHidden>
             <div class="w-full text-center py-3 mb-3 select-none
                text-red-500 font-mono tracking-widest text-xl
                warning-cyber absolute -top-20">
@@ -44,10 +48,12 @@
 
 <script setup lang="ts">
 import { onUnmounted, ref, watch, provide } from "vue";
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
+import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { SoftphoneKeyboard } from "@argon/softphone";
 
 import { ussdClient } from "@/lib/ussd";
+import { useLocale } from "@/store/system/localeStore";
 import { delay } from "@argon/core";
 import { useApi } from "@/store/system/apiStore";
 import { DialCheckFailReason } from "@argon/glue";
@@ -60,6 +66,8 @@ import { logger } from "@argon/core";
 provide('dtmfPlayer', dtmfPlayer);
 
 const api = useApi();
+
+const { t } = useLocale();
 
 const open = defineModel<boolean>("open", { default: false });
 

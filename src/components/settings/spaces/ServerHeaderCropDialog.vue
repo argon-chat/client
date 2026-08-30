@@ -1,6 +1,10 @@
 <template>
   <Dialog v-model:open="isOpen">
     <DialogContent class="avatar-crop-dialog avatar-crop-dialog--wide" :disableOutsidePointerEvents="true">
+      <!-- Named for screen readers only: this dialog draws no heading of its own. -->
+      <VisuallyHidden>
+        <DialogTitle>{{ t("crop_image") }}</DialogTitle>
+      </VisuallyHidden>
       <div class="avatar-crop-dialog__cropper avatar-crop-dialog__cropper--wide">
         <AvatarCropper
           v-if="imageSrc"
@@ -30,7 +34,9 @@ import { ref, watch } from "vue";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@argon/ui/dialog";
+import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { Button } from "@argon/ui/button";
 import { useLocale } from "@/store/system/localeStore";
 import AvatarCropper from "@/components/common/AvatarCropper.vue";

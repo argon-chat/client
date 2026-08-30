@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="boost-shop-dialog max-w-4xl p-0 overflow-hidden">
+    <DialogContent described class="boost-shop-dialog max-w-4xl p-0 overflow-hidden">
       <div class="shop-inner">
         <div class="shop-header">
           <div class="card-icon ci-shop">

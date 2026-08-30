@@ -1,6 +1,6 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent
+        <DialogContent described
             class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8">
 
             <div
@@ -8,12 +8,12 @@
             </div>
 
             <div class="relative text-center space-y-8 p-4">
-                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+                <DialogTitle as="h2" class="text-3xl font-extrabold text-foreground tracking-wide leading-9">
                     {{ t('join_or_create_server') }}
-                </h2>
-                <p class="text-muted-foreground text-sm">
+                </DialogTitle>
+                <DialogDescription class="text-muted-foreground text-sm">
                     {{t("choose_your_path")}}
-                </p>
+                </DialogDescription>
             </div>
 
             <div class="relative space-y-8">
@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from '@argon/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@argon/ui/dialog'
 import { Button } from '@argon/ui/button'
 import { Label } from '@argon/ui/label'
 import { ref } from 'vue'

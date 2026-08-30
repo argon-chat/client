@@ -19,6 +19,6 @@ const props = defineProps<{
 </script>
 <style scoped>
 .banner-bg {
-    background-color: hsl(var(--card) / 0.9);
+    background-color: hsl(var(--card) / var(--card-alpha));
 }
 </style>

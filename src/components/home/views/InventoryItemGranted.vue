@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="open">
-    <DialogContent 
+    <DialogContent described 
       class="w-[520px] max-w-[720px] overflow-hidden border-0 bg-transparent p-0 shadow-none"
       @escape-key-down="onEscape"
     >

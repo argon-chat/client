@@ -249,6 +249,7 @@
   "group_name_required": "カテゴリ名が必要です",
   "failed_to_create_group": "カテゴリの作成に失敗しました",
   "invite_code": "招待コード",
+  "invite_preview_title": "招待",
   "join_or_create_server": "サーバーに参加または作成",
   "servers": "サーバー",
   "users": "ユーザー",

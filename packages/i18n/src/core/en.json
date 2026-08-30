@@ -44,6 +44,7 @@
   "upload_image": "Upload image",
   "temporarily_unavailable": "Temporarily unavailable",
   "loading_invite": "Loading invite...",
+  "invite_preview_title": "Invitation",
   "invite_invalid": "Invite unavailable",
   "invite_expired": "This invite link has expired.",
   "invite_limit_reached": "This invite has reached its usage limit.",

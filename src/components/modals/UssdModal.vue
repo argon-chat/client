@@ -3,7 +3,7 @@
         <DialogContent
             class="rounded-2xl border border-white/10 bg-black/70 backdrop-blur-xl p-6 space-y-4 text-center ussd-modal"
             style="">
-            <h2 class="text-2xl font-bold text-white">Dialing</h2>
+            <DialogTitle as="h2" class="text-2xl font-bold text-white leading-8">Dialing</DialogTitle>
 
             <p v-if="loading" class="text-gray-300 text-lg">
                 Executing the USSD command…
@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 
 const open = defineModel<boolean>("open", { default: false });

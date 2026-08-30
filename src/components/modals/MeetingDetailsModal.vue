@@ -1,18 +1,18 @@
 <template>
   <Dialog v-model:open="open">
     <template #default="{ close }">
-      <DialogContent class="sm:max-w-[500px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-6">
+      <DialogContent described class="sm:max-w-[500px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-6">
         <div
           class="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-primary/5 pointer-events-none rounded-2xl">
         </div>
 
         <div class="relative text-center space-y-2">
-          <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+          <DialogTitle as="h2" class="text-3xl font-extrabold text-foreground tracking-wide leading-9">
             {{ t("meeting_details") }}
-          </h2>
-          <p class="text-sm text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription class="text-sm text-muted-foreground">
             {{ t("meeting_started_at") }}: {{ formatDate(meetingInfo?.startDate) }}
-          </p>
+          </DialogDescription>
         </div>
 
         <div class="relative space-y-4">
@@ -74,6 +74,8 @@ import { Hash, Link2, Copy, X } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from '@argon/ui/dialog';
 import { Button } from '@argon/ui/button';
 import { Input } from '@argon/ui/input';

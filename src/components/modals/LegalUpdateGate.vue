@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { ShieldCheckIcon, FileTextIcon, FrownIcon } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
@@ -49,7 +49,7 @@ function openConsole() {
 
 <template>
   <Dialog :open="open">
-    <DialogContent
+    <DialogContent described
       :show-close-button="false"
       titlebar-safe
       class="w-[520px] max-w-[520px]"
@@ -63,8 +63,8 @@ function openConsole() {
           <div class="w-12 h-12 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center">
             <ShieldCheckIcon class="w-6 h-6 text-primary" />
           </div>
-          <h2 class="text-xl font-bold">{{ t("legal_updated_title") }}</h2>
-          <p class="text-sm text-muted-foreground">{{ t("legal_updated_desc") }}</p>
+          <DialogTitle as="h2" class="text-xl font-bold leading-7">{{ t("legal_updated_title") }}</DialogTitle>
+          <DialogDescription class="text-sm text-muted-foreground">{{ t("legal_updated_desc") }}</DialogDescription>
         </div>
 
         <div class="flex flex-col gap-2 mt-2">
@@ -108,8 +108,8 @@ function openConsole() {
           <div class="w-12 h-12 rounded-xl bg-destructive/15 border border-destructive/25 flex items-center justify-center">
             <FrownIcon class="w-6 h-6 text-destructive" />
           </div>
-          <h2 class="text-xl font-bold">{{ t("legal_decline_title") }}</h2>
-          <p class="text-sm text-muted-foreground whitespace-pre-line">{{ t("legal_decline_body") }}</p>
+          <DialogTitle as="h2" class="text-xl font-bold leading-7">{{ t("legal_decline_title") }}</DialogTitle>
+          <DialogDescription class="text-sm text-muted-foreground whitespace-pre-line">{{ t("legal_decline_body") }}</DialogDescription>
         </div>
         <div class="flex flex-col gap-2 mt-3">
           <Button class="w-full" @click="declined = false">

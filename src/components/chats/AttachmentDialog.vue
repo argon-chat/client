@@ -6,6 +6,10 @@
       @dragleave="onDragLeave"
       @drop.prevent="onDrop"
     >
+      <!-- Named for screen readers only: this dialog draws no heading of its own. -->
+      <VisuallyHidden>
+        <DialogTitle>{{ t("attachments") }}</DialogTitle>
+      </VisuallyHidden>
       <!-- Drag overlay -->
       <div v-if="isDragging" class="dialog-drag-overlay">
         <div class="dialog-drag-content">
@@ -104,7 +108,9 @@ import { Button } from "@argon/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@argon/ui/dialog";
+import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import {
   FileIcon,
   FileTextIcon,

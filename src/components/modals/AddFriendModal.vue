@@ -1,6 +1,6 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent
+        <DialogContent described
             class="sm:max-w-[520px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-8">
 
             <div class="absolute inset-0 bg-gradient-to-t 
@@ -8,12 +8,12 @@
                         pointer-events-none"></div>
 
             <div class="relative text-center space-y-2">
-                <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+                <DialogTitle as="h2" class="text-3xl font-extrabold text-foreground tracking-wide leading-9">
                     {{ t('add_friend') }}
-                </h2>
-                <p class="text-muted-foreground text-sm">
+                </DialogTitle>
+                <DialogDescription class="text-muted-foreground text-sm">
                     {{ t('add_friend_description') }}
-                </p>
+                </DialogDescription>
             </div>
 
             <div class="relative space-y-3">
@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { Dialog, DialogContent, DialogFooter } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { Label } from "@argon/ui/label";
 import InputWithError from "@/components/shared/InputWithError.vue";
