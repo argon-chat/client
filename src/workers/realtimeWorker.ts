@@ -76,6 +76,12 @@ const STABLE_CONNECTION_MS = 30_000;
 /** When the current connection came up, or 0 while there isn't one. */
 let connectedAt = 0;
 
+/** The endpoint of the last `connect` we were asked for, so a wake can re-dial without being told. */
+let currentEndpoint: string | null = null;
+
+/** The pending backoff timer, held so a wake can cancel the wait instead of racing it. */
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
 // --- Replay state ---
 // One DeliveryFilter per delivery channel: it decides what to hand the main thread, and holds the
 // cursor we give the server on reconnect (Resume) so it can re-send anything we missed during the
@@ -139,11 +145,50 @@ function scheduleReconnect(endpoint: string) {
     attemptCount: hardReconnectAttempts,
     nextAttemptAt: Date.now() + delayMs,
   });
-  setTimeout(() => connect(endpoint), delayMs);
+  if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect(endpoint);
+  }, delayMs);
+}
+
+/**
+ * The page came back from being frozen or hidden.
+ *
+ * A browser tab that loses focus for long enough stops being a running program: timers are throttled
+ * to nothing and, once the tab is frozen outright, the socket is closed without the close ever being
+ * delivered. What is left when the user returns is a connection that looks alive and a backoff that
+ * was computed for a server which was struggling several hours ago. Both are stale, so the wait is
+ * cancelled, the counter is cleared, and we either re-dial at once or make the live connection prove
+ * itself with a heartbeat.
+ */
+function wake() {
+  hardReconnectAttempts = 0;
+  if (!currentEndpoint || !shouldReconnect) return;
+
+  const state = hubConnection?.state;
+  if (state === signalR.HubConnectionState.Connected) {
+    sendHeartbeatNow();
+    return;
+  }
+  // Already on its way back — SignalR's own reconnect survives a freeze and needs no help.
+  if (
+    state === signalR.HubConnectionState.Connecting ||
+    state === signalR.HubConnectionState.Reconnecting
+  )
+    return;
+
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  postLog("info", "Tab resumed, reconnecting now");
+  connect(currentEndpoint);
 }
 
 async function connect(endpoint: string) {
   shouldReconnect = true;
+  currentEndpoint = endpoint;
 
   try {
     hubConnection = new signalR.HubConnectionBuilder()
@@ -291,6 +336,10 @@ function disconnect() {
   shouldReconnect = false;
   connectedAt = 0;
   hardReconnectAttempts = 0;
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   stopHeartbeat();
   if (hubConnection) {
     hubConnection.stop();
@@ -346,6 +395,9 @@ self.onmessage = (e: MessageEvent) => {
       break;
     case "disconnect":
       disconnect();
+      break;
+    case "wake":
+      wake();
       break;
     case "subscribeChannel":
       subscribedChannels.add(msg.channelId);

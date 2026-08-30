@@ -10,6 +10,7 @@ import {
 } from "@/store/system/instanceStore";
 import { USER_SCOPED_BASE_KEYS } from "@/lib/userScopedStorage";
 import { db } from "@/store/db/dexie";
+import { isWeb, supports } from "@/lib/platform";
 
 // Multi-account registry. Each account "carries" its own instance (official / self-hosted / managed),
 // its own refresh token, and its own Dexie DB (`argon-database-v3-<id>`). Switching is reload-based:
@@ -115,8 +116,10 @@ export const useAccounts = defineStore("accounts", () => {
   const active = computed(() => accounts.value.find(a => a.id === activeId.value) ?? null);
   const officialCount = computed(() => accounts.value.filter(a => a.instanceKind === "official").length);
   const altCount = computed(() => accounts.value.filter(a => a.instanceKind !== "official").length);
-  const canAddOfficial = computed(() => officialCount.value < MAX_OFFICIAL);
-  const canAddAlt = computed(() => altCount.value < MAX_ALT);
+  // The browser build holds exactly one session — the one Aegis issued for this origin — so the
+  // registry is never added to there and the picker never offers to.
+  const canAddOfficial = computed(() => supports("multiAccount") && officialCount.value < MAX_OFFICIAL);
+  const canAddAlt = computed(() => supports("multiAccount") && altCount.value < MAX_ALT);
 
   function canAdd(kind: AccountInstanceKind): boolean {
     return kind === "official" ? canAddOfficial.value : canAddAlt.value;
@@ -423,6 +426,10 @@ export const useAccounts = defineStore("accounts", () => {
    * so the normal pipeline authenticates this boot.
    */
   function migrateLegacySessionIfNeeded(): void {
+    // Nothing to migrate on the web, and it must not try: the OAuth access token is written to the
+    // same `token` key this reads, so it would mistake a fresh browser sign-in for a legacy desktop
+    // session and start a migration that ends in a reload loop.
+    if (isWeb) return;
     if (accounts.value.length > 0) return;
     const token = localStorage.getItem("token");
     if (!token) return;

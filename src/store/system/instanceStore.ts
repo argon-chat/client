@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { z } from "zod";
 import { logger } from "@argon/core";
 import { useConfig } from "@/store/system/remoteConfig";
+import { supports } from "@/lib/platform";
 
 // Self-hosted / SaaS / enterprise instance routing.
 //
@@ -233,6 +234,13 @@ export const useInstance = defineStore("instance", () => {
   // email and the form animations survive. When ALREADY signed in, tokens are per-instance, so we
   // hard-reset: drop the session, clear per-instance caches, and reload into the new instance.
   async function applyInstance(m: InstanceManifest): Promise<void> {
+    // Argon on the web is one deployment serving one instance: its origin, its service worker, its
+    // storage bucket and its OAuth client all belong to argon.gl, and none of them can be re-pointed
+    // at somebody else's server from inside the page. Refused rather than half-applied.
+    if (m.instance.kind !== "official" && !supports("selfHosted")) {
+      logger.warn("Ignoring a non-official instance: the web build serves the official one only");
+      return;
+    }
     pushOverrides(m);
     active.value = m;
     if (m.instance.kind === "official") localStorage.removeItem(PERSIST_KEY);

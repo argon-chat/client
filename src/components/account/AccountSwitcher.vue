@@ -6,9 +6,13 @@ import { useLocale } from "@/store/system/localeStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { Badge } from "@argon/ui/badge";
 import { CheckIcon, PlusIcon, LogOutIcon, Trash2Icon, ServerIcon, AlertTriangleIcon } from "lucide-vue-next";
+import { isWeb } from "@/lib/platform";
+import { useMe } from "@/store/auth/meStore";
+import { useAuthStore } from "@/store/auth/authStore";
 
 const { t } = useLocale();
 const accounts = useAccounts();
+const me = useMe();
 
 const emit = defineEmits<{ (e: "add"): void }>();
 
@@ -35,6 +39,18 @@ function select(a: AccountRecord) {
   void accounts.switchTo(a.id); // reloads
 }
 
+/**
+ * Signing out of the browser build.
+ *
+ * There is no registry entry to remove and no other account to fall back into — dropping the local
+ * tokens and reloading into the sign-in screen is the whole of it. The Aegis session itself is left
+ * alone, so signing back in does not ask for a password again.
+ */
+function signOutWeb() {
+  useAuthStore().logout();
+  location.reload();
+}
+
 function confirmRemove(a: AccountRecord) {
   if (removingId.value === a.id) {
     void accounts.removeAccount(a.id); // reloads if it was active
@@ -46,7 +62,37 @@ function confirmRemove(a: AccountRecord) {
 </script>
 
 <template>
-  <div class="account-switcher">
+  <!-- One origin, one session: the web build shows who is signed in and how to leave, and none of
+       the switching, adding or per-instance machinery that has no meaning there. -->
+  <div v-if="isWeb" class="account-switcher">
+    <p class="px-2 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {{ t("accounts_title") }}
+    </p>
+
+    <div v-if="me.me" class="account-row is-active">
+      <ArgonAvatar
+        class="row-avatar"
+        :fallback="me.me.displayName"
+        :file-id="me.me.avatarFileId"
+        :user-id="me.me.userId"
+      />
+      <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <span class="truncate text-sm font-medium text-white">{{ me.me.displayName }}</span>
+          <CheckIcon class="w-3.5 h-3.5 shrink-0 text-primary" />
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-1 border-t border-border/50 pt-1 flex flex-col gap-0.5">
+      <button class="menu-item text-destructive" @click="signOutWeb()">
+        <LogOutIcon class="w-4 h-4" />
+        {{ t("log_out") }}
+      </button>
+    </div>
+  </div>
+
+  <div v-else class="account-switcher">
     <p class="px-2 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {{ t("accounts_title") }}
     </p>

@@ -213,6 +213,17 @@ export const useBus = defineStore("bus", () => {
       .subscribe(callback);
   }
 
+  /**
+   * Nudge the realtime connection after the tab has been asleep.
+   *
+   * Distinct from `retryConnectionNow`, which is the user pressing "try again" on a visible
+   * reconnect banner: this one runs when nothing looked wrong, because after a freeze nothing
+   * would. The worker decides what the situation actually is.
+   */
+  function wakeConnection() {
+    worker?.postMessage({ type: "wake" });
+  }
+
   async function retryConnectionNow() {
     if (isSignalRReconnecting.value) {
       worker?.postMessage({ type: "disconnect" });
@@ -250,6 +261,7 @@ export const useBus = defineStore("bus", () => {
     nextReconnectAttempt,
     reconnectAttemptCount,
     retryConnectionNow,
+    wakeConnection,
     reconnected,
     needFullResync
   };

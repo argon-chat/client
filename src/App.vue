@@ -4,6 +4,8 @@ import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
 import { useSleepWatcher } from "./composables/useSleepWatcher";
+import { useTabLifecycle } from "./composables/useTabLifecycle";
+import { isWeb } from "@/lib/platform";
 import { native } from "@argon/glue/native";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/overlays/DiagnosticsOverlay.vue";
@@ -46,10 +48,15 @@ useOverlayNotificationsPublisher();
 
 
 
-const wakeWatcher = useSleepWatcher(async () => {
-  logger.error("THROW WAKE RELOAD");
-  location.reload();
-});
+// Waking up, on each platform's terms. The desktop app comes back from machine sleep into a window
+// it fully controls and can afford to reload; a tab cannot — the user switched back to it and would
+// lose their scroll position and half-typed message over what is usually a one-second repair.
+if (isWeb) useTabLifecycle();
+else
+  useSleepWatcher(async () => {
+    logger.error("THROW WAKE RELOAD");
+    location.reload();
+  });
 
 mode.value = "dark";
 

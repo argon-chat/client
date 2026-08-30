@@ -9,6 +9,8 @@ import {
   RegistrationError,
 } from "@argon/glue";
 import { IonMaybe } from "@argon-chat/ion.webcore";
+import { isWeb } from "@/lib/platform";
+import * as webAuth from "@/lib/webAuth";
 const { toast } = useToast();
 
 export const useAuthStore = defineStore("auth", () => {
@@ -124,6 +126,34 @@ export const useAuthStore = defineStore("auth", () => {
     _token.value = t;
   };
 
+  /**
+   * Adopt (or fail to adopt) the browser build's OAuth session.
+   *
+   * On the web there is no password to have been typed and no device-bound refresh token to
+   * present: the session is whatever Aegis last handed back, which may be arriving right now on a
+   * redirect. Everything downstream still reads `token`, so once it is set the two builds are
+   * indistinguishable from here on.
+   */
+  const restoreWebSession = async (): Promise<void> => {
+    const token = webAuth.isCallback()
+      ? await webAuth.completeSignIn()
+      : webAuth.hasSession()
+        ? await webAuth.ensureFreshToken()
+        : null;
+
+    if (!token) {
+      _token.value = null;
+      isAuthenticated.value = false;
+      localStorage.removeItem("token");
+      return;
+    }
+
+    setAuthToken(token);
+    isAuthenticated.value = true;
+    // Refreshes land back here so the interceptor picks up the new bearer without a reload.
+    webAuth.startAutoRefresh(setAuthToken);
+  };
+
   const logout = () => {
     // Best-effort: announce intentional offline so others don't see us linger for the disconnect
     // grace window. Fire-and-forget + lazy import to avoid a circular store dependency; if the realtime
@@ -134,6 +164,7 @@ export const useAuthStore = defineStore("auth", () => {
         await useBus().goOffline();
       } catch { /* not connected — grace handles offline */ }
     })();
+    if (isWeb) webAuth.signOut();
     user.value = null;
     _token.value = null;
     isAuthenticated.value = false;
@@ -141,6 +172,8 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const restoreSession = async (): Promise<void> => {
+    if (isWeb) return restoreWebSession();
+
     const savedToken = localStorage.getItem("token");
     logger.info(`restored session, ${savedToken}`);
     if (savedToken) {

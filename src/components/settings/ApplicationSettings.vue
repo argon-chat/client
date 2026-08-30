@@ -7,6 +7,10 @@
 
 
         <h2 class="text-2xl font-bold">{{ t("application_settings") }}</h2>
+
+        <!-- Most of this screen is the desktop app's own settings, delivered by the host; in a tab
+             there is no host, so the list below is short. Say why, and where the rest lives. -->
+        <DesktopOnlyNotice v-if="isWeb" description="desktop_only_application_desc" />
         <div class="flex gap-4 flex-col">
             <div v-for="section in configStore.sections" :key="section.section" class="space-y-4">
                 <h3 class="text-lg font-semibold" v-if="section.section != 'app'">
@@ -173,6 +177,8 @@
 </template>
 
 <script setup lang="ts">
+import DesktopOnlyNotice from "@/components/shared/DesktopOnlyNotice.vue";
+import { isWeb } from "@/lib/platform";
 import { useMe } from "@/store/auth/meStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { Switch } from "@argon/ui/switch";

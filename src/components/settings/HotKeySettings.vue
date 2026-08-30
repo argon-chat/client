@@ -14,6 +14,8 @@ import { keyCodeToFormatterSymbolsOrNames } from "@/lib/keyCodes";
 import AddHotkeyModal from "../modals/AddHotkeyModal.vue";
 import { Badge } from "@argon/ui/badge";
 import { PlusIcon, TrashIcon, KeyboardIcon, ShieldAlertIcon } from "lucide-vue-next";
+import DesktopOnlyNotice from "@/components/shared/DesktopOnlyNotice.vue";
+import { supports } from "@/lib/platform";
 
 // Stores
 const { t } = useLocale();
@@ -100,11 +102,21 @@ function removeHotkey(id: string) {
           {{ t("manage_keyboard_shortcuts") }}
         </p>
       </div>
-      <Button v-if="hasHotkeys" @click="openModal" class="gap-2">
+      <Button v-if="hasHotkeys && supports('globalHotkeys')" @click="openModal" class="gap-2">
         <PlusIcon class="w-4 h-4" />
         {{ t("add_hotkey") }}
       </Button>
     </div>
+
+    <!-- A hotkey is only worth having when it works while Argon is not the focused window, and a
+         page cannot listen for keys it never receives. Nothing here is offered on the web. -->
+    <DesktopOnlyNotice
+      v-if="!supports('globalHotkeys')"
+      title="hotkeys"
+      description="desktop_only_hotkeys_desc"
+    />
+
+    <template v-else>
 
     <!-- Accessibility Permission Banner (macOS) -->
     <div v-if="needsAccessibility" class="accessibility-banner">
@@ -195,6 +207,8 @@ function removeHotkey(id: string) {
 
     <!-- Modal -->
     <AddHotkeyModal :open="isModalOpen" @close="closeModal" />
+
+    </template>
   </div>
 </template>
 <style scoped>
