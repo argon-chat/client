@@ -136,7 +136,7 @@ onMounted(async () => {
 </script>
 <style lang="css" scoped>
 .shell-item {
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / 0.9);
     border-radius: var(--radius);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border: 1px solid hsl(var(--border) / 0.5);

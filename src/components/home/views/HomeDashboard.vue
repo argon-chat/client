@@ -101,12 +101,12 @@ const getWidgetComponent = (widgetId: string | number) => {
 
 <style lang="css" scoped>
 .greeting-bar {
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / 0.9);
     border: 1px solid hsl(var(--border) / 0.5);
 }
 
 .widget-card {
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / 0.9);
     border-radius: var(--radius);
     border: 1px solid hsl(var(--border) / 0.5);
     transition: box-shadow 0.2s ease;

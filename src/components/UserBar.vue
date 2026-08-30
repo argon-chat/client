@@ -58,7 +58,7 @@ const addAccountOpen = ref(false);
 }
 
 .user-bar {
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card) / 0.9);
   border: 1px solid hsl(var(--border) / 0.5);
   border-radius: var(--radius);
   padding: 10px;

@@ -296,7 +296,7 @@ function lastSeenLabel(session: SessionInfo): string {
 .setting-card {
   border-radius: 0.5rem;
   border: 1px solid hsl(var(--border) / 0.5);
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card) / 0.9);
   padding: 1.5rem;
 }
 

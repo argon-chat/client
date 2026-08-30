@@ -281,7 +281,7 @@ const navItems = computed<NavItem[]>(() => [
 
 <style lang="css" scoped>
 .sidebar-card {
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / 0.9);
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: var(--radius);
     padding: 4px;

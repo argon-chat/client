@@ -4,7 +4,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Input } from "@argon/ui/input";
 import { Label } from "@argon/ui/label";
 import { Checkbox } from "@argon/ui/checkbox";
-import { DatePicker } from "@argon/ui/date-picker";
 import { 
     MailIcon, 
     UserIcon, 
@@ -21,8 +20,8 @@ import {
     AtSignIcon,
 } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
-import { today, getLocalTimeZone } from "@internationalized/date";
 import { ref, computed, watch } from "vue";
+import DateOfBirthInput from "@/components/login/DateOfBirthInput.vue";
 import LegalDocModal from "@/components/modals/LegalDocModal.vue";
 
 const { t } = useLocale();
@@ -305,16 +304,7 @@ const steps = computed(() => [
                                         <CalendarIcon class="w-4 h-4 text-primary" />
                                         <Label class="text-sm font-medium">{{ t("dob") }}</Label>
                                     </div>
-                                    <DatePicker 
-                                        v-model="brithDate" 
-                                        :placeholder="t('dob')" 
-                                        :max-value="(today(getLocalTimeZone()).subtract({ years: 14 }) as any)"
-                                        :disabled="isLoading" 
-                                        :date-format="{ year: 'numeric', month: '2-digit', day: '2-digit' }"
-                                        clearable
-                                        class="input-styled w-full" 
-                                    />
-                                    <p class="text-xs text-muted-foreground mt-1.5">{{ t("dob_hint") }}</p>
+                                    <DateOfBirthInput v-model="brithDate" :disabled="isLoading" :min-age="14" />
                                 </div>
 
                                 <!-- Agreements section -->

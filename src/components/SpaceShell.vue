@@ -91,7 +91,7 @@ watch(
 
 <style lang="css" scoped>
 .chat-container {
-  background-color: transparent;
+  background-color: hsl(var(--card) / 0.9);
   border-radius: var(--radius);
 }
 
