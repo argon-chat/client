@@ -199,7 +199,7 @@ const voiceChannelUsers = computed(() => {
   for (const channel of channelLists.value) {
     if (channel.type === ChannelType.Voice) {
       const realtimeChannel = pool.realtimeChannelUsers.get(channel.channelId);
-      if (realtimeChannel && (realtimeChannel.Users.size > 0 || realtimeChannel.meetingInfo)) {
+      if (realtimeChannel && realtimeChannel.Users.size > 0) {
         result.set(channel.channelId, realtimeChannel);
       }
     }

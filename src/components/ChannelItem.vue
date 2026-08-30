@@ -21,11 +21,6 @@
             @auxclick="onAuxClick"
           >
             <div class="flex items-center space-x-2">
-            <VideoIcon
-              v-if="channelMeetingInfo"
-              class="w-4 h-4 text-blue-400 flex-shrink-0 cursor-pointer hover:text-blue-300 transition-colors"
-              @click.stop="openMeetingDetails"
-            />
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
             <Volume2Icon v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -105,19 +100,12 @@
         </ContextMenu>
       </li>
     </TransitionGroup>
-
-    <MeetingDetailsModal
-      v-model:open="meetingDetailsOpened"
-      :meeting-info="currentMeetingInfo || channelMeetingInfo"
-      :space-id="channel.spaceId"
-      :channel-id="channel.channelId"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
-import { HashIcon, Volume2Icon, AntennaIcon, VideoIcon } from 'lucide-vue-next';
+import { HashIcon, Volume2Icon, AntennaIcon } from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
 import {
@@ -139,7 +127,6 @@ import { useNotificationStore } from '@/store/data/notificationStore';
 import { MuteLevelType } from '@argon/glue';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
-import MeetingDetailsModal from './modals/MeetingDetailsModal.vue';
 import { useApi } from '@/store/system/apiStore';
 import type { DropPosition } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
@@ -224,28 +211,7 @@ const isUserConnecting = (userId: string) => {
   return !voice.participants[userId];
 };
 
-const meetingDetailsOpened = vueRef(false);
-const currentMeetingInfo = vueRef<any>(null);
-const channelMeetingInfo = computed(() => props.voiceUsers?.meetingInfo);
-
 const channelPermissionsOpen = vueRef(false);
-
-const createMeeting = async () => {
-  try {
-    const meetingInfo = await api.channelInteraction.CreateLinkedMeeting(props.channel.spaceId, props.channel.channelId);
-    currentMeetingInfo.value = meetingInfo;
-    meetingDetailsOpened.value = true;
-  } catch (error) {
-    console.error('Failed to create meeting', error);
-  }
-};
-
-const openMeetingDetails = () => {
-  if (channelMeetingInfo.value) {
-    currentMeetingInfo.value = channelMeetingInfo.value;
-    meetingDetailsOpened.value = true;
-  }
-};
 </script>
 
 <style scoped>

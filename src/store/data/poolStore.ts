@@ -355,11 +355,6 @@ export const usePoolStore = defineStore("data-pool", () => {
       }
 
       realtimeStore.initRealtimeChannel(c.channel, realtimeUsers);
-
-      // Set meeting info if exists
-      if (c.meetInfo) {
-        realtimeStore.setMeetingInfo(c.channel.channelId, c.meetInfo);
-      }
     }
 
     // Remove stale channels
@@ -479,7 +474,6 @@ export const usePoolStore = defineStore("data-pool", () => {
     realtimeChannelUsers: realtimeStore.realtimeChannels,
     indicateSpeaking: realtimeStore.setUserSpeaking,
     setProperty: realtimeStore.setUserProperty,
-    setMeetingInfo: realtimeStore.setMeetingInfo,
 
     // Events
     onNewMessageReceived: eventStore.onNewMessageReceived,
