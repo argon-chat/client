@@ -1,5 +1,10 @@
 /**
- * Realtime Worker — handles SignalR connection + CBOR deserialization off the main thread.
+ * Realtime Worker — owns the SignalR connection and the replay cursors, off the main thread.
+ *
+ * Events are handed over as the base64 payload they arrived in and decoded on the main thread.
+ * Decoding here and posting the object does not survive the trip: postMessage copies with the
+ * structured clone algorithm, which keeps own properties and drops prototypes, so every value with
+ * methods — `IonDateTime` above all — arrived as inert data.
  *
  * Protocol (main ↔ worker):
  *   Main → Worker:
@@ -9,7 +14,7 @@
  *     { type: 'invoke', method: string, args: any[] }
  *
  *   Worker → Main:
- *     { type: 'event', channel: 'forSelf' | 'broadcastSpace', event: object }
+ *     { type: 'event', channel: 'forSelf' | 'broadcastSpace', data: string }
  *     { type: 'tokenRequest', requestId: string }
  *     { type: 'state', state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' }
  *     { type: 'reconnectInfo', attemptCount: number, nextAttemptAt: number }
@@ -18,17 +23,11 @@
  */
 
 import * as signalR from "@microsoft/signalr";
-import { CborReader, IonFormatterStorage } from "@argon-chat/ion.webcore";
-import "@argon-chat/ion.webcore";
-import { EventBus_Executor } from "@argon/glue";
-import type { IArgonEvent } from "@argon/glue";
 import { DeliveryFilter } from "./streamDelivery";
 
 // --- Token request management ---
 let tokenRequestId = 0;
 const pendingTokenRequests = new Map<string, (token: string, error?: boolean) => void>();
-var qwe = EventBus_Executor;
-console.log(qwe);
 function requestToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     const id = String(++tokenRequestId);
@@ -49,19 +48,8 @@ function requestToken(): Promise<string> {
 }
 
 // --- Helpers ---
-function base64ToU8(b64: string): Uint8Array {
-  const bin = atob(b64);
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-}
-
 function postLog(level: "info" | "warn" | "error", message: string, ...args: any[]) {
   self.postMessage({ type: "log", level, message, args });
-}
-
-function decodeEvent(data: string): IArgonEvent {
-  const u8 = base64ToU8(data);
-  const reader = new CborReader(u8);
-  return IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
 }
 
 // --- SignalR connection ---
@@ -183,8 +171,7 @@ async function connect(endpoint: string) {
         // Skip duplicates (a replayed event that also arrived live), but nothing else — an event
         // that simply arrives late still has to be shown.
         if (entryId && !userDelivery.accept(entryId)) return;
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "forSelf", event });
+        self.postMessage({ type: "event", channel: "forSelf", data });
       } catch (e: any) {
         postLog("error", "Error processing forSelf event", e?.message);
       }
@@ -194,8 +181,7 @@ async function connect(endpoint: string) {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
         if (spaceId && entryId && !deliveryFor(spaceId).accept(entryId)) return;
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "broadcastSpace", event });
+        self.postMessage({ type: "event", channel: "broadcastSpace", data });
       } catch (e: any) {
         postLog("error", "Error processing broadcastSpace event", e?.message);
       }
@@ -207,8 +193,7 @@ async function connect(endpoint: string) {
     hubConnection.on("broadcastChannel", (data: string, _channelId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "broadcastChannel", event });
+        self.postMessage({ type: "event", channel: "broadcastChannel", data });
       } catch (e: any) {
         postLog("error", "Error processing broadcastChannel event", e?.message);
       }

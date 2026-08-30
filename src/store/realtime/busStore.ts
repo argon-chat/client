@@ -5,10 +5,25 @@ import { useApi } from "@/store/system/apiStore";
 import { logger } from "@argon/core";
 import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
-import type { Guid } from "@argon-chat/ion.webcore";
+import { CborReader, IonFormatterStorage, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
 
 export type EventWithServerId<T> = { spaceId: string } & T;
+
+/**
+ * Turns the payload the worker forwarded back into an event.
+ *
+ * This runs here rather than in the worker because postMessage copies with the structured clone
+ * algorithm: own properties survive, prototypes do not. An event decoded on the far side arrived
+ * holding the right numbers and none of the methods, which is why a datetime off an event answered
+ * `toDate is not a function` at the first call site. Decoded on this side it is the same live shape
+ * every API call returns.
+ */
+function decodeEvent(data: string): IArgonEvent {
+  const binary = atob(data);
+  const reader = new CborReader(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+  return IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
+}
 
 export const useBus = defineStore("bus", () => {
   const argonEventBus = new Subject<IArgonEvent>();
@@ -37,9 +52,15 @@ export const useBus = defineStore("bus", () => {
       const msg = e.data;
       switch (msg.type) {
         case "event":
-          // Events arrive already decoded from worker
-          logger.log("Received event from worker:", msg.event);
-          argonEventBus.next(msg.event as IArgonEvent);
+          try {
+            const event = decodeEvent(msg.data);
+            logger.log("Received event from worker:", event);
+            argonEventBus.next(event);
+          } catch (err) {
+            // One unreadable payload is not worth tearing the connection down for — the rest of
+            // the stream is still good, and history reload covers whatever this one carried.
+            logger.error("Failed to decode realtime event", err);
+          }
           break;
 
         case "tokenRequest":
