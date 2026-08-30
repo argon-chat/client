@@ -1,16 +1,17 @@
 <template>
   <div class="chat-list flex flex-col">
     <div class="chat-list-scroll">
+      <Transition name="panel-swap" mode="out-in">
       <!-- Loading skeletons -->
-      <template v-if="channelsLoading && channelLists.length === 0">
+      <div v-if="channelsLoading && channelLists.length === 0" key="loading">
         <div v-for="i in 8" :key="`ch-sk-${i}`" class="channel-skeleton">
           <Skeleton class="h-4 w-4 rounded shrink-0" />
           <Skeleton class="h-3 rounded" :style="{ width: `${42 + (i * 13) % 44}%` }" />
         </div>
-      </template>
+      </div>
 
       <!-- Empty state -->
-      <div v-else-if="channelLists.length === 0" class="empty-state">
+      <div v-else-if="channelLists.length === 0" key="empty" class="empty-state">
         <div class="empty-state-icon">
           <HashIcon class="w-8 h-8 text-muted-foreground/40" />
         </div>
@@ -25,7 +26,7 @@
         </button>
       </div>
 
-      <template v-else>
+      <div v-else key="channels">
         <!-- Ungrouped channels -->
         <TransitionGroup name="channel-list" tag="div">
           <ChannelItem
@@ -125,7 +126,8 @@
             />
           </div>
         </div>
-      </template>
+      </div>
+      </Transition>
     </div>
 
     <AddChannel
@@ -437,4 +439,26 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 .channel-list-move {
   transition: transform 250ms ease;
 }
+
+/* Skeletons -> content. The two states are the same panel at two moments, so they hand over
+   rather than cut: the placeholder fades out, the real list fades in a few pixels lower. Sequential
+   (`out-in`) because both live in the same scroll flow — crossfading them would need one taken out
+   of flow, and the panel would jump by whatever the other one measured. */
+.panel-swap-enter-active {
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.panel-swap-leave-active {
+  transition: opacity 140ms ease-in;
+}
+
+.panel-swap-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.panel-swap-leave-to {
+  opacity: 0;
+}
+
 </style>
