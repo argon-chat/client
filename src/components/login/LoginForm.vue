@@ -127,12 +127,12 @@ watch(password, () => {
         <CardTitle class="text-2xl font-bold text-white">{{ heading.title }}</CardTitle>
         <CardDescription class="text-muted-foreground">{{ heading.desc }}</CardDescription>
 
-        <div v-if="!effectiveOfficial" class="flex items-center justify-center gap-2 mt-3">
+        <div v-if="!effectiveOfficial" class="flex flex-col items-center gap-1.5 mt-3">
           <span class="instance-chip">
-            <ServerIcon class="w-3.5 h-3.5 text-primary" />
-            {{ t("connected_to") }} {{ effectiveBranding.displayName }}
+            <ServerIcon class="w-3.5 h-3.5 shrink-0 text-primary" />
+            <span class="truncate">{{ t("connected_to") }} {{ effectiveBranding.displayName }}</span>
           </span>
-          <button type="button" @click="useOfficial" class="text-xs text-primary hover:underline">
+          <button type="button" @click="useOfficial" class="instance-switch">
             {{ t("use_official") }}
           </button>
         </div>
@@ -341,8 +341,14 @@ watch(password, () => {
 }
 
 .instance-chip {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-         bg-primary/10 border border-primary/20 text-white;
+  @apply inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+         leading-5 bg-primary/10 border border-primary/20 text-white;
+}
+
+/* Secondary action under the chip, not beside it: side by side, a pill and a bare link never
+   line up, and a long instance name pushed the pair off centre. */
+.instance-switch {
+  @apply text-[11px] leading-none text-muted-foreground hover:text-primary transition-colors;
 }
 
 /* QR panel collapse — width + opacity so it slides away smoothly when switching to a

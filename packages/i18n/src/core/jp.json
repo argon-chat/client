@@ -80,6 +80,8 @@
   "search_chats": "チャットを検索...",
   "no_results": "結果が見つかりません",
   "no_recent_chats": "まだ会話がありません",
+  "no_channels": "チャンネルがまだありません",
+  "no_members_online": "オンラインのメンバーはいません",
   "now": "今",
   "recent": "最近",
   "today_stats": "今日の統計",

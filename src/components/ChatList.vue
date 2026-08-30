@@ -14,7 +14,7 @@
         <div class="empty-state-icon">
           <HashIcon class="w-8 h-8 text-muted-foreground/40" />
         </div>
-        <p class="text-sm text-muted-foreground/60">{{ t("no_channels") || "No channels yet" }}</p>
+        <p class="text-sm text-muted-foreground/60">{{ t("no_channels") }}</p>
         <button 
           v-if="pex.has('ManageChannels')"
           class="empty-state-btn"
