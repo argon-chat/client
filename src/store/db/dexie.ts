@@ -1,6 +1,7 @@
 import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type SpaceVersions } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import Dexie, { type Table, type Transaction } from "dexie";
+import { delay, logger } from "@argon/core";
 
 /** ArgonMessage with a numeric _msgId for IndexedDB indexing (bigint can't be an IDB key) */
 export type StoredMessage = ArgonMessage & { _msgId: number };
@@ -170,9 +171,68 @@ function liveDateTime<T>(value: T): T {
 /**
  * Empties every store in the transaction. Written against `tx.storeNames` rather than a list, so a
  * table added later is purged too without anyone having to remember this function exists.
+ *
+ * `tx.storeNames` is the merged schema of every version, not what the database physically holds at
+ * this point in the upgrade: a table introduced by a LATER version is named there but does not
+ * exist yet, and asking for it throws NotFoundError. That took the whole upgrade down with it, and
+ * a database that fails to upgrade fails every read after it — which is how an old cache turned
+ * into a boot loop rather than a slow start. Stores that are not there yet are skipped: they are
+ * created empty a moment later, which is exactly the state this function wants them in.
  */
 function purgeEverything(tx: Transaction): Promise<unknown> {
-  return Promise.all(tx.storeNames.map((store) => tx.table(store).clear()));
+  const present = new Set(Array.from(tx.idbtrans.objectStoreNames));
+  const existing = tx.storeNames.filter((store) => present.has(store));
+
+  const skipped = tx.storeNames.filter((store) => !present.has(store));
+  if (skipped.length > 0)
+    logger.log(`[dexie] Upgrade purge skipped not-yet-created stores: ${skipped.join(", ")}`);
+
+  return Promise.all(existing.map((store) => tx.table(store).clear()));
+}
+
+/** How long to wait on a blocked delete before saying so instead of waiting on. */
+const DELETE_TIMEOUT_MS = 8000;
+
+/**
+ * Opens a cache database, and rebuilds it from empty if it cannot be opened.
+ *
+ * Every table here caches server state, so this database is disposable by design — the standing
+ * policy for a version bump is already to empty it rather than migrate it. What is not survivable
+ * is one that refuses to open: Dexie reports that at the first query, from wherever that happens to
+ * be, and the boot sequence then retries the same failing upgrade ten times over before giving up.
+ * An unopenable cache is thrown away instead, at the cost of one cold start.
+ */
+async function openOrRebuild(instance: PoolDatabase): Promise<PoolDatabase> {
+  try {
+    await instance.open();
+    return instance;
+  } catch (e) {
+    const name = instance.name;
+    logger.error(`[dexie] Cannot open ${name}; rebuilding it from empty`, e);
+    try { instance.close(); } catch { /* already closed */ }
+
+    // Another window still holding this database open blocks the delete for as long as it lives,
+    // and a boot screen that waits forever is worse than one that says what went wrong.
+    await Promise.race([
+      Dexie.delete(name),
+      delay(DELETE_TIMEOUT_MS).then(() => {
+        throw new Error(`Timed out clearing ${name} — is Argon open in another window?`);
+      }),
+    ]);
+
+    const fresh = new PoolDatabase(name);
+    await fresh.open();
+    return fresh;
+  }
+}
+
+/**
+ * Boot: open the active account's cache before anything queries it, so an unreadable one is
+ * rebuilt here rather than surfacing as a failure of whatever query happened to run first.
+ */
+export async function ensureDbOpen(): Promise<void> {
+  if (_instance.isOpen()) return;
+  _instance = await openOrRebuild(_instance);
 }
 
 // Drop old database before creating new one
@@ -211,6 +271,5 @@ export async function reopenActiveAccountDb(): Promise<void> {
   if (next === _dbName) return;
   try { _instance.close(); } catch { /* ignore */ }
   _dbName = next;
-  _instance = new PoolDatabase(next);
-  await _instance.open();
+  _instance = await openOrRebuild(new PoolDatabase(next));
 }

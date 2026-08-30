@@ -41,6 +41,16 @@ export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   return full;
 }
 
+/**
+ * The same file, as a plain https URL on this instance's API — no `app://` wrapper.
+ *
+ * `cdnUrl` hands Electron its own caching schemes, which are meant for an `<img>` and not for
+ * `fetch`. Code that has to read the bytes (rather than display them) asks for this instead.
+ */
+export function cdnFetchUrl(fileId: string): string {
+  return `${apiBase()}/files/${fileId}`;
+}
+
 function apiBase(): string {
   return useConfig().apiEndpoint.replace(/\/+$/, "");
 }

@@ -30,6 +30,10 @@ export interface AccountRecord {
   createdAt: number;
   lastUsedAt: number;
   needsReauth?: boolean;
+  /** Last avatar we managed to read for this account, downscaled and inlined. */
+  avatarDataUrl?: string | null;
+  /** The avatarFileId `avatarDataUrl` was built from, so a changed avatar is re-read. */
+  avatarCachedFor?: string | null;
 }
 
 export interface MigrationUser {
@@ -43,6 +47,43 @@ const ACTIVE_KEY = "argon_active_account";
 
 const MAX_OFFICIAL = 3;
 const MAX_ALT = 4;
+
+// The cached avatar lives in the registry, which lives in localStorage — so it is re-encoded small
+// (a 72px square is twice the 36px the picker draws) and dropped entirely if it still comes out fat.
+const AVATAR_CACHE_PX = 72;
+const AVATAR_CACHE_MAX_CHARS = 64_000;
+
+/**
+ * Reads an avatar and re-encodes it small enough to keep.
+ *
+ * Goes through `fetch` rather than an `<img>` on purpose: an image element loaded cross-origin
+ * taints the canvas and `toDataURL` then throws, whereas a fetched blob is same-origin by the time
+ * it is drawn. Best-effort throughout — a failure just means the picker shows initials.
+ */
+async function readAvatarAsDataUrl(url: string): Promise<string | null> {
+  const response = await fetch(url, { credentials: "omit" });
+  if (!response.ok) return null;
+
+  const bitmap = await createImageBitmap(await response.blob());
+  try {
+    const side = Math.min(AVATAR_CACHE_PX, Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = side;
+    canvas.height = side;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    // Centre-cropped to a square: avatars are drawn round, so the corners are never seen anyway.
+    const cut = Math.min(bitmap.width, bitmap.height);
+    ctx.drawImage(bitmap, (bitmap.width - cut) / 2, (bitmap.height - cut) / 2, cut, cut, 0, 0, side, side);
+
+    const dataUrl = canvas.toDataURL("image/webp", 0.8);
+    return dataUrl.length > AVATAR_CACHE_MAX_CHARS ? null : dataUrl;
+  } finally {
+    bitmap.close();
+  }
+}
 
 /** Stable id from instance api host + userId, sanitized to the [a-z0-9-] alphabet used by the
  *  dexie name and the user-scoped-key suffix. Same user on different instances → different ids. */
@@ -304,6 +345,52 @@ export const useAccounts = defineStore("accounts", () => {
     await useAppState().continueAfterLogin();
   }
 
+  /**
+   * Keep the registry's copy of the signed-in identity current — name, avatar id, and the avatar
+   * itself.
+   *
+   * A file id only means anything on the instance that issued it, and every avatar URL is built
+   * against whichever instance is active right now. So the account picker rendering another
+   * account's avatar asked THIS instance for a file belonging to a different one: the picture came
+   * back missing, and a foreign file id was handed to a server with no business seeing it. The
+   * bytes are taken here instead, while the account owning them is the active one, and kept with
+   * the record — the picker then draws from that copy and never leaves its own instance.
+   */
+  async function syncActiveProfile(user: MigrationUser): Promise<void> {
+    const acc = active.value;
+    if (!acc || acc.userId !== user.userId) return;
+
+    acc.displayName = user.displayName;
+    acc.avatarFileId = user.avatarFileId;
+
+    if (!user.avatarFileId) {
+      acc.avatarDataUrl = null;
+      acc.avatarCachedFor = null;
+      persist();
+      return;
+    }
+
+    persist();
+
+    // Already held for this exact avatar — nothing to re-read.
+    if (acc.avatarDataUrl && acc.avatarCachedFor === user.avatarFileId) return;
+
+    try {
+      const { cdnFetchUrl } = await import("@/store/system/fileStorage");
+      const dataUrl = await readAvatarAsDataUrl(cdnFetchUrl(user.avatarFileId));
+      if (!dataUrl) return;
+
+      // The account can have been switched away from while the bytes were in flight.
+      const current = accounts.value.find(a => a.id === acc.id);
+      if (!current) return;
+      current.avatarDataUrl = dataUrl;
+      current.avatarCachedFor = user.avatarFileId;
+      persist();
+    } catch (e) {
+      logger.warn("Failed to cache account avatar", e);
+    }
+  }
+
   /** Persist a freshly-minted access token back into the active record (called after GetMyAuthorization). */
   function updateActiveTokens(token: string) {
     const acc = active.value;
@@ -408,6 +495,7 @@ export const useAccounts = defineStore("accounts", () => {
     markActiveNeedsReauth,
     updateActiveTokens,
     adoptCurrentSession,
+    syncActiveProfile,
     applyActiveAtBoot,
     gcOrphanDbs,
     migrateLegacySessionIfNeeded,

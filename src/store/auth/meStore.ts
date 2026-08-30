@@ -2,7 +2,7 @@ import { logger } from "@argon/core";
 import { setUser } from "@sentry/vue";
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
@@ -36,6 +36,21 @@ export const useMe = defineStore("me", () => {
   const featureFlags = useFeatureFlags();
   const me = ref(null as ExtendedUser | null);
   const meProfile = ref(null as ArgonUserProfile | null);
+
+  // The account registry keeps its own copy of this identity: it is what the account picker shows
+  // for this account once a different one is active, and by then this instance is no longer the one
+  // that can resolve the avatar. Kept in step from here so an avatar or name change lands in it too.
+  watch(
+    () => [me.value?.userId, me.value?.displayName, me.value?.avatarFileId] as const,
+    ([userId, displayName, avatarFileId]) => {
+      if (!userId) return;
+      void useAccounts().syncActiveProfile({
+        userId,
+        displayName: displayName ?? "",
+        avatarFileId: avatarFileId ?? null,
+      });
+    },
+  );
 
   // Which legal documents the user must (re-)accept, or null if up to date.
   const legalOutdated = ref<{ terms: boolean; privacy: boolean } | null>(null);
