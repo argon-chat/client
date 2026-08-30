@@ -48,6 +48,10 @@ export const useUserStore = defineStore("user", () => {
   // Ignored users - users that failed to fetch from server
   const ignoredUsers = new Set<Guid>();
 
+  // Lookups in flight, so several callers wanting the same unknown user share one request
+  const pendingLookups = new Map<Guid, Promise<RealtimeUser | undefined>>();
+  const LOOKUP_BATCH = 10;
+
   // Seamless account switch: drop all live user subscriptions (bound to the old DB) and caches.
   onSessionReset(() => {
     for (const entry of reactiveUserCache.values()) {
@@ -57,6 +61,7 @@ export const useUserStore = defineStore("user", () => {
     userCache.clear();
     pendingRequests.clear();
     requestTimestamps.clear();
+    pendingLookups.clear();
     ignoredUsers.clear();
   });
 
@@ -131,6 +136,64 @@ export const useUserStore = defineStore("user", () => {
   }
 
   /**
+   * Resolve a user the local database has never seen.
+   *
+   * db.users is filled from space rosters, so a peer you share no space with is simply absent on a
+   * fresh install — which is what left direct messages rendering raw ids instead of names and
+   * avatars. LookupUser takes the user id alone and lets the server decide whether this account has
+   * standing to know it; the answer is written to the database, so every reactive binding on that
+   * user picks it up on its own.
+   */
+  const lookupUser = async (userId: Guid): Promise<RealtimeUser | undefined> => {
+    if (ignoredUsers.has(userId)) return undefined;
+
+    const inFlight = pendingLookups.get(userId);
+    if (inFlight) {
+      diagnostics.deduplicatedRequests++;
+      return inFlight;
+    }
+
+    const lookup = (async () => {
+      try {
+        const result = await api.userInteraction.LookupUser(userId);
+
+        if (!result.isSuccessLookupUser()) {
+          // A real answer, not a failure to reach: this account has no standing reason to know that
+          // one, so there is nothing to retry and no point asking again.
+          logger.warn(`[UserStore] Cannot resolve user ${userId}, ignoring future lookups`);
+          ignoredUsers.add(userId);
+          return undefined;
+        }
+
+        await trackUser(result.user);
+        return await db.users.get(userId);
+      } catch (err) {
+        logger.error(`[UserStore] Lookup failed for user ${userId}:`, err);
+        diagnostics.errorCount++;
+        return undefined;
+      } finally {
+        pendingLookups.delete(userId);
+      }
+    })();
+
+    pendingLookups.set(userId, lookup);
+    return lookup;
+  };
+
+  /** Look up several unknown users at once, in bounded batches. */
+  const lookupUsers = async (userIds: Guid[]): Promise<RealtimeUser[]> => {
+    const wanted = userIds.filter((id) => !ignoredUsers.has(id));
+    const resolved: RealtimeUser[] = [];
+
+    for (let i = 0; i < wanted.length; i += LOOKUP_BATCH) {
+      const batch = await Promise.all(wanted.slice(i, i + LOOKUP_BATCH).map(lookupUser));
+      for (const user of batch) if (user) resolved.push(user);
+    }
+
+    return resolved;
+  };
+
+  /**
    * Batch get users by IDs - much faster than multiple getUser calls
    */
   const getUsersBatch = async (userIds: Guid[]): Promise<Map<Guid, RealtimeUser>> => {
@@ -173,6 +236,16 @@ export const useUserStore = defineStore("user", () => {
       for (const user of users) {
         result.set(user.userId, user);
         userCache.set(user.userId, { user, timestamp: Date.now() });
+      }
+
+      // Whoever the database has never heard of is asked for by id rather than left to the caller's
+      // "no user" fallback, which is a raw id on screen.
+      const missing = toFetch.filter((id) => !result.has(id));
+      if (missing.length > 0) {
+        for (const user of await lookupUsers(missing)) {
+          result.set(user.userId, user);
+          userCache.set(user.userId, { user, timestamp: Date.now() });
+        }
       }
 
       return result;
@@ -241,8 +314,8 @@ export const useUserStore = defineStore("user", () => {
             logSlowQuery(`getUser(${userId})`, duration);
           }
 
-          // Cache result
-          userCache.set(userId, { user: result, timestamp: Date.now() });
+          // Cache result. A miss stays uncached so the lookup below gets its turn.
+          if (result) userCache.set(userId, { user: result, timestamp: Date.now() });
 
           // Clean up old cache (if >500 entries)
           if (userCache.size > 500) {
@@ -281,8 +354,17 @@ export const useUserStore = defineStore("user", () => {
       )
     ]);
 
-    pendingRequests.set(userId, request);
-    return request;
+    // The database is not the last word: a user it has never seen is asked for by id, so callers
+    // get an identity instead of undefined.
+    const resolved = request.then(async (user) => {
+      if (user) return user;
+      const fetched = await lookupUser(userId);
+      userCache.set(userId, { user: fetched, timestamp: Date.now() });
+      return fetched;
+    });
+
+    pendingRequests.set(userId, resolved);
+    return resolved;
   };
 
   /**
@@ -481,6 +563,8 @@ export const useUserStore = defineStore("user", () => {
   return {
     getUser,
     getUsersBatch,
+    lookupUser,
+    lookupUsers,
     getUsersByServerMemberIds,
     getUserReactive,
     // Diagnostics

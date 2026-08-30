@@ -32,6 +32,11 @@ const user = pool.getUserReactive(computed(() => props.userId));
 const ECHO_USER_ID = "44444444-2222-1111-2222-444444444444";
 const isEchoUser = computed(() => props.userId === ECHO_USER_ID);
 
+// The list is built from a snapshot of the chat, so its name is whatever was known when the chat
+// row was made — an id if the peer had not been resolved yet. The live user row is authoritative
+// the moment it lands, which also covers someone renaming themselves while the list is open.
+const name = computed(() => user.value?.displayName || props.displayName);
+
 const displayStatus = computed(() => {
     if (isEchoUser.value) return UserStatus.Online;
     return user.value?.status ?? UserStatus.Offline;
@@ -99,7 +104,7 @@ const timeAgo = computed(() => {
                 <IconPin v-if="isPinned" class="w-3 h-3 text-primary shrink-0" />
                 <span class="text-[13px] font-medium truncate leading-tight"
                     :class="{ 'font-semibold': unreadCount && unreadCount > 0 }">
-                    {{ displayName }}
+                    {{ name }}
                 </span>
             </div>
             <span v-if="subtitleText"
