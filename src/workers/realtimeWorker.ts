@@ -16,7 +16,8 @@
  *   Worker → Main:
  *     { type: 'event', channel: 'forSelf' | 'broadcastSpace', data: string }
  *     { type: 'tokenRequest', requestId: string }
- *     { type: 'state', state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' }
+ *     { type: 'state', state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected',
+ *       intentional?: boolean }
  *     { type: 'reconnectInfo', attemptCount: number, nextAttemptAt: number }
  *     { type: 'error', message: string }
  *     { type: 'log', level: 'info' | 'warn' | 'error', message: string, args?: any[] }
@@ -57,9 +58,23 @@ let hubConnection: signalR.HubConnection | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let shouldReconnect = true;
 // Backoff attempt counter for the hard-close / start-failure manual reconnect path
-// (SignalR's own auto-reconnect is already exhausted by then). Reset to 0 on a successful
-// start(). Drives capped exponential backoff + jitter so clients don't reconnect in lockstep.
+// (SignalR's own auto-reconnect is already exhausted by then). Drives capped exponential backoff
+// + jitter so clients don't reconnect in lockstep.
 let hardReconnectAttempts = 0;
+
+/**
+ * How long a connection has to stand up before it counts as healthy.
+ *
+ * The counter used to be cleared the moment `start()` resolved, which only says the handshake
+ * completed. A server that accepts the connection and then drops it — a session grain landing on a
+ * silo that no longer hosts it, say — therefore reset the backoff on every attempt, and the client
+ * sat in a one-second connect/close loop, asking for a full state resync on every lap. Backing off
+ * is exactly the right response to that: the silo needs a moment, and so do we.
+ */
+const STABLE_CONNECTION_MS = 30_000;
+
+/** When the current connection came up, or 0 while there isn't one. */
+let connectedAt = 0;
 
 // --- Replay state ---
 // One DeliveryFilter per delivery channel: it decides what to hand the main thread, and holds the
@@ -82,7 +97,7 @@ const subscribedChannels = new Set<string>();
 let hasConnectedBefore = false;
 
 async function resumeSession() {
-  if (!hubConnection) return;
+  if (hubConnection?.state !== signalR.HubConnectionState.Connected) return;
   try {
     const spaceCursorsObj: Record<string, string> = {};
     for (const [spaceId, filter] of spaceDelivery)
@@ -97,7 +112,14 @@ async function resumeSession() {
       postLog("info", "Resume completed, missed events replayed");
     }
   } catch (e: any) {
-    // Couldn't resume — safest is to rebuild state from scratch.
+    // A resume that failed because the connection went away says nothing about the replay buffer:
+    // the next connect resumes from the same cursor. Only treat it as a lost buffer while the
+    // connection is actually up — otherwise a flapping server would order a full client rebuild
+    // once per flap, which is the most expensive possible response to a server that is struggling.
+    if (hubConnection?.state !== signalR.HubConnectionState.Connected) {
+      postLog("warn", "Resume abandoned, connection went away", e?.message);
+      return;
+    }
     postLog("error", "Resume failed, requesting full resync", e?.message);
     self.postMessage({ type: "needFullResync" });
   }
@@ -217,15 +239,34 @@ async function connect(endpoint: string) {
     });
 
     hubConnection.onclose((error) => {
+      const uptimeMs = connectedAt === 0 ? 0 : Date.now() - connectedAt;
+      connectedAt = 0;
+
+      // A close we asked for (logout, account switch, an explicit retry) is not a fault and must
+      // not raise the reconnect UI on the way out.
+      if (!shouldReconnect) {
+        postLog("info", "SignalR connection closed on request");
+        self.postMessage({ type: "state", state: "disconnected", intentional: true });
+        stopHeartbeat();
+        return;
+      }
+
       postLog("error", "SignalR connection closed", error?.message);
       self.postMessage({ type: "state", state: "disconnected" });
       stopHeartbeat();
+
+      // Only a connection that stood up clears the backoff. One that died on arrival is another
+      // failed attempt, and the next wait is longer than the last.
+      if (uptimeMs >= STABLE_CONNECTION_MS) hardReconnectAttempts = 0;
+      else if (uptimeMs > 0)
+        postLog("warn", `Connection lasted ${Math.round(uptimeMs / 1000)}s — backing off further`);
+
       scheduleReconnect(endpoint);
     });
 
     self.postMessage({ type: "state", state: "connecting" });
     await hubConnection.start();
-    hardReconnectAttempts = 0; // healthy connection — reset hard-reconnect backoff
+    connectedAt = Date.now();
     postLog("info", "SignalR connected successfully", hubConnection.connectionId);
     self.postMessage({ type: "state", state: "connected" });
 
@@ -248,6 +289,8 @@ async function connect(endpoint: string) {
 
 function disconnect() {
   shouldReconnect = false;
+  connectedAt = 0;
+  hardReconnectAttempts = 0;
   stopHeartbeat();
   if (hubConnection) {
     hubConnection.stop();

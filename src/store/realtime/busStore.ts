@@ -108,7 +108,12 @@ export const useBus = defineStore("bus", () => {
               if (ch) subscribeToChannel(ch);
             })();
           } else if (msg.state === "disconnected") {
-            // Will auto-reconnect inside worker
+            // The worker reconnects on its own, with a growing delay between attempts. That wait is
+            // the part worth showing: without this the app looked connected while it was in fact
+            // sitting out a backoff, and the reconnect overlay — which counts down to the next
+            // attempt — never appeared on the path that needs it most. A close we asked for is not
+            // a reconnect and says so.
+            if (!msg.intentional) isSignalRReconnecting.value = true;
           }
           break;
 
