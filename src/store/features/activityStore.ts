@@ -27,6 +27,12 @@ export const useActivity = defineStore("activity", () => {
   // settings toggle can re-evaluate publication without waiting for the next change.
   const lastRawPresence = ref<Presence>(null);
 
+  // The host IPC listener outlives any one sign-in, so it is bound once. `init()` runs again on
+  // every retry of the boot sequence, on each account switch and after a full resync, and each of
+  // those used to add another listener and another settings watcher: nothing was published twice
+  // (the dedupe below is shared) but every host message was handled — and logged — N times over.
+  let bound = false;
+
   // Seamless account switch: clear broadcast presence so the new account starts clean.
   onSessionReset(() => {
     lastPublishedPresence.value = null;
@@ -78,11 +84,17 @@ export const useActivity = defineStore("activity", () => {
   }
 
   function init() {
-    if (!argon.isArgonHost) return;
+    if (!argon.isArgonHost || bound) return;
+    bound = true;
 
     window.argonIpc?.onPresenceUpdate((data: any) => {
-      logger.info("onPresenceUpdate", data);
-      onPresenceUpdate(data as Presence);
+      const presence = data as Presence;
+      // The host repeats the current presence every half minute, so that a window which reloaded
+      // and lost its copy picks it back up. A repeat is not news: it is logged as debug and stops
+      // at the dedupe in applyPresence, never reaching the server.
+      if (isSamePresence(lastRawPresence.value, presence)) logger.debug("onPresenceUpdate (repeat)", data);
+      else logger.info("onPresenceUpdate", data);
+      onPresenceUpdate(presence);
     });
 
     // Re-evaluate publication when the user toggles game-activity settings live.
