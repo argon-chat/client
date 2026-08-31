@@ -1,44 +1,68 @@
 /**
- * Sign-in for the browser build: Aegis (Argon's identity provider) over OAuth 2.0 + PKCE.
+ * Sign-in for the browser build: Aegis (Argon's identity provider) over OAuth 2.0 + PKCE, then one
+ * exchange for an Argon session.
  *
  * The desktop app can hold a password form and a device-bound session because it is a device. A tab
  * cannot, so the web build never sees credentials at all: it hands the browser to Aegis, gets an
- * authorization code back on the redirect, and exchanges it for tokens with a proof key. The access
- * token it ends up with is the same bearer the rest of the app already sends on every call, so
- * nothing downstream of `authStore.token` needs to know which of the two flows produced it.
+ * authorization code back on the redirect, and exchanges it for tokens with a proof key.
  *
- * Free of Vue and of the store layer: the redirect lands mid-boot, before pinia exists.
+ * **The Aegis token is not what the app runs on.** It is presented once, to `/auth/web/session`, and
+ * then dropped. What comes back is an ordinary Argon access token — the same bearer the desktop
+ * sends — plus a session cookie the API sets and this code can never read. That cookie is the
+ * long-lived half: it is `HttpOnly`, so a script that gets onto the page cannot take the session with
+ * it, which is the whole reason nothing here writes a refresh token to `localStorage` any more.
+ *
+ * Renewal is therefore not this module's job. `GetMyAuthorization` mints a new access token from the
+ * cookie, and the store layer calls it — at boot and when a sleeping tab wakes — exactly as the
+ * desktop build already does with its own refresh token. There is no timer here for the same reason
+ * the desktop has none: an access token is good for days, and the two moments that matter are
+ * covered.
+ *
+ * Free of Vue and of the store layer: the redirect lands mid-boot, before pinia exists. That is also
+ * why the API's address arrives as an argument rather than being read from configuration.
  */
 
 import { logger } from "@argon/core";
 
 const AEGIS_AUTHORIZE_URL = "https://aegis.argon.gl/";
 const AEGIS_TOKEN_URL = "https://aegis.argon.gl/connect/token";
+
 /**
  * The registered Aegis application. Web only — the desktop app authenticates against the API.
  *
  * TEMPORARY: borrowing Meet's client id while Argon Web's own one
  * (A37E7A1DB06E9610C9C0BD77C61A821B) is not yet usable. Swap it back before release — the redirect
- * URIs are registered per client, so this also decides which origins may complete a sign-in.
+ * URIs are registered per client, so this also decides which origins may complete a sign-in, and the
+ * API's own allowlist is keyed on the audience those redirects produce.
  */
 const CLIENT_ID = "700E951110574351BEA823D2D8258BCA";
-const SCOPE = "identity offline_access";
+
+/**
+ * No `offline_access`.
+ *
+ * That scope exists to get a refresh token, and a refresh token is the thing this flow deliberately
+ * no longer keeps: the Argon session cookie is what survives a reload now, and asking Aegis to mint
+ * a credential nobody stores would only widen what an intercepted redirect is worth.
+ */
+const SCOPE = "identity";
 
 /** The path Aegis redirects back to. Must match the registered redirect URI exactly. */
 export const CALLBACK_PATH = "/callback";
 
-const KEYS = {
-  access: "argon_web_access_token",
-  refresh: "argon_web_refresh_token",
-  expiresAt: "argon_web_token_exp", // unix seconds
-  verifier: "argon_web_pkce_verifier",
-} as const;
+/**
+ * That a session was opened — a hint, never a credential.
+ *
+ * The session itself is an `HttpOnly` cookie, so the page cannot see whether it has one. Without
+ * some mark of its own the app could not tell "signed in, token expired" from "never signed in", and
+ * would have to attempt a refresh on every cold start including the very first. Losing this flag
+ * costs a trip to the sign-in screen; it cannot be used to authenticate anything.
+ */
+const SESSION_HINT_KEY = "argon_web_session";
 
-/** Refresh this long before the token actually expires, so no in-flight call rides an expired one. */
-const REFRESH_SKEW_SECONDS = 60;
+const VERIFIER_KEY = "argon_web_pkce_verifier";
 
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
-let inFlightRefresh: Promise<string | null> | null = null;
+/** Treat a token as spent this long before it actually expires. */
+const EXPIRY_SKEW_SECONDS = 60;
 
 /**
  * Why the last sign-in attempt did not produce a session.
@@ -54,43 +78,54 @@ export function lastSignInError(): string | null {
   return lastError;
 }
 
-// ── token storage ────────────────────────────────────────────────────────────────────────────────
+// ── session marker ───────────────────────────────────────────────────────────────────────────────
 
-export function accessToken(): string | null {
-  return localStorage.getItem(KEYS.access);
+/** A session was opened on this browser once. Whether it is still good is the API's to say. */
+export function hasSession(): boolean {
+  return localStorage.getItem(SESSION_HINT_KEY) === "1";
 }
 
-function refreshToken(): string | null {
-  return localStorage.getItem(KEYS.refresh);
+/**
+ * Forget the local traces of a session.
+ *
+ * Only the traces: the session lives in a cookie on the API's host, and ending it there is what
+ * {@link signOut} is for. This is the half that runs when the API has already refused the session
+ * and there is nothing left to end.
+ */
+export function forgetSession(): void {
+  localStorage.removeItem(SESSION_HINT_KEY);
+  localStorage.removeItem(VERIFIER_KEY);
 }
 
-function expiresAt(): number {
-  return Number(localStorage.getItem(KEYS.expiresAt)) || 0;
+// ── token inspection ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * When an Argon access token stops being accepted, read out of the token itself.
+ *
+ * Read rather than stored beside it: an expiry kept in `localStorage` next to the token is a second
+ * source of truth that drifts the moment either is written without the other, and the answer is
+ * already inside the thing being asked about.
+ */
+export function expiresAt(token: string | null): number {
+  if (!token) return 0;
+
+  const payload = token.split(".")[1];
+  if (!payload) return 0;
+
+  try {
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return Number(JSON.parse(json).exp) || 0;
+  } catch {
+    // A token that cannot be read is one the API will not accept either, and answering "expired"
+    // sends the caller down the refresh path — which is where an unusable token should end up.
+    return 0;
+  }
 }
 
-function isExpired(skew = REFRESH_SKEW_SECONDS): boolean {
-  const exp = expiresAt();
+export function isExpired(token: string | null, skew = EXPIRY_SKEW_SECONDS): boolean {
+  const exp = expiresAt(token);
   if (!exp) return true;
   return Math.floor(Date.now() / 1000) >= exp - skew;
-}
-
-/** A stored session exists — not necessarily a valid one; `ensureFreshToken` decides that. */
-export function hasSession(): boolean {
-  return !!accessToken() || !!refreshToken();
-}
-
-function saveTokens(data: { access_token: string; refresh_token?: string; expires_in?: number }): void {
-  localStorage.setItem(KEYS.access, data.access_token);
-  // A refresh response may legitimately omit a new refresh token; keeping the old one is correct.
-  if (data.refresh_token) localStorage.setItem(KEYS.refresh, data.refresh_token);
-  localStorage.setItem(
-    KEYS.expiresAt,
-    String(Math.floor(Date.now() / 1000) + (data.expires_in ?? 3600)),
-  );
-}
-
-export function clearTokens(): void {
-  for (const key of Object.values(KEYS)) localStorage.removeItem(key);
 }
 
 // ── PKCE ─────────────────────────────────────────────────────────────────────────────────────────
@@ -120,7 +155,7 @@ function redirectUri(): string {
 export async function beginSignIn(): Promise<void> {
   lastError = null;
   const { verifier, challenge } = await createPkcePair();
-  localStorage.setItem(KEYS.verifier, verifier);
+  localStorage.setItem(VERIFIER_KEY, verifier);
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -151,24 +186,24 @@ function cleanUpUrl(): void {
 }
 
 /**
- * The outcome of one call to the token endpoint.
+ * Redeems the authorization code at Aegis.
  *
- * The two failures are not interchangeable. `rejected` is Aegis's verdict on the credential we
- * presented — it will say the same thing next time, so the credential is spent. `transient` is
- * everything that never got an answer at all: the network, a blocked request, a server having a bad
- * minute. Treating the second as the first is how a moment offline turns into a forced sign-in.
+ * The token it returns is held for the length of one call and never written down: its only use is
+ * the exchange below, and after that it is of no further interest to this app.
  */
-type ExchangeResult =
-  | { ok: true; token: string }
-  | { ok: false; kind: "rejected" | "transient" };
-
-async function exchange(form: URLSearchParams): Promise<ExchangeResult> {
+async function redeemCode(code: string, verifier: string): Promise<string | null> {
   let res: Response;
   try {
     res = await fetch(AEGIS_TOKEN_URL, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: form,
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri(),
+        client_id: CLIENT_ID,
+        code_verifier: verifier,
+      }),
     });
   } catch (e) {
     // Never rethrown: this runs inside the boot sequence, where a thrown error is indistinguishable
@@ -176,7 +211,7 @@ async function exchange(form: URLSearchParams): Promise<ExchangeResult> {
     // request lands here too, and looks exactly like the network being down.
     lastError = "network";
     logger.error("[web-auth] could not reach the token endpoint", e);
-    return { ok: false, kind: "transient" };
+    return null;
   }
 
   if (!res.ok) {
@@ -185,36 +220,76 @@ async function exchange(form: URLSearchParams): Promise<ExchangeResult> {
     const detail = await res.text().catch(() => "");
     lastError = `http_${res.status}`;
     logger.error(`[web-auth] token endpoint returned ${res.status}`, detail);
-    // Only the 4xx range is a verdict about what we sent; a 5xx is the server, not the credential.
-    return { ok: false, kind: res.status >= 400 && res.status < 500 ? "rejected" : "transient" };
+    return null;
   }
 
   const data = await res.json().catch(() => null);
   if (!data?.access_token) {
-    // A success that carries no token is a broken answer, not a refusal — keep what we have.
     lastError = "no_token";
     logger.error("[web-auth] token response carried no access_token", data);
-    return { ok: false, kind: "transient" };
+    return null;
   }
 
-  lastError = null;
-  saveTokens(data);
-  return { ok: true, token: data.access_token as string };
+  return data.access_token as string;
 }
 
 /**
- * Finish the redirect: turn the authorization code into tokens.
+ * Trades the Aegis token for an Argon session.
  *
- * Returns the access token, or null when the user declined, the code was already spent, or the
- * verifier is gone (a callback opened in a different browser profile, say) — all of which mean the
- * same thing to the caller: show the sign-in screen again.
+ * `credentials: "include"` is load-bearing rather than boilerplate: the response's whole point is
+ * the `Set-Cookie` it carries, and a cross-origin fetch without it neither sends nor accepts one.
+ * The app would then sign in successfully and be signed out again by the next reload, with nothing
+ * in the console to say why.
  */
-export async function completeSignIn(): Promise<string | null> {
+async function openSession(apiBase: string, aegisToken: string): Promise<string | null> {
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/auth/web/session`, {
+      method: "POST",
+      credentials: "include",
+      headers: { authorization: `Bearer ${aegisToken}` },
+    });
+  } catch (e) {
+    lastError = "network";
+    logger.error("[web-auth] could not reach the session endpoint", e);
+    return null;
+  }
+
+  if (!res.ok) {
+    // A 401 here is the API refusing the identity server's token, which in practice means this
+    // client's audience is not on the API's allowlist — a deployment mismatch rather than anything
+    // the user did, and worth saying so plainly in the log.
+    lastError = `session_http_${res.status}`;
+    logger.error(`[web-auth] the API refused to open a session (${res.status})`,
+      await res.text().catch(() => ""));
+    return null;
+  }
+
+  const data = await res.json().catch(() => null);
+  if (!data?.accessToken) {
+    lastError = "no_session_token";
+    logger.error("[web-auth] session response carried no accessToken", data);
+    return null;
+  }
+
+  localStorage.setItem(SESSION_HINT_KEY, "1");
+  lastError = null;
+  return data.accessToken as string;
+}
+
+/**
+ * Finish the redirect: authorization code in, Argon access token out.
+ *
+ * Returns null when the user declined, the code was already spent, the verifier is gone (a callback
+ * opened in a different browser profile, say), or the API would not open a session — all of which
+ * mean the same thing to the caller: show the sign-in screen again.
+ */
+export async function completeSignIn(apiBase: string): Promise<string | null> {
   const query = new URLSearchParams(window.location.search);
   const error = query.get("error");
   const code = query.get("code");
-  const verifier = localStorage.getItem(KEYS.verifier);
-  localStorage.removeItem(KEYS.verifier);
+  const verifier = localStorage.getItem(VERIFIER_KEY);
+  localStorage.removeItem(VERIFIER_KEY);
   cleanUpUrl();
 
   if (error) {
@@ -230,77 +305,33 @@ export async function completeSignIn(): Promise<string | null> {
     return null;
   }
 
-  const result = await exchange(
-    new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirectUri(),
-      client_id: CLIENT_ID,
-      code_verifier: verifier,
-    }),
-  );
-  if (!result.ok) return null;
+  const aegisToken = await redeemCode(code, verifier);
+  if (!aegisToken) return null;
+
+  const token = await openSession(apiBase, aegisToken);
+  if (!token) return null;
 
   logger.success("[web-auth] signed in");
-  return result.token;
-}
-
-/** Trade the refresh token for a new access token. Clears the session only if Aegis refuses it. */
-async function refresh(): Promise<string | null> {
-  const rt = refreshToken();
-  if (!rt) return null;
-
-  const result = await exchange(
-    new URLSearchParams({ grant_type: "refresh_token", refresh_token: rt, client_id: CLIENT_ID }),
-  );
-  if (result.ok) return result.token;
-
-  // A refresh that never reached Aegis says nothing about the credential: keep it, fail this
-  // attempt, and let the next one — on the next tick, or when the tab wakes — decide.
-  if (result.kind === "transient") return null;
-
-  clearTokens();
-  return null;
+  return token;
 }
 
 /**
- * The token to send right now, refreshing first if the stored one is spent.
+ * End the session, at the API and here.
  *
- * Concurrent callers share one refresh — the tab wakes several things at once (realtime, the API
- * client, whatever the user clicked), and a refresh token may only be redeemed once.
+ * Best-effort on the wire and unconditional locally: the point of the call is the tombstone the API
+ * writes against the session id, and a user who is offline when they press sign out still expects
+ * the app to stop being signed in.
+ *
+ * Aegis keeps its own session regardless — signing in again will not ask for a password. That is the
+ * behaviour of every application sharing an identity provider, and ending it here would mean signing
+ * the user out of the others too.
  */
-export async function ensureFreshToken(): Promise<string | null> {
-  if (!isExpired()) return accessToken();
-  if (!inFlightRefresh) {
-    inFlightRefresh = refresh().finally(() => {
-      inFlightRefresh = null;
-    });
+export async function signOut(apiBase: string): Promise<void> {
+  try {
+    await fetch(`${apiBase}/auth/web/logout`, { method: "POST", credentials: "include" });
+  } catch (e) {
+    logger.warn("[web-auth] sign-out could not reach the API; clearing locally anyway", e);
+  } finally {
+    forgetSession();
   }
-  return inFlightRefresh;
-}
-
-/**
- * Keep the token fresh while the app runs.
- *
- * The interval is coarse because it is not the only thing holding the session up: a tab that was
- * asleep gets an explicit check on wake, and `ensureFreshToken` is called on the paths that matter.
- */
-export function startAutoRefresh(onToken: (token: string) => void): void {
-  if (refreshTimer) return;
-  refreshTimer = setInterval(async () => {
-    if (!isExpired()) return;
-    const token = await ensureFreshToken();
-    if (token) onToken(token);
-  }, 60_000);
-}
-
-export function stopAutoRefresh(): void {
-  if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = null;
-}
-
-/** Drop the local session. Aegis keeps its own — signing in again will not ask for a password. */
-export function signOut(): void {
-  stopAutoRefresh();
-  clearTokens();
 }

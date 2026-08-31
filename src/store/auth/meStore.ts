@@ -27,7 +27,6 @@ import { isSessionRejected } from "@/lib/net/authFailure";
 import { userScopedKey } from "@/lib/userScopedStorage";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { isWeb } from "@/lib/platform";
-import * as webAuth from "@/lib/webAuth";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -144,11 +143,10 @@ export const useMe = defineStore("me", () => {
   /**
    * Confirm the browser build's session by using it.
    *
-   * `GetMyAuthorization` is the desktop's session exchange: it trades a device-bound refresh token
-   * for a fresh app token. The web build has neither half of that — its token comes from Aegis and
-   * is renewed against Aegis — so there is nothing here to exchange. The first authenticated call
-   * is the check instead: it either answers or it does not, and a token Aegis will not renew is a
-   * session that has to start over at the sign-in screen.
+   * `GetMyAuthorization` has already run by this point — `restoreWebSession` calls it, from the
+   * session cookie, the same way the desktop calls it from its refresh token. What is left is the
+   * check that no exchange can make: whether the token that came back is actually accepted for
+   * ordinary work. The first authenticated call is that check.
    */
   async function initWebSession(): Promise<boolean> {
     try {
@@ -165,7 +163,8 @@ export const useMe = defineStore("me", () => {
       }
 
       logger.warn("Web session was refused by the API, signing out", e);
-      webAuth.signOut();
+      // `logout` already ends the session at the API and drops the local marker; calling signOut
+      // here as well would only be a second request saying the same thing.
       useAuthStore().logout();
       location.reload();
       return false;

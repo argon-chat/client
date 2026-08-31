@@ -1,11 +1,16 @@
 /**
  * What a failed profile load is allowed to conclude about the browser session.
  *
- * The web build has no session exchange to check a token against — the first authenticated call is
- * the check. That makes the failure path load-bearing: read it as "this session is over" and every
- * bad minute the server has signs people out and sends them back to the sign-in screen, with the
- * refresh token thrown away on the way. Only the server's own verdict may do that; everything else
- * has to travel back up to the boot sequence, which already retries with backoff.
+ * The session has already been renewed from its cookie by the time this runs, so what the first
+ * authenticated call adds is the one check no exchange can make: whether the token that came back is
+ * accepted for ordinary work. That makes the failure path load-bearing — read it as "this session is
+ * over" and every bad minute the server has signs people out and sends them back to the sign-in
+ * screen. Only the server's own verdict may do that; everything else has to travel back up to the
+ * boot sequence, which already retries with backoff.
+ *
+ * Ending the session is `logout`'s job and only `logout`'s: it is what drops the local state, tells
+ * the API to write its tombstone, and forgets the marker that says a session was ever opened. These
+ * tests therefore watch for that one call rather than for its individual effects.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -14,7 +19,6 @@ import { IonRequestException } from "@argon-chat/ion.webcore";
 
 const stubs = vi.hoisted(() => ({
   getMe: vi.fn(),
-  signOut: vi.fn(),
   logout: vi.fn(),
   reload: vi.fn(),
 }));
@@ -55,7 +59,6 @@ vi.mock("@/store/auth/accountsStore", () => ({
     updateActiveTokens: vi.fn(),
   }),
 }));
-vi.mock("@/lib/webAuth", () => ({ signOut: stubs.signOut }));
 vi.mock("@sentry/vue", () => ({ setUser: vi.fn() }));
 
 /** The transport's fallback when the body was not a protocol error: the bare status, nothing else. */
@@ -81,7 +84,6 @@ describe("web session init", () => {
     // Rethrown rather than swallowed: the boot sequence owns the retry.
     await expect(initMe()).rejects.toThrow();
 
-    expect(stubs.signOut).not.toHaveBeenCalled();
     expect(stubs.logout).not.toHaveBeenCalled();
     expect(stubs.reload).not.toHaveBeenCalled();
   });
@@ -91,7 +93,6 @@ describe("web session init", () => {
 
     await expect(initMe()).rejects.toThrow();
 
-    expect(stubs.signOut).not.toHaveBeenCalled();
     expect(stubs.logout).not.toHaveBeenCalled();
   });
 
@@ -100,7 +101,6 @@ describe("web session init", () => {
 
     await expect(initMe()).resolves.toBe(false);
 
-    expect(stubs.signOut).toHaveBeenCalled();
     expect(stubs.logout).toHaveBeenCalled();
     expect(stubs.reload).toHaveBeenCalled();
   });
@@ -112,7 +112,7 @@ describe("web session init", () => {
 
     await expect(initMe()).resolves.toBe(false);
 
-    expect(stubs.signOut).toHaveBeenCalled();
+    expect(stubs.logout).toHaveBeenCalled();
   });
 
   test("a profile that loads is not mistaken for a failure", async () => {
@@ -120,6 +120,6 @@ describe("web session init", () => {
 
     await expect(initMe()).resolves.toBe(true);
 
-    expect(stubs.signOut).not.toHaveBeenCalled();
+    expect(stubs.logout).not.toHaveBeenCalled();
   });
 });
