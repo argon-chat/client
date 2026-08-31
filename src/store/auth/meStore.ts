@@ -23,6 +23,7 @@ import { useAccounts } from "@/store/auth/accountsStore";
 import { LEGAL } from "@/legal/generated";
 import { isLegalOutdated } from "@/legal/version";
 import { runWhenOnline } from "@/lib/net/connectivity";
+import { isSessionRejected } from "@/lib/net/authFailure";
 import { userScopedKey } from "@/lib/userScopedStorage";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { isWeb } from "@/lib/platform";
@@ -154,6 +155,15 @@ export const useMe = defineStore("me", () => {
       me.value = { currentStatus: preferredStatus.value, ...(await runWhenOnline(() => getMe())) };
       return true;
     } catch (e) {
+      // `runWhenOnline` has already absorbed the case where the connection dropped mid-request. What
+      // survives it is either the server's verdict on this session or the server having a bad
+      // minute, and only the first is worth destroying credentials over — the second is rethrown so
+      // the boot sequence retries it with its own backoff, as it does for every other failed step.
+      if (!isSessionRejected(e)) {
+        logger.warn("Loading the profile failed; keeping the session and retrying", e);
+        throw e;
+      }
+
       logger.warn("Web session was refused by the API, signing out", e);
       webAuth.signOut();
       useAuthStore().logout();

@@ -7,7 +7,7 @@ import { from, shareReplay } from "rxjs";
 import { type Ref, computed, ref, watch, type ComputedRef, reactive } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { type RealtimeUser, db } from "@/store/db/dexie";
-import { onSessionReset } from "@/store/system/sessionLifecycle";
+import { onSessionReset, sessionEpoch } from "@/store/system/sessionLifecycle";
 import {
   type ArgonUser,
   UserStatus,
@@ -153,9 +153,19 @@ export const useUserStore = defineStore("user", () => {
       return inFlight;
     }
 
+    // Which session asked. A seamless account switch swaps the API client and the database
+    // underneath an in-flight request, and the reply — fetched with the previous account's
+    // credentials — would otherwise be written into the incoming account's cache.
+    const askedIn = sessionEpoch.value;
+
     const lookup = (async () => {
       try {
         const result = await api.userInteraction.LookupUser(userId);
+
+        if (sessionEpoch.value !== askedIn) {
+          logger.warn(`[UserStore] Discarding lookup for ${userId} from a previous session`);
+          return undefined;
+        }
 
         if (!result.isSuccessLookupUser()) {
           // A real answer, not a failure to reach: this account has no standing reason to know that

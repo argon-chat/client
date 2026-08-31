@@ -82,6 +82,18 @@ let currentEndpoint: string | null = null;
 /** The pending backoff timer, held so a wake can cancel the wait instead of racing it. */
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Which connection attempt is the current one.
+ *
+ * `stop()` resolves its close callback asynchronously, so a connection replaced while it was still
+ * shutting down — an explicit retry, a wake, a reconnect that overtook it — delivers its `onclose`
+ * after its successor is already up. Everything that handler touches is shared: it would stop the
+ * new connection's heartbeat, report the app as disconnected and schedule a second reconnect on top
+ * of a connection that is working. Each attempt therefore carries the generation it was created in
+ * and a close from an earlier one is dropped.
+ */
+let connectionGeneration = 0;
+
 // --- Replay state ---
 // One DeliveryFilter per delivery channel: it decides what to hand the main thread, and holds the
 // cursor we give the server on reconnect (Resume) so it can re-send anything we missed during the
@@ -189,6 +201,7 @@ function wake() {
 async function connect(endpoint: string) {
   shouldReconnect = true;
   currentEndpoint = endpoint;
+  const generation = ++connectionGeneration;
 
   try {
     hubConnection = new signalR.HubConnectionBuilder()
@@ -284,6 +297,11 @@ async function connect(endpoint: string) {
     });
 
     hubConnection.onclose((error) => {
+      if (generation !== connectionGeneration) {
+        postLog("info", "Ignoring close from a connection that has already been replaced");
+        return;
+      }
+
       const uptimeMs = connectedAt === 0 ? 0 : Date.now() - connectedAt;
       connectedAt = 0;
 

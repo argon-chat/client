@@ -150,7 +150,19 @@ function cleanUpUrl(): void {
   window.history.replaceState(null, "", window.location.origin + "/");
 }
 
-async function exchange(form: URLSearchParams): Promise<string | null> {
+/**
+ * The outcome of one call to the token endpoint.
+ *
+ * The two failures are not interchangeable. `rejected` is Aegis's verdict on the credential we
+ * presented — it will say the same thing next time, so the credential is spent. `transient` is
+ * everything that never got an answer at all: the network, a blocked request, a server having a bad
+ * minute. Treating the second as the first is how a moment offline turns into a forced sign-in.
+ */
+type ExchangeResult =
+  | { ok: true; token: string }
+  | { ok: false; kind: "rejected" | "transient" };
+
+async function exchange(form: URLSearchParams): Promise<ExchangeResult> {
   let res: Response;
   try {
     res = await fetch(AEGIS_TOKEN_URL, {
@@ -164,7 +176,7 @@ async function exchange(form: URLSearchParams): Promise<string | null> {
     // request lands here too, and looks exactly like the network being down.
     lastError = "network";
     logger.error("[web-auth] could not reach the token endpoint", e);
-    return null;
+    return { ok: false, kind: "transient" };
   }
 
   if (!res.ok) {
@@ -173,19 +185,21 @@ async function exchange(form: URLSearchParams): Promise<string | null> {
     const detail = await res.text().catch(() => "");
     lastError = `http_${res.status}`;
     logger.error(`[web-auth] token endpoint returned ${res.status}`, detail);
-    return null;
+    // Only the 4xx range is a verdict about what we sent; a 5xx is the server, not the credential.
+    return { ok: false, kind: res.status >= 400 && res.status < 500 ? "rejected" : "transient" };
   }
 
   const data = await res.json().catch(() => null);
   if (!data?.access_token) {
+    // A success that carries no token is a broken answer, not a refusal — keep what we have.
     lastError = "no_token";
     logger.error("[web-auth] token response carried no access_token", data);
-    return null;
+    return { ok: false, kind: "transient" };
   }
 
   lastError = null;
   saveTokens(data);
-  return data.access_token as string;
+  return { ok: true, token: data.access_token as string };
 }
 
 /**
@@ -216,7 +230,7 @@ export async function completeSignIn(): Promise<string | null> {
     return null;
   }
 
-  const token = await exchange(
+  const result = await exchange(
     new URLSearchParams({
       grant_type: "authorization_code",
       code,
@@ -225,26 +239,28 @@ export async function completeSignIn(): Promise<string | null> {
       code_verifier: verifier,
     }),
   );
-  if (token) logger.success("[web-auth] signed in");
-  return token;
+  if (!result.ok) return null;
+
+  logger.success("[web-auth] signed in");
+  return result.token;
 }
 
-/** Trade the refresh token for a new access token. Clears the session if the server refuses. */
+/** Trade the refresh token for a new access token. Clears the session only if Aegis refuses it. */
 async function refresh(): Promise<string | null> {
   const rt = refreshToken();
   if (!rt) return null;
 
-  try {
-    const token = await exchange(
-      new URLSearchParams({ grant_type: "refresh_token", refresh_token: rt, client_id: CLIENT_ID }),
-    );
-    if (!token) clearTokens();
-    return token;
-  } catch (e) {
-    // A network failure is not a rejected session: keep the tokens and let the next attempt decide.
-    logger.warn("[web-auth] refresh could not be completed", e);
-    return null;
-  }
+  const result = await exchange(
+    new URLSearchParams({ grant_type: "refresh_token", refresh_token: rt, client_id: CLIENT_ID }),
+  );
+  if (result.ok) return result.token;
+
+  // A refresh that never reached Aegis says nothing about the credential: keep it, fail this
+  // attempt, and let the next one — on the next tick, or when the tab wakes — decide.
+  if (result.kind === "transient") return null;
+
+  clearTokens();
+  return null;
 }
 
 /**

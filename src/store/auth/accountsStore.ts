@@ -386,6 +386,10 @@ export const useAccounts = defineStore("accounts", () => {
       // The account can have been switched away from while the bytes were in flight.
       const current = accounts.value.find(a => a.id === acc.id);
       if (!current) return;
+      // So can the avatar. Two changes in quick succession race, and a slow read of the older one
+      // landing last would put the previous picture back — together with a `cachedFor` naming it,
+      // which is what tells the next sync there is nothing to re-read.
+      if (current.avatarFileId !== user.avatarFileId) return;
       current.avatarDataUrl = dataUrl;
       current.avatarCachedFor = user.avatarFileId;
       persist();

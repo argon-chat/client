@@ -81,13 +81,39 @@ function validate(): DateValue | undefined {
   return value;
 }
 
-watch([day, month, year], () => emit("update:modelValue", validate()));
+/**
+ * True while this component is the reason `modelValue` changed.
+ *
+ * A half-typed or impossible date is emitted as `undefined`, which `v-model` writes straight back —
+ * so the watcher below sees the same `undefined` the form would send to clear the field, and the two
+ * mean opposite things: one must leave the boxes exactly as the person is typing them, the other
+ * must empty them. Consumed by the first prop change that follows, which is that echo.
+ */
+let selfEmitted = false;
+
+function emitValue() {
+  selfEmitted = true;
+  emit("update:modelValue", validate());
+}
+
+watch([day, month, year], emitValue);
 
 // A value set from outside (a restored draft, a reset) is written back into the boxes.
 watch(
   () => props.modelValue,
   (value) => {
-    if (!value) return;
+    const isEcho = selfEmitted;
+    selfEmitted = false;
+
+    if (!value) {
+      if (isEcho) return; // our own "not a date yet" — the boxes hold what is being typed
+      day.value = "";
+      month.value = "";
+      year.value = "";
+      error.value = null;
+      return;
+    }
+
     if (validate()?.compare(value) === 0) return;
     day.value = String(value.day).padStart(2, "0");
     month.value = String(value.month).padStart(2, "0");
