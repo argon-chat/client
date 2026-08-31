@@ -1,6 +1,6 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent
+        <DialogContent described
             class="share-dialog"
             :style="{ maxWidth: '600px', width: '600px', padding: '0', gap: '0', overflow: 'hidden', borderRadius: 'var(--radius)' }"
         >

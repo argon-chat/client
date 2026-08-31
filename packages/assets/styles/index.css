@@ -28,6 +28,10 @@
 
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
+    /* How opaque a panel drawn over the app background is. Every frosted surface — sidebars,
+       bars, headers, popups — reads it from here, so the whole chrome changes together instead
+       of one panel at a time. */
+    --card-alpha: 0.9;
 
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
@@ -217,6 +221,21 @@
   
   body.oled-theme {
     background: #000000 !important;
+  }
+
+  /* Emulated mica for the browser build.
+     On the desktop the window is transparent and Windows paints acrylic or mica behind it; in a tab
+     there is nothing behind the page but the browser, so a transparent body would show through to
+     white. The look is reproduced instead: the flat theme background, two very soft accent-tinted
+     pools in the corners, and no blur — mica is a wallpaper tint, not frosted glass, and the panels
+     drawn on top already carry their own translucency via --card-alpha.
+     `fixed` attachment keeps the tint anchored to the viewport rather than sliding with content. */
+  html.argon-web body:not(.oled-theme) {
+    background:
+      radial-gradient(115% 85% at 8% -5%, hsl(var(--primary) / 0.10) 0%, transparent 55%),
+      radial-gradient(105% 75% at 95% 0%, hsl(var(--primary) / 0.06) 0%, transparent 60%),
+      hsl(var(--background)) !important;
+    background-attachment: fixed;
   }
 }
 

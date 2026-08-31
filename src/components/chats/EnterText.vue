@@ -152,7 +152,7 @@
 
         <!-- Formatting Help Dialog -->
         <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
-            <DialogContent class="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogContent described class="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{{ t('formatting_help') || 'Message Formatting' }}</DialogTitle>
                     <DialogDescription>

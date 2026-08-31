@@ -144,7 +144,7 @@ const timeMarks = computed(() => {
     transform: translateX(-50%);
     margin-bottom: 8px;
     width: 320px;
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / var(--card-alpha));
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: 8px;
     padding: 12px;

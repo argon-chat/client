@@ -285,7 +285,7 @@ async function pickCam(deviceId: string) {
     justify-content: center;
     gap: 4px;
     padding: 10px 14px;
-    background-color: hsl(var(--card) / 0.8) ;
+    background-color: hsl(var(--card) / var(--card-alpha));
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: var(--radius);
     flex-shrink: 0;

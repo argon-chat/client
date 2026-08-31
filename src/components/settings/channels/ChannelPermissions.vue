@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
-    <DialogContent class="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+    <DialogContent described class="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
       <DialogHeader>
         <DialogTitle>{{ t("channel_permissions") || "Channel Permissions" }} — #{{ channelName }}</DialogTitle>
         <DialogDescription>

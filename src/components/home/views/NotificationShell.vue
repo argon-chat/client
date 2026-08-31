@@ -92,6 +92,6 @@ function formatTime(v: string | number | Date): string {
 
 <style scoped>
 .empty-state {
-    background-color: hsl(var(--card));
+    background-color: hsl(var(--card) / var(--card-alpha));
 }
 </style>

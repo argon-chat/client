@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DialogContentEmits, DialogContentProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
+import { computed } from "vue"
 import { reactiveOmit } from "@vueuse/core"
 import { X } from "lucide-vue-next"
 import {
@@ -16,16 +17,30 @@ defineOptions({
   inheritAttrs: false,
 })
 
-const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], showCloseButton?: boolean, titlebarSafe?: boolean }>(), {
+/**
+ * `described` says this dialog renders a `DialogDescription`.
+ *
+ * Reka points `aria-describedby` at a description id whether or not anything carries that id, and
+ * then warns — on every open — that the description is missing. Most dialogs have no description to
+ * give: a prompt with two buttons is its own explanation. For those the attribute is dropped, which
+ * is what "no description" is supposed to look like to a screen reader, and the warning goes with
+ * it. Dialogs that do render one set this, and keep the link.
+ */
+const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], showCloseButton?: boolean, titlebarSafe?: boolean, described?: boolean }>(), {
   showCloseButton: true,
   titlebarSafe: false,
+  described: false,
 })
 const emits = defineEmits<DialogContentEmits>()
 
 // When titlebarSafe, keep the overlay + content below the OS titlebar so the window
 // controls stay visible and clickable. Driven by --app-titlebar-height (0 when there's
 // no titlebar), so this is inert unless a host titlebar is actually present.
-const delegatedProps = reactiveOmit(props, "class", "titlebarSafe")
+const delegatedProps = reactiveOmit(props, "class", "titlebarSafe", "described")
+
+// The key has to be present and undefined: Vue then renders no attribute at all, which is the
+// only form reka reads as "there is deliberately no description".
+const describedBy = computed(() => (props.described ? {} : { "aria-describedby": undefined }))
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
@@ -35,7 +50,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <DialogOverlay :style="titlebarSafe ? { top: 'var(--app-titlebar-height, 0px)' } : undefined" />
     <DialogContent
       data-slot="dialog-content"
-      v-bind="{ ...$attrs, ...forwarded }"
+      v-bind="{ ...$attrs, ...forwarded, ...describedBy }"
       :style="titlebarSafe ? { top: 'calc(50% + var(--app-titlebar-height, 0px) / 2)' } : undefined"
       :class="
         cn(

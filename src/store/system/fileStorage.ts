@@ -2,6 +2,8 @@ import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
 import { useInstance } from "@/store/system/instanceStore";
 import { useConfig } from "@/store/system/remoteConfig";
+import { isWeb } from "@/lib/platform";
+import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
 
 export type GroupReport = {
   name: string;
@@ -39,6 +41,16 @@ export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   if (isNative)
     return `app://cdn-proxy/${encodeURIComponent(full)}`;
   return full;
+}
+
+/**
+ * The same file, as a plain https URL on this instance's API — no `app://` wrapper.
+ *
+ * `cdnUrl` hands Electron its own caching schemes, which are meant for an `<img>` and not for
+ * `fetch`. Code that has to read the bytes (rather than display them) asks for this instead.
+ */
+export function cdnFetchUrl(fileId: string): string {
+  return `${apiBase()}/files/${fileId}`;
 }
 
 function apiBase(): string {
@@ -87,6 +99,7 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
     }
   }
 
+  const groups: GroupReport[] = [];
   let quota: number | null = null;
   let storageUsed: number | null = null;
 
@@ -98,10 +111,24 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
     }
   } catch {}
 
+  // On the web the pictures live in a bucket of their own, which is the one part of the footprint
+  // that can be named and cleared on its own — worth showing separately from the total.
+  if (isWeb) {
+    const media = await mediaCacheStats();
+    if (media)
+      groups.push({
+        name: "Media cache",
+        usedBytes: media.usedBytes ?? 0,
+        percentOfQuota:
+          quota && media.usedBytes ? round2((media.usedBytes / quota) * 100) : null,
+        percentOfGroupsTotal: 100,
+      });
+  }
+
   const totalFree =
     quota != null && storageUsed != null ? Math.max(0, quota - storageUsed) : null;
 
-  return { quotaBytes: quota, storageUsedBytes: storageUsed, totalFreeBytes: totalFree, groups: [] };
+  return { quotaBytes: quota, storageUsedBytes: storageUsed, totalFreeBytes: totalFree, groups };
 }
 
 function round2(v: number) {
@@ -140,6 +167,11 @@ export const pruneStorageCategory = async (category: string) => {
 export const pruneCache = async () => {
   if (isNative) {
     try { await (window as any).argonIpc.invoke("CdnCache", "clear", []); } catch (e) { logger.error(e); }
+  }
+  // The web's equivalent of that on-disk cdn cache: a bucket the service worker owns, which the
+  // page cannot reach directly.
+  if (isWeb) {
+    try { await clearMediaCache(); } catch (e) { logger.error(e); }
   }
   if ("caches" in window) {
     const allCaches = await window.caches.keys();

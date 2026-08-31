@@ -35,8 +35,8 @@
 
             <div class="grid gap-3" :class="materialOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'">
                 <div v-for="mat in materialOptions" :key="mat.id" class="material-card"
-                    :class="{ 'material-selected': windowMaterial === mat.id, 'material-disabled': isOled }"
-                    @click="!isOled && selectMaterial(mat.id)">
+                    :class="{ 'material-selected': windowMaterial === mat.id || materialsLocked, 'material-disabled': isOled || materialsLocked }"
+                    @click="!isOled && !materialsLocked && selectMaterial(mat.id)">
                     <div class="material-preview" :style="mat.previewStyle">
                         <div class="material-preview-stripe" />
                         <div class="material-preview-stripe material-preview-stripe-2" />
@@ -51,6 +51,11 @@
             <div v-if="isOled" class="mt-3 flex items-center gap-2 text-xs text-yellow-400/80 bg-yellow-400/5 rounded-lg px-3 py-2 border border-yellow-400/10">
                 <InfoIcon class="w-3.5 h-3.5 flex-shrink-0" />
                 {{ t("window_material_oled_note") }}
+            </div>
+
+            <div v-else-if="materialsLocked" class="mt-3 flex items-center gap-2 text-xs text-muted-foreground bg-white/5 rounded-lg px-3 py-2 border border-white/5">
+                <InfoIcon class="w-3.5 h-3.5 flex-shrink-0" />
+                {{ t("window_material_web_note") }}
             </div>
         </div>
 
@@ -480,6 +485,7 @@ import { splitTrigger, splitFeatureEnabled } from "@/composables/useSplitView";
 import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
 import { native } from "@argon/glue/native";
 import { useConfigStore } from "@/store/ui/configStore";
+import { supports } from "@/lib/platform";
 
 const { t } = useLocale();
 const featureFlags = useFeatureFlags();
@@ -596,11 +602,26 @@ const isMac = navigator.userAgent.includes('Mac');
 const isLinux = navigator.userAgent.includes('Linux') && !navigator.userAgent.includes('Android');
 const isWindows = navigator.userAgent.includes('Win');
 
-const defaultMaterial = isWindows ? 'acrylic' : isMac ? 'glass' : 'solid';
+// The browser build has no window of its own to give a material to, so it emulates one: a mica-like
+// tint painted by the page itself (see `html.argon-web` in the shared stylesheet). It is the only
+// option there, shown rather than hidden so the setting does not look like it went missing.
+const materialsLocked = !supports("windowMaterials");
+const defaultMaterial = materialsLocked ? 'mica' : isWindows ? 'acrylic' : isMac ? 'glass' : 'solid';
 
 type MaterialOption = { id: string; name: string; description: string; previewStyle: Record<string, string> };
 
 const materialOptions = computed(() => {
+    if (materialsLocked) return [
+        {
+            id: 'mica',
+            name: t('material_mica'),
+            description: t('material_mica_web_desc'),
+            previewStyle: {
+                background: 'linear-gradient(135deg, rgba(40,40,55,0.85) 0%, rgba(50,50,70,0.75) 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
+            },
+        },
+    ];
     if (isWindows) return [
         {
             id: 'acrylic',

@@ -7,6 +7,8 @@ import OtpForm from "./OtpForm.vue";
 import ResetRequestForm from "./ResetRequestForm.vue";
 import ResetConfirmForm from "./ResetConfirmForm.vue";
 import SelfHostedForm from "./SelfHostedForm.vue";
+import WebSignIn from "./WebSignIn.vue";
+import { isWeb } from "@/lib/platform";
 import { computed } from "vue";
 
 const props = defineProps<{ mode?: AuthFormMode }>();
@@ -21,7 +23,10 @@ const tabValueForTabs = computed({
 <template>
   <div class="mx-auto flex w-full flex-col items-center justify-center flex-1 min-h-0">
     <Transition name="fade-scale" mode="out-in">
-      <LoginForm v-if="tabValueForTabs == 'login'" key="login" :auth="auth" />
+      <!-- The browser build never sees a credential: sign-in is a redirect to Aegis and back, so
+           none of the forms below (password, registration, OTP, reset, self-hosted) apply to it. -->
+      <WebSignIn v-if="isWeb" key="web-signin" />
+      <LoginForm v-else-if="tabValueForTabs == 'login'" key="login" :auth="auth" />
       <RegisterForm v-else-if="tabValueForTabs == 'register'" key="register" :auth="auth" />
       <OtpForm v-else-if="tabValueForTabs == 'otp-code'" key="otp" :auth="auth" />
       <ResetRequestForm v-else-if="tabValueForTabs === 'pass-reset'" key="reset-request" :auth="auth" />

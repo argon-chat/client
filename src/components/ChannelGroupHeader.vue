@@ -112,7 +112,7 @@ const emit = defineEmits<{
   letter-spacing: 0.04em;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card) / var(--card-alpha));
   transition: color 150ms ease;
 }
 

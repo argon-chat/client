@@ -10,6 +10,8 @@ import { usePoolStore } from "@/store/data/poolStore";
 const props = withDefaults(
   defineProps<{
     class?: HTMLAttributes["class"];
+    /** An already-resolved image URL (a cached data URL, say). Wins over fileId/userId lookup. */
+    src?: string | null;
     fileId?: string | null;
     fallback?: string;
     serverId?: string;
@@ -28,7 +30,7 @@ const userColors = useUserColors();
 const pool = usePoolStore();
 
 // --- Smart mode: when only userId is provided (no fileId) ---
-const isSmartMode = computed(() => props.userId && props.fileId === undefined);
+const isSmartMode = computed(() => props.userId && props.fileId === undefined && !props.src);
 const user = isSmartMode.value ? pool.getUserReactive(toRef(props, "userId")) : ref(null);
 
 const isCallUser = computed(() =>
@@ -48,9 +50,14 @@ const avatarFileId = computed(() => {
 });
 
 const avatarSrc = computed(() => {
+  if (props.src) return props.src;
   if (!avatarFileId.value) return null;
   return cdnUrl(avatarFileId.value);
 });
+
+// Two accounts can be the same person on different instances — same userId, different picture — so
+// a pre-resolved src has to take part in the identity of the cached tile, not just the file id.
+const cacheKey = computed(() => props.fileId ?? props.src?.slice(-32) ?? props.userId ?? "");
 
 const loaded = ref(false);
 const loading = computed(() => !!avatarFileId.value && !loaded.value);
@@ -100,8 +107,8 @@ const avatarRootStyle = computed(() => {
 </script>
 
 <template>
-  <keep-alive :max="10" :key="fileId ?? userId ?? ''">
-    <Avatar :class="[props.class]" :key="fileId ?? userId ?? ''" :style="{ width: size, height: size, ...avatarRootStyle }">
+  <keep-alive :max="10" :key="cacheKey">
+    <Avatar :class="[props.class]" :key="cacheKey" :style="{ width: size, height: size, ...avatarRootStyle }">
       <img v-if="avatarSrc && !imgFailed" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
       <AvatarFallback v-else>
         {{ fallbackLetter }}

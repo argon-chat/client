@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useAccounts, type AccountRecord } from "@/store/auth/accountsStore";
+import { cdnUrl } from "@/store/system/fileStorage";
 import { useLocale } from "@/store/system/localeStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { Badge } from "@argon/ui/badge";
 import { CheckIcon, PlusIcon, LogOutIcon, Trash2Icon, ServerIcon, AlertTriangleIcon } from "lucide-vue-next";
+import { isWeb } from "@/lib/platform";
+import { useMe } from "@/store/auth/meStore";
+import { useAuthStore } from "@/store/auth/authStore";
 
 const { t } = useLocale();
 const accounts = useAccounts();
+const me = useMe();
 
 const emit = defineEmits<{ (e: "add"): void }>();
 
@@ -17,9 +22,33 @@ function isOfficial(a: AccountRecord) {
   return a.instanceKind === "official";
 }
 
+/**
+ * Only the active account's avatar can be asked for by file id: every avatar URL is built against
+ * the instance we are currently pointed at, so doing that for the other rows both fails and sends a
+ * foreign instance's file id to this one. They draw from the copy taken while they were active, or
+ * fall back to initials.
+ */
+function avatarSrc(a: AccountRecord): string | null {
+  if (a.avatarDataUrl) return a.avatarDataUrl;
+  if (a.id === accounts.active?.id && a.avatarFileId) return cdnUrl(a.avatarFileId);
+  return null;
+}
+
 function select(a: AccountRecord) {
   if (a.id === accounts.active?.id && !a.needsReauth) return;
   void accounts.switchTo(a.id); // reloads
+}
+
+/**
+ * Signing out of the browser build.
+ *
+ * There is no registry entry to remove and no other account to fall back into — dropping the local
+ * tokens and reloading into the sign-in screen is the whole of it. The Aegis session itself is left
+ * alone, so signing back in does not ask for a password again.
+ */
+function signOutWeb() {
+  useAuthStore().logout();
+  location.reload();
 }
 
 function confirmRemove(a: AccountRecord) {
@@ -33,7 +62,37 @@ function confirmRemove(a: AccountRecord) {
 </script>
 
 <template>
-  <div class="account-switcher">
+  <!-- One origin, one session: the web build shows who is signed in and how to leave, and none of
+       the switching, adding or per-instance machinery that has no meaning there. -->
+  <div v-if="isWeb" class="account-switcher">
+    <p class="px-2 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {{ t("accounts_title") }}
+    </p>
+
+    <div v-if="me.me" class="account-row is-active">
+      <ArgonAvatar
+        class="row-avatar"
+        :fallback="me.me.displayName"
+        :file-id="me.me.avatarFileId"
+        :user-id="me.me.userId"
+      />
+      <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <span class="truncate text-sm font-medium text-white">{{ me.me.displayName }}</span>
+          <CheckIcon class="w-3.5 h-3.5 shrink-0 text-primary" />
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-1 border-t border-border/50 pt-1 flex flex-col gap-0.5">
+      <button class="menu-item text-destructive" @click="signOutWeb()">
+        <LogOutIcon class="w-4 h-4" />
+        {{ t("log_out") }}
+      </button>
+    </div>
+  </div>
+
+  <div v-else class="account-switcher">
     <p class="px-2 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {{ t("accounts_title") }}
     </p>
@@ -46,22 +105,20 @@ function confirmRemove(a: AccountRecord) {
         :class="{ 'is-active': a.id === accounts.active?.id }"
         @click="select(a)"
       >
-        <ArgonAvatar class="row-avatar" :fallback="a.displayName" :file-id="a.avatarFileId" :user-id="a.userId" />
+        <ArgonAvatar class="row-avatar" :fallback="a.displayName" :src="avatarSrc(a)" :file-id="null" :user-id="a.userId" />
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5">
+          <div class="flex min-w-0 items-center gap-1.5">
             <span class="truncate text-sm font-medium text-white">{{ a.displayName }}</span>
             <CheckIcon v-if="a.id === accounts.active?.id" class="w-3.5 h-3.5 shrink-0 text-primary" />
-          </div>
-          <div class="flex items-center gap-1 mt-0.5">
-            <Badge v-if="!isOfficial(a)" variant="secondary" class="gap-1 px-1.5 py-0 text-[10px]">
-              <ServerIcon class="w-2.5 h-2.5" />
-              {{ a.instanceManifest.branding.displayName }}
+            <Badge v-if="!isOfficial(a)" variant="secondary" class="instance-badge">
+              <ServerIcon class="w-3 h-3 shrink-0" />
+              <span class="truncate">{{ a.instanceManifest.branding.displayName }}</span>
             </Badge>
-            <span v-if="a.needsReauth" class="flex items-center gap-1 text-[11px] text-yellow-500">
-              <AlertTriangleIcon class="w-3 h-3" />
-              {{ t("account_needs_reauth") }}
-            </span>
           </div>
+          <span v-if="a.needsReauth" class="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] leading-4 text-yellow-500">
+            <AlertTriangleIcon class="w-3 h-3 shrink-0" />
+            <span class="truncate">{{ t("account_needs_reauth") }}</span>
+          </span>
         </div>
 
         <button
@@ -105,6 +162,15 @@ function confirmRemove(a: AccountRecord) {
 }
 .account-row.is-active {
   @apply bg-primary/5;
+}
+
+/* Sits on the name's line, so it must not grow the line: `py-0` on the shared Badge leaves the
+   height to whatever line-height the row passes down, which is stated here instead. It also gives
+   up width before the name does — `min-w-0` plus a share of the row — and the line box is 16px
+   against 10px text because truncation is `overflow: hidden`, which crops the descenders of
+   "Argon (dev)" the moment the box is no taller than the glyphs. */
+.instance-badge {
+  @apply min-w-0 max-w-[45%] shrink gap-1 px-1.5 py-0 h-[18px] text-[10px] font-medium leading-4;
 }
 
 .row-avatar {

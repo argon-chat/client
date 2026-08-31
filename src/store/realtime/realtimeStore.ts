@@ -2,7 +2,7 @@ import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { type Reactive, reactive, ref, shallowReactive } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
-import type { ArgonChannel, RealtimeChannelUser, LinkedMeetingInfo } from "@argon/glue";
+import type { ArgonChannel, RealtimeChannelUser } from "@argon/glue";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 
@@ -25,7 +25,6 @@ export interface IRealtimeChannel {
   Channel: ArgonChannel;
   Users: Map<Guid, IRealtimeChannelUser>;
   isRecordingActive: boolean;
-  meetingInfo?: LinkedMeetingInfo;
 }
 
 /**
@@ -267,19 +266,6 @@ export const useRealtimeStore = defineStore("realtime", () => {
     );
   };
 
-  /**
-   * Set meeting info for channel
-   */
-  const setMeetingInfo = (channelId: Guid, meetingInfo?: LinkedMeetingInfo) => {
-    const channel = realtimeChannels.get(channelId);
-    if (!channel) {
-      logger.error("Realtime channel not found", channelId);
-      return;
-    }
-
-    channel.meetingInfo = meetingInfo;
-  };
-
   return {
     realtimeChannels,
     initRealtimeChannel,
@@ -296,6 +282,5 @@ export const useRealtimeStore = defineStore("realtime", () => {
     setUserVolume,
     startRecording,
     stopRecording,
-    setMeetingInfo,
   };
 });

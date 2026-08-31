@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DialogContentEmits, DialogContentProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
+import { computed } from "vue"
 import { reactiveOmit } from "@vueuse/core"
 import { X } from "lucide-vue-next"
 import {
@@ -16,10 +17,23 @@ defineOptions({
   inheritAttrs: false,
 })
 
-const props = defineProps<DialogContentProps & { class?: HTMLAttributes["class"] }>()
+/**
+ * `described` says this dialog renders a `DialogDescription`.
+ *
+ * Reka points `aria-describedby` at a description id whether or not anything carries that id, and
+ * then warns — on every open — that the description is missing. Most dialogs have no description to
+ * give: a prompt with two buttons is its own explanation. For those the attribute is dropped, which
+ * is what "no description" is supposed to look like to a screen reader, and the warning goes with
+ * it. Dialogs that do render one set this, and keep the link.
+ */
+const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], described?: boolean }>(), {
+  described: false,
+})
 const emits = defineEmits<DialogContentEmits>()
 
-const delegatedProps = reactiveOmit(props, "class")
+const delegatedProps = reactiveOmit(props, "class", "described")
+
+const describedBy = computed(() => (props.described ? {} : { "aria-describedby": undefined }))
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
@@ -34,7 +48,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
             props.class,
           )
         "
-        v-bind="{ ...$attrs, ...forwarded }"
+        v-bind="{ ...$attrs, ...forwarded, ...describedBy }"
         @pointer-down-outside="(event) => {
           const originalEvent = event.detail.originalEvent;
           const target = originalEvent.target as HTMLElement;

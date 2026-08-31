@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="activity.isPickerOpen">
-    <DialogContent class="sm:max-w-lg">
+    <DialogContent described class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           <Gamepad2 class="w-5 h-5" />

@@ -7,6 +7,16 @@
       </p>
     </div>
 
+    <!-- Drawing over another program's window and knowing which game is running are both things
+         only the desktop app can do; the browser build says so rather than showing dead switches. -->
+    <DesktopOnlyNotice
+      v-if="!supports('gameOverlay')"
+      title="desktop_only_overlay_title"
+      description="desktop_only_overlay_desc"
+    />
+
+    <template v-else>
+
     <!-- ── Global settings ── -->
     <div class="space-y-5 setting-card">
       <div class="flex items-center justify-between gap-4">
@@ -122,6 +132,8 @@
         </div>
       </div>
     </div>
+
+    </template>
   </div>
 </template>
 
@@ -134,6 +146,8 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon
 import { Gamepad2, Monitor, Radio, TriangleAlert, X } from "lucide-vue-next";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
 import OverlayLayoutEditor from "./OverlayLayoutEditor.vue";
+import DesktopOnlyNotice from "@/components/shared/DesktopOnlyNotice.vue";
+import { supports } from "@/lib/platform";
 
 const settings = useGameOverlaySettings();
 

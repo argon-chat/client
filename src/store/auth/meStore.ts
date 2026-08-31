@@ -2,7 +2,7 @@ import { logger } from "@argon/core";
 import { setUser } from "@sentry/vue";
 import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
@@ -23,8 +23,11 @@ import { useAccounts } from "@/store/auth/accountsStore";
 import { LEGAL } from "@/legal/generated";
 import { isLegalOutdated } from "@/legal/version";
 import { runWhenOnline } from "@/lib/net/connectivity";
+import { isSessionRejected } from "@/lib/net/authFailure";
 import { userScopedKey } from "@/lib/userScopedStorage";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
+import { isWeb } from "@/lib/platform";
+import * as webAuth from "@/lib/webAuth";
 
 export type ExtendedUser = {
   currentStatus: UserStatus;
@@ -36,6 +39,21 @@ export const useMe = defineStore("me", () => {
   const featureFlags = useFeatureFlags();
   const me = ref(null as ExtendedUser | null);
   const meProfile = ref(null as ArgonUserProfile | null);
+
+  // The account registry keeps its own copy of this identity: it is what the account picker shows
+  // for this account once a different one is active, and by then this instance is no longer the one
+  // that can resolve the avatar. Kept in step from here so an avatar or name change lands in it too.
+  watch(
+    () => [me.value?.userId, me.value?.displayName, me.value?.avatarFileId] as const,
+    ([userId, displayName, avatarFileId]) => {
+      if (!userId) return;
+      void useAccounts().syncActiveProfile({
+        userId,
+        displayName: displayName ?? "",
+        avatarFileId: avatarFileId ?? null,
+      });
+    },
+  );
 
   // Which legal documents the user must (re-)accept, or null if up to date.
   const legalOutdated = ref<{ terms: boolean; privacy: boolean } | null>(null);
@@ -123,45 +141,85 @@ export const useMe = defineStore("me", () => {
     bus.doListenMyEvents();
   }
 
-  async function init(): Promise<boolean> {
-    const authStore = useAuthStore();
+  /**
+   * Confirm the browser build's session by using it.
+   *
+   * `GetMyAuthorization` is the desktop's session exchange: it trades a device-bound refresh token
+   * for a fresh app token. The web build has neither half of that — its token comes from Aegis and
+   * is renewed against Aegis — so there is nothing here to exchange. The first authenticated call
+   * is the check instead: it either answers or it does not, and a token Aegis will not renew is a
+   * session that has to start over at the sign-in screen.
+   */
+  async function initWebSession(): Promise<boolean> {
+    try {
+      me.value = { currentStatus: preferredStatus.value, ...(await runWhenOnline(() => getMe())) };
+      return true;
+    } catch (e) {
+      // `runWhenOnline` has already absorbed the case where the connection dropped mid-request. What
+      // survives it is either the server's verdict on this session or the server having a bad
+      // minute, and only the first is worth destroying credentials over — the second is rethrown so
+      // the boot sequence retries it with its own backoff, as it does for every other failed step.
+      if (!isSessionRejected(e)) {
+        logger.warn("Loading the profile failed; keeping the session and retrying", e);
+        throw e;
+      }
 
-    // Token exchange must never run against a server we can't reach: while offline
-    // we park instead of hammering, and a connection that drops mid-flight is
-    // retried once it's back — it is NOT mistaken for a rejected session below
-    // (only a real `isBadAuthStatus()` verdict from the server logs the user out).
-    const result = await runWhenOnline(() =>
-      api.identityInteraction.GetMyAuthorization(
-        authStore.token!,
-        authStore.getRefreshToken()
-      )
-    );
-
-    logger.info("GetMyAuthorization", result);
-
-    if (result.isBadAuthStatus()) {
-      // The active account's session is no longer valid. Flag it for re-auth (drops its stale token
-      // so the next boot lands on login instead of looping) but keep the account + its cached data.
-      useAccounts().markActiveNeedsReauth();
+      logger.warn("Web session was refused by the API, signing out", e);
+      webAuth.signOut();
       useAuthStore().logout();
       location.reload();
       return false;
     }
-    else if (result.isGoodAuthStatus()) {
-      useAuthStore().setAuthToken(result.token);
-      useAccounts().updateActiveTokens(result.token);
-    }
-    else if (result.isLockedAuthStatus()) {
-      limitation.value = result;
-      logger.warn("Detected restriction on account", result);
-      return false;
-    } else if (result.isCertificateErrorAuthStatus()) {
-      limitation.value = new LockedAuthStatus(LockdownReason.BAD_CLIENT, null, false, LockdownSeverity.Low);
-      logger.warn("Detected used bad client", result);
-      return false;
+  }
+
+  async function init(): Promise<boolean> {
+    const authStore = useAuthStore();
+
+    if (isWeb) {
+      if (!(await initWebSession())) return false;
+    } else {
+
+      // Token exchange must never run against a server we can't reach: while offline
+      // we park instead of hammering, and a connection that drops mid-flight is
+      // retried once it's back — it is NOT mistaken for a rejected session below
+      // (only a real `isBadAuthStatus()` verdict from the server logs the user out).
+      const result = await runWhenOnline(() =>
+        api.identityInteraction.GetMyAuthorization(
+          authStore.token!,
+          authStore.getRefreshToken()
+        )
+      );
+
+      logger.info("GetMyAuthorization", result);
+
+      if (result.isBadAuthStatus()) {
+        // The active account's session is no longer valid. Flag it for re-auth (drops its stale token
+        // so the next boot lands on login instead of looping) but keep the account + its cached data.
+        useAccounts().markActiveNeedsReauth();
+        useAuthStore().logout();
+        location.reload();
+        return false;
+      }
+      else if (result.isGoodAuthStatus()) {
+        useAuthStore().setAuthToken(result.token);
+        useAccounts().updateActiveTokens(result.token);
+      }
+      else if (result.isLockedAuthStatus()) {
+        limitation.value = result;
+        logger.warn("Detected restriction on account", result);
+        return false;
+      } else if (result.isCertificateErrorAuthStatus()) {
+        limitation.value = new LockedAuthStatus(LockdownReason.BAD_CLIENT, null, false, LockdownSeverity.Low);
+        logger.warn("Detected used bad client", result);
+        return false;
+      }
+
+      me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
     }
 
-    me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
+    // Both branches above set it, but only one of them does so where the compiler can see it.
+    if (!me.value) return false;
+
     meProfile.value = await getMeProfile();
     await refreshLegalState();
     logger.info("Received user info ", me.value);

@@ -410,7 +410,7 @@ onMounted(async () => {
 .setting-card {
   border-radius: 0.75rem;
   border: 1px solid hsl(var(--border) / 0.5);
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card) / var(--card-alpha));
   padding: 1.5rem;
   overflow: hidden;
 }

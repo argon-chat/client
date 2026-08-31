@@ -1,6 +1,10 @@
 <template>
   <Dialog v-model:open="open">
     <DialogContent class="sm:max-w-[440px] p-0 overflow-hidden rounded-2xl border bg-card">
+      <!-- Named for screen readers only: this dialog draws no heading of its own. -->
+      <VisuallyHidden>
+        <DialogTitle>{{ t("invite_preview_title") }}</DialogTitle>
+      </VisuallyHidden>
       <!-- Loading -->
       <div v-if="loading" class="flex flex-col items-center justify-center gap-3 py-16">
         <Loader2 class="w-7 h-7 animate-spin text-muted-foreground" />
@@ -84,7 +88,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
+import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { Button } from "@argon/ui/button";
 import { Loader2, UsersIcon, LogInIcon, LinkIcon } from "lucide-vue-next";
 import { PhSealCheck } from "@phosphor-icons/vue";

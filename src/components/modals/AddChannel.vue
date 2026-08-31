@@ -9,9 +9,9 @@
       ></div>
       
       <div class="relative text-center space-y-2">
-        <h2 class="text-3xl font-extrabold text-foreground tracking-wide">
+        <DialogTitle as="h2" class="text-3xl font-extrabold text-foreground tracking-wide leading-9">
           {{ t("add_channel") }}
-        </h2>
+        </DialogTitle>
       </div>
       
       <div class="relative space-y-3">
@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";

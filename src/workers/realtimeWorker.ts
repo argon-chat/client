@@ -1,5 +1,10 @@
 /**
- * Realtime Worker — handles SignalR connection + CBOR deserialization off the main thread.
+ * Realtime Worker — owns the SignalR connection and the replay cursors, off the main thread.
+ *
+ * Events are handed over as the base64 payload they arrived in and decoded on the main thread.
+ * Decoding here and posting the object does not survive the trip: postMessage copies with the
+ * structured clone algorithm, which keeps own properties and drops prototypes, so every value with
+ * methods — `IonDateTime` above all — arrived as inert data.
  *
  * Protocol (main ↔ worker):
  *   Main → Worker:
@@ -9,25 +14,21 @@
  *     { type: 'invoke', method: string, args: any[] }
  *
  *   Worker → Main:
- *     { type: 'event', channel: 'forSelf' | 'broadcastSpace', event: object }
+ *     { type: 'event', channel: 'forSelf' | 'broadcastSpace', data: string }
  *     { type: 'tokenRequest', requestId: string }
- *     { type: 'state', state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected' }
+ *     { type: 'state', state: 'connecting' | 'connected' | 'reconnecting' | 'disconnected',
+ *       intentional?: boolean }
  *     { type: 'reconnectInfo', attemptCount: number, nextAttemptAt: number }
  *     { type: 'error', message: string }
  *     { type: 'log', level: 'info' | 'warn' | 'error', message: string, args?: any[] }
  */
 
 import * as signalR from "@microsoft/signalr";
-import { CborReader, IonFormatterStorage } from "@argon-chat/ion.webcore";
-import "@argon-chat/ion.webcore";
-import { EventBus_Executor } from "@argon/glue";
-import type { IArgonEvent } from "@argon/glue";
+import { DeliveryFilter } from "./streamDelivery";
 
 // --- Token request management ---
 let tokenRequestId = 0;
 const pendingTokenRequests = new Map<string, (token: string, error?: boolean) => void>();
-var qwe = EventBus_Executor;
-console.log(qwe);
 function requestToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     const id = String(++tokenRequestId);
@@ -48,19 +49,8 @@ function requestToken(): Promise<string> {
 }
 
 // --- Helpers ---
-function base64ToU8(b64: string): Uint8Array {
-  const bin = atob(b64);
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-}
-
 function postLog(level: "info" | "warn" | "error", message: string, ...args: any[]) {
   self.postMessage({ type: "log", level, message, args });
-}
-
-function decodeEvent(data: string): IArgonEvent {
-  const u8 = base64ToU8(data);
-  const reader = new CborReader(u8);
-  return IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
 }
 
 // --- SignalR connection ---
@@ -68,52 +58,70 @@ let hubConnection: signalR.HubConnection | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let shouldReconnect = true;
 // Backoff attempt counter for the hard-close / start-failure manual reconnect path
-// (SignalR's own auto-reconnect is already exhausted by then). Reset to 0 on a successful
-// start(). Drives capped exponential backoff + jitter so clients don't reconnect in lockstep.
+// (SignalR's own auto-reconnect is already exhausted by then). Drives capped exponential backoff
+// + jitter so clients don't reconnect in lockstep.
 let hardReconnectAttempts = 0;
 
-// --- Replay cursors ---
-// Last stream entry id we processed per delivery channel. On reconnect we hand these to
-// the server (Resume) so it can re-send anything we missed during the gap. They live for
-// the worker's lifetime — a transient drop or a hard close→reconnect keeps the same worker,
-// so the cursors survive; a full teardown (terminate) intentionally resets them.
-let userCursor: string | null = null;
-const spaceCursors = new Map<string, string>();
+/**
+ * How long a connection has to stand up before it counts as healthy.
+ *
+ * The counter used to be cleared the moment `start()` resolved, which only says the handshake
+ * completed. A server that accepts the connection and then drops it — a session grain landing on a
+ * silo that no longer hosts it, say — therefore reset the backoff on every attempt, and the client
+ * sat in a one-second connect/close loop, asking for a full state resync on every lap. Backing off
+ * is exactly the right response to that: the silo needs a moment, and so do we.
+ */
+const STABLE_CONNECTION_MS = 30_000;
+
+/** When the current connection came up, or 0 while there isn't one. */
+let connectedAt = 0;
+
+/** The endpoint of the last `connect` we were asked for, so a wake can re-dial without being told. */
+let currentEndpoint: string | null = null;
+
+/** The pending backoff timer, held so a wake can cancel the wait instead of racing it. */
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Which connection attempt is the current one.
+ *
+ * `stop()` resolves its close callback asynchronously, so a connection replaced while it was still
+ * shutting down — an explicit retry, a wake, a reconnect that overtook it — delivers its `onclose`
+ * after its successor is already up. Everything that handler touches is shared: it would stop the
+ * new connection's heartbeat, report the app as disconnected and schedule a second reconnect on top
+ * of a connection that is working. Each attempt therefore carries the generation it was created in
+ * and a close from an earlier one is dropped.
+ */
+let connectionGeneration = 0;
+
+// --- Replay state ---
+// One DeliveryFilter per delivery channel: it decides what to hand the main thread, and holds the
+// cursor we give the server on reconnect (Resume) so it can re-send anything we missed during the
+// gap. They live for the worker's lifetime — a transient drop or a hard close→reconnect keeps the
+// same worker, so they survive; a full teardown (terminate) intentionally resets them.
+const userDelivery = new DeliveryFilter();
+const spaceDelivery = new Map<string, DeliveryFilter>();
+
+function deliveryFor(spaceId: string): DeliveryFilter {
+  let filter = spaceDelivery.get(spaceId);
+  if (!filter) spaceDelivery.set(spaceId, (filter = new DeliveryFilter()));
+  return filter;
+}
+
 // Channel delivery groups this client wants to be in. SignalR groups are per-connection, so the
 // server-side membership is lost on every reconnect — we re-join all of these on (re)connect.
 // Updated by the subscribeChannel/unsubscribeChannel messages from the main thread.
 const subscribedChannels = new Set<string>();
 let hasConnectedBefore = false;
 
-// Compare Redis stream ids of the form "<unixMs>-<seq>". Returns <0, 0, >0.
-function compareStreamIds(a: string, b: string): number {
-  const ai = a.indexOf("-");
-  const bi = b.indexOf("-");
-  const aMs = Number(a.slice(0, ai));
-  const bMs = Number(b.slice(0, bi));
-  if (aMs !== bMs) return aMs < bMs ? -1 : 1;
-  const aSeq = Number(a.slice(ai + 1));
-  const bSeq = Number(b.slice(bi + 1));
-  if (aSeq !== bSeq) return aSeq < bSeq ? -1 : 1;
-  return 0;
-}
-
-// Returns false if the entry id is not newer than what we've already applied (duplicate,
-// e.g. a replayed event that also arrived live). Advances the cursor when it is newer.
-function advanceCursor(get: () => string | null, set: (id: string) => void, entryId: string): boolean {
-  const cur = get();
-  if (cur && compareStreamIds(entryId, cur) <= 0) return false;
-  set(entryId);
-  return true;
-}
-
 async function resumeSession() {
-  if (!hubConnection) return;
+  if (hubConnection?.state !== signalR.HubConnectionState.Connected) return;
   try {
     const spaceCursorsObj: Record<string, string> = {};
-    for (const [k, v] of spaceCursors) spaceCursorsObj[k] = v;
+    for (const [spaceId, filter] of spaceDelivery)
+      if (filter.cursor) spaceCursorsObj[spaceId] = filter.cursor;
 
-    const ack: any = await hubConnection.invoke("Resume", userCursor, spaceCursorsObj);
+    const ack: any = await hubConnection.invoke("Resume", userDelivery.cursor, spaceCursorsObj);
     const needFull = ack?.needFullResync ?? ack?.NeedFullResync ?? false;
     if (needFull) {
       postLog("warn", "Resume reported a gap — full resync required");
@@ -122,7 +130,14 @@ async function resumeSession() {
       postLog("info", "Resume completed, missed events replayed");
     }
   } catch (e: any) {
-    // Couldn't resume — safest is to rebuild state from scratch.
+    // A resume that failed because the connection went away says nothing about the replay buffer:
+    // the next connect resumes from the same cursor. Only treat it as a lost buffer while the
+    // connection is actually up — otherwise a flapping server would order a full client rebuild
+    // once per flap, which is the most expensive possible response to a server that is struggling.
+    if (hubConnection?.state !== signalR.HubConnectionState.Connected) {
+      postLog("warn", "Resume abandoned, connection went away", e?.message);
+      return;
+    }
     postLog("error", "Resume failed, requesting full resync", e?.message);
     self.postMessage({ type: "needFullResync" });
   }
@@ -142,11 +157,51 @@ function scheduleReconnect(endpoint: string) {
     attemptCount: hardReconnectAttempts,
     nextAttemptAt: Date.now() + delayMs,
   });
-  setTimeout(() => connect(endpoint), delayMs);
+  if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect(endpoint);
+  }, delayMs);
+}
+
+/**
+ * The page came back from being frozen or hidden.
+ *
+ * A browser tab that loses focus for long enough stops being a running program: timers are throttled
+ * to nothing and, once the tab is frozen outright, the socket is closed without the close ever being
+ * delivered. What is left when the user returns is a connection that looks alive and a backoff that
+ * was computed for a server which was struggling several hours ago. Both are stale, so the wait is
+ * cancelled, the counter is cleared, and we either re-dial at once or make the live connection prove
+ * itself with a heartbeat.
+ */
+function wake() {
+  hardReconnectAttempts = 0;
+  if (!currentEndpoint || !shouldReconnect) return;
+
+  const state = hubConnection?.state;
+  if (state === signalR.HubConnectionState.Connected) {
+    sendHeartbeatNow();
+    return;
+  }
+  // Already on its way back — SignalR's own reconnect survives a freeze and needs no help.
+  if (
+    state === signalR.HubConnectionState.Connecting ||
+    state === signalR.HubConnectionState.Reconnecting
+  )
+    return;
+
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  postLog("info", "Tab resumed, reconnecting now");
+  connect(currentEndpoint);
 }
 
 async function connect(endpoint: string) {
   shouldReconnect = true;
+  currentEndpoint = endpoint;
+  const generation = ++connectionGeneration;
 
   try {
     hubConnection = new signalR.HubConnectionBuilder()
@@ -193,11 +248,10 @@ async function connect(endpoint: string) {
     hubConnection.on("forSelf", (data: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        // Skip duplicates (a replayed event that also arrived live); advance the cursor.
-        if (entryId && !advanceCursor(() => userCursor, (id) => (userCursor = id), entryId))
-          return;
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "forSelf", event });
+        // Skip duplicates (a replayed event that also arrived live), but nothing else — an event
+        // that simply arrives late still has to be shown.
+        if (entryId && !userDelivery.accept(entryId)) return;
+        self.postMessage({ type: "event", channel: "forSelf", data });
       } catch (e: any) {
         postLog("error", "Error processing forSelf event", e?.message);
       }
@@ -206,11 +260,8 @@ async function connect(endpoint: string) {
     hubConnection.on("broadcastSpace", (data: string, spaceId?: string, entryId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        if (spaceId && entryId &&
-            !advanceCursor(() => spaceCursors.get(spaceId) ?? null, (id) => spaceCursors.set(spaceId, id), entryId))
-          return;
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "broadcastSpace", event });
+        if (spaceId && entryId && !deliveryFor(spaceId).accept(entryId)) return;
+        self.postMessage({ type: "event", channel: "broadcastSpace", data });
       } catch (e: any) {
         postLog("error", "Error processing broadcastSpace event", e?.message);
       }
@@ -222,8 +273,7 @@ async function connect(endpoint: string) {
     hubConnection.on("broadcastChannel", (data: string, _channelId?: string) => {
       try {
         if (typeof data !== "string") throw new Error("expected base64 string");
-        const event = decodeEvent(data);
-        self.postMessage({ type: "event", channel: "broadcastChannel", event });
+        self.postMessage({ type: "event", channel: "broadcastChannel", data });
       } catch (e: any) {
         postLog("error", "Error processing broadcastChannel event", e?.message);
       }
@@ -247,15 +297,39 @@ async function connect(endpoint: string) {
     });
 
     hubConnection.onclose((error) => {
+      if (generation !== connectionGeneration) {
+        postLog("info", "Ignoring close from a connection that has already been replaced");
+        return;
+      }
+
+      const uptimeMs = connectedAt === 0 ? 0 : Date.now() - connectedAt;
+      connectedAt = 0;
+
+      // A close we asked for (logout, account switch, an explicit retry) is not a fault and must
+      // not raise the reconnect UI on the way out.
+      if (!shouldReconnect) {
+        postLog("info", "SignalR connection closed on request");
+        self.postMessage({ type: "state", state: "disconnected", intentional: true });
+        stopHeartbeat();
+        return;
+      }
+
       postLog("error", "SignalR connection closed", error?.message);
       self.postMessage({ type: "state", state: "disconnected" });
       stopHeartbeat();
+
+      // Only a connection that stood up clears the backoff. One that died on arrival is another
+      // failed attempt, and the next wait is longer than the last.
+      if (uptimeMs >= STABLE_CONNECTION_MS) hardReconnectAttempts = 0;
+      else if (uptimeMs > 0)
+        postLog("warn", `Connection lasted ${Math.round(uptimeMs / 1000)}s — backing off further`);
+
       scheduleReconnect(endpoint);
     });
 
     self.postMessage({ type: "state", state: "connecting" });
     await hubConnection.start();
-    hardReconnectAttempts = 0; // healthy connection — reset hard-reconnect backoff
+    connectedAt = Date.now();
     postLog("info", "SignalR connected successfully", hubConnection.connectionId);
     self.postMessage({ type: "state", state: "connected" });
 
@@ -278,6 +352,12 @@ async function connect(endpoint: string) {
 
 function disconnect() {
   shouldReconnect = false;
+  connectedAt = 0;
+  hardReconnectAttempts = 0;
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   stopHeartbeat();
   if (hubConnection) {
     hubConnection.stop();
@@ -333,6 +413,9 @@ self.onmessage = (e: MessageEvent) => {
       break;
     case "disconnect":
       disconnect();
+      break;
+    case "wake":
+      wake();
       break;
     case "subscribeChannel":
       subscribedChannels.add(msg.channelId);

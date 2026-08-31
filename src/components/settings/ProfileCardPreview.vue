@@ -277,7 +277,7 @@ const nameAccentStyle = computed(() => {
   position: relative;
   border-radius: 50%;
   padding: 2px;
-  border: 2.5px solid hsl(var(--card) / 0.9);
+  border: 2.5px solid hsl(var(--card) / var(--card-alpha));
   background: hsl(var(--card) / 0.6);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);

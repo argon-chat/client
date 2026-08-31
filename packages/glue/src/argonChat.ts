@@ -218,15 +218,6 @@ export interface CreateChannelRequest {
 export interface RealtimeChannel {
   channel: ArgonChannel;
   users: IonArray<RealtimeChannelUser>;
-  meetInfo: LinkedMeetingInfo | null;
-};
-
-
-export interface LinkedMeetingInfo {
-  meetingId: guid;
-  meetingUrl: string;
-  meetingCode: string;
-  startDate: datetime;
 };
 
 
@@ -1243,6 +1234,30 @@ export interface RealtimeServerMember {
   member: SpaceMember;
   status: UserStatus;
   presence: UserActivityPresence | null;
+};
+
+
+export interface SpaceVersions {
+  members: string | null;
+  channels: string | null;
+  groups: string | null;
+  archetypes: string | null;
+};
+
+
+export interface SpaceSnapshot {
+  versions: SpaceVersions;
+  members: IonArray<SpaceMember> | null;
+  channels: IonArray<RealtimeChannel> | null;
+  groups: IonArray<ChannelGroup> | null;
+  archetypes: IonArray<Archetype> | null;
+};
+
+
+export interface MemberPresence {
+  userId: guid;
+  status: UserStatus;
+  activity: UserActivityPresence | null;
 };
 
 
@@ -4631,12 +4646,6 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isSpaceDetailsUpdated(): this is SpaceDetailsUpdated {
     return this.UnionKey === "SpaceDetailsUpdated";
   }
-  public isMeetingCreatedFor(): this is MeetingCreatedFor {
-    return this.UnionKey === "MeetingCreatedFor";
-  }
-  public isMeetingDeletedFor(): this is MeetingDeletedFor {
-    return this.UnionKey === "MeetingDeletedFor";
-  }
   public isLeavedFromServerUser(): this is LeavedFromServerUser {
     return this.UnionKey === "LeavedFromServerUser";
   }
@@ -5068,28 +5077,12 @@ export class SpaceDetailsUpdated extends IArgonEvent
   UnionIndex: number = 46;
 }
 
-export class MeetingCreatedFor extends IArgonEvent
-{
-  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
-
-  UnionKey: string = "MeetingCreatedFor";
-  UnionIndex: number = 47;
-}
-
-export class MeetingDeletedFor extends IArgonEvent
-{
-  constructor(public spaceId: guid, public channelId: guid, public meetInfo: LinkedMeetingInfo) { super(); }
-
-  UnionKey: string = "MeetingDeletedFor";
-  UnionIndex: number = 48;
-}
-
 export class LeavedFromServerUser extends IArgonEvent
 {
   constructor(public spaceId: guid, public userId: guid) { super(); }
 
   UnionKey: string = "LeavedFromServerUser";
-  UnionIndex: number = 49;
+  UnionIndex: number = 47;
 }
 
 export class InteractionAcked extends IArgonEvent
@@ -5097,7 +5090,7 @@ export class InteractionAcked extends IArgonEvent
   constructor(public interactionId: guid) { super(); }
 
   UnionKey: string = "InteractionAcked";
-  UnionIndex: number = 50;
+  UnionIndex: number = 48;
 }
 
 export class InteractionDeferred extends IArgonEvent
@@ -5105,7 +5098,7 @@ export class InteractionDeferred extends IArgonEvent
   constructor(public interactionId: guid) { super(); }
 
   UnionKey: string = "InteractionDeferred";
-  UnionIndex: number = 51;
+  UnionIndex: number = 49;
 }
 
 export class ShowModal extends IArgonEvent
@@ -5113,7 +5106,7 @@ export class ShowModal extends IArgonEvent
   constructor(public interactionId: guid, public modal: IonModalDefinition) { super(); }
 
   UnionKey: string = "ShowModal";
-  UnionIndex: number = 52;
+  UnionIndex: number = 50;
 }
 
 export class ReactionAdded extends IArgonEvent
@@ -5121,7 +5114,7 @@ export class ReactionAdded extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string, public customEmojiId: guid | null) { super(); }
 
   UnionKey: string = "ReactionAdded";
-  UnionIndex: number = 53;
+  UnionIndex: number = 51;
 }
 
 export class ReactionRemoved extends IArgonEvent
@@ -5129,7 +5122,7 @@ export class ReactionRemoved extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string) { super(); }
 
   UnionKey: string = "ReactionRemoved";
-  UnionIndex: number = 54;
+  UnionIndex: number = 52;
 }
 
 export class SpaceBoostUpdated extends IArgonEvent
@@ -5137,7 +5130,7 @@ export class SpaceBoostUpdated extends IArgonEvent
   constructor(public spaceId: guid, public boostCount: i4, public boostLevel: i4) { super(); }
 
   UnionKey: string = "SpaceBoostUpdated";
-  UnionIndex: number = 55;
+  UnionIndex: number = 53;
 }
 
 export class UltimaGiftReceived extends IArgonEvent
@@ -5145,7 +5138,7 @@ export class UltimaGiftReceived extends IArgonEvent
   constructor(public userId: guid, public itemId: guid, public senderName: string, public message: string | null) { super(); }
 
   UnionKey: string = "UltimaGiftReceived";
-  UnionIndex: number = 56;
+  UnionIndex: number = 54;
 }
 
 export class UserProfileUpdated extends IArgonEvent
@@ -5153,7 +5146,7 @@ export class UserProfileUpdated extends IArgonEvent
   constructor(public spaceId: guid, public userId: guid, public profile: ArgonUserProfile) { super(); }
 
   UnionKey: string = "UserProfileUpdated";
-  UnionIndex: number = 57;
+  UnionIndex: number = 55;
 }
 
 export class FeatureFlagActivated extends IArgonEvent
@@ -5161,7 +5154,7 @@ export class FeatureFlagActivated extends IArgonEvent
   constructor(public userId: guid, public flagId: string, public isEnabled: bool, public variant: string | null) { super(); }
 
   UnionKey: string = "FeatureFlagActivated";
-  UnionIndex: number = 58;
+  UnionIndex: number = 56;
 }
 
 export class DrawingSessionStarted extends IArgonEvent
@@ -5169,7 +5162,7 @@ export class DrawingSessionStarted extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public sessionId: string, public ownerId: guid, public allowedDrawers: IonArray<guid>, public defaultTtlMs: i4) { super(); }
 
   UnionKey: string = "DrawingSessionStarted";
-  UnionIndex: number = 59;
+  UnionIndex: number = 57;
 }
 
 export class DrawingSessionEnded extends IArgonEvent
@@ -5177,7 +5170,7 @@ export class DrawingSessionEnded extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public sessionId: string) { super(); }
 
   UnionKey: string = "DrawingSessionEnded";
-  UnionIndex: number = 60;
+  UnionIndex: number = 58;
 }
 
 export class MessageDeleted extends IArgonEvent
@@ -5185,7 +5178,7 @@ export class MessageDeleted extends IArgonEvent
   constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public byUserId: guid) { super(); }
 
   UnionKey: string = "MessageDeleted";
-  UnionIndex: number = 61;
+  UnionIndex: number = 59;
 }
 
 export class ArchetypeRemoved extends IArgonEvent
@@ -5193,7 +5186,7 @@ export class ArchetypeRemoved extends IArgonEvent
   constructor(public spaceId: guid, public archetypeId: guid) { super(); }
 
   UnionKey: string = "ArchetypeRemoved";
-  UnionIndex: number = 62;
+  UnionIndex: number = 60;
 }
 
 export class ArchetypesReordered extends IArgonEvent
@@ -5201,7 +5194,7 @@ export class ArchetypesReordered extends IArgonEvent
   constructor(public spaceId: guid, public data: IonArray<Archetype>) { super(); }
 
   UnionKey: string = "ArchetypesReordered";
-  UnionIndex: number = 63;
+  UnionIndex: number = 61;
 }
 
 export class SpaceDeletionScheduled extends IArgonEvent
@@ -5209,7 +5202,7 @@ export class SpaceDeletionScheduled extends IArgonEvent
   constructor(public spaceId: guid, public state: SpaceDeletionState) { super(); }
 
   UnionKey: string = "SpaceDeletionScheduled";
-  UnionIndex: number = 64;
+  UnionIndex: number = 62;
 }
 
 export class SpaceDeletionCancelled extends IArgonEvent
@@ -5217,7 +5210,7 @@ export class SpaceDeletionCancelled extends IArgonEvent
   constructor(public spaceId: guid) { super(); }
 
   UnionKey: string = "SpaceDeletionCancelled";
-  UnionIndex: number = 65;
+  UnionIndex: number = 63;
 }
 
 
@@ -5325,42 +5318,38 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (unionIndex == 46)
       value = IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").read(reader);
     else if (unionIndex == 47)
-      value = IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").read(reader);
-    else if (unionIndex == 48)
-      value = IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").read(reader);
-    else if (unionIndex == 49)
       value = IonFormatterStorage.get<LeavedFromServerUser>("LeavedFromServerUser").read(reader);
-    else if (unionIndex == 50)
+    else if (unionIndex == 48)
       value = IonFormatterStorage.get<InteractionAcked>("InteractionAcked").read(reader);
-    else if (unionIndex == 51)
+    else if (unionIndex == 49)
       value = IonFormatterStorage.get<InteractionDeferred>("InteractionDeferred").read(reader);
-    else if (unionIndex == 52)
+    else if (unionIndex == 50)
       value = IonFormatterStorage.get<ShowModal>("ShowModal").read(reader);
-    else if (unionIndex == 53)
+    else if (unionIndex == 51)
       value = IonFormatterStorage.get<ReactionAdded>("ReactionAdded").read(reader);
-    else if (unionIndex == 54)
+    else if (unionIndex == 52)
       value = IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").read(reader);
-    else if (unionIndex == 55)
+    else if (unionIndex == 53)
       value = IonFormatterStorage.get<SpaceBoostUpdated>("SpaceBoostUpdated").read(reader);
-    else if (unionIndex == 56)
+    else if (unionIndex == 54)
       value = IonFormatterStorage.get<UltimaGiftReceived>("UltimaGiftReceived").read(reader);
-    else if (unionIndex == 57)
+    else if (unionIndex == 55)
       value = IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").read(reader);
-    else if (unionIndex == 58)
+    else if (unionIndex == 56)
       value = IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").read(reader);
-    else if (unionIndex == 59)
+    else if (unionIndex == 57)
       value = IonFormatterStorage.get<DrawingSessionStarted>("DrawingSessionStarted").read(reader);
-    else if (unionIndex == 60)
+    else if (unionIndex == 58)
       value = IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").read(reader);
-    else if (unionIndex == 61)
+    else if (unionIndex == 59)
       value = IonFormatterStorage.get<MessageDeleted>("MessageDeleted").read(reader);
-    else if (unionIndex == 62)
+    else if (unionIndex == 60)
       value = IonFormatterStorage.get<ArchetypeRemoved>("ArchetypeRemoved").read(reader);
-    else if (unionIndex == 63)
+    else if (unionIndex == 61)
       value = IonFormatterStorage.get<ArchetypesReordered>("ArchetypesReordered").read(reader);
-    else if (unionIndex == 64)
+    else if (unionIndex == 62)
       value = IonFormatterStorage.get<SpaceDeletionScheduled>("SpaceDeletionScheduled").read(reader);
-    else if (unionIndex == 65)
+    else if (unionIndex == 63)
       value = IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").read(reader);
 
     else throw new Error();
@@ -5515,60 +5504,54 @@ IonFormatterStorage.register("IArgonEvent", {
         IonFormatterStorage.get<SpaceDetailsUpdated>("SpaceDetailsUpdated").write(writer, value as SpaceDetailsUpdated);
     }
     else if (value.UnionIndex == 47) {
-        IonFormatterStorage.get<MeetingCreatedFor>("MeetingCreatedFor").write(writer, value as MeetingCreatedFor);
-    }
-    else if (value.UnionIndex == 48) {
-        IonFormatterStorage.get<MeetingDeletedFor>("MeetingDeletedFor").write(writer, value as MeetingDeletedFor);
-    }
-    else if (value.UnionIndex == 49) {
         IonFormatterStorage.get<LeavedFromServerUser>("LeavedFromServerUser").write(writer, value as LeavedFromServerUser);
     }
-    else if (value.UnionIndex == 50) {
+    else if (value.UnionIndex == 48) {
         IonFormatterStorage.get<InteractionAcked>("InteractionAcked").write(writer, value as InteractionAcked);
     }
-    else if (value.UnionIndex == 51) {
+    else if (value.UnionIndex == 49) {
         IonFormatterStorage.get<InteractionDeferred>("InteractionDeferred").write(writer, value as InteractionDeferred);
     }
-    else if (value.UnionIndex == 52) {
+    else if (value.UnionIndex == 50) {
         IonFormatterStorage.get<ShowModal>("ShowModal").write(writer, value as ShowModal);
     }
-    else if (value.UnionIndex == 53) {
+    else if (value.UnionIndex == 51) {
         IonFormatterStorage.get<ReactionAdded>("ReactionAdded").write(writer, value as ReactionAdded);
     }
-    else if (value.UnionIndex == 54) {
+    else if (value.UnionIndex == 52) {
         IonFormatterStorage.get<ReactionRemoved>("ReactionRemoved").write(writer, value as ReactionRemoved);
     }
-    else if (value.UnionIndex == 55) {
+    else if (value.UnionIndex == 53) {
         IonFormatterStorage.get<SpaceBoostUpdated>("SpaceBoostUpdated").write(writer, value as SpaceBoostUpdated);
     }
-    else if (value.UnionIndex == 56) {
+    else if (value.UnionIndex == 54) {
         IonFormatterStorage.get<UltimaGiftReceived>("UltimaGiftReceived").write(writer, value as UltimaGiftReceived);
     }
-    else if (value.UnionIndex == 57) {
+    else if (value.UnionIndex == 55) {
         IonFormatterStorage.get<UserProfileUpdated>("UserProfileUpdated").write(writer, value as UserProfileUpdated);
     }
-    else if (value.UnionIndex == 58) {
+    else if (value.UnionIndex == 56) {
         IonFormatterStorage.get<FeatureFlagActivated>("FeatureFlagActivated").write(writer, value as FeatureFlagActivated);
     }
-    else if (value.UnionIndex == 59) {
+    else if (value.UnionIndex == 57) {
         IonFormatterStorage.get<DrawingSessionStarted>("DrawingSessionStarted").write(writer, value as DrawingSessionStarted);
     }
-    else if (value.UnionIndex == 60) {
+    else if (value.UnionIndex == 58) {
         IonFormatterStorage.get<DrawingSessionEnded>("DrawingSessionEnded").write(writer, value as DrawingSessionEnded);
     }
-    else if (value.UnionIndex == 61) {
+    else if (value.UnionIndex == 59) {
         IonFormatterStorage.get<MessageDeleted>("MessageDeleted").write(writer, value as MessageDeleted);
     }
-    else if (value.UnionIndex == 62) {
+    else if (value.UnionIndex == 60) {
         IonFormatterStorage.get<ArchetypeRemoved>("ArchetypeRemoved").write(writer, value as ArchetypeRemoved);
     }
-    else if (value.UnionIndex == 63) {
+    else if (value.UnionIndex == 61) {
         IonFormatterStorage.get<ArchetypesReordered>("ArchetypesReordered").write(writer, value as ArchetypesReordered);
     }
-    else if (value.UnionIndex == 64) {
+    else if (value.UnionIndex == 62) {
         IonFormatterStorage.get<SpaceDeletionScheduled>("SpaceDeletionScheduled").write(writer, value as SpaceDeletionScheduled);
     }
-    else if (value.UnionIndex == 65) {
+    else if (value.UnionIndex == 63) {
         IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").write(writer, value as SpaceDeletionCancelled);
     }
   
@@ -6368,42 +6351,6 @@ IonFormatterStorage.register("SpaceDetailsUpdated", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').write(writer, value.details);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("MeetingCreatedFor", {
-  read(reader: CborReader): MeetingCreatedFor {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return new MeetingCreatedFor(spaceId, channelId, meetInfo);
-  },
-  write(writer: CborWriter, value: MeetingCreatedFor): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
-    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("MeetingDeletedFor", {
-  read(reader: CborReader): MeetingDeletedFor {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const meetInfo = IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return new MeetingDeletedFor(spaceId, channelId, meetInfo);
-  },
-  write(writer: CborWriter, value: MeetingDeletedFor): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
-    IonFormatterStorage.get<LinkedMeetingInfo>('LinkedMeetingInfo').write(writer, value.meetInfo);
     writer.writeEndArray();
   }
 });
@@ -11866,35 +11813,13 @@ IonFormatterStorage.register("RealtimeChannel", {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
     const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     const users = IonFormatterStorage.readArray<RealtimeChannelUser>(reader, 'RealtimeChannelUser');
-    const meetInfo = IonFormatterStorage.readNullable<LinkedMeetingInfo>(reader, 'LinkedMeetingInfo');
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return { channel, users, meetInfo };
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { channel, users };
   },
   write(writer: CborWriter, value: RealtimeChannel): void {
-    writer.writeStartArray(3);
+    writer.writeStartArray(2);
     IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
     IonFormatterStorage.writeArray<RealtimeChannelUser>(writer, value.users, 'RealtimeChannelUser');
-    IonFormatterStorage.writeNullable<LinkedMeetingInfo>(writer, value.meetInfo, 'LinkedMeetingInfo');
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("LinkedMeetingInfo", {
-  read(reader: CborReader): LinkedMeetingInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
-    const meetingId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const meetingUrl = IonFormatterStorage.get<string>('string').read(reader);
-    const meetingCode = IonFormatterStorage.get<string>('string').read(reader);
-    const startDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { meetingId, meetingUrl, meetingCode, startDate };
-  },
-  write(writer: CborWriter, value: LinkedMeetingInfo): void {
-    writer.writeStartArray(4);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.meetingId);
-    IonFormatterStorage.get<string>('string').write(writer, value.meetingUrl);
-    IonFormatterStorage.get<string>('string').write(writer, value.meetingCode);
-    IonFormatterStorage.get<datetime>('datetime').write(writer, value.startDate);
     writer.writeEndArray();
   }
 });
@@ -13674,6 +13599,66 @@ IonFormatterStorage.register("RealtimeServerMember", {
   }
 });
 
+IonFormatterStorage.register("SpaceVersions", {
+  read(reader: CborReader): SpaceVersions {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const members = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const channels = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const groups = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const archetypes = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { members, channels, groups, archetypes };
+  },
+  write(writer: CborWriter, value: SpaceVersions): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.writeNullable<string>(writer, value.members, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.channels, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.groups, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.archetypes, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceSnapshot", {
+  read(reader: CborReader): SpaceSnapshot {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const versions = IonFormatterStorage.get<SpaceVersions>('SpaceVersions').read(reader);
+    const members = IonFormatterStorage.readNullableArray<SpaceMember>(reader, 'SpaceMember');
+    const channels = IonFormatterStorage.readNullableArray<RealtimeChannel>(reader, 'RealtimeChannel');
+    const groups = IonFormatterStorage.readNullableArray<ChannelGroup>(reader, 'ChannelGroup');
+    const archetypes = IonFormatterStorage.readNullableArray<Archetype>(reader, 'Archetype');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { versions, members, channels, groups, archetypes };
+  },
+  write(writer: CborWriter, value: SpaceSnapshot): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<SpaceVersions>('SpaceVersions').write(writer, value.versions);
+    IonFormatterStorage.writeNullableArray<SpaceMember>(writer, value.members, 'SpaceMember');
+    IonFormatterStorage.writeNullableArray<RealtimeChannel>(writer, value.channels, 'RealtimeChannel');
+    IonFormatterStorage.writeNullableArray<ChannelGroup>(writer, value.groups, 'ChannelGroup');
+    IonFormatterStorage.writeNullableArray<Archetype>(writer, value.archetypes, 'Archetype');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MemberPresence", {
+  read(reader: CborReader): MemberPresence {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
+    const activity = IonFormatterStorage.readNullable<UserActivityPresence>(reader, 'UserActivityPresence');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { userId, status, activity };
+  },
+  write(writer: CborWriter, value: MemberPresence): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
+    IonFormatterStorage.writeNullable<UserActivityPresence>(writer, value.activity, 'UserActivityPresence');
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("InviteCode", {
   read(reader: CborReader): InviteCode {
     const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
@@ -14667,8 +14652,6 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
-  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
-  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
   CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
   InvokeSlashCommand(spaceId: guid, channelId: guid, commandId: guid, options: IonArray<SlashCommandOption>): Promise<IInvokeSlashCommandResult>;
@@ -14824,6 +14807,8 @@ export interface ISecurityInteraction extends IIonService
 
 export interface IServerInteraction extends IIonService
 {
+  GetSpaceSnapshot(spaceId: guid, known: SpaceVersions | null): Promise<SpaceSnapshot>;
+  GetMemberPresence(spaceId: guid): Promise<IonArray<MemberPresence>>;
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
   GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
@@ -14991,8 +14976,6 @@ export interface IChannelInteraction extends IIonService
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
-  CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo>;
-  EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
   CompleteUploadAttachment(spaceId: guid, channelId: guid, blobId: guid): Promise<AttachmentInfo>;
   InvokeSlashCommand(spaceId: guid, channelId: guid, commandId: guid, options: IonArray<SlashCommandOption>): Promise<IInvokeSlashCommandResult>;
@@ -15148,6 +15131,8 @@ export interface ISecurityInteraction extends IIonService
 
 export interface IServerInteraction extends IIonService
 {
+  GetSpaceSnapshot(spaceId: guid, known: SpaceVersions | null): Promise<SpaceSnapshot>;
+  GetMemberPresence(spaceId: guid): Promise<IonArray<MemberPresence>>;
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
   GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
@@ -15876,34 +15861,6 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
-  }
-  async CreateLinkedMeeting(spaceId: guid, channelId: guid): Promise<LinkedMeetingInfo> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateLinkedMeeting");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<LinkedMeetingInfo>("LinkedMeetingInfo", writer.data, this.signal);
-  }
-  async EndLinkedMeeting(spaceId: guid, channelId: guid): Promise<void> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "EndLinkedMeeting");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
   }
   async BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "BeginUploadAttachment");
@@ -17144,6 +17101,33 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
   }
 
   
+  async GetSpaceSnapshot(spaceId: guid, known: SpaceVersions | null): Promise<SpaceSnapshot> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetSpaceSnapshot");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.writeNullable<SpaceVersions>(writer, known, 'SpaceVersions');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<SpaceSnapshot>("SpaceSnapshot", writer.data, this.signal);
+  }
+  async GetMemberPresence(spaceId: guid): Promise<IonArray<MemberPresence>> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetMemberPresence");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<MemberPresence>>("IonArray<MemberPresence>", writer.data, this.signal);
+  }
   async GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetMembers");
           

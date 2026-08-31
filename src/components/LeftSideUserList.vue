@@ -35,8 +35,9 @@
 
     <!-- Scrollable list -->
     <div class="user-list-scroll">
+      <Transition name="panel-swap" mode="out-in">
       <!-- Loading skeletons -->
-      <template v-if="membersLoading && groupedUsers.length === 0">
+      <div v-if="membersLoading && groupedUsers.length === 0" key="loading">
         <div v-for="g in 2" :key="`mg-${g}`" class="mb-3">
           <Skeleton class="h-2.5 w-20 mb-2 ml-1 rounded" />
           <div v-for="u in 4" :key="`mu-${g}-${u}`" class="flex items-center gap-2.5 px-1.5 py-1.5">
@@ -44,9 +45,9 @@
             <Skeleton class="h-2.5 rounded" :style="{ width: `${45 + ((g * 7 + u * 11) % 40)}%` }" />
           </div>
         </div>
-      </template>
+      </div>
 
-      <template v-else>
+      <div v-else key="members">
         <div v-for="group in groups" :key="group.archetype.id" class="mb-2 last:mb-0">
           <button class="group-header" @click="toggleGroup(group.archetype.id)">
             <IconChevronDown class="group-chevron" :class="{ 'group-chevron--collapsed': isCollapsed(group.archetype.id) }" />
@@ -66,7 +67,8 @@
         <div v-if="groups.length === 0" class="empty-state">
           {{ searchQuery ? t("no_results") : t("no_members_online") }}
         </div>
-      </template>
+      </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -189,7 +191,7 @@ const formatColour = (argb: number) => {
 
 <style lang="css" scoped>
 .user-list-outer {
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card) / var(--card-alpha));
   border: 1px solid hsl(var(--border) / 0.5);
   border-radius: var(--radius);
 }
@@ -316,6 +318,27 @@ const formatColour = (argb: number) => {
 }
 
 /* Scrollable list — scrollbar fully hidden (no layout shift, no eaten pixels). */
+/* Skeletons -> content. The two states are the same panel at two moments, so they hand over
+   rather than cut: the placeholder fades out, the real list fades in a few pixels lower. Sequential
+   (`out-in`) because both live in the same scroll flow — crossfading them would need one taken out
+   of flow, and the panel would jump by whatever the other one measured. */
+.panel-swap-enter-active {
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.panel-swap-leave-active {
+  transition: opacity 140ms ease-in;
+}
+
+.panel-swap-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.panel-swap-leave-to {
+  opacity: 0;
+}
+
 .user-list-scroll {
   flex: 1;
   overflow-y: auto;

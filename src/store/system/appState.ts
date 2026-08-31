@@ -17,6 +17,7 @@ import { useConfigStore } from "@/store/ui/configStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useInstance } from "@/store/system/instanceStore";
 import { useAccounts } from "@/store/auth/accountsStore";
+import { ensureDbOpen } from "@/store/db/dexie";
 
 // Initialize worklets with audio getter to break circular dependency
 initWorklets(() => audio);
@@ -107,6 +108,11 @@ export const useAppState = defineStore("app", () => {
           void accounts.gcOrphanDbs(); // reap DBs of accounts removed in a previous session
         },
       },
+      // Open the local cache here, right after the account pointer is settled and before anything
+      // reads from it. A cache that cannot be opened (an interrupted schema upgrade, say) is rebuilt
+      // empty at this point instead of failing whichever query got there first — which the retry
+      // below would then repeat, identically, until it ran out of attempts.
+      { label: "Preparing local cache...", run: () => ensureDbOpen() },
       // Restore the active instance (self-hosted / enterprise) and re-point endpoints BEFORE any
       // RPC, SignalR or session restore touches the network. No-op when an account is active.
       { label: "Resolving instance...", run: () => { useInstance(); } },

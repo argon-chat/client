@@ -1,18 +1,18 @@
 <template>
     <Dialog v-model:open="open">
-        <DialogContent
+        <DialogContent described
             class="sm:max-w-[420px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-6">
 
             <div class="relative text-center space-y-3">
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
                     <span class="i-lucide-mic-off text-destructive text-2xl"></span>
                 </div>
-                <h2 class="text-xl font-bold text-foreground">
+                <DialogTitle as="h2" class="text-xl font-bold text-foreground leading-7">
                     {{ errorTitle }}
-                </h2>
-                <p class="text-muted-foreground text-sm leading-relaxed">
+                </DialogTitle>
+                <DialogDescription class="text-muted-foreground text-sm leading-relaxed">
                     {{ errorDescription }}
-                </p>
+                </DialogDescription>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Dialog, DialogContent } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
 import { useLocale } from "@/store/system/localeStore";
 import { useWindow } from "@/store/ui/windowStore";

@@ -386,7 +386,7 @@ const showDrawOverlay = computed(() =>
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(to top, hsl(var(--card) / 0.9), hsl(var(--card) / 0.5) 60%, transparent);
+    background: linear-gradient(to top, hsl(var(--card) / var(--card-alpha)), hsl(var(--card) / 0.5) 60%, transparent);
     padding: 1.5rem 0.5rem 0.375rem;
     display: flex;
     align-items: baseline;
