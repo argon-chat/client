@@ -422,6 +422,12 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
       pendingLaunch.value = null;
 
       await newHost.start();
+      // stopActivity() may have run while start() was pending (the game terminated at once, or the
+      // user closed it): the host is gone and this launch is over, not started.
+      if (host.value !== newHost) {
+        metrics.count("activity.start", { game: game.id, intent, role, result: "cancelled" });
+        return false;
+      }
       activityStartedAt = performance.now();
       metrics.count("activity.start", { game: game.id, intent, role, result: "ok" });
       return true;

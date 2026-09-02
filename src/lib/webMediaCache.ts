@@ -23,7 +23,12 @@ let registration: ServiceWorkerRegistration | null = null;
 async function removeWorker(): Promise<void> {
   const existing = await navigator.serviceWorker.getRegistration("/");
   if (!existing) return;
-  await clearMediaCache();
+  // This page may not be controlled at all (a hard reload, or a worker a previous session installed
+  // that never claimed this page) and nothing was registered in this session, so neither of
+  // activeWorker()'s sources would find it: the registration's own worker is the one to tell.
+  await clearMediaCache(
+    existing.active ?? existing.waiting ?? existing.installing ?? navigator.serviceWorker.controller,
+  );
   await existing.unregister();
   logger.info("[media-cache] service worker removed");
 }
@@ -62,8 +67,8 @@ function activeWorker(): ServiceWorker | null {
 }
 
 /** Drop every cached picture. Used by the storage settings "clear cache" action. */
-export async function clearMediaCache(): Promise<void> {
-  activeWorker()?.postMessage({ type: "media-cache-clear" });
+export async function clearMediaCache(worker: ServiceWorker | null = activeWorker()): Promise<void> {
+  worker?.postMessage({ type: "media-cache-clear" });
 }
 
 export interface MediaCacheStats {

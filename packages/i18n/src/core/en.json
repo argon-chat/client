@@ -1506,5 +1506,5 @@
   "cdn_cache": "Media delivery",
   "cdn_cache_toggle": "Cache pictures and files",
   "cdn_cache_desc": "Keeps avatars, banners and attachments after the first time they load. Turn it off to see exactly what the server sends — useful when a picture looks wrong.",
-  "cdn_cache_off_note": "Off — every picture is fetched again each time it is shown."
+  "cdn_cache_off_note": "Off — Argon keeps no copies; pictures are requested from the server, though the browser may still use its own cache."
 }

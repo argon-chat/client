@@ -328,7 +328,9 @@ export async function completeSignIn(apiBase: string): Promise<string | null> {
  */
 export async function signOut(apiBase: string): Promise<void> {
   try {
-    await fetch(`${apiBase}/auth/web/logout`, { method: "POST", credentials: "include" });
+    // keepalive: callers reload the page right after signing out, and a plain fetch is cancelled
+    // with the document — the tombstone would never be written.
+    await fetch(`${apiBase}/auth/web/logout`, { method: "POST", credentials: "include", keepalive: true });
   } catch (e) {
     logger.warn("[web-auth] sign-out could not reach the API; clearing locally anyway", e);
   } finally {

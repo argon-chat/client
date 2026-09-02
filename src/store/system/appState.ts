@@ -169,8 +169,13 @@ export const useAppState = defineStore("app", () => {
       logger.info(step.label);
 
       const stepTimer = metrics.startTimer("app.boot.step.duration", { step: stepKey(step.label) });
-      await step.run();
-      stepTimer.end({ result: blocked ? "blocked" : "ok" });
+      let stepResult = "failed";
+      try {
+        await step.run();
+        stepResult = blocked ? "blocked" : "ok";
+      } finally {
+        stepTimer.end({ result: stepResult });
+      }
       if (blocked) return false;
 
       await delay(STEP_DELAY);
@@ -235,18 +240,24 @@ export const useAppState = defineStore("app", () => {
    * spinner covers the brief wait and the shell animates the view in. Hard
    * reload is kept only as a last-resort fallback on failure.
    */
-  async function continueAfterLogin(): Promise<void> {
+  //
+  // `via` says what started the session (a sign-in, or a seamless account switch). Resolves false
+  // only when the fallback reload was triggered — the caller must not count that as a session; a
+  // blocked account resolves true, it was routed where it belongs.
+  async function continueAfterLogin(via: "login" | "account_switch" = "login"): Promise<boolean> {
     try {
-      if (!(await loadProfile())) return; // blocked → already routed to /blocked.pg
+      if (!(await loadProfile())) return true; // blocked → already routed to /blocked.pg
       await loadUserData();
       isLoaded.value = true;
       logger.success("Post-login init complete");
-      metrics.count("app.session.started", { authenticated: true, via: "login" });
+      metrics.count("app.session.started", { authenticated: true, via });
       router.push({ path: "/master.pg" });
+      return true;
     } catch (e) {
       logger.error("Post-login init failed, reloading as fallback:", e);
-      metrics.count("app.post_login.failed", { error: errorKind(e) });
+      metrics.count("app.post_login.failed", { error: errorKind(e), via });
       window.location.reload();
+      return false;
     }
   }
 

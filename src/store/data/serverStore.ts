@@ -50,12 +50,18 @@ export const useSpaceStore = defineStore("spaces", () => {
         description: "",
         name: name,
       });
-      await pool.loadServerDetails();
-      metrics.count("space.created", { result: "ok" });
-      return true;
     } catch (e) {
       logger.error("failed to create server", e);
       metrics.count("space.created", { result: "failed", error: errorKind(e) });
+      return false;
+    }
+    // Created. Counted here, so a refresh that fails below cannot turn a real creation into a failure.
+    metrics.count("space.created", { result: "ok" });
+    try {
+      await pool.loadServerDetails();
+      return true;
+    } catch (e) {
+      logger.error("created the server, but failed to reload the space list", e);
       return false;
     }
   }

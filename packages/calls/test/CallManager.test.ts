@@ -324,4 +324,20 @@ describe("product metrics go through the host's telemetry sink", () => {
     await silent.joinVoiceChannel("chan-1");
     await silent.leave();
   });
+
+  test("leaving mid-reconnect does not carry the reconnect clock into the next call", async () => {
+    const t = telemetry();
+    const { calls, room } = await joined(makeConfig({ telemetry: t }));
+    room.emit("reconnecting");
+    await calls.leave();
+
+    // A fresh call: its own reconnect must be counted and timed from its own start.
+    await calls.joinVoiceChannel("chan-1");
+    rooms.last.emit("reconnecting");
+    rooms.last.emit("reconnected");
+
+    expect(named(t.count, "call.reconnecting")).toHaveLength(2);
+    expect(named(t.count, "call.reconnected")).toHaveLength(1);
+    expect(named(t.distribution, "call.reconnect.duration")).toHaveLength(1);
+  });
 });
