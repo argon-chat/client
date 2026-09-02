@@ -19,6 +19,16 @@
               </div>
             </Transition>
 
+            <!-- Link preview of the draft (Telegram-style: the first link, dismissable per message) -->
+            <LinkPreviewBar
+              v-if="!captionMode"
+              :visible="linkPreview.visible"
+              :loading="linkPreview.loading"
+              :url="linkPreview.url"
+              :preview="linkPreview.preview"
+              @dismiss="linkPreview.dismiss"
+            />
+
             <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
                 <button v-if="!captionMode && canAttachFiles" class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
@@ -305,7 +315,7 @@ import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityHashTag, MessageEntityItalic, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
@@ -322,6 +332,10 @@ import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { storeToRefs } from "pinia";
 import GifPicker from "./GifPicker.vue";
+import LinkPreviewBar from "./LinkPreviewBar.vue";
+import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
+import { parseMessageContent as parseMessage, type ParsedMessage } from "@/lib/chat/parseMessageContent";
+import { sendLinkPreviews } from "@/lib/linkPreview/settings";
 const { t } = useLocale();
 
 const configStore = useConfigStore();
@@ -573,6 +587,15 @@ const emit = defineEmits<{
   (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
   (e: "submit"): void;
 }>();
+
+// ── Link preview of the draft ──
+// Off for captions (a picture already is the preview), for members without PostEmbeddedLinks (the
+// server would drop the stub anyway) and when the user turned it off in settings.
+const canEmbedLinks = computed(() => pex.has("PostEmbeddedLinks"));
+const linkPreview = useLinkPreviewDraft({
+  text: () => messageText.value,
+  enabled: () => !props.captionMode && canEmbedLinks.value && sendLinkPreviews.value,
+});
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === "Escape" && props.replyTo) {
@@ -928,229 +951,9 @@ const onEmojixSelect = (selection: EmojiSelection) => {
   editorRef.value.focus();
 };
 
-interface ParsedMessage {
-  text: string;
-  entities: IMessageEntity[];
-}
-
-interface FormatMatch {
-  start: number;
-  end: number;
-  content: string;
-  type: EntityType;
-  extra?: Record<string, any>;
-}
-
-/**
- * Parse message content and extract entities
- * Supported formats:
- * - __text__ = italic
- * - **text** = bold  
- * - ~~text~~ = strikethrough
- * - ||text|| = spoiler
- * - `text` = monospace
- * - ^text = ordinal (superscript)
- * - ^^text^^ = capitalized
- * - numerator/denominator = fraction (e.g. 1/2)
- * - #hashtag = hashtag
- * - <tailwind-color:text> = colored underline
- * - @mention = mention (from mentionRegistry)
- */
+/** What the composer would send right now: the typed text, markers turned into entities. */
 function parseMessageContent(): ParsedMessage {
-  let rawText = messageText.value.trim();
-  
-  const entities: IMessageEntity[] = [];
-  const formatMatches: FormatMatch[] = [];
-
-  // Pattern definitions
-  const patterns: Array<{
-    regex: RegExp;
-    type: EntityType;
-    contentGroup: number;
-    extraHandler?: (match: RegExpMatchArray) => Record<string, any>;
-  }> = [
-    { regex: /__(.+?)__/g, type: EntityType.Italic, contentGroup: 1 },
-    { regex: /\*\*(.+?)\*\*/g, type: EntityType.Bold, contentGroup: 1 },
-    { regex: /~~(.+?)~~/g, type: EntityType.Strikethrough, contentGroup: 1 },
-    { regex: /\|\|(.+?)\|\|/g, type: EntityType.Spoiler, contentGroup: 1 },
-    { regex: /`([^`]+)`/g, type: EntityType.Monospace, contentGroup: 1 },
-    { regex: /\^\^(.+?)\^\^/g, type: EntityType.Capitalized, contentGroup: 1 },
-    { regex: /\^(\w+)/g, type: EntityType.Ordinal, contentGroup: 1 },
-    { 
-      regex: /(\d+)\/(\d+)/g, 
-      type: EntityType.Fraction, 
-      contentGroup: 0,
-      extraHandler: (m) => ({ numerator: Number.parseInt(m[1], 10), denominator: Number.parseInt(m[2], 10) })
-    },
-    { regex: /#(\w+)/g, type: EntityType.Hashtag, contentGroup: 0 },
-    { 
-      regex: /<([a-z]+-\d{3}):(.+?)>/g, 
-      type: EntityType.Underline, 
-      contentGroup: 2,
-      extraHandler: (m) => {
-        const colorKey = m[1];
-        const mapped = (window as any).tailwindColorMap?.[colorKey];
-        const hex = mapped?.replace(/^#/, "") || "ffffff";
-        return { colour: Number.parseInt(hex, 16) };
-      }
-    },
-  ];
-
-  // Find all formatting matches
-  for (const { regex, type, contentGroup, extraHandler } of patterns) {
-    regex.lastIndex = 0;
-    let match;
-    while ((match = regex.exec(rawText)) !== null) {
-      formatMatches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: contentGroup === 0 ? match[0] : match[contentGroup],
-        type,
-        extra: extraHandler?.(match),
-      });
-    }
-  }
-
-  // Find mentions from registry
-  for (const [mentionText, userId] of mentionRegistry) {
-    let searchPos = 0;
-    while (true) {
-      const idx = rawText.indexOf(mentionText, searchPos);
-      if (idx === -1) break;
-      
-      formatMatches.push({
-        start: idx,
-        end: idx + mentionText.length,
-        content: mentionText,
-        type: EntityType.Mention,
-        extra: { userId },
-      });
-      searchPos = idx + mentionText.length;
-    }
-  }
-
-  // Sort by start position, then by length (longer matches first for same position)
-  formatMatches.sort((a, b) => a.start - b.start || b.end - a.end);
-
-  // Remove overlapping matches (keep first one)
-  const nonOverlapping: FormatMatch[] = [];
-  for (const fm of formatMatches) {
-    const overlaps = nonOverlapping.some(
-      existing => !(fm.end <= existing.start || fm.start >= existing.end)
-    );
-    if (!overlaps) {
-      nonOverlapping.push(fm);
-    }
-  }
-
-  // Build clean text and entities with adjusted offsets
-  let cleanText = "";
-  let lastEnd = 0;
-  
-  for (const fm of nonOverlapping) {
-    // Add text before this match
-    cleanText += rawText.slice(lastEnd, fm.start);
-    
-    const entityStart = cleanText.length;
-    
-    // Add content without markers
-    cleanText += fm.content;
-    
-    const entityEnd = cleanText.length;
-    const entityLength = entityEnd - entityStart;
-
-    // Create entity using proper constructors (required for serialization)
-    if (fm.type === EntityType.Mention) {
-      entities.push(new MessageEntityMention(
-        EntityType.Mention,
-        entityStart,
-        entityLength,
-        1, // version
-        fm.extra!.userId
-      ));
-    } else if (fm.type === EntityType.Hashtag) {
-      entities.push(new MessageEntityHashTag(
-        EntityType.Hashtag,
-        entityStart,
-        entityLength,
-        1, // version
-        fm.content.slice(1) // Remove # prefix
-      ));
-    } else if (fm.type === EntityType.Underline) {
-      entities.push(new MessageEntityUnderline(
-        EntityType.Underline,
-        entityStart,
-        entityLength,
-        1, // version
-        fm.extra?.colour ?? 0xffffff
-      ));
-    } else if (fm.type === EntityType.Bold) {
-      entities.push(new MessageEntityBold(
-        EntityType.Bold,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Italic) {
-      entities.push(new MessageEntityItalic(
-        EntityType.Italic,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Strikethrough) {
-      entities.push(new MessageEntityStrikethrough(
-        EntityType.Strikethrough,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Spoiler) {
-      entities.push(new MessageEntitySpoiler(
-        EntityType.Spoiler,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Monospace) {
-      entities.push(new MessageEntityMonospace(
-        EntityType.Monospace,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Ordinal) {
-      entities.push(new MessageEntityOrdinal(
-        EntityType.Ordinal,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Capitalized) {
-      entities.push(new MessageEntityCapitalized(
-        EntityType.Capitalized,
-        entityStart,
-        entityLength,
-        1 // version
-      ));
-    } else if (fm.type === EntityType.Fraction) {
-      entities.push(new MessageEntityFraction(
-        EntityType.Fraction,
-        entityStart,
-        entityLength,
-        1, // version
-        fm.extra!.numerator,
-        fm.extra!.denominator
-      ));
-    }
-
-    lastEnd = fm.end;
-  }
-
-  // Add remaining text
-  cleanText += rawText.slice(lastEnd);
-
-  return { text: cleanText, entities };
+  return parseMessage(messageText.value, mentionRegistry);
 }
 
 // --- Attachment handlers ---
@@ -1311,6 +1114,11 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
   const { text: plainText, entities } = captionContent ?? parseMessageContent();
   const hasAttachments = attachments.hasFiles.value;
+
+  // The card for the first link, unless dismissed. What the composer already fetched rides along
+  // so the optimistic message shows it at once; the server fills (or drops) it for everyone.
+  const previewStub = captionContent ? null : linkPreview.takeStub(plainText);
+  if (previewStub) entities.push(previewStub);
 
   if (entities.length === 0 && plainText.length === 0 && !hasAttachments) return;
 

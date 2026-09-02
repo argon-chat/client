@@ -67,9 +67,9 @@ export function fragmentMessageText(
   const fragments: IFrag[] = [];
   let cursor = 0;
 
-  // Filter out attachment and gif entities — they are rendered separately, not inline
+  // Filter out attachment, gif and link-preview entities — they are rendered separately, not inline
   const inlineEntities = entities.filter(
-    (e) => e.type !== EntityType.Attachment && e.type !== EntityType.Gif,
+    (e) => e.type !== EntityType.Attachment && e.type !== EntityType.Gif && e.type !== EntityType.LinkPreview,
   );
 
   const sorted = [...inlineEntities].sort((a, b) => a.offset - b.offset);

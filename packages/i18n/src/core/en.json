@@ -1506,5 +1506,12 @@
   "cdn_cache": "Media delivery",
   "cdn_cache_toggle": "Cache pictures and files",
   "cdn_cache_desc": "Keeps avatars, banners and attachments after the first time they load. Turn it off to see exactly what the server sends — useful when a picture looks wrong.",
-  "cdn_cache_off_note": "Off — Argon keeps no copies; pictures are requested from the server, though the browser may still use its own cache."
+  "cdn_cache_off_note": "Off — Argon keeps no copies; pictures are requested from the server, though the browser may still use its own cache.",
+  "link_preview": "Link preview",
+  "link_preview_loading": "Getting link info…",
+  "link_preview_remove": "Remove preview",
+  "link_previews_show": "Show link previews",
+  "link_previews_show_desc": "Cards with a title, description and picture under links in messages",
+  "link_previews_send": "Attach previews to my links",
+  "link_previews_send_desc": "When you paste a link, a preview is fetched and sent with the message. You can remove it before sending."
 }

@@ -355,6 +355,22 @@
                         </SelectContent>
                     </Select>
                 </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("link_previews_show") || 'Show link previews' }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("link_previews_show_desc") || 'Cards with a title, description and picture under links in messages' }}</div>
+                    </div>
+                    <Switch v-model:checked="showLinkPreviews" />
+                </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("link_previews_send") || 'Attach previews to my links' }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("link_previews_send_desc") || 'When you paste a link, a preview is fetched and sent with the message. You can remove it before sending.' }}</div>
+                    </div>
+                    <Switch v-model:checked="sendLinkPreviews" />
+                </div>
             </div>
         </div>
 
@@ -445,6 +461,7 @@ import { Button } from "@argon/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
 import { Slider } from "@argon/ui/slider";
 import { Switch } from "@argon/ui/switch";
+import { sendLinkPreviews, showLinkPreviews } from "@/lib/linkPreview/settings";
 import {
     PaletteIcon,
     TypeIcon,

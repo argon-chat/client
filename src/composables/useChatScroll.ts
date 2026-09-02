@@ -199,6 +199,12 @@ export function estimateMessageHeight(msg: ArgonMessage | undefined, _index?: nu
 
   if (fileAttachments > 0) height += 48 * fileAttachments;
 
+  // A filled link preview card: site, title, a few lines of description, maybe a picture.
+  const hasLinkPreview = entities.some(
+    (e: any) => e.type === EntityType.LinkPreview && (e.title || e.description || e.imageUrl),
+  );
+  if (hasLinkPreview) height += 110;
+
   const textLen = msg.text?.length ?? 0;
   if (textLen > 0) {
     if (textLen <= 40) height += 28;

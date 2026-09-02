@@ -204,6 +204,14 @@
                     </span>
                   </div>
 
+                  <!-- Link preview card -->
+                  <LinkPreviewCard
+                    v-if="linkPreview"
+                    :preview="linkPreview"
+                    :accent="userColor"
+                    class="mt-1.5"
+                  />
+
                   <!-- File cards -->
                   <AttachmentFileCard
                     v-for="(f, i) in fileAttachments"
@@ -366,7 +374,8 @@ import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
 import { fragmentMessageText, useMessageContent, type IFrag } from "@/composables/useMessageContent";
-import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment, type MessageEntityGif } from "@argon/glue";
+import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment, type MessageEntityGif, type MessageEntityLinkPreview } from "@argon/glue";
+import { showLinkPreviews } from "@/lib/linkPreview/settings";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
 
@@ -375,6 +384,7 @@ import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
 import AttachmentFileCard from "./chats/AttachmentFileCard.vue";
+import LinkPreviewCard from "./chats/LinkPreviewCard.vue";
 import MessageReactions from "./chats/MessageReactions.vue";
 import MessageControls from "./chats/MessageControls.vue";
 import ReactionPicker from "./chats/ReactionPicker.vue";
@@ -615,6 +625,18 @@ function gifDims(gif: MessageEntityGif) {
   const h = Math.round(natH * scale);
   return { width: w + 'px', height: h + 'px', maxWidth: '100%' };
 }
+
+// ── Link preview ──
+// One card per message, and only once the server has filled it: a bare stub (the crawler still
+// working, or a client that only asked) shows nothing rather than an empty frame.
+
+const linkPreview = computed<MessageEntityLinkPreview | null>(() => {
+  if (!showLinkPreviews.value) return null;
+  const entity = (props.message.entities ?? []).find(
+    (e): e is MessageEntityLinkPreview => e.type === EntityType.LinkPreview,
+  );
+  return entity && (entity.title || entity.description || entity.imageUrl) ? entity : null;
+});
 
 const hasOnlyImages = computed(
   () =>

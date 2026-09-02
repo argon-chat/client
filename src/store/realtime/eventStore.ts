@@ -21,6 +21,7 @@ import {
   type JoinToServerUser,
   type LeavedFromChannelUser,
   type MessageSent,
+  type MessageUpdated,
   type OnUserPresenceActivityChanged,
   type OnUserPresenceActivityRemoved,
   type RecordEnded,
@@ -64,6 +65,9 @@ export const useEventStore = defineStore("events", () => {
   const spaceStore = useSpaceStore();
 
   const onNewMessageReceived = new Subject<ArgonMessage>();
+  // The server replaced a message whole after MessageSent — a link preview the crawler finished
+  // late. Consumers swap the message in place; there is no diff to apply.
+  const onMessageUpdated = new Subject<ArgonMessage>();
   const onReactionAdded = new Subject<ReactionAdded & { spaceId: string }>();
   const onReactionRemoved = new Subject<ReactionRemoved & { spaceId: string }>();
 
@@ -292,6 +296,10 @@ export const useEventStore = defineStore("events", () => {
       onNewMessageReceived.next(x.message);
     });
 
+    bus.onServerEvent<MessageUpdated>("MessageUpdated", (x) => {
+      onMessageUpdated.next(x.message);
+    });
+
     bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
       void archetypeStore.trackArchetype(x.data);
     });
@@ -425,6 +433,7 @@ export const useEventStore = defineStore("events", () => {
 
   return {
     onNewMessageReceived,
+    onMessageUpdated,
     onReactionAdded,
     onReactionRemoved,
     subscribeToEvents,

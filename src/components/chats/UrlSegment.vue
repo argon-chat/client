@@ -1,33 +1,28 @@
 <template>
-    <a class="text-blue-600 cursor-pointer font-semibold after:text-sm after:font-bold after:content-['_↗'] hover:text-blue-500" @click="onClickUrl">{{ props.entity.domain
-    }}</a>
+    <a
+      class="text-blue-600 cursor-pointer font-semibold hover:text-blue-500 hover:underline [overflow-wrap:anywhere]"
+      :href="href"
+      :title="href"
+      @click.prevent.stop="onClickUrl"
+    >{{ props.text }}</a>
 </template>
 <script setup lang="ts" generic="T extends MessageEntityUrl">
+import { computed } from "vue";
 import { MessageEntityUrl } from "@argon/glue";
-import { useToast } from "@argon/ui/toast";
-import { useLocale } from "@/store/system/localeStore";
-import { native } from "@argon/glue/native";
-const { t } = useLocale();
+import { openExternalUrl } from "@/lib/linkPreview/openExternal";
 
 const props = defineProps<{
   entity: T;
   text: string;
 }>();
-const { toast } = useToast();
-const isArgonDomain = (host: string) =>
-  /^([a-z0-9-]+\.)*argon\.gl$/i.test(host) ||
-  /^([a-z0-9-]+\.)*argon\.zone$/i.test(host);
-const onClickUrl = () => {
-  const fullyUrl = `https://${props.entity.domain}${props.entity.path}`;
-  if (isArgonDomain(props.entity.domain)) {
-    if (argon.isArgonHost) window.open(fullyUrl, "_blank", "noopener");
-    else native?.hostProc.openUrl(fullyUrl);
-    return;
-  }
-  toast({
-    title: `${t("cannot_be_open")} '${fullyUrl}'`,
-    variant: "destructive",
-    duration: 2500,
-  });
-};
+
+// The text is the link as the sender wrote it; the entity carries the parsed parts. A scheme the
+// sender typed is kept (http stays http); a bare domain is https.
+const href = computed(() => {
+  const written = props.text?.trim() ?? "";
+  if (/^https?:\/\//i.test(written)) return written;
+  return `https://${props.entity.domain}${props.entity.path || "/"}`;
+});
+
+const onClickUrl = () => openExternalUrl(href.value);
 </script>

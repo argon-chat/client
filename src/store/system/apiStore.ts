@@ -139,6 +139,7 @@ export const useApi = defineStore("api", () => {
   const ultimaInteraction = computed(() => rpcClient.value.UltimaInteraction);
   const reportInteraction = computed(() => rpcClient.value.ReportInteraction);
   const gifInteraction = computed(() => rpcClient.value.GifInteraction);
+  const linkPreviewInteraction = computed(() => rpcClient.value.LinkPreviewInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -164,6 +165,7 @@ export const useApi = defineStore("api", () => {
     botManagementInteraction,
     ultimaInteraction,
     reportInteraction,
-    gifInteraction
+    gifInteraction,
+    linkPreviewInteraction
   };
 });

@@ -487,6 +487,7 @@ export enum EntityType
   SystemUserJoined = 19,
   Attachment = 20,
   Gif = 21,
+  LinkPreview = 22,
 }
 
 
@@ -868,6 +869,26 @@ export enum RedeemError
   EXPIRED = 2,
   LIMIT_REACHED = 3,
   ALREADY = 4,
+}
+
+
+export interface LinkPreview {
+  url: string;
+  title: string | null;
+  description: string | null;
+  siteName: string | null;
+  imageUrl: string | null;
+  canonicalUrl: string | null;
+};
+
+
+export enum LinkPreviewError
+{
+  NONE = 0,
+  INVALID_URL = 1,
+  NO_PREVIEW = 2,
+  UNAVAILABLE = 3,
+  RATE_LIMITED = 4,
 }
 
 
@@ -2439,6 +2460,9 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntityGif(): this is MessageEntityGif {
     return this.UnionKey === "MessageEntityGif";
   }
+  public isMessageEntityLinkPreview(): this is MessageEntityLinkPreview {
+    return this.UnionKey === "MessageEntityLinkPreview";
+  }
 
 }
 
@@ -2619,6 +2643,14 @@ export class MessageEntityGif extends IMessageEntity
   UnionIndex: number = 21;
 }
 
+export class MessageEntityLinkPreview extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public url: string, public title: string | null, public description: string | null, public siteName: string | null, public imageUrl: string | null, public canonicalUrl: string | null) { super(); }
+
+  UnionKey: string = "MessageEntityLinkPreview";
+  UnionIndex: number = 22;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
@@ -2673,6 +2705,8 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntityAttachment>("MessageEntityAttachment").read(reader);
     else if (unionIndex == 21)
       value = IonFormatterStorage.get<MessageEntityGif>("MessageEntityGif").read(reader);
+    else if (unionIndex == 22)
+      value = IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").read(reader);
 
     else throw new Error();
   
@@ -2749,6 +2783,9 @@ IonFormatterStorage.register("IMessageEntity", {
     }
     else if (value.UnionIndex == 21) {
         IonFormatterStorage.get<MessageEntityGif>("MessageEntityGif").write(writer, value as MessageEntityGif);
+    }
+    else if (value.UnionIndex == 22) {
+        IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").write(writer, value as MessageEntityLinkPreview);
     }
   
     else throw new Error();
@@ -3259,6 +3296,38 @@ IonFormatterStorage.register("MessageEntityGif", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.width);
     IonFormatterStorage.get<i4>('i4').write(writer, value.height);
     IonFormatterStorage.writeNullable<string>(writer, value.previewUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityLinkPreview", {
+  read(reader: CborReader): MessageEntityLinkPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    const title = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const siteName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const imageUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const canonicalUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return new MessageEntityLinkPreview(type, offset, length, version, url, title, description, siteName, imageUrl, canonicalUrl);
+  },
+  write(writer: CborWriter, value: MessageEntityLinkPreview): void {
+    writer.writeStartArray(10);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    IonFormatterStorage.writeNullable<string>(writer, value.title, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.siteName, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.imageUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.canonicalUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -4697,6 +4766,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isSpaceDeletionCancelled(): this is SpaceDeletionCancelled {
     return this.UnionKey === "SpaceDeletionCancelled";
   }
+  public isMessageUpdated(): this is MessageUpdated {
+    return this.UnionKey === "MessageUpdated";
+  }
 
 }
 
@@ -5213,6 +5285,14 @@ export class SpaceDeletionCancelled extends IArgonEvent
   UnionIndex: number = 63;
 }
 
+export class MessageUpdated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public message: ArgonMessage) { super(); }
+
+  UnionKey: string = "MessageUpdated";
+  UnionIndex: number = 64;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
@@ -5351,6 +5431,8 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<SpaceDeletionScheduled>("SpaceDeletionScheduled").read(reader);
     else if (unionIndex == 63)
       value = IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").read(reader);
+    else if (unionIndex == 64)
+      value = IonFormatterStorage.get<MessageUpdated>("MessageUpdated").read(reader);
 
     else throw new Error();
   
@@ -5553,6 +5635,9 @@ IonFormatterStorage.register("IArgonEvent", {
     }
     else if (value.UnionIndex == 63) {
         IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").write(writer, value as SpaceDeletionCancelled);
+    }
+    else if (value.UnionIndex == 64) {
+        IonFormatterStorage.get<MessageUpdated>("MessageUpdated").write(writer, value as MessageUpdated);
     }
   
     else throw new Error();
@@ -6661,6 +6746,24 @@ IonFormatterStorage.register("SpaceDeletionCancelled", {
   }
 });
 
+IonFormatterStorage.register("MessageUpdated", {
+  read(reader: CborReader): MessageUpdated {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new MessageUpdated(spaceId, channelId, message);
+  },
+  write(writer: CborWriter, value: MessageUpdated): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
@@ -7763,6 +7866,108 @@ IonFormatterStorage.register("FailedRedeem", {
   write(writer: CborWriter, value: FailedRedeem): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<RedeemError>('RedeemError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILinkPreviewResult implements IIonUnion<ILinkPreviewResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isLinkPreviewReady(): this is LinkPreviewReady {
+    return this.UnionKey === "LinkPreviewReady";
+  }
+  public isLinkPreviewFailed(): this is LinkPreviewFailed {
+    return this.UnionKey === "LinkPreviewFailed";
+  }
+
+}
+
+
+export class LinkPreviewReady extends ILinkPreviewResult
+{
+  constructor(public preview: LinkPreview) { super(); }
+
+  UnionKey: string = "LinkPreviewReady";
+  UnionIndex: number = 0;
+}
+
+export class LinkPreviewFailed extends ILinkPreviewResult
+{
+  constructor(public error: LinkPreviewError) { super(); }
+
+  UnionKey: string = "LinkPreviewFailed";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILinkPreviewResult", {
+  read(reader: CborReader): ILinkPreviewResult {
+    reader.readStartArray();
+    let value: ILinkPreviewResult = null as any;
+    const unionIndex = reader.readUInt32();
+    
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<LinkPreviewReady>("LinkPreviewReady").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<LinkPreviewFailed>("LinkPreviewFailed").read(reader);
+
+    else throw new Error();
+  
+    reader.readEndArray();
+    return value!;
+  },
+  write(writer: CborWriter, value: ILinkPreviewResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<LinkPreviewReady>("LinkPreviewReady").write(writer, value as LinkPreviewReady);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<LinkPreviewFailed>("LinkPreviewFailed").write(writer, value as LinkPreviewFailed);
+    }
+  
+    else throw new Error();
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("LinkPreviewReady", {
+  read(reader: CborReader): LinkPreviewReady {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const preview = IonFormatterStorage.get<LinkPreview>('LinkPreview').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new LinkPreviewReady(preview);
+  },
+  write(writer: CborWriter, value: LinkPreviewReady): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LinkPreview>('LinkPreview').write(writer, value.preview);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LinkPreviewFailed", {
+  read(reader: CborReader): LinkPreviewFailed {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const error = IonFormatterStorage.get<LinkPreviewError>('LinkPreviewError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new LinkPreviewFailed(error);
+  },
+  write(writer: CborWriter, value: LinkPreviewFailed): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LinkPreviewError>('LinkPreviewError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -12985,6 +13190,41 @@ IonFormatterStorage.register("RedeemError", {
   }
 });
 
+IonFormatterStorage.register("LinkPreview", {
+  read(reader: CborReader): LinkPreview {
+    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    const title = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const siteName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const imageUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const canonicalUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { url, title, description, siteName, imageUrl, canonicalUrl };
+  },
+  write(writer: CborWriter, value: LinkPreview): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    IonFormatterStorage.writeNullable<string>(writer, value.title, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.siteName, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.imageUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.canonicalUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LinkPreviewError", {
+  read(reader: CborReader): LinkPreviewError {
+    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
+    return LinkPreviewError[num] !== undefined ? num as LinkPreviewError : (() => {throw new Error('invalid enum type')})();
+  },
+  write(writer: CborWriter, value: LinkPreviewError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("PrivacyRuleMode", {
   read(reader: CborReader): PrivacyRuleMode {
     const num = (IonFormatterStorage.get<u2>('u2').read(reader))
@@ -14756,6 +14996,14 @@ export interface IInventoryInteraction extends IIonService
 
 
 
+export interface ILinkPreviewInteraction extends IIonService
+{
+  GetLinkPreview(url: string): Promise<ILinkPreviewResult>;
+}
+
+
+
+
 export interface IPrivacyInteraction extends IIonService
 {
   GetPrivacyRule(key: string, spaceId: guid | null): Promise<PrivacyRuleView>;
@@ -15075,6 +15323,14 @@ export interface IInventoryInteraction extends IIonService
   GetNotifications(): Promise<IonArray<InventoryNotification>>;
   RedeemCode(code: string): Promise<IRedeemResult>;
   UseItem(itemId: guid): Promise<bool>;
+}
+
+
+
+
+export interface ILinkPreviewInteraction extends IIonService
+{
+  GetLinkPreview(url: string): Promise<ILinkPreviewResult>;
 }
 
 
@@ -16689,6 +16945,30 @@ export class InventoryInteraction_Executor extends ServiceExecutor<IInventoryInt
 
 IonFormatterStorage.registerClientExecutor<IInventoryInteraction>('InventoryInteraction', InventoryInteraction_Executor);
 
+export class LinkPreviewInteraction_Executor extends ServiceExecutor<ILinkPreviewInteraction> implements ILinkPreviewInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetLinkPreview(url: string): Promise<ILinkPreviewResult> {
+    const req = new IonRequest(this.ctx, "ILinkPreviewInteraction", "GetLinkPreview");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, url);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILinkPreviewResult>("ILinkPreviewResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ILinkPreviewInteraction>('LinkPreviewInteraction', LinkPreviewInteraction_Executor);
+
 export class PrivacyInteraction_Executor extends ServiceExecutor<IPrivacyInteraction> implements IPrivacyInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -18176,6 +18456,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "GifInteraction") return IonFormatterStorage.createExecutor("GifInteraction", ctx, controller.signal);
         if (propKey === "IdentityInteraction") return IonFormatterStorage.createExecutor("IdentityInteraction", ctx, controller.signal);
         if (propKey === "InventoryInteraction") return IonFormatterStorage.createExecutor("InventoryInteraction", ctx, controller.signal);
+        if (propKey === "LinkPreviewInteraction") return IonFormatterStorage.createExecutor("LinkPreviewInteraction", ctx, controller.signal);
         if (propKey === "PrivacyInteraction") return IonFormatterStorage.createExecutor("PrivacyInteraction", ctx, controller.signal);
         if (propKey === "ReportInteraction") return IonFormatterStorage.createExecutor("ReportInteraction", ctx, controller.signal);
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
@@ -18201,6 +18482,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     GifInteraction: IGifInteraction;
     IdentityInteraction: IIdentityInteraction;
     InventoryInteraction: IInventoryInteraction;
+    LinkPreviewInteraction: ILinkPreviewInteraction;
     PrivacyInteraction: IPrivacyInteraction;
     ReportInteraction: IReportInteraction;
     SecurityInteraction: ISecurityInteraction;

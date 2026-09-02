@@ -11,15 +11,14 @@
     @dragleave="emit('dragleave')"
     @drop="emit('drop', group.groupId, $event)"
   >
-    <!-- Divider line -->
-    <div class="group-divider"></div>
-
-    <!-- Text and icon on top of divider -->
     <div class="group-label" @click="emit('toggle', group.groupId)">
       <ChevronRightIcon v-if="group.isCollapsed" class="group-chevron" />
       <ChevronDownIcon v-else class="group-chevron" />
       <span class="group-name" :title="group.name">{{ group.name }}</span>
     </div>
+
+    <!-- The rule runs from the label to the edge, so nothing has to be painted over it. -->
+    <div class="group-divider"></div>
   </div>
 </template>
 
@@ -52,6 +51,9 @@ const emit = defineEmits<{
 <style scoped>
 .group-header {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 8px;
   cursor: pointer;
 }
@@ -64,11 +66,13 @@ const emit = defineEmits<{
   cursor: grabbing;
 }
 
+/*
+ * A sibling of the label rather than a full-width line behind it: the label used to hide the line
+ * with a card-coloured background, which matched the sidebar on the dark theme and showed up as a
+ * box around the name on the light one.
+ */
 .group-divider {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
+  flex: 1 0 8px;
   height: 1px;
   background-color: hsl(var(--border));
   transition: background-color 150ms ease, height 150ms ease;
@@ -100,19 +104,16 @@ const emit = defineEmits<{
 }
 
 .group-label {
-  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 100%;
+  flex: 0 1 auto;
   min-width: 0;
-  padding: 0 8px;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
-  background-color: hsl(var(--card) / var(--card-alpha));
   transition: color 150ms ease;
 }
 

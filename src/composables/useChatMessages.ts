@@ -27,6 +27,11 @@ export type ChatMessage = ArgonMessage & {
   _randomId?: bigint;
   _failed?: true;
   _error?: string;
+  /**
+   * Bumped when the server replaces the message in place (MessageUpdated). The list memoises rows
+   * on a few fields; a link preview filled in after the send changes none of them.
+   */
+  _rev?: number;
 };
 
 const MESSAGES_PER_LOAD = 50;
@@ -50,6 +55,7 @@ export function useChatMessages(
   const newMessagesCount = ref(0);
   const isScrolledUp = ref(false);
   const subs = ref<Subscription | null>(null);
+  const updateSubs = ref<Subscription | null>(null);
 
   // Maps randomId → optimistic message's randomId (used as messageId in the optimistic msg)
   const optimisticRandomIds = new Set<bigint>();
@@ -258,8 +264,22 @@ export function useChatMessages(
     onNewMessage: () => void,
   ) => {
     subs.value?.unsubscribe();
+    updateSubs.value?.unsubscribe();
     pendingIncoming = [];
     batchFlushScheduled = false;
+
+    // The server rewrote a message we may already show (a link preview that arrived after the
+    // send): replace it whole, as the event carries it whole.
+    updateSubs.value = pool.onMessageUpdated.subscribe(async (e) => {
+      if (chId !== e.channelId) return;
+      const idx = messages.value.findIndex((m) => m.messageId === e.messageId);
+      if (idx !== -1) {
+        const prev = messages.value[idx];
+        messages.value[idx] = { ...e, _rev: (prev._rev ?? 0) + 1 };
+        triggerRef(messages);
+      }
+      await pool.cacheMessage(e);
+    });
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
       if (chId !== e.channelId) return;
@@ -480,6 +500,7 @@ export function useChatMessages(
 
   const cleanup = () => {
     subs.value?.unsubscribe();
+    updateSubs.value?.unsubscribe();
     // Step 5: Cleanup all optimistic timers
     for (const timer of optimisticTimers.values()) {
       clearTimeout(timer);
