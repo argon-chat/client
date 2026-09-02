@@ -1,5 +1,14 @@
 <template>
     <div class="enter-text-wrapper">
+        <!-- Link preview of the draft (first link, dismissable per message) -->
+        <LinkPreviewBar
+          :visible="linkPreview.visible"
+          :loading="linkPreview.loading"
+          :url="linkPreview.url"
+          :preview="linkPreview.preview"
+          @dismiss="linkPreview.dismiss"
+        />
+
         <div class="flex items-end gap-2 p-2 border rounded-lg bg-background">
             <!-- Rich text input -->
             <EmojiInput
@@ -77,9 +86,13 @@ import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { refDebounced } from "@vueuse/core";
-import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, type ArgonMessage } from "@argon/glue";
+import { DirectMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, MessageEntityUrl, type ArgonMessage } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import GifPicker from "@/components/chats/GifPicker.vue";
+import LinkPreviewBar from "@/components/chats/LinkPreviewBar.vue";
+import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
+import { findLinks } from "@/lib/linkPreview/detectLinks";
+import { sendLinkPreviews } from "@/lib/linkPreview/settings";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
@@ -149,6 +162,12 @@ const emit = defineEmits<{
   (e: "typing"): void;
   (e: "stop-typing"): void;
 }>();
+
+// ── Link preview of the draft (no entitlement in a DM; the settings toggle alone decides) ──
+const linkPreview = useLinkPreviewDraft({
+  text: () => messageText.value,
+  enabled: () => sendLinkPreviews.value,
+});
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === "Escape" && props.replyTo) {
@@ -358,6 +377,18 @@ function parseMessageContent(): ParsedMessage {
     }
   }
 
+  // Links, as written. Found here and not by a pattern above so that a fraction, hashtag or
+  // underscore inside a URL never wins over the URL: the overlap pass keeps the earliest match.
+  for (const link of findLinks(rawText)) {
+    formatMatches.push({
+      start: link.offset,
+      end: link.offset + link.length,
+      content: link.text,
+      type: EntityType.Url,
+      extra: { domain: link.domain, path: link.path },
+    });
+  }
+
   // Sort by start position, then by length (longer matches first for same position)
   formatMatches.sort((a, b) => a.start - b.start || b.end - a.end);
 
@@ -471,6 +502,15 @@ function parseMessageContent(): ParsedMessage {
         fm.extra!.numerator,
         fm.extra!.denominator
       ));
+    } else if (fm.type === EntityType.Url) {
+      entities.push(new MessageEntityUrl(
+        EntityType.Url,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.extra!.domain,
+        fm.extra!.path
+      ));
     }
 
     lastEnd = fm.end;
@@ -486,6 +526,10 @@ const handleSend = async () => {
   const { text: plainText, entities } = parseMessageContent();
 
   if (entities.length === 0 && plainText.length === 0) return;
+
+  // The card for the first link, unless dismissed; the server fills or drops it.
+  const previewStub = linkPreview.takeStub(plainText);
+  if (previewStub) entities.push(previewStub);
 
   // Generate random message ID as bigint
   const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;

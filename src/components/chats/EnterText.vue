@@ -19,6 +19,16 @@
               </div>
             </Transition>
 
+            <!-- Link preview of the draft (Telegram-style: the first link, dismissable per message) -->
+            <LinkPreviewBar
+              v-if="!captionMode"
+              :visible="linkPreview.visible"
+              :loading="linkPreview.loading"
+              :url="linkPreview.url"
+              :preview="linkPreview.preview"
+              @dismiss="linkPreview.dismiss"
+            />
+
             <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
                 <button v-if="!captionMode && canAttachFiles" class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
@@ -305,7 +315,7 @@ import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityFraction, MessageEntityHashTag, MessageEntityItalic, MessageEntityMention, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, MessageEntityUrl } from "@argon/glue";
 import type { GifItem, SavedGif } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
@@ -322,6 +332,10 @@ import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { storeToRefs } from "pinia";
 import GifPicker from "./GifPicker.vue";
+import LinkPreviewBar from "./LinkPreviewBar.vue";
+import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
+import { findLinks } from "@/lib/linkPreview/detectLinks";
+import { sendLinkPreviews } from "@/lib/linkPreview/settings";
 const { t } = useLocale();
 
 const configStore = useConfigStore();
@@ -573,6 +587,15 @@ const emit = defineEmits<{
   (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
   (e: "submit"): void;
 }>();
+
+// ── Link preview of the draft ──
+// Off for captions (a picture already is the preview), for members without PostEmbeddedLinks (the
+// server would drop the stub anyway) and when the user turned it off in settings.
+const canEmbedLinks = computed(() => pex.has("PostEmbeddedLinks"));
+const linkPreview = useLinkPreviewDraft({
+  text: () => messageText.value,
+  enabled: () => !props.captionMode && canEmbedLinks.value && sendLinkPreviews.value,
+});
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === "Escape" && props.replyTo) {
@@ -1029,6 +1052,18 @@ function parseMessageContent(): ParsedMessage {
     }
   }
 
+  // Links, as written. Found here and not by a pattern above so that a fraction, hashtag or
+  // underscore inside a URL never wins over the URL: the overlap pass keeps the earliest match.
+  for (const link of findLinks(rawText)) {
+    formatMatches.push({
+      start: link.offset,
+      end: link.offset + link.length,
+      content: link.text,
+      type: EntityType.Url,
+      extra: { domain: link.domain, path: link.path },
+    });
+  }
+
   // Sort by start position, then by length (longer matches first for same position)
   formatMatches.sort((a, b) => a.start - b.start || b.end - a.end);
 
@@ -1141,6 +1176,15 @@ function parseMessageContent(): ParsedMessage {
         1, // version
         fm.extra!.numerator,
         fm.extra!.denominator
+      ));
+    } else if (fm.type === EntityType.Url) {
+      entities.push(new MessageEntityUrl(
+        EntityType.Url,
+        entityStart,
+        entityLength,
+        1, // version
+        fm.extra!.domain,
+        fm.extra!.path
       ));
     }
 
@@ -1311,6 +1355,11 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
   const { text: plainText, entities } = captionContent ?? parseMessageContent();
   const hasAttachments = attachments.hasFiles.value;
+
+  // The card for the first link, unless dismissed. What the composer already fetched rides along
+  // so the optimistic message shows it at once; the server fills (or drops) it for everyone.
+  const previewStub = captionContent ? null : linkPreview.takeStub(plainText);
+  if (previewStub) entities.push(previewStub);
 
   if (entities.length === 0 && plainText.length === 0 && !hasAttachments) return;
 

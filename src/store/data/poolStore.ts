@@ -480,6 +480,7 @@ export const usePoolStore = defineStore("data-pool", () => {
 
     // Events
     onNewMessageReceived: eventStore.onNewMessageReceived,
+    onMessageUpdated: eventStore.onMessageUpdated,
     onReactionAdded: eventStore.onReactionAdded,
     onReactionRemoved: eventStore.onReactionRemoved,
 

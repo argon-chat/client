@@ -28,6 +28,7 @@
             item.key,
             messages[item.index]?._failed,
             messages[item.index]?._optimistic,
+            messages[item.index]?._rev,
             messages[item.index]?.text,
             messages[item.index]?.entities?.length,
             messages[item.index]?.reactions?.length,
