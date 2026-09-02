@@ -1,6 +1,7 @@
 import { toast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
+import { metrics, enumName, errorKind, bucket } from "@/lib/telemetry/metrics";
 import { ref } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -50,9 +51,11 @@ export const useSpaceStore = defineStore("spaces", () => {
         name: name,
       });
       await pool.loadServerDetails();
+      metrics.count("space.created", { result: "ok" });
       return true;
     } catch (e) {
       logger.error("failed to create server", e);
+      metrics.count("space.created", { result: "failed", error: errorKind(e) });
       return false;
     }
   }
@@ -60,6 +63,11 @@ export const useSpaceStore = defineStore("spaces", () => {
   async function joinToServer(inviteCode: string): Promise<string> {
     const r = await api.userInteraction.JoinToSpace({
       inviteCode,
+    });
+
+    metrics.count("space.joined", {
+      result: r.isSuccessJoin() ? "ok" : "failed",
+      error: r.isFailedJoin() ? enumName(AcceptInviteError, r.error) : undefined,
     });
 
     if (r.isSuccessJoin()) {
@@ -92,6 +100,7 @@ export const useSpaceStore = defineStore("spaces", () => {
       spaceId: spaceId,
       groupId: groupId
     });
+    metrics.count("channel.created", { kind: enumName(ChannelType, channelKind), grouped: groupId !== null });
   }
 
   async function deleteChannel(channelId: string) {
@@ -99,6 +108,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     if (!selectedServer) return;
 
     await api.channelInteraction.DeleteChannel(selectedServer, channelId);
+    metrics.count("channel.deleted");
   }
 
   async function getServerInvites(): Promise<ServerInvites | null> {
@@ -117,7 +127,12 @@ export const useSpaceStore = defineStore("spaces", () => {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return null;
 
-    return api.serverInteraction.CreateInviteCode(selectedServer, expireMinutes, maxUses);
+    const invite = await api.serverInteraction.CreateInviteCode(selectedServer, expireMinutes, maxUses);
+    metrics.count("space.invite.created", {
+      expires: expireMinutes === 0 ? "never" : bucket(expireMinutes, [60, 1440, 10080]),
+      uses: maxUses === 0 ? "unlimited" : bucket(maxUses, [5, 25, 100]),
+    });
+    return invite;
   }
 
   async function revokeInvite(code: InviteCode): Promise<void> {
@@ -125,6 +140,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     if (!selectedServer) return;
 
     await api.serverInteraction.RevokeInviteCode(selectedServer, code);
+    metrics.count("space.invite.revoked");
   }
 
   return {

@@ -11,6 +11,7 @@ import {
 import { IonMaybe } from "@argon-chat/ion.webcore";
 import { isWeb } from "@/lib/platform";
 import * as webAuth from "@/lib/webAuth";
+import { metrics, enumName, errorKind } from "@/lib/telemetry/metrics";
 const { toast } = useToast();
 
 export const useAuthStore = defineStore("auth", () => {
@@ -43,7 +44,15 @@ export const useAuthStore = defineStore("auth", () => {
       captchaToken: captchaToken ?? null,
       username: null,
     });
-    console.log(r);
+    metrics.count("auth.login", {
+      method: "password",
+      result: r.isSuccessAuthorize()
+        ? "ok"
+        : r.isFailedAuthorize() && r.error === AuthorizationError.REQUIRED_OTP
+          ? "otp_required"
+          : "failed",
+      error: r.isFailedAuthorize() ? enumName(AuthorizationError, r.error) : undefined,
+    });
     if (r.isSuccessAuthorize()) logger.success("Success authorization");
     else if (r.isFailedAuthorize()) {
       logger.fail("Failed authorization", r.error);
@@ -70,6 +79,10 @@ export const useAuthStore = defineStore("auth", () => {
     const api = useApi();
     logger.warn(data);
     const r = await api.identityInteraction.Registration(data);
+    metrics.count("auth.register", {
+      result: r.isSuccessRegistration() ? "ok" : "failed",
+      error: r.isFailedRegistration() ? enumName(RegistrationError, r.error) : undefined,
+    });
 
     if (r.isSuccessRegistration()) {
       isRequiredOtp.value = false;
@@ -146,6 +159,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       if (result.isBadAuthStatus()) {
         logger.warn("[web-auth] the session was refused; it has to start again at sign-in", result);
+        metrics.count("auth.token.refresh", { result: "refused" });
         webAuth.forgetSession();
         return null;
       }
@@ -154,13 +168,16 @@ export const useAuthStore = defineStore("auth", () => {
         // Locked accounts and rejected clients answer here. Both are handled where they can be
         // shown to the user; neither is this function's to act on beyond declining to mint.
         logger.warn("[web-auth] the API would not renew this session", result);
+        metrics.count("auth.token.refresh", { result: "declined" });
         return null;
       }
 
       setAuthToken(result.token);
+      metrics.count("auth.token.refresh", { result: "ok" });
       return result.token;
     } catch (e) {
       logger.warn("[web-auth] could not renew the session", e);
+      metrics.count("auth.token.refresh", { result: "failed", error: errorKind(e) });
       return null;
     }
   };
@@ -177,11 +194,17 @@ export const useAuthStore = defineStore("auth", () => {
    * indistinguishable from here on.
    */
   const restoreWebSession = async (): Promise<void> => {
-    const token = webAuth.isCallback()
-      ? await webAuth.completeSignIn(useApi().apiEndpoint)
-      : webAuth.hasSession()
-        ? await refreshWebToken()
-        : null;
+    const method = webAuth.isCallback() ? "callback" : webAuth.hasSession() ? "cookie" : "none";
+    const token =
+      method === "callback"
+        ? await webAuth.completeSignIn(useApi().apiEndpoint)
+        : method === "cookie"
+          ? await refreshWebToken()
+          : null;
+
+    // The callback is the tail of a sign-in, so it is counted as one; the cookie path is a restore.
+    if (method === "callback") metrics.count("auth.login", { method: "web", result: token ? "ok" : "failed" });
+    else metrics.count("auth.session.restore", { method, result: token ? "ok" : "none" });
 
     if (!token) {
       _token.value = null;
@@ -195,6 +218,7 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const logout = () => {
+    metrics.count("auth.logout");
     // Best-effort: announce intentional offline so others don't see us linger for the disconnect
     // grace window. Fire-and-forget + lazy import to avoid a circular store dependency; if the realtime
     // connection is already gone the server-side grace covers it.
@@ -217,6 +241,7 @@ export const useAuthStore = defineStore("auth", () => {
     if (isWeb) return restoreWebSession();
 
     const savedToken = localStorage.getItem("token");
+    metrics.count("auth.session.restore", { method: "stored", result: savedToken ? "ok" : "none" });
     logger.info(`restored session, ${savedToken}`);
     if (savedToken) {
       _token.value = savedToken as string;
@@ -228,6 +253,7 @@ export const useAuthStore = defineStore("auth", () => {
     const api = useApi();
 
     await api.identityInteraction.BeginResetPassword(email);
+    metrics.count("auth.password_reset.begin");
 
     isRequiredFormResetPass.value = true;
   };
@@ -245,6 +271,10 @@ export const useAuthStore = defineStore("auth", () => {
       newPass
     );
 
+    metrics.count("auth.password_reset", {
+      result: r.isSuccessAuthorize() ? "ok" : "failed",
+      error: r.isFailedAuthorize() ? enumName(AuthorizationError, r.error) : undefined,
+    });
     if (r.isSuccessAuthorize()) {
       logger.success("Success reset password");
     } else if (r.isFailedAuthorize()) {

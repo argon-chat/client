@@ -23,4 +23,6 @@ export type {
   ICallCurrentUser,
   ICallPreferences,
   ICallDrawingSession,
+  ICallTelemetry,
+  CallTelemetryAttributes,
 } from "./types";

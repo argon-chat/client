@@ -1,5 +1,6 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
+import { metrics, bucket, COUNT_EDGES } from "@/lib/telemetry/metrics";
 import { ref, onScopeDispose } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
@@ -49,6 +50,7 @@ export const usePoolStore = defineStore("data-pool", () => {
   const loadServerDetails = async () => {
     const startTime = performance.now();
     const servers = await api.userInteraction.GetSpaces();
+    metrics.distribution("space.membership.count", servers.length, "none");
 
     logger.log(`Loaded '${servers.length}' servers`);
 
@@ -83,6 +85,7 @@ export const usePoolStore = defineStore("data-pool", () => {
       });
 
     const duration = performance.now() - startTime;
+    metrics.distribution("space.load.duration", duration, "millisecond", { spaces: bucket(servers.length, COUNT_EDGES) });
     logger.log(`[PoolStore] loadServerDetails completed in ${duration.toFixed(0)}ms for ${servers.length} servers`);
   };
 

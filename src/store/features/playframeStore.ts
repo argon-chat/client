@@ -36,6 +36,7 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { logger } from "@argon/core";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import { v4 as uuidv4 } from "uuid";
 import type { Room } from "livekit-client";
 import {
@@ -283,9 +284,13 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
   // Host lifecycle
   // ==========================================================================
 
+  // When the running activity started, for its duration on stop. Null while none is running.
+  let activityStartedAt: number | null = null;
+
   async function startActivity(launch: PendingLaunch, container: HTMLElement): Promise<boolean> {
     if (!canStartActivity.value) {
       error.value = "Must be in a voice channel to start an activity";
+      metrics.count("activity.start", { game: launch.game.id, intent: launch.intent, role: launch.role, result: "refused" });
       return false;
     }
     if (host.value) await stopActivity();
@@ -417,9 +422,18 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
       pendingLaunch.value = null;
 
       await newHost.start();
+      activityStartedAt = performance.now();
+      metrics.count("activity.start", { game: game.id, intent, role, result: "ok" });
       return true;
     } catch (e) {
       logger.error("[PlayFrame] Failed to start activity:", e);
+      metrics.count("activity.start", {
+        game: launch.game.id,
+        intent: launch.intent,
+        role: launch.role,
+        result: "failed",
+        error: errorKind(e),
+      });
       error.value = e instanceof Error ? e.message : "Failed to start activity";
       await stopActivity();
       return false;
@@ -428,6 +442,13 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
 
   async function stopActivity() {
     logger.log("[PlayFrame] Stopping activity");
+
+    if (activityStartedAt !== null) {
+      const attrs = { game: currentGame.value?.id ?? "unknown", role: myRole.value ?? "unknown" };
+      metrics.distribution("activity.duration", (performance.now() - activityStartedAt) / 1000, "second", attrs);
+      metrics.count("activity.stop", { ...attrs, participants: participants.value.length });
+      activityStartedAt = null;
+    }
 
     // Clear my advertised presence (host only) before tearing down transport.
     if (myRole.value === "host") publishPresence(null);

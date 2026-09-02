@@ -30,8 +30,25 @@ export type MetricUnit = "millisecond" | "second" | "minute" | "byte" | "kilobyt
 /** Which build recorded the metric — the first thing anybody slices by. */
 const PLATFORM = isWeb ? "web" : "desktop";
 
+/**
+ * Coarse OS family from the user agent. The host's own OS bits are not reliable (see the
+ * preload's hard-coded host id), and a coarse family is all a breakdown needs.
+ */
+function detectOs(): string {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  if (/Windows/i.test(ua)) return "windows";
+  if (/Android/i.test(ua)) return "android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/Mac OS X|Macintosh/i.test(ua)) return "macos";
+  if (/CrOS/i.test(ua)) return "chromeos";
+  if (/Linux/i.test(ua)) return "linux";
+  return "other";
+}
+
+const OS = detectOs();
+
 function withBase(attrs?: MetricAttributes): Record<string, MetricAttributeValue> {
-  const out: Record<string, MetricAttributeValue> = { platform: PLATFORM };
+  const out: Record<string, MetricAttributeValue> = { platform: PLATFORM, os: OS };
   if (!attrs) return out;
   for (const [key, value] of Object.entries(attrs)) {
     if (value === null || value === undefined) continue;
@@ -135,6 +152,19 @@ export function errorKind(e: unknown): string {
 }
 
 /**
+ * The name of an enum member, for numeric enums whose values would otherwise show up as bare
+ * integers in a breakdown. String enums and unknown values pass through as-is.
+ */
+export function enumName(enumObject: Record<string, string | number>, value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "none";
+  if (typeof value === "number") {
+    const name = enumObject[value];
+    return typeof name === "string" ? name : String(value);
+  }
+  return value;
+}
+
+/**
  * Fold a number into one of a few labelled ranges so it can be an attribute. `edges` are the
  * upper bounds of each bucket, ascending; the last bucket is open-ended.
  *
@@ -153,5 +183,5 @@ export function bucket(value: number, edges: readonly number[]): string {
 /** The typical ranges for "how many" attributes: none, a few, some, many. */
 export const COUNT_EDGES = [1, 2, 5, 10, 25, 100] as const;
 
-export const metrics = { count, distribution, gauge, startTimer, timed, errorKind, bucket };
+export const metrics = { count, distribution, gauge, startTimer, timed, errorKind, enumName, bucket };
 export default metrics;

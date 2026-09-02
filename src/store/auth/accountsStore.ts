@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import { ref, computed } from "vue";
 import { logger } from "@argon/core";
 import Dexie from "dexie";
@@ -171,6 +172,7 @@ export const useAccounts = defineStore("accounts", () => {
    * server-side grace covers it.
    */
   async function hardSwitch(id: string): Promise<void> {
+    metrics.count("account.switch", { mode: "reload" });
     await announceOffline();
     setActivePointer(id);
     location.reload();
@@ -189,8 +191,10 @@ export const useAccounts = defineStore("accounts", () => {
     persist();
     try {
       await seamlessSwitch(acc);
+      metrics.count("account.switch", { mode: "seamless", result: "ok", reauth: acc.needsReauth });
     } catch (e) {
       logger.warn("Seamless account switch failed; falling back to reload", e);
+      metrics.count("account.switch", { mode: "seamless", result: "failed", error: errorKind(e) });
       await hardSwitch(id);
     } finally {
       switchInFlight = false;

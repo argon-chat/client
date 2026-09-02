@@ -149,6 +149,18 @@ export interface ICallDrawingSession {
   endStreamerSession(): void;
 }
 
+export type CallTelemetryAttributes = Record<string, string | number | boolean | null | undefined>;
+
+/**
+ * Product metrics sink. The app hands in its Sentry-backed one; tests leave it out and the
+ * manager records nothing. Attribute values must be low-cardinality (a mode, a reason, a
+ * result) — never an id or free text.
+ */
+export interface ICallTelemetry {
+  count(name: string, attrs?: CallTelemetryAttributes, value?: number): void;
+  distribution(name: string, value: number, unit: "millisecond" | "second" | "none", attrs?: CallTelemetryAttributes): void;
+}
+
 export interface CallManagerConfig {
   audio: ICallAudioManager;
   api: ICallApiClient;
@@ -162,6 +174,8 @@ export interface CallManagerConfig {
   pex: ICallPermissions;
   preference: ICallPreferences;
   drawing: ICallDrawingSession;
+  /** Where call metrics go. Optional: without it the manager simply does not report. */
+  telemetry?: ICallTelemetry;
 
   /**
    * Storage that survives a renderer reload; used to rejoin voice after a crash.

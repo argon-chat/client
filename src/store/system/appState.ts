@@ -18,6 +18,7 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useInstance } from "@/store/system/instanceStore";
 import { useAccounts } from "@/store/auth/accountsStore";
 import { ensureDbOpen } from "@/store/db/dexie";
+import { metrics, bucket, errorKind } from "@/lib/telemetry/metrics";
 
 // Initialize worklets with audio getter to break circular dependency
 initWorklets(() => audio);
@@ -35,6 +36,9 @@ export const useAppState = defineStore("app", () => {
 
   // Cosmetic pause between steps so the progress bar reads as deliberate.
   const STEP_DELAY = 100;
+
+  /** "Loading spaces and channels..." → "loading_spaces_and_channels", a stable metric attribute. */
+  const stepKey = (label: string) => label.replace(/\.+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
   interface InitStep {
     label: string;
@@ -164,7 +168,9 @@ export const useAppState = defineStore("app", () => {
       loadingProgress.value = i + 1;
       logger.info(step.label);
 
+      const stepTimer = metrics.startTimer("app.boot.step.duration", { step: stepKey(step.label) });
       await step.run();
+      stepTimer.end({ result: blocked ? "blocked" : "ok" });
       if (blocked) return false;
 
       await delay(STEP_DELAY);
@@ -177,6 +183,7 @@ export const useAppState = defineStore("app", () => {
 
   async function initApp() {
     logger.info("Begin initialization argon application");
+    const bootTimer = metrics.startTimer("app.boot.duration");
     isInitializing.value = true;
     hasInitError.value = false;
     initError.value = "";
@@ -194,13 +201,21 @@ export const useAppState = defineStore("app", () => {
         initError.value = "";
         if (success) router.push({ path: "/master.pg" });
         logger.success("Complete initialization");
+        const result = success ? "ok" : "blocked";
+        const authenticated = useAuthStore().isAuthenticated;
+        bootTimer.end({ result, authenticated, attempts: bucket(attempt + 1, [2, 4]) });
+        metrics.count("app.boot", { result, authenticated, attempts: bucket(attempt + 1, [2, 4]) });
+        if (success) metrics.count("app.session.started", { authenticated, via: "boot" });
         isInitializing.value = false;
         return;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        metrics.count("app.boot.attempt_failed", { error: errorKind(e), final: attempt >= MAX_RETRIES });
         logger.error(`Init attempt ${attempt + 1} failed: ${msg}`, e);
 
         if (attempt >= MAX_RETRIES) {
+          bootTimer.end({ result: "failed", attempts: bucket(attempt + 1, [2, 4]) });
+          metrics.count("app.boot", { result: "failed", attempts: bucket(attempt + 1, [2, 4]) });
           isFailedLoad.value = true;
           hasInitError.value = true;
           initError.value = msg;
@@ -226,9 +241,11 @@ export const useAppState = defineStore("app", () => {
       await loadUserData();
       isLoaded.value = true;
       logger.success("Post-login init complete");
+      metrics.count("app.session.started", { authenticated: true, via: "login" });
       router.push({ path: "/master.pg" });
     } catch (e) {
       logger.error("Post-login init failed, reloading as fallback:", e);
+      metrics.count("app.post_login.failed", { error: errorKind(e) });
       window.location.reload();
     }
   }

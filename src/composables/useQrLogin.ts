@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { useAccounts } from "@/store/auth/accountsStore";
 import { LoginRequestError } from "@argon/glue";
 import { logger } from "@argon/core";
+import { metrics, enumName } from "@/lib/telemetry/metrics";
 
 /** Where the phone's scanner is pointed. See `argonUrlFor` for why it is a URL and not a bare token. */
 const LINK_BASE = "https://argon.gl/link";
@@ -94,6 +95,7 @@ export function useQrLogin() {
 
       if (result.isApprovedLoginRequest()) {
         stop();
+        metrics.count("auth.login", { method: "qr", result: "ok" });
         authStore.setAuthToken(result.token);
         if (result.refreshToken) authStore.setRefreshToken(result.refreshToken);
         authStore.isAuthenticated = true;
@@ -124,6 +126,7 @@ export function useQrLogin() {
       if (result.isRejectedLoginRequest()) {
         stop();
         state.value = "rejected";
+        metrics.count("auth.login", { method: "qr", result: "rejected" });
       }
     } catch (e) {
       // A dropped poll is not a dropped request — the server holds it for the full two minutes, so
@@ -136,6 +139,7 @@ export function useQrLogin() {
 
   function fail(error: LoginRequestError) {
     state.value = "error";
+    metrics.count("auth.login", { method: "qr", result: "failed", error: enumName(LoginRequestError, error) });
     errorMessage.value =
       error === LoginRequestError.RATE_LIMITED ? "qr_login_rate_limited" : "qr_login_unavailable";
   }

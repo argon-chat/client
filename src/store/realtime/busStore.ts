@@ -7,6 +7,7 @@ import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
 import { CborReader, IonFormatterStorage, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 
 export type EventWithServerId<T> = { spaceId: string } & T;
 
@@ -42,6 +43,15 @@ export const useBus = defineStore("bus", () => {
 
   const api = useApi();
   let worker: Worker | null = null;
+  // When the current outage began, so a reconnect can report how long the app was cut off. Null
+  // while connected, and while the very first connection is still being made.
+  let outageStartedAt: number | null = null;
+
+  function noteOutage(intentional: boolean) {
+    if (outageStartedAt !== null) return;
+    outageStartedAt = performance.now();
+    metrics.count("realtime.disconnected", { intentional, ever_connected: everConnected });
+  }
 
   function createWorker() {
     if (worker) return worker;
@@ -60,6 +70,7 @@ export const useBus = defineStore("bus", () => {
             // One unreadable payload is not worth tearing the connection down for — the rest of
             // the stream is still good, and history reload covers whatever this one carried.
             logger.error("Failed to decode realtime event", err);
+            metrics.count("realtime.event.decode_failed", { error: errorKind(err) });
           }
           break;
 
@@ -70,6 +81,7 @@ export const useBus = defineStore("bus", () => {
             worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token });
           } catch (err) {
             logger.error("Failed to get token for worker", err);
+            metrics.count("realtime.ticket.failed", { error: errorKind(err) });
             // Always respond so worker doesn't hang
             worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true });
           }
@@ -90,8 +102,17 @@ export const useBus = defineStore("bus", () => {
         case "state":
           if (msg.state === "reconnecting") {
             isSignalRReconnecting.value = true;
+            noteOutage(false);
           } else if (msg.state === "connected") {
             const isReconnection = everConnected;
+            metrics.count("realtime.connected", { reconnect: isReconnection });
+            if (isReconnection) {
+              metrics.distribution("realtime.reconnect.attempts", reconnectAttemptCount.value, "none");
+              if (outageStartedAt !== null) {
+                metrics.distribution("realtime.outage.duration", performance.now() - outageStartedAt, "millisecond");
+              }
+            }
+            outageStartedAt = null;
             everConnected = true;
             isSignalRReconnecting.value = false;
             nextReconnectAttempt.value = null;
@@ -114,6 +135,7 @@ export const useBus = defineStore("bus", () => {
             // attempt — never appeared on the path that needs it most. A close we asked for is not
             // a reconnect and says so.
             if (!msg.intentional) isSignalRReconnecting.value = true;
+            noteOutage(!!msg.intentional);
           }
           break;
 
@@ -123,6 +145,7 @@ export const useBus = defineStore("bus", () => {
           break;
 
         case "needFullResync":
+          metrics.count("realtime.resync.full");
           needFullResync.next();
           break;
 
@@ -136,6 +159,7 @@ export const useBus = defineStore("bus", () => {
 
     worker.onerror = (err) => {
       logger.error("[RealtimeWorker] Worker error:", err);
+      metrics.count("realtime.worker.error");
     };
 
     return worker;
@@ -226,6 +250,7 @@ export const useBus = defineStore("bus", () => {
 
   async function retryConnectionNow() {
     if (isSignalRReconnecting.value) {
+      metrics.count("realtime.reconnect.manual", { attempts: reconnectAttemptCount.value });
       worker?.postMessage({ type: "disconnect" });
       nextReconnectAttempt.value = null;
       reconnectAttemptCount.value = 0;

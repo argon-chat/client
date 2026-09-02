@@ -290,6 +290,7 @@ import { Button } from "@argon/ui/button";
 import { EmojixPicker, EmojiInput, type EmojiSelection, type ContentTab } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
 import { logger } from "@argon/core";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import BoldSegment from "./BoldSegment.vue";
 import ItalicSegment from "./ItalicSegment.vue";
@@ -375,14 +376,19 @@ const handleGifSelect = (gif: GifItem) => {
   if (props.replyTo) emit("clear-reply");
 
   (async () => {
+    const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
       const readback = await api.channelInteraction.SendMessageWithReadback(
         spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
       );
       emit("resolve-optimistic", randomId, readback);
+      sendTimer.end({ result: "ok" });
+      metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
     } catch (e: any) {
       logger.error("Failed to send GIF:", e);
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+      sendTimer.end({ result: "failed" });
+      metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "failed", error: errorKind(e) });
     }
   })();
 };
@@ -419,14 +425,19 @@ const handleSavedGifSelect = (gif: SavedGif) => {
   if (props.replyTo) emit("clear-reply");
 
   (async () => {
+    const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
       const readback = await api.channelInteraction.SendMessageWithReadback(
         spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
       );
       emit("resolve-optimistic", randomId, readback);
+      sendTimer.end({ result: "ok" });
+      metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
     } catch (e: any) {
       logger.error("Failed to send GIF:", e);
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+      sendTimer.end({ result: "failed" });
+      metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "failed", error: errorKind(e) });
     }
   })();
 };
@@ -1346,6 +1357,10 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
   // Fire-and-forget: upload + send in background
   (async () => {
+    const kind = detachedUploader ? "attachments" : "text";
+    const sendAttrs = { kind, reply: replyTo !== null };
+    const sendTimer = metrics.startTimer("message.send.duration", sendAttrs);
+    metrics.distribution("message.text.length", plainText.length, "none", { kind });
     try {
       let finalEntities = [...entities];
 
@@ -1356,6 +1371,8 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
         if (detachedUploader.hasErrors()) {
           emit("mark-optimistic-failed", randomId, "Failed to upload attachments");
           detachedUploader.cleanup();
+          sendTimer.end({ result: "failed", error: "upload" });
+          metrics.count("message.sent", { ...sendAttrs, result: "failed", error: "upload" });
           return;
         }
 
@@ -1376,10 +1393,14 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
       emit("resolve-optimistic", randomId, readback);
 
       detachedUploader?.cleanup();
+      sendTimer.end({ result: "ok" });
+      metrics.count("message.sent", { ...sendAttrs, result: "ok" });
     } catch (e: any) {
       logger.error("Failed to send message:", e);
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
       detachedUploader?.cleanup();
+      sendTimer.end({ result: "failed", error: errorKind(e) });
+      metrics.count("message.sent", { ...sendAttrs, result: "failed", error: errorKind(e) });
     }
   })();
 };

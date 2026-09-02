@@ -16,6 +16,7 @@ import {
   LocalAudioTrack,
   AudioPresets,
   ConnectionQuality,
+  DisconnectReason,
   SubscriptionError,
   VideoQuality,
   RemoteVideoTrack,
@@ -56,6 +57,43 @@ export function createCallManager(config: CallManagerConfig) {
   const mode = ref<"none" | "dm" | "channel">("none");
 
   const room = ref<Room | null>(null);
+
+  // Product metrics. Every timestamp below is null while the thing it times is not happening,
+  // and is cleared by whoever records the duration, so a call that ends by any route reports once.
+  const telemetry = config.telemetry ?? { count() {}, distribution() {} };
+  let joinStartedAt: number | null = null;
+  let connectedAt: number | null = null;
+  let reconnectStartedAt: number | null = null;
+  let shareStartedAt: number | null = null;
+  let cameraStartedAt: number | null = null;
+
+  /** A DOMException/Error name is a fixed vocabulary; its message is not. */
+  function errorName(err: unknown): string {
+    const name = (err as { name?: unknown } | null)?.name;
+    return typeof name === "string" && name ? name : "unknown";
+  }
+
+  /** Report the end of the connected part of a call exactly once, whichever path ended it. */
+  function recordCallEnded(reason: string) {
+    if (connectedAt === null) return;
+    const seconds = (performance.now() - connectedAt) / 1000;
+    connectedAt = null;
+    telemetry.distribution("call.duration", seconds, "second", { mode: mode.value, reason });
+    telemetry.count("call.ended", {
+      mode: mode.value,
+      reason,
+      screenshare: isSharing.value,
+      camera: isCameraOn.value,
+    });
+    if (shareStartedAt !== null) {
+      telemetry.distribution("call.screenshare.duration", (performance.now() - shareStartedAt) / 1000, "second");
+      shareStartedAt = null;
+    }
+    if (cameraStartedAt !== null) {
+      telemetry.distribution("call.camera.duration", (performance.now() - cameraStartedAt) / 1000, "second");
+      cameraStartedAt = null;
+    }
+  }
 
   const callId = ref<string | null>(null);
   const targetId = ref<string | null>(null);
@@ -330,6 +368,7 @@ export function createCallManager(config: CallManagerConfig) {
 
   async function leave() {
     logger.warn("[CALL] leave()");
+    recordCallEnded("leave");
 
     try {
       if (room.value) {
@@ -404,9 +443,11 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (!res || !res.isSuccessDingDong()) {
       logger.error("DingDongCreep failed", res);
+      telemetry.count("call.join", { mode: "dm", result: "failed", stage: "signal" });
       mode.value = "none";
       return;
     }
+    telemetry.count("call.dm.outgoing");
 
     callId.value = res.callId;
     targetId.value = peerUserId;
@@ -425,9 +466,11 @@ export function createCallManager(config: CallManagerConfig) {
     logger.info("[CALL] incoming call", ev);
 
     if (mode.value === "channel") {
+      telemetry.count("call.dm.incoming", { busy: true });
       api.callInteraction.RejectCall(ev.callId);
       return;
     }
+    telemetry.count("call.dm.incoming", { busy: false });
     tone.playRingSound();
     incoming.value = ev;
   }
@@ -442,8 +485,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (!res || !res.isSuccessPickUp()) {
       logger.error("PickUpCall failed", res);
+      telemetry.count("call.join", { mode: "dm", result: "failed", stage: "pickup" });
       return;
     }
+    telemetry.count("call.dm.accepted");
 
     incoming.value = null;
     mode.value = "dm";
@@ -462,6 +507,7 @@ export function createCallManager(config: CallManagerConfig) {
 
   async function rejectIncomingCall() {
     if (incoming.value) {
+      telemetry.count("call.dm.rejected");
       tone.stopPlayRingSound();
       await api.callInteraction.RejectCall(incoming.value.callId);
     }
@@ -473,6 +519,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (!pex.has("Connect")) {
       logger.warn("[CALL] No Connect permission");
+      telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_permission" });
       return;
     }
 
@@ -483,6 +530,7 @@ export function createCallManager(config: CallManagerConfig) {
     const selected = pool.selectedServer;
     if (!selected) {
       logger.error("selectedServer = null");
+      telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_space" });
       mode.value = "none";
       return;
     }
@@ -491,6 +539,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (!join || !join.isSuccessJoinVoice()) {
       logger.error("Interlink failed", join);
+      telemetry.count("call.join", { mode: "channel", result: "failed", stage: "interlink" });
       mode.value = "none";
       return;
     }
@@ -528,6 +577,7 @@ export function createCallManager(config: CallManagerConfig) {
       if (!serverId || !channelId) return;
 
       logger.warn("[CALL] crash recovery — will rejoin voice", { serverId, channelId });
+      telemetry.count("call.crash_recovery");
 
       const rejoin = async (): Promise<boolean> => {
         if (String(pool.selectedServer ?? "") !== serverId) return false;
@@ -902,6 +952,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     isConnecting.value = true;
     isConnected.value = false;
+    joinStartedAt = performance.now();
 
     if (room.value) {
       await leave();
@@ -995,7 +1046,10 @@ export function createCallManager(config: CallManagerConfig) {
     // than only showing our own.
     r.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
       participantQuality.set(participant.identity, quality);
-      if (isLocalParticipant(participant)) networkQuality.value = quality;
+      if (isLocalParticipant(participant)) {
+        networkQuality.value = quality;
+        telemetry.count("call.quality", { mode: mode.value, quality });
+      }
     });
 
     r.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -1009,6 +1063,9 @@ export function createCallManager(config: CallManagerConfig) {
         reason,
       });
       subscriptionErrors.set(participant.identity, message);
+      telemetry.count("call.track.subscription_failed", {
+        reason: reason === undefined ? "unknown" : (SubscriptionError[reason] ?? String(reason)),
+      });
     });
 
     r.on(RoomEvent.TrackSubscribed, (_t, _pub, participant) => {
@@ -1019,6 +1076,7 @@ export function createCallManager(config: CallManagerConfig) {
       audioPlaybackBlocked.value = !r.canPlaybackAudio;
       if (audioPlaybackBlocked.value) {
         logger.warn("[CALL] audio playback blocked by the browser");
+        telemetry.count("call.playback.blocked", { kind: "audio" });
       }
     });
 
@@ -1026,20 +1084,43 @@ export function createCallManager(config: CallManagerConfig) {
       videoPlaybackBlocked.value = !r.canPlaybackVideo;
       if (videoPlaybackBlocked.value) {
         logger.warn("[CALL] video playback blocked by the browser");
+        telemetry.count("call.playback.blocked", { kind: "video" });
       }
     });
 
-    r.on("reconnecting", () => (isReconnecting.value = true));
-    r.on("reconnected", () => (isReconnecting.value = false));
+    r.on("reconnecting", () => {
+      isReconnecting.value = true;
+      if (reconnectStartedAt === null) {
+        reconnectStartedAt = performance.now();
+        telemetry.count("call.reconnecting", { mode: mode.value });
+      }
+    });
+    r.on("reconnected", () => {
+      isReconnecting.value = false;
+      if (reconnectStartedAt !== null) {
+        telemetry.distribution("call.reconnect.duration", performance.now() - reconnectStartedAt, "millisecond", { mode: mode.value });
+        reconnectStartedAt = null;
+      }
+      telemetry.count("call.reconnected", { mode: mode.value });
+    });
 
-    r.on("disconnected", () => {
+    r.on("disconnected", (reason) => {
       isReconnecting.value = false;
       ping.value = -1;
       stopTimerRTT();
+      // A disconnect the user did not ask for (leave() has already recorded its own). Recorded
+      // here, before leave() runs, so the reason survives: leave() only knows that it was called.
+      const why = reason === undefined ? "unknown" : (DisconnectReason[reason] ?? String(reason));
+      if (connectedAt !== null) {
+        telemetry.count("call.disconnected", { mode: mode.value, reason: why, reconnecting: reconnectStartedAt !== null });
+        recordCallEnded(why);
+      }
+      reconnectStartedAt = null;
     });
 
     r.localParticipant.on("localTrackCpuConstrained", () => {
       logger.warn("[CALL] Local track CPU constrained — performance degradation");
+      telemetry.count("call.cpu_constrained", { mode: mode.value, screenshare: isSharing.value, camera: isCameraOn.value });
       isCpuConstrained.value = true;
       if (cpuConstrainedResetTimer) clearTimeout(cpuConstrainedResetTimer);
       cpuConstrainedResetTimer = setTimeout(() => {
@@ -1110,6 +1191,10 @@ export function createCallManager(config: CallManagerConfig) {
         });
 
         logger.info(`[CALL] TURN results: ${turnServers.length}/${turnConfigs.length} alive`);
+        // How often the relay path is actually there when a call needs it.
+        telemetry.count("call.turn.probe", {
+          result: turnConfigs.length === 0 ? "none" : turnServers.length === 0 ? "all_dead" : turnServers.length < turnConfigs.length ? "partial" : "ok",
+        });
       }
 
       const allIceServers = [...stunServers, ...turnServers];
@@ -1128,6 +1213,7 @@ export function createCallManager(config: CallManagerConfig) {
       });
     } catch (err) {
       logger.error("LiveKit connect failed", err);
+      telemetry.count("call.join", { mode: mode.value, result: "failed", stage: "connect", error: errorName(err) });
       await leave();
       connectError.value = { message: formatConnectError(err) };
       return;
@@ -1223,11 +1309,13 @@ export function createCallManager(config: CallManagerConfig) {
 
       const audioErrorSub = audio.onAudioDeviceError((err) => {
         logger.error(`[CALL] Audio device error (${err.type}):`, err.message);
+        telemetry.count("call.audio_device.error", { type: err.type });
         audioDeviceError.value = { type: err.type, message: err.message };
       });
       disposables.addSubscription(audioErrorSub);
     } catch (err) {
       logger.error("mic publish failed", err);
+      telemetry.count("call.join", { mode: mode.value, result: "failed", stage: "mic", error: errorName(err) });
       await leave();
       connectError.value = { message: formatConnectError(err) };
       return;
@@ -1235,6 +1323,14 @@ export function createCallManager(config: CallManagerConfig) {
 
     isConnecting.value = false;
     isConnected.value = true;
+    connectedAt = performance.now();
+    telemetry.count("call.join", { mode: mode.value, result: "ok" });
+    if (joinStartedAt !== null) {
+      telemetry.distribution("call.join.duration", performance.now() - joinStartedAt, "millisecond", { mode: mode.value });
+      joinStartedAt = null;
+    }
+    // Ourselves included: how big the rooms people actually end up in are.
+    telemetry.distribution("call.room.size", r.remoteParticipants.size + 1, "none", { mode: mode.value });
     // The events only fire on a change, so take the initial readings ourselves.
     audioPlaybackBlocked.value = !r.canPlaybackAudio;
     videoPlaybackBlocked.value = !r.canPlaybackVideo;
@@ -1622,17 +1718,25 @@ export function createCallManager(config: CallManagerConfig) {
       await config.selectScreenSource(opts.deviceId, opts.systemAudio === "include");
     }
 
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
-      // other participants' voices coming from our speakers aren't echoed back into the
-      // room. Unknown constraint names are dropped where unsupported, and Electron's
-      // loopback path builds the audio track in the main process regardless.
-      audio:
-        opts.systemAudio === "include"
-          ? ({ restrictOwnAudio: true } as unknown as MediaTrackConstraints)
-          : false,
-    });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
+        // other participants' voices coming from our speakers aren't echoed back into the
+        // room. Unknown constraint names are dropped where unsupported, and Electron's
+        // loopback path builds the audio track in the main process regardless.
+        audio:
+          opts.systemAudio === "include"
+            ? ({ restrictOwnAudio: true } as unknown as MediaTrackConstraints)
+            : false,
+      });
+    } catch (err) {
+      // Most often the user dismissing the picker (NotAllowedError) — worth knowing how often
+      // a share is started and then abandoned, and separately from real capture failures.
+      telemetry.count("call.screenshare.start", { result: "failed", error: errorName(err), system_audio: opts.systemAudio === "include" });
+      throw err;
+    }
 
     const vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
     vid.source = Track.Source.ScreenShare;
@@ -1666,6 +1770,13 @@ export function createCallManager(config: CallManagerConfig) {
     isSharing.value = true;
     lastShareOpts.value = { ...opts };
     systemAudioEnabled.value = opts.systemAudio === "include";
+    shareStartedAt = performance.now();
+    telemetry.count("call.screenshare.start", {
+      result: "ok",
+      mode: mode.value,
+      system_audio: opts.systemAudio === "include",
+      fps: fr,
+    });
 
     // Add local screen share to videoTracks
     const localId = me.me!.userId;
@@ -1680,6 +1791,10 @@ export function createCallManager(config: CallManagerConfig) {
 
   async function stopScreenShare() {
     if (screenTrackPub) {
+      if (shareStartedAt !== null) {
+        telemetry.distribution("call.screenshare.duration", (performance.now() - shareStartedAt) / 1000, "second");
+        shareStartedAt = null;
+      }
       const localId = me.me!.userId;
       videoTracks.delete(videoTrackKey(localId, Track.Source.ScreenShare));
 
@@ -1722,6 +1837,8 @@ export function createCallManager(config: CallManagerConfig) {
         videoEncoding: VideoPresets.h720.encoding,
       });
       isCameraOn.value = true;
+      cameraStartedAt = performance.now();
+      telemetry.count("call.camera.start", { result: "ok", mode: mode.value });
 
       // Add local video to videoTracks so ParticipantCard shows it
       const localId = me.me!.userId;
@@ -1730,11 +1847,16 @@ export function createCallManager(config: CallManagerConfig) {
       cameraTrackPub.once("ended", () => stopCamera());
     } catch (err) {
       logger.error("[CALL] Failed to start camera:", err);
+      telemetry.count("call.camera.start", { result: "failed", mode: mode.value, error: errorName(err) });
     }
   }
 
   async function stopCamera() {
     if (cameraTrackPub) {
+      if (cameraStartedAt !== null) {
+        telemetry.distribution("call.camera.duration", (performance.now() - cameraStartedAt) / 1000, "second");
+        cameraStartedAt = null;
+      }
       const localId = me.me!.userId;
       videoTracks.delete(videoTrackKey(localId, Track.Source.Camera));
 

@@ -8,6 +8,7 @@ import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import { useTheme } from "@/composables/useTheme";
+import { metrics, enumName } from "@/lib/telemetry/metrics";
 import {
   ArgonUser,
   ArgonUserProfile,
@@ -114,6 +115,7 @@ export const useMe = defineStore("me", () => {
       privacyVersion: LEGAL.privacy.current,
     });
     legalOutdated.value = null;
+    metrics.count("legal.accepted");
   }
 
   // For automatic status changes (idle detection) - doesn't touch preferredStatus
@@ -125,6 +127,7 @@ export const useMe = defineStore("me", () => {
   // For user-initiated status changes - only updates preferredStatus for DND/TouchGrass
   async function changeStatusTo(status: UserStatus) {
     if (me.value?.currentStatus === status) return;
+    metrics.count("user.status.changed", { status: enumName(UserStatus, status) });
     // Only persist DoNotDisturb and TouchGrass to preferredStatus
     // Online/Away are managed automatically by idle detection
     if (status === UserStatus.DoNotDisturb || status === UserStatus.TouchGrass) {
@@ -163,6 +166,7 @@ export const useMe = defineStore("me", () => {
       }
 
       logger.warn("Web session was refused by the API, signing out", e);
+      metrics.count("auth.session.check", { result: "rejected" });
       // `logout` already ends the session at the API and drops the local marker; calling signOut
       // here as well would only be a second request saying the same thing.
       useAuthStore().logout();
@@ -190,6 +194,19 @@ export const useMe = defineStore("me", () => {
       );
 
       logger.info("GetMyAuthorization", result);
+
+      metrics.count("auth.session.check", {
+        result: result.isGoodAuthStatus()
+          ? "ok"
+          : result.isBadAuthStatus()
+            ? "rejected"
+            : result.isLockedAuthStatus()
+              ? "locked"
+              : result.isCertificateErrorAuthStatus()
+                ? "bad_client"
+                : "unknown",
+        reason: result.isLockedAuthStatus() ? enumName(LockdownReason, result.lockdownReason) : undefined,
+      });
 
       if (result.isBadAuthStatus()) {
         // The active account's session is no longer valid. Flag it for re-auth (drops its stale token
