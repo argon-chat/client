@@ -7,6 +7,7 @@ import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
 import { CborReader, IonFormatterStorage, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 
 export type EventWithServerId<T> = { spaceId: string } & T;
 
@@ -42,6 +43,18 @@ export const useBus = defineStore("bus", () => {
 
   const api = useApi();
   let worker: Worker | null = null;
+  // When the current outage began, so a reconnect can report how long the app was cut off. Null
+  // while connected, and while the very first connection is still being made.
+  let outageStartedAt: number | null = null;
+  // Set while "try again" re-dials: the intentional close it causes is a step in recovering from the
+  // outage, not the end of it, so the outage clock must survive it.
+  let manualRetryInFlight = false;
+
+  function noteOutage() {
+    if (outageStartedAt !== null) return;
+    outageStartedAt = performance.now();
+    metrics.count("realtime.disconnected", { intentional: false, ever_connected: everConnected });
+  }
 
   function createWorker() {
     if (worker) return worker;
@@ -60,6 +73,7 @@ export const useBus = defineStore("bus", () => {
             // One unreadable payload is not worth tearing the connection down for — the rest of
             // the stream is still good, and history reload covers whatever this one carried.
             logger.error("Failed to decode realtime event", err);
+            metrics.count("realtime.event.decode_failed", { error: errorKind(err) });
           }
           break;
 
@@ -70,6 +84,7 @@ export const useBus = defineStore("bus", () => {
             worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token });
           } catch (err) {
             logger.error("Failed to get token for worker", err);
+            metrics.count("realtime.ticket.failed", { error: errorKind(err) });
             // Always respond so worker doesn't hang
             worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true });
           }
@@ -90,8 +105,18 @@ export const useBus = defineStore("bus", () => {
         case "state":
           if (msg.state === "reconnecting") {
             isSignalRReconnecting.value = true;
+            noteOutage();
           } else if (msg.state === "connected") {
             const isReconnection = everConnected;
+            metrics.count("realtime.connected", { reconnect: isReconnection });
+            if (isReconnection) {
+              metrics.distribution("realtime.reconnect.attempts", reconnectAttemptCount.value, "none");
+              if (outageStartedAt !== null) {
+                metrics.distribution("realtime.outage.duration", performance.now() - outageStartedAt, "millisecond");
+              }
+            }
+            outageStartedAt = null;
+            manualRetryInFlight = false;
             everConnected = true;
             isSignalRReconnecting.value = false;
             nextReconnectAttempt.value = null;
@@ -113,7 +138,15 @@ export const useBus = defineStore("bus", () => {
             // sitting out a backoff, and the reconnect overlay — which counts down to the next
             // attempt — never appeared on the path that needs it most. A close we asked for is not
             // a reconnect and says so.
-            if (!msg.intentional) isSignalRReconnecting.value = true;
+            if (msg.intentional) {
+              // A close we asked for (logout, account switch) is counted, but it is not downtime:
+              // drop the clock, or the next connection would report the switch as an outage.
+              metrics.count("realtime.disconnected", { intentional: true, ever_connected: everConnected });
+              if (!manualRetryInFlight) outageStartedAt = null;
+            } else {
+              isSignalRReconnecting.value = true;
+              noteOutage();
+            }
           }
           break;
 
@@ -123,6 +156,7 @@ export const useBus = defineStore("bus", () => {
           break;
 
         case "needFullResync":
+          metrics.count("realtime.resync.full");
           needFullResync.next();
           break;
 
@@ -136,6 +170,7 @@ export const useBus = defineStore("bus", () => {
 
     worker.onerror = (err) => {
       logger.error("[RealtimeWorker] Worker error:", err);
+      metrics.count("realtime.worker.error");
     };
 
     return worker;
@@ -226,6 +261,8 @@ export const useBus = defineStore("bus", () => {
 
   async function retryConnectionNow() {
     if (isSignalRReconnecting.value) {
+      metrics.count("realtime.reconnect.manual", { attempts: reconnectAttemptCount.value });
+      manualRetryInFlight = true;
       worker?.postMessage({ type: "disconnect" });
       nextReconnectAttempt.value = null;
       reconnectAttemptCount.value = 0;
@@ -235,6 +272,9 @@ export const useBus = defineStore("bus", () => {
   }
 
   function closeAllSubscribes(reason: string) {
+    // The worker is terminated outright, so no "disconnected" message will follow to do this.
+    outageStartedAt = null;
+    manualRetryInFlight = false;
     if (worker) {
       worker.postMessage({ type: "disconnect" });
       worker.terminate();

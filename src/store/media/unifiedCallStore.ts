@@ -15,6 +15,7 @@ import { useSystemStore } from "@/store/system/systemStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
+import { metrics } from "@/lib/telemetry/metrics";
 
 export type { ScreenShareOpts } from "@argon/calls";
 
@@ -51,6 +52,10 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     drawing: {
       beginStreamerSession: (sourceId) => useDrawingSession().beginStreamerSession(sourceId),
       endStreamerSession: () => useDrawingSession().endStreamerSession(),
+    },
+    telemetry: {
+      count: (name, attrs, value) => metrics.count(name, attrs, value),
+      distribution: (name, value, unit, attrs) => metrics.distribution(name, value, unit, attrs),
     },
 
     persistedValue,

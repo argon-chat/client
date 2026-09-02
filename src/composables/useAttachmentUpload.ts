@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import { logger } from "@argon/core";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import {
   EntityType,
   MessageEntityAttachment,
@@ -202,6 +203,10 @@ export function useAttachmentUpload() {
     entry.status = "uploading";
     entry.progress = 0;
 
+    const kind = isImageType(entry.file.type) ? "image" : isVideoType(entry.file.type) ? "video" : "other";
+    const uploadTimer = metrics.startTimer("attachment.upload.duration", { kind });
+    metrics.distribution("attachment.bytes", entry.file.size, "byte", { kind });
+
     try {
       // Step 1: Begin upload
       const begin = await api.channelInteraction.BeginUploadAttachment(
@@ -226,10 +231,14 @@ export function useAttachmentUpload() {
       entry.result = info;
       entry.progress = 100;
       entry.status = "done";
+      uploadTimer.end({ result: "ok" });
+      metrics.count("attachment.upload", { kind, result: "ok" });
     } catch (e: any) {
       entry.status = "error";
       entry.error = e?.message ?? "Upload failed";
       logger.error("Attachment upload failed:", e);
+      uploadTimer.end({ result: "failed", error: errorKind(e) });
+      metrics.count("attachment.upload", { kind, result: "failed", error: errorKind(e) });
     }
   }
 

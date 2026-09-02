@@ -269,3 +269,75 @@ describe("call behaviour survived the move", () => {
     expect(calls.incoming.value).toEqual({ callId: "c2", fromId: "u9" });
   });
 });
+
+describe("product metrics go through the host's telemetry sink", () => {
+  const telemetry = () => ({ count: vi.fn(), distribution: vi.fn() });
+  const named = (fn: ReturnType<typeof vi.fn>, name: string) =>
+    fn.mock.calls.filter(([n]) => n === name);
+
+  test("a successful join reports the join, how long it took and the room size", async () => {
+    const t = telemetry();
+    const { calls } = await joined(makeConfig({ telemetry: t }));
+
+    expect(t.count).toHaveBeenCalledWith("call.join", { mode: "channel", result: "ok" });
+    expect(t.distribution).toHaveBeenCalledWith("call.join.duration", expect.any(Number), "millisecond", { mode: "channel" });
+    expect(t.distribution).toHaveBeenCalledWith("call.room.size", 1, "none", { mode: "channel" });
+
+    await calls.leave();
+  });
+
+  test("leaving reports the call's duration exactly once, however often leave() runs", async () => {
+    const t = telemetry();
+    const { calls } = await joined(makeConfig({ telemetry: t }));
+
+    await calls.leave();
+    await calls.leave();
+
+    const durations = named(t.distribution, "call.duration");
+    expect(durations).toHaveLength(1);
+    expect(durations[0][3]).toEqual({ mode: "channel", reason: "leave" });
+    expect(t.count).toHaveBeenCalledWith("call.ended", expect.objectContaining({ mode: "channel", reason: "leave" }));
+  });
+
+  test("a drop the user did not ask for keeps its reason, and the leave() that follows does not count it again", async () => {
+    const t = telemetry();
+    const { calls, room } = await joined(makeConfig({ telemetry: t }));
+
+    room.emit("disconnected", undefined);
+    await calls.leave();
+
+    expect(t.count).toHaveBeenCalledWith("call.disconnected", expect.objectContaining({ mode: "channel", reason: "unknown" }));
+    expect(named(t.distribution, "call.duration")).toHaveLength(1);
+    expect(named(t.count, "call.ended")).toHaveLength(1);
+  });
+
+  test("a refused join is reported with why, and a host without a sink is simply not reported to", async () => {
+    const t = telemetry();
+    const refused = createCallManager(makeConfig({ telemetry: t, pex: { has: () => false } }));
+    await refused.joinVoiceChannel("chan-1");
+    expect(t.count).toHaveBeenCalledWith("call.join", { mode: "channel", result: "refused", reason: "no_permission" });
+    expect(named(t.distribution, "call.join.duration")).toHaveLength(0);
+
+    // The config in makeConfig() carries no telemetry at all: nothing to assert on, only that
+    // joining and leaving do not mind.
+    const silent = createCallManager(makeConfig());
+    await silent.joinVoiceChannel("chan-1");
+    await silent.leave();
+  });
+
+  test("leaving mid-reconnect does not carry the reconnect clock into the next call", async () => {
+    const t = telemetry();
+    const { calls, room } = await joined(makeConfig({ telemetry: t }));
+    room.emit("reconnecting");
+    await calls.leave();
+
+    // A fresh call: its own reconnect must be counted and timed from its own start.
+    await calls.joinVoiceChannel("chan-1");
+    rooms.last.emit("reconnecting");
+    rooms.last.emit("reconnected");
+
+    expect(named(t.count, "call.reconnecting")).toHaveLength(2);
+    expect(named(t.count, "call.reconnected")).toHaveLength(1);
+    expect(named(t.distribution, "call.reconnect.duration")).toHaveLength(1);
+  });
+});

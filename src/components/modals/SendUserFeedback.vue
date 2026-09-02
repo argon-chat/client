@@ -73,6 +73,7 @@ import { Label } from '@argon/ui/label'
 import { ref } from 'vue'
 import { useLocale } from '@/store/system/localeStore'
 import { captureFeedback } from "@sentry/vue";
+import { metrics } from "@/lib/telemetry/metrics";
 import { useMe } from '@/store/auth/meStore'
 
 const me = useMe();
@@ -156,6 +157,7 @@ async function submitFeedback() {
             includeReplay: true,
             attachments: attachments.value
         })
+        metrics.count("feedback.sent", { attachments: attachments.value.length })
 
         message.value = ''
         attachments.value = []

@@ -14,7 +14,8 @@
 
 import { onBeforeUnmount, onMounted } from "vue";
 import { logger } from "@argon/core";
-import { ensureFreshToken, hasSession } from "@/lib/webAuth";
+import { metrics, bucket } from "@/lib/telemetry/metrics";
+import { hasSession, isExpired } from "@/lib/webAuth";
 import { useAuthStore } from "@/store/auth/authStore";
 import { useBus } from "@/store/realtime/busStore";
 
@@ -33,13 +34,29 @@ export function useTabLifecycle() {
 
       // The token first: the realtime connection asks the API for its ticket, so re-dialling with a
       // dead token would only produce a connection attempt that fails on authorization.
-      const token = await ensureFreshToken();
-      if (token) useAuthStore().setAuthToken(token);
-      else if (!hasSession()) {
-        // The session is gone and cannot be renewed — there is nothing left to resume into.
-        logger.warn("[tab] session expired while asleep, returning to sign-in");
-        window.location.reload();
-        return;
+      //
+      // Renewed only when it is actually spent. A tab can be away for a minute or for a week, and the
+      // access token now outlives most of those naps — asking for a new one on every wake would be a
+      // round trip bought for nothing, on the path the user is waiting behind.
+      const auth = useAuthStore();
+      const tokenExpired = isExpired(auth.token);
+
+      // Minutes, hours, overnight, longer: which naps the app actually has to come back from.
+      metrics.count("session.resume", {
+        slept: bucket(sleptMs / 1000, [60, 600, 3600, 28800]),
+        token_expired: tokenExpired,
+      });
+      metrics.distribution("session.resume.slept", sleptMs / 1000, "second");
+
+      if (tokenExpired) {
+        const token = await auth.refreshWebToken();
+
+        if (!token && !hasSession()) {
+          // The session is gone and cannot be renewed — there is nothing left to resume into.
+          logger.warn("[tab] session expired while asleep, returning to sign-in");
+          window.location.reload();
+          return;
+        }
       }
 
       // The worker works out whether it is actually still connected; a reconnect from here also

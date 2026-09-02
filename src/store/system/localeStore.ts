@@ -1,6 +1,7 @@
 import { persistedValue } from "@argon/storage";
 import { coreMessages, type SupportedLocale } from "@argon/i18n";
 import { defineStore } from "pinia";
+import { metrics } from "@/lib/telemetry/metrics";
 import { watch } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -19,6 +20,7 @@ export const useLocale = defineStore("locale", () => {
   } as any);
 
   function updateLocale(key: string) {
+    if (key !== currentLocale.value) metrics.count("locale.changed", { locale: key, from: currentLocale.value });
     currentLocale.value = key as any;
   }
 

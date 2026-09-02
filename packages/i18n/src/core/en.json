@@ -1502,5 +1502,9 @@
   "web_signin_failed": "Couldn't start sign-in. Try again.",
   "web_signin_get_desktop": "Or get Argon for desktop",
   "material_mica_web_desc": "Emulated in the browser",
-  "window_material_web_note": "The browser can't tint the window itself, so Argon paints a mica-like background instead."
+  "window_material_web_note": "The browser can't tint the window itself, so Argon paints a mica-like background instead.",
+  "cdn_cache": "Media delivery",
+  "cdn_cache_toggle": "Cache pictures and files",
+  "cdn_cache_desc": "Keeps avatars, banners and attachments after the first time they load. Turn it off to see exactly what the server sends — useful when a picture looks wrong.",
+  "cdn_cache_off_note": "Off — Argon keeps no copies; pictures are requested from the server, though the browser may still use its own cache."
 }

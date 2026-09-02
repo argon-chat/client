@@ -4,6 +4,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useMe } from "@/store/auth/meStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { logger } from "@argon/core";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { ReactionInfo, ReactionAdded, ReactionRemoved } from "@argon/glue";
 import type { ChatMessage } from "./useChatMessages";
@@ -125,6 +126,7 @@ export function useMessageReactions(
           messageId,
           emoji,
         );
+        metrics.count("reaction.toggle", { action: "remove", result: result.isFailedRemoveReaction() ? "failed" : "ok" });
         if (result.isFailedRemoveReaction()) {
           // Revert
           updateInMemory(messageId, (r) => applyReactionAdded(r, emoji, myId));
@@ -136,6 +138,7 @@ export function useMessageReactions(
           messageId,
           emoji,
         );
+        metrics.count("reaction.toggle", { action: "add", result: result.isFailedAddReaction() ? "failed" : "ok" });
         if (result.isFailedAddReaction()) {
           // Revert
           updateInMemory(messageId, (r) => applyReactionRemoved(r, emoji, myId));
@@ -143,6 +146,7 @@ export function useMessageReactions(
       }
     } catch (error) {
       logger.error("Failed to toggle reaction:", error);
+      metrics.count("reaction.toggle", { action: hasMyReaction ? "remove" : "add", result: "failed", error: errorKind(error) });
       // Revert on error
       if (hasMyReaction) {
         updateInMemory(messageId, (r) => applyReactionAdded(r, emoji, myId));

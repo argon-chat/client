@@ -4,6 +4,7 @@ import { useInstance } from "@/store/system/instanceStore";
 import { useConfig } from "@/store/system/remoteConfig";
 import { isWeb } from "@/lib/platform";
 import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
+import { cdnCacheEnabled } from "@/store/system/cdnCache";
 
 export type GroupReport = {
   name: string;
@@ -30,12 +31,17 @@ const isNative = typeof window !== "undefined" && "argonIpc" in window;
  * resolves the S3 key from the fileId) — kept for call-site compatibility.
  */
 export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
+  const full = `${apiBase()}/files/${fileId}`;
+
+  // Caching turned off for diagnosis — ask the server directly, so what is drawn is its answer and
+  // not something kept from an earlier one. See `cdnCacheEnabled`.
+  if (!cdnCacheEnabled.value) return full;
+
   const inst = useInstance();
   // Official native → the dedicated app://cdn cache (Electron resolves it against the official API
   // file-redirect and caches the resolved bytes under a stable, region-independent key).
   if (isNative && inst.isOfficial)
     return `app://cdn/${fileId}`;
-  const full = `${apiBase()}/files/${fileId}`;
   // Self-hosted/managed native → cache locally against THIS instance's API via the generic
   // app://cdn-proxy interceptor (cache key is the stable api URL, so no region poisoning).
   if (isNative)

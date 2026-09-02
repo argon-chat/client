@@ -15,6 +15,32 @@
             />
         </div>
 
+        <!-- Media delivery. An instrument, not a preference: it answers "did the server send this
+             or did we keep it?", which is a question only someone debugging Argon asks. Ordinary
+             users get the caching and no switch to break it with. -->
+        <div v-if="showCdnCacheSwitch" class="setting-card">
+            <div class="flex items-center gap-2 mb-4">
+                <ImageIcon class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold">{{ t('cdn_cache') }}</h3>
+            </div>
+
+            <div class="action-item">
+                <div class="flex-1">
+                    <div class="text-sm font-medium mb-1">{{ t('cdn_cache_toggle') }}</div>
+                    <div class="text-xs text-muted-foreground">{{ t('cdn_cache_desc') }}</div>
+                    <div v-if="!cdnCacheEnabled" class="mt-1.5 text-xs text-yellow-400/80">
+                        {{ t('cdn_cache_off_note') }}
+                    </div>
+                </div>
+                <Switch
+                    :checked="cdnCacheEnabled"
+                    :disabled="togglingCdnCache"
+                    class="shrink-0"
+                    @update:checked="onToggleCdnCache"
+                />
+            </div>
+        </div>
+
         <!-- Data Management Section -->
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
@@ -127,7 +153,11 @@ import { useToast } from "@argon/ui/toast";
 import { Button } from "@argon/ui/button";
 import UsageStatus from "./UsageStatus.vue";
 import { computed, onMounted, ref, type Component } from "vue";
-import { getStorageUsageReport, StorageUsageReport, pruneStorageCategory, pruneAll } from "@/store/system/fileStorage";
+import { getStorageUsageReport, StorageUsageReport, pruneStorageCategory, pruneAll, pruneCache } from "@/store/system/fileStorage";
+import { cdnCacheEnabled } from "@/store/system/cdnCache";
+import { useConfigStore } from "@/store/ui/configStore";
+import { useConfig } from "@/store/system/remoteConfig";
+import { Switch } from "@argon/ui/switch";
 import { native } from "@argon/glue/native";
 import {
     HardDriveIcon,
@@ -143,6 +173,13 @@ import {
 
 const { t } = useLocale();
 const toast = useToast();
+const configStore = useConfigStore();
+const cfg = useConfig();
+
+// Dev mode is the app's usual gate for this, but it is a native config key — in a browser it is
+// always off, and the web media cache is exactly the thing most in need of being switched off. A
+// non-live endpoint stands in for it there.
+const showCdnCacheSwitch = computed(() => configStore.devModeEnabled || cfg.isDev);
 
 const usageReport = ref(null as StorageUsageReport | null);
 const me = useMe();
@@ -153,6 +190,28 @@ const clearing = ref<string | null>(null);
 /** Whole-disk context (native only) — used to show real free space. */
 const diskTotal = ref(0);
 const diskFree = ref(0);
+const togglingCdnCache = ref(false);
+
+/**
+ * Flip media caching, and reload.
+ *
+ * Neither direction takes hold where the app already stands: pictures on screen keep the address
+ * they were rendered with, and a service worker goes on controlling the page it is controlling
+ * however the setting changes. What is already stored is dropped on the way — turning caching off
+ * to look at a wrong picture is pointless if the wrong picture is still sitting in the cache, and
+ * turning it back on should start from the server rather than from whatever was left behind.
+ */
+const onToggleCdnCache = async (value: boolean) => {
+    if (togglingCdnCache.value) return;
+    togglingCdnCache.value = true;
+    cdnCacheEnabled.value = value;
+    try {
+        await pruneCache();
+    } catch (error) {
+        logger.warn("Failed to clear the media cache while switching it", error);
+    }
+    location.reload();
+};
 
 /** Categories the user is allowed to clear, plus their icon + description copy. */
 const CATEGORY_META: Record<string, { icon: Component; descKey: string }> = {

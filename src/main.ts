@@ -88,6 +88,20 @@ Sentry.init({
       stateTransformer: () => null,
     })
   ],
+  // Product metrics (Sentry.metrics.count/gauge/distribution). The catalogue and the rules for
+  // names and attributes live in src/lib/telemetry/metrics.ts — go through it, never call
+  // Sentry.metrics directly. Environment/release/user are attached by the SDK.
+  enableMetrics: true,
+  beforeSendMetric(metric) {
+    // Belt and braces: attributes are meant to be low-cardinality labels, so anything that looks
+    // like free text or an identifier is cut down before it leaves the app.
+    if (metric.attributes) {
+      for (const [key, value] of Object.entries(metric.attributes)) {
+        if (typeof value === "string" && value.length > 64) metric.attributes[key] = value.slice(0, 64);
+      }
+    }
+    return metric;
+  },
   tracesSampleRate: import.meta.env.DEV ? 0 : 1.0,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
   replaysSessionSampleRate: import.meta.env.DEV ? 0 : 1.0,

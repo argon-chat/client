@@ -1,5 +1,6 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
+import { metrics, enumName, errorKind } from "@/lib/telemetry/metrics";
 import { computed, ref } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
@@ -92,6 +93,11 @@ export const useUltimaStore = defineStore("ultima", () => {
 
   async function createCheckout(plan: UltimaPlan) {
     const result = await api.ultimaInteraction.CreateCheckoutSession(plan);
+    metrics.count("ultima.checkout", {
+      plan: enumName(UltimaPlan, plan),
+      result: result.isSuccessCheckout() ? "ok" : "failed",
+      error: result.isFailedCheckout() ? enumName(CheckoutError, result.error) : undefined,
+    });
     if (result.isSuccessCheckout()) {
       return { success: true as const, checkoutUrl: result.checkoutUrl, sessionId: result.sessionId, countryCode: result.countryCode };
     } else if (result.isFailedCheckout()) {
@@ -103,12 +109,14 @@ export const useUltimaStore = defineStore("ultima", () => {
   async function cancelSubscription() {
     try {
       const result = await api.ultimaInteraction.CancelSubscription();
+      metrics.count("ultima.subscription.cancel", { result: result ? "ok" : "failed" });
       if (result) {
         await fetchSubscription();
       }
       return result;
     } catch (e) {
       logger.error("Failed to cancel subscription", e);
+      metrics.count("ultima.subscription.cancel", { result: "failed", error: errorKind(e) });
       return false;
     }
   }
@@ -116,32 +124,38 @@ export const useUltimaStore = defineStore("ultima", () => {
   async function applyBoost(boostId: Guid, spaceId: Guid) {
     const result = await api.ultimaInteraction.ApplyBoost(boostId, spaceId);
     if (result.isSuccessApplyBoost()) {
+      metrics.count("ultima.boost", { action: "apply", result: "ok" });
       await fetchBoosts();
       return { success: true as const };
     }
     const failed = result as any;
+    metrics.count("ultima.boost", { action: "apply", result: "failed", error: enumName(ApplyBoostError, failed.error) });
     return { success: false as const, error: failed.error as ApplyBoostError };
   }
 
   async function transferBoost(boostId: Guid, newSpaceId: Guid) {
     const result = await api.ultimaInteraction.TransferBoost(boostId, newSpaceId);
     if (result.isSuccessTransfer()) {
+      metrics.count("ultima.boost", { action: "transfer", result: "ok" });
       await fetchBoosts();
       return { success: true as const };
     }
     const failed = result as any;
+    metrics.count("ultima.boost", { action: "transfer", result: "failed", error: enumName(TransferBoostError, failed.error) });
     return { success: false as const, error: failed.error as TransferBoostError };
   }
 
   async function removeBoost(boostId: Guid) {
     try {
       const result = await api.ultimaInteraction.RemoveBoost(boostId);
+      metrics.count("ultima.boost", { action: "remove", result: result ? "ok" : "failed" });
       if (result) {
         await fetchBoosts();
       }
       return result;
     } catch (e) {
       logger.error("Failed to remove boost", e);
+      metrics.count("ultima.boost", { action: "remove", result: "failed", error: errorKind(e) });
       return false;
     }
   }
@@ -157,6 +171,11 @@ export const useUltimaStore = defineStore("ultima", () => {
 
   async function purchaseBoostPack(pack: BoostPackType) {
     const result = await api.ultimaInteraction.PurchaseBoostPack(pack);
+    metrics.count("ultima.boost_pack.purchase", {
+      pack: enumName(BoostPackType, pack),
+      result: result.isSuccessPurchaseBoost() ? "ok" : "failed",
+      error: result.isFailedPurchaseBoost() ? enumName(PurchaseBoostError, result.error) : undefined,
+    });
     if (result.isSuccessPurchaseBoost()) {
       return { success: true as const, checkoutUrl: result.checkoutUrl, countryCode: result.countryCode };
     } else if (result.isFailedPurchaseBoost()) {
@@ -167,6 +186,12 @@ export const useUltimaStore = defineStore("ultima", () => {
 
   async function sendGift(recipientId: Guid, plan: UltimaPlan, message: string | null = null) {
     const result = await api.ultimaInteraction.SendUltimaGift(recipientId, plan, message);
+    metrics.count("ultima.gift", {
+      plan: enumName(UltimaPlan, plan),
+      with_message: !!message,
+      result: result.isSuccessSendGift() ? "ok" : "failed",
+      error: result.isFailedSendGift() ? enumName(SendGiftError, result.error) : undefined,
+    });
     if (result.isSuccessSendGift()) {
       return { success: true as const, checkoutUrl: result.checkoutUrl, countryCode: result.countryCode };
     } else if (result.isFailedSendGift()) {
@@ -179,6 +204,11 @@ export const useUltimaStore = defineStore("ultima", () => {
     loading.value = true;
     try {
       await Promise.all([fetchSubscription(), fetchPricing(), fetchBoosts()]);
+      // Once per session: what share of active users hold a subscription, and in which state.
+      metrics.count("ultima.subscription.state", {
+        status: subscription.value ? enumName(UltimaSubscriptionStatus, subscription.value.status) : "none",
+        boosts: boosts.value.length,
+      });
     } finally {
       loading.value = false;
     }

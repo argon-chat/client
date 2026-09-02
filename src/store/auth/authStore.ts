@@ -11,6 +11,7 @@ import {
 import { IonMaybe } from "@argon-chat/ion.webcore";
 import { isWeb } from "@/lib/platform";
 import * as webAuth from "@/lib/webAuth";
+import { metrics, enumName, errorKind } from "@/lib/telemetry/metrics";
 const { toast } = useToast();
 
 export const useAuthStore = defineStore("auth", () => {
@@ -43,7 +44,15 @@ export const useAuthStore = defineStore("auth", () => {
       captchaToken: captchaToken ?? null,
       username: null,
     });
-    console.log(r);
+    metrics.count("auth.login", {
+      method: "password",
+      result: r.isSuccessAuthorize()
+        ? "ok"
+        : r.isFailedAuthorize() && r.error === AuthorizationError.REQUIRED_OTP
+          ? "otp_required"
+          : "failed",
+      error: r.isFailedAuthorize() ? enumName(AuthorizationError, r.error) : undefined,
+    });
     if (r.isSuccessAuthorize()) logger.success("Success authorization");
     else if (r.isFailedAuthorize()) {
       logger.fail("Failed authorization", r.error);
@@ -70,6 +79,10 @@ export const useAuthStore = defineStore("auth", () => {
     const api = useApi();
     logger.warn(data);
     const r = await api.identityInteraction.Registration(data);
+    metrics.count("auth.register", {
+      result: r.isSuccessRegistration() ? "ok" : "failed",
+      error: r.isFailedRegistration() ? enumName(RegistrationError, r.error) : undefined,
+    });
 
     if (r.isSuccessRegistration()) {
       isRequiredOtp.value = false;
@@ -127,19 +140,71 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   /**
-   * Adopt (or fail to adopt) the browser build's OAuth session.
+   * Mint a fresh access token from the browser's session cookie.
    *
-   * On the web there is no password to have been typed and no device-bound refresh token to
-   * present: the session is whatever Aegis last handed back, which may be arriving right now on a
-   * redirect. Everything downstream still reads `token`, so once it is set the two builds are
+   * The same call the desktop build makes, with the same meaning — only the credential differs. The
+   * desktop passes a refresh token it holds; a tab passes nothing, because its refresh token is in a
+   * cookie it is not allowed to read, and the API takes it from there. Hence the empty arguments:
+   * they are not placeholders, there is genuinely nothing for the page to send.
+   *
+   * Returns null for every kind of no, but does not treat them alike. Only an explicit refusal —
+   * the session was revoked, or its cookie has lapsed — forgets the local marker, and forgetting it
+   * is what lets a waking tab tell "renew this later" from "there is nothing to renew". A request
+   * that never got an answer, or an account under a lockdown, leaves the marker alone: neither says
+   * the session is over, and destroying it on a bad minute is how one turns into a forced sign-in.
+   */
+  const refreshWebToken = async (): Promise<string | null> => {
+    try {
+      const result = await useApi().identityInteraction.GetMyAuthorization("", null);
+
+      if (result.isBadAuthStatus()) {
+        logger.warn("[web-auth] the session was refused; it has to start again at sign-in", result);
+        metrics.count("auth.token.refresh", { result: "refused" });
+        webAuth.forgetSession();
+        return null;
+      }
+
+      if (!result.isGoodAuthStatus()) {
+        // Locked accounts and rejected clients answer here. Both are handled where they can be
+        // shown to the user; neither is this function's to act on beyond declining to mint.
+        logger.warn("[web-auth] the API would not renew this session", result);
+        metrics.count("auth.token.refresh", { result: "declined" });
+        return null;
+      }
+
+      setAuthToken(result.token);
+      metrics.count("auth.token.refresh", { result: "ok" });
+      return result.token;
+    } catch (e) {
+      logger.warn("[web-auth] could not renew the session", e);
+      metrics.count("auth.token.refresh", { result: "failed", error: errorKind(e) });
+      return null;
+    }
+  };
+
+  /**
+   * Adopt (or fail to adopt) the browser build's session.
+   *
+   * Two ways in and they are not interchangeable. A redirect landing right now carries an
+   * authorization code, which is spent once and turned into a session. Any other load has no code
+   * and no token in hand — what it may have is the cookie the API set last time, which is invisible
+   * from here, so the only way to find out is to ask.
+   *
+   * Everything downstream still reads `token`, so once it is set the two builds are
    * indistinguishable from here on.
    */
   const restoreWebSession = async (): Promise<void> => {
-    const token = webAuth.isCallback()
-      ? await webAuth.completeSignIn()
-      : webAuth.hasSession()
-        ? await webAuth.ensureFreshToken()
-        : null;
+    const method = webAuth.isCallback() ? "callback" : webAuth.hasSession() ? "cookie" : "none";
+    const token =
+      method === "callback"
+        ? await webAuth.completeSignIn(useApi().apiEndpoint)
+        : method === "cookie"
+          ? await refreshWebToken()
+          : null;
+
+    // The callback is the tail of a sign-in, so it is counted as one; the cookie path is a restore.
+    if (method === "callback") metrics.count("auth.login", { method: "web", result: token ? "ok" : "failed" });
+    else metrics.count("auth.session.restore", { method, result: token ? "ok" : "none" });
 
     if (!token) {
       _token.value = null;
@@ -150,11 +215,10 @@ export const useAuthStore = defineStore("auth", () => {
 
     setAuthToken(token);
     isAuthenticated.value = true;
-    // Refreshes land back here so the interceptor picks up the new bearer without a reload.
-    webAuth.startAutoRefresh(setAuthToken);
   };
 
   const logout = () => {
+    metrics.count("auth.logout");
     // Best-effort: announce intentional offline so others don't see us linger for the disconnect
     // grace window. Fire-and-forget + lazy import to avoid a circular store dependency; if the realtime
     // connection is already gone the server-side grace covers it.
@@ -164,7 +228,9 @@ export const useAuthStore = defineStore("auth", () => {
         await useBus().goOffline();
       } catch { /* not connected — grace handles offline */ }
     })();
-    if (isWeb) webAuth.signOut();
+    // Fire-and-forget for the same reason: the local state below must drop now, and the request
+    // exists to write the server-side tombstone, not to gate the user's own sign-out.
+    if (isWeb) void webAuth.signOut(useApi().apiEndpoint);
     user.value = null;
     _token.value = null;
     isAuthenticated.value = false;
@@ -175,6 +241,7 @@ export const useAuthStore = defineStore("auth", () => {
     if (isWeb) return restoreWebSession();
 
     const savedToken = localStorage.getItem("token");
+    metrics.count("auth.session.restore", { method: "stored", result: savedToken ? "ok" : "none" });
     logger.info(`restored session, ${savedToken}`);
     if (savedToken) {
       _token.value = savedToken as string;
@@ -186,6 +253,7 @@ export const useAuthStore = defineStore("auth", () => {
     const api = useApi();
 
     await api.identityInteraction.BeginResetPassword(email);
+    metrics.count("auth.password_reset.begin");
 
     isRequiredFormResetPass.value = true;
   };
@@ -203,6 +271,10 @@ export const useAuthStore = defineStore("auth", () => {
       newPass
     );
 
+    metrics.count("auth.password_reset", {
+      result: r.isSuccessAuthorize() ? "ok" : "failed",
+      error: r.isFailedAuthorize() ? enumName(AuthorizationError, r.error) : undefined,
+    });
     if (r.isSuccessAuthorize()) {
       logger.success("Success reset password");
     } else if (r.isFailedAuthorize()) {
@@ -263,5 +335,6 @@ export const useAuthStore = defineStore("auth", () => {
     getRefreshToken,
     setRefreshToken,
     setAuthToken,
+    refreshWebToken,
   };
 });

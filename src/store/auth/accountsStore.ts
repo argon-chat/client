@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import { ref, computed } from "vue";
 import { logger } from "@argon/core";
 import Dexie from "dexie";
@@ -171,6 +172,7 @@ export const useAccounts = defineStore("accounts", () => {
    * server-side grace covers it.
    */
   async function hardSwitch(id: string): Promise<void> {
+    metrics.count("account.switch", { mode: "reload" });
     await announceOffline();
     setActivePointer(id);
     location.reload();
@@ -188,9 +190,17 @@ export const useAccounts = defineStore("accounts", () => {
     acc.lastUsedAt = Date.now();
     persist();
     try {
-      await seamlessSwitch(acc);
+      const started = await seamlessSwitch(acc);
+      // false = the post-login load failed and a reload is already on its way; not a success.
+      metrics.count("account.switch", {
+        mode: "seamless",
+        result: started ? "ok" : "failed",
+        error: started ? undefined : "post_login",
+        reauth: acc.needsReauth,
+      });
     } catch (e) {
       logger.warn("Seamless account switch failed; falling back to reload", e);
+      metrics.count("account.switch", { mode: "seamless", result: "failed", error: errorKind(e) });
       await hardSwitch(id);
     } finally {
       switchInFlight = false;
@@ -204,7 +214,7 @@ export const useAccounts = defineStore("accounts", () => {
    * account's data. A full-screen overlay masks the brief transition. Throwing triggers the reload
    * fallback in switchTo (the pointer is already set, so the reload lands cleanly on the new account).
    */
-  async function seamlessSwitch(acc: AccountRecord): Promise<void> {
+  async function seamlessSwitch(acc: AccountRecord): Promise<boolean> {
     const { sessionEpoch, isSwitchingAccount, runSessionReset } = await import("@/store/system/sessionLifecycle");
     isSwitchingAccount.value = true;
     try {
@@ -241,7 +251,7 @@ export const useAccounts = defineStore("accounts", () => {
 
       // 6. Reload the new account's profile + data and route home (also restarts the realtime worker).
       const { useAppState } = await import("@/store/system/appState");
-      await useAppState().continueAfterLogin();
+      return await useAppState().continueAfterLogin("account_switch");
     } finally {
       isSwitchingAccount.value = false;
     }

@@ -8,10 +8,30 @@
 
 import { logger } from "@argon/core";
 import { isWeb } from "@/lib/platform";
+import { cdnCacheEnabled } from "@/store/system/cdnCache";
 
 const SW_URL = "/media-sw.js";
 
 let registration: ServiceWorkerRegistration | null = null;
+
+/**
+ * Take the worker back out of the way.
+ *
+ * A worker that has been unregistered keeps controlling the pages it already controls, so this only
+ * takes full effect on the next load — which is why the setting reloads the app when it changes.
+ */
+async function removeWorker(): Promise<void> {
+  const existing = await navigator.serviceWorker.getRegistration("/");
+  if (!existing) return;
+  // This page may not be controlled at all (a hard reload, or a worker a previous session installed
+  // that never claimed this page) and nothing was registered in this session, so neither of
+  // activeWorker()'s sources would find it: the registration's own worker is the one to tell.
+  await clearMediaCache(
+    existing.active ?? existing.waiting ?? existing.installing ?? navigator.serviceWorker.controller,
+  );
+  await existing.unregister();
+  logger.info("[media-cache] service worker removed");
+}
 
 /**
  * Install the media cache worker.
@@ -21,6 +41,13 @@ let registration: ServiceWorkerRegistration | null = null;
  */
 export async function initMediaCache(): Promise<void> {
   if (!isWeb || !("serviceWorker" in navigator)) return;
+
+  // Caching turned off for diagnosis: leave nothing between the page and the CDN, and take away
+  // anything a previous session left installed.
+  if (!cdnCacheEnabled.value) {
+    await removeWorker().catch((e) => logger.warn("[media-cache] could not remove worker", e));
+    return;
+  }
 
   try {
     // Persisted storage is what separates "kept until the user clears it" from "kept until the
@@ -40,8 +67,8 @@ function activeWorker(): ServiceWorker | null {
 }
 
 /** Drop every cached picture. Used by the storage settings "clear cache" action. */
-export async function clearMediaCache(): Promise<void> {
-  activeWorker()?.postMessage({ type: "media-cache-clear" });
+export async function clearMediaCache(worker: ServiceWorker | null = activeWorker()): Promise<void> {
+  worker?.postMessage({ type: "media-cache-clear" });
 }
 
 export interface MediaCacheStats {
