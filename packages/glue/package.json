@@ -24,6 +24,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@argon-chat/ion.webcore": "^1.2.0"
+    "@argon-chat/ion.webcore": "^1.3.0"
   }
 }

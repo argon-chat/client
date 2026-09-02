@@ -106,6 +106,30 @@ export enum ArchetypeError
   INTERNAL_ERROR = 7,
 }
 
+const declaredArchetypeError: ReadonlySet<unknown> = new Set<unknown>([ArchetypeError.NONE, ArchetypeError.NOT_FOUND, ArchetypeError.NO_PERMISSION, ArchetypeError.IS_DEFAULT, ArchetypeError.IS_LOCKED, ArchetypeError.IN_USE, ArchetypeError.INCOMPLETE_ORDER, ArchetypeError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link ArchetypeError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ArchetypeError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ArchetypeError): boolean {
+    return declaredArchetypeError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ArchetypeError): u2 | undefined {
+    return declaredArchetypeError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export interface BotSearchResult {
   appId: guid;
@@ -174,6 +198,30 @@ export enum InstallBotError
   BOT_RESTRICTED = 5,
 }
 
+const declaredInstallBotError: ReadonlySet<unknown> = new Set<unknown>([InstallBotError.NONE, InstallBotError.NOT_FOUND, InstallBotError.ALREADY_INSTALLED, InstallBotError.INSUFFICIENT_PERMISSIONS, InstallBotError.BOT_SPACE_LIMIT, InstallBotError.BOT_RESTRICTED]);
+
+/**
+ * Open-enum helpers for {@link InstallBotError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_InstallBotError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: InstallBotError): boolean {
+    return declaredInstallBotError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: InstallBotError): u4 | undefined {
+    return declaredInstallBotError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum UninstallBotError
 {
@@ -182,6 +230,30 @@ export enum UninstallBotError
   NOT_INSTALLED = 2,
   INSUFFICIENT_PERMISSIONS = 3,
 }
+
+const declaredUninstallBotError: ReadonlySet<unknown> = new Set<unknown>([UninstallBotError.NONE, UninstallBotError.NOT_FOUND, UninstallBotError.NOT_INSTALLED, UninstallBotError.INSUFFICIENT_PERMISSIONS]);
+
+/**
+ * Open-enum helpers for {@link UninstallBotError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UninstallBotError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UninstallBotError): boolean {
+    return declaredUninstallBotError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UninstallBotError): u4 | undefined {
+    return declaredUninstallBotError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ApproveBotEntitlementsError
@@ -192,6 +264,30 @@ export enum ApproveBotEntitlementsError
   INSUFFICIENT_PERMISSIONS = 3,
   ALREADY_UP_TO_DATE = 4,
 }
+
+const declaredApproveBotEntitlementsError: ReadonlySet<unknown> = new Set<unknown>([ApproveBotEntitlementsError.NONE, ApproveBotEntitlementsError.NOT_FOUND, ApproveBotEntitlementsError.NOT_INSTALLED, ApproveBotEntitlementsError.INSUFFICIENT_PERMISSIONS, ApproveBotEntitlementsError.ALREADY_UP_TO_DATE]);
+
+/**
+ * Open-enum helpers for {@link ApproveBotEntitlementsError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ApproveBotEntitlementsError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ApproveBotEntitlementsError): boolean {
+    return declaredApproveBotEntitlementsError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ApproveBotEntitlementsError): u4 | undefined {
+    return declaredApproveBotEntitlementsError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum CommandOptionType
@@ -204,6 +300,30 @@ export enum CommandOptionType
   Role = 5,
   Number = 6,
 }
+
+const declaredCommandOptionType: ReadonlySet<unknown> = new Set<unknown>([CommandOptionType.String, CommandOptionType.Integer, CommandOptionType.Boolean, CommandOptionType.User, CommandOptionType.Channel, CommandOptionType.Role, CommandOptionType.Number]);
+
+/**
+ * Open-enum helpers for {@link CommandOptionType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CommandOptionType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CommandOptionType): boolean {
+    return declaredCommandOptionType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CommandOptionType): u2 | undefined {
+    return declaredCommandOptionType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export interface CreateChannelRequest {
@@ -455,12 +575,60 @@ export enum ChannelType
   Announcement = 2,
 }
 
+const declaredChannelType: ReadonlySet<unknown> = new Set<unknown>([ChannelType.Text, ChannelType.Voice, ChannelType.Announcement]);
+
+/**
+ * Open-enum helpers for {@link ChannelType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ChannelType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ChannelType): boolean {
+    return declaredChannelType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ChannelType): u2 | undefined {
+    return declaredChannelType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum JoinToChannelError
 {
   NONE = 0,
   CHANNEL_IS_NOT_VOICE = 1,
 }
+
+const declaredJoinToChannelError: ReadonlySet<unknown> = new Set<unknown>([JoinToChannelError.NONE, JoinToChannelError.CHANNEL_IS_NOT_VOICE]);
+
+/**
+ * Open-enum helpers for {@link JoinToChannelError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_JoinToChannelError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: JoinToChannelError): boolean {
+    return declaredJoinToChannelError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: JoinToChannelError): u2 | undefined {
+    return declaredJoinToChannelError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum EntityType
@@ -490,6 +658,30 @@ export enum EntityType
   LinkPreview = 22,
 }
 
+const declaredEntityType: ReadonlySet<unknown> = new Set<unknown>([EntityType.Hashtag, EntityType.Mention, EntityType.MentionEveryone, EntityType.MentionRole, EntityType.Email, EntityType.Url, EntityType.Monospace, EntityType.Quote, EntityType.Spoiler, EntityType.Strikethrough, EntityType.Bold, EntityType.Italic, EntityType.Underline, EntityType.Fraction, EntityType.Ordinal, EntityType.Capitalized, EntityType.SystemCallStarted, EntityType.SystemCallEnded, EntityType.SystemCallTimeout, EntityType.SystemUserJoined, EntityType.Attachment, EntityType.Gif, EntityType.LinkPreview]);
+
+/**
+ * Open-enum helpers for {@link EntityType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_EntityType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: EntityType): boolean {
+    return declaredEntityType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: EntityType): u2 | undefined {
+    return declaredEntityType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum UpdateChannelError
 {
@@ -503,6 +695,30 @@ export enum UpdateChannelError
   NOT_A_TEXT_CHANNEL = 7,
 }
 
+const declaredUpdateChannelError: ReadonlySet<unknown> = new Set<unknown>([UpdateChannelError.NONE, UpdateChannelError.CHANNEL_NOT_FOUND, UpdateChannelError.INSUFFICIENT_PERMISSIONS, UpdateChannelError.NAME_EMPTY, UpdateChannelError.NAME_TOO_LONG, UpdateChannelError.DESCRIPTION_TOO_LONG, UpdateChannelError.SLOW_MODE_NOT_ALLOWED, UpdateChannelError.NOT_A_TEXT_CHANNEL]);
+
+/**
+ * Open-enum helpers for {@link UpdateChannelError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UpdateChannelError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UpdateChannelError): boolean {
+    return declaredUpdateChannelError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UpdateChannelError): u2 | undefined {
+    return declaredUpdateChannelError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum VoiceInviteError
 {
@@ -513,6 +729,30 @@ export enum VoiceInviteError
   INTERNAL_ERROR = 4,
 }
 
+const declaredVoiceInviteError: ReadonlySet<unknown> = new Set<unknown>([VoiceInviteError.NONE, VoiceInviteError.CHANNEL_NOT_FOUND, VoiceInviteError.CHANNEL_IS_NOT_VOICE, VoiceInviteError.INSUFFICIENT_PERMISSIONS, VoiceInviteError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link VoiceInviteError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_VoiceInviteError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: VoiceInviteError): boolean {
+    return declaredVoiceInviteError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: VoiceInviteError): u2 | undefined {
+    return declaredVoiceInviteError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum DeleteMessageError
 {
@@ -520,6 +760,30 @@ export enum DeleteMessageError
   MESSAGE_NOT_FOUND = 1,
   INSUFFICIENT_PERMISSIONS = 2,
 }
+
+const declaredDeleteMessageError: ReadonlySet<unknown> = new Set<unknown>([DeleteMessageError.NONE, DeleteMessageError.MESSAGE_NOT_FOUND, DeleteMessageError.INSUFFICIENT_PERMISSIONS]);
+
+/**
+ * Open-enum helpers for {@link DeleteMessageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DeleteMessageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DeleteMessageError): boolean {
+    return declaredDeleteMessageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DeleteMessageError): u2 | undefined {
+    return declaredDeleteMessageError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum ControlType
@@ -531,12 +795,60 @@ export enum ControlType
   ChannelSelect = 4,
 }
 
+const declaredControlType: ReadonlySet<unknown> = new Set<unknown>([ControlType.Button, ControlType.StringSelect, ControlType.UserSelect, ControlType.ArchetypeSelect, ControlType.ChannelSelect]);
+
+/**
+ * Open-enum helpers for {@link ControlType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ControlType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ControlType): boolean {
+    return declaredControlType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ControlType): u2 | undefined {
+    return declaredControlType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum ButtonVariant
 {
   Callback = 0,
   Link = 1,
 }
+
+const declaredButtonVariant: ReadonlySet<unknown> = new Set<unknown>([ButtonVariant.Callback, ButtonVariant.Link]);
+
+/**
+ * Open-enum helpers for {@link ButtonVariant}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ButtonVariant_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ButtonVariant): boolean {
+    return declaredButtonVariant.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ButtonVariant): u2 | undefined {
+    return declaredButtonVariant.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum InvokeSlashCommandError
@@ -546,6 +858,30 @@ export enum InvokeSlashCommandError
   INSUFFICIENT_PERMISSIONS = 2,
   BOT_NOT_CONNECTED = 3,
 }
+
+const declaredInvokeSlashCommandError: ReadonlySet<unknown> = new Set<unknown>([InvokeSlashCommandError.NONE, InvokeSlashCommandError.COMMAND_NOT_FOUND, InvokeSlashCommandError.INSUFFICIENT_PERMISSIONS, InvokeSlashCommandError.BOT_NOT_CONNECTED]);
+
+/**
+ * Open-enum helpers for {@link InvokeSlashCommandError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_InvokeSlashCommandError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: InvokeSlashCommandError): boolean {
+    return declaredInvokeSlashCommandError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: InvokeSlashCommandError): u2 | undefined {
+    return declaredInvokeSlashCommandError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum InteractWithControlError
@@ -557,6 +893,30 @@ export enum InteractWithControlError
   BOT_NOT_CONNECTED = 4,
   ARCHETYPE_REQUIRED = 5,
 }
+
+const declaredInteractWithControlError: ReadonlySet<unknown> = new Set<unknown>([InteractWithControlError.NONE, InteractWithControlError.MESSAGE_NOT_FOUND, InteractWithControlError.CONTROL_NOT_FOUND, InteractWithControlError.CONTROL_DISABLED, InteractWithControlError.BOT_NOT_CONNECTED, InteractWithControlError.ARCHETYPE_REQUIRED]);
+
+/**
+ * Open-enum helpers for {@link InteractWithControlError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_InteractWithControlError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: InteractWithControlError): boolean {
+    return declaredInteractWithControlError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: InteractWithControlError): u2 | undefined {
+    return declaredInteractWithControlError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum InteractWithSelectError
@@ -571,6 +931,30 @@ export enum InteractWithSelectError
   ARCHETYPE_REQUIRED = 7,
 }
 
+const declaredInteractWithSelectError: ReadonlySet<unknown> = new Set<unknown>([InteractWithSelectError.NONE, InteractWithSelectError.MESSAGE_NOT_FOUND, InteractWithSelectError.CONTROL_NOT_FOUND, InteractWithSelectError.CONTROL_DISABLED, InteractWithSelectError.NOT_A_SELECT, InteractWithSelectError.INVALID_VALUES, InteractWithSelectError.BOT_NOT_CONNECTED, InteractWithSelectError.ARCHETYPE_REQUIRED]);
+
+/**
+ * Open-enum helpers for {@link InteractWithSelectError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_InteractWithSelectError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: InteractWithSelectError): boolean {
+    return declaredInteractWithSelectError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: InteractWithSelectError): u2 | undefined {
+    return declaredInteractWithSelectError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum AddReactionError
 {
@@ -581,6 +965,30 @@ export enum AddReactionError
   INSUFFICIENT_PERMISSIONS = 4,
 }
 
+const declaredAddReactionError: ReadonlySet<unknown> = new Set<unknown>([AddReactionError.NONE, AddReactionError.MESSAGE_NOT_FOUND, AddReactionError.REACTION_LIMIT_REACHED, AddReactionError.ALREADY_REACTED, AddReactionError.INSUFFICIENT_PERMISSIONS]);
+
+/**
+ * Open-enum helpers for {@link AddReactionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AddReactionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AddReactionError): boolean {
+    return declaredAddReactionError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AddReactionError): u2 | undefined {
+    return declaredAddReactionError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum RemoveReactionError
 {
@@ -588,6 +996,30 @@ export enum RemoveReactionError
   MESSAGE_NOT_FOUND = 1,
   REACTION_NOT_FOUND = 2,
 }
+
+const declaredRemoveReactionError: ReadonlySet<unknown> = new Set<unknown>([RemoveReactionError.NONE, RemoveReactionError.MESSAGE_NOT_FOUND, RemoveReactionError.REACTION_NOT_FOUND]);
+
+/**
+ * Open-enum helpers for {@link RemoveReactionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_RemoveReactionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: RemoveReactionError): boolean {
+    return declaredRemoveReactionError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: RemoveReactionError): u2 | undefined {
+    return declaredRemoveReactionError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum SubmitModalError
@@ -597,12 +1029,60 @@ export enum SubmitModalError
   INTERACTION_EXPIRED = 2,
 }
 
+const declaredSubmitModalError: ReadonlySet<unknown> = new Set<unknown>([SubmitModalError.NONE, SubmitModalError.INTERACTION_NOT_FOUND, SubmitModalError.INTERACTION_EXPIRED]);
+
+/**
+ * Open-enum helpers for {@link SubmitModalError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SubmitModalError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SubmitModalError): boolean {
+    return declaredSubmitModalError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SubmitModalError): u2 | undefined {
+    return declaredSubmitModalError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum IonTextInputStyle
 {
   Short = 0,
   Paragraph = 1,
 }
+
+const declaredIonTextInputStyle: ReadonlySet<unknown> = new Set<unknown>([IonTextInputStyle.Short, IonTextInputStyle.Paragraph]);
+
+/**
+ * Open-enum helpers for {@link IonTextInputStyle}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_IonTextInputStyle_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: IonTextInputStyle): boolean {
+    return declaredIonTextInputStyle.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: IonTextInputStyle): u2 | undefined {
+    return declaredIonTextInputStyle.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum IonModalComponentType
@@ -615,6 +1095,30 @@ export enum IonModalComponentType
   Checkbox = 5,
 }
 
+const declaredIonModalComponentType: ReadonlySet<unknown> = new Set<unknown>([IonModalComponentType.TextInput, IonModalComponentType.StringSelect, IonModalComponentType.UserSelect, IonModalComponentType.ArchetypeSelect, IonModalComponentType.ChannelSelect, IonModalComponentType.Checkbox]);
+
+/**
+ * Open-enum helpers for {@link IonModalComponentType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_IonModalComponentType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: IonModalComponentType): boolean {
+    return declaredIonModalComponentType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: IonModalComponentType): u2 | undefined {
+    return declaredIonModalComponentType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum StartStreamError
 {
@@ -622,6 +1126,30 @@ export enum StartStreamError
   BAD_PARAMS = 1,
   INTERNAL_ERROR = 2,
 }
+
+const declaredStartStreamError: ReadonlySet<unknown> = new Set<unknown>([StartStreamError.NONE, StartStreamError.BAD_PARAMS, StartStreamError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link StartStreamError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_StartStreamError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: StartStreamError): boolean {
+    return declaredStartStreamError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: StartStreamError): u2 | undefined {
+    return declaredStartStreamError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum DrawingDenyReason
@@ -633,6 +1161,30 @@ export enum DrawingDenyReason
   INTERNAL_ERROR = 4,
 }
 
+const declaredDrawingDenyReason: ReadonlySet<unknown> = new Set<unknown>([DrawingDenyReason.NONE, DrawingDenyReason.FEATURE_DISABLED, DrawingDenyReason.NOT_STREAMING, DrawingDenyReason.NO_PERMISSION, DrawingDenyReason.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link DrawingDenyReason}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DrawingDenyReason_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DrawingDenyReason): boolean {
+    return declaredDrawingDenyReason.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DrawingDenyReason): u2 | undefined {
+    return declaredDrawingDenyReason.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum TypingKind
 {
@@ -642,6 +1194,30 @@ export enum TypingKind
   SEARCHING = 3,
 }
 
+const declaredTypingKind: ReadonlySet<unknown> = new Set<unknown>([TypingKind.TYPING, TypingKind.THINKING, TypingKind.UPLOADING, TypingKind.SEARCHING]);
+
+/**
+ * Open-enum helpers for {@link TypingKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_TypingKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: TypingKind): boolean {
+    return declaredTypingKind.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: TypingKind): u4 | undefined {
+    return declaredTypingKind.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum MuteLevelType
 {
@@ -650,6 +1226,30 @@ export enum MuteLevelType
   All = 2,
 }
 
+const declaredMuteLevelType: ReadonlySet<unknown> = new Set<unknown>([MuteLevelType.None, MuteLevelType.OnlyMentions, MuteLevelType.All]);
+
+/**
+ * Open-enum helpers for {@link MuteLevelType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_MuteLevelType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: MuteLevelType): boolean {
+    return declaredMuteLevelType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: MuteLevelType): u2 | undefined {
+    return declaredMuteLevelType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum MuteTargetKind
 {
@@ -657,12 +1257,60 @@ export enum MuteTargetKind
   Channel = 1,
 }
 
+const declaredMuteTargetKind: ReadonlySet<unknown> = new Set<unknown>([MuteTargetKind.Space, MuteTargetKind.Channel]);
+
+/**
+ * Open-enum helpers for {@link MuteTargetKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_MuteTargetKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: MuteTargetKind): boolean {
+    return declaredMuteTargetKind.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: MuteTargetKind): u2 | undefined {
+    return declaredMuteTargetKind.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum MentionTargetType
 {
   Everyone = 0,
   Role = 1,
 }
+
+const declaredMentionTargetType: ReadonlySet<unknown> = new Set<unknown>([MentionTargetType.Everyone, MentionTargetType.Role]);
+
+/**
+ * Open-enum helpers for {@link MentionTargetType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_MentionTargetType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: MentionTargetType): boolean {
+    return declaredMentionTargetType.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: MentionTargetType): u2 | undefined {
+    return declaredMentionTargetType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum ActivityPresenceKind
@@ -672,6 +1320,30 @@ export enum ActivityPresenceKind
   STREAMING = 2,
   LISTEN = 3,
 }
+
+const declaredActivityPresenceKind: ReadonlySet<unknown> = new Set<unknown>([ActivityPresenceKind.GAME, ActivityPresenceKind.SOFTWARE, ActivityPresenceKind.STREAMING, ActivityPresenceKind.LISTEN]);
+
+/**
+ * Open-enum helpers for {@link ActivityPresenceKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ActivityPresenceKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ActivityPresenceKind): boolean {
+    return declaredActivityPresenceKind.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ActivityPresenceKind): u4 | undefined {
+    return declaredActivityPresenceKind.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ChannelMemberState
@@ -748,6 +1420,30 @@ export enum SendFriendStatus
   FailedSent = 7,
 }
 
+const declaredSendFriendStatus: ReadonlySet<unknown> = new Set<unknown>([SendFriendStatus.TargetNotFound, SendFriendStatus.CannotFriendYourself, SendFriendStatus.Blocked, SendFriendStatus.AlreadyFriends, SendFriendStatus.AutoAccepted, SendFriendStatus.AlreadySent, SendFriendStatus.SuccessSent, SendFriendStatus.FailedSent]);
+
+/**
+ * Open-enum helpers for {@link SendFriendStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SendFriendStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SendFriendStatus): boolean {
+    return declaredSendFriendStatus.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SendFriendStatus): u4 | undefined {
+    return declaredSendFriendStatus.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export interface GifItem {
   gifId: string;
@@ -791,6 +1487,30 @@ export enum SaveGifError
   NOT_FOUND = 2,
 }
 
+const declaredSaveGifError: ReadonlySet<unknown> = new Set<unknown>([SaveGifError.INVALID_HMAC, SaveGifError.ALREADY_SAVED, SaveGifError.NOT_FOUND]);
+
+/**
+ * Open-enum helpers for {@link SaveGifError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SaveGifError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SaveGifError): boolean {
+    return declaredSaveGifError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SaveGifError): u4 | undefined {
+    return declaredSaveGifError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export interface LoginRequestTicket {
   token: string;
@@ -819,6 +1539,30 @@ export enum LoginRequestError
   INTERNAL_ERROR = 6,
 }
 
+const declaredLoginRequestError: ReadonlySet<unknown> = new Set<unknown>([LoginRequestError.NONE, LoginRequestError.NOT_FOUND, LoginRequestError.EXPIRED, LoginRequestError.ALREADY_USED, LoginRequestError.DEVICE_MISMATCH, LoginRequestError.RATE_LIMITED, LoginRequestError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link LoginRequestError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_LoginRequestError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: LoginRequestError): boolean {
+    return declaredLoginRequestError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: LoginRequestError): u4 | undefined {
+    return declaredLoginRequestError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum BadAuthKind
 {
@@ -826,6 +1570,30 @@ export enum BadAuthKind
   REQUIRED_RELOGIN = 1,
   BAD_TOKEN = 2,
 }
+
+const declaredBadAuthKind: ReadonlySet<unknown> = new Set<unknown>([BadAuthKind.SESSION_EXPIRED, BadAuthKind.REQUIRED_RELOGIN, BadAuthKind.BAD_TOKEN]);
+
+/**
+ * Open-enum helpers for {@link BadAuthKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BadAuthKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BadAuthKind): boolean {
+    return declaredBadAuthKind.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BadAuthKind): u4 | undefined {
+    return declaredBadAuthKind.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface InventoryItem {
@@ -861,6 +1629,30 @@ export enum ItemUseVector
   QualifierBox = 3,
 }
 
+const declaredItemUseVector: ReadonlySet<unknown> = new Set<unknown>([ItemUseVector.RedeemCode, ItemUseVector.Premium, ItemUseVector.Box, ItemUseVector.QualifierBox]);
+
+/**
+ * Open-enum helpers for {@link ItemUseVector}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ItemUseVector_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ItemUseVector): boolean {
+    return declaredItemUseVector.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ItemUseVector): u4 | undefined {
+    return declaredItemUseVector.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum RedeemError
 {
@@ -870,6 +1662,30 @@ export enum RedeemError
   LIMIT_REACHED = 3,
   ALREADY = 4,
 }
+
+const declaredRedeemError: ReadonlySet<unknown> = new Set<unknown>([RedeemError.NOT_FOUND, RedeemError.INACTIVE, RedeemError.EXPIRED, RedeemError.LIMIT_REACHED, RedeemError.ALREADY]);
+
+/**
+ * Open-enum helpers for {@link RedeemError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_RedeemError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: RedeemError): boolean {
+    return declaredRedeemError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: RedeemError): u4 | undefined {
+    return declaredRedeemError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface LinkPreview {
@@ -891,6 +1707,30 @@ export enum LinkPreviewError
   RATE_LIMITED = 4,
 }
 
+const declaredLinkPreviewError: ReadonlySet<unknown> = new Set<unknown>([LinkPreviewError.NONE, LinkPreviewError.INVALID_URL, LinkPreviewError.NO_PREVIEW, LinkPreviewError.UNAVAILABLE, LinkPreviewError.RATE_LIMITED]);
+
+/**
+ * Open-enum helpers for {@link LinkPreviewError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_LinkPreviewError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: LinkPreviewError): boolean {
+    return declaredLinkPreviewError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: LinkPreviewError): u2 | undefined {
+    return declaredLinkPreviewError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export interface PrivacyRuleView {
   key: string;
@@ -907,6 +1747,30 @@ export enum PrivacyRuleMode
   CONTACTS = 1,
   NOBODY = 2,
 }
+
+const declaredPrivacyRuleMode: ReadonlySet<unknown> = new Set<unknown>([PrivacyRuleMode.EVERYBODY, PrivacyRuleMode.CONTACTS, PrivacyRuleMode.NOBODY]);
+
+/**
+ * Open-enum helpers for {@link PrivacyRuleMode}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PrivacyRuleMode_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PrivacyRuleMode): boolean {
+    return declaredPrivacyRuleMode.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PrivacyRuleMode): u2 | undefined {
+    return declaredPrivacyRuleMode.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export interface ReportTarget {
@@ -957,7 +1821,32 @@ export enum ReportTargetKind
   CHANNEL = 2,
   SPACE = 3,
   USER = 4,
+  DIRECT_MESSAGE = 5,
 }
+
+const declaredReportTargetKind: ReadonlySet<unknown> = new Set<unknown>([ReportTargetKind.PROFILE, ReportTargetKind.MESSAGE, ReportTargetKind.CHANNEL, ReportTargetKind.SPACE, ReportTargetKind.USER, ReportTargetKind.DIRECT_MESSAGE]);
+
+/**
+ * Open-enum helpers for {@link ReportTargetKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ReportTargetKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ReportTargetKind): boolean {
+    return declaredReportTargetKind.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ReportTargetKind): u4 | undefined {
+    return declaredReportTargetKind.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ReportCategory
@@ -973,6 +1862,30 @@ export enum ReportCategory
   SPAM = 8,
   OTHER = 9,
 }
+
+const declaredReportCategory: ReadonlySet<unknown> = new Set<unknown>([ReportCategory.I_DONT_LIKE_IT, ReportCategory.CHILD_ABUSE, ReportCategory.VIOLENCE, ReportCategory.ILLEGAL_GOODS, ReportCategory.ILLEGAL_ADULT_CONTENT, ReportCategory.PERSONAL_DATA, ReportCategory.SCAM_OR_FRAUD, ReportCategory.COPYRIGHT, ReportCategory.SPAM, ReportCategory.OTHER]);
+
+/**
+ * Open-enum helpers for {@link ReportCategory}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ReportCategory_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ReportCategory): boolean {
+    return declaredReportCategory.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ReportCategory): u4 | undefined {
+    return declaredReportCategory.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ReportReason
@@ -1021,6 +1934,30 @@ export enum ReportReason
   OTHER_ELSE = 41,
 }
 
+const declaredReportReason: ReadonlySet<unknown> = new Set<unknown>([ReportReason.NONE, ReportReason.CHILD_SEXUAL_ABUSE, ReportReason.CHILD_PHYSICAL_ABUSE, ReportReason.INSULTS_OR_FALSE_INFO, ReportReason.GRAPHIC_OR_DISTURBING_CONTENT, ReportReason.EXTREME_VIOLENCE, ReportReason.HATE_SPEECH_OR_SYMBOL, ReportReason.CALLING_FOR_VIOLENCE, ReportReason.ORGANIZED_CRIME, ReportReason.TERRORISM, ReportReason.ANIMAL_ABUSE, ReportReason.WEAPONS, ReportReason.DRUGS, ReportReason.FAKE_DOCUMENTS, ReportReason.COUNTERFEIT_MONEY, ReportReason.HACKING_TOOLS_AND_MALWARE, ReportReason.COUNTERFEIT_MERCHANDISE, ReportReason.OTHER_GOODS_AND_SERVICES, ReportReason.IAC_CHILD_ABUSE, ReportReason.ILLEGAL_SEXUAL_SERVICES, ReportReason.IAC_ANIMAL_ABUSE, ReportReason.NON_CONSENSUAL_SEXUAL_IMAGERY, ReportReason.PORNOGRAPHY, ReportReason.IAC_OTHER, ReportReason.PRIVATE_IMAGES, ReportReason.PHONE_NUMBER, ReportReason.ADDRESS, ReportReason.STOLEN_DATA_OR_CREDENTIALS, ReportReason.PD_OTHER, ReportReason.IMPERSONATION, ReportReason.DECEPTIVE_FINANCIAL_CLAIMS, ReportReason.SF_MALWARE, ReportReason.PHISHING, ReportReason.FRAUDULENT_SELLER, ReportReason.SPAM_INSULTS_OR_FALSE_INFO, ReportReason.PROMOTING_ILLEGAL_CONTENT, ReportReason.SPAM_OTHER, ReportReason.OTHER_I_DONT_LIKE_IT, ReportReason.OTHER_FALSE_INFO, ReportReason.OTHER_ILLEGAL_ADULT_CONTENT, ReportReason.OTHER_ILLEGAL_GOODS_AND_SERVICES, ReportReason.OTHER_ELSE]);
+
+/**
+ * Open-enum helpers for {@link ReportReason}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ReportReason_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ReportReason): boolean {
+    return declaredReportReason.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ReportReason): u4 | undefined {
+    return declaredReportReason.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum ReportStatus
 {
@@ -1031,6 +1968,30 @@ export enum ReportStatus
   DISMISSED = 4,
   ESCALATED = 5,
 }
+
+const declaredReportStatus: ReadonlySet<unknown> = new Set<unknown>([ReportStatus.PENDING, ReportStatus.UNDER_REVIEW, ReportStatus.RESOLVED_ACTION_TAKEN, ReportStatus.RESOLVED_NO_ACTION, ReportStatus.DISMISSED, ReportStatus.ESCALATED]);
+
+/**
+ * Open-enum helpers for {@link ReportStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ReportStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ReportStatus): boolean {
+    return declaredReportStatus.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ReportStatus): u4 | undefined {
+    return declaredReportStatus.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum SubmitReportError
@@ -1043,6 +2004,30 @@ export enum SubmitReportError
   TARGET_NOT_FOUND = 5,
   INTERNAL_ERROR = 6,
 }
+
+const declaredSubmitReportError: ReadonlySet<unknown> = new Set<unknown>([SubmitReportError.NONE, SubmitReportError.INVALID_TARGET, SubmitReportError.CANNOT_REPORT_SELF, SubmitReportError.DUPLICATE_REPORT, SubmitReportError.RATE_LIMITED, SubmitReportError.TARGET_NOT_FOUND, SubmitReportError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SubmitReportError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SubmitReportError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SubmitReportError): boolean {
+    return declaredSubmitReportError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SubmitReportError): u4 | undefined {
+    return declaredSubmitReportError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface SessionInfo {
@@ -1098,6 +2083,30 @@ export enum SessionError
   INTERNAL_ERROR = 3,
 }
 
+const declaredSessionError: ReadonlySet<unknown> = new Set<unknown>([SessionError.NONE, SessionError.NOT_FOUND, SessionError.CANNOT_REVOKE_CURRENT, SessionError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SessionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SessionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SessionError): boolean {
+    return declaredSessionError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SessionError): u4 | undefined {
+    return declaredSessionError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum EmailChangeError
 {
@@ -1110,6 +2119,30 @@ export enum EmailChangeError
   RATE_LIMITED = 6,
   INTERNAL_ERROR = 7,
 }
+
+const declaredEmailChangeError: ReadonlySet<unknown> = new Set<unknown>([EmailChangeError.NONE, EmailChangeError.INVALID_EMAIL, EmailChangeError.EMAIL_ALREADY_USED, EmailChangeError.INVALID_PASSWORD, EmailChangeError.INVALID_VERIFICATION_CODE, EmailChangeError.VERIFICATION_CODE_EXPIRED, EmailChangeError.RATE_LIMITED, EmailChangeError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link EmailChangeError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_EmailChangeError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: EmailChangeError): boolean {
+    return declaredEmailChangeError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: EmailChangeError): u4 | undefined {
+    return declaredEmailChangeError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum PhoneChangeError
@@ -1124,6 +2157,30 @@ export enum PhoneChangeError
   INTERNAL_ERROR = 7,
 }
 
+const declaredPhoneChangeError: ReadonlySet<unknown> = new Set<unknown>([PhoneChangeError.NONE, PhoneChangeError.INVALID_PHONE, PhoneChangeError.PHONE_ALREADY_USED, PhoneChangeError.INVALID_PASSWORD, PhoneChangeError.INVALID_VERIFICATION_CODE, PhoneChangeError.VERIFICATION_CODE_EXPIRED, PhoneChangeError.RATE_LIMITED, PhoneChangeError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link PhoneChangeError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PhoneChangeError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PhoneChangeError): boolean {
+    return declaredPhoneChangeError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PhoneChangeError): u4 | undefined {
+    return declaredPhoneChangeError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum PasswordChangeError
 {
@@ -1136,6 +2193,30 @@ export enum PasswordChangeError
   INTERNAL_ERROR = 6,
 }
 
+const declaredPasswordChangeError: ReadonlySet<unknown> = new Set<unknown>([PasswordChangeError.NONE, PasswordChangeError.INVALID_CURRENT_PASSWORD, PasswordChangeError.PASSWORD_TOO_WEAK, PasswordChangeError.PASSWORD_TOO_SHORT, PasswordChangeError.PASSWORD_SAME_AS_CURRENT, PasswordChangeError.RATE_LIMITED, PasswordChangeError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link PasswordChangeError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PasswordChangeError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PasswordChangeError): boolean {
+    return declaredPasswordChangeError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PasswordChangeError): u4 | undefined {
+    return declaredPasswordChangeError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum OTPError
 {
@@ -1146,6 +2227,30 @@ export enum OTPError
   RATE_LIMITED = 4,
   INTERNAL_ERROR = 5,
 }
+
+const declaredOTPError: ReadonlySet<unknown> = new Set<unknown>([OTPError.NONE, OTPError.ALREADY_ENABLED, OTPError.NOT_ENABLED, OTPError.INVALID_CODE, OTPError.RATE_LIMITED, OTPError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link OTPError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_OTPError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: OTPError): boolean {
+    return declaredOTPError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: OTPError): u4 | undefined {
+    return declaredOTPError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum PasskeyError
@@ -1159,6 +2264,30 @@ export enum PasskeyError
   INTERNAL_ERROR = 6,
 }
 
+const declaredPasskeyError: ReadonlySet<unknown> = new Set<unknown>([PasskeyError.NONE, PasskeyError.NOT_FOUND, PasskeyError.LIMIT_REACHED, PasskeyError.INVALID_CREDENTIAL, PasskeyError.VERIFICATION_FAILED, PasskeyError.CHALLENGE_EXPIRED, PasskeyError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link PasskeyError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PasskeyError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PasskeyError): boolean {
+    return declaredPasskeyError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PasskeyError): u4 | undefined {
+    return declaredPasskeyError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum AutoDeleteError
 {
@@ -1167,6 +2296,30 @@ export enum AutoDeleteError
   INVALID_PERIOD = 2,
   INTERNAL_ERROR = 3,
 }
+
+const declaredAutoDeleteError: ReadonlySet<unknown> = new Set<unknown>([AutoDeleteError.NONE, AutoDeleteError.PREMIUM_REQUIRED, AutoDeleteError.INVALID_PERIOD, AutoDeleteError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link AutoDeleteError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AutoDeleteError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AutoDeleteError): boolean {
+    return declaredAutoDeleteError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AutoDeleteError): u4 | undefined {
+    return declaredAutoDeleteError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum DataExportStatusKind
@@ -1180,6 +2333,30 @@ export enum DataExportStatusKind
   FAILED = 6,
 }
 
+const declaredDataExportStatusKind: ReadonlySet<unknown> = new Set<unknown>([DataExportStatusKind.IDLE, DataExportStatusKind.QUEUED, DataExportStatusKind.COLLECTING, DataExportStatusKind.ASSEMBLING, DataExportStatusKind.COMPLETED, DataExportStatusKind.EXPIRED, DataExportStatusKind.FAILED]);
+
+/**
+ * Open-enum helpers for {@link DataExportStatusKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DataExportStatusKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DataExportStatusKind): boolean {
+    return declaredDataExportStatusKind.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DataExportStatusKind): u2 | undefined {
+    return declaredDataExportStatusKind.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum DataExportError
 {
@@ -1188,6 +2365,30 @@ export enum DataExportError
   RATE_LIMITED = 2,
   NOT_CONFIGURED = 3,
 }
+
+const declaredDataExportError: ReadonlySet<unknown> = new Set<unknown>([DataExportError.NONE, DataExportError.ALREADY_IN_PROGRESS, DataExportError.RATE_LIMITED, DataExportError.NOT_CONFIGURED]);
+
+/**
+ * Open-enum helpers for {@link DataExportError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DataExportError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DataExportError): boolean {
+    return declaredDataExportError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DataExportError): u2 | undefined {
+    return declaredDataExportError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export interface SpaceDeletionState {
@@ -1349,6 +2550,30 @@ export enum SpaceDeletionStatus
   EXECUTING = 2,
 }
 
+const declaredSpaceDeletionStatus: ReadonlySet<unknown> = new Set<unknown>([SpaceDeletionStatus.NONE, SpaceDeletionStatus.SCHEDULED, SpaceDeletionStatus.EXECUTING]);
+
+/**
+ * Open-enum helpers for {@link SpaceDeletionStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SpaceDeletionStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SpaceDeletionStatus): boolean {
+    return declaredSpaceDeletionStatus.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SpaceDeletionStatus): u2 | undefined {
+    return declaredSpaceDeletionStatus.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
 
 export enum SpaceDeletionError
 {
@@ -1359,6 +2584,30 @@ export enum SpaceDeletionError
   ALREADY_EXECUTING = 4,
   INTERNAL_ERROR = 5,
 }
+
+const declaredSpaceDeletionError: ReadonlySet<unknown> = new Set<unknown>([SpaceDeletionError.NONE, SpaceDeletionError.NOT_OWNER, SpaceDeletionError.ALREADY_SCHEDULED, SpaceDeletionError.NOT_SCHEDULED, SpaceDeletionError.ALREADY_EXECUTING, SpaceDeletionError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SpaceDeletionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SpaceDeletionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SpaceDeletionError): boolean {
+    return declaredSpaceDeletionError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SpaceDeletionError): u2 | undefined {
+    return declaredSpaceDeletionError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export enum UserStatus
@@ -1371,6 +2620,30 @@ export enum UserStatus
   TouchGrass = 5,
   DoNotDisturb = 6,
 }
+
+const declaredUserStatus: ReadonlySet<unknown> = new Set<unknown>([UserStatus.Offline, UserStatus.Online, UserStatus.Away, UserStatus.InGame, UserStatus.Listen, UserStatus.TouchGrass, UserStatus.DoNotDisturb]);
+
+/**
+ * Open-enum helpers for {@link UserStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UserStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UserStatus): boolean {
+    return declaredUserStatus.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UserStatus): u4 | undefined {
+    return declaredUserStatus.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ArgonEntitlement
@@ -1445,6 +2718,30 @@ export enum ArgonAuthMode
   PasskeyWithOtp = 4,
 }
 
+const declaredArgonAuthMode: ReadonlySet<unknown> = new Set<unknown>([ArgonAuthMode.EmailPassword, ArgonAuthMode.EmailOtp, ArgonAuthMode.EmailPasswordOtp, ArgonAuthMode.PasskeyOnly, ArgonAuthMode.PasskeyWithOtp]);
+
+/**
+ * Open-enum helpers for {@link ArgonAuthMode}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ArgonAuthMode_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ArgonAuthMode): boolean {
+    return declaredArgonAuthMode.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ArgonAuthMode): u4 | undefined {
+    return declaredArgonAuthMode.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum OtpMethod
 {
@@ -1452,6 +2749,30 @@ export enum OtpMethod
   Phone = 1,
   Totp = 2,
 }
+
+const declaredOtpMethod: ReadonlySet<unknown> = new Set<unknown>([OtpMethod.Email, OtpMethod.Phone, OtpMethod.Totp]);
+
+/**
+ * Open-enum helpers for {@link OtpMethod}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_OtpMethod_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: OtpMethod): boolean {
+    return declaredOtpMethod.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: OtpMethod): u4 | undefined {
+    return declaredOtpMethod.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface UltimaPricing {
@@ -1541,6 +2862,30 @@ export enum UltimaPlan
   Annual = 1,
 }
 
+const declaredUltimaPlan: ReadonlySet<unknown> = new Set<unknown>([UltimaPlan.Monthly, UltimaPlan.Annual]);
+
+/**
+ * Open-enum helpers for {@link UltimaPlan}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UltimaPlan_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UltimaPlan): boolean {
+    return declaredUltimaPlan.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UltimaPlan): u4 | undefined {
+    return declaredUltimaPlan.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum UltimaSubscriptionStatus
 {
@@ -1549,6 +2894,30 @@ export enum UltimaSubscriptionStatus
   Expired = 2,
   GracePeriod = 3,
 }
+
+const declaredUltimaSubscriptionStatus: ReadonlySet<unknown> = new Set<unknown>([UltimaSubscriptionStatus.Active, UltimaSubscriptionStatus.Cancelled, UltimaSubscriptionStatus.Expired, UltimaSubscriptionStatus.GracePeriod]);
+
+/**
+ * Open-enum helpers for {@link UltimaSubscriptionStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UltimaSubscriptionStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UltimaSubscriptionStatus): boolean {
+    return declaredUltimaSubscriptionStatus.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UltimaSubscriptionStatus): u4 | undefined {
+    return declaredUltimaSubscriptionStatus.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum BoostPackType
@@ -1560,6 +2929,30 @@ export enum BoostPackType
   Pack3Annual = 4,
   Pack5Annual = 5,
 }
+
+const declaredBoostPackType: ReadonlySet<unknown> = new Set<unknown>([BoostPackType.Pack1, BoostPackType.Pack3, BoostPackType.Pack5, BoostPackType.Pack1Annual, BoostPackType.Pack3Annual, BoostPackType.Pack5Annual]);
+
+/**
+ * Open-enum helpers for {@link BoostPackType}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BoostPackType_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BoostPackType): boolean {
+    return declaredBoostPackType.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BoostPackType): u4 | undefined {
+    return declaredBoostPackType.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum BoostSource
@@ -1574,6 +2967,30 @@ export enum BoostSource
   PurchasedPack5Annual = 7,
 }
 
+const declaredBoostSource: ReadonlySet<unknown> = new Set<unknown>([BoostSource.Subscription, BoostSource.PurchasedPack1, BoostSource.PurchasedPack3, BoostSource.PurchasedPack5, BoostSource.GiftReward, BoostSource.PurchasedPack1Annual, BoostSource.PurchasedPack3Annual, BoostSource.PurchasedPack5Annual]);
+
+/**
+ * Open-enum helpers for {@link BoostSource}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BoostSource_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BoostSource): boolean {
+    return declaredBoostSource.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BoostSource): u4 | undefined {
+    return declaredBoostSource.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum CheckoutError
 {
@@ -1581,6 +2998,30 @@ export enum CheckoutError
   PAYMENT_ERROR = 1,
   REGION_UNAVAILABLE = 2,
 }
+
+const declaredCheckoutError: ReadonlySet<unknown> = new Set<unknown>([CheckoutError.ALREADY_SUBSCRIBED, CheckoutError.PAYMENT_ERROR, CheckoutError.REGION_UNAVAILABLE]);
+
+/**
+ * Open-enum helpers for {@link CheckoutError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CheckoutError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CheckoutError): boolean {
+    return declaredCheckoutError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CheckoutError): u4 | undefined {
+    return declaredCheckoutError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum ApplyBoostError
@@ -1591,6 +3032,30 @@ export enum ApplyBoostError
   ALREADY_APPLIED = 3,
 }
 
+const declaredApplyBoostError: ReadonlySet<unknown> = new Set<unknown>([ApplyBoostError.NOT_FOUND, ApplyBoostError.NO_AVAILABLE_SLOTS, ApplyBoostError.NOT_A_MEMBER, ApplyBoostError.ALREADY_APPLIED]);
+
+/**
+ * Open-enum helpers for {@link ApplyBoostError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ApplyBoostError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ApplyBoostError): boolean {
+    return declaredApplyBoostError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ApplyBoostError): u4 | undefined {
+    return declaredApplyBoostError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum TransferBoostError
 {
@@ -1600,12 +3065,60 @@ export enum TransferBoostError
   NOT_APPLIED = 3,
 }
 
+const declaredTransferBoostError: ReadonlySet<unknown> = new Set<unknown>([TransferBoostError.NOT_FOUND, TransferBoostError.ON_COOLDOWN, TransferBoostError.NOT_A_MEMBER, TransferBoostError.NOT_APPLIED]);
+
+/**
+ * Open-enum helpers for {@link TransferBoostError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_TransferBoostError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: TransferBoostError): boolean {
+    return declaredTransferBoostError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: TransferBoostError): u4 | undefined {
+    return declaredTransferBoostError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum PurchaseBoostError
 {
   PAYMENT_ERROR = 0,
   LIMIT_REACHED = 1,
 }
+
+const declaredPurchaseBoostError: ReadonlySet<unknown> = new Set<unknown>([PurchaseBoostError.PAYMENT_ERROR, PurchaseBoostError.LIMIT_REACHED]);
+
+/**
+ * Open-enum helpers for {@link PurchaseBoostError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PurchaseBoostError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PurchaseBoostError): boolean {
+    return declaredPurchaseBoostError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PurchaseBoostError): u4 | undefined {
+    return declaredPurchaseBoostError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum SendGiftError
@@ -1614,6 +3127,30 @@ export enum SendGiftError
   SELF_GIFT = 1,
   PAYMENT_ERROR = 2,
 }
+
+const declaredSendGiftError: ReadonlySet<unknown> = new Set<unknown>([SendGiftError.USER_NOT_FOUND, SendGiftError.SELF_GIFT, SendGiftError.PAYMENT_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SendGiftError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SendGiftError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SendGiftError): boolean {
+    return declaredSendGiftError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SendGiftError): u4 | undefined {
+    return declaredSendGiftError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface TodayStats {
@@ -1740,12 +3277,60 @@ export enum UploadFileError
   INTERNAL_ERROR = 2,
 }
 
+const declaredUploadFileError: ReadonlySet<unknown> = new Set<unknown>([UploadFileError.NONE, UploadFileError.NOT_AUTHORIZED, UploadFileError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link UploadFileError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UploadFileError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UploadFileError): boolean {
+    return declaredUploadFileError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UploadFileError): u4 | undefined {
+    return declaredUploadFileError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum CreateSpaceError
 {
   UNKNOWN = 0,
   LIMIT_REACHED = 1,
 }
+
+const declaredCreateSpaceError: ReadonlySet<unknown> = new Set<unknown>([CreateSpaceError.UNKNOWN, CreateSpaceError.LIMIT_REACHED]);
+
+/**
+ * Open-enum helpers for {@link CreateSpaceError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CreateSpaceError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CreateSpaceError): boolean {
+    return declaredCreateSpaceError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CreateSpaceError): u4 | undefined {
+    return declaredCreateSpaceError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum UpdateMeError
@@ -1759,6 +3344,30 @@ export enum UpdateMeError
   BIO_TOO_LONG = 6,
 }
 
+const declaredUpdateMeError: ReadonlySet<unknown> = new Set<unknown>([UpdateMeError.NONE, UpdateMeError.COOLDOWN_ACTIVE, UpdateMeError.PREMIUM_REQUIRED, UpdateMeError.INVALID_PRESET_ID, UpdateMeError.DISPLAY_NAME_TOO_LONG, UpdateMeError.DISPLAY_NAME_EMPTY, UpdateMeError.BIO_TOO_LONG]);
+
+/**
+ * Open-enum helpers for {@link UpdateMeError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_UpdateMeError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: UpdateMeError): boolean {
+    return declaredUpdateMeError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: UpdateMeError): u4 | undefined {
+    return declaredUpdateMeError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum AcceptInviteError
 {
@@ -1769,6 +3378,30 @@ export enum AcceptInviteError
   LIMIT_REACHED = 4,
 }
 
+const declaredAcceptInviteError: ReadonlySet<unknown> = new Set<unknown>([AcceptInviteError.NONE, AcceptInviteError.NOT_FOUND, AcceptInviteError.EXPIRED, AcceptInviteError.YOU_ARE_BANNED, AcceptInviteError.LIMIT_REACHED]);
+
+/**
+ * Open-enum helpers for {@link AcceptInviteError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AcceptInviteError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AcceptInviteError): boolean {
+    return declaredAcceptInviteError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AcceptInviteError): u4 | undefined {
+    return declaredAcceptInviteError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum AuthorizationError
 {
@@ -1777,6 +3410,30 @@ export enum AuthorizationError
   REQUIRED_OTP = 2,
   BAD_OTP = 3,
 }
+
+const declaredAuthorizationError: ReadonlySet<unknown> = new Set<unknown>([AuthorizationError.NONE, AuthorizationError.BAD_CREDENTIALS, AuthorizationError.REQUIRED_OTP, AuthorizationError.BAD_OTP]);
+
+/**
+ * Open-enum helpers for {@link AuthorizationError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AuthorizationError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AuthorizationError): boolean {
+    return declaredAuthorizationError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AuthorizationError): u4 | undefined {
+    return declaredAuthorizationError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum RegistrationError
@@ -1790,6 +3447,30 @@ export enum RegistrationError
   INTERNAL_ERROR = 6,
   VALIDATION_FAILED = 7,
 }
+
+const declaredRegistrationError: ReadonlySet<unknown> = new Set<unknown>([RegistrationError.USERNAME_ALREADY_TAKEN, RegistrationError.USERNAME_RESERVED, RegistrationError.EMAIL_ALREADY_REGISTERED, RegistrationError.REGION_BANNED, RegistrationError.EMAIL_BANNED, RegistrationError.SSO_EMAILS_NOT_ALLOWED, RegistrationError.INTERNAL_ERROR, RegistrationError.VALIDATION_FAILED]);
+
+/**
+ * Open-enum helpers for {@link RegistrationError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_RegistrationError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: RegistrationError): boolean {
+    return declaredRegistrationError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: RegistrationError): u4 | undefined {
+    return declaredRegistrationError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export enum LockdownReason
@@ -1814,6 +3495,30 @@ export enum LockdownReason
   BAD_CLIENT = 17,
 }
 
+const declaredLockdownReason: ReadonlySet<unknown> = new Set<unknown>([LockdownReason.NONE, LockdownReason.UNDER_INVESTIGATION, LockdownReason.COMPROMISED_ACCOUNT, LockdownReason.PAYMENT_FRAUD, LockdownReason.MULTI_ACCOUNT_ABUSE, LockdownReason.DOXXING, LockdownReason.CSAM, LockdownReason.SPAM_SCAM_ACCOUNT, LockdownReason.INCITING_MOMENT, LockdownReason.NON_BINARY_PERSON, LockdownReason.TOS_VIOLATION, LockdownReason.LGBT_AGITATION, LockdownReason.DRUG_VIOLATION, LockdownReason.TERRORISM_AGITATION, LockdownReason.TERRORISM_CONTENT, LockdownReason.SELF_HARM_PROMOTION, LockdownReason.CHILD_ABUSE, LockdownReason.BAD_CLIENT]);
+
+/**
+ * Open-enum helpers for {@link LockdownReason}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_LockdownReason_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: LockdownReason): boolean {
+    return declaredLockdownReason.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: LockdownReason): u4 | undefined {
+    return declaredLockdownReason.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum LockdownSeverity
 {
@@ -1822,6 +3527,30 @@ export enum LockdownSeverity
   Critical = 2,
 }
 
+const declaredLockdownSeverity: ReadonlySet<unknown> = new Set<unknown>([LockdownSeverity.Low, LockdownSeverity.Middle, LockdownSeverity.Critical]);
+
+/**
+ * Open-enum helpers for {@link LockdownSeverity}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_LockdownSeverity_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: LockdownSeverity): boolean {
+    return declaredLockdownSeverity.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: LockdownSeverity): u4 | undefined {
+    return declaredLockdownSeverity.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum LookupError
 {
@@ -1829,6 +3558,30 @@ export enum LookupError
   NOT_FOUND = 1,
   NO_ANCHOR = 2,
 }
+
+const declaredLookupError: ReadonlySet<unknown> = new Set<unknown>([LookupError.NONE, LookupError.NOT_FOUND, LookupError.NO_ANCHOR]);
+
+/**
+ * Open-enum helpers for {@link LookupError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_LookupError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: LookupError): boolean {
+    return declaredLookupError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: LookupError): u2 | undefined {
+    return declaredLookupError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export interface RtcEndpoint {
@@ -1859,6 +3612,30 @@ export enum CallFailedError
   POOL_EMPTY_TRY_LATE = 4,
 }
 
+const declaredCallFailedError: ReadonlySet<unknown> = new Set<unknown>([CallFailedError.NONE, CallFailedError.CALLEE_OFFLINE, CallFailedError.INSUFFICIENT_BALANCE, CallFailedError.VERIFICATION_FAILED, CallFailedError.POOL_EMPTY_TRY_LATE]);
+
+/**
+ * Open-enum helpers for {@link CallFailedError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CallFailedError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CallFailedError): boolean {
+    return declaredCallFailedError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CallFailedError): u4 | undefined {
+    return declaredCallFailedError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
 
 export enum DialCheckFailReason
 {
@@ -1869,6 +3646,30 @@ export enum DialCheckFailReason
   INSUFFICIENT_POOL = 4,
   UNKNOWN_ERROR = 5,
 }
+
+const declaredDialCheckFailReason: ReadonlySet<unknown> = new Set<unknown>([DialCheckFailReason.COUNTRY_NOT_SUPPORT, DialCheckFailReason.INVALID_NUMBER_COUNTRY, DialCheckFailReason.INSUFFICIENT_BALANCE, DialCheckFailReason.NUMBER_NOT_AVAILABLE, DialCheckFailReason.INSUFFICIENT_POOL, DialCheckFailReason.UNKNOWN_ERROR]);
+
+/**
+ * Open-enum helpers for {@link DialCheckFailReason}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DialCheckFailReason_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DialCheckFailReason): boolean {
+    return declaredDialCheckFailReason.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DialCheckFailReason): u4 | undefined {
+    return declaredDialCheckFailReason.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 
@@ -1910,10 +3711,9 @@ export class FailedDeleteArchetype extends IDeleteArchetypeResult
 
 IonFormatterStorage.register("IDeleteArchetypeResult", {
   read(reader: CborReader): IDeleteArchetypeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDeleteArchetypeResult", 2);
     let value: IDeleteArchetypeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -1921,9 +3721,9 @@ IonFormatterStorage.register("IDeleteArchetypeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedDeleteArchetype>("FailedDeleteArchetype").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IDeleteArchetypeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IDeleteArchetypeResult): void {
@@ -1938,7 +3738,7 @@ IonFormatterStorage.register("IDeleteArchetypeResult", {
         IonFormatterStorage.get<FailedDeleteArchetype>("FailedDeleteArchetype").write(writer, value as FailedDeleteArchetype);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IDeleteArchetypeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -1946,7 +3746,7 @@ IonFormatterStorage.register("IDeleteArchetypeResult", {
 
 IonFormatterStorage.register("SuccessDeleteArchetype", {
   read(reader: CborReader): SuccessDeleteArchetype {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessDeleteArchetype");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessDeleteArchetype();
@@ -1960,7 +3760,7 @@ IonFormatterStorage.register("SuccessDeleteArchetype", {
 
 IonFormatterStorage.register("FailedDeleteArchetype", {
   read(reader: CborReader): FailedDeleteArchetype {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedDeleteArchetype");
     const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedDeleteArchetype(error);
@@ -2012,10 +3812,9 @@ export class FailedReorderArchetypes extends IReorderArchetypesResult
 
 IonFormatterStorage.register("IReorderArchetypesResult", {
   read(reader: CborReader): IReorderArchetypesResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IReorderArchetypesResult", 2);
     let value: IReorderArchetypesResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -2023,9 +3822,9 @@ IonFormatterStorage.register("IReorderArchetypesResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedReorderArchetypes>("FailedReorderArchetypes").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IReorderArchetypesResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IReorderArchetypesResult): void {
@@ -2040,7 +3839,7 @@ IonFormatterStorage.register("IReorderArchetypesResult", {
         IonFormatterStorage.get<FailedReorderArchetypes>("FailedReorderArchetypes").write(writer, value as FailedReorderArchetypes);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IReorderArchetypesResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -2048,7 +3847,7 @@ IonFormatterStorage.register("IReorderArchetypesResult", {
 
 IonFormatterStorage.register("SuccessReorderArchetypes", {
   read(reader: CborReader): SuccessReorderArchetypes {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessReorderArchetypes");
     const archetypes = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessReorderArchetypes(archetypes);
@@ -2062,7 +3861,7 @@ IonFormatterStorage.register("SuccessReorderArchetypes", {
 
 IonFormatterStorage.register("FailedReorderArchetypes", {
   read(reader: CborReader): FailedReorderArchetypes {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedReorderArchetypes");
     const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedReorderArchetypes(error);
@@ -2114,10 +3913,9 @@ export class FailedInstallBot extends IInstallBotResult
 
 IonFormatterStorage.register("IInstallBotResult", {
   read(reader: CborReader): IInstallBotResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInstallBotResult", 2);
     let value: IInstallBotResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -2125,9 +3923,9 @@ IonFormatterStorage.register("IInstallBotResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedInstallBot>("FailedInstallBot").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInstallBotResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInstallBotResult): void {
@@ -2142,7 +3940,7 @@ IonFormatterStorage.register("IInstallBotResult", {
         IonFormatterStorage.get<FailedInstallBot>("FailedInstallBot").write(writer, value as FailedInstallBot);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInstallBotResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -2150,7 +3948,7 @@ IonFormatterStorage.register("IInstallBotResult", {
 
 IonFormatterStorage.register("SuccessInstallBot", {
   read(reader: CborReader): SuccessInstallBot {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessInstallBot");
     const bot = IonFormatterStorage.get<InstalledBotInfo>('InstalledBotInfo').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessInstallBot(bot);
@@ -2164,7 +3962,7 @@ IonFormatterStorage.register("SuccessInstallBot", {
 
 IonFormatterStorage.register("FailedInstallBot", {
   read(reader: CborReader): FailedInstallBot {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedInstallBot");
     const error = IonFormatterStorage.get<InstallBotError>('InstallBotError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedInstallBot(error);
@@ -2216,10 +4014,9 @@ export class FailedUninstallBot extends IUninstallBotResult
 
 IonFormatterStorage.register("IUninstallBotResult", {
   read(reader: CborReader): IUninstallBotResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUninstallBotResult", 2);
     let value: IUninstallBotResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -2227,9 +4024,9 @@ IonFormatterStorage.register("IUninstallBotResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedUninstallBot>("FailedUninstallBot").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IUninstallBotResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IUninstallBotResult): void {
@@ -2244,7 +4041,7 @@ IonFormatterStorage.register("IUninstallBotResult", {
         IonFormatterStorage.get<FailedUninstallBot>("FailedUninstallBot").write(writer, value as FailedUninstallBot);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IUninstallBotResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -2252,7 +4049,7 @@ IonFormatterStorage.register("IUninstallBotResult", {
 
 IonFormatterStorage.register("SuccessUninstallBot", {
   read(reader: CborReader): SuccessUninstallBot {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessUninstallBot");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessUninstallBot();
@@ -2266,7 +4063,7 @@ IonFormatterStorage.register("SuccessUninstallBot", {
 
 IonFormatterStorage.register("FailedUninstallBot", {
   read(reader: CborReader): FailedUninstallBot {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUninstallBot");
     const error = IonFormatterStorage.get<UninstallBotError>('UninstallBotError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedUninstallBot(error);
@@ -2318,10 +4115,9 @@ export class FailedApproval extends IApproveBotEntitlementsResult
 
 IonFormatterStorage.register("IApproveBotEntitlementsResult", {
   read(reader: CborReader): IApproveBotEntitlementsResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IApproveBotEntitlementsResult", 2);
     let value: IApproveBotEntitlementsResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -2329,9 +4125,9 @@ IonFormatterStorage.register("IApproveBotEntitlementsResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedApproval>("FailedApproval").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IApproveBotEntitlementsResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IApproveBotEntitlementsResult): void {
@@ -2346,7 +4142,7 @@ IonFormatterStorage.register("IApproveBotEntitlementsResult", {
         IonFormatterStorage.get<FailedApproval>("FailedApproval").write(writer, value as FailedApproval);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IApproveBotEntitlementsResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -2354,7 +4150,7 @@ IonFormatterStorage.register("IApproveBotEntitlementsResult", {
 
 IonFormatterStorage.register("SuccessApproval", {
   read(reader: CborReader): SuccessApproval {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessApproval");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessApproval();
@@ -2368,7 +4164,7 @@ IonFormatterStorage.register("SuccessApproval", {
 
 IonFormatterStorage.register("FailedApproval", {
   read(reader: CborReader): FailedApproval {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedApproval");
     const error = IonFormatterStorage.get<ApproveBotEntitlementsError>('ApproveBotEntitlementsError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedApproval(error);
@@ -2655,10 +4451,9 @@ export class MessageEntityLinkPreview extends IMessageEntity
 
 IonFormatterStorage.register("IMessageEntity", {
   read(reader: CborReader): IMessageEntity {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMessageEntity", 23);
     let value: IMessageEntity = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -2708,9 +4503,9 @@ IonFormatterStorage.register("IMessageEntity", {
     else if (unionIndex == 22)
       value = IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IMessageEntity", unionIndex, 23);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IMessageEntity): void {
@@ -2788,7 +4583,7 @@ IonFormatterStorage.register("IMessageEntity", {
         IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").write(writer, value as MessageEntityLinkPreview);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IMessageEntity' has no case ${value.UnionIndex}; this revision declares 23 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -2796,7 +4591,7 @@ IonFormatterStorage.register("IMessageEntity", {
 
 IonFormatterStorage.register("MessageEntityBold", {
   read(reader: CborReader): MessageEntityBold {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityBold");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2816,7 +4611,7 @@ IonFormatterStorage.register("MessageEntityBold", {
 
 IonFormatterStorage.register("MessageEntityItalic", {
   read(reader: CborReader): MessageEntityItalic {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityItalic");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2836,7 +4631,7 @@ IonFormatterStorage.register("MessageEntityItalic", {
 
 IonFormatterStorage.register("MessageEntityStrikethrough", {
   read(reader: CborReader): MessageEntityStrikethrough {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityStrikethrough");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2856,7 +4651,7 @@ IonFormatterStorage.register("MessageEntityStrikethrough", {
 
 IonFormatterStorage.register("MessageEntitySpoiler", {
   read(reader: CborReader): MessageEntitySpoiler {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntitySpoiler");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2876,7 +4671,7 @@ IonFormatterStorage.register("MessageEntitySpoiler", {
 
 IonFormatterStorage.register("MessageEntityMonospace", {
   read(reader: CborReader): MessageEntityMonospace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityMonospace");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2896,7 +4691,7 @@ IonFormatterStorage.register("MessageEntityMonospace", {
 
 IonFormatterStorage.register("MessageEntityFraction", {
   read(reader: CborReader): MessageEntityFraction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "MessageEntityFraction");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2920,7 +4715,7 @@ IonFormatterStorage.register("MessageEntityFraction", {
 
 IonFormatterStorage.register("MessageEntityOrdinal", {
   read(reader: CborReader): MessageEntityOrdinal {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityOrdinal");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2940,7 +4735,7 @@ IonFormatterStorage.register("MessageEntityOrdinal", {
 
 IonFormatterStorage.register("MessageEntityCapitalized", {
   read(reader: CborReader): MessageEntityCapitalized {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityCapitalized");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2960,7 +4755,7 @@ IonFormatterStorage.register("MessageEntityCapitalized", {
 
 IonFormatterStorage.register("MessageEntityMention", {
   read(reader: CborReader): MessageEntityMention {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityMention");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -2982,7 +4777,7 @@ IonFormatterStorage.register("MessageEntityMention", {
 
 IonFormatterStorage.register("MessageEntityMentionEveryone", {
   read(reader: CborReader): MessageEntityMentionEveryone {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageEntityMentionEveryone");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3002,7 +4797,7 @@ IonFormatterStorage.register("MessageEntityMentionEveryone", {
 
 IonFormatterStorage.register("MessageEntityMentionRole", {
   read(reader: CborReader): MessageEntityMentionRole {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityMentionRole");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3024,7 +4819,7 @@ IonFormatterStorage.register("MessageEntityMentionRole", {
 
 IonFormatterStorage.register("MessageEntityEmail", {
   read(reader: CborReader): MessageEntityEmail {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityEmail");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3046,7 +4841,7 @@ IonFormatterStorage.register("MessageEntityEmail", {
 
 IonFormatterStorage.register("MessageEntityHashTag", {
   read(reader: CborReader): MessageEntityHashTag {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityHashTag");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3068,7 +4863,7 @@ IonFormatterStorage.register("MessageEntityHashTag", {
 
 IonFormatterStorage.register("MessageEntityQuote", {
   read(reader: CborReader): MessageEntityQuote {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityQuote");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3090,7 +4885,7 @@ IonFormatterStorage.register("MessageEntityQuote", {
 
 IonFormatterStorage.register("MessageEntityUnderline", {
   read(reader: CborReader): MessageEntityUnderline {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEntityUnderline");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3112,7 +4907,7 @@ IonFormatterStorage.register("MessageEntityUnderline", {
 
 IonFormatterStorage.register("MessageEntityUrl", {
   read(reader: CborReader): MessageEntityUrl {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "MessageEntityUrl");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3136,7 +4931,7 @@ IonFormatterStorage.register("MessageEntityUrl", {
 
 IonFormatterStorage.register("MessageEntitySystemCallStarted", {
   read(reader: CborReader): MessageEntitySystemCallStarted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "MessageEntitySystemCallStarted");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3160,7 +4955,7 @@ IonFormatterStorage.register("MessageEntitySystemCallStarted", {
 
 IonFormatterStorage.register("MessageEntitySystemCallEnded", {
   read(reader: CborReader): MessageEntitySystemCallEnded {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "MessageEntitySystemCallEnded");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3186,7 +4981,7 @@ IonFormatterStorage.register("MessageEntitySystemCallEnded", {
 
 IonFormatterStorage.register("MessageEntitySystemCallTimeout", {
   read(reader: CborReader): MessageEntitySystemCallTimeout {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "MessageEntitySystemCallTimeout");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3210,7 +5005,7 @@ IonFormatterStorage.register("MessageEntitySystemCallTimeout", {
 
 IonFormatterStorage.register("MessageEntitySystemUserJoined", {
   read(reader: CborReader): MessageEntitySystemUserJoined {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "MessageEntitySystemUserJoined");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3234,7 +5029,7 @@ IonFormatterStorage.register("MessageEntitySystemUserJoined", {
 
 IonFormatterStorage.register("MessageEntityAttachment", {
   read(reader: CborReader): MessageEntityAttachment {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "MessageEntityAttachment");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3270,7 +5065,7 @@ IonFormatterStorage.register("MessageEntityAttachment", {
 
 IonFormatterStorage.register("MessageEntityGif", {
   read(reader: CborReader): MessageEntityGif {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "MessageEntityGif");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3302,7 +5097,7 @@ IonFormatterStorage.register("MessageEntityGif", {
 
 IonFormatterStorage.register("MessageEntityLinkPreview", {
   read(reader: CborReader): MessageEntityLinkPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "MessageEntityLinkPreview");
     const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
     const offset = IonFormatterStorage.get<i4>('i4').read(reader);
     const length = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -3372,10 +5167,9 @@ export class FailedUpdateChannel extends IUpdateChannelResult
 
 IonFormatterStorage.register("IUpdateChannelResult", {
   read(reader: CborReader): IUpdateChannelResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUpdateChannelResult", 2);
     let value: IUpdateChannelResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3383,9 +5177,9 @@ IonFormatterStorage.register("IUpdateChannelResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedUpdateChannel>("FailedUpdateChannel").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IUpdateChannelResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IUpdateChannelResult): void {
@@ -3400,7 +5194,7 @@ IonFormatterStorage.register("IUpdateChannelResult", {
         IonFormatterStorage.get<FailedUpdateChannel>("FailedUpdateChannel").write(writer, value as FailedUpdateChannel);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IUpdateChannelResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3408,7 +5202,7 @@ IonFormatterStorage.register("IUpdateChannelResult", {
 
 IonFormatterStorage.register("SuccessUpdateChannel", {
   read(reader: CborReader): SuccessUpdateChannel {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessUpdateChannel");
     const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessUpdateChannel(channel);
@@ -3422,7 +5216,7 @@ IonFormatterStorage.register("SuccessUpdateChannel", {
 
 IonFormatterStorage.register("FailedUpdateChannel", {
   read(reader: CborReader): FailedUpdateChannel {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUpdateChannel");
     const error = IonFormatterStorage.get<UpdateChannelError>('UpdateChannelError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedUpdateChannel(error);
@@ -3474,10 +5268,9 @@ export class FailedCreateVoiceInvite extends ICreateVoiceInviteResult
 
 IonFormatterStorage.register("ICreateVoiceInviteResult", {
   read(reader: CborReader): ICreateVoiceInviteResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateVoiceInviteResult", 2);
     let value: ICreateVoiceInviteResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3485,9 +5278,9 @@ IonFormatterStorage.register("ICreateVoiceInviteResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCreateVoiceInvite>("FailedCreateVoiceInvite").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICreateVoiceInviteResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICreateVoiceInviteResult): void {
@@ -3502,7 +5295,7 @@ IonFormatterStorage.register("ICreateVoiceInviteResult", {
         IonFormatterStorage.get<FailedCreateVoiceInvite>("FailedCreateVoiceInvite").write(writer, value as FailedCreateVoiceInvite);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICreateVoiceInviteResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3510,7 +5303,7 @@ IonFormatterStorage.register("ICreateVoiceInviteResult", {
 
 IonFormatterStorage.register("SuccessCreateVoiceInvite", {
   read(reader: CborReader): SuccessCreateVoiceInvite {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessCreateVoiceInvite");
     const code = IonFormatterStorage.get<InviteCode>('InviteCode').read(reader);
     const url = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -3526,7 +5319,7 @@ IonFormatterStorage.register("SuccessCreateVoiceInvite", {
 
 IonFormatterStorage.register("FailedCreateVoiceInvite", {
   read(reader: CborReader): FailedCreateVoiceInvite {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateVoiceInvite");
     const error = IonFormatterStorage.get<VoiceInviteError>('VoiceInviteError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCreateVoiceInvite(error);
@@ -3578,10 +5371,9 @@ export class FailedDeleteMessage extends IDeleteMessageResult
 
 IonFormatterStorage.register("IDeleteMessageResult", {
   read(reader: CborReader): IDeleteMessageResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDeleteMessageResult", 2);
     let value: IDeleteMessageResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3589,9 +5381,9 @@ IonFormatterStorage.register("IDeleteMessageResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedDeleteMessage>("FailedDeleteMessage").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IDeleteMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IDeleteMessageResult): void {
@@ -3606,7 +5398,7 @@ IonFormatterStorage.register("IDeleteMessageResult", {
         IonFormatterStorage.get<FailedDeleteMessage>("FailedDeleteMessage").write(writer, value as FailedDeleteMessage);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IDeleteMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3614,7 +5406,7 @@ IonFormatterStorage.register("IDeleteMessageResult", {
 
 IonFormatterStorage.register("SuccessDeleteMessage", {
   read(reader: CborReader): SuccessDeleteMessage {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessDeleteMessage");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessDeleteMessage();
@@ -3628,7 +5420,7 @@ IonFormatterStorage.register("SuccessDeleteMessage", {
 
 IonFormatterStorage.register("FailedDeleteMessage", {
   read(reader: CborReader): FailedDeleteMessage {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedDeleteMessage");
     const error = IonFormatterStorage.get<DeleteMessageError>('DeleteMessageError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedDeleteMessage(error);
@@ -3680,10 +5472,9 @@ export class FailedInvokeSlashCommand extends IInvokeSlashCommandResult
 
 IonFormatterStorage.register("IInvokeSlashCommandResult", {
   read(reader: CborReader): IInvokeSlashCommandResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInvokeSlashCommandResult", 2);
     let value: IInvokeSlashCommandResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3691,9 +5482,9 @@ IonFormatterStorage.register("IInvokeSlashCommandResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedInvokeSlashCommand>("FailedInvokeSlashCommand").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInvokeSlashCommandResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInvokeSlashCommandResult): void {
@@ -3708,7 +5499,7 @@ IonFormatterStorage.register("IInvokeSlashCommandResult", {
         IonFormatterStorage.get<FailedInvokeSlashCommand>("FailedInvokeSlashCommand").write(writer, value as FailedInvokeSlashCommand);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInvokeSlashCommandResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3716,7 +5507,7 @@ IonFormatterStorage.register("IInvokeSlashCommandResult", {
 
 IonFormatterStorage.register("SuccessInvokeSlashCommand", {
   read(reader: CborReader): SuccessInvokeSlashCommand {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessInvokeSlashCommand");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessInvokeSlashCommand();
@@ -3730,7 +5521,7 @@ IonFormatterStorage.register("SuccessInvokeSlashCommand", {
 
 IonFormatterStorage.register("FailedInvokeSlashCommand", {
   read(reader: CborReader): FailedInvokeSlashCommand {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedInvokeSlashCommand");
     const error = IonFormatterStorage.get<InvokeSlashCommandError>('InvokeSlashCommandError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedInvokeSlashCommand(error);
@@ -3782,10 +5573,9 @@ export class FailedInteractWithControl extends IInteractWithControlResult
 
 IonFormatterStorage.register("IInteractWithControlResult", {
   read(reader: CborReader): IInteractWithControlResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInteractWithControlResult", 2);
     let value: IInteractWithControlResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3793,9 +5583,9 @@ IonFormatterStorage.register("IInteractWithControlResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedInteractWithControl>("FailedInteractWithControl").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInteractWithControlResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInteractWithControlResult): void {
@@ -3810,7 +5600,7 @@ IonFormatterStorage.register("IInteractWithControlResult", {
         IonFormatterStorage.get<FailedInteractWithControl>("FailedInteractWithControl").write(writer, value as FailedInteractWithControl);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInteractWithControlResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3818,7 +5608,7 @@ IonFormatterStorage.register("IInteractWithControlResult", {
 
 IonFormatterStorage.register("SuccessInteractWithControl", {
   read(reader: CborReader): SuccessInteractWithControl {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessInteractWithControl");
     const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessInteractWithControl(interactionId);
@@ -3832,7 +5622,7 @@ IonFormatterStorage.register("SuccessInteractWithControl", {
 
 IonFormatterStorage.register("FailedInteractWithControl", {
   read(reader: CborReader): FailedInteractWithControl {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedInteractWithControl");
     const error = IonFormatterStorage.get<InteractWithControlError>('InteractWithControlError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedInteractWithControl(error);
@@ -3884,10 +5674,9 @@ export class FailedInteractWithSelect extends IInteractWithSelectResult
 
 IonFormatterStorage.register("IInteractWithSelectResult", {
   read(reader: CborReader): IInteractWithSelectResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInteractWithSelectResult", 2);
     let value: IInteractWithSelectResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3895,9 +5684,9 @@ IonFormatterStorage.register("IInteractWithSelectResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedInteractWithSelect>("FailedInteractWithSelect").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInteractWithSelectResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInteractWithSelectResult): void {
@@ -3912,7 +5701,7 @@ IonFormatterStorage.register("IInteractWithSelectResult", {
         IonFormatterStorage.get<FailedInteractWithSelect>("FailedInteractWithSelect").write(writer, value as FailedInteractWithSelect);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInteractWithSelectResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -3920,7 +5709,7 @@ IonFormatterStorage.register("IInteractWithSelectResult", {
 
 IonFormatterStorage.register("SuccessInteractWithSelect", {
   read(reader: CborReader): SuccessInteractWithSelect {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessInteractWithSelect");
     const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessInteractWithSelect(interactionId);
@@ -3934,7 +5723,7 @@ IonFormatterStorage.register("SuccessInteractWithSelect", {
 
 IonFormatterStorage.register("FailedInteractWithSelect", {
   read(reader: CborReader): FailedInteractWithSelect {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedInteractWithSelect");
     const error = IonFormatterStorage.get<InteractWithSelectError>('InteractWithSelectError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedInteractWithSelect(error);
@@ -3986,10 +5775,9 @@ export class FailedSubmitModal extends ISubmitModalResult
 
 IonFormatterStorage.register("ISubmitModalResult", {
   read(reader: CborReader): ISubmitModalResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISubmitModalResult", 2);
     let value: ISubmitModalResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -3997,9 +5785,9 @@ IonFormatterStorage.register("ISubmitModalResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedSubmitModal>("FailedSubmitModal").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ISubmitModalResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ISubmitModalResult): void {
@@ -4014,7 +5802,7 @@ IonFormatterStorage.register("ISubmitModalResult", {
         IonFormatterStorage.get<FailedSubmitModal>("FailedSubmitModal").write(writer, value as FailedSubmitModal);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ISubmitModalResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4022,7 +5810,7 @@ IonFormatterStorage.register("ISubmitModalResult", {
 
 IonFormatterStorage.register("SuccessSubmitModal", {
   read(reader: CborReader): SuccessSubmitModal {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessSubmitModal");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessSubmitModal();
@@ -4036,7 +5824,7 @@ IonFormatterStorage.register("SuccessSubmitModal", {
 
 IonFormatterStorage.register("FailedSubmitModal", {
   read(reader: CborReader): FailedSubmitModal {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSubmitModal");
     const error = IonFormatterStorage.get<SubmitModalError>('SubmitModalError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedSubmitModal(error);
@@ -4088,10 +5876,9 @@ export class FailedAddReaction extends IAddReactionResult
 
 IonFormatterStorage.register("IAddReactionResult", {
   read(reader: CborReader): IAddReactionResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IAddReactionResult", 2);
     let value: IAddReactionResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -4099,9 +5886,9 @@ IonFormatterStorage.register("IAddReactionResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedAddReaction>("FailedAddReaction").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IAddReactionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IAddReactionResult): void {
@@ -4116,7 +5903,7 @@ IonFormatterStorage.register("IAddReactionResult", {
         IonFormatterStorage.get<FailedAddReaction>("FailedAddReaction").write(writer, value as FailedAddReaction);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IAddReactionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4124,7 +5911,7 @@ IonFormatterStorage.register("IAddReactionResult", {
 
 IonFormatterStorage.register("SuccessAddReaction", {
   read(reader: CborReader): SuccessAddReaction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessAddReaction");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessAddReaction();
@@ -4138,7 +5925,7 @@ IonFormatterStorage.register("SuccessAddReaction", {
 
 IonFormatterStorage.register("FailedAddReaction", {
   read(reader: CborReader): FailedAddReaction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedAddReaction");
     const error = IonFormatterStorage.get<AddReactionError>('AddReactionError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedAddReaction(error);
@@ -4190,10 +5977,9 @@ export class FailedRemoveReaction extends IRemoveReactionResult
 
 IonFormatterStorage.register("IRemoveReactionResult", {
   read(reader: CborReader): IRemoveReactionResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRemoveReactionResult", 2);
     let value: IRemoveReactionResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -4201,9 +5987,9 @@ IonFormatterStorage.register("IRemoveReactionResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRemoveReaction>("FailedRemoveReaction").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRemoveReactionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRemoveReactionResult): void {
@@ -4218,7 +6004,7 @@ IonFormatterStorage.register("IRemoveReactionResult", {
         IonFormatterStorage.get<FailedRemoveReaction>("FailedRemoveReaction").write(writer, value as FailedRemoveReaction);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRemoveReactionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4226,7 +6012,7 @@ IonFormatterStorage.register("IRemoveReactionResult", {
 
 IonFormatterStorage.register("SuccessRemoveReaction", {
   read(reader: CborReader): SuccessRemoveReaction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRemoveReaction");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRemoveReaction();
@@ -4240,7 +6026,7 @@ IonFormatterStorage.register("SuccessRemoveReaction", {
 
 IonFormatterStorage.register("FailedRemoveReaction", {
   read(reader: CborReader): FailedRemoveReaction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRemoveReaction");
     const error = IonFormatterStorage.get<RemoveReactionError>('RemoveReactionError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRemoveReaction(error);
@@ -4292,10 +6078,9 @@ export class FailedJoinVoice extends IInterlinkResult
 
 IonFormatterStorage.register("IInterlinkResult", {
   read(reader: CborReader): IInterlinkResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInterlinkResult", 2);
     let value: IInterlinkResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -4303,9 +6088,9 @@ IonFormatterStorage.register("IInterlinkResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedJoinVoice>("FailedJoinVoice").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInterlinkResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInterlinkResult): void {
@@ -4320,7 +6105,7 @@ IonFormatterStorage.register("IInterlinkResult", {
         IonFormatterStorage.get<FailedJoinVoice>("FailedJoinVoice").write(writer, value as FailedJoinVoice);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInterlinkResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4328,7 +6113,7 @@ IonFormatterStorage.register("IInterlinkResult", {
 
 IonFormatterStorage.register("SuccessJoinVoice", {
   read(reader: CborReader): SuccessJoinVoice {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessJoinVoice");
     const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
     const token = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -4344,7 +6129,7 @@ IonFormatterStorage.register("SuccessJoinVoice", {
 
 IonFormatterStorage.register("FailedJoinVoice", {
   read(reader: CborReader): FailedJoinVoice {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedJoinVoice");
     const error = IonFormatterStorage.get<JoinToChannelError>('JoinToChannelError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedJoinVoice(error);
@@ -4396,10 +6181,9 @@ export class FailedStartStream extends IInterlinkStreamResult
 
 IonFormatterStorage.register("IInterlinkStreamResult", {
   read(reader: CborReader): IInterlinkStreamResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IInterlinkStreamResult", 2);
     let value: IInterlinkStreamResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -4407,9 +6191,9 @@ IonFormatterStorage.register("IInterlinkStreamResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedStartStream>("FailedStartStream").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IInterlinkStreamResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IInterlinkStreamResult): void {
@@ -4424,7 +6208,7 @@ IonFormatterStorage.register("IInterlinkStreamResult", {
         IonFormatterStorage.get<FailedStartStream>("FailedStartStream").write(writer, value as FailedStartStream);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IInterlinkStreamResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4432,7 +6216,7 @@ IonFormatterStorage.register("IInterlinkStreamResult", {
 
 IonFormatterStorage.register("SuccessStartStream", {
   read(reader: CborReader): SuccessStartStream {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessStartStream");
     const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const whipEndpoint = IonFormatterStorage.get<string>('string').read(reader);
@@ -4450,7 +6234,7 @@ IonFormatterStorage.register("SuccessStartStream", {
 
 IonFormatterStorage.register("FailedStartStream", {
   read(reader: CborReader): FailedStartStream {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedStartStream");
     const error = IonFormatterStorage.get<StartStreamError>('StartStreamError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedStartStream(error);
@@ -4502,10 +6286,9 @@ export class DrawingDenied extends IStartDrawingResult
 
 IonFormatterStorage.register("IStartDrawingResult", {
   read(reader: CborReader): IStartDrawingResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IStartDrawingResult", 2);
     let value: IStartDrawingResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -4513,9 +6296,9 @@ IonFormatterStorage.register("IStartDrawingResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<DrawingDenied>("DrawingDenied").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IStartDrawingResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IStartDrawingResult): void {
@@ -4530,7 +6313,7 @@ IonFormatterStorage.register("IStartDrawingResult", {
         IonFormatterStorage.get<DrawingDenied>("DrawingDenied").write(writer, value as DrawingDenied);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IStartDrawingResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -4538,7 +6321,7 @@ IonFormatterStorage.register("IStartDrawingResult", {
 
 IonFormatterStorage.register("DrawingStarted", {
   read(reader: CborReader): DrawingStarted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "DrawingStarted");
     const session = IonFormatterStorage.get<DrawingSession>('DrawingSession').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new DrawingStarted(session);
@@ -4552,7 +6335,7 @@ IonFormatterStorage.register("DrawingStarted", {
 
 IonFormatterStorage.register("DrawingDenied", {
   read(reader: CborReader): DrawingDenied {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "DrawingDenied");
     const error = IonFormatterStorage.get<DrawingDenyReason>('DrawingDenyReason').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new DrawingDenied(error);
@@ -5297,10 +7080,9 @@ export class MessageUpdated extends IArgonEvent
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 65);
     let value: IArgonEvent = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -5434,9 +7216,9 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (unionIndex == 64)
       value = IonFormatterStorage.get<MessageUpdated>("MessageUpdated").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 65);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IArgonEvent): void {
@@ -5640,7 +7422,7 @@ IonFormatterStorage.register("IArgonEvent", {
         IonFormatterStorage.get<MessageUpdated>("MessageUpdated").write(writer, value as MessageUpdated);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 65 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -5648,7 +7430,7 @@ IonFormatterStorage.register("IArgonEvent", {
 
 IonFormatterStorage.register("ArchetypeChanged", {
   read(reader: CborReader): ArchetypeChanged {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ArchetypeChanged");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5664,7 +7446,7 @@ IonFormatterStorage.register("ArchetypeChanged", {
 
 IonFormatterStorage.register("ArchetypeCreated", {
   read(reader: CborReader): ArchetypeCreated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ArchetypeCreated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5680,7 +7462,7 @@ IonFormatterStorage.register("ArchetypeCreated", {
 
 IonFormatterStorage.register("ChannelCreated", {
   read(reader: CborReader): ChannelCreated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChannelCreated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5696,7 +7478,7 @@ IonFormatterStorage.register("ChannelCreated", {
 
 IonFormatterStorage.register("ChannelModified", {
   read(reader: CborReader): ChannelModified {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ChannelModified");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const bag = IonFormatterStorage.readArray<string>(reader, 'string');
@@ -5714,7 +7496,7 @@ IonFormatterStorage.register("ChannelModified", {
 
 IonFormatterStorage.register("ChannelRemoved", {
   read(reader: CborReader): ChannelRemoved {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChannelRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5730,7 +7512,7 @@ IonFormatterStorage.register("ChannelRemoved", {
 
 IonFormatterStorage.register("UserTypingEvent", {
   read(reader: CborReader): UserTypingEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "UserTypingEvent");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5750,7 +7532,7 @@ IonFormatterStorage.register("UserTypingEvent", {
 
 IonFormatterStorage.register("UserStopTypingEvent", {
   read(reader: CborReader): UserStopTypingEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserStopTypingEvent");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5768,7 +7550,7 @@ IonFormatterStorage.register("UserStopTypingEvent", {
 
 IonFormatterStorage.register("JoinedToChannelUser", {
   read(reader: CborReader): JoinedToChannelUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "JoinedToChannelUser");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5786,7 +7568,7 @@ IonFormatterStorage.register("JoinedToChannelUser", {
 
 IonFormatterStorage.register("JoinToServerUser", {
   read(reader: CborReader): JoinToServerUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "JoinToServerUser");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5802,7 +7584,7 @@ IonFormatterStorage.register("JoinToServerUser", {
 
 IonFormatterStorage.register("LeavedFromChannelUser", {
   read(reader: CborReader): LeavedFromChannelUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "LeavedFromChannelUser");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5820,7 +7602,7 @@ IonFormatterStorage.register("LeavedFromChannelUser", {
 
 IonFormatterStorage.register("UserUpdated", {
   read(reader: CborReader): UserUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "UserUpdated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const dto = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5836,7 +7618,7 @@ IonFormatterStorage.register("UserUpdated", {
 
 IonFormatterStorage.register("OnUserPresenceActivityChanged", {
   read(reader: CborReader): OnUserPresenceActivityChanged {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "OnUserPresenceActivityChanged");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const presence = IonFormatterStorage.get<UserActivityPresence>('UserActivityPresence').read(reader);
@@ -5854,7 +7636,7 @@ IonFormatterStorage.register("OnUserPresenceActivityChanged", {
 
 IonFormatterStorage.register("OnUserPresenceActivityRemoved", {
   read(reader: CborReader): OnUserPresenceActivityRemoved {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "OnUserPresenceActivityRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5870,7 +7652,7 @@ IonFormatterStorage.register("OnUserPresenceActivityRemoved", {
 
 IonFormatterStorage.register("UserChangedStatus", {
   read(reader: CborReader): UserChangedStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "UserChangedStatus");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
@@ -5890,7 +7672,7 @@ IonFormatterStorage.register("UserChangedStatus", {
 
 IonFormatterStorage.register("MessageSent", {
   read(reader: CborReader): MessageSent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "MessageSent");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5906,7 +7688,7 @@ IonFormatterStorage.register("MessageSent", {
 
 IonFormatterStorage.register("MessageEdited", {
   read(reader: CborReader): MessageEdited {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MessageEdited");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -5928,7 +7710,7 @@ IonFormatterStorage.register("MessageEdited", {
 
 IonFormatterStorage.register("ServerModified", {
   read(reader: CborReader): ServerModified {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ServerModified");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const bag = IonFormatterStorage.readArray<string>(reader, 'string');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5944,7 +7726,7 @@ IonFormatterStorage.register("ServerModified", {
 
 IonFormatterStorage.register("RecordStarted", {
   read(reader: CborReader): RecordStarted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "RecordStarted");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5962,7 +7744,7 @@ IonFormatterStorage.register("RecordStarted", {
 
 IonFormatterStorage.register("RecordEnded", {
   read(reader: CborReader): RecordEnded {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RecordEnded");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -5978,7 +7760,7 @@ IonFormatterStorage.register("RecordEnded", {
 
 IonFormatterStorage.register("CallIncoming", {
   read(reader: CborReader): CallIncoming {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CallIncoming");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -5996,7 +7778,7 @@ IonFormatterStorage.register("CallIncoming", {
 
 IonFormatterStorage.register("CallFinished", {
   read(reader: CborReader): CallFinished {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CallFinished");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6012,7 +7794,7 @@ IonFormatterStorage.register("CallFinished", {
 
 IonFormatterStorage.register("CallAccepted", {
   read(reader: CborReader): CallAccepted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CallAccepted");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -6030,7 +7812,7 @@ IonFormatterStorage.register("CallAccepted", {
 
 IonFormatterStorage.register("CallRejected", {
   read(reader: CborReader): CallRejected {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CallRejected");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     const fromId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -6048,7 +7830,7 @@ IonFormatterStorage.register("CallRejected", {
 
 IonFormatterStorage.register("FriendRequestReceivedEvent", {
   read(reader: CborReader): FriendRequestReceivedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FriendRequestReceivedEvent");
     const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
     const requestDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6064,7 +7846,7 @@ IonFormatterStorage.register("FriendRequestReceivedEvent", {
 
 IonFormatterStorage.register("FriendRequestSentEvent", {
   read(reader: CborReader): FriendRequestSentEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FriendRequestSentEvent");
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     const requestDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6080,7 +7862,7 @@ IonFormatterStorage.register("FriendRequestSentEvent", {
 
 IonFormatterStorage.register("FriendRequestAcceptedEvent", {
   read(reader: CborReader): FriendRequestAcceptedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FriendRequestAcceptedEvent");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const friendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6096,7 +7878,7 @@ IonFormatterStorage.register("FriendRequestAcceptedEvent", {
 
 IonFormatterStorage.register("FriendRequestDeclinedEvent", {
   read(reader: CborReader): FriendRequestDeclinedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FriendRequestDeclinedEvent");
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FriendRequestDeclinedEvent(targetId);
@@ -6110,7 +7892,7 @@ IonFormatterStorage.register("FriendRequestDeclinedEvent", {
 
 IonFormatterStorage.register("FriendRequestCanceledEvent", {
   read(reader: CborReader): FriendRequestCanceledEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FriendRequestCanceledEvent");
     const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FriendRequestCanceledEvent(requesterId);
@@ -6124,7 +7906,7 @@ IonFormatterStorage.register("FriendRequestCanceledEvent", {
 
 IonFormatterStorage.register("FriendshipRemovedEvent", {
   read(reader: CborReader): FriendshipRemovedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FriendshipRemovedEvent");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FriendshipRemovedEvent(userId);
@@ -6138,7 +7920,7 @@ IonFormatterStorage.register("FriendshipRemovedEvent", {
 
 IonFormatterStorage.register("UserBlockedEvent", {
   read(reader: CborReader): UserBlockedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "UserBlockedEvent");
     const blockId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new UserBlockedEvent(blockId);
@@ -6152,7 +7934,7 @@ IonFormatterStorage.register("UserBlockedEvent", {
 
 IonFormatterStorage.register("UserUnblockedEvent", {
   read(reader: CborReader): UserUnblockedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "UserUnblockedEvent");
     const blockId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new UserUnblockedEvent(blockId);
@@ -6166,7 +7948,7 @@ IonFormatterStorage.register("UserUnblockedEvent", {
 
 IonFormatterStorage.register("RecentChatUpdatedEvent", {
   read(reader: CborReader): RecentChatUpdatedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "RecentChatUpdatedEvent");
     const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const lastMessage = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -6186,7 +7968,7 @@ IonFormatterStorage.register("RecentChatUpdatedEvent", {
 
 IonFormatterStorage.register("ChatPinnedEvent", {
   read(reader: CborReader): ChatPinnedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChatPinnedEvent");
     const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const pinnedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6202,7 +7984,7 @@ IonFormatterStorage.register("ChatPinnedEvent", {
 
 IonFormatterStorage.register("ChatUnpinnedEvent", {
   read(reader: CborReader): ChatUnpinnedEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "ChatUnpinnedEvent");
     const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new ChatUnpinnedEvent(peerId);
@@ -6216,7 +7998,7 @@ IonFormatterStorage.register("ChatUnpinnedEvent", {
 
 IonFormatterStorage.register("ChatReadEvent", {
   read(reader: CborReader): ChatReadEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "ChatReadEvent");
     const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new ChatReadEvent(peerId);
@@ -6230,7 +8012,7 @@ IonFormatterStorage.register("ChatReadEvent", {
 
 IonFormatterStorage.register("ChannelGroupCreated", {
   read(reader: CborReader): ChannelGroupCreated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChannelGroupCreated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<ChannelGroup>('ChannelGroup').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6246,7 +8028,7 @@ IonFormatterStorage.register("ChannelGroupCreated", {
 
 IonFormatterStorage.register("ChannelGroupModified", {
   read(reader: CborReader): ChannelGroupModified {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ChannelGroupModified");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.get<ChannelGroup>('ChannelGroup').read(reader);
@@ -6264,7 +8046,7 @@ IonFormatterStorage.register("ChannelGroupModified", {
 
 IonFormatterStorage.register("ChannelGroupRemoved", {
   read(reader: CborReader): ChannelGroupRemoved {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChannelGroupRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6280,7 +8062,7 @@ IonFormatterStorage.register("ChannelGroupRemoved", {
 
 IonFormatterStorage.register("ChannelGroupReordered", {
   read(reader: CborReader): ChannelGroupReordered {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ChannelGroupReordered");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
     const fractionalIndex = IonFormatterStorage.get<string>('string').read(reader);
@@ -6298,7 +8080,7 @@ IonFormatterStorage.register("ChannelGroupReordered", {
 
 IonFormatterStorage.register("ChannelReordered", {
   read(reader: CborReader): ChannelReordered {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ChannelReordered");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const targetGroupId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -6318,7 +8100,7 @@ IonFormatterStorage.register("ChannelReordered", {
 
 IonFormatterStorage.register("DirectMessageSent", {
   read(reader: CborReader): DirectMessageSent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "DirectMessageSent");
     const senderId = IonFormatterStorage.get<guid>('guid').read(reader);
     const receiverId = IonFormatterStorage.get<guid>('guid').read(reader);
     const message = IonFormatterStorage.get<DirectMessage>('DirectMessage').read(reader);
@@ -6336,7 +8118,7 @@ IonFormatterStorage.register("DirectMessageSent", {
 
 IonFormatterStorage.register("ReadStateUpdated", {
   read(reader: CborReader): ReadStateUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "ReadStateUpdated");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -6358,7 +8140,7 @@ IonFormatterStorage.register("ReadStateUpdated", {
 
 IonFormatterStorage.register("SystemNotificationReceived", {
   read(reader: CborReader): SystemNotificationReceived {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SystemNotificationReceived");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const notification = IonFormatterStorage.get<SystemNotificationDto>('SystemNotificationDto').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6374,7 +8156,7 @@ IonFormatterStorage.register("SystemNotificationReceived", {
 
 IonFormatterStorage.register("MuteSettingsChanged", {
   read(reader: CborReader): MuteSettingsChanged {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "MuteSettingsChanged");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     const muteLevel = IonFormatterStorage.get<MuteLevelType>('MuteLevelType').read(reader);
@@ -6392,7 +8174,7 @@ IonFormatterStorage.register("MuteSettingsChanged", {
 
 IonFormatterStorage.register("BatchMentionOccurred", {
   read(reader: CborReader): BatchMentionOccurred {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "BatchMentionOccurred");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const mentionType = IonFormatterStorage.get<MentionTargetType>('MentionTargetType').read(reader);
@@ -6410,7 +8192,7 @@ IonFormatterStorage.register("BatchMentionOccurred", {
 
 IonFormatterStorage.register("UserSecurityDetailsUpdated", {
   read(reader: CborReader): UserSecurityDetailsUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "UserSecurityDetailsUpdated");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const details = IonFormatterStorage.get<SecurityDetails>('SecurityDetails').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6426,7 +8208,7 @@ IonFormatterStorage.register("UserSecurityDetailsUpdated", {
 
 IonFormatterStorage.register("SpaceDetailsUpdated", {
   read(reader: CborReader): SpaceDetailsUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SpaceDetailsUpdated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const details = IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6442,7 +8224,7 @@ IonFormatterStorage.register("SpaceDetailsUpdated", {
 
 IonFormatterStorage.register("LeavedFromServerUser", {
   read(reader: CborReader): LeavedFromServerUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "LeavedFromServerUser");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6458,7 +8240,7 @@ IonFormatterStorage.register("LeavedFromServerUser", {
 
 IonFormatterStorage.register("InteractionAcked", {
   read(reader: CborReader): InteractionAcked {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "InteractionAcked");
     const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new InteractionAcked(interactionId);
@@ -6472,7 +8254,7 @@ IonFormatterStorage.register("InteractionAcked", {
 
 IonFormatterStorage.register("InteractionDeferred", {
   read(reader: CborReader): InteractionDeferred {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "InteractionDeferred");
     const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new InteractionDeferred(interactionId);
@@ -6486,7 +8268,7 @@ IonFormatterStorage.register("InteractionDeferred", {
 
 IonFormatterStorage.register("ShowModal", {
   read(reader: CborReader): ShowModal {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ShowModal");
     const interactionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const modal = IonFormatterStorage.get<IonModalDefinition>('IonModalDefinition').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6502,7 +8284,7 @@ IonFormatterStorage.register("ShowModal", {
 
 IonFormatterStorage.register("ReactionAdded", {
   read(reader: CborReader): ReactionAdded {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "ReactionAdded");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -6526,7 +8308,7 @@ IonFormatterStorage.register("ReactionAdded", {
 
 IonFormatterStorage.register("ReactionRemoved", {
   read(reader: CborReader): ReactionRemoved {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "ReactionRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -6548,7 +8330,7 @@ IonFormatterStorage.register("ReactionRemoved", {
 
 IonFormatterStorage.register("SpaceBoostUpdated", {
   read(reader: CborReader): SpaceBoostUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SpaceBoostUpdated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -6566,7 +8348,7 @@ IonFormatterStorage.register("SpaceBoostUpdated", {
 
 IonFormatterStorage.register("UltimaGiftReceived", {
   read(reader: CborReader): UltimaGiftReceived {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "UltimaGiftReceived");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
     const senderName = IonFormatterStorage.get<string>('string').read(reader);
@@ -6586,7 +8368,7 @@ IonFormatterStorage.register("UltimaGiftReceived", {
 
 IonFormatterStorage.register("UserProfileUpdated", {
   read(reader: CborReader): UserProfileUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserProfileUpdated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
@@ -6604,7 +8386,7 @@ IonFormatterStorage.register("UserProfileUpdated", {
 
 IonFormatterStorage.register("FeatureFlagActivated", {
   read(reader: CborReader): FeatureFlagActivated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FeatureFlagActivated");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const flagId = IonFormatterStorage.get<string>('string').read(reader);
     const isEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
@@ -6624,7 +8406,7 @@ IonFormatterStorage.register("FeatureFlagActivated", {
 
 IonFormatterStorage.register("DrawingSessionStarted", {
   read(reader: CborReader): DrawingSessionStarted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "DrawingSessionStarted");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const sessionId = IonFormatterStorage.get<string>('string').read(reader);
@@ -6648,7 +8430,7 @@ IonFormatterStorage.register("DrawingSessionStarted", {
 
 IonFormatterStorage.register("DrawingSessionEnded", {
   read(reader: CborReader): DrawingSessionEnded {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "DrawingSessionEnded");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const sessionId = IonFormatterStorage.get<string>('string').read(reader);
@@ -6666,7 +8448,7 @@ IonFormatterStorage.register("DrawingSessionEnded", {
 
 IonFormatterStorage.register("MessageDeleted", {
   read(reader: CborReader): MessageDeleted {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageDeleted");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -6686,7 +8468,7 @@ IonFormatterStorage.register("MessageDeleted", {
 
 IonFormatterStorage.register("ArchetypeRemoved", {
   read(reader: CborReader): ArchetypeRemoved {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ArchetypeRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const archetypeId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6702,7 +8484,7 @@ IonFormatterStorage.register("ArchetypeRemoved", {
 
 IonFormatterStorage.register("ArchetypesReordered", {
   read(reader: CborReader): ArchetypesReordered {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ArchetypesReordered");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const data = IonFormatterStorage.readArray<Archetype>(reader, 'Archetype');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6718,7 +8500,7 @@ IonFormatterStorage.register("ArchetypesReordered", {
 
 IonFormatterStorage.register("SpaceDeletionScheduled", {
   read(reader: CborReader): SpaceDeletionScheduled {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SpaceDeletionScheduled");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const state = IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -6734,7 +8516,7 @@ IonFormatterStorage.register("SpaceDeletionScheduled", {
 
 IonFormatterStorage.register("SpaceDeletionCancelled", {
   read(reader: CborReader): SpaceDeletionCancelled {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SpaceDeletionCancelled");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SpaceDeletionCancelled(spaceId);
@@ -6748,7 +8530,7 @@ IonFormatterStorage.register("SpaceDeletionCancelled", {
 
 IonFormatterStorage.register("MessageUpdated", {
   read(reader: CborReader): MessageUpdated {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "MessageUpdated");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
@@ -6826,10 +8608,9 @@ export class SubscribeToMySpaces extends IArgonClientEvent
 
 IonFormatterStorage.register("IArgonClientEvent", {
   read(reader: CborReader): IArgonClientEvent {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonClientEvent", 4);
     let value: IArgonClientEvent = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -6841,9 +8622,9 @@ IonFormatterStorage.register("IArgonClientEvent", {
     else if (unionIndex == 3)
       value = IonFormatterStorage.get<SubscribeToMySpaces>("SubscribeToMySpaces").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IArgonClientEvent", unionIndex, 4);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IArgonClientEvent): void {
@@ -6864,7 +8645,7 @@ IonFormatterStorage.register("IArgonClientEvent", {
         IonFormatterStorage.get<SubscribeToMySpaces>("SubscribeToMySpaces").write(writer, value as SubscribeToMySpaces);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IArgonClientEvent' has no case ${value.UnionIndex}; this revision declares 4 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -6872,7 +8653,7 @@ IonFormatterStorage.register("IArgonClientEvent", {
 
 IonFormatterStorage.register("IAmTypingEvent", {
   read(reader: CborReader): IAmTypingEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "IAmTypingEvent");
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new IAmTypingEvent(channelId);
@@ -6886,7 +8667,7 @@ IonFormatterStorage.register("IAmTypingEvent", {
 
 IonFormatterStorage.register("IAmStopTypingEvent", {
   read(reader: CborReader): IAmStopTypingEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "IAmStopTypingEvent");
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new IAmStopTypingEvent(channelId);
@@ -6900,7 +8681,7 @@ IonFormatterStorage.register("IAmStopTypingEvent", {
 
 IonFormatterStorage.register("HeartBeatEvent", {
   read(reader: CborReader): HeartBeatEvent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "HeartBeatEvent");
     const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new HeartBeatEvent(status);
@@ -6914,7 +8695,7 @@ IonFormatterStorage.register("HeartBeatEvent", {
 
 IonFormatterStorage.register("SubscribeToMySpaces", {
   read(reader: CborReader): SubscribeToMySpaces {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SubscribeToMySpaces");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SubscribeToMySpaces();
@@ -6966,10 +8747,9 @@ export class FailedSaveGif extends ISaveGifResult
 
 IonFormatterStorage.register("ISaveGifResult", {
   read(reader: CborReader): ISaveGifResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISaveGifResult", 2);
     let value: ISaveGifResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -6977,9 +8757,9 @@ IonFormatterStorage.register("ISaveGifResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedSaveGif>("FailedSaveGif").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ISaveGifResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ISaveGifResult): void {
@@ -6994,7 +8774,7 @@ IonFormatterStorage.register("ISaveGifResult", {
         IonFormatterStorage.get<FailedSaveGif>("FailedSaveGif").write(writer, value as FailedSaveGif);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ISaveGifResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7002,7 +8782,7 @@ IonFormatterStorage.register("ISaveGifResult", {
 
 IonFormatterStorage.register("SuccessSaveGif", {
   read(reader: CborReader): SuccessSaveGif {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSaveGif");
     const gif = IonFormatterStorage.get<SavedGif>('SavedGif').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessSaveGif(gif);
@@ -7016,7 +8796,7 @@ IonFormatterStorage.register("SuccessSaveGif", {
 
 IonFormatterStorage.register("FailedSaveGif", {
   read(reader: CborReader): FailedSaveGif {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSaveGif");
     const error = IonFormatterStorage.get<SaveGifError>('SaveGifError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedSaveGif(error);
@@ -7068,10 +8848,9 @@ export class FailedCreateLoginRequest extends ICreateLoginRequestResult
 
 IonFormatterStorage.register("ICreateLoginRequestResult", {
   read(reader: CborReader): ICreateLoginRequestResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateLoginRequestResult", 2);
     let value: ICreateLoginRequestResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7079,9 +8858,9 @@ IonFormatterStorage.register("ICreateLoginRequestResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCreateLoginRequest>("FailedCreateLoginRequest").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICreateLoginRequestResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICreateLoginRequestResult): void {
@@ -7096,7 +8875,7 @@ IonFormatterStorage.register("ICreateLoginRequestResult", {
         IonFormatterStorage.get<FailedCreateLoginRequest>("FailedCreateLoginRequest").write(writer, value as FailedCreateLoginRequest);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICreateLoginRequestResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7104,7 +8883,7 @@ IonFormatterStorage.register("ICreateLoginRequestResult", {
 
 IonFormatterStorage.register("SuccessCreateLoginRequest", {
   read(reader: CborReader): SuccessCreateLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCreateLoginRequest");
     const ticket = IonFormatterStorage.get<LoginRequestTicket>('LoginRequestTicket').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessCreateLoginRequest(ticket);
@@ -7118,7 +8897,7 @@ IonFormatterStorage.register("SuccessCreateLoginRequest", {
 
 IonFormatterStorage.register("FailedCreateLoginRequest", {
   read(reader: CborReader): FailedCreateLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateLoginRequest");
     const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCreateLoginRequest(error);
@@ -7192,10 +8971,9 @@ export class FailedLoginPoll extends ILoginPollResult
 
 IonFormatterStorage.register("ILoginPollResult", {
   read(reader: CborReader): ILoginPollResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILoginPollResult", 4);
     let value: ILoginPollResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7207,9 +8985,9 @@ IonFormatterStorage.register("ILoginPollResult", {
     else if (unionIndex == 3)
       value = IonFormatterStorage.get<FailedLoginPoll>("FailedLoginPoll").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ILoginPollResult", unionIndex, 4);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ILoginPollResult): void {
@@ -7230,7 +9008,7 @@ IonFormatterStorage.register("ILoginPollResult", {
         IonFormatterStorage.get<FailedLoginPoll>("FailedLoginPoll").write(writer, value as FailedLoginPoll);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ILoginPollResult' has no case ${value.UnionIndex}; this revision declares 4 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7238,7 +9016,7 @@ IonFormatterStorage.register("ILoginPollResult", {
 
 IonFormatterStorage.register("PendingLoginRequest", {
   read(reader: CborReader): PendingLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "PendingLoginRequest");
     const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new PendingLoginRequest(expiresAt);
@@ -7252,7 +9030,7 @@ IonFormatterStorage.register("PendingLoginRequest", {
 
 IonFormatterStorage.register("ApprovedLoginRequest", {
   read(reader: CborReader): ApprovedLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ApprovedLoginRequest");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -7268,7 +9046,7 @@ IonFormatterStorage.register("ApprovedLoginRequest", {
 
 IonFormatterStorage.register("RejectedLoginRequest", {
   read(reader: CborReader): RejectedLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "RejectedLoginRequest");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new RejectedLoginRequest();
@@ -7282,7 +9060,7 @@ IonFormatterStorage.register("RejectedLoginRequest", {
 
 IonFormatterStorage.register("FailedLoginPoll", {
   read(reader: CborReader): FailedLoginPoll {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLoginPoll");
     const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedLoginPoll(error);
@@ -7334,10 +9112,9 @@ export class FailedLoginRequestPreview extends ILoginRequestPreviewResult
 
 IonFormatterStorage.register("ILoginRequestPreviewResult", {
   read(reader: CborReader): ILoginRequestPreviewResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILoginRequestPreviewResult", 2);
     let value: ILoginRequestPreviewResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7345,9 +9122,9 @@ IonFormatterStorage.register("ILoginRequestPreviewResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedLoginRequestPreview>("FailedLoginRequestPreview").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ILoginRequestPreviewResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ILoginRequestPreviewResult): void {
@@ -7362,7 +9139,7 @@ IonFormatterStorage.register("ILoginRequestPreviewResult", {
         IonFormatterStorage.get<FailedLoginRequestPreview>("FailedLoginRequestPreview").write(writer, value as FailedLoginRequestPreview);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ILoginRequestPreviewResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7370,7 +9147,7 @@ IonFormatterStorage.register("ILoginRequestPreviewResult", {
 
 IonFormatterStorage.register("SuccessLoginRequestPreview", {
   read(reader: CborReader): SuccessLoginRequestPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessLoginRequestPreview");
     const preview = IonFormatterStorage.get<LoginRequestPreview>('LoginRequestPreview').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessLoginRequestPreview(preview);
@@ -7384,7 +9161,7 @@ IonFormatterStorage.register("SuccessLoginRequestPreview", {
 
 IonFormatterStorage.register("FailedLoginRequestPreview", {
   read(reader: CborReader): FailedLoginRequestPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLoginRequestPreview");
     const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedLoginRequestPreview(error);
@@ -7436,10 +9213,9 @@ export class FailedApproveLoginRequest extends IApproveLoginRequestResult
 
 IonFormatterStorage.register("IApproveLoginRequestResult", {
   read(reader: CborReader): IApproveLoginRequestResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IApproveLoginRequestResult", 2);
     let value: IApproveLoginRequestResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7447,9 +9223,9 @@ IonFormatterStorage.register("IApproveLoginRequestResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedApproveLoginRequest>("FailedApproveLoginRequest").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IApproveLoginRequestResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IApproveLoginRequestResult): void {
@@ -7464,7 +9240,7 @@ IonFormatterStorage.register("IApproveLoginRequestResult", {
         IonFormatterStorage.get<FailedApproveLoginRequest>("FailedApproveLoginRequest").write(writer, value as FailedApproveLoginRequest);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IApproveLoginRequestResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7472,7 +9248,7 @@ IonFormatterStorage.register("IApproveLoginRequestResult", {
 
 IonFormatterStorage.register("SuccessApproveLoginRequest", {
   read(reader: CborReader): SuccessApproveLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessApproveLoginRequest");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessApproveLoginRequest();
@@ -7486,7 +9262,7 @@ IonFormatterStorage.register("SuccessApproveLoginRequest", {
 
 IonFormatterStorage.register("FailedApproveLoginRequest", {
   read(reader: CborReader): FailedApproveLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedApproveLoginRequest");
     const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedApproveLoginRequest(error);
@@ -7538,10 +9314,9 @@ export class FailedRejectLoginRequest extends IRejectLoginRequestResult
 
 IonFormatterStorage.register("IRejectLoginRequestResult", {
   read(reader: CborReader): IRejectLoginRequestResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRejectLoginRequestResult", 2);
     let value: IRejectLoginRequestResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7549,9 +9324,9 @@ IonFormatterStorage.register("IRejectLoginRequestResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRejectLoginRequest>("FailedRejectLoginRequest").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRejectLoginRequestResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRejectLoginRequestResult): void {
@@ -7566,7 +9341,7 @@ IonFormatterStorage.register("IRejectLoginRequestResult", {
         IonFormatterStorage.get<FailedRejectLoginRequest>("FailedRejectLoginRequest").write(writer, value as FailedRejectLoginRequest);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRejectLoginRequestResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7574,7 +9349,7 @@ IonFormatterStorage.register("IRejectLoginRequestResult", {
 
 IonFormatterStorage.register("SuccessRejectLoginRequest", {
   read(reader: CborReader): SuccessRejectLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRejectLoginRequest");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRejectLoginRequest();
@@ -7588,7 +9363,7 @@ IonFormatterStorage.register("SuccessRejectLoginRequest", {
 
 IonFormatterStorage.register("FailedRejectLoginRequest", {
   read(reader: CborReader): FailedRejectLoginRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRejectLoginRequest");
     const error = IonFormatterStorage.get<LoginRequestError>('LoginRequestError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRejectLoginRequest(error);
@@ -7662,10 +9437,9 @@ export class CertificateErrorAuthStatus extends IMyAuthStatus
 
 IonFormatterStorage.register("IMyAuthStatus", {
   read(reader: CborReader): IMyAuthStatus {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMyAuthStatus", 4);
     let value: IMyAuthStatus = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7677,9 +9451,9 @@ IonFormatterStorage.register("IMyAuthStatus", {
     else if (unionIndex == 3)
       value = IonFormatterStorage.get<CertificateErrorAuthStatus>("CertificateErrorAuthStatus").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IMyAuthStatus", unionIndex, 4);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IMyAuthStatus): void {
@@ -7700,7 +9474,7 @@ IonFormatterStorage.register("IMyAuthStatus", {
         IonFormatterStorage.get<CertificateErrorAuthStatus>("CertificateErrorAuthStatus").write(writer, value as CertificateErrorAuthStatus);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IMyAuthStatus' has no case ${value.UnionIndex}; this revision declares 4 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7708,7 +9482,7 @@ IonFormatterStorage.register("IMyAuthStatus", {
 
 IonFormatterStorage.register("GoodAuthStatus", {
   read(reader: CborReader): GoodAuthStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "GoodAuthStatus");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new GoodAuthStatus(token);
@@ -7722,7 +9496,7 @@ IonFormatterStorage.register("GoodAuthStatus", {
 
 IonFormatterStorage.register("BadAuthStatus", {
   read(reader: CborReader): BadAuthStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "BadAuthStatus");
     const error = IonFormatterStorage.get<BadAuthKind>('BadAuthKind').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new BadAuthStatus(error);
@@ -7736,7 +9510,7 @@ IonFormatterStorage.register("BadAuthStatus", {
 
 IonFormatterStorage.register("LockedAuthStatus", {
   read(reader: CborReader): LockedAuthStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "LockedAuthStatus");
     const lockdownReason = IonFormatterStorage.readNullable<LockdownReason>(reader, 'LockdownReason');
     const lockDownExpiration = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const isAppealable = IonFormatterStorage.get<bool>('bool').read(reader);
@@ -7756,7 +9530,7 @@ IonFormatterStorage.register("LockedAuthStatus", {
 
 IonFormatterStorage.register("CertificateErrorAuthStatus", {
   read(reader: CborReader): CertificateErrorAuthStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "CertificateErrorAuthStatus");
     const message = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new CertificateErrorAuthStatus(message);
@@ -7808,10 +9582,9 @@ export class FailedRedeem extends IRedeemResult
 
 IonFormatterStorage.register("IRedeemResult", {
   read(reader: CborReader): IRedeemResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRedeemResult", 2);
     let value: IRedeemResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7819,9 +9592,9 @@ IonFormatterStorage.register("IRedeemResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRedeem>("FailedRedeem").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRedeemResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRedeemResult): void {
@@ -7836,7 +9609,7 @@ IonFormatterStorage.register("IRedeemResult", {
         IonFormatterStorage.get<FailedRedeem>("FailedRedeem").write(writer, value as FailedRedeem);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRedeemResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7844,7 +9617,7 @@ IonFormatterStorage.register("IRedeemResult", {
 
 IonFormatterStorage.register("SuccessRedeem", {
   read(reader: CborReader): SuccessRedeem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRedeem");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRedeem();
@@ -7858,7 +9631,7 @@ IonFormatterStorage.register("SuccessRedeem", {
 
 IonFormatterStorage.register("FailedRedeem", {
   read(reader: CborReader): FailedRedeem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRedeem");
     const error = IonFormatterStorage.get<RedeemError>('RedeemError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRedeem(error);
@@ -7910,10 +9683,9 @@ export class LinkPreviewFailed extends ILinkPreviewResult
 
 IonFormatterStorage.register("ILinkPreviewResult", {
   read(reader: CborReader): ILinkPreviewResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILinkPreviewResult", 2);
     let value: ILinkPreviewResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -7921,9 +9693,9 @@ IonFormatterStorage.register("ILinkPreviewResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<LinkPreviewFailed>("LinkPreviewFailed").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ILinkPreviewResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ILinkPreviewResult): void {
@@ -7938,7 +9710,7 @@ IonFormatterStorage.register("ILinkPreviewResult", {
         IonFormatterStorage.get<LinkPreviewFailed>("LinkPreviewFailed").write(writer, value as LinkPreviewFailed);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ILinkPreviewResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7946,7 +9718,7 @@ IonFormatterStorage.register("ILinkPreviewResult", {
 
 IonFormatterStorage.register("LinkPreviewReady", {
   read(reader: CborReader): LinkPreviewReady {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "LinkPreviewReady");
     const preview = IonFormatterStorage.get<LinkPreview>('LinkPreview').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new LinkPreviewReady(preview);
@@ -7960,7 +9732,7 @@ IonFormatterStorage.register("LinkPreviewReady", {
 
 IonFormatterStorage.register("LinkPreviewFailed", {
   read(reader: CborReader): LinkPreviewFailed {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "LinkPreviewFailed");
     const error = IonFormatterStorage.get<LinkPreviewError>('LinkPreviewError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new LinkPreviewFailed(error);
@@ -8012,10 +9784,9 @@ export class FailedSubmitReport extends ISubmitReportResult
 
 IonFormatterStorage.register("ISubmitReportResult", {
   read(reader: CborReader): ISubmitReportResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISubmitReportResult", 2);
     let value: ISubmitReportResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8023,9 +9794,9 @@ IonFormatterStorage.register("ISubmitReportResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedSubmitReport>("FailedSubmitReport").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ISubmitReportResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ISubmitReportResult): void {
@@ -8040,7 +9811,7 @@ IonFormatterStorage.register("ISubmitReportResult", {
         IonFormatterStorage.get<FailedSubmitReport>("FailedSubmitReport").write(writer, value as FailedSubmitReport);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ISubmitReportResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8048,7 +9819,7 @@ IonFormatterStorage.register("ISubmitReportResult", {
 
 IonFormatterStorage.register("SuccessSubmitReport", {
   read(reader: CborReader): SuccessSubmitReport {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSubmitReport");
     const reportId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessSubmitReport(reportId);
@@ -8062,7 +9833,7 @@ IonFormatterStorage.register("SuccessSubmitReport", {
 
 IonFormatterStorage.register("FailedSubmitReport", {
   read(reader: CborReader): FailedSubmitReport {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSubmitReport");
     const error = IonFormatterStorage.get<SubmitReportError>('SubmitReportError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedSubmitReport(error);
@@ -8114,10 +9885,9 @@ export class FailedRevokeSession extends IRevokeSessionResult
 
 IonFormatterStorage.register("IRevokeSessionResult", {
   read(reader: CborReader): IRevokeSessionResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRevokeSessionResult", 2);
     let value: IRevokeSessionResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8125,9 +9895,9 @@ IonFormatterStorage.register("IRevokeSessionResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRevokeSession>("FailedRevokeSession").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRevokeSessionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRevokeSessionResult): void {
@@ -8142,7 +9912,7 @@ IonFormatterStorage.register("IRevokeSessionResult", {
         IonFormatterStorage.get<FailedRevokeSession>("FailedRevokeSession").write(writer, value as FailedRevokeSession);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRevokeSessionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8150,7 +9920,7 @@ IonFormatterStorage.register("IRevokeSessionResult", {
 
 IonFormatterStorage.register("SuccessRevokeSession", {
   read(reader: CborReader): SuccessRevokeSession {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRevokeSession");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRevokeSession();
@@ -8164,7 +9934,7 @@ IonFormatterStorage.register("SuccessRevokeSession", {
 
 IonFormatterStorage.register("FailedRevokeSession", {
   read(reader: CborReader): FailedRevokeSession {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRevokeSession");
     const error = IonFormatterStorage.get<SessionError>('SessionError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRevokeSession(error);
@@ -8216,10 +9986,9 @@ export class FailedRequestEmailChange extends IRequestEmailChangeResult
 
 IonFormatterStorage.register("IRequestEmailChangeResult", {
   read(reader: CborReader): IRequestEmailChangeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRequestEmailChangeResult", 2);
     let value: IRequestEmailChangeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8227,9 +9996,9 @@ IonFormatterStorage.register("IRequestEmailChangeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRequestEmailChange>("FailedRequestEmailChange").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRequestEmailChangeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRequestEmailChangeResult): void {
@@ -8244,7 +10013,7 @@ IonFormatterStorage.register("IRequestEmailChangeResult", {
         IonFormatterStorage.get<FailedRequestEmailChange>("FailedRequestEmailChange").write(writer, value as FailedRequestEmailChange);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRequestEmailChangeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8252,7 +10021,7 @@ IonFormatterStorage.register("IRequestEmailChangeResult", {
 
 IonFormatterStorage.register("SuccessRequestEmailChange", {
   read(reader: CborReader): SuccessRequestEmailChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRequestEmailChange");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRequestEmailChange();
@@ -8266,7 +10035,7 @@ IonFormatterStorage.register("SuccessRequestEmailChange", {
 
 IonFormatterStorage.register("FailedRequestEmailChange", {
   read(reader: CborReader): FailedRequestEmailChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRequestEmailChange");
     const error = IonFormatterStorage.get<EmailChangeError>('EmailChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRequestEmailChange(error);
@@ -8318,10 +10087,9 @@ export class FailedConfirmEmailChange extends IConfirmEmailChangeResult
 
 IonFormatterStorage.register("IConfirmEmailChangeResult", {
   read(reader: CborReader): IConfirmEmailChangeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IConfirmEmailChangeResult", 2);
     let value: IConfirmEmailChangeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8329,9 +10097,9 @@ IonFormatterStorage.register("IConfirmEmailChangeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedConfirmEmailChange>("FailedConfirmEmailChange").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IConfirmEmailChangeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IConfirmEmailChangeResult): void {
@@ -8346,7 +10114,7 @@ IonFormatterStorage.register("IConfirmEmailChangeResult", {
         IonFormatterStorage.get<FailedConfirmEmailChange>("FailedConfirmEmailChange").write(writer, value as FailedConfirmEmailChange);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IConfirmEmailChangeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8354,7 +10122,7 @@ IonFormatterStorage.register("IConfirmEmailChangeResult", {
 
 IonFormatterStorage.register("SuccessConfirmEmailChange", {
   read(reader: CborReader): SuccessConfirmEmailChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessConfirmEmailChange");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessConfirmEmailChange();
@@ -8368,7 +10136,7 @@ IonFormatterStorage.register("SuccessConfirmEmailChange", {
 
 IonFormatterStorage.register("FailedConfirmEmailChange", {
   read(reader: CborReader): FailedConfirmEmailChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedConfirmEmailChange");
     const error = IonFormatterStorage.get<EmailChangeError>('EmailChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedConfirmEmailChange(error);
@@ -8420,10 +10188,9 @@ export class FailedRequestPhoneChange extends IRequestPhoneChangeResult
 
 IonFormatterStorage.register("IRequestPhoneChangeResult", {
   read(reader: CborReader): IRequestPhoneChangeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRequestPhoneChangeResult", 2);
     let value: IRequestPhoneChangeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8431,9 +10198,9 @@ IonFormatterStorage.register("IRequestPhoneChangeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRequestPhoneChange>("FailedRequestPhoneChange").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRequestPhoneChangeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRequestPhoneChangeResult): void {
@@ -8448,7 +10215,7 @@ IonFormatterStorage.register("IRequestPhoneChangeResult", {
         IonFormatterStorage.get<FailedRequestPhoneChange>("FailedRequestPhoneChange").write(writer, value as FailedRequestPhoneChange);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRequestPhoneChangeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8456,7 +10223,7 @@ IonFormatterStorage.register("IRequestPhoneChangeResult", {
 
 IonFormatterStorage.register("SuccessRequestPhoneChange", {
   read(reader: CborReader): SuccessRequestPhoneChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRequestPhoneChange");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRequestPhoneChange();
@@ -8470,7 +10237,7 @@ IonFormatterStorage.register("SuccessRequestPhoneChange", {
 
 IonFormatterStorage.register("FailedRequestPhoneChange", {
   read(reader: CborReader): FailedRequestPhoneChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRequestPhoneChange");
     const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRequestPhoneChange(error);
@@ -8522,10 +10289,9 @@ export class FailedConfirmPhoneChange extends IConfirmPhoneChangeResult
 
 IonFormatterStorage.register("IConfirmPhoneChangeResult", {
   read(reader: CborReader): IConfirmPhoneChangeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IConfirmPhoneChangeResult", 2);
     let value: IConfirmPhoneChangeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8533,9 +10299,9 @@ IonFormatterStorage.register("IConfirmPhoneChangeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedConfirmPhoneChange>("FailedConfirmPhoneChange").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IConfirmPhoneChangeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IConfirmPhoneChangeResult): void {
@@ -8550,7 +10316,7 @@ IonFormatterStorage.register("IConfirmPhoneChangeResult", {
         IonFormatterStorage.get<FailedConfirmPhoneChange>("FailedConfirmPhoneChange").write(writer, value as FailedConfirmPhoneChange);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IConfirmPhoneChangeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8558,7 +10324,7 @@ IonFormatterStorage.register("IConfirmPhoneChangeResult", {
 
 IonFormatterStorage.register("SuccessConfirmPhoneChange", {
   read(reader: CborReader): SuccessConfirmPhoneChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessConfirmPhoneChange");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessConfirmPhoneChange();
@@ -8572,7 +10338,7 @@ IonFormatterStorage.register("SuccessConfirmPhoneChange", {
 
 IonFormatterStorage.register("FailedConfirmPhoneChange", {
   read(reader: CborReader): FailedConfirmPhoneChange {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedConfirmPhoneChange");
     const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedConfirmPhoneChange(error);
@@ -8624,10 +10390,9 @@ export class FailedRemovePhone extends IRemovePhoneResult
 
 IonFormatterStorage.register("IRemovePhoneResult", {
   read(reader: CborReader): IRemovePhoneResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRemovePhoneResult", 2);
     let value: IRemovePhoneResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8635,9 +10400,9 @@ IonFormatterStorage.register("IRemovePhoneResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRemovePhone>("FailedRemovePhone").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRemovePhoneResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRemovePhoneResult): void {
@@ -8652,7 +10417,7 @@ IonFormatterStorage.register("IRemovePhoneResult", {
         IonFormatterStorage.get<FailedRemovePhone>("FailedRemovePhone").write(writer, value as FailedRemovePhone);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRemovePhoneResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8660,7 +10425,7 @@ IonFormatterStorage.register("IRemovePhoneResult", {
 
 IonFormatterStorage.register("SuccessRemovePhone", {
   read(reader: CborReader): SuccessRemovePhone {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRemovePhone");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRemovePhone();
@@ -8674,7 +10439,7 @@ IonFormatterStorage.register("SuccessRemovePhone", {
 
 IonFormatterStorage.register("FailedRemovePhone", {
   read(reader: CborReader): FailedRemovePhone {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRemovePhone");
     const error = IonFormatterStorage.get<PhoneChangeError>('PhoneChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRemovePhone(error);
@@ -8726,10 +10491,9 @@ export class FailedChangePassword extends IChangePasswordResult
 
 IonFormatterStorage.register("IChangePasswordResult", {
   read(reader: CborReader): IChangePasswordResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IChangePasswordResult", 2);
     let value: IChangePasswordResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8737,9 +10501,9 @@ IonFormatterStorage.register("IChangePasswordResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedChangePassword>("FailedChangePassword").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IChangePasswordResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IChangePasswordResult): void {
@@ -8754,7 +10518,7 @@ IonFormatterStorage.register("IChangePasswordResult", {
         IonFormatterStorage.get<FailedChangePassword>("FailedChangePassword").write(writer, value as FailedChangePassword);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IChangePasswordResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8762,7 +10526,7 @@ IonFormatterStorage.register("IChangePasswordResult", {
 
 IonFormatterStorage.register("SuccessChangePassword", {
   read(reader: CborReader): SuccessChangePassword {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessChangePassword");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessChangePassword();
@@ -8776,7 +10540,7 @@ IonFormatterStorage.register("SuccessChangePassword", {
 
 IonFormatterStorage.register("FailedChangePassword", {
   read(reader: CborReader): FailedChangePassword {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedChangePassword");
     const error = IonFormatterStorage.get<PasswordChangeError>('PasswordChangeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedChangePassword(error);
@@ -8828,10 +10592,9 @@ export class FailedEnableOTP extends IEnableOTPResult
 
 IonFormatterStorage.register("IEnableOTPResult", {
   read(reader: CborReader): IEnableOTPResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IEnableOTPResult", 2);
     let value: IEnableOTPResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8839,9 +10602,9 @@ IonFormatterStorage.register("IEnableOTPResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedEnableOTP>("FailedEnableOTP").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IEnableOTPResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IEnableOTPResult): void {
@@ -8856,7 +10619,7 @@ IonFormatterStorage.register("IEnableOTPResult", {
         IonFormatterStorage.get<FailedEnableOTP>("FailedEnableOTP").write(writer, value as FailedEnableOTP);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IEnableOTPResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8864,7 +10627,7 @@ IonFormatterStorage.register("IEnableOTPResult", {
 
 IonFormatterStorage.register("SuccessEnableOTP", {
   read(reader: CborReader): SuccessEnableOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessEnableOTP");
     const secret = IonFormatterStorage.get<string>('string').read(reader);
     const qrCodeUrl = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -8880,7 +10643,7 @@ IonFormatterStorage.register("SuccessEnableOTP", {
 
 IonFormatterStorage.register("FailedEnableOTP", {
   read(reader: CborReader): FailedEnableOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedEnableOTP");
     const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedEnableOTP(error);
@@ -8932,10 +10695,9 @@ export class FailedVerifyOTP extends IVerifyOTPResult
 
 IonFormatterStorage.register("IVerifyOTPResult", {
   read(reader: CborReader): IVerifyOTPResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IVerifyOTPResult", 2);
     let value: IVerifyOTPResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -8943,9 +10705,9 @@ IonFormatterStorage.register("IVerifyOTPResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedVerifyOTP>("FailedVerifyOTP").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IVerifyOTPResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IVerifyOTPResult): void {
@@ -8960,7 +10722,7 @@ IonFormatterStorage.register("IVerifyOTPResult", {
         IonFormatterStorage.get<FailedVerifyOTP>("FailedVerifyOTP").write(writer, value as FailedVerifyOTP);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IVerifyOTPResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8968,7 +10730,7 @@ IonFormatterStorage.register("IVerifyOTPResult", {
 
 IonFormatterStorage.register("SuccessVerifyOTP", {
   read(reader: CborReader): SuccessVerifyOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessVerifyOTP");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessVerifyOTP();
@@ -8982,7 +10744,7 @@ IonFormatterStorage.register("SuccessVerifyOTP", {
 
 IonFormatterStorage.register("FailedVerifyOTP", {
   read(reader: CborReader): FailedVerifyOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedVerifyOTP");
     const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedVerifyOTP(error);
@@ -9034,10 +10796,9 @@ export class FailedDisableOTP extends IDisableOTPResult
 
 IonFormatterStorage.register("IDisableOTPResult", {
   read(reader: CborReader): IDisableOTPResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDisableOTPResult", 2);
     let value: IDisableOTPResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9045,9 +10806,9 @@ IonFormatterStorage.register("IDisableOTPResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedDisableOTP>("FailedDisableOTP").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IDisableOTPResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IDisableOTPResult): void {
@@ -9062,7 +10823,7 @@ IonFormatterStorage.register("IDisableOTPResult", {
         IonFormatterStorage.get<FailedDisableOTP>("FailedDisableOTP").write(writer, value as FailedDisableOTP);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IDisableOTPResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9070,7 +10831,7 @@ IonFormatterStorage.register("IDisableOTPResult", {
 
 IonFormatterStorage.register("SuccessDisableOTP", {
   read(reader: CborReader): SuccessDisableOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessDisableOTP");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessDisableOTP();
@@ -9084,7 +10845,7 @@ IonFormatterStorage.register("SuccessDisableOTP", {
 
 IonFormatterStorage.register("FailedDisableOTP", {
   read(reader: CborReader): FailedDisableOTP {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedDisableOTP");
     const error = IonFormatterStorage.get<OTPError>('OTPError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedDisableOTP(error);
@@ -9136,10 +10897,9 @@ export class FailedBeginPasskey extends IBeginPasskeyResult
 
 IonFormatterStorage.register("IBeginPasskeyResult", {
   read(reader: CborReader): IBeginPasskeyResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBeginPasskeyResult", 2);
     let value: IBeginPasskeyResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9147,9 +10907,9 @@ IonFormatterStorage.register("IBeginPasskeyResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedBeginPasskey>("FailedBeginPasskey").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IBeginPasskeyResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IBeginPasskeyResult): void {
@@ -9164,7 +10924,7 @@ IonFormatterStorage.register("IBeginPasskeyResult", {
         IonFormatterStorage.get<FailedBeginPasskey>("FailedBeginPasskey").write(writer, value as FailedBeginPasskey);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IBeginPasskeyResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9172,7 +10932,7 @@ IonFormatterStorage.register("IBeginPasskeyResult", {
 
 IonFormatterStorage.register("SuccessBeginPasskey", {
   read(reader: CborReader): SuccessBeginPasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessBeginPasskey");
     const optionsJson = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessBeginPasskey(optionsJson);
@@ -9186,7 +10946,7 @@ IonFormatterStorage.register("SuccessBeginPasskey", {
 
 IonFormatterStorage.register("FailedBeginPasskey", {
   read(reader: CborReader): FailedBeginPasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedBeginPasskey");
     const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedBeginPasskey(error);
@@ -9238,10 +10998,9 @@ export class FailedCompletePasskey extends ICompletePasskeyResult
 
 IonFormatterStorage.register("ICompletePasskeyResult", {
   read(reader: CborReader): ICompletePasskeyResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICompletePasskeyResult", 2);
     let value: ICompletePasskeyResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9249,9 +11008,9 @@ IonFormatterStorage.register("ICompletePasskeyResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCompletePasskey>("FailedCompletePasskey").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICompletePasskeyResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICompletePasskeyResult): void {
@@ -9266,7 +11025,7 @@ IonFormatterStorage.register("ICompletePasskeyResult", {
         IonFormatterStorage.get<FailedCompletePasskey>("FailedCompletePasskey").write(writer, value as FailedCompletePasskey);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICompletePasskeyResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9274,7 +11033,7 @@ IonFormatterStorage.register("ICompletePasskeyResult", {
 
 IonFormatterStorage.register("SuccessCompletePasskey", {
   read(reader: CborReader): SuccessCompletePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCompletePasskey");
     const passkey = IonFormatterStorage.get<Passkey>('Passkey').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessCompletePasskey(passkey);
@@ -9288,7 +11047,7 @@ IonFormatterStorage.register("SuccessCompletePasskey", {
 
 IonFormatterStorage.register("FailedCompletePasskey", {
   read(reader: CborReader): FailedCompletePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCompletePasskey");
     const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCompletePasskey(error);
@@ -9340,10 +11099,9 @@ export class FailedRemovePasskey extends IRemovePasskeyResult
 
 IonFormatterStorage.register("IRemovePasskeyResult", {
   read(reader: CborReader): IRemovePasskeyResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRemovePasskeyResult", 2);
     let value: IRemovePasskeyResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9351,9 +11109,9 @@ IonFormatterStorage.register("IRemovePasskeyResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRemovePasskey>("FailedRemovePasskey").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRemovePasskeyResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRemovePasskeyResult): void {
@@ -9368,7 +11126,7 @@ IonFormatterStorage.register("IRemovePasskeyResult", {
         IonFormatterStorage.get<FailedRemovePasskey>("FailedRemovePasskey").write(writer, value as FailedRemovePasskey);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRemovePasskeyResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9376,7 +11134,7 @@ IonFormatterStorage.register("IRemovePasskeyResult", {
 
 IonFormatterStorage.register("SuccessRemovePasskey", {
   read(reader: CborReader): SuccessRemovePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRemovePasskey");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessRemovePasskey();
@@ -9390,7 +11148,7 @@ IonFormatterStorage.register("SuccessRemovePasskey", {
 
 IonFormatterStorage.register("FailedRemovePasskey", {
   read(reader: CborReader): FailedRemovePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRemovePasskey");
     const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRemovePasskey(error);
@@ -9442,10 +11200,9 @@ export class FailedBeginValidatePasskey extends IBeginPasskeyValidateResult
 
 IonFormatterStorage.register("IBeginPasskeyValidateResult", {
   read(reader: CborReader): IBeginPasskeyValidateResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBeginPasskeyValidateResult", 2);
     let value: IBeginPasskeyValidateResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9453,9 +11210,9 @@ IonFormatterStorage.register("IBeginPasskeyValidateResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IBeginPasskeyValidateResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IBeginPasskeyValidateResult): void {
@@ -9470,7 +11227,7 @@ IonFormatterStorage.register("IBeginPasskeyValidateResult", {
         IonFormatterStorage.get<FailedBeginValidatePasskey>("FailedBeginValidatePasskey").write(writer, value as FailedBeginValidatePasskey);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IBeginPasskeyValidateResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9478,7 +11235,7 @@ IonFormatterStorage.register("IBeginPasskeyValidateResult", {
 
 IonFormatterStorage.register("SuccessBeginValidatePasskey", {
   read(reader: CborReader): SuccessBeginValidatePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessBeginValidatePasskey");
     const optionsJson = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessBeginValidatePasskey(optionsJson);
@@ -9492,7 +11249,7 @@ IonFormatterStorage.register("SuccessBeginValidatePasskey", {
 
 IonFormatterStorage.register("FailedBeginValidatePasskey", {
   read(reader: CborReader): FailedBeginValidatePasskey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedBeginValidatePasskey");
     const error = IonFormatterStorage.get<PasskeyError>('PasskeyError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedBeginValidatePasskey(error);
@@ -9544,10 +11301,9 @@ export class FailedSetAutoDelete extends ISetAutoDeleteResult
 
 IonFormatterStorage.register("ISetAutoDeleteResult", {
   read(reader: CborReader): ISetAutoDeleteResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISetAutoDeleteResult", 2);
     let value: ISetAutoDeleteResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9555,9 +11311,9 @@ IonFormatterStorage.register("ISetAutoDeleteResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedSetAutoDelete>("FailedSetAutoDelete").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ISetAutoDeleteResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ISetAutoDeleteResult): void {
@@ -9572,7 +11328,7 @@ IonFormatterStorage.register("ISetAutoDeleteResult", {
         IonFormatterStorage.get<FailedSetAutoDelete>("FailedSetAutoDelete").write(writer, value as FailedSetAutoDelete);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ISetAutoDeleteResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9580,7 +11336,7 @@ IonFormatterStorage.register("ISetAutoDeleteResult", {
 
 IonFormatterStorage.register("SuccessSetAutoDelete", {
   read(reader: CborReader): SuccessSetAutoDelete {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessSetAutoDelete");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessSetAutoDelete();
@@ -9594,7 +11350,7 @@ IonFormatterStorage.register("SuccessSetAutoDelete", {
 
 IonFormatterStorage.register("FailedSetAutoDelete", {
   read(reader: CborReader): FailedSetAutoDelete {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSetAutoDelete");
     const error = IonFormatterStorage.get<AutoDeleteError>('AutoDeleteError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedSetAutoDelete(error);
@@ -9646,10 +11402,9 @@ export class FailedRequestDataExport extends IRequestDataExportResult
 
 IonFormatterStorage.register("IRequestDataExportResult", {
   read(reader: CborReader): IRequestDataExportResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRequestDataExportResult", 2);
     let value: IRequestDataExportResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9657,9 +11412,9 @@ IonFormatterStorage.register("IRequestDataExportResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRequestDataExport>("FailedRequestDataExport").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRequestDataExportResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRequestDataExportResult): void {
@@ -9674,7 +11429,7 @@ IonFormatterStorage.register("IRequestDataExportResult", {
         IonFormatterStorage.get<FailedRequestDataExport>("FailedRequestDataExport").write(writer, value as FailedRequestDataExport);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRequestDataExportResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9682,7 +11437,7 @@ IonFormatterStorage.register("IRequestDataExportResult", {
 
 IonFormatterStorage.register("SuccessRequestDataExport", {
   read(reader: CborReader): SuccessRequestDataExport {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessRequestDataExport");
     const exportId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessRequestDataExport(exportId);
@@ -9696,7 +11451,7 @@ IonFormatterStorage.register("SuccessRequestDataExport", {
 
 IonFormatterStorage.register("FailedRequestDataExport", {
   read(reader: CborReader): FailedRequestDataExport {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRequestDataExport");
     const error = IonFormatterStorage.get<DataExportError>('DataExportError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRequestDataExport(error);
@@ -9748,10 +11503,9 @@ export class FailedRequestDeleteSpace extends IRequestDeleteSpaceResult
 
 IonFormatterStorage.register("IRequestDeleteSpaceResult", {
   read(reader: CborReader): IRequestDeleteSpaceResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRequestDeleteSpaceResult", 2);
     let value: IRequestDeleteSpaceResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9759,9 +11513,9 @@ IonFormatterStorage.register("IRequestDeleteSpaceResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRequestDeleteSpace>("FailedRequestDeleteSpace").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRequestDeleteSpaceResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRequestDeleteSpaceResult): void {
@@ -9776,7 +11530,7 @@ IonFormatterStorage.register("IRequestDeleteSpaceResult", {
         IonFormatterStorage.get<FailedRequestDeleteSpace>("FailedRequestDeleteSpace").write(writer, value as FailedRequestDeleteSpace);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRequestDeleteSpaceResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9784,7 +11538,7 @@ IonFormatterStorage.register("IRequestDeleteSpaceResult", {
 
 IonFormatterStorage.register("SuccessRequestDeleteSpace", {
   read(reader: CborReader): SuccessRequestDeleteSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessRequestDeleteSpace");
     const state = IonFormatterStorage.get<SpaceDeletionState>('SpaceDeletionState').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessRequestDeleteSpace(state);
@@ -9798,7 +11552,7 @@ IonFormatterStorage.register("SuccessRequestDeleteSpace", {
 
 IonFormatterStorage.register("FailedRequestDeleteSpace", {
   read(reader: CborReader): FailedRequestDeleteSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRequestDeleteSpace");
     const error = IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedRequestDeleteSpace(error);
@@ -9850,10 +11604,9 @@ export class FailedCancelDeleteSpace extends ICancelDeleteSpaceResult
 
 IonFormatterStorage.register("ICancelDeleteSpaceResult", {
   read(reader: CborReader): ICancelDeleteSpaceResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICancelDeleteSpaceResult", 2);
     let value: ICancelDeleteSpaceResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9861,9 +11614,9 @@ IonFormatterStorage.register("ICancelDeleteSpaceResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCancelDeleteSpace>("FailedCancelDeleteSpace").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICancelDeleteSpaceResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICancelDeleteSpaceResult): void {
@@ -9878,7 +11631,7 @@ IonFormatterStorage.register("ICancelDeleteSpaceResult", {
         IonFormatterStorage.get<FailedCancelDeleteSpace>("FailedCancelDeleteSpace").write(writer, value as FailedCancelDeleteSpace);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICancelDeleteSpaceResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9886,7 +11639,7 @@ IonFormatterStorage.register("ICancelDeleteSpaceResult", {
 
 IonFormatterStorage.register("SuccessCancelDeleteSpace", {
   read(reader: CborReader): SuccessCancelDeleteSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessCancelDeleteSpace");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessCancelDeleteSpace();
@@ -9900,7 +11653,7 @@ IonFormatterStorage.register("SuccessCancelDeleteSpace", {
 
 IonFormatterStorage.register("FailedCancelDeleteSpace", {
   read(reader: CborReader): FailedCancelDeleteSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCancelDeleteSpace");
     const error = IonFormatterStorage.get<SpaceDeletionError>('SpaceDeletionError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCancelDeleteSpace(error);
@@ -9952,10 +11705,9 @@ export class FailedCheckout extends ICheckoutResult
 
 IonFormatterStorage.register("ICheckoutResult", {
   read(reader: CborReader): ICheckoutResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICheckoutResult", 2);
     let value: ICheckoutResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -9963,9 +11715,9 @@ IonFormatterStorage.register("ICheckoutResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCheckout>("FailedCheckout").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICheckoutResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICheckoutResult): void {
@@ -9980,7 +11732,7 @@ IonFormatterStorage.register("ICheckoutResult", {
         IonFormatterStorage.get<FailedCheckout>("FailedCheckout").write(writer, value as FailedCheckout);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICheckoutResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9988,7 +11740,7 @@ IonFormatterStorage.register("ICheckoutResult", {
 
 IonFormatterStorage.register("SuccessCheckout", {
   read(reader: CborReader): SuccessCheckout {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessCheckout");
     const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
     const sessionId = IonFormatterStorage.get<string>('string').read(reader);
     const countryCode = IonFormatterStorage.get<string>('string').read(reader);
@@ -10006,7 +11758,7 @@ IonFormatterStorage.register("SuccessCheckout", {
 
 IonFormatterStorage.register("FailedCheckout", {
   read(reader: CborReader): FailedCheckout {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCheckout");
     const error = IonFormatterStorage.get<CheckoutError>('CheckoutError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCheckout(error);
@@ -10058,10 +11810,9 @@ export class FailedApplyBoost extends IApplyBoostResult
 
 IonFormatterStorage.register("IApplyBoostResult", {
   read(reader: CborReader): IApplyBoostResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IApplyBoostResult", 2);
     let value: IApplyBoostResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10069,9 +11820,9 @@ IonFormatterStorage.register("IApplyBoostResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedApplyBoost>("FailedApplyBoost").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IApplyBoostResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IApplyBoostResult): void {
@@ -10086,7 +11837,7 @@ IonFormatterStorage.register("IApplyBoostResult", {
         IonFormatterStorage.get<FailedApplyBoost>("FailedApplyBoost").write(writer, value as FailedApplyBoost);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IApplyBoostResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10094,7 +11845,7 @@ IonFormatterStorage.register("IApplyBoostResult", {
 
 IonFormatterStorage.register("SuccessApplyBoost", {
   read(reader: CborReader): SuccessApplyBoost {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessApplyBoost");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessApplyBoost();
@@ -10108,7 +11859,7 @@ IonFormatterStorage.register("SuccessApplyBoost", {
 
 IonFormatterStorage.register("FailedApplyBoost", {
   read(reader: CborReader): FailedApplyBoost {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedApplyBoost");
     const error = IonFormatterStorage.get<ApplyBoostError>('ApplyBoostError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedApplyBoost(error);
@@ -10160,10 +11911,9 @@ export class FailedTransfer extends ITransferBoostResult
 
 IonFormatterStorage.register("ITransferBoostResult", {
   read(reader: CborReader): ITransferBoostResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ITransferBoostResult", 2);
     let value: ITransferBoostResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10171,9 +11921,9 @@ IonFormatterStorage.register("ITransferBoostResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedTransfer>("FailedTransfer").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ITransferBoostResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ITransferBoostResult): void {
@@ -10188,7 +11938,7 @@ IonFormatterStorage.register("ITransferBoostResult", {
         IonFormatterStorage.get<FailedTransfer>("FailedTransfer").write(writer, value as FailedTransfer);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ITransferBoostResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10196,7 +11946,7 @@ IonFormatterStorage.register("ITransferBoostResult", {
 
 IonFormatterStorage.register("SuccessTransfer", {
   read(reader: CborReader): SuccessTransfer {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessTransfer");
     
     reader.readEndArrayAndSkip(arraySize - 0);
     return new SuccessTransfer();
@@ -10210,7 +11960,7 @@ IonFormatterStorage.register("SuccessTransfer", {
 
 IonFormatterStorage.register("FailedTransfer", {
   read(reader: CborReader): FailedTransfer {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedTransfer");
     const error = IonFormatterStorage.get<TransferBoostError>('TransferBoostError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedTransfer(error);
@@ -10262,10 +12012,9 @@ export class FailedPurchaseBoost extends IPurchaseBoostResult
 
 IonFormatterStorage.register("IPurchaseBoostResult", {
   read(reader: CborReader): IPurchaseBoostResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPurchaseBoostResult", 2);
     let value: IPurchaseBoostResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10273,9 +12022,9 @@ IonFormatterStorage.register("IPurchaseBoostResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedPurchaseBoost>("FailedPurchaseBoost").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IPurchaseBoostResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IPurchaseBoostResult): void {
@@ -10290,7 +12039,7 @@ IonFormatterStorage.register("IPurchaseBoostResult", {
         IonFormatterStorage.get<FailedPurchaseBoost>("FailedPurchaseBoost").write(writer, value as FailedPurchaseBoost);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IPurchaseBoostResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10298,7 +12047,7 @@ IonFormatterStorage.register("IPurchaseBoostResult", {
 
 IonFormatterStorage.register("SuccessPurchaseBoost", {
   read(reader: CborReader): SuccessPurchaseBoost {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessPurchaseBoost");
     const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
     const countryCode = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -10314,7 +12063,7 @@ IonFormatterStorage.register("SuccessPurchaseBoost", {
 
 IonFormatterStorage.register("FailedPurchaseBoost", {
   read(reader: CborReader): FailedPurchaseBoost {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPurchaseBoost");
     const error = IonFormatterStorage.get<PurchaseBoostError>('PurchaseBoostError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedPurchaseBoost(error);
@@ -10366,10 +12115,9 @@ export class FailedSendGift extends ISendGiftResult
 
 IonFormatterStorage.register("ISendGiftResult", {
   read(reader: CborReader): ISendGiftResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISendGiftResult", 2);
     let value: ISendGiftResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10377,9 +12125,9 @@ IonFormatterStorage.register("ISendGiftResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedSendGift>("FailedSendGift").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ISendGiftResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ISendGiftResult): void {
@@ -10394,7 +12142,7 @@ IonFormatterStorage.register("ISendGiftResult", {
         IonFormatterStorage.get<FailedSendGift>("FailedSendGift").write(writer, value as FailedSendGift);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ISendGiftResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10402,7 +12150,7 @@ IonFormatterStorage.register("ISendGiftResult", {
 
 IonFormatterStorage.register("SuccessSendGift", {
   read(reader: CborReader): SuccessSendGift {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessSendGift");
     const checkoutUrl = IonFormatterStorage.get<string>('string').read(reader);
     const countryCode = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -10418,7 +12166,7 @@ IonFormatterStorage.register("SuccessSendGift", {
 
 IonFormatterStorage.register("FailedSendGift", {
   read(reader: CborReader): FailedSendGift {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSendGift");
     const error = IonFormatterStorage.get<SendGiftError>('SendGiftError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedSendGift(error);
@@ -10470,10 +12218,9 @@ export class FailedUploadFile extends IUploadFileResult
 
 IonFormatterStorage.register("IUploadFileResult", {
   read(reader: CborReader): IUploadFileResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUploadFileResult", 2);
     let value: IUploadFileResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10481,9 +12228,9 @@ IonFormatterStorage.register("IUploadFileResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedUploadFile>("FailedUploadFile").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IUploadFileResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IUploadFileResult): void {
@@ -10498,7 +12245,7 @@ IonFormatterStorage.register("IUploadFileResult", {
         IonFormatterStorage.get<FailedUploadFile>("FailedUploadFile").write(writer, value as FailedUploadFile);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IUploadFileResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10506,7 +12253,7 @@ IonFormatterStorage.register("IUploadFileResult", {
 
 IonFormatterStorage.register("SuccessUploadFile", {
   read(reader: CborReader): SuccessUploadFile {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SuccessUploadFile");
     const blobId = IonFormatterStorage.get<guid>('guid').read(reader);
     const uploadUrl = IonFormatterStorage.get<string>('string').read(reader);
     const formFields = IonFormatterStorage.readArray<FormField>(reader, 'FormField');
@@ -10526,7 +12273,7 @@ IonFormatterStorage.register("SuccessUploadFile", {
 
 IonFormatterStorage.register("FailedUploadFile", {
   read(reader: CborReader): FailedUploadFile {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUploadFile");
     const error = IonFormatterStorage.get<UploadFileError>('UploadFileError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedUploadFile(error);
@@ -10578,10 +12325,9 @@ export class FailedCreateSpace extends ICreateSpaceResult
 
 IonFormatterStorage.register("ICreateSpaceResult", {
   read(reader: CborReader): ICreateSpaceResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateSpaceResult", 2);
     let value: ICreateSpaceResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10589,9 +12335,9 @@ IonFormatterStorage.register("ICreateSpaceResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedCreateSpace>("FailedCreateSpace").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ICreateSpaceResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ICreateSpaceResult): void {
@@ -10606,7 +12352,7 @@ IonFormatterStorage.register("ICreateSpaceResult", {
         IonFormatterStorage.get<FailedCreateSpace>("FailedCreateSpace").write(writer, value as FailedCreateSpace);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ICreateSpaceResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10614,7 +12360,7 @@ IonFormatterStorage.register("ICreateSpaceResult", {
 
 IonFormatterStorage.register("SuccessCreateSpace", {
   read(reader: CborReader): SuccessCreateSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCreateSpace");
     const space = IonFormatterStorage.get<ArgonSpaceBase>('ArgonSpaceBase').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessCreateSpace(space);
@@ -10628,7 +12374,7 @@ IonFormatterStorage.register("SuccessCreateSpace", {
 
 IonFormatterStorage.register("FailedCreateSpace", {
   read(reader: CborReader): FailedCreateSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateSpace");
     const error = IonFormatterStorage.get<CreateSpaceError>('CreateSpaceError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedCreateSpace(error);
@@ -10680,10 +12426,9 @@ export class FailedUpdateMe extends IUpdateMeResult
 
 IonFormatterStorage.register("IUpdateMeResult", {
   read(reader: CborReader): IUpdateMeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUpdateMeResult", 2);
     let value: IUpdateMeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10691,9 +12436,9 @@ IonFormatterStorage.register("IUpdateMeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedUpdateMe>("FailedUpdateMe").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IUpdateMeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IUpdateMeResult): void {
@@ -10708,7 +12453,7 @@ IonFormatterStorage.register("IUpdateMeResult", {
         IonFormatterStorage.get<FailedUpdateMe>("FailedUpdateMe").write(writer, value as FailedUpdateMe);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IUpdateMeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10716,7 +12461,7 @@ IonFormatterStorage.register("IUpdateMeResult", {
 
 IonFormatterStorage.register("SuccessUpdateMe", {
   read(reader: CborReader): SuccessUpdateMe {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessUpdateMe");
     const user = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
     const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -10732,7 +12477,7 @@ IonFormatterStorage.register("SuccessUpdateMe", {
 
 IonFormatterStorage.register("FailedUpdateMe", {
   read(reader: CborReader): FailedUpdateMe {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUpdateMe");
     const error = IonFormatterStorage.get<UpdateMeError>('UpdateMeError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedUpdateMe(error);
@@ -10784,10 +12529,9 @@ export class FailedAuthorize extends IAuthorizeResult
 
 IonFormatterStorage.register("IAuthorizeResult", {
   read(reader: CborReader): IAuthorizeResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IAuthorizeResult", 2);
     let value: IAuthorizeResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10795,9 +12539,9 @@ IonFormatterStorage.register("IAuthorizeResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedAuthorize>("FailedAuthorize").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IAuthorizeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IAuthorizeResult): void {
@@ -10812,7 +12556,7 @@ IonFormatterStorage.register("IAuthorizeResult", {
         IonFormatterStorage.get<FailedAuthorize>("FailedAuthorize").write(writer, value as FailedAuthorize);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IAuthorizeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10820,7 +12564,7 @@ IonFormatterStorage.register("IAuthorizeResult", {
 
 IonFormatterStorage.register("SuccessAuthorize", {
   read(reader: CborReader): SuccessAuthorize {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessAuthorize");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -10836,7 +12580,7 @@ IonFormatterStorage.register("SuccessAuthorize", {
 
 IonFormatterStorage.register("FailedAuthorize", {
   read(reader: CborReader): FailedAuthorize {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedAuthorize");
     const error = IonFormatterStorage.get<AuthorizationError>('AuthorizationError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedAuthorize(error);
@@ -10888,10 +12632,9 @@ export class FailedRegistration extends IRegistrationResult
 
 IonFormatterStorage.register("IRegistrationResult", {
   read(reader: CborReader): IRegistrationResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRegistrationResult", 2);
     let value: IRegistrationResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -10899,9 +12642,9 @@ IonFormatterStorage.register("IRegistrationResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedRegistration>("FailedRegistration").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IRegistrationResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IRegistrationResult): void {
@@ -10916,7 +12659,7 @@ IonFormatterStorage.register("IRegistrationResult", {
         IonFormatterStorage.get<FailedRegistration>("FailedRegistration").write(writer, value as FailedRegistration);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IRegistrationResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10924,7 +12667,7 @@ IonFormatterStorage.register("IRegistrationResult", {
 
 IonFormatterStorage.register("SuccessRegistration", {
   read(reader: CborReader): SuccessRegistration {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessRegistration");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const refreshToken = IonFormatterStorage.readNullable<string>(reader, 'string');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -10940,7 +12683,7 @@ IonFormatterStorage.register("SuccessRegistration", {
 
 IonFormatterStorage.register("FailedRegistration", {
   read(reader: CborReader): FailedRegistration {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "FailedRegistration");
     const error = IonFormatterStorage.get<RegistrationError>('RegistrationError').read(reader);
     const field = IonFormatterStorage.readNullable<string>(reader, 'string');
     const message = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -10996,10 +12739,9 @@ export class FailedJoin extends IJoinToSpaceResult
 
 IonFormatterStorage.register("IJoinToSpaceResult", {
   read(reader: CborReader): IJoinToSpaceResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IJoinToSpaceResult", 2);
     let value: IJoinToSpaceResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11007,9 +12749,9 @@ IonFormatterStorage.register("IJoinToSpaceResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedJoin>("FailedJoin").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IJoinToSpaceResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IJoinToSpaceResult): void {
@@ -11024,7 +12766,7 @@ IonFormatterStorage.register("IJoinToSpaceResult", {
         IonFormatterStorage.get<FailedJoin>("FailedJoin").write(writer, value as FailedJoin);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IJoinToSpaceResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11032,7 +12774,7 @@ IonFormatterStorage.register("IJoinToSpaceResult", {
 
 IonFormatterStorage.register("SuccessJoin", {
   read(reader: CborReader): SuccessJoin {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessJoin");
     const space = IonFormatterStorage.get<ArgonSpace>('ArgonSpace').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessJoin(space);
@@ -11046,7 +12788,7 @@ IonFormatterStorage.register("SuccessJoin", {
 
 IonFormatterStorage.register("FailedJoin", {
   read(reader: CborReader): FailedJoin {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedJoin");
     const error = IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedJoin(error);
@@ -11098,10 +12840,9 @@ export class FailedPreview extends IPreviewInviteResult
 
 IonFormatterStorage.register("IPreviewInviteResult", {
   read(reader: CborReader): IPreviewInviteResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPreviewInviteResult", 2);
     let value: IPreviewInviteResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11109,9 +12850,9 @@ IonFormatterStorage.register("IPreviewInviteResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedPreview>("FailedPreview").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IPreviewInviteResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IPreviewInviteResult): void {
@@ -11126,7 +12867,7 @@ IonFormatterStorage.register("IPreviewInviteResult", {
         IonFormatterStorage.get<FailedPreview>("FailedPreview").write(writer, value as FailedPreview);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IPreviewInviteResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11134,7 +12875,7 @@ IonFormatterStorage.register("IPreviewInviteResult", {
 
 IonFormatterStorage.register("SuccessPreview", {
   read(reader: CborReader): SuccessPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessPreview");
     const preview = IonFormatterStorage.get<InvitePreview>('InvitePreview').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessPreview(preview);
@@ -11148,7 +12889,7 @@ IonFormatterStorage.register("SuccessPreview", {
 
 IonFormatterStorage.register("FailedPreview", {
   read(reader: CborReader): FailedPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPreview");
     const error = IonFormatterStorage.get<AcceptInviteError>('AcceptInviteError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedPreview(error);
@@ -11200,10 +12941,9 @@ export class FailedLookupUser extends ILookupUserResult
 
 IonFormatterStorage.register("ILookupUserResult", {
   read(reader: CborReader): ILookupUserResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILookupUserResult", 2);
     let value: ILookupUserResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11211,9 +12951,9 @@ IonFormatterStorage.register("ILookupUserResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedLookupUser>("FailedLookupUser").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ILookupUserResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ILookupUserResult): void {
@@ -11228,7 +12968,7 @@ IonFormatterStorage.register("ILookupUserResult", {
         IonFormatterStorage.get<FailedLookupUser>("FailedLookupUser").write(writer, value as FailedLookupUser);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ILookupUserResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11236,7 +12976,7 @@ IonFormatterStorage.register("ILookupUserResult", {
 
 IonFormatterStorage.register("SuccessLookupUser", {
   read(reader: CborReader): SuccessLookupUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessLookupUser");
     const user = IonFormatterStorage.get<ArgonUser>('ArgonUser').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessLookupUser(user);
@@ -11250,7 +12990,7 @@ IonFormatterStorage.register("SuccessLookupUser", {
 
 IonFormatterStorage.register("FailedLookupUser", {
   read(reader: CborReader): FailedLookupUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLookupUser");
     const error = IonFormatterStorage.get<LookupError>('LookupError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedLookupUser(error);
@@ -11302,10 +13042,9 @@ export class FailedLookupProfile extends ILookupProfileResult
 
 IonFormatterStorage.register("ILookupProfileResult", {
   read(reader: CborReader): ILookupProfileResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILookupProfileResult", 2);
     let value: ILookupProfileResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11313,9 +13052,9 @@ IonFormatterStorage.register("ILookupProfileResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedLookupProfile>("FailedLookupProfile").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("ILookupProfileResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: ILookupProfileResult): void {
@@ -11330,7 +13069,7 @@ IonFormatterStorage.register("ILookupProfileResult", {
         IonFormatterStorage.get<FailedLookupProfile>("FailedLookupProfile").write(writer, value as FailedLookupProfile);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'ILookupProfileResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11338,7 +13077,7 @@ IonFormatterStorage.register("ILookupProfileResult", {
 
 IonFormatterStorage.register("SuccessLookupProfile", {
   read(reader: CborReader): SuccessLookupProfile {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessLookupProfile");
     const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new SuccessLookupProfile(profile);
@@ -11352,7 +13091,7 @@ IonFormatterStorage.register("SuccessLookupProfile", {
 
 IonFormatterStorage.register("FailedLookupProfile", {
   read(reader: CborReader): FailedLookupProfile {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLookupProfile");
     const error = IonFormatterStorage.get<LookupError>('LookupError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedLookupProfile(error);
@@ -11404,10 +13143,9 @@ export class FailedDingDong extends IBeginCallResult
 
 IonFormatterStorage.register("IBeginCallResult", {
   read(reader: CborReader): IBeginCallResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBeginCallResult", 2);
     let value: IBeginCallResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11415,9 +13153,9 @@ IonFormatterStorage.register("IBeginCallResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedDingDong>("FailedDingDong").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IBeginCallResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IBeginCallResult): void {
@@ -11432,7 +13170,7 @@ IonFormatterStorage.register("IBeginCallResult", {
         IonFormatterStorage.get<FailedDingDong>("FailedDingDong").write(writer, value as FailedDingDong);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IBeginCallResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11440,7 +13178,7 @@ IonFormatterStorage.register("IBeginCallResult", {
 
 IonFormatterStorage.register("SuccessDingDong", {
   read(reader: CborReader): SuccessDingDong {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessDingDong");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
@@ -11458,7 +13196,7 @@ IonFormatterStorage.register("SuccessDingDong", {
 
 IonFormatterStorage.register("FailedDingDong", {
   read(reader: CborReader): FailedDingDong {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedDingDong");
     const error = IonFormatterStorage.get<CallFailedError>('CallFailedError').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedDingDong(error);
@@ -11510,10 +13248,9 @@ export class FailedPickUp extends IPickUpCallResult
 
 IonFormatterStorage.register("IPickUpCallResult", {
   read(reader: CborReader): IPickUpCallResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPickUpCallResult", 2);
     let value: IPickUpCallResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11521,9 +13258,9 @@ IonFormatterStorage.register("IPickUpCallResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedPickUp>("FailedPickUp").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IPickUpCallResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IPickUpCallResult): void {
@@ -11538,7 +13275,7 @@ IonFormatterStorage.register("IPickUpCallResult", {
         IonFormatterStorage.get<FailedPickUp>("FailedPickUp").write(writer, value as FailedPickUp);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IPickUpCallResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11546,7 +13283,7 @@ IonFormatterStorage.register("IPickUpCallResult", {
 
 IonFormatterStorage.register("SuccessPickUp", {
   read(reader: CborReader): SuccessPickUp {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessPickUp");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const callId = IonFormatterStorage.get<guid>('guid').read(reader);
     const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
@@ -11564,7 +13301,7 @@ IonFormatterStorage.register("SuccessPickUp", {
 
 IonFormatterStorage.register("FailedPickUp", {
   read(reader: CborReader): FailedPickUp {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPickUp");
     const error = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return new FailedPickUp(error);
@@ -11616,10 +13353,9 @@ export class FailedDialCheck extends IDialCheckResult
 
 IonFormatterStorage.register("IDialCheckResult", {
   read(reader: CborReader): IDialCheckResult {
-    reader.readStartArray();
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDialCheckResult", 2);
     let value: IDialCheckResult = null as any;
-    const unionIndex = reader.readUInt32();
-    
+
     if (false)
     {}
         else if (unionIndex == 0)
@@ -11627,9 +13363,9 @@ IonFormatterStorage.register("IDialCheckResult", {
     else if (unionIndex == 1)
       value = IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").read(reader);
 
-    else throw new Error();
-  
-    reader.readEndArray();
+    else IonFormatterStorage.invalidUnionIndex("IDialCheckResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
     return value!;
   },
   write(writer: CborWriter, value: IDialCheckResult): void {
@@ -11644,7 +13380,7 @@ IonFormatterStorage.register("IDialCheckResult", {
         IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").write(writer, value as FailedDialCheck);
     }
   
-    else throw new Error();
+    else throw new Error(`Ion union 'IDialCheckResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11652,7 +13388,7 @@ IonFormatterStorage.register("IDialCheckResult", {
 
 IonFormatterStorage.register("SuccessDialCheck", {
   read(reader: CborReader): SuccessDialCheck {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessDialCheck");
     const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
     const corelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const corlId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -11670,7 +13406,7 @@ IonFormatterStorage.register("SuccessDialCheck", {
 
 IonFormatterStorage.register("FailedDialCheck", {
   read(reader: CborReader): FailedDialCheck {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FailedDialCheck");
     const reason = IonFormatterStorage.get<DialCheckFailReason>('DialCheckFailReason').read(reader);
     const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -11699,7 +13435,7 @@ IonFormatterStorage.register("ArgonEntitlement", {
 
 IonFormatterStorage.register("ChannelEntitlementOverwrite", {
   read(reader: CborReader): ChannelEntitlementOverwrite {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "ChannelEntitlementOverwrite");
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const archetypeId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const serverMemberId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -11725,7 +13461,7 @@ IonFormatterStorage.register("ChannelEntitlementOverwrite", {
 
 IonFormatterStorage.register("Archetype", {
   read(reader: CborReader): Archetype {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "Archetype");
     const id = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
@@ -11763,8 +13499,7 @@ IonFormatterStorage.register("Archetype", {
 
 IonFormatterStorage.register("ArchetypeError", {
   read(reader: CborReader): ArchetypeError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return ArchetypeError[num] !== undefined ? num as ArchetypeError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ArchetypeError>(reader, 'u2');
   },
   write(writer: CborWriter, value: ArchetypeError): void {
     const casted: u2 = value;
@@ -11774,7 +13509,7 @@ IonFormatterStorage.register("ArchetypeError", {
 
 IonFormatterStorage.register("BotSearchResult", {
   read(reader: CborReader): BotSearchResult {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "BotSearchResult");
     const appId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
@@ -11802,7 +13537,7 @@ IonFormatterStorage.register("BotSearchResult", {
 
 IonFormatterStorage.register("BotDetails", {
   read(reader: CborReader): BotDetails {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "BotDetails");
     const appId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
@@ -11836,7 +13571,7 @@ IonFormatterStorage.register("BotDetails", {
 
 IonFormatterStorage.register("InstalledBotInfo", {
   read(reader: CborReader): InstalledBotInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "InstalledBotInfo");
     const appId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
@@ -11866,8 +13601,7 @@ IonFormatterStorage.register("InstalledBotInfo", {
 
 IonFormatterStorage.register("CommandOptionType", {
   read(reader: CborReader): CommandOptionType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return CommandOptionType[num] !== undefined ? num as CommandOptionType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<CommandOptionType>(reader, 'u2');
   },
   write(writer: CborWriter, value: CommandOptionType): void {
     const casted: u2 = value;
@@ -11877,7 +13611,7 @@ IonFormatterStorage.register("CommandOptionType", {
 
 IonFormatterStorage.register("SpaceCommandOption", {
   read(reader: CborReader): SpaceCommandOption {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SpaceCommandOption");
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
     const type = IonFormatterStorage.get<CommandOptionType>('CommandOptionType').read(reader);
@@ -11897,7 +13631,7 @@ IonFormatterStorage.register("SpaceCommandOption", {
 
 IonFormatterStorage.register("SpaceCommand", {
   read(reader: CborReader): SpaceCommand {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SpaceCommand");
     const commandId = IonFormatterStorage.get<guid>('guid').read(reader);
     const appId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
@@ -11919,8 +13653,7 @@ IonFormatterStorage.register("SpaceCommand", {
 
 IonFormatterStorage.register("InstallBotError", {
   read(reader: CborReader): InstallBotError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return InstallBotError[num] !== undefined ? num as InstallBotError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<InstallBotError>(reader, 'u4');
   },
   write(writer: CborWriter, value: InstallBotError): void {
     const casted: u4 = value;
@@ -11930,8 +13663,7 @@ IonFormatterStorage.register("InstallBotError", {
 
 IonFormatterStorage.register("UninstallBotError", {
   read(reader: CborReader): UninstallBotError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UninstallBotError[num] !== undefined ? num as UninstallBotError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UninstallBotError>(reader, 'u4');
   },
   write(writer: CborWriter, value: UninstallBotError): void {
     const casted: u4 = value;
@@ -11941,8 +13673,7 @@ IonFormatterStorage.register("UninstallBotError", {
 
 IonFormatterStorage.register("ApproveBotEntitlementsError", {
   read(reader: CborReader): ApproveBotEntitlementsError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ApproveBotEntitlementsError[num] !== undefined ? num as ApproveBotEntitlementsError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ApproveBotEntitlementsError>(reader, 'u4');
   },
   write(writer: CborWriter, value: ApproveBotEntitlementsError): void {
     const casted: u4 = value;
@@ -11952,8 +13683,7 @@ IonFormatterStorage.register("ApproveBotEntitlementsError", {
 
 IonFormatterStorage.register("ChannelType", {
   read(reader: CborReader): ChannelType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return ChannelType[num] !== undefined ? num as ChannelType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ChannelType>(reader, 'u2');
   },
   write(writer: CborWriter, value: ChannelType): void {
     const casted: u2 = value;
@@ -11963,7 +13693,7 @@ IonFormatterStorage.register("ChannelType", {
 
 IonFormatterStorage.register("CreateChannelRequest", {
   read(reader: CborReader): CreateChannelRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "CreateChannelRequest");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const kind = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
@@ -11985,7 +13715,7 @@ IonFormatterStorage.register("CreateChannelRequest", {
 
 IonFormatterStorage.register("ArgonChannel", {
   read(reader: CborReader): ArgonChannel {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ArgonChannel");
     const type = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -12015,7 +13745,7 @@ IonFormatterStorage.register("ArgonChannel", {
 
 IonFormatterStorage.register("RealtimeChannel", {
   read(reader: CborReader): RealtimeChannel {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RealtimeChannel");
     const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
     const users = IonFormatterStorage.readArray<RealtimeChannelUser>(reader, 'RealtimeChannelUser');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12031,7 +13761,7 @@ IonFormatterStorage.register("RealtimeChannel", {
 
 IonFormatterStorage.register("ReactionInfo", {
   read(reader: CborReader): ReactionInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ReactionInfo");
     const emoji = IonFormatterStorage.get<string>('string').read(reader);
     const customEmojiId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const count = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -12051,7 +13781,7 @@ IonFormatterStorage.register("ReactionInfo", {
 
 IonFormatterStorage.register("ArgonMessage", {
   read(reader: CborReader): ArgonMessage {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "ArgonMessage");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const replyId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -12094,7 +13824,7 @@ IonFormatterStorage.register("ChannelMemberState", {
 
 IonFormatterStorage.register("RealtimeChannelUser", {
   read(reader: CborReader): RealtimeChannelUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RealtimeChannelUser");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const state = IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12110,7 +13840,7 @@ IonFormatterStorage.register("RealtimeChannelUser", {
 
 IonFormatterStorage.register("AttachmentInfo", {
   read(reader: CborReader): AttachmentInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "AttachmentInfo");
     const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
     const fileName = IonFormatterStorage.get<string>('string').read(reader);
     const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -12132,7 +13862,7 @@ IonFormatterStorage.register("AttachmentInfo", {
 
 IonFormatterStorage.register("MessageReactionsEntry", {
   read(reader: CborReader): MessageReactionsEntry {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "MessageReactionsEntry");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12148,7 +13878,7 @@ IonFormatterStorage.register("MessageReactionsEntry", {
 
 IonFormatterStorage.register("SlashCommandOption", {
   read(reader: CborReader): SlashCommandOption {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SlashCommandOption");
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12164,7 +13894,7 @@ IonFormatterStorage.register("SlashCommandOption", {
 
 IonFormatterStorage.register("OklchColor", {
   read(reader: CborReader): OklchColor {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "OklchColor");
     const l = IonFormatterStorage.get<f4>('f4').read(reader);
     const c = IonFormatterStorage.get<f4>('f4').read(reader);
     const h = IonFormatterStorage.get<f4>('f4').read(reader);
@@ -12182,7 +13912,7 @@ IonFormatterStorage.register("OklchColor", {
 
 IonFormatterStorage.register("SelectOption", {
   read(reader: CborReader): SelectOption {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SelectOption");
     const label = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -12202,8 +13932,7 @@ IonFormatterStorage.register("SelectOption", {
 
 IonFormatterStorage.register("ControlType", {
   read(reader: CborReader): ControlType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return ControlType[num] !== undefined ? num as ControlType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ControlType>(reader, 'u2');
   },
   write(writer: CborWriter, value: ControlType): void {
     const casted: u2 = value;
@@ -12213,7 +13942,7 @@ IonFormatterStorage.register("ControlType", {
 
 IonFormatterStorage.register("BotControl", {
   read(reader: CborReader): BotControl {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "BotControl");
     const type = IonFormatterStorage.get<ControlType>('ControlType').read(reader);
     const variant = IonFormatterStorage.readNullable<ButtonVariant>(reader, 'ButtonVariant');
     const label = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -12251,7 +13980,7 @@ IonFormatterStorage.register("BotControl", {
 
 IonFormatterStorage.register("ControlRow", {
   read(reader: CborReader): ControlRow {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "ControlRow");
     const controls = IonFormatterStorage.readArray<BotControl>(reader, 'BotControl');
     reader.readEndArrayAndSkip(arraySize - 1);
     return { controls };
@@ -12265,7 +13994,7 @@ IonFormatterStorage.register("ControlRow", {
 
 IonFormatterStorage.register("ModalSubmitValue", {
   read(reader: CborReader): ModalSubmitValue {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ModalSubmitValue");
     const customId = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12281,7 +14010,7 @@ IonFormatterStorage.register("ModalSubmitValue", {
 
 IonFormatterStorage.register("IonModalSelectOption", {
   read(reader: CborReader): IonModalSelectOption {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "IonModalSelectOption");
     const label = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -12301,8 +14030,7 @@ IonFormatterStorage.register("IonModalSelectOption", {
 
 IonFormatterStorage.register("IonModalComponentType", {
   read(reader: CborReader): IonModalComponentType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return IonModalComponentType[num] !== undefined ? num as IonModalComponentType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<IonModalComponentType>(reader, 'u2');
   },
   write(writer: CborWriter, value: IonModalComponentType): void {
     const casted: u2 = value;
@@ -12312,7 +14040,7 @@ IonFormatterStorage.register("IonModalComponentType", {
 
 IonFormatterStorage.register("IonModalComponent", {
   read(reader: CborReader): IonModalComponent {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "IonModalComponent");
     const type = IonFormatterStorage.get<IonModalComponentType>('IonModalComponentType').read(reader);
     const customId = IonFormatterStorage.get<string>('string').read(reader);
     const label = IonFormatterStorage.get<string>('string').read(reader);
@@ -12352,7 +14080,7 @@ IonFormatterStorage.register("IonModalComponent", {
 
 IonFormatterStorage.register("MultipleModalSelectOption", {
   read(reader: CborReader): MultipleModalSelectOption {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "MultipleModalSelectOption");
     const options = IonFormatterStorage.readArray<IonModalSelectOption>(reader, 'IonModalSelectOption');
     reader.readEndArrayAndSkip(arraySize - 1);
     return { options };
@@ -12366,7 +14094,7 @@ IonFormatterStorage.register("MultipleModalSelectOption", {
 
 IonFormatterStorage.register("IonModalDefinition", {
   read(reader: CborReader): IonModalDefinition {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "IonModalDefinition");
     const customId = IonFormatterStorage.get<string>('string').read(reader);
     const title = IonFormatterStorage.get<string>('string').read(reader);
     const components = IonFormatterStorage.readArray<IonModalComponent>(reader, 'IonModalComponent');
@@ -12384,7 +14112,7 @@ IonFormatterStorage.register("IonModalDefinition", {
 
 IonFormatterStorage.register("SendMessageReadback", {
   read(reader: CborReader): SendMessageReadback {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SendMessageReadback");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -12404,7 +14132,7 @@ IonFormatterStorage.register("SendMessageReadback", {
 
 IonFormatterStorage.register("DrawingSession", {
   read(reader: CborReader): DrawingSession {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "DrawingSession");
     const sessionId = IonFormatterStorage.get<string>('string').read(reader);
     const ownerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const allowedDrawers = IonFormatterStorage.readArray<guid>(reader, 'guid');
@@ -12424,7 +14152,7 @@ IonFormatterStorage.register("DrawingSession", {
 
 IonFormatterStorage.register("ChannelReadState", {
   read(reader: CborReader): ChannelReadState {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ChannelReadState");
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const lastReadMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
@@ -12444,8 +14172,7 @@ IonFormatterStorage.register("ChannelReadState", {
 
 IonFormatterStorage.register("MuteTargetKind", {
   read(reader: CborReader): MuteTargetKind {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return MuteTargetKind[num] !== undefined ? num as MuteTargetKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<MuteTargetKind>(reader, 'u2');
   },
   write(writer: CborWriter, value: MuteTargetKind): void {
     const casted: u2 = value;
@@ -12455,8 +14182,7 @@ IonFormatterStorage.register("MuteTargetKind", {
 
 IonFormatterStorage.register("MuteLevelType", {
   read(reader: CborReader): MuteLevelType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return MuteLevelType[num] !== undefined ? num as MuteLevelType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<MuteLevelType>(reader, 'u2');
   },
   write(writer: CborWriter, value: MuteLevelType): void {
     const casted: u2 = value;
@@ -12466,7 +14192,7 @@ IonFormatterStorage.register("MuteLevelType", {
 
 IonFormatterStorage.register("MuteSettingsDto", {
   read(reader: CborReader): MuteSettingsDto {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MuteSettingsDto");
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     const targetType = IonFormatterStorage.get<MuteTargetKind>('MuteTargetKind').read(reader);
     const muteLevel = IonFormatterStorage.get<MuteLevelType>('MuteLevelType').read(reader);
@@ -12488,7 +14214,7 @@ IonFormatterStorage.register("MuteSettingsDto", {
 
 IonFormatterStorage.register("SystemNotificationDto", {
   read(reader: CborReader): SystemNotificationDto {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "SystemNotificationDto");
     const id = IonFormatterStorage.get<guid>('guid').read(reader);
     const type = IonFormatterStorage.get<string>('string').read(reader);
     const referenceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -12514,7 +14240,7 @@ IonFormatterStorage.register("SystemNotificationDto", {
 
 IonFormatterStorage.register("SpaceBadge", {
   read(reader: CborReader): SpaceBadge {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SpaceBadge");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const unreadChannelCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const totalMentions = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -12532,7 +14258,7 @@ IonFormatterStorage.register("SpaceBadge", {
 
 IonFormatterStorage.register("NotificationBadges", {
   read(reader: CborReader): NotificationBadges {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "NotificationBadges");
     const friendRequests = IonFormatterStorage.get<i4>('i4').read(reader);
     const inventory = IonFormatterStorage.get<i4>('i4').read(reader);
     const system = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -12550,7 +14276,7 @@ IonFormatterStorage.register("NotificationBadges", {
 
 IonFormatterStorage.register("GlobalBadges", {
   read(reader: CborReader): GlobalBadges {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "GlobalBadges");
     const unreadDmCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const spaces = IonFormatterStorage.readArray<SpaceBadge>(reader, 'SpaceBadge');
     const notifications = IonFormatterStorage.get<NotificationBadges>('NotificationBadges').read(reader);
@@ -12572,8 +14298,7 @@ IonFormatterStorage.register("GlobalBadges", {
 
 IonFormatterStorage.register("ActivityPresenceKind", {
   read(reader: CborReader): ActivityPresenceKind {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ActivityPresenceKind[num] !== undefined ? num as ActivityPresenceKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ActivityPresenceKind>(reader, 'u4');
   },
   write(writer: CborWriter, value: ActivityPresenceKind): void {
     const casted: u4 = value;
@@ -12583,7 +14308,7 @@ IonFormatterStorage.register("ActivityPresenceKind", {
 
 IonFormatterStorage.register("UserActivityPresence", {
   read(reader: CborReader): UserActivityPresence {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserActivityPresence");
     const kind = IonFormatterStorage.get<ActivityPresenceKind>('ActivityPresenceKind').read(reader);
     const startTimestampSeconds = IonFormatterStorage.get<u8>('u8').read(reader);
     const titleName = IonFormatterStorage.get<string>('string').read(reader);
@@ -12601,7 +14326,7 @@ IonFormatterStorage.register("UserActivityPresence", {
 
 IonFormatterStorage.register("ChannelGroup", {
   read(reader: CborReader): ChannelGroup {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "ChannelGroup");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const groupId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
@@ -12625,8 +14350,7 @@ IonFormatterStorage.register("ChannelGroup", {
 
 IonFormatterStorage.register("JoinToChannelError", {
   read(reader: CborReader): JoinToChannelError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return JoinToChannelError[num] !== undefined ? num as JoinToChannelError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<JoinToChannelError>(reader, 'u2');
   },
   write(writer: CborWriter, value: JoinToChannelError): void {
     const casted: u2 = value;
@@ -12636,8 +14360,7 @@ IonFormatterStorage.register("JoinToChannelError", {
 
 IonFormatterStorage.register("EntityType", {
   read(reader: CborReader): EntityType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return EntityType[num] !== undefined ? num as EntityType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<EntityType>(reader, 'u2');
   },
   write(writer: CborWriter, value: EntityType): void {
     const casted: u2 = value;
@@ -12647,8 +14370,7 @@ IonFormatterStorage.register("EntityType", {
 
 IonFormatterStorage.register("UpdateChannelError", {
   read(reader: CborReader): UpdateChannelError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return UpdateChannelError[num] !== undefined ? num as UpdateChannelError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UpdateChannelError>(reader, 'u2');
   },
   write(writer: CborWriter, value: UpdateChannelError): void {
     const casted: u2 = value;
@@ -12658,8 +14380,7 @@ IonFormatterStorage.register("UpdateChannelError", {
 
 IonFormatterStorage.register("VoiceInviteError", {
   read(reader: CborReader): VoiceInviteError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return VoiceInviteError[num] !== undefined ? num as VoiceInviteError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<VoiceInviteError>(reader, 'u2');
   },
   write(writer: CborWriter, value: VoiceInviteError): void {
     const casted: u2 = value;
@@ -12669,8 +14390,7 @@ IonFormatterStorage.register("VoiceInviteError", {
 
 IonFormatterStorage.register("DeleteMessageError", {
   read(reader: CborReader): DeleteMessageError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return DeleteMessageError[num] !== undefined ? num as DeleteMessageError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<DeleteMessageError>(reader, 'u2');
   },
   write(writer: CborWriter, value: DeleteMessageError): void {
     const casted: u2 = value;
@@ -12680,8 +14400,7 @@ IonFormatterStorage.register("DeleteMessageError", {
 
 IonFormatterStorage.register("ButtonVariant", {
   read(reader: CborReader): ButtonVariant {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return ButtonVariant[num] !== undefined ? num as ButtonVariant : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ButtonVariant>(reader, 'u2');
   },
   write(writer: CborWriter, value: ButtonVariant): void {
     const casted: u2 = value;
@@ -12691,8 +14410,7 @@ IonFormatterStorage.register("ButtonVariant", {
 
 IonFormatterStorage.register("InvokeSlashCommandError", {
   read(reader: CborReader): InvokeSlashCommandError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return InvokeSlashCommandError[num] !== undefined ? num as InvokeSlashCommandError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<InvokeSlashCommandError>(reader, 'u2');
   },
   write(writer: CborWriter, value: InvokeSlashCommandError): void {
     const casted: u2 = value;
@@ -12702,8 +14420,7 @@ IonFormatterStorage.register("InvokeSlashCommandError", {
 
 IonFormatterStorage.register("InteractWithControlError", {
   read(reader: CborReader): InteractWithControlError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return InteractWithControlError[num] !== undefined ? num as InteractWithControlError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<InteractWithControlError>(reader, 'u2');
   },
   write(writer: CborWriter, value: InteractWithControlError): void {
     const casted: u2 = value;
@@ -12713,8 +14430,7 @@ IonFormatterStorage.register("InteractWithControlError", {
 
 IonFormatterStorage.register("InteractWithSelectError", {
   read(reader: CborReader): InteractWithSelectError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return InteractWithSelectError[num] !== undefined ? num as InteractWithSelectError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<InteractWithSelectError>(reader, 'u2');
   },
   write(writer: CborWriter, value: InteractWithSelectError): void {
     const casted: u2 = value;
@@ -12724,8 +14440,7 @@ IonFormatterStorage.register("InteractWithSelectError", {
 
 IonFormatterStorage.register("AddReactionError", {
   read(reader: CborReader): AddReactionError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return AddReactionError[num] !== undefined ? num as AddReactionError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<AddReactionError>(reader, 'u2');
   },
   write(writer: CborWriter, value: AddReactionError): void {
     const casted: u2 = value;
@@ -12735,8 +14450,7 @@ IonFormatterStorage.register("AddReactionError", {
 
 IonFormatterStorage.register("RemoveReactionError", {
   read(reader: CborReader): RemoveReactionError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return RemoveReactionError[num] !== undefined ? num as RemoveReactionError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<RemoveReactionError>(reader, 'u2');
   },
   write(writer: CborWriter, value: RemoveReactionError): void {
     const casted: u2 = value;
@@ -12746,8 +14460,7 @@ IonFormatterStorage.register("RemoveReactionError", {
 
 IonFormatterStorage.register("SubmitModalError", {
   read(reader: CborReader): SubmitModalError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return SubmitModalError[num] !== undefined ? num as SubmitModalError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SubmitModalError>(reader, 'u2');
   },
   write(writer: CborWriter, value: SubmitModalError): void {
     const casted: u2 = value;
@@ -12757,8 +14470,7 @@ IonFormatterStorage.register("SubmitModalError", {
 
 IonFormatterStorage.register("IonTextInputStyle", {
   read(reader: CborReader): IonTextInputStyle {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return IonTextInputStyle[num] !== undefined ? num as IonTextInputStyle : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<IonTextInputStyle>(reader, 'u2');
   },
   write(writer: CborWriter, value: IonTextInputStyle): void {
     const casted: u2 = value;
@@ -12768,8 +14480,7 @@ IonFormatterStorage.register("IonTextInputStyle", {
 
 IonFormatterStorage.register("StartStreamError", {
   read(reader: CborReader): StartStreamError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return StartStreamError[num] !== undefined ? num as StartStreamError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<StartStreamError>(reader, 'u2');
   },
   write(writer: CborWriter, value: StartStreamError): void {
     const casted: u2 = value;
@@ -12779,8 +14490,7 @@ IonFormatterStorage.register("StartStreamError", {
 
 IonFormatterStorage.register("DrawingDenyReason", {
   read(reader: CborReader): DrawingDenyReason {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return DrawingDenyReason[num] !== undefined ? num as DrawingDenyReason : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<DrawingDenyReason>(reader, 'u2');
   },
   write(writer: CborWriter, value: DrawingDenyReason): void {
     const casted: u2 = value;
@@ -12790,8 +14500,7 @@ IonFormatterStorage.register("DrawingDenyReason", {
 
 IonFormatterStorage.register("TypingKind", {
   read(reader: CborReader): TypingKind {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return TypingKind[num] !== undefined ? num as TypingKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<TypingKind>(reader, 'u4');
   },
   write(writer: CborWriter, value: TypingKind): void {
     const casted: u4 = value;
@@ -12801,8 +14510,7 @@ IonFormatterStorage.register("TypingKind", {
 
 IonFormatterStorage.register("MentionTargetType", {
   read(reader: CborReader): MentionTargetType {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return MentionTargetType[num] !== undefined ? num as MentionTargetType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<MentionTargetType>(reader, 'u2');
   },
   write(writer: CborWriter, value: MentionTargetType): void {
     const casted: u2 = value;
@@ -12812,7 +14520,7 @@ IonFormatterStorage.register("MentionTargetType", {
 
 IonFormatterStorage.register("FeatureFlagData", {
   read(reader: CborReader): FeatureFlagData {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FeatureFlagData");
     const flagId = IonFormatterStorage.get<string>('string').read(reader);
     const isEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
     const variant = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -12832,7 +14540,7 @@ IonFormatterStorage.register("FeatureFlagData", {
 
 IonFormatterStorage.register("UserBlock", {
   read(reader: CborReader): UserBlock {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserBlock");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const blockedId = IonFormatterStorage.get<guid>('guid').read(reader);
     const blockedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -12850,7 +14558,7 @@ IonFormatterStorage.register("UserBlock", {
 
 IonFormatterStorage.register("FriendRequest", {
   read(reader: CborReader): FriendRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "FriendRequest");
     const requesterId = IonFormatterStorage.get<guid>('guid').read(reader);
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     const requestedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -12868,7 +14576,7 @@ IonFormatterStorage.register("FriendRequest", {
 
 IonFormatterStorage.register("Friendship", {
   read(reader: CborReader): Friendship {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "Friendship");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const friendId = IonFormatterStorage.get<guid>('guid').read(reader);
     const friendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -12886,7 +14594,7 @@ IonFormatterStorage.register("Friendship", {
 
 IonFormatterStorage.register("UserChat", {
   read(reader: CborReader): UserChat {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "UserChat");
     const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
     const isPinned = IonFormatterStorage.get<bool>('bool').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -12912,7 +14620,7 @@ IonFormatterStorage.register("UserChat", {
 
 IonFormatterStorage.register("DirectMessage", {
   read(reader: CborReader): DirectMessage {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "DirectMessage");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const senderId = IonFormatterStorage.get<guid>('guid').read(reader);
     const receiverId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -12938,8 +14646,7 @@ IonFormatterStorage.register("DirectMessage", {
 
 IonFormatterStorage.register("SendFriendStatus", {
   read(reader: CborReader): SendFriendStatus {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return SendFriendStatus[num] !== undefined ? num as SendFriendStatus : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SendFriendStatus>(reader, 'u4');
   },
   write(writer: CborWriter, value: SendFriendStatus): void {
     const casted: u4 = value;
@@ -12949,7 +14656,7 @@ IonFormatterStorage.register("SendFriendStatus", {
 
 IonFormatterStorage.register("GifItem", {
   read(reader: CborReader): GifItem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "GifItem");
     const gifId = IonFormatterStorage.get<string>('string').read(reader);
     const title = IonFormatterStorage.readNullable<string>(reader, 'string');
     const previewUrl = IonFormatterStorage.get<string>('string').read(reader);
@@ -12975,7 +14682,7 @@ IonFormatterStorage.register("GifItem", {
 
 IonFormatterStorage.register("GifSearchResult", {
   read(reader: CborReader): GifSearchResult {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "GifSearchResult");
     const items = IonFormatterStorage.readArray<GifItem>(reader, 'GifItem');
     const hasNext = IonFormatterStorage.get<bool>('bool').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -12991,7 +14698,7 @@ IonFormatterStorage.register("GifSearchResult", {
 
 IonFormatterStorage.register("SavedGif", {
   read(reader: CborReader): SavedGif {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "SavedGif");
     const id = IonFormatterStorage.get<guid>('guid').read(reader);
     const gifId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -13019,7 +14726,7 @@ IonFormatterStorage.register("SavedGif", {
 
 IonFormatterStorage.register("GifCategory", {
   read(reader: CborReader): GifCategory {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "GifCategory");
     const title = IonFormatterStorage.get<string>('string').read(reader);
     const imageUrl = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13035,8 +14742,7 @@ IonFormatterStorage.register("GifCategory", {
 
 IonFormatterStorage.register("SaveGifError", {
   read(reader: CborReader): SaveGifError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return SaveGifError[num] !== undefined ? num as SaveGifError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SaveGifError>(reader, 'u4');
   },
   write(writer: CborWriter, value: SaveGifError): void {
     const casted: u4 = value;
@@ -13046,7 +14752,7 @@ IonFormatterStorage.register("SaveGifError", {
 
 IonFormatterStorage.register("LoginRequestTicket", {
   read(reader: CborReader): LoginRequestTicket {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "LoginRequestTicket");
     const token = IonFormatterStorage.get<string>('string').read(reader);
     const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13062,7 +14768,7 @@ IonFormatterStorage.register("LoginRequestTicket", {
 
 IonFormatterStorage.register("LoginRequestPreview", {
   read(reader: CborReader): LoginRequestPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "LoginRequestPreview");
     const clientName = IonFormatterStorage.get<string>('string').read(reader);
     const hostName = IonFormatterStorage.readNullable<string>(reader, 'string');
     const ip = IonFormatterStorage.get<string>('string').read(reader);
@@ -13086,8 +14792,7 @@ IonFormatterStorage.register("LoginRequestPreview", {
 
 IonFormatterStorage.register("LoginRequestError", {
   read(reader: CborReader): LoginRequestError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return LoginRequestError[num] !== undefined ? num as LoginRequestError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<LoginRequestError>(reader, 'u4');
   },
   write(writer: CborWriter, value: LoginRequestError): void {
     const casted: u4 = value;
@@ -13097,8 +14802,7 @@ IonFormatterStorage.register("LoginRequestError", {
 
 IonFormatterStorage.register("BadAuthKind", {
   read(reader: CborReader): BadAuthKind {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return BadAuthKind[num] !== undefined ? num as BadAuthKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<BadAuthKind>(reader, 'u4');
   },
   write(writer: CborWriter, value: BadAuthKind): void {
     const casted: u4 = value;
@@ -13108,7 +14812,7 @@ IonFormatterStorage.register("BadAuthKind", {
 
 IonFormatterStorage.register("InventoryItem", {
   read(reader: CborReader): InventoryItem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "InventoryItem");
     const id = IonFormatterStorage.get<string>('string').read(reader);
     const instanceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const grantedDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -13136,7 +14840,7 @@ IonFormatterStorage.register("InventoryItem", {
 
 IonFormatterStorage.register("DetailedInventoryItem", {
   read(reader: CborReader): DetailedInventoryItem {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "DetailedInventoryItem");
     const item = IonFormatterStorage.get<InventoryItem>('InventoryItem').read(reader);
     const containedItems = IonFormatterStorage.readArray<InventoryItem>(reader, 'InventoryItem');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13152,7 +14856,7 @@ IonFormatterStorage.register("DetailedInventoryItem", {
 
 IonFormatterStorage.register("InventoryNotification", {
   read(reader: CborReader): InventoryNotification {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "InventoryNotification");
     const inventoryItemId = IonFormatterStorage.get<guid>('guid').read(reader);
     const id = IonFormatterStorage.get<string>('string').read(reader);
     const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -13170,8 +14874,7 @@ IonFormatterStorage.register("InventoryNotification", {
 
 IonFormatterStorage.register("ItemUseVector", {
   read(reader: CborReader): ItemUseVector {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ItemUseVector[num] !== undefined ? num as ItemUseVector : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ItemUseVector>(reader, 'u4');
   },
   write(writer: CborWriter, value: ItemUseVector): void {
     const casted: u4 = value;
@@ -13181,8 +14884,7 @@ IonFormatterStorage.register("ItemUseVector", {
 
 IonFormatterStorage.register("RedeemError", {
   read(reader: CborReader): RedeemError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return RedeemError[num] !== undefined ? num as RedeemError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<RedeemError>(reader, 'u4');
   },
   write(writer: CborWriter, value: RedeemError): void {
     const casted: u4 = value;
@@ -13192,7 +14894,7 @@ IonFormatterStorage.register("RedeemError", {
 
 IonFormatterStorage.register("LinkPreview", {
   read(reader: CborReader): LinkPreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "LinkPreview");
     const url = IonFormatterStorage.get<string>('string').read(reader);
     const title = IonFormatterStorage.readNullable<string>(reader, 'string');
     const description = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -13216,8 +14918,7 @@ IonFormatterStorage.register("LinkPreview", {
 
 IonFormatterStorage.register("LinkPreviewError", {
   read(reader: CborReader): LinkPreviewError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return LinkPreviewError[num] !== undefined ? num as LinkPreviewError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<LinkPreviewError>(reader, 'u2');
   },
   write(writer: CborWriter, value: LinkPreviewError): void {
     const casted: u2 = value;
@@ -13227,8 +14928,7 @@ IonFormatterStorage.register("LinkPreviewError", {
 
 IonFormatterStorage.register("PrivacyRuleMode", {
   read(reader: CborReader): PrivacyRuleMode {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return PrivacyRuleMode[num] !== undefined ? num as PrivacyRuleMode : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<PrivacyRuleMode>(reader, 'u2');
   },
   write(writer: CborWriter, value: PrivacyRuleMode): void {
     const casted: u2 = value;
@@ -13238,7 +14938,7 @@ IonFormatterStorage.register("PrivacyRuleMode", {
 
 IonFormatterStorage.register("PrivacyRuleView", {
   read(reader: CborReader): PrivacyRuleView {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "PrivacyRuleView");
     const key = IonFormatterStorage.get<string>('string').read(reader);
     const mode = IonFormatterStorage.get<PrivacyRuleMode>('PrivacyRuleMode').read(reader);
     const scopeSpaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -13260,8 +14960,7 @@ IonFormatterStorage.register("PrivacyRuleView", {
 
 IonFormatterStorage.register("ReportTargetKind", {
   read(reader: CborReader): ReportTargetKind {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ReportTargetKind[num] !== undefined ? num as ReportTargetKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ReportTargetKind>(reader, 'u4');
   },
   write(writer: CborWriter, value: ReportTargetKind): void {
     const casted: u4 = value;
@@ -13271,7 +14970,7 @@ IonFormatterStorage.register("ReportTargetKind", {
 
 IonFormatterStorage.register("ReportTarget", {
   read(reader: CborReader): ReportTarget {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ReportTarget");
     const kind = IonFormatterStorage.get<ReportTargetKind>('ReportTargetKind').read(reader);
     const targetId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
@@ -13291,8 +14990,7 @@ IonFormatterStorage.register("ReportTarget", {
 
 IonFormatterStorage.register("ReportCategory", {
   read(reader: CborReader): ReportCategory {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ReportCategory[num] !== undefined ? num as ReportCategory : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ReportCategory>(reader, 'u4');
   },
   write(writer: CborWriter, value: ReportCategory): void {
     const casted: u4 = value;
@@ -13302,8 +15000,7 @@ IonFormatterStorage.register("ReportCategory", {
 
 IonFormatterStorage.register("ReportReason", {
   read(reader: CborReader): ReportReason {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ReportReason[num] !== undefined ? num as ReportReason : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ReportReason>(reader, 'u4');
   },
   write(writer: CborWriter, value: ReportReason): void {
     const casted: u4 = value;
@@ -13313,7 +15010,7 @@ IonFormatterStorage.register("ReportReason", {
 
 IonFormatterStorage.register("CreateReportInput", {
   read(reader: CborReader): CreateReportInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "CreateReportInput");
     const target = IonFormatterStorage.get<ReportTarget>('ReportTarget').read(reader);
     const category = IonFormatterStorage.get<ReportCategory>('ReportCategory').read(reader);
     const reason = IonFormatterStorage.get<ReportReason>('ReportReason').read(reader);
@@ -13335,8 +15032,7 @@ IonFormatterStorage.register("CreateReportInput", {
 
 IonFormatterStorage.register("ReportStatus", {
   read(reader: CborReader): ReportStatus {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ReportStatus[num] !== undefined ? num as ReportStatus : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ReportStatus>(reader, 'u4');
   },
   write(writer: CborWriter, value: ReportStatus): void {
     const casted: u4 = value;
@@ -13346,7 +15042,7 @@ IonFormatterStorage.register("ReportStatus", {
 
 IonFormatterStorage.register("ReportInfo", {
   read(reader: CborReader): ReportInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ReportInfo");
     const reportId = IonFormatterStorage.get<guid>('guid').read(reader);
     const reporterId = IonFormatterStorage.get<guid>('guid').read(reader);
     const target = IonFormatterStorage.get<ReportTarget>('ReportTarget').read(reader);
@@ -13376,7 +15072,7 @@ IonFormatterStorage.register("ReportInfo", {
 
 IonFormatterStorage.register("UserTrustInfo", {
   read(reader: CborReader): UserTrustInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "UserTrustInfo");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const trustScore = IonFormatterStorage.get<i4>('i4').read(reader);
     const totalReportsReceived = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -13402,8 +15098,7 @@ IonFormatterStorage.register("UserTrustInfo", {
 
 IonFormatterStorage.register("SubmitReportError", {
   read(reader: CborReader): SubmitReportError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return SubmitReportError[num] !== undefined ? num as SubmitReportError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SubmitReportError>(reader, 'u4');
   },
   write(writer: CborWriter, value: SubmitReportError): void {
     const casted: u4 = value;
@@ -13413,7 +15108,7 @@ IonFormatterStorage.register("SubmitReportError", {
 
 IonFormatterStorage.register("SessionInfo", {
   read(reader: CborReader): SessionInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SessionInfo");
     const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const clientName = IonFormatterStorage.get<string>('string').read(reader);
     const region = IonFormatterStorage.get<string>('string').read(reader);
@@ -13435,7 +15130,7 @@ IonFormatterStorage.register("SessionInfo", {
 
 IonFormatterStorage.register("AutoDeletePeriod", {
   read(reader: CborReader): AutoDeletePeriod {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "AutoDeletePeriod");
     const months = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const enabled = IonFormatterStorage.get<bool>('bool').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13451,7 +15146,7 @@ IonFormatterStorage.register("AutoDeletePeriod", {
 
 IonFormatterStorage.register("SecurityDetails", {
   read(reader: CborReader): SecurityDetails {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SecurityDetails");
     const otpEnabled = IonFormatterStorage.get<bool>('bool').read(reader);
     const passkeys = IonFormatterStorage.readArray<Passkey>(reader, 'Passkey');
     const email = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -13473,7 +15168,7 @@ IonFormatterStorage.register("SecurityDetails", {
 
 IonFormatterStorage.register("Passkey", {
   read(reader: CborReader): Passkey {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "Passkey");
     const id = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -13497,8 +15192,7 @@ IonFormatterStorage.register("Passkey", {
 
 IonFormatterStorage.register("DataExportStatusKind", {
   read(reader: CborReader): DataExportStatusKind {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return DataExportStatusKind[num] !== undefined ? num as DataExportStatusKind : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<DataExportStatusKind>(reader, 'u2');
   },
   write(writer: CborWriter, value: DataExportStatusKind): void {
     const casted: u2 = value;
@@ -13508,7 +15202,7 @@ IonFormatterStorage.register("DataExportStatusKind", {
 
 IonFormatterStorage.register("DataExportStatus", {
   read(reader: CborReader): DataExportStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "DataExportStatus");
     const status = IonFormatterStorage.get<DataExportStatusKind>('DataExportStatusKind').read(reader);
     const exportId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const startedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
@@ -13534,8 +15228,7 @@ IonFormatterStorage.register("DataExportStatus", {
 
 IonFormatterStorage.register("SessionError", {
   read(reader: CborReader): SessionError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return SessionError[num] !== undefined ? num as SessionError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SessionError>(reader, 'u4');
   },
   write(writer: CborWriter, value: SessionError): void {
     const casted: u4 = value;
@@ -13545,8 +15238,7 @@ IonFormatterStorage.register("SessionError", {
 
 IonFormatterStorage.register("EmailChangeError", {
   read(reader: CborReader): EmailChangeError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return EmailChangeError[num] !== undefined ? num as EmailChangeError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<EmailChangeError>(reader, 'u4');
   },
   write(writer: CborWriter, value: EmailChangeError): void {
     const casted: u4 = value;
@@ -13556,8 +15248,7 @@ IonFormatterStorage.register("EmailChangeError", {
 
 IonFormatterStorage.register("PhoneChangeError", {
   read(reader: CborReader): PhoneChangeError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return PhoneChangeError[num] !== undefined ? num as PhoneChangeError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<PhoneChangeError>(reader, 'u4');
   },
   write(writer: CborWriter, value: PhoneChangeError): void {
     const casted: u4 = value;
@@ -13567,8 +15258,7 @@ IonFormatterStorage.register("PhoneChangeError", {
 
 IonFormatterStorage.register("PasswordChangeError", {
   read(reader: CborReader): PasswordChangeError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return PasswordChangeError[num] !== undefined ? num as PasswordChangeError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<PasswordChangeError>(reader, 'u4');
   },
   write(writer: CborWriter, value: PasswordChangeError): void {
     const casted: u4 = value;
@@ -13578,8 +15268,7 @@ IonFormatterStorage.register("PasswordChangeError", {
 
 IonFormatterStorage.register("OTPError", {
   read(reader: CborReader): OTPError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return OTPError[num] !== undefined ? num as OTPError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<OTPError>(reader, 'u4');
   },
   write(writer: CborWriter, value: OTPError): void {
     const casted: u4 = value;
@@ -13589,8 +15278,7 @@ IonFormatterStorage.register("OTPError", {
 
 IonFormatterStorage.register("PasskeyError", {
   read(reader: CborReader): PasskeyError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return PasskeyError[num] !== undefined ? num as PasskeyError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<PasskeyError>(reader, 'u4');
   },
   write(writer: CborWriter, value: PasskeyError): void {
     const casted: u4 = value;
@@ -13600,8 +15288,7 @@ IonFormatterStorage.register("PasskeyError", {
 
 IonFormatterStorage.register("AutoDeleteError", {
   read(reader: CborReader): AutoDeleteError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return AutoDeleteError[num] !== undefined ? num as AutoDeleteError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<AutoDeleteError>(reader, 'u4');
   },
   write(writer: CborWriter, value: AutoDeleteError): void {
     const casted: u4 = value;
@@ -13611,8 +15298,7 @@ IonFormatterStorage.register("AutoDeleteError", {
 
 IonFormatterStorage.register("DataExportError", {
   read(reader: CborReader): DataExportError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return DataExportError[num] !== undefined ? num as DataExportError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<DataExportError>(reader, 'u2');
   },
   write(writer: CborWriter, value: DataExportError): void {
     const casted: u2 = value;
@@ -13622,8 +15308,7 @@ IonFormatterStorage.register("DataExportError", {
 
 IonFormatterStorage.register("SpaceDeletionStatus", {
   read(reader: CborReader): SpaceDeletionStatus {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return SpaceDeletionStatus[num] !== undefined ? num as SpaceDeletionStatus : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SpaceDeletionStatus>(reader, 'u2');
   },
   write(writer: CborWriter, value: SpaceDeletionStatus): void {
     const casted: u2 = value;
@@ -13633,7 +15318,7 @@ IonFormatterStorage.register("SpaceDeletionStatus", {
 
 IonFormatterStorage.register("SpaceDeletionState", {
   read(reader: CborReader): SpaceDeletionState {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SpaceDeletionState");
     const status = IonFormatterStorage.get<SpaceDeletionStatus>('SpaceDeletionStatus').read(reader);
     const scheduledAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const executionAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
@@ -13653,7 +15338,7 @@ IonFormatterStorage.register("SpaceDeletionState", {
 
 IonFormatterStorage.register("ArgonSpaceBase", {
   read(reader: CborReader): ArgonSpaceBase {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonSpaceBase");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -13687,7 +15372,7 @@ IonFormatterStorage.register("ArgonSpaceBase", {
 
 IonFormatterStorage.register("ArgonSpace", {
   read(reader: CborReader): ArgonSpace {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "ArgonSpace");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -13723,7 +15408,7 @@ IonFormatterStorage.register("ArgonSpace", {
 
 IonFormatterStorage.register("ArchetypeGroup", {
   read(reader: CborReader): ArchetypeGroup {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ArchetypeGroup");
     const archetype = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
     const members = IonFormatterStorage.readArray<guid>(reader, 'guid');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13739,7 +15424,7 @@ IonFormatterStorage.register("ArchetypeGroup", {
 
 IonFormatterStorage.register("SpaceMemberArchetype", {
   read(reader: CborReader): SpaceMemberArchetype {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SpaceMemberArchetype");
     const serverMemberId = IonFormatterStorage.get<guid>('guid').read(reader);
     const archetypeId = IonFormatterStorage.get<guid>('guid').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13766,7 +15451,7 @@ IonFormatterStorage.register("UserFlag", {
 
 IonFormatterStorage.register("ArgonUser", {
   read(reader: CborReader): ArgonUser {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "ArgonUser");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
     const displayName = IonFormatterStorage.get<string>('string').read(reader);
@@ -13788,7 +15473,7 @@ IonFormatterStorage.register("ArgonUser", {
 
 IonFormatterStorage.register("SpaceMember", {
   read(reader: CborReader): SpaceMember {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "SpaceMember");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const joinedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -13812,8 +15497,7 @@ IonFormatterStorage.register("SpaceMember", {
 
 IonFormatterStorage.register("UserStatus", {
   read(reader: CborReader): UserStatus {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UserStatus[num] !== undefined ? num as UserStatus : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UserStatus>(reader, 'u4');
   },
   write(writer: CborWriter, value: UserStatus): void {
     const casted: u4 = value;
@@ -13823,7 +15507,7 @@ IonFormatterStorage.register("UserStatus", {
 
 IonFormatterStorage.register("RealtimeServerMember", {
   read(reader: CborReader): RealtimeServerMember {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "RealtimeServerMember");
     const member = IonFormatterStorage.get<SpaceMember>('SpaceMember').read(reader);
     const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
     const presence = IonFormatterStorage.readNullable<UserActivityPresence>(reader, 'UserActivityPresence');
@@ -13841,7 +15525,7 @@ IonFormatterStorage.register("RealtimeServerMember", {
 
 IonFormatterStorage.register("SpaceVersions", {
   read(reader: CborReader): SpaceVersions {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SpaceVersions");
     const members = IonFormatterStorage.readNullable<string>(reader, 'string');
     const channels = IonFormatterStorage.readNullable<string>(reader, 'string');
     const groups = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -13861,7 +15545,7 @@ IonFormatterStorage.register("SpaceVersions", {
 
 IonFormatterStorage.register("SpaceSnapshot", {
   read(reader: CborReader): SpaceSnapshot {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SpaceSnapshot");
     const versions = IonFormatterStorage.get<SpaceVersions>('SpaceVersions').read(reader);
     const members = IonFormatterStorage.readNullableArray<SpaceMember>(reader, 'SpaceMember');
     const channels = IonFormatterStorage.readNullableArray<RealtimeChannel>(reader, 'RealtimeChannel');
@@ -13883,7 +15567,7 @@ IonFormatterStorage.register("SpaceSnapshot", {
 
 IonFormatterStorage.register("MemberPresence", {
   read(reader: CborReader): MemberPresence {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "MemberPresence");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
     const activity = IonFormatterStorage.readNullable<UserActivityPresence>(reader, 'UserActivityPresence');
@@ -13901,7 +15585,7 @@ IonFormatterStorage.register("MemberPresence", {
 
 IonFormatterStorage.register("InviteCode", {
   read(reader: CborReader): InviteCode {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "InviteCode");
     const inviteCode = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 1);
     return { inviteCode };
@@ -13915,7 +15599,7 @@ IonFormatterStorage.register("InviteCode", {
 
 IonFormatterStorage.register("InviteCodeEntity", {
   read(reader: CborReader): InviteCodeEntity {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "InviteCodeEntity");
     const code = IonFormatterStorage.get<InviteCode>('InviteCode').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const issuerId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -13941,7 +15625,7 @@ IonFormatterStorage.register("InviteCodeEntity", {
 
 IonFormatterStorage.register("ServerInvites", {
   read(reader: CborReader): ServerInvites {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ServerInvites");
     const domain = IonFormatterStorage.get<string>('string').read(reader);
     const invites = IonFormatterStorage.readArray<InviteCodeEntity>(reader, 'InviteCodeEntity');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -13957,7 +15641,7 @@ IonFormatterStorage.register("ServerInvites", {
 
 IonFormatterStorage.register("SpaceStats", {
   read(reader: CborReader): SpaceStats {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "SpaceStats");
     const memberCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const onlineCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const channelCount = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -13981,7 +15665,7 @@ IonFormatterStorage.register("SpaceStats", {
 
 IonFormatterStorage.register("ArgonUserProfile", {
   read(reader: CborReader): ArgonUserProfile {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 15, "ArgonUserProfile");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14023,8 +15707,7 @@ IonFormatterStorage.register("ArgonUserProfile", {
 
 IonFormatterStorage.register("SpaceDeletionError", {
   read(reader: CborReader): SpaceDeletionError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return SpaceDeletionError[num] !== undefined ? num as SpaceDeletionError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SpaceDeletionError>(reader, 'u2');
   },
   write(writer: CborWriter, value: SpaceDeletionError): void {
     const casted: u2 = value;
@@ -14034,7 +15717,7 @@ IonFormatterStorage.register("SpaceDeletionError", {
 
 IonFormatterStorage.register("ArgonIonTicket", {
   read(reader: CborReader): ArgonIonTicket {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ArgonIonTicket");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const ip = IonFormatterStorage.get<string>('string').read(reader);
     const ray = IonFormatterStorage.get<string>('string').read(reader);
@@ -14064,8 +15747,7 @@ IonFormatterStorage.register("ArgonIonTicket", {
 
 IonFormatterStorage.register("ArgonAuthMode", {
   read(reader: CborReader): ArgonAuthMode {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ArgonAuthMode[num] !== undefined ? num as ArgonAuthMode : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ArgonAuthMode>(reader, 'u4');
   },
   write(writer: CborWriter, value: ArgonAuthMode): void {
     const casted: u4 = value;
@@ -14075,8 +15757,7 @@ IonFormatterStorage.register("ArgonAuthMode", {
 
 IonFormatterStorage.register("OtpMethod", {
   read(reader: CborReader): OtpMethod {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return OtpMethod[num] !== undefined ? num as OtpMethod : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<OtpMethod>(reader, 'u4');
   },
   write(writer: CborWriter, value: OtpMethod): void {
     const casted: u4 = value;
@@ -14086,7 +15767,7 @@ IonFormatterStorage.register("OtpMethod", {
 
 IonFormatterStorage.register("ProductPrice", {
   read(reader: CborReader): ProductPrice {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ProductPrice");
     const amount = IonFormatterStorage.get<string>('string').read(reader);
     const amountWithoutDiscount = IonFormatterStorage.readNullable<string>(reader, 'string');
     const currency = IonFormatterStorage.get<string>('string').read(reader);
@@ -14104,7 +15785,7 @@ IonFormatterStorage.register("ProductPrice", {
 
 IonFormatterStorage.register("UltimaPricing", {
   read(reader: CborReader): UltimaPricing {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "UltimaPricing");
     const subscriptionMonthly = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
     const subscriptionAnnual = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
     const boostPack1 = IonFormatterStorage.get<ProductPrice>('ProductPrice').read(reader);
@@ -14132,8 +15813,7 @@ IonFormatterStorage.register("UltimaPricing", {
 
 IonFormatterStorage.register("UltimaPlan", {
   read(reader: CborReader): UltimaPlan {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UltimaPlan[num] !== undefined ? num as UltimaPlan : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UltimaPlan>(reader, 'u4');
   },
   write(writer: CborWriter, value: UltimaPlan): void {
     const casted: u4 = value;
@@ -14143,8 +15823,7 @@ IonFormatterStorage.register("UltimaPlan", {
 
 IonFormatterStorage.register("UltimaSubscriptionStatus", {
   read(reader: CborReader): UltimaSubscriptionStatus {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UltimaSubscriptionStatus[num] !== undefined ? num as UltimaSubscriptionStatus : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UltimaSubscriptionStatus>(reader, 'u4');
   },
   write(writer: CborWriter, value: UltimaSubscriptionStatus): void {
     const casted: u4 = value;
@@ -14154,7 +15833,7 @@ IonFormatterStorage.register("UltimaSubscriptionStatus", {
 
 IonFormatterStorage.register("UltimaSubscriptionInfo", {
   read(reader: CborReader): UltimaSubscriptionInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "UltimaSubscriptionInfo");
     const subscriptionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const tier = IonFormatterStorage.get<UltimaPlan>('UltimaPlan').read(reader);
     const status = IonFormatterStorage.get<UltimaSubscriptionStatus>('UltimaSubscriptionStatus').read(reader);
@@ -14184,7 +15863,7 @@ IonFormatterStorage.register("UltimaSubscriptionInfo", {
 
 IonFormatterStorage.register("PaymentAccountInfo", {
   read(reader: CborReader): PaymentAccountInfo {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "PaymentAccountInfo");
     const cardLastFour = IonFormatterStorage.readNullable<string>(reader, 'string');
     const cardType = IonFormatterStorage.readNullable<string>(reader, 'string');
     const expiryMonth = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14206,7 +15885,7 @@ IonFormatterStorage.register("PaymentAccountInfo", {
 
 IonFormatterStorage.register("UltimaTransaction", {
   read(reader: CborReader): UltimaTransaction {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "UltimaTransaction");
     const paymentId = IonFormatterStorage.get<string>('string').read(reader);
     const date = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const amount = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14242,8 +15921,7 @@ IonFormatterStorage.register("UltimaTransaction", {
 
 IonFormatterStorage.register("BoostSource", {
   read(reader: CborReader): BoostSource {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return BoostSource[num] !== undefined ? num as BoostSource : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<BoostSource>(reader, 'u4');
   },
   write(writer: CborWriter, value: BoostSource): void {
     const casted: u4 = value;
@@ -14253,7 +15931,7 @@ IonFormatterStorage.register("BoostSource", {
 
 IonFormatterStorage.register("UltimaBoost", {
   read(reader: CborReader): UltimaBoost {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "UltimaBoost");
     const boostId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const spaceName = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14277,7 +15955,7 @@ IonFormatterStorage.register("UltimaBoost", {
 
 IonFormatterStorage.register("SpaceBoostStatus", {
   read(reader: CborReader): SpaceBoostStatus {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SpaceBoostStatus");
     const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const boostLevel = IonFormatterStorage.get<i4>('i4').read(reader);
     const boosters = IonFormatterStorage.readArray<SpaceBooster>(reader, 'SpaceBooster');
@@ -14295,7 +15973,7 @@ IonFormatterStorage.register("SpaceBoostStatus", {
 
 IonFormatterStorage.register("SpaceBooster", {
   read(reader: CborReader): SpaceBooster {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SpaceBooster");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
     const boostCount = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -14313,8 +15991,7 @@ IonFormatterStorage.register("SpaceBooster", {
 
 IonFormatterStorage.register("BoostPackType", {
   read(reader: CborReader): BoostPackType {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return BoostPackType[num] !== undefined ? num as BoostPackType : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<BoostPackType>(reader, 'u4');
   },
   write(writer: CborWriter, value: BoostPackType): void {
     const casted: u4 = value;
@@ -14324,8 +16001,7 @@ IonFormatterStorage.register("BoostPackType", {
 
 IonFormatterStorage.register("CheckoutError", {
   read(reader: CborReader): CheckoutError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return CheckoutError[num] !== undefined ? num as CheckoutError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<CheckoutError>(reader, 'u4');
   },
   write(writer: CborWriter, value: CheckoutError): void {
     const casted: u4 = value;
@@ -14335,8 +16011,7 @@ IonFormatterStorage.register("CheckoutError", {
 
 IonFormatterStorage.register("ApplyBoostError", {
   read(reader: CborReader): ApplyBoostError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return ApplyBoostError[num] !== undefined ? num as ApplyBoostError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<ApplyBoostError>(reader, 'u4');
   },
   write(writer: CborWriter, value: ApplyBoostError): void {
     const casted: u4 = value;
@@ -14346,8 +16021,7 @@ IonFormatterStorage.register("ApplyBoostError", {
 
 IonFormatterStorage.register("TransferBoostError", {
   read(reader: CborReader): TransferBoostError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return TransferBoostError[num] !== undefined ? num as TransferBoostError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<TransferBoostError>(reader, 'u4');
   },
   write(writer: CborWriter, value: TransferBoostError): void {
     const casted: u4 = value;
@@ -14357,8 +16031,7 @@ IonFormatterStorage.register("TransferBoostError", {
 
 IonFormatterStorage.register("PurchaseBoostError", {
   read(reader: CborReader): PurchaseBoostError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return PurchaseBoostError[num] !== undefined ? num as PurchaseBoostError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<PurchaseBoostError>(reader, 'u4');
   },
   write(writer: CborWriter, value: PurchaseBoostError): void {
     const casted: u4 = value;
@@ -14368,8 +16041,7 @@ IonFormatterStorage.register("PurchaseBoostError", {
 
 IonFormatterStorage.register("SendGiftError", {
   read(reader: CborReader): SendGiftError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return SendGiftError[num] !== undefined ? num as SendGiftError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<SendGiftError>(reader, 'u4');
   },
   write(writer: CborWriter, value: SendGiftError): void {
     const casted: u4 = value;
@@ -14379,7 +16051,7 @@ IonFormatterStorage.register("SendGiftError", {
 
 IonFormatterStorage.register("TodayStats", {
   read(reader: CborReader): TodayStats {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "TodayStats");
     const timeInVoice = IonFormatterStorage.get<i4>('i4').read(reader);
     const callsMade = IonFormatterStorage.get<i4>('i4').read(reader);
     const messagesSent = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -14397,7 +16069,7 @@ IonFormatterStorage.register("TodayStats", {
 
 IonFormatterStorage.register("MyLevelDetails", {
   read(reader: CborReader): MyLevelDetails {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "MyLevelDetails");
     const totalXp = IonFormatterStorage.get<i4>('i4').read(reader);
     const currentLevel = IonFormatterStorage.get<i4>('i4').read(reader);
     const xpForNextLevel = IonFormatterStorage.get<i4>('i4').read(reader);
@@ -14419,7 +16091,7 @@ IonFormatterStorage.register("MyLevelDetails", {
 
 IonFormatterStorage.register("FormField", {
   read(reader: CborReader): FormField {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FormField");
     const key = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14435,7 +16107,7 @@ IonFormatterStorage.register("FormField", {
 
 IonFormatterStorage.register("UserEditInput", {
   read(reader: CborReader): UserEditInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "UserEditInput");
     const displayName = IonFormatterStorage.readNullable<string>(reader, 'string');
     const avatarId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const backgroundId = IonFormatterStorage.readNullable<i4>(reader, 'i4');
@@ -14469,7 +16141,7 @@ IonFormatterStorage.register("UserEditInput", {
 
 IonFormatterStorage.register("FeatureFlag", {
   read(reader: CborReader): FeatureFlag {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FeatureFlag");
     const key = IonFormatterStorage.get<string>('string').read(reader);
     const enabled = IonFormatterStorage.get<bool>('bool').read(reader);
     const variant = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14489,7 +16161,7 @@ IonFormatterStorage.register("FeatureFlag", {
 
 IonFormatterStorage.register("FeatureFlagParameter", {
   read(reader: CborReader): FeatureFlagParameter {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FeatureFlagParameter");
     const key = IonFormatterStorage.get<string>('string').read(reader);
     const value = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14505,7 +16177,7 @@ IonFormatterStorage.register("FeatureFlagParameter", {
 
 IonFormatterStorage.register("CreateServerRequest", {
   read(reader: CborReader): CreateServerRequest {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CreateServerRequest");
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
     const avatarFieldId = IonFormatterStorage.get<string>('string').read(reader);
@@ -14523,7 +16195,7 @@ IonFormatterStorage.register("CreateServerRequest", {
 
 IonFormatterStorage.register("UserCredentialsInput", {
   read(reader: CborReader): UserCredentialsInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "UserCredentialsInput");
     const email = IonFormatterStorage.readNullable<string>(reader, 'string');
     const phone = IonFormatterStorage.readNullable<string>(reader, 'string');
     const username = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14547,7 +16219,7 @@ IonFormatterStorage.register("UserCredentialsInput", {
 
 IonFormatterStorage.register("UserLoginInput", {
   read(reader: CborReader): UserLoginInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserLoginInput");
     const email = IonFormatterStorage.readNullable<string>(reader, 'string');
     const phone = IonFormatterStorage.readNullable<string>(reader, 'string');
     const username = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -14565,7 +16237,7 @@ IonFormatterStorage.register("UserLoginInput", {
 
 IonFormatterStorage.register("NewUserCredentialsInput", {
   read(reader: CborReader): NewUserCredentialsInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "NewUserCredentialsInput");
     const email = IonFormatterStorage.get<string>('string').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
     const password = IonFormatterStorage.get<string>('string').read(reader);
@@ -14597,7 +16269,7 @@ IonFormatterStorage.register("NewUserCredentialsInput", {
 
 IonFormatterStorage.register("LegalState", {
   read(reader: CborReader): LegalState {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "LegalState");
     const tosVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
     const privacyVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14613,7 +16285,7 @@ IonFormatterStorage.register("LegalState", {
 
 IonFormatterStorage.register("AcceptLegalInput", {
   read(reader: CborReader): AcceptLegalInput {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "AcceptLegalInput");
     const tosVersion = IonFormatterStorage.get<string>('string').read(reader);
     const privacyVersion = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14629,7 +16301,7 @@ IonFormatterStorage.register("AcceptLegalInput", {
 
 IonFormatterStorage.register("InvitePreview", {
   read(reader: CborReader): InvitePreview {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "InvitePreview");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -14665,8 +16337,7 @@ IonFormatterStorage.register("InvitePreview", {
 
 IonFormatterStorage.register("UploadFileError", {
   read(reader: CborReader): UploadFileError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UploadFileError[num] !== undefined ? num as UploadFileError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UploadFileError>(reader, 'u4');
   },
   write(writer: CborWriter, value: UploadFileError): void {
     const casted: u4 = value;
@@ -14676,8 +16347,7 @@ IonFormatterStorage.register("UploadFileError", {
 
 IonFormatterStorage.register("CreateSpaceError", {
   read(reader: CborReader): CreateSpaceError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return CreateSpaceError[num] !== undefined ? num as CreateSpaceError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<CreateSpaceError>(reader, 'u4');
   },
   write(writer: CborWriter, value: CreateSpaceError): void {
     const casted: u4 = value;
@@ -14687,8 +16357,7 @@ IonFormatterStorage.register("CreateSpaceError", {
 
 IonFormatterStorage.register("UpdateMeError", {
   read(reader: CborReader): UpdateMeError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return UpdateMeError[num] !== undefined ? num as UpdateMeError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<UpdateMeError>(reader, 'u4');
   },
   write(writer: CborWriter, value: UpdateMeError): void {
     const casted: u4 = value;
@@ -14698,8 +16367,7 @@ IonFormatterStorage.register("UpdateMeError", {
 
 IonFormatterStorage.register("AcceptInviteError", {
   read(reader: CborReader): AcceptInviteError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return AcceptInviteError[num] !== undefined ? num as AcceptInviteError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<AcceptInviteError>(reader, 'u4');
   },
   write(writer: CborWriter, value: AcceptInviteError): void {
     const casted: u4 = value;
@@ -14709,8 +16377,7 @@ IonFormatterStorage.register("AcceptInviteError", {
 
 IonFormatterStorage.register("AuthorizationError", {
   read(reader: CborReader): AuthorizationError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return AuthorizationError[num] !== undefined ? num as AuthorizationError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<AuthorizationError>(reader, 'u4');
   },
   write(writer: CborWriter, value: AuthorizationError): void {
     const casted: u4 = value;
@@ -14720,8 +16387,7 @@ IonFormatterStorage.register("AuthorizationError", {
 
 IonFormatterStorage.register("RegistrationError", {
   read(reader: CborReader): RegistrationError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return RegistrationError[num] !== undefined ? num as RegistrationError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<RegistrationError>(reader, 'u4');
   },
   write(writer: CborWriter, value: RegistrationError): void {
     const casted: u4 = value;
@@ -14731,8 +16397,7 @@ IonFormatterStorage.register("RegistrationError", {
 
 IonFormatterStorage.register("LockdownReason", {
   read(reader: CborReader): LockdownReason {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return LockdownReason[num] !== undefined ? num as LockdownReason : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<LockdownReason>(reader, 'u4');
   },
   write(writer: CborWriter, value: LockdownReason): void {
     const casted: u4 = value;
@@ -14742,8 +16407,7 @@ IonFormatterStorage.register("LockdownReason", {
 
 IonFormatterStorage.register("LockdownSeverity", {
   read(reader: CborReader): LockdownSeverity {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return LockdownSeverity[num] !== undefined ? num as LockdownSeverity : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<LockdownSeverity>(reader, 'u4');
   },
   write(writer: CborWriter, value: LockdownSeverity): void {
     const casted: u4 = value;
@@ -14753,8 +16417,7 @@ IonFormatterStorage.register("LockdownSeverity", {
 
 IonFormatterStorage.register("LookupError", {
   read(reader: CborReader): LookupError {
-    const num = (IonFormatterStorage.get<u2>('u2').read(reader))
-    return LookupError[num] !== undefined ? num as LookupError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<LookupError>(reader, 'u2');
   },
   write(writer: CborWriter, value: LookupError): void {
     const casted: u2 = value;
@@ -14764,7 +16427,7 @@ IonFormatterStorage.register("LookupError", {
 
 IonFormatterStorage.register("RtcEndpoint", {
   read(reader: CborReader): RtcEndpoint {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RtcEndpoint");
     const endpoint = IonFormatterStorage.get<string>('string').read(reader);
     const ices = IonFormatterStorage.readArray<IceEndpoint>(reader, 'IceEndpoint');
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14780,7 +16443,7 @@ IonFormatterStorage.register("RtcEndpoint", {
 
 IonFormatterStorage.register("IceEndpoint", {
   read(reader: CborReader): IceEndpoint {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "IceEndpoint");
     const endpoint = IonFormatterStorage.get<string>('string').read(reader);
     const username = IonFormatterStorage.get<string>('string').read(reader);
     const password = IonFormatterStorage.get<string>('string').read(reader);
@@ -14798,7 +16461,7 @@ IonFormatterStorage.register("IceEndpoint", {
 
 IonFormatterStorage.register("ServiceUssdResult", {
   read(reader: CborReader): ServiceUssdResult {
-    const arraySize = reader.readStartArray() ?? (() => { throw new Error("undefined len array not allowed") })();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ServiceUssdResult");
     const success = IonFormatterStorage.get<bool>('bool').read(reader);
     const message = IonFormatterStorage.get<string>('string').read(reader);
     reader.readEndArrayAndSkip(arraySize - 2);
@@ -14814,8 +16477,7 @@ IonFormatterStorage.register("ServiceUssdResult", {
 
 IonFormatterStorage.register("CallFailedError", {
   read(reader: CborReader): CallFailedError {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return CallFailedError[num] !== undefined ? num as CallFailedError : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<CallFailedError>(reader, 'u4');
   },
   write(writer: CborWriter, value: CallFailedError): void {
     const casted: u4 = value;
@@ -14825,8 +16487,7 @@ IonFormatterStorage.register("CallFailedError", {
 
 IonFormatterStorage.register("DialCheckFailReason", {
   read(reader: CborReader): DialCheckFailReason {
-    const num = (IonFormatterStorage.get<u4>('u4').read(reader))
-    return DialCheckFailReason[num] !== undefined ? num as DialCheckFailReason : (() => {throw new Error('invalid enum type')})();
+    return IonFormatterStorage.readOpenEnum<DialCheckFailReason>(reader, 'u4');
   },
   write(writer: CborWriter, value: DialCheckFailReason): void {
     const casted: u4 = value;
