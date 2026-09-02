@@ -735,12 +735,22 @@ function copyText() {
 }
 
 function onReportMessage() {
-  reportTarget.value = {
-    kind: ReportTargetKind.MESSAGE,
-    targetId: props.message.sender,
-    channelId: props.message.channelId,
-    messageId: props.message.messageId,
-  };
+  // A direct message has no space; useDirectMessages puts the peer where the channel goes. The
+  // server understands that older shape too, but saying DIRECT_MESSAGE is what the contract means.
+  const isDirect = !props.message.spaceId;
+  reportTarget.value = isDirect
+    ? {
+        kind: ReportTargetKind.DIRECT_MESSAGE,
+        targetId: props.message.sender,
+        channelId: null,
+        messageId: props.message.messageId,
+      }
+    : {
+        kind: ReportTargetKind.MESSAGE,
+        targetId: props.message.sender,
+        channelId: props.message.channelId,
+        messageId: props.message.messageId,
+      };
   setTimeout(() => { reportDialogOpen.value = true; }, 100);
 }
 
