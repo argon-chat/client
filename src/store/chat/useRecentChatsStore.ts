@@ -39,9 +39,17 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   const recent = ref<RecentChatVm[]>([]);
   const pool = usePoolStore();
 
+  /**
+   * A first message from someone you have never talked to arrives as two events, in no fixed order:
+   * one that says the conversation moved (and creates the row) and one that says who spoke. Counts
+   * that land before the row exists wait here for it.
+   */
+  const pendingUnread = new Map<Guid, number>();
+
   // Seamless account switch: clear DM list for the incoming account.
   onSessionReset(() => {
     recent.value = [];
+    pendingUnread.clear();
   });
 
   async function mergeUserInfo(chat: UserChat): Promise<RecentChatVm> {
@@ -86,11 +94,19 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     const duration = performance.now() - start;
     logger.debug(`[RecentChatsStore] Loaded ${items.length} chats in ${duration.toFixed(0)}ms`);
     
+    // The server's counts are the truth; anything buffered is already part of them.
+    pendingUnread.clear();
     recent.value = items.sort(sorter);
   }
 
   async function upsert(chat: UserChat) {
     const vm = await mergeUserInfo(chat);
+
+    const buffered = pendingUnread.get(chat.peerId);
+    if (buffered) {
+      pendingUnread.delete(chat.peerId);
+      vm.unreadCount += buffered;
+    }
 
     const idx = recent.value.findIndex((x) => x.peerId === chat.peerId);
     if (idx !== -1) {
@@ -131,8 +147,28 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   }
 
   function markRead(peerId: string) {
+    pendingUnread.delete(peerId);
     const chat = recent.value.find((x) => x.peerId === peerId);
     if (chat) chat.unreadCount = 0;
+  }
+
+  /**
+   * RecentChatUpdatedEvent says a conversation moved, not who spoke — it is raised for the owner of
+   * the list either way. DirectMessageSent is the one that knows the direction, so that is what
+   * drives the unread count.
+   */
+  function bumpUnread(peerId: string) {
+    const chat = recent.value.find((x) => x.peerId === peerId);
+    if (chat) {
+      chat.unreadCount += 1;
+      return;
+    }
+    pendingUnread.set(peerId, (pendingUnread.get(peerId) ?? 0) + 1);
+  }
+
+  /** What a chat already carries, for an upsert that has no count of its own to put there. */
+  function unreadOf(peerId: string): number {
+    return recent.value.find((x) => x.peerId === peerId)?.unreadCount ?? 0;
   }
 
   function sorter(a: RecentChatVm, b: RecentChatVm): number {
@@ -152,5 +188,7 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     upsert,
     markPinned,
     markRead,
+    bumpUnread,
+    unreadOf,
   };
 });

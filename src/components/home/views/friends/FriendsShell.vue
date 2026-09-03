@@ -104,6 +104,7 @@ import { useBus } from "@/store/realtime/busStore";
 import { useFriendEvents } from "@/composables/useFriendEvents";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useNotificationStore } from "@/store/data/notificationStore";
 import type { FriendListItemVm } from "./FriendListItem.vue";
 
 const { t } = useLocale();
@@ -112,6 +113,7 @@ defineOptions({ inheritAttrs: false });
 
 const me = useMe();
 const pool = usePoolStore();
+const ntf = useNotificationStore();
 const api = useApi();
 const client = api.freindsInteraction;
 const query = ref("");
@@ -219,12 +221,29 @@ async function loadAll() {
         loading.value = false;
     }
 }
-onMounted(loadAll);
+onMounted(async () => {
+    await loadAll();
+    // The badge on the Friends tab counts unread "friend_request_received" notifications. Handling
+    // a request never touched them, so the dot outlived the request that caused it; the requests
+    // are the first thing on this screen, so arriving here is what counts as having seen them.
+    if (ntf.notifications.friendRequests > 0) {
+        void ntf.markAllNotificationsRead("friend_request_received");
+    }
+});
 
 async function acceptRequest(from: string) {
     try {
         actionLoading.value = true;
         await client.AcceptFriendRequest(from);
+        // Nothing comes back to whoever pressed the button — the event goes to the other side — so
+        // the request would sit here, accepted but still listed, until the next reload.
+        incoming.value = incoming.value.filter(x => x.requesterId !== from);
+        if (!friends.value.some(x => x.friendId === from)) {
+            friends.value = [
+                { userId: meId.value, friendId: from, friendAt: IonDateTime.now() },
+                ...friends.value,
+            ];
+        }
         toast({
             title: t("success"),
             description: t("friend_request_accepted"),
@@ -245,6 +264,7 @@ async function declineRequest(from: string) {
     try {
         actionLoading.value = true;
         await client.DeclineFriendRequest(from);
+        incoming.value = incoming.value.filter(x => x.requesterId !== from);
         toast({
             title: t("success"),
             description: t("friend_request_declined"),
@@ -265,6 +285,7 @@ async function cancelRequest(to: string) {
     try {
         actionLoading.value = true;
         await client.CancelFriendRequest(to);
+        outgoing.value = outgoing.value.filter(x => x.targetId !== to);
         toast({
             title: t("success"),
             description: t("friend_request_canceled"),
@@ -285,6 +306,7 @@ async function unfriendRequest(to: string) {
     try {
         actionLoading.value = true;
         await client.RemoveFriend(to);
+        friends.value = friends.value.filter(x => x.friendId !== to);
         toast({
             title: t("success"),
             description: t("friend_removed"),

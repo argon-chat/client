@@ -19,6 +19,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { Separator } from '@argon/ui/separator';
 import RecentUserItem from './views/RecentUserItem.vue';
 import router from '@/router';
+import { useRoute } from 'vue-router';
 import { useRecentChatsStore } from '@/store/chat/useRecentChatsStore';
 import { useApi } from "@/store/system/apiStore";
 import type {
@@ -26,6 +27,7 @@ import type {
     ChatPinnedEvent,
     ChatUnpinnedEvent,
     ChatReadEvent,
+    DirectMessageSent,
 } from "@argon/glue";
 import { useBus } from '@/store/realtime/busStore';
 import { DisposableBag } from '@argon/core';
@@ -40,6 +42,7 @@ import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 const { t } = useLocale();
 const { dialpadActive, dmActive, inventoryActive, notificationActive } = useFeatureFlags();
 const configStore = useConfigStore();
+const route = useRoute();
 
 const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'>('tab', {
     default: 'dashboard'
@@ -115,9 +118,20 @@ function subscribeEvents() {
                 lastMessageAt: e.lastMessageAt,
                 isPinned: recentStore.recent.find(x => x.peerId === e.peerId)?.isPinned ?? false,
                 pinnedAt: recentStore.recent.find(x => x.peerId === e.peerId)?.pinnedAt ?? null,
-                unreadCount: 0,
+                // The event carries no count, and hardcoding a zero here wiped the unread badge off
+                // a conversation every time a new message arrived in it.
+                unreadCount: recentStore.unreadOf(e.peerId),
                 userId: me.me!.userId
             });
+        })
+    );
+    // Who spoke, which RecentChatUpdatedEvent does not say. Without this a message from someone
+    // you have no conversation open with arrived silently in the sidebar.
+    subs.addSubscription(
+        bus.onServerEvent<DirectMessageSent>("DirectMessageSent", (e) => {
+            if (e.receiverId !== me.me?.userId) return;
+            const isOpen = route.name === "HomeChat" && route.params.userId === e.senderId;
+            if (!isOpen) recentStore.bumpUnread(e.senderId);
         })
     );
     subs.addSubscription(
