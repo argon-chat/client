@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .ptr{animation:es-ptr 5s cubic-bezier(.4,0,.2,1) .8s infinite}
+.es-svg .hl{animation:es-hl 5s cubic-bezier(.4,0,.2,1) .8s infinite}
+.es-svg .r1{animation:es-r1 5s steps(1,end) .8s infinite}
+.es-svg .r2{animation:es-r2 5s steps(1,end) .8s infinite}
+.es-svg .r3{animation:es-r3 5s steps(1,end) .8s infinite}
+.es-svg .pn{animation:es-pn 5s ease-in-out .8s infinite}
+@keyframes es-ptr{0%,100%{transform:translate(0,0)}30%,45%{transform:translate(0,-30px)}70%,85%{transform:translate(0,-60px)}}
+@keyframes es-hl{0%,100%{transform:translateY(0)}30%,45%{transform:translateY(-30px)}70%,85%{transform:translateY(-60px)}}
+@keyframes es-r1{0%,100%{fill:var(--es-accent,#a78bfa)}30%,85%{fill:var(--es-line,#3a3b45)}}
+@keyframes es-r2{0%,46%,100%{fill:var(--es-line,#3a3b45)}30%,45%{fill:var(--es-accent,#a78bfa)}}
+@keyframes es-r3{0%,86%,100%{fill:var(--es-line,#3a3b45)}70%,85%{fill:var(--es-accent,#a78bfa)}}
+@keyframes es-pn{0%,100%{transform:rotate(0)}30%,45%{transform:rotate(-14deg)}70%,85%{transform:rotate(-28deg)}}</style>
+<defs><radialGradient id="g-selectrole" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-selectrole)"></circle>
+<g class="e in" style="animation-delay:.05s"><g class="e hl"><rect x="36" y="118" width="128" height="26" rx="8" fill-opacity=".18" stroke-width="2" style="fill:var(--es-accent-deep,#7c5cf5);stroke:var(--es-accent-deep,#7c5cf5)"></rect></g></g>
+<g class="e in" style="animation-delay:.1s"><circle class="r3" cx="52" cy="71" r="6"></circle><rect x="66" y="67" width="54" height="8" rx="4" style="fill:var(--es-line,#3a3b45)"></rect></g>
+<g class="e in" style="animation-delay:.2s"><circle class="r2" cx="52" cy="101" r="6"></circle><rect x="66" y="97" width="70" height="8" rx="4" style="fill:var(--es-line,#3a3b45)"></rect></g>
+<g class="e in" style="animation-delay:.3s"><circle class="r1" cx="52" cy="131" r="6"></circle><rect x="66" y="127" width="44" height="8" rx="4" style="fill:var(--es-line,#3a3b45)"></rect></g>
+<g class="e in" style="animation-delay:.5s"><g class="e ptr"><g class="e pn">
+<g transform="translate(150 136) rotate(40)">
+<rect x="-6" y="-24" width="12" height="34" rx="2" style="fill:var(--es-accent,#a78bfa)"></rect><rect x="-6" y="-24" width="12" height="7" rx="2" style="fill:var(--es-paper,#e4e4e8)"></rect>
+<path d="M-6 10l6 12 6-12z" style="fill:var(--es-paper,#e4e4e8)"></path><path d="M-2 18l2 4 2-4z" style="fill:var(--es-surface,#23242b)"></path>
+</g></g></g></g>
+</svg>

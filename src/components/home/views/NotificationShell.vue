@@ -13,8 +13,8 @@
             </div>
         </div>
         <div v-if="!items?.length"
-            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-14 text-center h-1/2 empty-state">
-            <IconMail class="w-16 h-16" />
+            class="flex flex-col items-center justify-center rounded-xl border border-border/50 py-8 text-center h-1/2 empty-state">
+            <EmptyStateArt name="no-messages" :size="128" />
             <p class="mt-3 text-sm text-muted-foreground">{{t("no_new_notifications")}}</p>
         </div>
 
@@ -56,6 +56,7 @@
 import { Alert, AlertTitle } from '@argon/ui/alert'
 import { Card, CardContent } from '@argon/ui/card'
 import { IconMail } from "@tabler/icons-vue"
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 const { t } = useLocale();
 export interface NotificationItem {

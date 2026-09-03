@@ -14,7 +14,7 @@
               >
                 <div class="flex flex-col items-center gap-1 text-primary text-[13px] font-medium">
                   <PaperclipIcon class="w-6 h-6" />
-                  <span>{{ t('drop_files_here') || 'Drop files here' }}</span>
+                  <span>{{ t('drop_files_here') }}</span>
                 </div>
               </div>
             </Transition>
@@ -50,7 +50,7 @@
                     @update:model-value="onModelValueUpdate"
                     class="flex-1 min-w-0 min-h-9 max-h-[200px] py-1.5 px-1 text-sm leading-relaxed text-foreground overflow-y-auto break-words [overflow-wrap:anywhere] [word-break:break-word] hide-scrollbar"
                     :disabled="!canSendMessages"
-                    :placeholder="!canSendMessages ? (t('no_send_permission') || 'You do not have permission to send messages') : captionMode ? (t('add_caption') || 'Add a caption...') : t('enter_some_text')"
+                    :placeholder="!canSendMessages ? t('no_send_permission') : captionMode ? t('add_caption') : t('enter_some_text')"
                     :unstyled="true"
                     render-mode="noto"
                     @input="onEditorInput"
@@ -93,7 +93,7 @@
                       v-if="hasContent"
                       class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       @click="captionMode ? $emit('submit') : handleSend()"
-                      :title="t('send') || 'Send'"
+                      :title="t('send')"
                     >
                         <SendHorizonalIcon class="w-5 h-5" />
                     </button>
@@ -164,16 +164,16 @@
         <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
             <DialogContent described class="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{{ t('formatting_help') || 'Message Formatting' }}</DialogTitle>
+                    <DialogTitle>{{ t('formatting_help') }}</DialogTitle>
                     <DialogDescription>
-                        {{ t('formatting_help_desc') || 'Use these special characters to format your messages' }}
+                        {{ t('formatting_help_desc') }}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div class="space-y-4 py-4">
                     <!-- Text Styling -->
                     <div class="space-y-2">
-                        <h3 class="font-semibold text-sm">{{ t('text_styling') || 'Text Styling' }}</h3>
+                        <h3 class="font-semibold text-sm">{{ t('text_styling') }}</h3>
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
                                 <code class="flex-1">**bold text**</code>
@@ -200,7 +200,7 @@
 
                     <!-- Special Formatting -->
                     <div class="space-y-2">
-                        <h3 class="font-semibold text-sm">{{ t('special_formatting') || 'Special Formatting' }}</h3>
+                        <h3 class="font-semibold text-sm">{{ t('special_formatting') }}</h3>
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
                                 <code class="flex-1">^^CAPITALIZED^^</code>
@@ -219,7 +219,7 @@
 
                     <!-- Links and Mentions -->
                     <div class="space-y-2">
-                        <h3 class="font-semibold text-sm">{{ t('links_mentions') || 'Links & Mentions' }}</h3>
+                        <h3 class="font-semibold text-sm">{{ t('links_mentions') }}</h3>
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center gap-3 p-2 rounded bg-muted/50">
                                 <code class="flex-1">@username</code>
@@ -242,16 +242,16 @@
 
                     <!-- Tips -->
                     <div class="space-y-2 pt-2 border-t">
-                        <h3 class="font-semibold text-sm">{{ t('tips') || 'Tips' }}</h3>
+                        <h3 class="font-semibold text-sm">{{ t('tips') }}</h3>
                         <ul class="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                            <li>{{ t('tip_enter') || 'Press Enter to send (Shift+Enter for new line)' }}</li>
-                            <li>{{ t('tip_mention') || 'Type @ to mention users' }}</li>
+                            <li>{{ t('tip_enter') }}</li>
+                            <li>{{ t('tip_mention') }}</li>
                         </ul>
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button @click="showFormatHelp = false">{{ t('got_it') || 'Got it!' }}</Button>
+                    <Button @click="showFormatHelp = false">{{ t('got_it') }}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

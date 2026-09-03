@@ -46,7 +46,7 @@ function dismiss() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.9);
+  background: hsl(var(--background) / 0.9);
   backdrop-filter: blur(8px);
 }
 
@@ -58,6 +58,10 @@ function dismiss() {
   max-width: 420px;
   padding: 2rem;
   text-align: center;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  box-shadow: 0 18px 50px hsl(0 0% 0% / 0.25);
 }
 
 .eb-icon {
@@ -68,13 +72,13 @@ function dismiss() {
 .eb-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #fafafa;
+  color: hsl(var(--foreground));
   margin: 0;
 }
 
 .eb-msg {
   font-size: 0.85rem;
-  color: #a1a1aa;
+  color: hsl(var(--muted-foreground));
   margin: 0;
   line-height: 1.5;
   word-break: break-word;
@@ -91,7 +95,7 @@ function dismiss() {
   border: 1px solid hsl(var(--border, 0 0% 30%));
   border-radius: 0.5rem;
   background: transparent;
-  color: #e4e4e7;
+  color: hsl(var(--foreground));
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -99,7 +103,7 @@ function dismiss() {
 }
 
 .eb-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: hsl(var(--accent));
 }
 
 .eb-btn:active {

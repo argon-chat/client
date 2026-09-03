@@ -82,9 +82,7 @@
       v-if="!isLoading && !messages.length"
       class="absolute inset-0 flex flex-col items-center justify-center gap-3"
     >
-      <div class="w-14 h-14 rounded-2xl bg-muted/25 flex items-center justify-center text-muted-foreground/45">
-        <MessageSquareIcon class="w-7 h-7" />
-      </div>
+      <EmptyStateArt name="no-messages" :size="148" />
       <p class="text-sm text-muted-foreground/60">{{ t('no_messages_yet') }}</p>
     </div>
 
@@ -118,13 +116,14 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted, type ShallowRef } from "vue";
-import { CircleArrowDown, Loader2Icon, MessageSquareIcon } from "lucide-vue-next";
+import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
 import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
 
 import MessageItem from "@/components/MessageItem.vue";
 import ImageLightbox from "@/components/chats/ImageLightbox.vue";
 import DateSeparator from "@/components/chats/DateSeparator.vue";
 import UnreadSeparator from "@/components/chats/UnreadSeparator.vue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 
 import { useLocale } from "@/store/system/localeStore";
 import { useChatScroll } from "@/composables/useChatScroll";

@@ -216,7 +216,7 @@
 
             <!-- Empty state -->
             <div v-else class="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
-              <ShieldIcon class="w-12 h-12 mb-3 opacity-30" />
+              <EmptyStateArt name="select-role" :size="152" />
               <p class="text-sm font-medium">{{ t("select_role") }}</p>
               <p class="text-xs mt-1 opacity-60">{{ t("select_role_hint") }}</p>
             </div>
@@ -306,6 +306,7 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import type { Subscription } from "dexie";
 import { usePexStore } from "@/store/data/permissionStore";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
 import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";

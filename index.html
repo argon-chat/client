@@ -9,6 +9,33 @@
     <link rel="preconnect" href="https://rts.argon.gl" />
     <link href="https://emoji-css.afeld.me/emoji.css" rel="stylesheet">
     <link rel="stylesheet" href="/packages/assets/fonts/fonts.css">
+    <!--
+      The loading overlay and the boot gate are drawn long before Vue mounts and applies the
+      appearance settings, so the theme class has to be on <html> already - otherwise every start
+      flashes the wrong theme. Mirrors useTheme(): "system" follows the OS, and anything that is
+      not "light" (dark, oled) is dark.
+    -->
+    <script>
+      (function () {
+        var theme = "dark";
+        try {
+          var raw = localStorage.getItem("appearance.theme");
+          if (raw) {
+            // Written by persistedValue() through superjson, i.e. {"json":"dark"}.
+            var parsed = JSON.parse(raw);
+            theme = (parsed && typeof parsed === "object" ? parsed.json : parsed) || "dark";
+          }
+        } catch (e) {
+          /* unreadable storage - the default stands */
+        }
+        if (theme === "system") {
+          theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+        if (theme !== "light") document.documentElement.classList.add("dark");
+      })();
+    </script>
   </head>
   <body>
     <!-- SVG filters for color blindness simulation -->

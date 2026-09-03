@@ -100,7 +100,7 @@
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <p>{{ failedError || t('send_failed') || 'Failed to send' }} — {{ t('click_to_retry') || 'click to retry' }}</p>
+              <p>{{ failedError || t('send_failed') }} — {{ t('click_to_retry') }}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -304,7 +304,7 @@
           <ContextMenuContent class="min-w-40">
             <ContextMenuItem v-if="canReact" @select="openReactionFromMenu">
               <SmilePlusIcon class="w-4 h-4 mr-2 opacity-60" />
-              {{ t('add_reaction') || 'React' }}
+              {{ t('add_reaction') }}
             </ContextMenuItem>
             <ContextMenuSeparator v-if="canReact" />
             <ContextMenuItem @select="emit('reply', props.message)">

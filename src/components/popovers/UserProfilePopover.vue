@@ -334,12 +334,12 @@ const nameAccentStyle = computed(() => {
 const statusText = computed(() => {
   if (!user.value) return "";
   switch (user.value.status) {
-    case UserStatus.Online: return t("status_online") || "Online";
-    case UserStatus.Away: return t("status_away") || "Away";
-    case UserStatus.DoNotDisturb: return t("status_dnd") || "Do Not Disturb";
-    case UserStatus.TouchGrass: return t("status_touch_grass") || "Touch Grass";
-    case UserStatus.Offline: return t("status_offline") || "Offline";
-    default: return t("status_online") || "Online";
+    case UserStatus.Online: return t("status_online");
+    case UserStatus.Away: return t("status_away");
+    case UserStatus.DoNotDisturb: return t("status_dnd");
+    case UserStatus.TouchGrass: return t("status_touch_grass");
+    case UserStatus.Offline: return t("status_offline");
+    default: return t("status_online");
   }
 });
 
@@ -430,8 +430,10 @@ const me = useMe();
 const isOwnProfile = computed(() => me.me?.userId === props.userId);
 
 onMounted(async () => {
+  // No space to scope against on the friends screen or in a direct chat — the store falls back to
+  // the space-less lookup rather than handing the transport a null id.
   userProfile.value = await profileCache.getProfile(
-    pool.selectedServer!,
+    pool.selectedServer,
     props.userId,
   );
   userProfile.value.badges.push(

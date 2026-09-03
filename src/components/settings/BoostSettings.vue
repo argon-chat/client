@@ -103,7 +103,7 @@
                   </p>
                 </div>
                 <button class="boost-action-btn assign-btn" @click="expandedSpace = expandedSpace === '__unassigned' ? null : '__unassigned'">
-                  {{ expandedSpace === '__unassigned' ? t('ultima_boost_collapse') || 'Collapse' : t('ultima_boost_expand') || 'Expand' }}
+                  {{ expandedSpace === '__unassigned' ? t('ultima_boost_collapse') : t('ultima_boost_expand') }}
                 </button>
               </div>
               <Transition name="expand">

@@ -41,8 +41,8 @@
 
         <!-- Empty state -->
         <div v-else-if="!loading && itemCount === 0" 
-            class="flex-1 flex flex-col items-center justify-center gap-4 opacity-60">
-            <IconBasket class="w-24 h-24 text-muted-foreground" stroke-width="1" />
+            class="flex-1 flex flex-col items-center justify-center gap-2">
+            <EmptyStateArt name="inventory" :size="184" />
             <p class="text-xl font-semibold text-muted-foreground">{{ t('inventory_empty') }}</p>
             <p class="text-sm text-muted-foreground">{{ t('inventory_empty_hint') }}</p>
         </div>
@@ -74,7 +74,7 @@
                     </slot>
                     <!-- Count badge -->
                     <div v-if="props.getItemCount?.(i - 1) && props.getItemCount(i - 1) > 1"
-                        class="absolute top-2 right-2 bg-violet-600 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center shadow-lg z-10">
+                        class="absolute top-2 right-2 bg-violet-600 text-white/90 text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center shadow-lg z-10">
                         x{{ props.getItemCount(i - 1) }}
                     </div>
                     <!-- Hover overlay effect -->
@@ -91,6 +91,7 @@ import { Card, CardContent } from '@argon/ui/card'
 import { Input } from '@argon/ui/input';
 import { useLocale } from '@/store/system/localeStore';
 import { IconBasket, IconQuestionMark } from '@tabler/icons-vue';
+import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { computed, CSSProperties, ref } from 'vue'
 
 defineOptions({ inheritAttrs: false })

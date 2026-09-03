@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .dr{stroke-dasharray:100;stroke-dashoffset:100;animation:es-dr .7s cubic-bezier(.4,0,.2,1) forwards}
+.es-svg .gh{animation:es-gh 2.8s ease-out 1s infinite;opacity:0}
+.es-svg .bd{animation:es-bd 1.6s cubic-bezier(.4,0,.2,1) 1.2s infinite}
+@keyframes es-dr{to{stroke-dashoffset:0}}
+@keyframes es-gh{0%{opacity:.35;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+@keyframes es-bd{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-8px) rotate(6deg)}}</style>
+<defs><radialGradient id="g-notextchannel" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient>
+<mask id="m-notextchannel"><rect width="200" height="200" fill="#fff"></rect><circle cx="165" cy="44" r="12" fill="#000"></circle></mask></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-notextchannel)"></circle>
+<g class="e gh" fill="none" stroke-width="9" stroke-linecap="round" style="stroke:var(--es-accent-deep,#7c5cf5)"><path d="M84 58 72 142M124 58 112 142M60 84h80M54 116h80"></path></g>
+<g class="e fl"><g fill="none" stroke-width="9" stroke-linecap="round" style="stroke:var(--es-accent,#a78bfa)">
+<path class="dr" d="M84 58 72 142"></path><path class="dr" style="animation-delay:.12s" d="M124 58 112 142"></path>
+<path class="dr" style="animation-delay:.28s" d="M60 84h80"></path><path class="dr" style="animation-delay:.4s" d="M54 116h80"></path></g></g>
+<g class="e in" style="animation-delay:.75s"><g class="e bd"><circle cx="154" cy="54" r="16" style="fill:var(--es-accent-deep,#7c5cf5)"></circle>
+<text x="154" y="61" text-anchor="middle" font-family="system-ui,'Segoe UI',sans-serif" font-weight="800" font-size="20" style="fill:var(--es-on-accent,#fff)">?</text></g></g>
+</svg>

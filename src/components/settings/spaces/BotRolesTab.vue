@@ -8,7 +8,7 @@
       <ScrollArea class="flex-1">
         <div class="p-2 space-y-1">
           <div v-if="!filteredBotArchetypes?.length" class="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <BotIcon class="w-8 h-8 mb-2 opacity-40" />
+            <EmptyStateArt name="no-bots" :size="120" />
             <p class="text-sm">{{ t("no_bot_roles") }}</p>
             <p class="text-xs mt-1 opacity-60">{{ t("no_bot_roles_hint") }}</p>
           </div>
@@ -158,6 +158,7 @@ import { computed, onMounted, ref } from "vue";
 import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
 import { Switch } from "@argon/ui/switch";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import {

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .tr{animation:es-tr 3.2s ease-in 1s infinite;opacity:0}
+.es-svg .sig{animation:es-sig 3.2s ease-in-out 1s infinite}
+.es-svg .gh2{animation:es-gh2 3.2s ease-in-out 1s infinite}
+.es-svg .inv{animation:es-inv 3.2s cubic-bezier(.2,.9,.3,1.3) 1s infinite}
+.es-svg .hb{animation:es-hb 3.2s ease-out 1s infinite;opacity:0}
+@keyframes es-tr{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(22px) scale(1)}}
+@keyframes es-sig{0%,100%{transform:translateY(0)}20%{transform:translateY(-3px)}40%{transform:translateY(1px)}}
+@keyframes es-gh2{0%,100%{opacity:.25}50%{opacity:.5}}
+@keyframes es-inv{0%,50%{transform:scale(0)}62%,88%{transform:scale(1)}100%{transform:scale(0)}}
+@keyframes es-hb{0%,60%{opacity:0;transform:translateY(0) scale(.5)}68%{opacity:1}100%{opacity:0;transform:translateY(-26px) scale(1.1)}}</style>
+<defs><radialGradient id="g-nofriendssad" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-nofriendssad)"></circle>
+<g class="e in" style="animation-delay:.2s"><g class="e gh2"><circle cx="46" cy="112" r="14" fill="none" stroke-width="2.5" stroke-dasharray="4 4" style="stroke:var(--es-line,#3a3b45)"></circle><path d="M26 150a20 20 0 0 1 40 0" fill="none" stroke-width="2.5" stroke-dasharray="4 4" style="stroke:var(--es-line,#3a3b45)"></path></g></g>
+<g class="e in" style="animation-delay:.3s"><g class="e gh2" style="animation-delay:1.5s"><circle cx="154" cy="112" r="14" fill="none" stroke-width="2.5" stroke-dasharray="4 4" style="stroke:var(--es-line,#3a3b45)"></circle><path d="M134 150a20 20 0 0 1 40 0" fill="none" stroke-width="2.5" stroke-dasharray="4 4" style="stroke:var(--es-line,#3a3b45)"></path></g></g>
+<g class="e in"><g class="e sig">
+<circle cx="100" cy="90" r="26" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></circle>
+<path d="M60 160a40 40 0 0 1 80 0z" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<circle cx="90" cy="88" r="3" style="fill:var(--es-accent,#a78bfa)"></circle><circle cx="110" cy="88" r="3" style="fill:var(--es-accent,#a78bfa)"></circle>
+<path d="M92 104q8-6 16 0" fill="none" stroke-width="3" stroke-linecap="round" style="stroke:var(--es-accent,#a78bfa)"></path>
+<path class="e tr" d="M112 94c0 4 3 7 3 10a3 3 0 0 1-6 0c0-3 3-6 3-10z" style="fill:var(--es-info,#5fb3f5)"></path>
+</g></g>
+<g class="e in" style="animation-delay:.5s"><g class="e inv"><circle cx="150" cy="60" r="16" style="fill:var(--es-accent-deep,#7c5cf5)"></circle><path d="M150 52v16M142 60h16" stroke-width="3.5" stroke-linecap="round" style="stroke:var(--es-on-accent,#fff)"></path></g></g>
+<g class="e hb"><path transform="translate(50 60) scale(.9)" d="M0 8c-8-10-16 0-8 8l8 8 8-8c8-8 0-18-8-8z" style="fill:var(--es-danger,#f04747)"></path></g>
+<g class="e hb" style="animation-delay:.4s"><path transform="translate(70 40) scale(.6)" d="M0 8c-8-10-16 0-8 8l8 8 8-8c8-8 0-18-8-8z" style="fill:var(--es-accent,#a78bfa)"></path></g>
+</svg>

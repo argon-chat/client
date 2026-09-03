@@ -655,9 +655,80 @@ onMounted(async () => {
   color: hsl(350 20% 55%);
 }
 
-/* Keep it dark and menacing even in light theme. */
+/* Light theme: the same warning drawn on paper instead of neon on black. A black slab in the
+   middle of a white settings page read as a rendering fault rather than as a hazard. */
+:root:not(.dark) .danger-zone-wrap {
+  filter: drop-shadow(0 6px 16px hsl(350 80% 55% / 0.18));
+}
+
 :root:not(.dark) .danger-zone {
-  background: linear-gradient(180deg, hsl(350 55% 10%), hsl(350 50% 6%));
+  background: linear-gradient(180deg, hsl(350 100% 99%), hsl(350 80% 96%));
+  border-color: hsl(350 75% 62% / 0.55);
+}
+
+:root:not(.dark) .danger-hazard {
+  background: repeating-linear-gradient(-45deg, #e11d48 0, #e11d48 10px, #ffd7e0 10px, #ffd7e0 20px);
+  opacity: 1;
+}
+
+:root:not(.dark) .danger-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    hsl(350 60% 40% / 0.05) 0,
+    hsl(350 60% 40% / 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+:root:not(.dark) .danger-icon {
+  color: #be123c;
+  filter: none;
+}
+
+:root:not(.dark) .danger-title {
+  color: #be123c;
+  text-shadow: none;
+}
+
+:root:not(.dark) .danger-title::before {
+  color: #0e7490;
+}
+
+:root:not(.dark) .danger-title::after {
+  color: #e11d48;
+}
+
+:root:not(.dark) .danger-action-title {
+  color: hsl(350 30% 16%);
+}
+
+:root:not(.dark) .danger-action-desc {
+  color: hsl(350 12% 38%);
+}
+
+:root:not(.dark) .danger-btn {
+  color: #be123c;
+  background: hsl(350 90% 60% / 0.08);
+  border-color: hsl(350 75% 58% / 0.5);
+  box-shadow: none;
+}
+
+:root:not(.dark) .danger-btn:not(:disabled):hover {
+  background: #e11d48;
+  border-color: #e11d48;
+  color: #fff;
+  box-shadow: 0 4px 14px hsl(350 80% 55% / 0.35);
+}
+
+:root:not(.dark) .danger-btn:disabled {
+  color: hsl(350 12% 55%);
+  border-color: hsl(350 12% 70%);
+  background: hsl(350 20% 92% / 0.6);
+}
+
+:root:not(.dark) .danger-lock {
+  color: hsl(350 12% 48%);
 }
 
 @media (prefers-reduced-motion: reduce) {

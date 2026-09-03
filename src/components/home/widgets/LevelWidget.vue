@@ -13,7 +13,7 @@
             <div class="relative flex-shrink-0">
                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 flex items-center justify-center shadow-lg ring-2 ring-primary/30">
                     <div class="text-center">
-                        <div class="text-lg font-black text-white leading-none drop-shadow-md">{{ currentLevel }}</div>
+                        <div class="text-lg font-black text-white/90 leading-none drop-shadow-md">{{ currentLevel }}</div>
                         <div class="text-[8px] text-white/90 uppercase font-bold leading-none mt-0.5 tracking-wide">LVL</div>
                     </div>
                 </div>

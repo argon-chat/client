@@ -115,7 +115,7 @@ const displayColor = computed(() =>
         'w-10 h-10 flex items-center justify-center rounded-lg border transition-all duration-150',
         'border-white/10 hover:border-white/40 hover:bg-white/5',
         readonly ? 'cursor-not-allowed opacity-50' : ''
-      ]" @click="openColorPicker" :title="t('role_color') || 'Custom color'">
+      ]" @click="openColorPicker" :title="t('role_color')">
         <PipetteIcon class="w-4 h-4 text-white/70" />
       </button>
       <span class="text-xs text-muted-foreground font-mono">{{ displayColor }}</span>

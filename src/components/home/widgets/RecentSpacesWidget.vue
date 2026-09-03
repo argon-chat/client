@@ -16,9 +16,7 @@
         <div class="overflow-y-auto flex-1">
             <!-- Empty state -->
             <div v-if="sortedSpaces.length === 0" class="flex flex-col items-center justify-center h-full text-center">
-                <div class="mb-2 p-2 rounded-full bg-muted/50">
-                    <IconClock class="w-6 h-6 text-muted-foreground/50" />
-                </div>
+                <EmptyStateArt name="no-channels" :size="104" />
                 <p class="text-muted-foreground text-xs mb-1">{{ t('no_recent_spaces') }}</p>
             </div>
             
@@ -86,7 +84,8 @@
 
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
-import { IconHistory, IconClock, IconChevronRight, IconLayoutGrid, IconList, IconPin, IconPinFilled } from '@tabler/icons-vue';
+import { IconHistory, IconChevronRight, IconLayoutGrid, IconList, IconPin, IconPinFilled } from '@tabler/icons-vue';
+import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { computed, ref, watch } from 'vue';
 import { useRecentSpaces, getViewMode, setViewMode } from '@/lib/recentSpaces';
 import { useRouter } from 'vue-router';

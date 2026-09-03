@@ -31,7 +31,7 @@
       <!-- Dismiss -->
       <button
         class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
-        :title="t('link_preview_remove') || 'Remove preview'"
+        :title="t('link_preview_remove')"
         @click="emit('dismiss')"
       >
         <XIcon class="w-3.5 h-3.5" />
@@ -70,11 +70,11 @@ const host = computed(() => {
 
 const headline = computed(() => {
   if (props.preview) return props.preview.title || props.preview.siteName || host.value;
-  return t("link_preview") || "Link preview";
+  return t("link_preview");
 });
 
 const subline = computed(() => {
   if (props.preview) return props.preview.description || props.preview.siteName || props.url || "";
-  return props.loading ? (t("link_preview_loading") || "Getting link info…") : (props.url ?? "");
+  return props.loading ? t("link_preview_loading") : (props.url ?? "");
 });
 </script>

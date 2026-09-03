@@ -46,14 +46,14 @@ onMounted(() => {
         @click="ntf.markAllNotificationsRead()"
       >
         <CheckCheckIcon class="w-3.5 h-3.5 mr-1" />
-        {{ t("mark_all_read") || "Mark all read" }}
+        {{ t("mark_all_read") }}
       </Button>
     </div>
 
     <ScrollArea class="flex-1 max-h-[440px]">
       <div v-if="!hasAny" class="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <BellIcon class="w-8 h-8 mb-2 opacity-50" />
-        <p class="text-sm">{{ t("no_notifications") || "No notifications" }}</p>
+        <p class="text-sm">{{ t("no_notifications") }}</p>
       </div>
 
       <div v-else class="py-1">
@@ -62,7 +62,7 @@ onMounted(() => {
           <div class="flex items-center justify-between px-4 py-2">
             <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <UserPlusIcon class="w-3.5 h-3.5" />
-              {{ t("friends") || "Friends" }}
+              {{ t("friends") }}
             </div>
             <Button
               v-if="ntf.notifications.friendRequests > 0"
@@ -71,7 +71,7 @@ onMounted(() => {
               class="text-xs h-6 px-2"
               @click="ntf.markAllNotificationsRead('friend_request_received')"
             >
-              {{ t("mark_read") || "Mark read" }}
+              {{ t("mark_read") }}
             </Button>
           </div>
           <NotificationItem
@@ -89,7 +89,7 @@ onMounted(() => {
           <div class="flex items-center justify-between px-4 py-2">
             <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <PackageIcon class="w-3.5 h-3.5" />
-              {{ t("inventory") || "Inventory" }}
+              {{ t("inventory") }}
             </div>
             <Button
               v-if="ntf.notifications.inventory > 0"
@@ -98,7 +98,7 @@ onMounted(() => {
               class="text-xs h-6 px-2"
               @click="ntf.markAllNotificationsRead('item_received')"
             >
-              {{ t("mark_read") || "Mark read" }}
+              {{ t("mark_read") }}
             </Button>
           </div>
           <NotificationItem
@@ -116,7 +116,7 @@ onMounted(() => {
           <div class="flex items-center justify-between px-4 py-2">
             <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <MegaphoneIcon class="w-3.5 h-3.5" />
-              {{ t("system") || "System" }}
+              {{ t("system") }}
             </div>
             <Button
               v-if="ntf.notifications.system > 0"
@@ -125,7 +125,7 @@ onMounted(() => {
               class="text-xs h-6 px-2"
               @click="ntf.markAllNotificationsRead('system_announcement')"
             >
-              {{ t("mark_read") || "Mark read" }}
+              {{ t("mark_read") }}
             </Button>
           </div>
           <NotificationItem
@@ -139,7 +139,7 @@ onMounted(() => {
         <!-- Load more -->
         <div v-if="ntf.feedHasMore" class="flex justify-center py-3">
           <Button variant="ghost" size="sm" class="text-xs" @click="loadMore">
-            {{ t("load_more") || "Load more" }}
+            {{ t("load_more") }}
           </Button>
         </div>
       </div>
