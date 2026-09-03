@@ -94,11 +94,11 @@
 
         <DialogFooter class="flex justify-end gap-2 pt-2">
           <Button variant="ghost" type="button" @click="botInteraction.closeModal()">
-            {{ t('cancel') || 'Cancel' }}
+            {{ t('cancel') }}
           </Button>
           <Button type="submit" :disabled="isSubmitting">
             <Loader2Icon v-if="isSubmitting" class="w-4 h-4 mr-2 animate-spin" />
-            {{ t('submit') || 'Submit' }}
+            {{ t('submit') }}
           </Button>
         </DialogFooter>
       </form>

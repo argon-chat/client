@@ -20,7 +20,7 @@
           <PopoverTrigger as-child>
             <button
               class="relative flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg text-muted-foreground cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
-              :title="t('notification_settings') || 'Notification settings'"
+              :title="t('notification_settings')"
             >
               <BellIcon class="w-4 h-4" :class="{ 'opacity-40': channelMuted }" />
               <span
@@ -132,9 +132,9 @@ const currentMuteLevel = computed(() =>
 );
 
 const muteOptions = computed(() => [
-  { level: MuteLevelType.None, label: t("unmuted") || "All notifications", iconClass: "" },
-  { level: MuteLevelType.OnlyMentions, label: t("only_mentions") || "Only @mentions", iconClass: "opacity-60" },
-  { level: MuteLevelType.All, label: t("mute_all") || "Mute channel", iconClass: "opacity-30" },
+  { level: MuteLevelType.None, label: t("unmuted"), iconClass: "" },
+  { level: MuteLevelType.OnlyMentions, label: t("only_mentions"), iconClass: "opacity-60" },
+  { level: MuteLevelType.All, label: t("mute_all"), iconClass: "opacity-30" },
 ]);
 
 // ── Typing text ──

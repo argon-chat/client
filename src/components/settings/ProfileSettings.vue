@@ -10,13 +10,13 @@
         <div class="setting-card">
           <div class="flex items-center gap-2 mb-5">
             <PaletteIcon class="w-5 h-5 text-primary" />
-            <h3 class="text-lg font-semibold">{{ t("profile_customization") || "Profile Customization" }}</h3>
+            <h3 class="text-lg font-semibold">{{ t("profile_customization") }}</h3>
           </div>
 
           <div class="flex flex-col xl:flex-row gap-6">
             <!-- Live Preview + Avatar Uploader -->
             <div class="flex-shrink-0 space-y-3">
-              <div class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t("preview") || "Preview" }}</div>
+              <div class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t("preview") }}</div>
               <ProfileCardPreview
                 :display-name="editDisplayName || me.me.displayName"
                 :username="me.me.username"
@@ -53,14 +53,14 @@
             <div class="flex-1 space-y-5 min-w-0">
               <!-- Display Name -->
               <div>
-                <label class="text-sm font-medium">{{ t("display_name") || "Display Name" }}</label>
+                <label class="text-sm font-medium">{{ t("display_name") }}</label>
                 <Input v-model="editDisplayName" type="text" class="mt-1.5" :placeholder="me.me.displayName" :maxlength="32" />
               </div>
 
               <!-- Bio -->
               <div>
-                <label class="text-sm font-medium">{{ t("bio") || "Bio" }}</label>
-                <textarea v-model="editBio" class="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" rows="2" :placeholder="t('tell_about_yourself') || 'Tell people about yourself...'" :maxlength="190"></textarea>
+                <label class="text-sm font-medium">{{ t("bio") }}</label>
+                <textarea v-model="editBio" class="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" rows="2" :placeholder="t('tell_about_yourself')" :maxlength="190"></textarea>
               </div>
 
               <!-- ═══ PREMIUM-GATED SECTION ═══ -->
@@ -75,14 +75,14 @@
 
                 <!-- Custom Status -->
                 <div>
-                  <label class="text-sm font-medium">{{ t("custom_status") || "Custom Status" }}</label>
-                  <Input v-model="editCustomStatus" type="text" class="mt-1.5" :disabled="!me.isPremium" :placeholder="t('set_custom_status') || 'Set a custom status...'" :maxlength="128" />
+                  <label class="text-sm font-medium">{{ t("custom_status") }}</label>
+                  <Input v-model="editCustomStatus" type="text" class="mt-1.5" :disabled="!me.isPremium" :placeholder="t('set_custom_status')" :maxlength="128" />
                 </div>
 
                 <!-- Colors: Primary + Accent side by side -->
                 <div class="grid grid-cols-2 gap-4 mt-5">
                   <div>
-                    <div class="text-sm font-medium mb-2">{{ t("primary_color") || "Primary Color" }}</div>
+                    <div class="text-sm font-medium mb-2">{{ t("primary_color") }}</div>
                     <div class="color-strip">
                       <button
                         v-for="preset in COLOR_PRESETS"
@@ -106,14 +106,14 @@
                         v-if="editPrimaryColor != null"
                         class="color-dot color-dot--reset"
                         @click="editPrimaryColor = null"
-                        :title="t('reset') || 'Reset'"
+                        :title="t('reset')"
                       >
                         <XIcon class="w-3 h-3" />
                       </button>
                     </div>
                   </div>
                   <div>
-                    <div class="text-sm font-medium mb-2">{{ t("accent_color") || "Accent Color" }}</div>
+                    <div class="text-sm font-medium mb-2">{{ t("accent_color") }}</div>
                     <div class="color-strip">
                       <button
                         v-for="preset in COLOR_PRESETS"
@@ -137,7 +137,7 @@
                         v-if="editAccentColor != null"
                         class="color-dot color-dot--reset"
                         @click="editAccentColor = null"
-                        :title="t('reset') || 'Reset'"
+                        :title="t('reset')"
                       >
                         <XIcon class="w-3 h-3" />
                       </button>
@@ -147,7 +147,7 @@
 
                 <!-- Background (horizontal scroll) -->
                 <div class="mt-5">
-                  <div class="text-sm font-medium mb-2">{{ t("profile_background") || "Background" }}</div>
+                  <div class="text-sm font-medium mb-2">{{ t("profile_background") }}</div>
                   <div class="bg-scroll">
                     <!-- None option -->
                     <button
@@ -158,7 +158,7 @@
                       <div class="bg-scroll-thumb bg-scroll-thumb--none">
                         <XIcon class="w-4 h-4 text-muted-foreground" />
                       </div>
-                      <span class="bg-scroll-label">{{ t("none") || "None" }}</span>
+                      <span class="bg-scroll-label">{{ t("none") }}</span>
                     </button>
                     <!-- Background options -->
                     <button
@@ -183,9 +183,9 @@
               <!-- Save button -->
               <div class="flex items-center gap-3 pt-1">
                 <Button @click="saveCustomization" :disabled="isSavingCustomization">
-                  {{ isSavingCustomization ? t("saving") || "Saving..." : t("save_changes") || "Save Changes" }}
+                  {{ isSavingCustomization ? t("saving") : t("save_changes") }}
                 </Button>
-                <span v-if="customizationDirty" class="text-xs text-muted-foreground">{{ t("unsaved_changes") || "Unsaved changes" }}</span>
+                <span v-if="customizationDirty" class="text-xs text-muted-foreground">{{ t("unsaved_changes") }}</span>
               </div>
             </div>
           </div>
@@ -1029,7 +1029,7 @@ async function uploadAnimatedAvatar(file: File) {
     const { blobId } = await uploadFile(begin, file, "Avatar");
 
     await api.userInteraction.CompleteUploadAvatar(blobId);
-    toast({ title: t("profile_updated") || "Avatar updated" });
+    toast({ title: t("profile_updated") });
     onProfileUpdated();
   } catch (e) {
     toast({ title: t("error"), description: `${e}`, variant: "destructive" });
@@ -1093,12 +1093,12 @@ async function saveCustomization() {
         me.meProfile.accentColor = editAccentColor.value;
         me.meProfile.backgroundId = editBackgroundId.value;
       }
-      toast({ title: t("profile_updated") || "Profile updated" });
+      toast({ title: t("profile_updated") });
     } else {
-      toast({ title: t("error"), description: t("profile_update_failed") || "Failed to update profile", variant: "destructive" });
+      toast({ title: t("error"), description: t("profile_update_failed"), variant: "destructive" });
     }
   } catch {
-    toast({ title: t("error"), description: t("profile_update_failed") || "Failed to update profile", variant: "destructive" });
+    toast({ title: t("error"), description: t("profile_update_failed"), variant: "destructive" });
   } finally {
     isSavingCustomization.value = false;
   }

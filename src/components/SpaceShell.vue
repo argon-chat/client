@@ -75,7 +75,7 @@ watch(
 
         <!-- Secondary pane (split view) -->
         <div v-if="splitActive && secondaryChannelId" class="split-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
-            <button class="split-close" @click="closeSplit" :title="t('close') || 'Close split'">
+            <button class="split-close" @click="closeSplit" :title="t('close')">
                 <XIcon class="w-4 h-4" />
             </button>
             <ChannelChat

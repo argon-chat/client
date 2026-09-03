@@ -117,7 +117,7 @@ const isLightTheme = computed(() => currentTheme.value === "light");
 const bgSrc = computed(() => getBackgroundSrc(props.backgroundId));
 const hasColors = computed(() => props.primaryColor != null || props.accentColor != null);
 
-const statusLabel = computed(() => t("status_online") || "Online");
+const statusLabel = computed(() => t("status_online"));
 
 const gradientStyle = computed(() => {
   const primary = props.primaryColor ? argbToRgba(props.primaryColor) : "hsl(var(--muted))";

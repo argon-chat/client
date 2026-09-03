@@ -151,19 +151,19 @@ const channelTypes = computed(() => [
   {
     value: "Text",
     label: t("channel_type_text"),
-    description: t("channel_type_text_desc") || "Send messages, share files, and chat with your team",
+    description: t("channel_type_text_desc"),
     icon: Hash,
   },
   {
     value: "Voice",
     label: t("channel_type_voice"),
-    description: t("channel_type_voice_desc") || "Voice and video calls with screen sharing",
+    description: t("channel_type_voice_desc"),
     icon: Mic,
   },
   {
     value: "Announcement",
     label: t("channel_type_announcement"),
-    description: t("channel_type_announcement_desc") || "Important updates and news for everyone",
+    description: t("channel_type_announcement_desc"),
     icon: Megaphone,
   },
 ]);

@@ -353,7 +353,7 @@ function debugGrantTestItem() {
         @click="groupByType = !groupByType"
       >
         <IconStack2 class="w-4 h-4" />
-        {{ t('inventory_group') || 'Group' }}
+        {{ t('inventory_group') }}
       </Button>
     </template>
 
@@ -405,7 +405,7 @@ function debugGrantTestItem() {
                 </span>
               </div>
               <div v-if="displayItems[index].count > 1" class="text-xs text-violet-400 font-medium">
-                {{ t('inventory_quantity') || 'Quantity' }}: {{ displayItems[index].count }}
+                {{ t('inventory_quantity') }}: {{ displayItems[index].count }}
               </div>
               <div v-if="displayItems[index].representative.usable" class="text-xs text-green-500 flex items-center gap-1">
                 <IconSparkles class="w-3 h-3" />

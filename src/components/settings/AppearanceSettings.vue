@@ -299,7 +299,7 @@
                 <button class="accent-color-btn accent-system"
                     :class="{ 'accent-selected': accentColor === 'system' }"
                     :style="systemAccent ? { backgroundColor: systemAccent } : undefined"
-                    @click="accentColor = 'system'" :title="t('accent_system') === 'accent_system' ? 'System accent' : t('accent_system')">
+                    @click="accentColor = 'system'" :title="t('accent_system')">
                     <CheckIcon v-if="accentColor === 'system'" class="w-4 h-4 text-white" />
                     <MonitorIcon v-else class="w-4 h-4 text-white/90" />
                 </button>
@@ -334,14 +334,14 @@
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <MessageSquareIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">{{ t("chat") || 'Chat' }}</h3>
+                <h3 class="text-lg font-semibold">{{ t("chat") }}</h3>
             </div>
 
             <div class="space-y-3">
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("chat_density") || 'Message density' }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("chat_density_desc") || 'Spacing between messages in the chat' }}</div>
+                        <div class="text-sm font-medium">{{ t("chat_density") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("chat_density_desc") }}</div>
                     </div>
                     <Select v-model="chatDensity">
                         <SelectTrigger class="w-[150px]">
@@ -349,8 +349,8 @@
                         </SelectTrigger>
                         <SelectContent>
                             <SelectGroup>
-                                <SelectItem value="comfortable">{{ t("chat_density_comfortable") || 'Comfortable' }}</SelectItem>
-                                <SelectItem value="compact">{{ t("chat_density_compact") || 'Compact' }}</SelectItem>
+                                <SelectItem value="comfortable">{{ t("chat_density_comfortable") }}</SelectItem>
+                                <SelectItem value="compact">{{ t("chat_density_compact") }}</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -358,16 +358,16 @@
 
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("link_previews_show") || 'Show link previews' }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("link_previews_show_desc") || 'Cards with a title, description and picture under links in messages' }}</div>
+                        <div class="text-sm font-medium">{{ t("link_previews_show") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("link_previews_show_desc") }}</div>
                     </div>
                     <Switch v-model:checked="showLinkPreviews" />
                 </div>
 
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ t("link_previews_send") || 'Attach previews to my links' }}</div>
-                        <div class="text-xs text-muted-foreground">{{ t("link_previews_send_desc") || 'When you paste a link, a preview is fetched and sent with the message. You can remove it before sending.' }}</div>
+                        <div class="text-sm font-medium">{{ t("link_previews_send") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("link_previews_send_desc") }}</div>
                     </div>
                     <Switch v-model:checked="sendLinkPreviews" />
                 </div>
@@ -532,8 +532,8 @@ const themes = [
     },
     {
         id: "system",
-        name: t("theme_system") === "theme_system" ? "System" : t("theme_system"),
-        description: t("theme_system_desc") === "theme_system_desc" ? "Follow OS" : t("theme_system_desc"),
+        name: t("theme_system"),
+        description: t("theme_system_desc"),
         preview: {
             background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 49%, #ededed 51%, #ffffff 100%)"
         }

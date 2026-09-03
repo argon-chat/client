@@ -2,9 +2,9 @@
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
     <DialogContent described class="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
       <DialogHeader>
-        <DialogTitle>{{ t("channel_permissions") || "Channel Permissions" }} — #{{ channelName }}</DialogTitle>
+        <DialogTitle>{{ t("channel_permissions") }} — #{{ channelName }}</DialogTitle>
         <DialogDescription>
-          {{ t("channel_permissions_desc") || "Override role permissions for this channel." }}
+          {{ t("channel_permissions_desc") }}
         </DialogDescription>
       </DialogHeader>
 
@@ -12,7 +12,7 @@
         <!-- Left: Role list -->
         <div class="w-1/3 border-r border-border pr-3 overflow-y-auto">
           <div class="text-xs font-semibold text-muted-foreground mb-2 uppercase">
-            {{ t("roles") || "Roles" }}
+            {{ t("roles") }}
           </div>
           <div class="space-y-1">
             <button
@@ -44,7 +44,7 @@
                 @click="resetOverwrite"
               >
                 <Trash2Icon class="w-3.5 h-3.5 mr-1" />
-                {{ t("reset") || "Reset" }}
+                {{ t("reset") }}
               </Button>
             </div>
 
@@ -65,7 +65,7 @@
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
                         @click="setOverwriteState(flag.value, 'inherit')"
-                        :title="t('inherit') || 'Inherit'"
+                        :title="t('inherit')"
                       >
                         /
                       </button>
@@ -73,7 +73,7 @@
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
                         @click="setOverwriteState(flag.value, 'allow')"
-                        :title="t('allow') || 'Allow'"
+                        :title="t('allow')"
                       >
                         ✓
                       </button>
@@ -81,7 +81,7 @@
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
                         @click="setOverwriteState(flag.value, 'deny')"
-                        :title="t('deny') || 'Deny'"
+                        :title="t('deny')"
                       >
                         ✕
                       </button>
@@ -93,12 +93,12 @@
 
             <div class="flex justify-end pt-2 pb-1">
               <Button :disabled="saving" @click="saveOverwrite">
-                {{ saving ? (t("saving") || "Saving...") : (t("save_changes") || "Save Changes") }}
+                {{ saving ? t("saving") : t("save_changes") }}
               </Button>
             </div>
           </div>
           <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
-            {{ t("select_role_to_configure") || "Select a role to configure overwrites" }}
+            {{ t("select_role_to_configure") }}
           </div>
         </ScrollArea>
       </div>
@@ -230,10 +230,10 @@ async function saveOverwrite() {
         overwrites.value.push(result);
       }
     }
-    toast({ title: t("saved") || "Saved" });
+    toast({ title: t("saved") });
   } catch (e) {
     logger.error("Failed to save channel overwrite", e);
-    toast({ title: t("fail_save") || "Failed to save", variant: "destructive" });
+    toast({ title: t("fail_save"), variant: "destructive" });
   } finally {
     saving.value = false;
   }
@@ -254,10 +254,10 @@ async function resetOverwrite() {
     overwrites.value = overwrites.value.filter((o) => o.archetypeId !== selectedArchetypeId.value);
     localAllow.value = 0n;
     localDeny.value = 0n;
-    toast({ title: t("reset_success") || "Overwrite removed" });
+    toast({ title: t("reset_success") });
   } catch (e) {
     logger.error("Failed to delete channel overwrite", e);
-    toast({ title: t("fail_save") || "Failed to reset", variant: "destructive" });
+    toast({ title: t("fail_save"), variant: "destructive" });
   } finally {
     saving.value = false;
   }

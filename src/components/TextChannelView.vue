@@ -20,7 +20,7 @@
           <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
             <PaperclipIcon class="w-7 h-7" />
           </div>
-          <span class="text-sm font-medium">{{ t('drop_files_here') || 'Drop files here' }}</span>
+          <span class="text-sm font-medium">{{ t('drop_files_here') }}</span>
         </div>
       </div>
     </Transition>
@@ -87,7 +87,7 @@
               </span>
             </div>
             <span class="text-xs text-muted-foreground/70 truncate leading-snug">
-              {{ replyTo.text || t('attachment') || 'Attachment' }}
+              {{ replyTo.text || t('attachment') }}
             </span>
           </div>
           <!-- Close button -->

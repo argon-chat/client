@@ -44,14 +44,14 @@
       </ContextMenuTrigger>
       <ContextMenuContent class="w-52">
         <ContextMenuItem v-if="splitEnabled" @click="emit('open-split', channel.channelId)">
-          {{ t("open_in_split") === "open_in_split" ? "Open in split" : t("open_in_split") }}
+          {{ t("open_in_split") }}
         </ContextMenuItem>
         <ContextMenuSeparator v-if="splitEnabled && canManageChannels" />
         <ContextMenuItem
           v-if="canManageChannels"
           @click="channelPermissionsOpen = true"
         >
-          {{ t("edit_permissions") || "Edit Permissions" }}
+          {{ t("edit_permissions") }}
         </ContextMenuItem>
         <ContextMenuSeparator v-if="canManageChannels" />
         <ContextMenuItem
@@ -59,7 +59,7 @@
           class="text-red-400"
           @click="emit('delete', channel.channelId)"
         >
-          {{ t("delete_channel") || "Delete Channel" }}
+          {{ t("delete_channel") }}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

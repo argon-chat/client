@@ -82,10 +82,10 @@
               <template v-if="pex.has('ManageChannels')">
                 <ContextMenuSeparator />
                 <ContextMenuItem inset class="text-red-400" @click="deleteGroup(group.groupId, false)">
-                  {{ t("delete_group") || "Delete group" }}
+                  {{ t("delete_group") }}
                 </ContextMenuItem>
                 <ContextMenuItem inset class="text-red-500" @click="deleteGroup(group.groupId, true)">
-                  {{ t("delete_group_with_channels") || "Delete group + channels" }}
+                  {{ t("delete_group_with_channels") }}
                 </ContextMenuItem>
               </template>
             </ContextMenuContent>

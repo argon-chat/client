@@ -72,7 +72,7 @@ onUnmounted(() => {
             <span />
             <span />
           </span>
-          {{ t('calling') || 'Calling' }}
+          {{ t('calling') }}
         </span>
         <span class="connecting-elapsed">{{ elapsedText }}</span>
       </div>
@@ -80,7 +80,7 @@ onUnmounted(() => {
       <!-- Cancel button -->
       <button class="cancel-btn" @click="$emit('cancel')">
         <PhoneOffIcon class="w-5 h-5" />
-        <span>{{ t('cancel') || 'Cancel' }}</span>
+        <span>{{ t('cancel') }}</span>
       </button>
     </div>
   </div>

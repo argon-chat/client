@@ -14,7 +14,7 @@
       <div v-if="isDragging" class="dialog-drag-overlay">
         <div class="dialog-drag-content">
           <PlusIcon class="w-8 h-8" />
-          <span class="text-sm font-medium">{{ t('drop_to_add') || 'Drop to add files' }}</span>
+          <span class="text-sm font-medium">{{ t('drop_to_add') }}</span>
         </div>
       </div>
 
@@ -24,7 +24,7 @@
         <div v-if="selectedFile && isImage(selectedFile)" class="image-preview">
           <img :src="selectedFile.previewUrl!" alt="" class="preview-img" />
           <!-- Edit button -->
-          <button class="edit-btn" @click="openEditor" :title="t('edit') || 'Edit'">
+          <button class="edit-btn" @click="openEditor" :title="t('edit')">
             <PencilIcon class="w-4 h-4" />
           </button>
         </div>
@@ -35,7 +35,7 @@
             <PlayIcon class="w-5 h-5 fill-current" />
           </div>
           <!-- Edit button -->
-          <button class="edit-btn" @click="openEditor" :title="t('edit') || 'Edit'">
+          <button class="edit-btn" @click="openEditor" :title="t('edit')">
             <PencilIcon class="w-4 h-4" />
           </button>
         </div>
@@ -89,11 +89,11 @@
           </span>
           <div class="flex gap-2">
             <Button variant="ghost" size="sm" @click="$emit('close')">
-              {{ t('cancel') || 'Cancel' }}
+              {{ t('cancel') }}
             </Button>
             <Button size="sm" @click="send">
               <SendHorizonalIcon class="w-4 h-4 mr-1" />
-              {{ t('send') || 'Send' }}
+              {{ t('send') }}
             </Button>
           </div>
         </div>

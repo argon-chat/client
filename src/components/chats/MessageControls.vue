@@ -26,7 +26,7 @@
           @update:model-value="(val) => onSelectChange(ctrl, val as string)"
         >
           <SelectTrigger class="control-select-trigger">
-            <SelectValue :placeholder="ctrl.placeholder || t('select_option') || 'Select...'" />
+            <SelectValue :placeholder="ctrl.placeholder || t('select_option')" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem
