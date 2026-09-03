@@ -16,6 +16,7 @@
     "build:games:watch": "bun run scripts/build-games.ts --watch",
     "build:packages": "bun run --filter './packages/*' build",
     "sync:legal": "bun run scripts/sync-legal.ts",
+    "theme:empty-states": "bun run scripts/theme-empty-states.ts",
     "sentry:dashboards": "bun run scripts/sentry/dashboards.ts",
     "validate": "vue-tsc --noEmit -p tsconfig.app.json",
     "test": "bun run test:app && bun run test:packages",

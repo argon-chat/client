@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .lid{animation:es-lid 4s ease-in-out .9s infinite}
+.es-svg .mt{animation:es-mt 3s ease-out infinite;opacity:0}
+.es-svg .sl{animation:es-sl 2.6s ease-in-out .9s infinite}
+.es-svg .cob{animation:es-cob 3.4s ease-in-out .8s infinite}
+@keyframes es-lid{0%,100%{transform:rotate(0)}50%{transform:rotate(-6deg)}}
+@keyframes es-mt{0%{opacity:0;transform:translateY(0)}30%{opacity:.9}100%{opacity:0;transform:translateY(-30px)}}
+@keyframes es-sl{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes es-cob{0%,100%{transform:rotate(0)}50%{transform:rotate(3deg)}}</style>
+<defs><radialGradient id="g-inventory" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-inventory)"></circle>
+<g class="e in" style="animation-delay:.05s"><g class="e sl"><rect x="30" y="34" width="24" height="24" rx="6" fill="none" stroke-width="2.5" stroke-dasharray="5 4" style="stroke:var(--es-line,#3a3b45)"></rect></g></g>
+<g class="e in" style="animation-delay:.15s"><g class="e sl" style="animation-delay:.6s"><rect x="146" y="34" width="24" height="24" rx="6" fill="none" stroke-width="2.5" stroke-dasharray="5 4" style="stroke:var(--es-line,#3a3b45)"></rect></g></g>
+<g class="e in" style="animation-delay:.25s"><g class="e sl" style="animation-delay:1.2s"><rect x="164" y="112" width="24" height="24" rx="6" fill="none" stroke-width="2.5" stroke-dasharray="5 4" style="stroke:var(--es-line,#3a3b45)"></rect></g></g>
+<g class="e in"><g class="e fl">
+<g class="e lid" style="transform-origin:52px 100px;transform-box:view-box"><path d="M52 100V88a48 24 0 0 1 96 0v12z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface-2,#2c2d34);stroke:var(--es-line,#3a3b45)"></path>
+<rect x="52" y="90" width="96" height="10" style="fill:var(--es-line,#3a3b45)"></rect><rect x="92" y="96" width="16" height="18" rx="4" style="fill:var(--es-accent-deep,#7c5cf5)"></rect><circle cx="100" cy="108" r="2.5" style="fill:var(--es-surface,#23242b)"></circle></g>
+<rect x="48" y="100" width="104" height="54" rx="8" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></rect>
+<rect x="56" y="108" width="88" height="38" rx="4" style="fill:var(--es-void,#131316)"></rect>
+<g class="e cob" style="transform-origin:58px 110px;transform-box:view-box"><path d="M58 110l14 0M58 110l0 12M58 110l10 9M60 118q4-2 8 1M64 111q1 4 5 6" stroke-width="1.2" fill="none" opacity=".6" style="stroke:var(--es-line-strong,#5c5e6b)"></path></g>
+</g></g>
+<g style="fill:var(--es-accent,#a78bfa)"><circle class="e mt" cx="80" cy="120" r="1.8"></circle><circle class="e mt" style="animation-delay:1s" cx="100" cy="126" r="1.4"></circle><circle class="e mt" style="animation-delay:2s" cx="122" cy="118" r="1.6"></circle></g>
+</svg>

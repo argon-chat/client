@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useGifBrowser } from "@/composables/useGifBrowser";
 import type { GifItem, SavedGif } from "@argon/glue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 
 const props = defineProps<{
   searchQuery: string;
@@ -159,7 +160,8 @@ const getAspectStyle = (width: number, height: number) => {
 
         <!-- Empty search -->
         <div v-if="!loading && !displayItems.length && isSearching" class="gif-picker-empty">
-          No GIFs found
+          <EmptyStateArt name="not-found" :size="124" />
+          <span>No GIFs found</span>
         </div>
       </div>
 
@@ -288,6 +290,12 @@ const getAspectStyle = (width: number, height: number) => {
   padding: 32px;
   color: var(--emojix-text-muted, #9ca3af);
   font-size: 13px;
+}
+
+.gif-picker-empty {
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 32px 32px;
 }
 
 .gif-picker-loading-more {

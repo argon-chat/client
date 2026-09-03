@@ -38,9 +38,10 @@
         <AtomSpinner class="text-center" />
       </div>
 
-      <p v-else-if="invites.length === 0" class="text-sm text-muted-foreground text-center py-8">
-        {{ t("no_any_invite_codes_created") }}
-      </p>
+      <div v-else-if="invites.length === 0" class="flex flex-col items-center justify-center py-6">
+        <EmptyStateArt name="no-invites" :size="144" />
+        <p class="text-sm text-muted-foreground text-center">{{ t("no_any_invite_codes_created") }}</p>
+      </div>
 
       <div v-else v-for="invite in invites" :key="invite.code.inviteCode" class="invite-row">
         <div class="flex-1 min-w-0">
@@ -119,6 +120,7 @@ import {
   UploadIcon,
   Loader2,
 } from "lucide-vue-next";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";

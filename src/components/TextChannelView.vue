@@ -44,9 +44,7 @@
     <!-- ── Empty state ── -->
     <div v-else class="flex-1 flex flex-col items-center justify-center p-8">
       <div class="max-w-xs flex flex-col items-center text-center">
-        <div class="w-14 h-14 rounded-2xl bg-muted/30 flex items-center justify-center text-muted-foreground/70 mb-4">
-          <component :is="isAnnouncement ? AntennaIcon : RadioIcon" class="h-7 w-7" />
-        </div>
+        <EmptyStateArt name="no-text-channel" :size="152" class="mb-2" />
         <h3 class="text-base font-semibold text-foreground mb-1">
           {{ t(isAnnouncement ? 'no_announcement_channel_found' : 'no_text_channel_found') }}
         </h3>
@@ -134,7 +132,8 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from "vue";
-import { RadioIcon, AntennaIcon, BellIcon, PaperclipIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import { BellIcon, PaperclipIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { usePoolStore } from "@/store/data/poolStore";

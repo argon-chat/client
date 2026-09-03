@@ -192,7 +192,7 @@ onUnmounted(() => {
 }
 
 .settings-content {
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid hsl(var(--border));
 }
 
 .settings-content::after {

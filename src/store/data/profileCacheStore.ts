@@ -18,11 +18,28 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
   const bus = useBus();
   const system = useSystemStore();
 
-  function cacheKey(spaceId: string, userId: string): string {
-    return `${spaceId}:${userId}`;
+  // Outside a space — the friends list, a DM, a mention in a direct chat — there is nothing to
+  // scope the profile to, and those rows get their own cache namespace.
+  const GLOBAL_SCOPE = "@global";
+
+  function cacheKey(spaceId: string | null, userId: string): string {
+    return `${spaceId ?? GLOBAL_SCOPE}:${userId}`;
   }
 
-  async function getProfile(spaceId: Guid, userId: Guid): Promise<ArgonUserProfile> {
+  /**
+   * PrefetchProfile is space-scoped and the transport rejects a null space id outright, so a
+   * profile asked for outside a space goes through the space-less lookup instead. It carries no
+   * archetypes, which is exactly right: there is no space for a member to hold a role in.
+   */
+  async function fetchProfile(spaceId: Guid | null, userId: Guid): Promise<ArgonUserProfile> {
+    if (spaceId) return await api.serverInteraction.PrefetchProfile(spaceId, userId);
+
+    const result = await api.userInteraction.LookupProfile(userId);
+    if (result.isSuccessLookupProfile()) return result.profile;
+    throw new Error(`Profile lookup for ${userId} failed`);
+  }
+
+  async function getProfile(spaceId: Guid | null, userId: Guid): Promise<ArgonUserProfile> {
     const key = cacheKey(spaceId, userId);
 
     // Check IndexedDB cache
@@ -35,10 +52,10 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     const inflight = pending.get(key);
     if (inflight) return inflight;
 
-    const promise = api.serverInteraction.PrefetchProfile(spaceId, userId).then(async profile => {
+    const promise = fetchProfile(spaceId, userId).then(async profile => {
       await db.profileCache.put({
         key,
-        spaceId,
+        spaceId: spaceId ?? GLOBAL_SCOPE,
         userId,
         profile,
         fetchedAt: Date.now(),

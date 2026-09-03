@@ -90,8 +90,9 @@
         <LoaderIcon class="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
 
-      <div v-else-if="installedBots.length === 0" class="text-center text-muted-foreground py-8 text-sm">
-        {{ t("bots_none_installed") }}
+      <div v-else-if="installedBots.length === 0" class="flex flex-col items-center justify-center py-4 text-muted-foreground text-sm">
+        <EmptyStateArt name="no-bots" :size="148" />
+        <span>{{ t("bots_none_installed") }}</span>
       </div>
 
       <div v-else class="space-y-2">
@@ -179,6 +180,7 @@ import {
   BotIcon,
 } from "lucide-vue-next";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";

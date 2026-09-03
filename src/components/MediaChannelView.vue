@@ -66,9 +66,7 @@
 
             <!-- Empty state: no one in the channel -->
             <div v-else-if="allUsers.length === 0" class="empty-state">
-                <div class="empty-state-icon">
-                    <Users2 class="w-10 h-10" />
-                </div>
+                <EmptyStateArt name="no-one-here" :size="164" />
                 <span class="empty-state-title">{{ t("empty_channel") }}</span>
                 <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
             </div>
@@ -190,6 +188,7 @@ import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import ActivityCard from "./playframe/ActivityCard.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
+import EmptyStateArt from "./shared/EmptyStateArt.vue";
 import {
     Signal, Users2, Volume2, Gamepad2,
 } from "lucide-vue-next";
@@ -367,18 +366,6 @@ onUnmounted(() => {
     flex: 1;
     gap: 8px;
     user-select: none;
-}
-
-.empty-state-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: hsl(var(--muted) / 0.5);
-    color: hsl(var(--muted-foreground) / 0.5);
-    margin-bottom: 4px;
 }
 
 .empty-state-title {

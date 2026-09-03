@@ -35,6 +35,7 @@ import { useNotificationStore } from '@/store/data/notificationStore';
 import { useFeatureFlags } from '@/store/features/featureFlagsStore';
 import { useConfigStore } from '@/store/ui/configStore';
 import Skeleton from '@/components/shared/Skeleton.vue';
+import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 
 const { t } = useLocale();
 const { dialpadActive, dmActive, inventoryActive, notificationActive } = useFeatureFlags();
@@ -263,7 +264,8 @@ const navItems = computed<NavItem[]>(() => [
                     />
 
                     <!-- Empty state -->
-                    <div v-if="!hasAnyChats && !chatsLoading" class="flex flex-col items-center justify-center py-8 text-center">
+                    <div v-if="!hasAnyChats && !chatsLoading" class="flex flex-col items-center justify-center py-4 text-center">
+                        <EmptyStateArt :name="searchQuery ? 'not-found' : 'no-messages'" :size="112" />
                         <p class="text-xs text-muted-foreground/70">
                             {{ searchQuery ? t('no_results') : t('no_recent_chats') }}
                         </p>

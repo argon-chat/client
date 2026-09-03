@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .cur{animation:es-blink 1.1s steps(2,start) .9s infinite}
+.es-svg .sp{animation:es-sp 2.6s ease-in-out infinite;opacity:0}
+.es-svg .fl2{animation:es-fl 3.4s ease-in-out 2.5s infinite}
+@keyframes es-blink{to{opacity:0}}
+@keyframes es-sp{0%,100%{opacity:0;transform:scale(0) rotate(0)}50%{opacity:1;transform:scale(1) rotate(90deg)}}</style>
+<defs><radialGradient id="g-nomessages" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient>
+<mask id="m-nomessages"><rect width="200" height="200" fill="#fff"></rect><circle cx="165" cy="44" r="12" fill="#000"></circle></mask></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-nomessages)"></circle>
+<g class="e in"><g class="e fl">
+<path d="M68 52h80a16 16 0 0 1 16 16v40a16 16 0 0 1-16 16h-62l-16 14v-14h-2a16 16 0 0 1-16-16v-40a16 16 0 0 1 16-16z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<rect class="cur" x="74" y="74" width="3.5" height="28" rx="1.5" style="fill:var(--es-accent,#a78bfa)"></rect>
+<rect x="86" y="80" width="46" height="5" rx="2.5" style="fill:var(--es-surface-2,#2c2d34)"></rect><rect x="86" y="92" width="30" height="5" rx="2.5" style="fill:var(--es-surface-2,#2c2d34)"></rect>
+</g></g>
+<g class="e in" style="animation-delay:.25s"><g class="e fl2"><rect x="112" y="140" width="52" height="26" rx="13" fill="none" stroke-width="2.5" stroke-dasharray="5 5" style="stroke:var(--es-line,#3a3b45)"></rect>
+<circle cx="130" cy="153" r="2.5" style="fill:var(--es-line,#3a3b45)"></circle><circle cx="138" cy="153" r="2.5" style="fill:var(--es-line,#3a3b45)"></circle><circle cx="146" cy="153" r="2.5" style="fill:var(--es-line,#3a3b45)"></circle></g></g>
+<g style="fill:var(--es-accent,#a78bfa)">
+<g class="e sp" style="animation-delay:1s"><path transform="translate(168 44)" d="M0-8L2-2 8 0 2 2 0 8-2 2-8 0-2-2Z"></path></g>
+<g class="e sp" style="animation-delay:1.9s"><path transform="translate(46 138)" d="M0-6L1.5-1.5 6 0 1.5 1.5 0 6-1.5 1.5-6 0-1.5-1.5Z"></path></g>
+<g class="e sp" style="animation-delay:2.7s"><path transform="translate(180 116)" d="M0-4.5L1.2-1.2 4.5 0 1.2 1.2 0 4.5-1.2 1.2-4.5 0-1.2-1.2Z"></path></g>
+</g>
+</svg>

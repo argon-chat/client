@@ -12,9 +12,7 @@
 
       <!-- Empty state -->
       <div v-else-if="channelLists.length === 0" key="empty" class="empty-state">
-        <div class="empty-state-icon">
-          <HashIcon class="w-8 h-8 text-muted-foreground/40" />
-        </div>
+        <EmptyStateArt name="no-channels" :size="132" />
         <p class="text-sm text-muted-foreground/60">{{ t("no_channels") }}</p>
         <button 
           v-if="pex.has('ManageChannels')"
@@ -141,7 +139,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { HashIcon, PlusIcon } from 'lucide-vue-next';
+import { PlusIcon } from 'lucide-vue-next';
+import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { useSpaceStore } from '@/store/data/serverStore';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
@@ -372,16 +371,6 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
   gap: 12px;
   height: 100%;
   min-height: 120px;
-}
-
-.empty-state-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius);
-  background-color: hsl(var(--muted) / 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .empty-state-btn {

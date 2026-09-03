@@ -65,7 +65,8 @@
         </div>
 
         <div v-if="groups.length === 0" class="empty-state">
-          {{ searchQuery ? t("no_results") : t("no_members_online") }}
+          <EmptyStateArt :name="searchQuery ? 'not-found' : 'no-friends-online'" :size="116" />
+          <span>{{ searchQuery ? t("no_results") : t("no_members_online") }}</span>
         </div>
       </div>
       </Transition>
@@ -78,6 +79,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
 import Skeleton from "./shared/Skeleton.vue";
+import EmptyStateArt from "./shared/EmptyStateArt.vue";
 import { computed, ref, nextTick } from "vue";
 import { persistedValue } from "@argon/storage";
 import { useListLoading } from "@/composables/useListLoading";
@@ -438,9 +440,11 @@ const formatColour = (argb: number) => {
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  gap: 0.25rem;
+  padding: 1.25rem 1rem;
   color: hsl(var(--muted-foreground) / 0.5);
   font-size: 0.78rem;
   text-align: center;

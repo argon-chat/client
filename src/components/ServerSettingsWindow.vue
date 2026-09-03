@@ -13,7 +13,7 @@
             </DrawerHeader>
 
             <div class="settings-layout justify-center flex flex-1 space-x-4">
-                <nav class="settings-nav flex-shrink-0 w-48 p-3 text-white space-y-1 rounded-lg isolate">
+                <nav class="settings-nav flex-shrink-0 w-48 p-3 space-y-1 rounded-lg isolate">
                     <button
                         v-for="category in categories"
                         :key="category.id"
@@ -25,7 +25,7 @@
                         <span>{{ category.label }}</span>
                     </button>
                 </nav>
-                <div class="settings-content flex-1 p-6 pb-8 text-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                <div class="settings-content flex-1 p-6 pb-8 text-foreground overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     <component :is="selectedCategoryComponent" />
                 </div>
             </div>
@@ -117,7 +117,7 @@ onUnmounted(() => {
     padding: 0.5rem 0.75rem;
     border-radius: 0.5rem;
     font-size: 0.9rem;
-    color: hsl(0 0% 100% / 0.7);
+    color: hsl(var(--muted-foreground));
     background: transparent;
     border: none;
     cursor: pointer;
@@ -125,17 +125,17 @@ onUnmounted(() => {
 }
 
 .nav-item:hover {
-    background: hsl(0 0% 100% / 0.06);
-    color: #fff;
+    background: hsl(var(--accent) / 0.6);
+    color: hsl(var(--foreground));
 }
 
 .nav-item--active {
-    background: hsl(0 0% 100% / 0.1);
-    color: #fff;
+    background: hsl(var(--accent));
+    color: hsl(var(--foreground));
 }
 
 .settings-content {
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid hsl(var(--border));
 }
 
 /* Bottom spacer so the last card can be fully scrolled into view. */

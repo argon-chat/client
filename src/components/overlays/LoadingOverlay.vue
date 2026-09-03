@@ -39,7 +39,9 @@ function reloadPage() {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #09090b;
+  /* index.html puts the theme class on <html> before the first paint, so this is already right
+     on the very first frame. */
+  background: hsl(var(--background));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,7 +128,8 @@ function reloadPage() {
 
 .error-message {
   font-size: 0.875rem;
-  color: #fca5a5;
+  /* Was a pale red that disappeared on the light theme. */
+  color: hsl(var(--muted-foreground));
   margin: 0;
   text-align: center;
   max-width: 400px;

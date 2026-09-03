@@ -18,9 +18,7 @@
             <!-- Empty state -->
             <div v-else-if="onlineFriends.length === 0"
                 class="flex flex-col items-center justify-center h-full text-center">
-                <div class="mb-3 p-3 rounded-full bg-muted/50">
-                    <IconUserOff class="w-8 h-8 text-muted-foreground/50" />
-                </div>
+                <EmptyStateArt name="no-friends-online" :size="120" class="mb-1" />
                 <p class="text-muted-foreground text-xs mb-1">{{ t('no_friends_online') }}</p>
                 <p class="text-[10px] text-muted-foreground/70">{{ t('invite_friends_to_chat') }}</p>
             </div>
@@ -53,7 +51,7 @@
 
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
-import { IconUsers, IconUserOff, IconPhoneCall } from '@tabler/icons-vue';
+import { IconUsers, IconPhoneCall } from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useApi } from '@/store/system/apiStore';
 import { usePoolStore } from '@/store/data/poolStore';
@@ -62,6 +60,7 @@ import { useCallManager } from '@/store/media/callManagerStore';
 import { UserStatus } from '@argon/glue';
 import type { RealtimeUser } from '@/store/db/dexie';
 import ArgonAvatar from '@/components/ArgonAvatar.vue';
+import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { logger } from '@argon/core';
 import { db } from '@/store/db/dexie';
 
