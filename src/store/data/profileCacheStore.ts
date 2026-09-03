@@ -4,7 +4,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { db, type CachedProfile } from "@/store/db/dexie";
-import { onSessionReset } from "@/store/system/sessionLifecycle";
+import { onSessionReset, sessionEpoch } from "@/store/system/sessionLifecycle";
 import type { ArgonUserProfile } from "@argon/glue";
 import { UserProfileUpdated } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -52,7 +52,17 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     const inflight = pending.get(key);
     if (inflight) return inflight;
 
+    // Which account asked. A seamless switch swaps the API client and the Dexie database
+    // underneath an in-flight request, and a reply fetched with the previous account's credentials
+    // must not be written into the incoming account's cache.
+    const askedIn = sessionEpoch.value;
+
     const promise = fetchProfile(spaceId, userId).then(async profile => {
+      if (sessionEpoch.value !== askedIn) {
+        pending.delete(key);
+        return profile;
+      }
+
       await db.profileCache.put({
         key,
         spaceId: spaceId ?? GLOBAL_SCOPE,
@@ -98,7 +108,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
 
   // Subscribe to realtime event
   bus.onServerEvent<UserProfileUpdated>("UserProfileUpdated", (e) => {
-    updateProfile(e.spaceId, e.userId, e.profile);
+    void (async () => {
+      await updateProfile(e.spaceId, e.userId, e.profile);
+      // The space-less copy of a profile is a different thing — no archetypes — so a space-scoped
+      // payload cannot stand in for it. Drop it and let the next read fetch its own.
+      await db.profileCache.delete(cacheKey(null, e.userId));
+    })();
   });
 
   // Invalidate cache after long reconnect

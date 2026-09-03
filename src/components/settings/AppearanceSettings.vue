@@ -485,6 +485,7 @@ import {
     MessageSquareIcon,
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
+import { reduceMotion as sharedReduceMotion } from "@/composables/useReducedMotion";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
 import {
@@ -718,7 +719,8 @@ const borderRadius = persistedValue<number>("appearance.borderRadius", 0.75);
 const accentColor = persistedValue<string>("appearance.accentColor", "blue");
 // Blur and animations are always on (no longer user-toggleable); only the
 // accessibility "reduce motion" preference remains.
-const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
+// Shared, so anything drawing motion reacts to the switch as it moves rather than on remount.
+const reduceMotion = sharedReduceMotion;
 
 // Chat
 const chatDensity = persistedValue<string>("appearance.chatDensity", "comfortable");

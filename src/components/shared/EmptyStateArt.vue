@@ -42,7 +42,7 @@ export type EmptyStateArtName =
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { persistedValue } from "@argon/storage";
+import { reduceMotion } from "@/composables/useReducedMotion";
 
 import inventory from "@/styles/empty-states/inventory.svg?raw";
 import noBots from "@/styles/empty-states/no-bots.svg?raw";
@@ -83,7 +83,7 @@ const markup = computed(() => ART[props.name]);
 const px = computed(() => `${props.size}px`);
 
 // The OS setting is neutralised globally by styles/reduced-motion.css; this is the in-app toggle.
-const reduceMotion = persistedValue<boolean>("appearance.reduceMotion", false);
+// It has to be the shared ref: a local persistedValue() would not see the switch being flipped.
 </script>
 
 <style scoped>

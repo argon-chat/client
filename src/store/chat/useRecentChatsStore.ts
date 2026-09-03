@@ -73,6 +73,9 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   async function setChats(list: UserChat[]) {
     logger.debug(`[RecentChatsStore] Loading ${list.length} chats...`);
     const start = performance.now();
+
+    // Whatever was buffered before the snapshot was asked for is already counted inside it.
+    pendingUnread.clear();
     
     const userIds = list.map(chat => chat.peerId);
     const usersMap = await pool.getUsersBatch(userIds);
@@ -91,16 +94,37 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
       };
     });
     
+    // Decorating the snapshot is asynchronous, and events do not wait for it. Anything that landed
+    // while it was in flight is not in the server's counts, so it is folded in here rather than
+    // dropped with the buffer — and a conversation that exists only because of one of those events
+    // survives the replacement instead of being wiped by it.
+    for (const item of items) {
+      const buffered = pendingUnread.get(item.peerId);
+      if (!buffered) continue;
+      pendingUnread.delete(item.peerId);
+      item.unreadCount += buffered;
+    }
+
+    const inSnapshot = new Set(items.map((x) => x.peerId));
+    for (const existing of recent.value) {
+      if (!inSnapshot.has(existing.peerId)) items.push(existing);
+    }
+
     const duration = performance.now() - start;
     logger.debug(`[RecentChatsStore] Loaded ${items.length} chats in ${duration.toFixed(0)}ms`);
     
-    // The server's counts are the truth; anything buffered is already part of them.
-    pendingUnread.clear();
     recent.value = items.sort(sorter);
   }
 
   async function upsert(chat: UserChat) {
     const vm = await mergeUserInfo(chat);
+
+    const idx = recent.value.findIndex((x) => x.peerId === chat.peerId);
+    const existing = idx !== -1 ? recent.value[idx] : undefined;
+
+    // The payload's count was read before this method awaited; a bump that landed since then lives
+    // on the committed row, so that — not the stale capture — is what carries forward.
+    if (existing) vm.unreadCount = existing.unreadCount;
 
     const buffered = pendingUnread.get(chat.peerId);
     if (buffered) {
@@ -108,10 +132,8 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
       vm.unreadCount += buffered;
     }
 
-    const idx = recent.value.findIndex((x) => x.peerId === chat.peerId);
-    if (idx !== -1) {
+    if (existing) {
       // Update in place and re-sort only if ordering properties changed
-      const existing = recent.value[idx];
       const orderChanged = existing.isPinned !== vm.isPinned 
         || toTsDate(existing.pinnedAt) !== toTsDate(vm.pinnedAt)
         || toTsDate(existing.lastMessageAt) !== toTsDate(vm.lastMessageAt);
@@ -166,11 +188,6 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     pendingUnread.set(peerId, (pendingUnread.get(peerId) ?? 0) + 1);
   }
 
-  /** What a chat already carries, for an upsert that has no count of its own to put there. */
-  function unreadOf(peerId: string): number {
-    return recent.value.find((x) => x.peerId === peerId)?.unreadCount ?? 0;
-  }
-
   function sorter(a: RecentChatVm, b: RecentChatVm): number {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
@@ -189,6 +206,5 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     markPinned,
     markRead,
     bumpUnread,
-    unreadOf,
   };
 });

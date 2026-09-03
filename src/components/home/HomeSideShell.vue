@@ -118,9 +118,9 @@ function subscribeEvents() {
                 lastMessageAt: e.lastMessageAt,
                 isPinned: recentStore.recent.find(x => x.peerId === e.peerId)?.isPinned ?? false,
                 pinnedAt: recentStore.recent.find(x => x.peerId === e.peerId)?.pinnedAt ?? null,
-                // The event carries no count, and hardcoding a zero here wiped the unread badge off
-                // a conversation every time a new message arrived in it.
-                unreadCount: recentStore.unreadOf(e.peerId),
+                // The event carries no count of its own; the store keeps whatever the committed row
+                // already had, which is what stopped every new message wiping the unread badge.
+                unreadCount: 0,
                 userId: me.me!.userId
             });
         })

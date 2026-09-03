@@ -104,37 +104,42 @@ const statusKey = computed(() => {
             class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
             <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
-        <PopoverTrigger as-child>
-            <div class="friend-row friend-row--clickable" :class="{ 'friend-row--disabled': disabled }">
-                <div class="friend-row-avatar">
-                    <ArgonAvatar :user-id="user.userId" :overrided-size="38" />
-                    <StatusDot :status="user.status" :size="14" class="friend-row-dot" />
-                </div>
-
-                <div class="friend-row-main">
-                    <span class="friend-row-name">{{ user.displayName }}</span>
-                    <span v-if="user.activity" class="friend-row-sub">
-                        {{ t(getTextForActivityKind(user.activity.kind)) }}
-                        <span class="friend-row-sub-strong">{{ user.activity.titleName }}</span>
+        <!-- The identity is its own <button>, not a clickable row. A row that wraps the remove
+             button cannot itself be a button (controls do not nest), and as a plain div it was
+             reachable with a mouse and nothing else. -->
+        <div class="friend-row" :class="{ 'friend-row--disabled': disabled }">
+            <PopoverTrigger as-child>
+                <button type="button" class="friend-row-identity" :disabled="disabled">
+                    <span class="friend-row-avatar">
+                        <ArgonAvatar :user-id="user.userId" :overrided-size="38" />
+                        <StatusDot :status="user.status" :size="14" class="friend-row-dot" />
                     </span>
-                    <span v-else class="friend-row-sub">
-                        <span :class="me.statusClass(statusKey, false)">{{ t(`status_${statusKey}`) }}</span>
-                    </span>
-                </div>
 
-                <div class="friend-row-actions" @click.stop>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        class="friend-row-remove"
-                        :disabled="disabled"
-                        @click="emit('unfriend', item.userId)"
-                    >
-                        {{ t("unfriend") }}
-                    </Button>
-                </div>
+                    <span class="friend-row-main">
+                        <span class="friend-row-name">{{ user.displayName }}</span>
+                        <span v-if="user.activity" class="friend-row-sub">
+                            {{ t(getTextForActivityKind(user.activity.kind)) }}
+                            <span class="friend-row-sub-strong">{{ user.activity.titleName }}</span>
+                        </span>
+                        <span v-else class="friend-row-sub">
+                            <span :class="me.statusClass(statusKey, false)">{{ t(`status_${statusKey}`) }}</span>
+                        </span>
+                    </span>
+                </button>
+            </PopoverTrigger>
+
+            <div class="friend-row-actions">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="friend-row-remove"
+                    :disabled="disabled"
+                    @click="emit('unfriend', item.userId)"
+                >
+                    {{ t("unfriend") }}
+                </Button>
             </div>
-        </PopoverTrigger>
+        </div>
     </Popover>
 
     <!-- Requests and blocks render whether or not the identity has resolved yet: an incoming
@@ -207,8 +212,32 @@ const statusKey = computed(() => {
     transition: background 0.15s ease;
 }
 
-.friend-row--clickable {
+/* Everything but the actions: the popover's trigger. */
+.friend-row-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
+}
+
+.friend-row-identity:disabled {
+    cursor: default;
+}
+
+/* index.html kills focus rings on every button with !important, which is exactly the outline a
+   keyboard user needs here — this one has to shout back. */
+.friend-row-identity:focus-visible {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: -2px;
+    border-radius: calc(var(--radius) - 6px);
 }
 
 .friend-row:hover {
@@ -234,6 +263,7 @@ const statusKey = computed(() => {
 }
 
 .friend-row-avatar {
+    display: block;
     position: relative;
     flex-shrink: 0;
     line-height: 0;

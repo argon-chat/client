@@ -197,7 +197,8 @@ const emptyArt = computed<EmptyStateArtName>(() =>
     query.value.trim() && allItems.value.length ? "not-found" : "no-friends-sad",
 );
 
-async function loadAll() {
+/** Whether the lists on screen are the server's — a failed load leaves them as they were. */
+async function loadAll(): Promise<boolean> {
     try {
         loading.value = true;
         const [friendsData, incomingData, outgoingData, blockedData] = await Promise.all([
@@ -210,6 +211,7 @@ async function loadAll() {
         incoming.value = incomingData;
         outgoing.value = outgoingData;
         blocked.value = blockedData;
+        return true;
     } catch (error) {
         console.error("Failed to load friends data:", error);
         toast({
@@ -217,16 +219,18 @@ async function loadAll() {
             description: t("failed_to_load_friends"),
             variant: "destructive",
         });
+        return false;
     } finally {
         loading.value = false;
     }
 }
 onMounted(async () => {
-    await loadAll();
+    const loaded = await loadAll();
     // The badge on the Friends tab counts unread "friend_request_received" notifications. Handling
     // a request never touched them, so the dot outlived the request that caused it; the requests
-    // are the first thing on this screen, so arriving here is what counts as having seen them.
-    if (ntf.notifications.friendRequests > 0) {
+    // are the first thing on this screen, so arriving here is what counts as having seen them —
+    // but only if they arrived. Clearing it after a failed load would hide requests nobody saw.
+    if (loaded && ntf.notifications.friendRequests > 0) {
         void ntf.markAllNotificationsRead("friend_request_received");
     }
 });

@@ -132,7 +132,9 @@ const entries = computed<Entry[]>(() => {
         const capped = isCappable(kind) && items.length > PREVIEW_LIMIT;
         const shown = capped && !expanded.value.has(kind) ? items.slice(0, PREVIEW_LIMIT) : items;
 
-        if (withHeadings) {
+        // A capped section keeps its heading even when it is the only one on screen: the heading
+        // owns the show-all toggle, and without it everything past the preview is unreachable.
+        if (withHeadings || capped) {
             out.push({ key: `section:${kind}`, header: kind, count: items.length, capped });
         }
         for (const item of shown) out.push({ key: `row:${item.userId}`, item });

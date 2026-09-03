@@ -65,8 +65,8 @@
         </div>
 
         <div v-if="groups.length === 0" class="empty-state">
-          <EmptyStateArt :name="searchQuery ? 'not-found' : 'no-friends-online'" :size="116" />
-          <span>{{ searchQuery ? t("no_results") : t("no_members_online") }}</span>
+          <EmptyStateArt :name="searchQuery.trim() ? 'not-found' : 'no-friends-online'" :size="116" />
+          <span>{{ searchQuery.trim() ? t("no_results") : t("no_members_online") }}</span>
         </div>
       </div>
       </Transition>

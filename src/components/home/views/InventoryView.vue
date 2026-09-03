@@ -74,7 +74,7 @@
                     </slot>
                     <!-- Count badge -->
                     <div v-if="props.getItemCount?.(i - 1) && props.getItemCount(i - 1) > 1"
-                        class="absolute top-2 right-2 bg-violet-600 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center shadow-lg z-10">
+                        class="absolute top-2 right-2 bg-violet-600 text-white/90 text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center shadow-lg z-10">
                         x{{ props.getItemCount(i - 1) }}
                     </div>
                     <!-- Hover overlay effect -->
