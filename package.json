@@ -19,6 +19,7 @@
     "theme:empty-states": "bun run scripts/theme-empty-states.ts",
     "sentry:dashboards": "bun run scripts/sentry/dashboards.ts",
     "validate": "vue-tsc --noEmit -p tsconfig.app.json",
+    "validate:locales": "bun run scripts/validate-locales.ts",
     "test": "bun run test:app && bun run test:packages",
     "test:app": "vitest run",
     "test:watch": "vitest",

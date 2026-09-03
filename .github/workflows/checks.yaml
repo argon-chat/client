@@ -29,6 +29,12 @@ jobs:
       - name: Typecheck
         run: bun run validate
 
+      # Keys used in code that exist in no locale render as their own name to the user. The ones
+      # that were already like that are pinned in validate-locales.baseline.json, so this fails on
+      # new ones only; the per-locale coverage table lands in the run summary either way.
+      - name: Locales
+        run: bun run validate:locales
+
       # App tests (vitest, Vue SFCs) and package tests (bun test) run separately —
       # the packages import from "bun:test" and only bun can execute them.
       - name: Test
