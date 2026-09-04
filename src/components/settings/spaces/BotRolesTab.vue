@@ -43,98 +43,100 @@
 
     <!-- Right: Bot role detail (read-only) -->
     <ScrollArea class="max-h-[calc(100vh-220px)]">
-      <div v-if="selectedBot" class="p-5 space-y-5">
-        <!-- Bot info header -->
-        <section>
-          <Card class="overflow-hidden">
-            <div class="h-1.5" :style="{ backgroundColor: formatColour(selectedBot.colour) }" />
-            <CardContent class="p-4">
-              <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-accent/50 flex items-center justify-center shrink-0">
-                  <BotIcon class="w-6 h-6 text-muted-foreground" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h2 class="text-lg font-semibold truncate" :style="{ color: formatColour(selectedBot.colour) }">
-                      {{ selectedBot.name }}
-                    </h2>
-                    <Badge variant="outline" class="text-[10px] px-1.5">
-                      <LockIcon class="w-3 h-3 mr-0.5" /> {{ t("locked") }}
-                    </Badge>
-                    <Badge v-if="matchedBotInfo?.isVerified" variant="secondary" class="text-[10px] px-1.5">
-                      <CheckCircleIcon class="w-3 h-3 mr-0.5" /> {{ t("verified") }}
-                    </Badge>
+      <TabTransition variant="rise">
+        <div v-if="selectedBot" :key="selectedBotId" class="p-5 space-y-5">
+          <!-- Bot info header -->
+          <section>
+            <Card class="overflow-hidden">
+              <div class="h-1.5" :style="{ backgroundColor: formatColour(selectedBot.colour) }" />
+              <CardContent class="p-4">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 rounded-xl bg-accent/50 flex items-center justify-center shrink-0">
+                    <BotIcon class="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <p class="text-sm text-muted-foreground mt-0.5">{{ selectedBot.description || '—' }}</p>
-                  <p v-if="matchedBotInfo" class="text-xs text-muted-foreground/60 mt-1">
-                    @{{ matchedBotInfo.username }}
-                  </p>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <h2 class="text-lg font-semibold truncate" :style="{ color: formatColour(selectedBot.colour) }">
+                        {{ selectedBot.name }}
+                      </h2>
+                      <Badge variant="outline" class="text-[10px] px-1.5">
+                        <LockIcon class="w-3 h-3 mr-0.5" /> {{ t("locked") }}
+                      </Badge>
+                      <Badge v-if="matchedBotInfo?.isVerified" variant="secondary" class="text-[10px] px-1.5">
+                        <CheckCircleIcon class="w-3 h-3 mr-0.5" /> {{ t("verified") }}
+                      </Badge>
+                    </div>
+                    <p class="text-sm text-muted-foreground mt-0.5">{{ selectedBot.description || '—' }}</p>
+                    <p v-if="matchedBotInfo" class="text-xs text-muted-foreground/60 mt-1">
+                      @{{ matchedBotInfo.username }}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+              </CardContent>
+            </Card>
+          </section>
 
-        <!-- Bot entitlements info -->
-        <section v-if="matchedBotInfo">
-          <div class="flex items-center gap-2 mb-3">
-            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              {{ t("bot_entitlements") }}
-            </h3>
-          </div>
-          <Card>
-            <CardContent class="p-4 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-sm">{{ t("granted_entitlements") }}</span>
-                <Badge :variant="matchedBotInfo.pendingApproval ? 'destructive' : 'secondary'" class="text-[10px]">
-                  {{ matchedBotInfo.pendingApproval ? t("pending_approval") : t("approved") }}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <!-- Permissions (read-only) -->
-        <section>
-          <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            {{ t("permissions_name") }}
-          </h3>
-          <Accordion type="multiple" class="space-y-2" :default-value="ArgonEntitlementGroups.map(g => g.i18nKey)">
-            <AccordionItem v-for="group in ArgonEntitlementGroups" :key="group.i18nKey" :value="group.i18nKey"
-              class="border rounded-lg overflow-hidden bg-card">
-              <AccordionTrigger class="px-4 py-3 hover:no-underline hover:bg-accent/30">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-sm">{{ t(group.i18nKey + '.name') }}</span>
-                  <Badge variant="secondary" class="text-[10px] px-1.5">
-                    {{ countEnabledFlags(group) }}/{{ group.flags.length }}
+          <!-- Bot entitlements info -->
+          <section v-if="matchedBotInfo">
+            <div class="flex items-center gap-2 mb-3">
+              <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {{ t("bot_entitlements") }}
+              </h3>
+            </div>
+            <Card>
+              <CardContent class="p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm">{{ t("granted_entitlements") }}</span>
+                  <Badge :variant="matchedBotInfo.pendingApproval ? 'destructive' : 'secondary'" class="text-[10px]">
+                    {{ matchedBotInfo.pendingApproval ? t("pending_approval") : t("approved") }}
                   </Badge>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent class="px-4 pb-3">
-                <p class="text-xs text-muted-foreground mb-3">{{ t(group.i18nKey + '.description') }}</p>
-                <ul class="space-y-3">
-                  <li v-for="flag in group.flags" :key="flag.value.toString()"
-                    class="flex items-center justify-between gap-4">
-                    <div class="min-w-0">
-                      <div class="text-sm font-medium">{{ t(flag.i18nKey + '.name') }}</div>
-                      <div class="text-xs text-muted-foreground">{{ t(flag.i18nKey + '.description') }}</div>
-                    </div>
-                    <Switch class="shrink-0" disabled
-                      :checked="botIncludesEntitlement(flag)" />
-                  </li>
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </section>
-      </div>
+              </CardContent>
+            </Card>
+          </section>
 
-      <!-- Empty state -->
-      <div v-else class="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
-        <BotIcon class="w-12 h-12 mb-3 opacity-30" />
-        <p class="text-sm font-medium">{{ t("select_bot_role") }}</p>
-        <p class="text-xs mt-1 opacity-60">{{ t("select_bot_role_hint") }}</p>
-      </div>
+          <!-- Permissions (read-only) -->
+          <section>
+            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {{ t("permissions_name") }}
+            </h3>
+            <Accordion type="multiple" class="space-y-2" :default-value="ArgonEntitlementGroups.map(g => g.i18nKey)">
+              <AccordionItem v-for="group in ArgonEntitlementGroups" :key="group.i18nKey" :value="group.i18nKey"
+                class="border rounded-lg overflow-hidden bg-card">
+                <AccordionTrigger class="px-4 py-3 hover:no-underline hover:bg-accent/30">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-sm">{{ t(group.i18nKey + '.name') }}</span>
+                    <Badge variant="secondary" class="text-[10px] px-1.5">
+                      {{ countEnabledFlags(group) }}/{{ group.flags.length }}
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent class="px-4 pb-3">
+                  <p class="text-xs text-muted-foreground mb-3">{{ t(group.i18nKey + '.description') }}</p>
+                  <ul class="space-y-3">
+                    <li v-for="flag in group.flags" :key="flag.value.toString()"
+                      class="flex items-center justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="text-sm font-medium">{{ t(flag.i18nKey + '.name') }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t(flag.i18nKey + '.description') }}</div>
+                      </div>
+                      <Switch class="shrink-0" disabled
+                        :checked="botIncludesEntitlement(flag)" />
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </section>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else class="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
+          <BotIcon class="w-12 h-12 mb-3 opacity-30" />
+          <p class="text-sm font-medium">{{ t("select_bot_role") }}</p>
+          <p class="text-xs mt-1 opacity-60">{{ t("select_bot_role_hint") }}</p>
+        </div>
+      </TabTransition>
     </ScrollArea>
   </div>
 
@@ -159,6 +161,7 @@ import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
 import { Switch } from "@argon/ui/switch";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
+import TabTransition from "@/components/shared/TabTransition.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import {

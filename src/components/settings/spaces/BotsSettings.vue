@@ -30,79 +30,37 @@
       </button>
     </div>
 
-    <!-- Search Tab -->
-    <div v-if="activeTab === 'search'" class="space-y-4">
-      <div class="flex gap-2">
-        <Input
-          v-model="searchQuery"
-          :placeholder="t('bots_search_placeholder')"
-          class="flex-1"
-          @keydown.enter="doSearch"
-        />
-        <Button @click="doSearch" :disabled="isSearching" variant="outline" size="icon">
-          <SearchIcon v-if="!isSearching" class="w-4 h-4" />
-          <LoaderIcon v-else class="w-4 h-4 animate-spin" />
-        </Button>
-      </div>
-
-      <div v-if="searchError" class="text-sm text-destructive">{{ searchError }}</div>
-
-      <div class="space-y-2">
-        <div
-          v-if="searchResults.length === 0 && hasSearched && !isSearching"
-          class="text-center text-muted-foreground py-8 text-sm"
-        >
-          {{ t("bots_no_results") }}
-        </div>
-
-        <div
-          v-for="bot in searchResults"
-          :key="bot.appId"
-          class="bot-row"
-        >
-          <ArgonAvatar :file-id="bot.avatarFileId" :fallback="bot.name?.[0] ?? '?'" :overrided-size="40" />
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5">
-              <span class="font-semibold text-foreground truncate">{{ bot.name }}</span>
-              <BadgeCheckIcon v-if="bot.isVerified" class="w-4 h-4 text-primary shrink-0" />
-            </div>
-            <div class="text-sm text-muted-foreground truncate">@{{ bot.username }}</div>
-            <div v-if="bot.description" class="text-xs text-muted-foreground/70 truncate mt-0.5">
-              {{ bot.description }}
-            </div>
-          </div>
-          <Button size="sm" @click="installBot(bot.appId)" :disabled="installingBotId === bot.appId">
-            <LoaderIcon v-if="installingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
-            <DownloadIcon v-else class="w-3.5 h-3.5 mr-1.5" />
-            {{ t("bots_install") }}
+    <!-- Panels for the two tabs above; only one is mounted at a time. -->
+    <TabTransition>
+      <div v-if="activeTab === 'search'" class="space-y-4">
+        <div class="flex gap-2">
+          <Input
+            v-model="searchQuery"
+            :placeholder="t('bots_search_placeholder')"
+            class="flex-1"
+            @keydown.enter="doSearch"
+          />
+          <Button @click="doSearch" :disabled="isSearching" variant="outline" size="icon">
+            <SearchIcon v-if="!isSearching" class="w-4 h-4" />
+            <LoaderIcon v-else class="w-4 h-4 animate-spin" />
           </Button>
         </div>
-      </div>
 
-      <div v-if="installMessage" class="text-sm" :class="installMessageIsError ? 'text-destructive' : 'text-emerald-500'">
-        {{ installMessage }}
-      </div>
-    </div>
+        <div v-if="searchError" class="text-sm text-destructive">{{ searchError }}</div>
 
-    <!-- Installed Tab -->
-    <div v-if="activeTab === 'installed'" class="space-y-4">
-      <div v-if="isLoadingInstalled" class="flex justify-center py-8">
-        <LoaderIcon class="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
+        <div class="space-y-2">
+          <div
+            v-if="searchResults.length === 0 && hasSearched && !isSearching"
+            class="text-center text-muted-foreground py-8 text-sm"
+          >
+            {{ t("bots_no_results") }}
+          </div>
 
-      <div v-else-if="installedBots.length === 0" class="flex flex-col items-center justify-center py-4 text-muted-foreground text-sm">
-        <EmptyStateArt name="no-bots" :size="148" />
-        <span>{{ t("bots_none_installed") }}</span>
-      </div>
-
-      <div v-else class="space-y-2">
-        <div
-          v-for="bot in installedBots"
-          :key="bot.appId"
-          class="flex flex-col gap-2 p-3 rounded-xl border transition-colors"
-          :class="bot.pendingApproval ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-border hover:bg-accent/40'"
-        >
-          <div class="flex items-center gap-3">
+          <div
+            v-for="bot in searchResults"
+            :key="bot.appId"
+            class="bot-row"
+          >
             <ArgonAvatar :file-id="bot.avatarFileId" :fallback="bot.name?.[0] ?? '?'" :overrided-size="40" />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5">
@@ -110,59 +68,102 @@
                 <BadgeCheckIcon v-if="bot.isVerified" class="w-4 h-4 text-primary shrink-0" />
               </div>
               <div class="text-sm text-muted-foreground truncate">@{{ bot.username }}</div>
+              <div v-if="bot.description" class="text-xs text-muted-foreground/70 truncate mt-0.5">
+                {{ bot.description }}
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <Button
-                v-if="bot.pendingApproval"
-                size="sm"
-                variant="outline"
-                class="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
-                @click="approveBotEntitlements(bot.appId)"
-                :disabled="approvingBotId === bot.appId"
-              >
-                <LoaderIcon v-if="approvingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
-                <ShieldAlertIcon v-else class="w-3.5 h-3.5 mr-1.5" />
-                {{ t("bots_approve") }}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                @click="uninstallBot(bot.appId)"
-                :disabled="uninstallingBotId === bot.appId"
-              >
-                <LoaderIcon v-if="uninstallingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
-                <Trash2Icon v-else class="w-3.5 h-3.5 mr-1.5" />
-                {{ t("bots_uninstall") }}
-              </Button>
-            </div>
+            <Button size="sm" @click="installBot(bot.appId)" :disabled="installingBotId === bot.appId">
+              <LoaderIcon v-if="installingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
+              <DownloadIcon v-else class="w-3.5 h-3.5 mr-1.5" />
+              {{ t("bots_install") }}
+            </Button>
           </div>
+        </div>
 
-          <!-- Pending approval banner -->
-          <div v-if="bot.pendingApproval" class="flex flex-col gap-1.5 px-2 py-2 rounded-lg bg-yellow-500/10">
-            <div class="flex items-center gap-1.5 text-sm font-medium text-yellow-600">
-              <ShieldAlertIcon class="w-4 h-4 shrink-0" />
-              {{ t("bots_pending_approval") }}
-            </div>
-            <div v-if="getMissingEntitlements(bot).length > 0" class="flex flex-wrap gap-1">
-              <span
-                v-for="flag in getMissingEntitlements(bot)"
-                :key="flag"
-                class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/15 text-yellow-700"
-              >
-                {{ t(`permissions.flags.${flag}`) }}
-              </span>
-            </div>
-          </div>
+        <div v-if="installMessage" class="text-sm" :class="installMessageIsError ? 'text-destructive' : 'text-emerald-500'">
+          {{ installMessage }}
         </div>
       </div>
 
-      <div v-if="approveMessage" class="text-sm" :class="approveMessageIsError ? 'text-destructive' : 'text-emerald-500'">
-        {{ approveMessage }}
+      <div v-else class="space-y-4">
+        <div v-if="isLoadingInstalled" class="flex justify-center py-8">
+          <LoaderIcon class="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+
+        <div v-else-if="installedBots.length === 0" class="flex flex-col items-center justify-center py-4 text-muted-foreground text-sm">
+          <EmptyStateArt name="no-bots" :size="148" />
+          <span>{{ t("bots_none_installed") }}</span>
+        </div>
+
+        <div v-else class="space-y-2">
+          <div
+            v-for="bot in installedBots"
+            :key="bot.appId"
+            class="flex flex-col gap-2 p-3 rounded-xl border transition-colors"
+            :class="bot.pendingApproval ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-border hover:bg-accent/40'"
+          >
+            <div class="flex items-center gap-3">
+              <ArgonAvatar :file-id="bot.avatarFileId" :fallback="bot.name?.[0] ?? '?'" :overrided-size="40" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-semibold text-foreground truncate">{{ bot.name }}</span>
+                  <BadgeCheckIcon v-if="bot.isVerified" class="w-4 h-4 text-primary shrink-0" />
+                </div>
+                <div class="text-sm text-muted-foreground truncate">@{{ bot.username }}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button
+                  v-if="bot.pendingApproval"
+                  size="sm"
+                  variant="outline"
+                  class="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                  @click="approveBotEntitlements(bot.appId)"
+                  :disabled="approvingBotId === bot.appId"
+                >
+                  <LoaderIcon v-if="approvingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  <ShieldAlertIcon v-else class="w-3.5 h-3.5 mr-1.5" />
+                  {{ t("bots_approve") }}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  @click="uninstallBot(bot.appId)"
+                  :disabled="uninstallingBotId === bot.appId"
+                >
+                  <LoaderIcon v-if="uninstallingBotId === bot.appId" class="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  <Trash2Icon v-else class="w-3.5 h-3.5 mr-1.5" />
+                  {{ t("bots_uninstall") }}
+                </Button>
+              </div>
+            </div>
+
+            <!-- Pending approval banner -->
+            <div v-if="bot.pendingApproval" class="flex flex-col gap-1.5 px-2 py-2 rounded-lg bg-yellow-500/10">
+              <div class="flex items-center gap-1.5 text-sm font-medium text-yellow-600">
+                <ShieldAlertIcon class="w-4 h-4 shrink-0" />
+                {{ t("bots_pending_approval") }}
+              </div>
+              <div v-if="getMissingEntitlements(bot).length > 0" class="flex flex-wrap gap-1">
+                <span
+                  v-for="flag in getMissingEntitlements(bot)"
+                  :key="flag"
+                  class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/15 text-yellow-700"
+                >
+                  {{ t(`permissions.flags.${flag}`) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="approveMessage" class="text-sm" :class="approveMessageIsError ? 'text-destructive' : 'text-emerald-500'">
+          {{ approveMessage }}
+        </div>
+        <div v-if="uninstallMessage" class="text-sm" :class="uninstallMessageIsError ? 'text-destructive' : 'text-emerald-500'">
+          {{ uninstallMessage }}
+        </div>
       </div>
-      <div v-if="uninstallMessage" class="text-sm" :class="uninstallMessageIsError ? 'text-destructive' : 'text-emerald-500'">
-        {{ uninstallMessage }}
-      </div>
-    </div>
+    </TabTransition>
   </div>
 </template>
 
@@ -181,6 +182,7 @@ import {
 } from "lucide-vue-next";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
+import TabTransition from "@/components/shared/TabTransition.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";

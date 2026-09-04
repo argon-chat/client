@@ -31,75 +31,77 @@
 
         <!-- Right: Overwrite toggles -->
         <ScrollArea class="flex-1 overflow-y-auto">
-          <div v-if="selectedArchetypeId" class="space-y-3 pr-2">
-            <div class="flex items-center justify-between mb-2">
-              <div class="text-sm font-medium">
-                {{ selectedArchetypeName }}
+          <TabTransition variant="rise">
+            <div v-if="selectedArchetypeId" :key="selectedArchetypeId" class="space-y-3 pr-2">
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-medium">
+                  {{ selectedArchetypeName }}
+                </div>
+                <Button
+                  v-if="hasOverwrite(selectedArchetypeId)"
+                  variant="ghost"
+                  size="sm"
+                  class="text-red-400 hover:text-red-300 text-xs"
+                  @click="resetOverwrite"
+                >
+                  <Trash2Icon class="w-3.5 h-3.5 mr-1" />
+                  {{ t("reset") }}
+                </Button>
               </div>
-              <Button
-                v-if="hasOverwrite(selectedArchetypeId)"
-                variant="ghost"
-                size="sm"
-                class="text-red-400 hover:text-red-300 text-xs"
-                @click="resetOverwrite"
-              >
-                <Trash2Icon class="w-3.5 h-3.5 mr-1" />
-                {{ t("reset") }}
-              </Button>
-            </div>
 
-            <Card v-for="group in ChannelEntitlementGroups" :key="group.i18nKey">
-              <CardContent class="p-3 space-y-1.5">
-                <div class="font-semibold text-sm">{{ t(group.i18nKey + '.name') }}</div>
-                <ul class="space-y-1">
-                  <li
-                    v-for="flag in group.flags"
-                    :key="flag.value.toString()"
-                    class="flex items-center justify-between text-sm py-1"
-                  >
-                    <div class="flex-1 mr-3">
-                      <div class="font-medium text-xs">{{ t(flag.i18nKey + '.name') }}</div>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <button
-                        class="overwrite-btn"
-                        :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
-                        @click="setOverwriteState(flag.value, 'inherit')"
-                        :title="t('inherit')"
-                      >
-                        /
-                      </button>
-                      <button
-                        class="overwrite-btn"
-                        :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
-                        @click="setOverwriteState(flag.value, 'allow')"
-                        :title="t('allow')"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        class="overwrite-btn"
-                        :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
-                        @click="setOverwriteState(flag.value, 'deny')"
-                        :title="t('deny')"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+              <Card v-for="group in ChannelEntitlementGroups" :key="group.i18nKey">
+                <CardContent class="p-3 space-y-1.5">
+                  <div class="font-semibold text-sm">{{ t(group.i18nKey + '.name') }}</div>
+                  <ul class="space-y-1">
+                    <li
+                      v-for="flag in group.flags"
+                      :key="flag.value.toString()"
+                      class="flex items-center justify-between text-sm py-1"
+                    >
+                      <div class="flex-1 mr-3">
+                        <div class="font-medium text-xs">{{ t(flag.i18nKey + '.name') }}</div>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <button
+                          class="overwrite-btn"
+                          :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
+                          @click="setOverwriteState(flag.value, 'inherit')"
+                          :title="t('inherit')"
+                        >
+                          /
+                        </button>
+                        <button
+                          class="overwrite-btn"
+                          :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
+                          @click="setOverwriteState(flag.value, 'allow')"
+                          :title="t('allow')"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          class="overwrite-btn"
+                          :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
+                          @click="setOverwriteState(flag.value, 'deny')"
+                          :title="t('deny')"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
 
-            <div class="flex justify-end pt-2 pb-1">
-              <Button :disabled="saving" @click="saveOverwrite">
-                {{ saving ? t("saving") : t("save_changes") }}
-              </Button>
+              <div class="flex justify-end pt-2 pb-1">
+                <Button :disabled="saving" @click="saveOverwrite">
+                  {{ saving ? t("saving") : t("save_changes") }}
+                </Button>
+              </div>
             </div>
-          </div>
-          <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
-            {{ t("select_role_to_configure") }}
-          </div>
+            <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
+              {{ t("select_role_to_configure") }}
+            </div>
+          </TabTransition>
         </ScrollArea>
       </div>
     </DialogContent>
@@ -117,6 +119,7 @@ import {
 } from "@argon/ui/dialog";
 import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
+import TabTransition from "@/components/shared/TabTransition.vue";
 import { Button } from "@argon/ui/button";
 import { Trash2Icon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";

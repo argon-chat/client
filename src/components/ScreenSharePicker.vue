@@ -26,45 +26,48 @@
 
             <!-- Sources -->
             <div class="sp-sources">
-                <div v-if="sourcesLoading" class="sp-state">
-                    <Loader2 class="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
+                <TabTransition>
+                    <div v-if="sourcesLoading" class="sp-state">
+                        <Loader2 class="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
 
-                <div
-                    v-else-if="currentSources.length > 0"
-                    class="sp-grid"
-                    :class="shareTab === 'screens' ? 'is-screens' : 'is-windows'"
-                >
-                    <button
-                        v-for="source in currentSources"
-                        :key="source.id"
-                        type="button"
-                        class="sp-card"
-                        :class="{ selected: selectedSourceId === source.id }"
-                        @click="selectedSourceId = source.id"
-                        @dblclick="onStart"
+                    <div
+                        v-else-if="currentSources.length > 0"
+                        class="sp-grid"
+                        :key="shareTab"
+                        :class="shareTab === 'screens' ? 'is-screens' : 'is-windows'"
                     >
-                        <div class="sp-thumb" :class="{ contain: shareTab === 'windows' }">
-                            <img :src="source.thumbnailDataUrl" :alt="source.name" draggable="false" />
-                            <span v-if="selectedSourceId === source.id" class="sp-check">
-                                <Check class="w-3.5 h-3.5" />
-                            </span>
-                        </div>
-                        <div class="sp-card-label">
-                            <img v-if="source.appIconDataUrl" :src="source.appIconDataUrl" class="sp-app-icon" draggable="false" />
-                            <Monitor v-else-if="shareTab === 'screens'" class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                            <AppWindow v-else class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                            <span class="sp-label-text">{{ source.name }}</span>
-                        </div>
-                    </button>
-                </div>
+                        <button
+                            v-for="source in currentSources"
+                            :key="source.id"
+                            type="button"
+                            class="sp-card"
+                            :class="{ selected: selectedSourceId === source.id }"
+                            @click="selectedSourceId = source.id"
+                            @dblclick="onStart"
+                        >
+                            <div class="sp-thumb" :class="{ contain: shareTab === 'windows' }">
+                                <img :src="source.thumbnailDataUrl" :alt="source.name" draggable="false" />
+                                <span v-if="selectedSourceId === source.id" class="sp-check">
+                                    <Check class="w-3.5 h-3.5" />
+                                </span>
+                            </div>
+                            <div class="sp-card-label">
+                                <img v-if="source.appIconDataUrl" :src="source.appIconDataUrl" class="sp-app-icon" draggable="false" />
+                                <Monitor v-else-if="shareTab === 'screens'" class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                <AppWindow v-else class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                <span class="sp-label-text">{{ source.name }}</span>
+                            </div>
+                        </button>
+                    </div>
 
-                <div v-else class="sp-state">
-                    <component :is="shareTab === 'screens' ? Monitor : AppWindow" class="w-7 h-7 text-muted-foreground/40 mb-2" />
-                    <span class="sp-state-text">
-                        {{ shareTab === 'screens' ? t("no_screens_found") : t("no_windows_found") }}
-                    </span>
-                </div>
+                    <div v-else class="sp-state">
+                        <component :is="shareTab === 'screens' ? Monitor : AppWindow" class="w-7 h-7 text-muted-foreground/40 mb-2" />
+                        <span class="sp-state-text">
+                            {{ shareTab === 'screens' ? t("no_screens_found") : t("no_windows_found") }}
+                        </span>
+                    </div>
+                </TabTransition>
             </div>
 
             <!-- Options -->
@@ -157,6 +160,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useMe } from "@/store/auth/meStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import BuyPremium from "./modals/BuyPremium.vue";
+import TabTransition from "@/components/shared/TabTransition.vue";
 import {
     useScreenShareSources,
     qualityPresets,

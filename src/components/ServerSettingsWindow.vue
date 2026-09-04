@@ -26,7 +26,9 @@
                     </button>
                 </nav>
                 <div class="settings-content flex-1 p-6 pb-8 text-foreground overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                    <component :is="selectedCategoryComponent" />
+                    <TabTransition>
+                        <component :is="selectedCategoryComponent" :key="selectedCategory" />
+                    </TabTransition>
                 </div>
             </div>
         </DrawerContent>
@@ -49,6 +51,7 @@ import Invites from "@/components/settings/Invites.vue";
 import RolesSettings from "./settings/spaces/RolesSettings.vue";
 import ServerProfile from "./settings/spaces/ServerProfile.vue";
 import BotsSettings from "./settings/spaces/BotsSettings.vue";
+import TabTransition from "@/components/shared/TabTransition.vue";
 import { useLocale } from "@/store/system/localeStore";
 
 const windows = useWindow();
