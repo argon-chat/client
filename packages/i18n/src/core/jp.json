@@ -1427,13 +1427,6 @@
   "submit": "送信",
   "switching_account": "アカウントを切り替えています…",
   "system": "システム",
-  "taskbar": {
-    "deafen": "スピーカーをミュート",
-    "hang_up": "通話を終了",
-    "open": "Argon を開く",
-    "toggle_deafen": "スピーカーのミュートを切り替え",
-    "toggle_mic": "マイクを切り替え"
-  },
   "tell_about_yourself": "自己紹介を書きましょう...",
   "temporarily_unavailable": "一時的に利用できません",
   "test": "テスト",
@@ -1606,5 +1599,10 @@
   "window_material": "ウィンドウのスタイル",
   "window_material_desc": "アプリのウィンドウをデスクトップの背景にどう馴染ませるかを選びます",
   "window_material_oled_note": "OLED テーマでは、真の黒のために常に不透明な背景を使います",
-  "works_correctly": "は正常に動作します"
+  "works_correctly": "は正常に動作します",
+  "taskbar.deafen": "スピーカーをミュート",
+  "taskbar.hang_up": "通話を終了",
+  "taskbar.open": "Argon を開く",
+  "taskbar.toggle_deafen": "スピーカーのミュートを切り替え",
+  "taskbar.toggle_mic": "マイクを切り替え"
 }

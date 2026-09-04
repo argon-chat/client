@@ -1408,13 +1408,6 @@
   "submit": "Ուղարկել",
   "switching_account": "Փոխում ենք հաշիվը…",
   "system": "Համակարգ",
-  "taskbar": {
-    "deafen": "Անջատել ձայնը",
-    "hang_up": "Անջատել զանգը",
-    "open": "Բացել Argon-ը",
-    "toggle_deafen": "Փոխարկել ձայնի անջատումը",
-    "toggle_mic": "Փոխարկել խոսափողը"
-  },
   "tell_about_yourself": "Պատմեք ձեր մասին...",
   "temporarily_unavailable": "Ժամանակավորապես անհասանելի է",
   "test": "Փորձարկել",
@@ -1606,5 +1599,10 @@
   "window_material": "Պատուհանի ոճ",
   "window_material_desc": "Ընտրեք, թե ինչպես ծրագրի պատուհանը միաձուլվի աշխատասեղանի ֆոնին",
   "window_material_oled_note": "OLED թեման միշտ օգտագործում է անթափանց ֆոն՝ իսկական սևի համար",
-  "works_correctly": "աշխատում է"
+  "works_correctly": "աշխատում է",
+  "taskbar.deafen": "Անջատել ձայնը",
+  "taskbar.hang_up": "Անջատել զանգը",
+  "taskbar.open": "Բացել Argon-ը",
+  "taskbar.toggle_deafen": "Փոխարկել ձայնի անջատումը",
+  "taskbar.toggle_mic": "Փոխարկել խոսափողը"
 }
