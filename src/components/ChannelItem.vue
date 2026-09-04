@@ -28,7 +28,7 @@
             <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
               {{ channelMentions }}
             </span>
-            <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full bg-white flex-shrink-0" />
+            <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full unread-dot flex-shrink-0" />
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
             <button
               v-if="canButton"

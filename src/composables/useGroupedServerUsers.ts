@@ -1,11 +1,14 @@
 import { liveQuery, type Subscription } from "dexie";
-import { type Ref, onUnmounted, ref, watch } from "vue";
+import { type Ref, onUnmounted, shallowRef, watch } from "vue";
 import { db, type RealtimeUser } from "@/store/db/dexie";
 import { type Archetype, UserStatus, ArgonEntitlement } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 export function useGroupedServerUsers(serverId: Ref<Guid | null | undefined>) {
-  const result = ref<{ archetype: Archetype; users: RealtimeUser[] }[]>([]);
+  // Shallow on purpose: the whole roster is rebuilt on every presence change, and a deep ref
+  // wrapped every user of every group in a fresh proxy each time. Consumers get plain objects and
+  // re-render when the array itself is replaced.
+  const result = shallowRef<{ archetype: Archetype; users: RealtimeUser[] }[]>([]);
   let sub: Subscription | null = null;
 
   async function buildGroups(id: Guid) {

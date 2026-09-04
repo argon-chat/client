@@ -118,23 +118,29 @@ export function createSoundPlayer(
     masterGain.connect(destination || audioContext.destination);
   }
 
-  // Load audio
-  async function load(): Promise<void> {
-    if (state.value === "loading" || state.value === "ready") return;
-    
+    // Load audio. Concurrent callers share one in-flight load and all resolve when it is ready.
+  let loadPromise: Promise<void> | null = null;
+  function load(): Promise<void> {
+    if (state.value === "ready") return Promise.resolve();
+    if (loadPromise) return loadPromise;
+
     state.value = "loading";
     initContext();
 
-    try {
-      audioBuffer = await loadAudioBuffer(url, audioContext);
-      duration.value = audioBuffer.duration * 1000;
-      state.value = "ready";
-      onLoad?.(duration.value);
-    } catch (err) {
-      state.value = "error";
-      onError?.(err as Error);
-      throw err;
-    }
+    loadPromise = (async () => {
+      try {
+        audioBuffer = await loadAudioBuffer(url, audioContext);
+        duration.value = audioBuffer.duration * 1000;
+        state.value = "ready";
+        onLoad?.(duration.value);
+      } catch (err) {
+        state.value = "error";
+        loadPromise = null;
+        onError?.(err as Error);
+        throw err;
+      }
+    })();
+    return loadPromise;
   }
 
   // Start loading if preload is enabled
@@ -367,6 +373,7 @@ export function createSoundPlayer(
   function unload(): void {
     stopInstance();
     audioBuffer = null;
+    loadPromise = null;
     state.value = "idle";
     duration.value = 0;
   }
@@ -384,6 +391,7 @@ export function createSoundPlayer(
 
   return {
     play,
+    load,
     stop: stopInstance,
     pause,
     resume,
@@ -506,6 +514,7 @@ export function createAudioAtlas(config: AudioAtlasConfig): AudioAtlas {
 
   return {
     play,
+    load: () => player.load(),
     stop,
     isLoaded,
     isPlaying: isPlayingSprite,

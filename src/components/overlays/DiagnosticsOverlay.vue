@@ -16,6 +16,7 @@ let frameCount = 0;
 let lastTime = performance.now();
 let animationFrameId: number;
 let statsInterval: ReturnType<typeof setInterval>;
+let fullInterval: ReturnType<typeof setInterval>;
 
 // FPS calculation
 const updateFPS = () => {
@@ -86,7 +87,7 @@ onMounted(() => {
   updateStats();
   updateDBStats();
   statsInterval = setInterval(updateStats, 500);
-  setInterval(fullUpdate, 2000);
+  fullInterval = setInterval(fullUpdate, 2000);
 });
 
 onUnmounted(() => {
@@ -95,6 +96,9 @@ onUnmounted(() => {
   }
   if (statsInterval) {
     clearInterval(statsInterval);
+  }
+  if (fullInterval) {
+    clearInterval(fullInterval);
   }
 });
 

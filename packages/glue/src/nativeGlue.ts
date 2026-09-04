@@ -28,6 +28,12 @@ class ArgonHostProxy implements IArgon {
     return { id: index };
   }
 
+  /** Drops a handler registered with on(); the pinned id stays unique, it is never reused. */
+  off(fn: PinnedFn | number | null | undefined): void {
+    const id = typeof fn === "number" ? fn : fn?.id;
+    if (id !== undefined) map.delete(id);
+  }
+
   get ahid(): number {
     // @ts-ignore
     return _hasWindow ? window.ahid : 0;

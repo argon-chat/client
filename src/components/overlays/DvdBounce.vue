@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onUnmounted, computed, watch } from "vue";
 import { useIdleStore } from "@/store/ui/idleStore";
 
 const DVD_IDLE_THRESHOLD = 8 * 60 * 60;
@@ -43,16 +43,25 @@ function animate() {
   animFrame = requestAnimationFrame(animate);
 }
 
-onMounted(() => {
+// The bounce loop runs only while the logo is on screen. It used to start at mount and run at the
+// monitor's refresh rate for the whole session, which kept the renderer requesting frames (and
+// producing per-frame garbage) eight hours before anything was visible.
+function start() {
+  if (animFrame !== null) return;
   x.value = Math.random() * (window.innerWidth - logoWidth);
   y.value = Math.random() * (window.innerHeight - logoHeight);
   randomHue();
   animFrame = requestAnimationFrame(animate);
-});
+}
 
-onUnmounted(() => {
+function stop() {
   if (animFrame !== null) cancelAnimationFrame(animFrame);
-});
+  animFrame = null;
+}
+
+watch(show, (visible) => (visible ? start() : stop()), { immediate: true });
+
+onUnmounted(stop);
 </script>
 
 <template>

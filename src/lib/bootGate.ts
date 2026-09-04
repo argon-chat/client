@@ -7,28 +7,31 @@
  * are refusing is exactly the thing the app would need in order to render a route.
  *
  * Plain DOM and inline styles on purpose: no framework, no store, no stylesheet load order to get
- * right. Text is looked up straight out of the message bundles, which are a static import.
+ * right. Text is looked up straight out of the message bundles: English is a static import, the
+ * saved language is fetched and the screen redrawn in it once it arrives.
  */
 
-import { coreMessages } from "@argon/i18n";
+import { coreMessages, getLoadedCoreMessages, loadCoreMessages } from "@argon/i18n";
 import { readPersistedValue } from "@argon/storage";
 import { DOWNLOAD_URL, isMobileLayout, isWeb } from "@/lib/platform";
 import { isInsecureContext, missingCapabilities, type CapabilityCheck } from "@/lib/browserSupport";
 
-function translator(): (key: string, fallback: string) => string {
-  let locale: string;
+function savedLocale(): string {
   try {
-    locale = readPersistedValue<string>("locale", "en");
+    return readPersistedValue<string>("locale", "en");
   } catch {
-    locale = "en";
+    return "en";
   }
+}
+
+function translator(): (key: string, fallback: string) => string {
   // The bundles are not flat all the way down (a few keys hold nested objects), and this gate only
   // ever asks for leaf strings — so anything that is not one falls through to the next source.
-  const bundles = coreMessages as unknown as Record<string, Record<string, unknown>>;
-  const bundle = bundles[locale] ?? bundles.en;
+  const en = coreMessages.en as unknown as Record<string, unknown>;
+  const bundle = (getLoadedCoreMessages(savedLocale()) as Record<string, unknown> | undefined) ?? en;
   const pick = (from: Record<string, unknown> | undefined, key: string) =>
     typeof from?.[key] === "string" ? (from[key] as string) : undefined;
-  return (key, fallback) => pick(bundle, key) ?? pick(bundles.en, key) ?? fallback;
+  return (key, fallback) => pick(bundle, key) ?? pick(en, key) ?? fallback;
 }
 
 const ARGON_MARK = `<svg viewBox="0 0 128 128" width="56" height="56" aria-hidden="true"><path fill="#3B82F6" d="M114.54,88.82c5.35-2.75,9.96-6.72,13.46-11.53c-4.67-3.14-9.86-5.56-15.4-7.09c0.01-24.5-6.29-48.6-18.25-69.73c-7.96,8.45-14.3,18.49-18.62,29.31c-7.66-1.22-15.65-1.06-23.27,0.31C48.13,19.15,41.74,9.02,33.71,0.47C21.76,21.62,15.45,45.7,15.46,70.2c-5.54,1.53-10.73,3.95-15.4,7.09c3.49,4.82,8.1,8.78,13.46,11.53c-3.64,2.85-6.74,6.37-9.14,10.33c5.87,4.32,12.67,7.48,20.05,9.09c19.68,25.4,59.51,25.41,79.2,0c7.38-1.61,14.18-4.78,20.05-9.09C121.28,95.19,118.18,91.68,114.54,88.82z M23.7,68.22c0,0,4.13-2.07,12.4-2.07c8.27,0,19.64,11.37,19.64,11.37s-8.27,6.2-19.64,9.3C32.11,87.91,26.8,77.52,23.7,68.22z M64,98.19c-5.71,0-10.33-4.13-10.33-12.4c1.04-0.35,2.16-0.62,3.3-0.85l3,6.02l1.21-6.61c1.9-0.14,3.84-0.14,5.75,0.01l1.22,6.65l3.01-6.05c1.1,0.23,2.17,0.49,3.18,0.82C74.33,94.05,69.71,98.19,64,98.19z M92.99,86.03c-11.37-3.1-19.63-9.3-19.63-9.3s11.37-11.37,19.63-11.37s12.4,2.07,12.4,2.07C102.29,76.73,96.98,87.12,92.99,86.03z"/></svg>`;
@@ -128,6 +131,16 @@ export function evaluateBootGate(): BootBlock | null {
 
 /** Draw the screen that belongs to a block returned by `evaluateBootGate`. */
 export function renderBootGate(block: BootBlock): void {
+  draw(block);
+  // Only English ships in the boot chunk; the saved language is fetched and the screen redrawn in
+  // it as soon as the bundle is here (a failed fetch simply leaves the English text).
+  const locale = savedLocale();
+  if (!getLoadedCoreMessages(locale)) {
+    void loadCoreMessages(locale).then(() => draw(block)).catch(() => undefined);
+  }
+}
+
+function draw(block: BootBlock): void {
   if (block.reason === "mobile") {
     renderMobileUnsupported();
     return;

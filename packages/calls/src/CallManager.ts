@@ -190,7 +190,9 @@ export function createCallManager(config: CallManagerConfig) {
   /** Delete all video tracks for a user */
   function deleteVideoTracksForUser(uid: string) {
     for (const key of [...videoTracks.keys()]) {
-      if (key.startsWith(uid + ":")) videoTracks.delete(key);
+      if (!key.startsWith(uid + ":")) continue;
+      try { videoTracks.get(key)?.detach(); } catch { /* already detached */ }
+      videoTracks.delete(key);
     }
     for (const key of [...pausedVideoTracks]) {
       if (key.startsWith(uid + ":")) pausedVideoTracks.delete(key);
@@ -397,6 +399,9 @@ export function createCallManager(config: CallManagerConfig) {
     isReconnecting.value = false;
 
     Object.keys(participants).forEach((key) => delete participants[key]);
+    for (const track of videoTracks.values()) {
+      try { track.detach(); } catch { /* already detached */ }
+    }
     videoTracks.clear();
     pausedVideoTracks.clear();
     hiddenVideoTracks.clear();
@@ -1585,6 +1590,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (track.kind === "video") {
       const source = track.source || pub.source || 'unknown';
+      // Detach before the map entry goes: the <video> unmounts because the entry is gone, and by
+      // then the component can no longer find the track to detach it — every camera-off and
+      // share-stop used to leave an element with a live srcObject behind.
+      try { track.detach(); } catch { /* already detached */ }
       videoTracks.delete(videoTrackKey(uid, source));
       pausedVideoTracks.delete(videoTrackKey(uid, source));
       return;

@@ -52,7 +52,7 @@
                     :disabled="!canSendMessages"
                     :placeholder="!canSendMessages ? t('no_send_permission') : captionMode ? t('add_caption') : t('enter_some_text')"
                     :unstyled="true"
-                    render-mode="noto"
+                    render-mode="atlas"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
@@ -66,7 +66,7 @@
                         </button>
                     </PopoverTrigger>
                     <PopoverContent class="w-auto p-0">
-                        <EmojixPicker :theme="'auto'" :render-mode="'noto'"
+                        <EmojixPicker :theme="'auto'" :render-mode="'atlas'"
                             :content-tabs="gifContentTabs"
                             @select="onEmojixSelect"
                             @tab-change="handlePickerTabChange">
@@ -1040,6 +1040,21 @@ const attachmentEditorSrc = ref("");
 const attachmentEditorMediaType = ref<"image" | "video">("image");
 let attachmentEditingIndex = -1;
 
+// A video handed to the editor is a fresh object URL over the pending file, which pins the whole
+// file until it is revoked — and it never was. Released once the editor is done with it: after
+// the export has read it, or on cancel. (Images reuse the attachment's own preview URL.)
+let attachmentEditorFinalizing = false;
+function releaseAttachmentEditorSrc() {
+  const src = attachmentEditorSrc.value;
+  if (attachmentEditorMediaType.value === "video" && src.startsWith("blob:")) URL.revokeObjectURL(src);
+  attachmentEditorSrc.value = "";
+}
+watch(attachmentEditorOpen, (open) => {
+  if (open) return;
+  // Closing and `done` can arrive in either order; give a pending export the tick it needs to claim the URL.
+  setTimeout(() => { if (!attachmentEditorFinalizing) releaseAttachmentEditorSrc(); }, 0);
+});
+
 function onOpenAttachmentEditor(index: number, src: string, mediaType: "image" | "video") {
   attachmentEditingIndex = index;
   attachmentEditorSrc.value = src;
@@ -1049,6 +1064,8 @@ function onOpenAttachmentEditor(index: number, src: string, mediaType: "image" |
 }
 
 async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
+  attachmentEditorFinalizing = true;
+  try {
   if (result && attachmentEditingIndex >= 0) {
     const payload = await result.getResult();
     const blob = payload.blob;
@@ -1063,6 +1080,10 @@ async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
   }
   attachmentEditingIndex = -1;
   showAttachmentDialog.value = true;
+  } finally {
+    attachmentEditorFinalizing = false;
+    releaseAttachmentEditorSrc();
+  }
 }
 
 // --- Send handler ---

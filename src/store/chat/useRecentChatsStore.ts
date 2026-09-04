@@ -46,6 +46,14 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
    */
   const pendingUnread = new Map<Guid, number>();
 
+  /**
+   * Peers whose row was created or touched by an event while a snapshot was being decorated. The
+   * snapshot cannot know about them, so they outrank its silence; anything else it does not list
+   * is gone for real.
+   */
+  const touchedInFlight = new Set<string>();
+  let loadsInFlight = 0;
+
   // Seamless account switch: clear DM list for the incoming account.
   onSessionReset(() => {
     recent.value = [];
@@ -71,6 +79,16 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   }
 
   async function setChats(list: UserChat[]) {
+    touchedInFlight.clear();
+    loadsInFlight++;
+    try {
+      await applySnapshot(list);
+    } finally {
+      loadsInFlight--;
+    }
+  }
+
+  async function applySnapshot(list: UserChat[]) {
     logger.debug(`[RecentChatsStore] Loading ${list.length} chats...`);
     const start = performance.now();
 
@@ -105,9 +123,15 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
       item.unreadCount += buffered;
     }
 
+    // Only rows the snapshot could not know about yet survive it: one created or touched by an
+    // event that landed while the request was in flight, or a count still waiting above. Carrying
+    // every missing row over made the list grow for the whole session — a conversation removed on
+    // the server was re-appended on every resync and never went away.
     const inSnapshot = new Set(items.map((x) => x.peerId));
     for (const existing of recent.value) {
-      if (!inSnapshot.has(existing.peerId)) items.push(existing);
+      if (inSnapshot.has(existing.peerId)) continue;
+      const bornInFlight = pendingUnread.has(existing.peerId) || touchedInFlight.has(existing.peerId);
+      if (bornInFlight) items.push(existing);
     }
 
     const duration = performance.now() - start;
@@ -117,6 +141,7 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
   }
 
   async function upsert(chat: UserChat) {
+    if (loadsInFlight > 0) touchedInFlight.add(chat.peerId);
     const vm = await mergeUserInfo(chat);
 
     const idx = recent.value.findIndex((x) => x.peerId === chat.peerId);
@@ -180,6 +205,7 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
    * drives the unread count.
    */
   function bumpUnread(peerId: string) {
+    if (loadsInFlight > 0) touchedInFlight.add(peerId);
     const chat = recent.value.find((x) => x.peerId === peerId);
     if (chat) {
       chat.unreadCount += 1;

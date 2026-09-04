@@ -43,14 +43,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, defineAsyncComponent } from 'vue';
 import { useToast } from '@argon/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@argon/ui/dialog';
 import { Button } from '@argon/ui/button';
 import { Loader2 } from 'lucide-vue-next';
 import { useUltimaStore } from '@/store/data/ultimaStore';
 import { UltimaPlan, CheckoutError } from '@argon/glue';
-import UltimaCheckoutDialog from './UltimaCheckoutDialog.vue';
+// The checkout carries the whole payment SDK; it is fetched only when a purchase actually starts.
+const UltimaCheckoutDialog = defineAsyncComponent(() => import('./UltimaCheckoutDialog.vue'));
 import { useLocale } from '@/store/system/localeStore';
 
 const open = defineModel<boolean>('open', { type: Boolean, default: false });

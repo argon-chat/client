@@ -38,13 +38,6 @@
   font-display: swap;
 }
 
-/* Noto Color Emoji */
-@font-face {
-  font-family: 'Noto Color Emoji';
-  src: url('./Noto_Color_Emoji/NotoColorEmoji-Regular.ttf') format('truetype');
-  font-display: swap;
-}
-
 /* Inter Variable Font */
 @font-face {
   font-family: 'Inter';

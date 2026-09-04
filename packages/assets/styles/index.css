@@ -51,6 +51,11 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
+    /* Unread / activity dots: channel list, server rail, folder buttons, titlebar badge.
+       White reads as "lit up" on dark chrome but disappears on light surfaces, so the
+       light theme uses red. Applied via the .unread-dot class below. */
+    --unread: 0 84.2% 60.2%;
+
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
@@ -96,6 +101,8 @@
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+
+    --unread: 0 0% 100%;
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
@@ -257,6 +264,10 @@
 }
 
 @layer components {
+  /* Unread/activity dot. Colour lives in --unread so light and dark themes differ;
+     defined here rather than as a Tailwind colour so it survives without a config reload. */
+  .unread-dot { background-color: hsl(var(--unread)); }
+
   .rarity-common { @apply text-xs text-center leading-tight opacity-90 text-gray-400; }
   .rarity-rare   { @apply text-xs text-center leading-tight opacity-90 text-blue-400 font-semibold; }
   .rarity-legendary {

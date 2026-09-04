@@ -33,8 +33,8 @@
       </Transition>
     </div>
 
-    <!-- Scrollable list -->
-    <div class="user-list-scroll">
+    <!-- Scrollable list (virtualised: only the rows in view exist in the DOM) -->
+    <div ref="scrollEl" class="user-list-scroll" @scroll.passive="onScroll">
       <Transition name="panel-swap" mode="out-in">
       <!-- Loading skeletons -->
       <div v-if="membersLoading && groupedUsers.length === 0" key="loading">
@@ -48,20 +48,24 @@
       </div>
 
       <div v-else key="members">
-        <div v-for="group in groups" :key="group.archetype.id" class="mb-2 last:mb-0">
-          <button class="group-header" @click="toggleGroup(group.archetype.id)">
-            <IconChevronDown class="group-chevron" :class="{ 'group-chevron--collapsed': isCollapsed(group.archetype.id) }" />
-            <img v-if="group.archetype.iconFileId" :src="`/api/icons/${group.archetype.iconFileId}`" class="w-3.5 h-3.5" />
-            <span class="group-name" :style="{ color: formatColour(group.archetype.colour) }">{{ group.archetype.name }}</span>
-            <span class="group-count">&mdash; {{ group.users.length }}</span>
-          </button>
-          <Transition name="group-collapse">
-            <ul v-show="!isCollapsed(group.archetype.id)" class="space-y-0.5">
-              <li v-for="user in group.users" :key="user.userId" class="user-item">
-                <UserInListSideElement :user="user" />
-              </li>
-            </ul>
-          </Transition>
+        <div v-if="rows.length" class="vlist" :style="{ height: `${totalHeight}px` }">
+          <div class="vlist-window" :style="{ transform: `translateY(${windowTop}px)` }">
+            <template v-for="row in visibleRows" :key="row.key">
+              <div v-if="row.kind === 'header'" class="vrow" :style="{ height: `${row.height}px`, paddingTop: `${row.gap}px` }">
+                <button class="group-header" @click="toggleGroup(row.group.archetype.id)">
+                  <IconChevronDown class="group-chevron" :class="{ 'group-chevron--collapsed': isCollapsed(row.group.archetype.id) }" />
+                  <img v-if="row.group.archetype.iconFileId" :src="`/api/icons/${row.group.archetype.iconFileId}`" class="w-3.5 h-3.5" />
+                  <span class="group-name" :style="{ color: formatColour(row.group.archetype.colour) }">{{ row.group.archetype.name }}</span>
+                  <span class="group-count">&mdash; {{ row.group.users.length }}</span>
+                </button>
+              </div>
+              <div v-else class="vrow" :style="{ height: `${row.height}px` }">
+                <div class="user-item">
+                  <UserInListSideElement :user="row.user" />
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
 
         <div v-if="groups.length === 0" class="empty-state">
@@ -80,10 +84,12 @@ import { usePoolStore } from "@/store/data/poolStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
 import Skeleton from "./shared/Skeleton.vue";
 import EmptyStateArt from "./shared/EmptyStateArt.vue";
-import { computed, ref, nextTick } from "vue";
+import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
 import { persistedValue } from "@argon/storage";
 import { useListLoading } from "@/composables/useListLoading";
 import { IconChevronDown, IconSearch } from "@tabler/icons-vue";
+import type { Archetype } from "@argon/glue";
+import type { RealtimeUser } from "@/store/db/dexie";
 
 const OFFLINE_GROUP_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -153,6 +159,98 @@ const groups = computed(() => {
     .map(g => ({ ...g, users: g.users.filter(u => u.displayName.toLowerCase().includes(q)) }))
     .filter(g => g.users.length > 0);
 });
+
+// ── Virtualisation ────────────────────────────────────────────────────────────────────────────
+// Every member of the space used to be a live component, the Offline group included, and collapsed
+// groups merely hid theirs. A big space meant thousands of rows in the DOM for as long as it was
+// open — and a full re-patch on every presence change. Now the list is one tall box and only the
+// rows inside the viewport (plus a margin) exist; heights are fixed per row kind, so positions are
+// arithmetic and a collapsed group simply contributes no rows.
+type GroupVm = { archetype: Archetype; users: RealtimeUser[] };
+type Row =
+  | { kind: "header"; key: string; group: GroupVm; height: number; gap: number }
+  | { kind: "user"; key: string; user: RealtimeUser; height: number };
+
+const HEADER_H = 24;    // .group-header box
+const GROUP_GAP = 8;    // breathing room above every group but the first
+const USER_H = 46;      // 44px .user-item + 2px spacing
+const OVERSCAN_PX = 240;
+
+const rows = computed<Row[]>(() => {
+  const out: Row[] = [];
+  groups.value.forEach((group, i) => {
+    const gap = i === 0 ? 0 : GROUP_GAP;
+    out.push({ kind: "header", key: `h:${group.archetype.id}`, group, height: HEADER_H + gap, gap });
+    if (isCollapsed(group.archetype.id)) return;
+    for (const user of group.users) {
+      out.push({ kind: "user", key: `u:${user.userId}`, user, height: USER_H });
+    }
+  });
+  return out;
+});
+
+const rowOffsets = computed(() => {
+  const offsets = new Array<number>(rows.value.length);
+  let y = 0;
+  rows.value.forEach((row, i) => { offsets[i] = y; y += row.height; });
+  return offsets;
+});
+
+const totalHeight = computed(() => {
+  const list = rows.value;
+  if (!list.length) return 0;
+  return rowOffsets.value[list.length - 1] + list[list.length - 1].height;
+});
+
+const scrollEl = ref<HTMLElement | null>(null);
+const scrollTop = ref(0);
+const viewportH = ref(0);
+let scrollRaf = 0;
+let resizeObserver: ResizeObserver | null = null;
+
+function onScroll() {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    scrollTop.value = scrollEl.value?.scrollTop ?? 0;
+  });
+}
+
+onMounted(() => {
+  const el = scrollEl.value;
+  if (!el) return;
+  viewportH.value = el.clientHeight;
+  resizeObserver = new ResizeObserver(() => { viewportH.value = el.clientHeight; });
+  resizeObserver.observe(el);
+});
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  if (scrollRaf) cancelAnimationFrame(scrollRaf);
+});
+
+/** Index of the last row that starts at or above `y`. */
+function rowAt(offsets: number[], y: number): number {
+  let lo = 0, hi = offsets.length - 1, found = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid] <= y) { found = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  return found;
+}
+
+const visibleRange = computed(() => {
+  const count = rows.value.length;
+  if (!count) return { start: 0, end: 0 };
+  const offsets = rowOffsets.value;
+  const height = viewportH.value || 800; // not measured yet: draw a screenful rather than nothing
+  const start = rowAt(offsets, scrollTop.value - OVERSCAN_PX);
+  const end = Math.min(count, rowAt(offsets, scrollTop.value + height + OVERSCAN_PX) + 1);
+  return { start, end };
+});
+
+const visibleRows = computed(() => rows.value.slice(visibleRange.value.start, visibleRange.value.end));
+const windowTop = computed(() => rowOffsets.value[visibleRange.value.start] ?? 0);
 
 // Calculate relative luminance
 const getLuminance = (r: number, g: number, b: number) => {
@@ -368,8 +466,9 @@ const formatColour = (argb: number) => {
   color: hsl(var(--muted-foreground) / 0.7);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 2px;
-  padding: 4px 4px;
+  height: 24px;
+  margin-bottom: 0;
+  padding: 0 4px;
   border-radius: calc(var(--radius) - 6px);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
@@ -405,21 +504,21 @@ const formatColour = (argb: number) => {
   margin-left: auto;
 }
 
-/* Group collapse animation */
-.group-collapse-enter-active,
-.group-collapse-leave-active {
-  transition: all 0.2s ease;
-  overflow: hidden;
+/* Virtualised rows: the list is one tall box, and only the rows in view are positioned inside it. */
+.vlist {
+  position: relative;
 }
-.group-collapse-enter-from,
-.group-collapse-leave-to {
-  opacity: 0;
-  max-height: 0;
+
+.vlist-window {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  will-change: transform;
 }
-.group-collapse-enter-to,
-.group-collapse-leave-from {
-  opacity: 1;
-  max-height: 1000px;
+
+.vrow {
+  box-sizing: border-box;
 }
 
 /* User item */
@@ -427,6 +526,7 @@ const formatColour = (argb: number) => {
   display: flex;
   align-items: center;
   gap: 10px;
+  height: 44px;
   padding: 5px 6px;
   border-radius: calc(var(--radius) - 4px);
   cursor: pointer;

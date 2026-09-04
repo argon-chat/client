@@ -7,13 +7,41 @@
  * missing key here shows up as raw `some.key` text in the UI.
  */
 
-import { describe, test, expect } from "vitest";
-import { createArgonI18n, coreMessages, enCore, ruCore } from "../src";
+import { describe, test, expect, beforeAll } from "vitest";
+import {
+  createArgonI18n,
+  enCore,
+  loadAllCoreMessages,
+  loadCoreMessages,
+  getLoadedCoreMessages,
+  type CoreMessages,
+  type SupportedLocale,
+} from "../src";
 
 const LOCALES = ["en", "ru", "jp", "am", "ru_pt"] as const;
 
+let bundles: Record<SupportedLocale, CoreMessages>;
+beforeAll(async () => {
+  bundles = await loadAllCoreMessages();
+});
+
+describe("loadCoreMessages", () => {
+  test("English is in memory before anything is fetched", () => {
+    expect(getLoadedCoreMessages("en")).toBe(enCore);
+  });
+
+  test("an unknown locale resolves to English rather than failing", async () => {
+    expect(await loadCoreMessages("xx")).toBe(enCore);
+  });
+
+  test("a fetched bundle is served from memory afterwards", async () => {
+    expect(getLoadedCoreMessages("ru")).toBe(bundles.ru);
+    expect(await loadCoreMessages("ru")).toBe(bundles.ru);
+  });
+});
+
 describe("createArgonI18n", () => {
-  test("ships every declared locale", () => {
+  test("ships every fetched locale", () => {
     const i18n = createArgonI18n();
     expect(Object.keys((i18n.global as any).messages.value).sort()).toEqual([...LOCALES].sort());
   });
@@ -48,7 +76,7 @@ describe("createArgonI18n", () => {
     const [sharedKey] = Object.keys(enCore);
     const i18n = createArgonI18n({ messages: { en: { [sharedKey]: "Overridden" } } });
 
-    expect((i18n.global as any).messages.value.ru[sharedKey]).toBe((ruCore as any)[sharedKey]);
+    expect((i18n.global as any).messages.value.ru[sharedKey]).toBe((bundles.ru as any)[sharedKey]);
   });
 
   test("runs in composition mode — the app has no Options API", () => {
@@ -64,14 +92,14 @@ describe("createArgonI18n", () => {
 describe("the shipped locale files", () => {
   test("every locale has strings", () => {
     for (const locale of LOCALES) {
-      expect(Object.keys(coreMessages[locale]).length, locale).toBeGreaterThan(0);
+      expect(Object.keys(bundles[locale]).length, locale).toBeGreaterThan(0);
     }
   });
 
   test("English is the most complete, since everything falls back to it", () => {
     const en = Object.keys(enCore).length;
     for (const locale of LOCALES) {
-      expect(Object.keys(coreMessages[locale]).length, locale).toBeLessThanOrEqual(en);
+      expect(Object.keys(bundles[locale]).length, locale).toBeLessThanOrEqual(en);
     }
   });
 
@@ -79,7 +107,7 @@ describe("the shipped locale files", () => {
     // A key missing from English has nothing to fall back to, so it renders raw.
     const en = new Set(Object.keys(enCore));
     for (const locale of LOCALES) {
-      const orphans = Object.keys(coreMessages[locale]).filter((k) => !en.has(k));
+      const orphans = Object.keys(bundles[locale]).filter((k) => !en.has(k));
       expect(orphans, `${locale} has keys absent from English`).toEqual([]);
     }
   });
@@ -91,7 +119,7 @@ describe("the shipped locale files", () => {
     // English disappearing in another language.
     for (const locale of LOCALES) {
       if (locale === "en") continue;
-      const lost = Object.entries(coreMessages[locale])
+      const lost = Object.entries(bundles[locale])
         .filter(([key, value]) => {
           const source = (enCore as any)[key];
           return typeof value === "string" && value.trim() === ""
@@ -111,7 +139,7 @@ describe("the shipped locale files", () => {
 
     for (const locale of LOCALES) {
       if (locale === "en") continue;
-      for (const [key, value] of Object.entries(coreMessages[locale])) {
+      for (const [key, value] of Object.entries(bundles[locale])) {
         const source = (enCore as any)[key];
         if (typeof value !== "string" || typeof source !== "string") continue;
         expect(valuePlaceholders(value), `${locale}.${key}`).toEqual(valuePlaceholders(source));

@@ -16,7 +16,7 @@
           v-if="resolveEmoji(r.emoji)"
           :emoji="resolveEmoji(r.emoji)!"
           :size="18"
-          render-mode="noto"
+          render-mode="atlas"
         />
         <template v-else>{{ r.emoji }}</template>
       </span>

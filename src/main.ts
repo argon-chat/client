@@ -20,8 +20,8 @@ import router from "./router";
 import { createApp, type Plugin } from "vue";
 import { createPinia } from "pinia";
 import { MotionPlugin } from "@vueuse/motion";
-import { createI18n } from "vue-i18n";
-import { coreMessages, type SupportedLocale, type CoreLocaleSchema } from "@argon/i18n";
+import { readPersistedValue } from "@argon/storage";
+import { i18n, ensureLocale } from "./lib/i18n";
 import { createEmojix, initializeEmojix } from "@argon-chat/emojix";
 import { evaluateBootGate, renderBootGate } from "./lib/bootGate";
 import { isWeb } from "./lib/platform";
@@ -41,16 +41,7 @@ const bootBlock = evaluateBootGate();
 // Windows for are emulated in CSS off this class. Set before first paint so nothing flashes flat.
 if (isWeb) document.documentElement.classList.add("argon-web");
 
-export const i18n = createI18n<[CoreLocaleSchema], SupportedLocale>({
-  legacy: false,
-  locale: "en",
-  fallbackLocale: "en",
-  messages: coreMessages as any,
-  silentTranslationWarn: true,
-  missingWarn: false,
-  fallbackWarn: false,
-  warnHtmlMessage: false,
-});
+export { i18n };
 const pinia = createPinia();
 const app = createApp(App);
 app.use(i18n);
@@ -102,9 +93,12 @@ Sentry.init({
     }
     return metric;
   },
-  tracesSampleRate: import.meta.env.DEV ? 0 : 1.0,
+  // Sampled, not exhaustive: a full trace per session and a Session Replay of every session kept a
+  // live span tree plus an rrweb DOM mirror and mutation buffer in every renderer for as long as it
+  // ran. Errors still get a replay every time (replaysOnErrorSampleRate below).
+  tracesSampleRate: import.meta.env.DEV ? 0 : 0.15,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
-  replaysSessionSampleRate: import.meta.env.DEV ? 0 : 1.0,
+  replaysSessionSampleRate: import.meta.env.DEV ? 0 : 0.03,
   replaysOnErrorSampleRate: 1.0,
   environment: import.meta.env.MODE,
   release: pkg.version,
@@ -141,10 +135,16 @@ initializeEmojix();
 if (bootBlock) {
   renderBootGate(bootBlock);
 } else {
-  app.mount("#app");
-  // Media caching is an optimisation, not a dependency — the app is already running by the time it
-  // installs, and everything it would have served still resolves over the network without it.
-  void initMediaCache();
+  // The saved language is fetched before the first paint so the app never flashes English; the
+  // bundle is small and cached, and a failed fetch just leaves the English fallback in place.
+  void ensureLocale(readPersistedValue<string>("locale", "en"))
+    .catch(() => undefined)
+    .then(() => {
+      app.mount("#app");
+      // Media caching is an optimisation, not a dependency — the app is already running by the time
+      // it installs, and everything it would have served still resolves over the network without it.
+      void initMediaCache();
+    });
 }
 
 // Argon Console Branding

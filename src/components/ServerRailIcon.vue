@@ -183,7 +183,7 @@ const initials = (name: string) =>
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #fff;
+  background: hsl(var(--unread));
   border: 2px solid hsl(var(--card));
   z-index: 2;
 }

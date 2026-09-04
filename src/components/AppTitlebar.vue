@@ -324,7 +324,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444;
+  background: hsl(var(--unread));
   border: 2px solid hsl(var(--card));
 }
 

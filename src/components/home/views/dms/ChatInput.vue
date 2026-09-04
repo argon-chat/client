@@ -18,7 +18,7 @@
                 class="flex-1 text-sm min-h-[40px] max-h-[200px] overflow-y-auto outline-none bg-transparent rounded"
                 :placeholder="t('enter_some_text')"
                 :unstyled="true"
-                render-mode="noto"
+                render-mode="atlas"
                 @input="onEditorInput"
                 @keydown="onEditorKeydown"
             />
@@ -31,7 +31,7 @@
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent class="w-auto p-0">
-                    <EmojixPicker :theme="'auto'" :render-mode="'noto'"
+                    <EmojixPicker :theme="'auto'" :render-mode="'atlas'"
                         :content-tabs="gifContentTabs"
                         @select="onEmojixSelect"
                         @tab-change="handlePickerTabChange">

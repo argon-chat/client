@@ -1,6 +1,7 @@
 import { persistedValue } from "@argon/storage";
+import { openDB, type IDBPDatabase } from "idb";
 import { defineStore } from "pinia";
-import { computed, watch } from "vue";
+import { computed, shallowReactive, watch } from "vue";
 import {
   defaultHudConfig,
   normalizeHudConfig,
@@ -15,13 +16,14 @@ import {
 /**
  * One persisted record per game the app has ever detected (Discord-style "registered
  * games" journal). Keyed by a stable id (normalized exe path).
+ *
+ * Keep this shape small: the whole journal is re-serialized into localStorage every time a
+ * `lastSeen` ticks. Icons deliberately live outside it (IndexedDB + `icons` below).
  */
 export interface GameEntry {
   id: string;
   name: string;
   lastSeen: number;
-  /** Cached PNG data URL of the game's exe icon (extracted once via the main process). */
-  icon?: string;
   /** Share "playing X" presence to the server for this game. */
   activityPublish: boolean;
   /** Show the in-game overlay for this game. */
@@ -30,6 +32,12 @@ export interface GameEntry {
   supportsOverlay: boolean;
   unsupportedReason?: string;
 }
+
+/** What the UI renders: the persisted entry plus its icon (PNG data URL), when known. */
+export type GameListItem = GameEntry & { icon?: string };
+
+/** On-disk shape from before icons moved to IndexedDB: the data URL was stored inline. */
+type LegacyGameEntry = GameEntry & { icon?: unknown };
 
 /** Snapshot pushed to the main process so it can gate overlay + activity per game. */
 export interface GameSettingsSnapshot {
@@ -48,6 +56,66 @@ export function normalizeGameId(path: string, name: string): string {
   return p || `name:${(name ?? "").trim().toLowerCase()}`;
 }
 
+/** Entries not seen for this long are dropped from the journal on startup. */
+const JOURNAL_MAX_AGE_MS = 180 * 86_400_000;
+/** Hard cap on journal size after the age prune (most recently seen win). */
+const JOURNAL_MAX_ENTRIES = 300;
+
+// ── Icon storage (IndexedDB) ──
+// Exe icons are PNG data URLs of tens of KB each; keeping them in the persisted journal
+// would both bloat every localStorage write and eventually hit the quota. They go into a
+// dedicated database instead (separate from the Dexie one, whose version bumps purge data).
+// Every access is best-effort: IndexedDB may be unavailable, and the store must keep
+// working without it (icons are then re-extracted from the exe each session).
+
+const ICON_DB_NAME = "argon.game-icons";
+const ICON_DB_VERSION = 1;
+const ICON_STORE = "icons";
+
+let iconDbPromise: Promise<IDBPDatabase | null> | undefined;
+
+function iconDb(): Promise<IDBPDatabase | null> {
+  if (!iconDbPromise) {
+    iconDbPromise = (async () => {
+      try {
+        if (typeof indexedDB === "undefined") return null;
+        return await openDB(ICON_DB_NAME, ICON_DB_VERSION, {
+          upgrade(db) {
+            if (!db.objectStoreNames.contains(ICON_STORE)) db.createObjectStore(ICON_STORE);
+          },
+        });
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return iconDbPromise;
+}
+
+async function readStoredIcon(id: string): Promise<string | undefined> {
+  try {
+    const db = await iconDb();
+    const value = await db?.get(ICON_STORE, id);
+    return typeof value === "string" && value ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writeStoredIcon(id: string, dataUrl: string): Promise<void> {
+  try {
+    const db = await iconDb();
+    await db?.put(ICON_STORE, dataUrl, id);
+  } catch { /* ignore */ }
+}
+
+async function deleteStoredIcon(id: string): Promise<void> {
+  try {
+    const db = await iconDb();
+    await db?.delete(ICON_STORE, id);
+  } catch { /* ignore */ }
+}
+
 export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
   // ── Global overlay params ──
   const overlayEnabled = persistedValue<boolean>("argon.overlay.enabled", true);
@@ -64,8 +132,18 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
   // ── Per-game journal (reactive object → deep-persisted) ──
   const games = persistedValue<Record<string, GameEntry>>("argon.overlay.games", {});
 
-  const gamesList = computed(() =>
-    Object.values(games).sort((a, b) => b.lastSeen - a.lastSeen),
+  // ── Icons by game id, filled lazily from IndexedDB / the exe. Never persisted with `games`. ──
+  const icons = shallowReactive<Record<string, string>>({});
+  /** In-flight icon lookups, so a burst of detections doesn't extract the same exe icon twice. */
+  const pendingIcons = new Map<string, Promise<void>>();
+
+  const gamesList = computed<GameListItem[]>(() =>
+    Object.values(games)
+      .map((g): GameListItem => {
+        const icon = icons[g.id];
+        return icon ? { ...g, icon } : { ...g };
+      })
+      .sort((a, b) => b.lastSeen - a.lastSeen),
   );
 
   function recordGame(path: string, name: string): GameEntry {
@@ -90,14 +168,39 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     return entry;
   }
 
-  /** Extract + cache the game's exe icon once (id is the normalized exe path). */
-  async function ensureIcon(id: string): Promise<void> {
-    const entry = games[id];
-    if (!entry || entry.icon || id.startsWith("name:")) return;
+  /**
+   * Make the game's icon available in `icons`: from IndexedDB if cached there, otherwise
+   * extracted once from the exe via the main process (id is the normalized exe path) and
+   * cached. Games matched by name only have no exe to read from.
+   */
+  function ensureIcon(id: string): Promise<void> {
+    if (icons[id] || id.startsWith("name:") || !games[id]) return Promise.resolve();
+    let pending = pendingIcons.get(id);
+    if (!pending) {
+      pending = loadIcon(id).finally(() => pendingIcons.delete(id));
+      pendingIcons.set(id, pending);
+    }
+    return pending;
+  }
+
+  async function loadIcon(id: string): Promise<void> {
+    const stored = await readStoredIcon(id);
+    if (stored) {
+      if (games[id]) icons[id] = stored;
+      return;
+    }
     try {
       const dataUrl = await (globalThis as any).argonOverlay?.getGameIcon?.(id);
-      if (dataUrl && games[id]) games[id].icon = dataUrl;
+      if (typeof dataUrl === "string" && dataUrl && games[id]) {
+        icons[id] = dataUrl;
+        await writeStoredIcon(id, dataUrl);
+      }
     } catch { /* ignore */ }
+  }
+
+  function forgetIcon(id: string): void {
+    delete icons[id];
+    void deleteStoredIcon(id);
   }
 
   function setGameOverlay(id: string, enabled: boolean): void {
@@ -114,6 +217,43 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
   }
   function removeGame(id: string): void {
     delete games[id];
+    forgetIcon(id);
+  }
+
+  // ── Journal housekeeping (run once at init) ──
+
+  /** Drop entries not seen for 180 days, then cap the journal at the 300 most recently seen. */
+  function pruneJournal(): void {
+    const now = Date.now();
+    const remove: string[] = [];
+    const kept: Array<{ id: string; lastSeen: number }> = [];
+    for (const [id, entry] of Object.entries(games)) {
+      const lastSeen = Number(entry?.lastSeen) || 0;
+      if (now - lastSeen > JOURNAL_MAX_AGE_MS) remove.push(id);
+      else kept.push({ id, lastSeen });
+    }
+    if (kept.length > JOURNAL_MAX_ENTRIES) {
+      kept.sort((a, b) => b.lastSeen - a.lastSeen);
+      for (const { id } of kept.slice(JOURNAL_MAX_ENTRIES)) remove.push(id);
+    }
+    for (const id of remove) removeGame(id);
+  }
+
+  /**
+   * Icons used to be persisted inline as `icon` on each entry. Move any such blob into
+   * IndexedDB (and the in-memory map) and strip the field, so the next localStorage write of
+   * the journal no longer carries them.
+   */
+  function migrateLegacyIcons(): void {
+    for (const [id, entry] of Object.entries(games as Record<string, LegacyGameEntry>)) {
+      if (!entry || !("icon" in entry)) continue;
+      const legacy = entry.icon;
+      delete entry.icon;
+      if (typeof legacy === "string" && legacy && !icons[id]) {
+        icons[id] = legacy;
+        void writeStoredIcon(id, legacy);
+      }
+    }
   }
 
   // ── HUD config mutators (used by the layout editor + settings) ──
@@ -165,6 +305,12 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
   function init(): void {
     if (initialized) return;
     initialized = true;
+
+    // Housekeeping on the persisted journal: prune first so we don't migrate icons of
+    // entries that are about to be dropped anyway.
+    pruneJournal();
+    migrateLegacyIcons();
+
     const bridge = (globalThis as any).argonOverlay;
     if (!bridge) return;
 
@@ -194,7 +340,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     );
     push(); // initial
 
-    // Backfill icons for games recorded before icon caching existed.
+    // Load cached icons (or extract them once) for every game in the journal.
     for (const id of Object.keys(games)) void ensureIcon(id);
   }
 

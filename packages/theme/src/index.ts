@@ -155,7 +155,10 @@ export function useTheme(config: ThemeConfig = {}) {
 
     // Apply font (or dyslexia font)
     const baseFont = dyslexiaFont.value ? "OpenDyslexic, sans-serif" : fontFamily.value;
-    const selectedFont = `${baseFont}, 'Noto Color Emoji'`;
+    // Emoji are drawn from the bundled sprite atlases, not from a font, so no emoji face is appended
+    // here: the 25 MB Noto Color Emoji it used to name was fetched by the first glyph the text font
+    // lacked and then stayed resident for the whole session.
+    const selectedFont = baseFont;
     root.style.setProperty("font-family", selectedFont);
     document.body.style.fontFamily = selectedFont;
 

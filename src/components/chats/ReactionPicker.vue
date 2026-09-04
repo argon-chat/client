@@ -6,7 +6,7 @@
       class="picker-emoji"
       @click="$emit('select', emoji)"
     >
-      <EmojiSprite v-if="resolveEmoji(emoji)" :emoji="resolveEmoji(emoji)!" :size="18" render-mode="noto" />
+      <EmojiSprite v-if="resolveEmoji(emoji)" :emoji="resolveEmoji(emoji)!" :size="18" render-mode="atlas" />
       <template v-else>{{ emoji }}</template>
     </button>
   </div>

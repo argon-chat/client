@@ -120,7 +120,13 @@ export const useEventStore = defineStore("events", () => {
     return !!(await userStore.getUser(userId));
   };
 
+  // The bus outlives any one sign-in and the boot sequence re-runs every step on a retry (up to
+  // eleven times), so without this guard each attempt stacked another full set of handlers and
+  // every server event was then processed N times over.
+  let subscribed = false;
   const subscribeToEvents = () => {
+    if (subscribed) return;
+    subscribed = true;
     const notificationStore = useNotificationStore();
     notificationStore.subscribeToEvents();
 

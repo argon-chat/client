@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import {
     Drawer,
     DrawerContent,
@@ -53,20 +53,24 @@ import {
 import { Button } from "@argon/ui/button";
 import { useWindow } from "@/store/ui/windowStore";
 import { CircleXIcon } from "lucide-vue-next";
-import ProfileSettings from "@/components/settings/ProfileSettings.vue";
-import ConnectedDevices from "@/components/settings/ConnectedDevices.vue";
-import ApplicationSettings from "./settings/ApplicationSettings.vue";
-import HotKeySettings from "./settings/HotKeySettings.vue";
-import LanguageSettings from "./settings/LanguageSettings.vue";
-import AudioSettings from "./settings/AudioSettings.vue";
-import AppearanceSettings from "./settings/AppearanceSettings.vue";
 import { useLocale } from "@/store/system/localeStore";
-import StorageSettings from "./settings/StorageSettings.vue";
-import ActivityLog from "./settings/ActivityLog.vue";
-import GameOverlaySettings from "./settings/GameOverlaySettings.vue";
-import UltimaSettings from "./settings/UltimaSettings.vue";
-import BoostSettings from "./settings/BoostSettings.vue";
-import TransactionSettings from "./settings/TransactionSettings.vue";
+
+// Every panel is its own chunk, fetched the first time its tab opens. Statically importing all
+// thirteen pulled the payment SDK, QR rendering and the whole media editor into the boot bundle
+// for everyone, whether or not they ever opened settings.
+const ProfileSettings = defineAsyncComponent(() => import("@/components/settings/ProfileSettings.vue"));
+const ConnectedDevices = defineAsyncComponent(() => import("@/components/settings/ConnectedDevices.vue"));
+const ApplicationSettings = defineAsyncComponent(() => import("./settings/ApplicationSettings.vue"));
+const HotKeySettings = defineAsyncComponent(() => import("./settings/HotKeySettings.vue"));
+const LanguageSettings = defineAsyncComponent(() => import("./settings/LanguageSettings.vue"));
+const AudioSettings = defineAsyncComponent(() => import("./settings/AudioSettings.vue"));
+const AppearanceSettings = defineAsyncComponent(() => import("./settings/AppearanceSettings.vue"));
+const StorageSettings = defineAsyncComponent(() => import("./settings/StorageSettings.vue"));
+const ActivityLog = defineAsyncComponent(() => import("./settings/ActivityLog.vue"));
+const GameOverlaySettings = defineAsyncComponent(() => import("./settings/GameOverlaySettings.vue"));
+const UltimaSettings = defineAsyncComponent(() => import("./settings/UltimaSettings.vue"));
+const BoostSettings = defineAsyncComponent(() => import("./settings/BoostSettings.vue"));
+const TransactionSettings = defineAsyncComponent(() => import("./settings/TransactionSettings.vue"));
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 

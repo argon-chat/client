@@ -50,13 +50,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, defineAsyncComponent } from "vue";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Loader2, LockIcon, RocketIcon, ShoppingBagIcon } from "lucide-vue-next";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import { useToast } from "@argon/ui/toast";
 import { BoostPackType, PurchaseBoostError } from "@argon/glue";
-import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
+// The checkout carries the whole payment SDK; it is fetched only when a purchase actually starts.
+const UltimaCheckoutDialog = defineAsyncComponent(() => import("@/components/modals/UltimaCheckoutDialog.vue"));
 import { useLocale } from "@/store/system/localeStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 

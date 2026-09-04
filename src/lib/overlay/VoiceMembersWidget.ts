@@ -103,6 +103,8 @@ export class VoiceMembersWidget extends BaseWidget {
 
   // Per-avatar GPU textures
   private avatarTextures: Map<string, AvatarTexture> = new Map();
+  /** Textures of people no longer in the channel are kept only up to this many (re-joins are common). */
+  private readonly avatarTextureBudget = 48;
   private avatarLoadingSet: Set<string> = new Set();
 
   // Flat 1×1 white texture for solid-color quads (speaking-activity bar).
@@ -249,6 +251,7 @@ export class VoiceMembersWidget extends BaseWidget {
 
     this.avatarTextures.set(url, { texture, view, bindGroup, width: size, height: size });
     this.trackTextureFn?.(`avatar-${url}`, texture, size, size, 4);
+    this.trimAvatarTextures();
   }
 
   private createFallbackTexture(
@@ -306,7 +309,28 @@ export class VoiceMembersWidget extends BaseWidget {
     const avatarTex = { texture, view, bindGroup, width: size, height: size };
     this.avatarTextures.set(cacheKey, avatarTex);
     this.trackTextureFn?.(`avatar-${cacheKey}`, texture, size, size, 4);
+    this.trimAvatarTextures();
     return avatarTex;
+  }
+
+  /**
+   * The cache used to grow by one GPU texture per distinct avatar seen in voice for as long as the
+   * overlay lived. Over budget, textures nobody in the channel uses go first, oldest first.
+   */
+  private trimAvatarTextures(): void {
+    if (this.avatarTextures.size <= this.avatarTextureBudget) return;
+    const live = new Set<string>();
+    for (const m of this.members) {
+      if (m.avatarUrl) live.add(m.avatarUrl);
+      live.add(`fallback-${m.avatarColor}-${m.displayName.charAt(0).toUpperCase()}`);
+    }
+    for (const [key, tex] of this.avatarTextures) {
+      if (this.avatarTextures.size <= this.avatarTextureBudget) break;
+      if (live.has(key)) continue;
+      this.untrackTextureFn?.(`avatar-${key}`);
+      tex.texture.destroy();
+      this.avatarTextures.delete(key);
+    }
   }
 
   // ==================== GPU init ====================

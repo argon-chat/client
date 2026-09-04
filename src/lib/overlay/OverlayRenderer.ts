@@ -329,9 +329,18 @@ export class OverlayRenderer {
   private lastTime: number = 0
   private isInitialized: boolean = false
   
-  // Cached frame for capture (WebGPU clears buffer after present)
+  // Scratch canvas for on-demand pixel capture; released with the renderer
   private cachedFrameCanvas: HTMLCanvasElement | null = null
   private cachedFrameCtx: CanvasRenderingContext2D | null = null
+
+  private releaseCachedFrame(): void {
+    if (this.cachedFrameCanvas) {
+      this.cachedFrameCanvas.width = 0
+      this.cachedFrameCanvas.height = 0
+    }
+    this.cachedFrameCanvas = null
+    this.cachedFrameCtx = null
+  }
   
   // Dirty tile rendering
   private previousFrameData: Uint8ClampedArray | null = null
@@ -891,6 +900,7 @@ export class OverlayRenderer {
   }
   
   stop(): void {
+    this.releaseCachedFrame()
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId)
       this.animationFrameId = null
@@ -1098,16 +1108,17 @@ export class OverlayRenderer {
       }
     }
     
-    // Cache the frame immediately after render (before buffer is cleared)
-    this.cacheCurrentFrame()
-    
     // Schedule next frame
     this.animationFrameId = requestAnimationFrame(this.render)
   }
   
   /**
-   * Cache current frame for later capture
-   * Must be called immediately after render, before WebGPU clears the buffer
+   * Copy the last presented frame into a 2D canvas so it can be read back.
+   *
+   * On demand only (see captureFullCanvasData): copying every frame kept a monitor-sized software
+   * surface alive and did a GPU-to-CPU readback per frame for a capture nobody asked for. A WebGPU
+   * canvas keeps its presented image until the next getCurrentTexture(), so reading it between
+   * frames is enough.
    */
   private cacheCurrentFrame(): void {
     // Create cached canvas if needed or if size changed
@@ -1508,15 +1519,14 @@ export class OverlayRenderer {
   // ==================== Fragment Capture (Efficient) ====================
   
   /**
-   * Helper: Get full canvas pixel data from cached frame
-   * Uses cached frame that was captured right after render
+   * Helper: Get full canvas pixel data from the current frame
    */
   private captureFullCanvasData(): { 
     data: Uint8ClampedArray
     width: number 
     height: number 
   } {
-    // Use cached frame (captured immediately after render)
+    this.cacheCurrentFrame()
     if (this.cachedFrameCanvas && this.cachedFrameCtx) {
       const width = this.cachedFrameCanvas.width
       const height = this.cachedFrameCanvas.height
@@ -2275,6 +2285,7 @@ export class OverlayRenderer {
   }
 
   dispose(): void {
+    this.releaseCachedFrame()
     this.stop()
     
     for (const widget of this.widgets.values()) {

@@ -269,6 +269,8 @@ export class AudioManagement implements IAudioManagement {
   private virtualOutputInitialized = false;
   private outputLevelAnimationFrame: number | null = null;
   private outputStereoCallbacks: Set<(left: number, right: number) => void> = new Set();
+  /** Mono output-level subscribers; the analyser loop runs only while someone listens. */
+  private outputLevelListeners = 0;
   
   // Input level monitoring
   private inputLevelMonitorDisposable: Disposable<AudioWorkletNode> | null = null;
@@ -1144,11 +1146,25 @@ export class AudioManagement implements IAudioManagement {
       });
     }
     
-    // Start output level monitoring using analyser
-    this.startOutputLevelMonitoring();
+    // The analyser loop is demand-driven: it starts with the first level subscriber and stops with
+    // the last, instead of running at 60 Hz from construction to exit whether anyone listens or not.
+    this.syncOutputLevelMonitoring();
     
     this.virtualOutputInitialized = true;
     logger.info('[AudioManagement] Virtual output stream initialized');
+  }
+
+  private syncOutputLevelMonitoring(): void {
+    const wanted = this.outputLevelListeners > 0 || this.outputStereoCallbacks.size > 0;
+    if (wanted) this.startOutputLevelMonitoring();
+    else this.stopOutputLevelMonitoring();
+  }
+
+  private stopOutputLevelMonitoring(): void {
+    if (this.outputLevelAnimationFrame) {
+      cancelAnimationFrame(this.outputLevelAnimationFrame);
+      this.outputLevelAnimationFrame = null;
+    }
   }
 
   private startOutputLevelMonitoring(): void {
@@ -1207,9 +1223,11 @@ export class AudioManagement implements IAudioManagement {
    */
   onOutputLevelStereoChanged(callback: (left: number, right: number) => void): { dispose: () => void } {
     this.outputStereoCallbacks.add(callback);
+    this.syncOutputLevelMonitoring();
     return {
       dispose: () => {
         this.outputStereoCallbacks.delete(callback);
+        this.syncOutputLevelMonitoring();
       }
     };
   }
@@ -1238,7 +1256,14 @@ export class AudioManagement implements IAudioManagement {
   }
 
   onOutputLevelChanged(on: (level: number) => void): Subscription {
-    return this.outputLevel$.subscribe(on);
+    this.outputLevelListeners++;
+    this.syncOutputLevelMonitoring();
+    const sub = this.outputLevel$.subscribe(on);
+    sub.add(() => {
+      this.outputLevelListeners = Math.max(0, this.outputLevelListeners - 1);
+      this.syncOutputLevelMonitoring();
+    });
+    return sub;
   }
 
   onAudioDeviceError(on: (error: AudioDeviceErrorEvent) => void): Subscription {

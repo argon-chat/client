@@ -45,8 +45,11 @@ export function useScreenShareSources() {
 
   async function refreshThumbnails() {
     try {
+      // Only the visible tab, thumbnails only: app icons never change while the picker is open,
+      // and the main process rasterises a thumbnail plus an icon for every window per call.
+      const types = shareTab.value === "screens" ? ["screen"] : ["window"];
       // @ts-ignore
-      const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"]);
+      const sources: ScreenSource[] = await native.hostProc.getScreenSources(types, { withIcons: false });
       for (const src of sources) {
         const existing = screenSources.value.find((s) => s.id === src.id);
         if (existing) existing.thumbnailDataUrl = src.thumbnailDataUrl;
@@ -58,7 +61,7 @@ export function useScreenShareSources() {
 
   function startThumbnailRefresh() {
     stopThumbnailRefresh();
-    thumbnailRefreshTimer = setInterval(refreshThumbnails, 2000);
+    thumbnailRefreshTimer = setInterval(refreshThumbnails, 5000);
   }
 
   onBeforeUnmount(stopThumbnailRefresh);
@@ -69,7 +72,7 @@ export function useScreenShareSources() {
     stopThumbnailRefresh();
     try {
       // @ts-ignore
-      const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"]);
+      const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"], { withIcons: true });
       screenSources.value = sources.filter((s) => s.id.startsWith("screen:"));
       windowSources.value = sources.filter((s) => s.id.startsWith("window:"));
 

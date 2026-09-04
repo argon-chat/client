@@ -56,10 +56,20 @@ export const useTone = defineStore("tone", () => {
           volume: volume.value,
           audioContext: audio.getCurrentAudioContext(),
           destination: audio.getOutputDestination(),
+          // Decoded on the first sound rather than at boot: the decoded PCM stays resident for the
+          // whole session, so it is only paid for by sessions that actually play something.
+          preload: false,
         },
       });
     }
     return atlas;
+  }
+
+  /** The atlas, decoded. Instant after the first call. */
+  async function ready(): Promise<AudioAtlas> {
+    const a = ensureAtlas();
+    if (!a.isLoaded.value) await a.load();
+    return a;
   }
 
   // Subscribe to sound level changes
@@ -72,7 +82,9 @@ export const useTone = defineStore("tone", () => {
 
   function play(sprite: SpriteId, loop = false): void {
     if (!spritePrefs[sprite].value) return;
-    ensureAtlas().play(sprite, { forceSoundEnabled: true, loop });
+    void ready()
+      .then((a) => a.play(sprite, { forceSoundEnabled: true, loop }))
+      .catch((err) => logger.warn("[tone] sound unavailable:", err));
   }
 
   function init() {
@@ -86,19 +98,30 @@ export const useTone = defineStore("tone", () => {
   const playMuteAllSound = () => play("mute");
   const playUnmuteAllSound = () => play("unmute");
   const playNotificationSound = () => play("notification");
-  
+
+  // Whether a ring is wanted right now: a stop that lands while the atlas is still decoding must
+  // win over the play that is about to start.
+  let ringWanted = false;
+
   const playRingSound = () => {
     if (!isEnable_playRingSound.value) return;
-    ringInstanceId = ensureAtlas().play("ring", { forceSoundEnabled: true, loop: true });
+    ringWanted = true;
+    void ready()
+      .then((a) => {
+        if (!ringWanted) return;
+        ringInstanceId = a.play("ring", { forceSoundEnabled: true, loop: true });
+      })
+      .catch((err) => logger.warn("[tone] ring unavailable:", err));
   };
-  
+
   const stopPlayRingSound = () => {
-    if (ringInstanceId !== null) {
+    ringWanted = false;
+    if (ringInstanceId !== null && ringInstanceId !== -1) {
       atlas?.stop("ring", ringInstanceId);
-      ringInstanceId = null;
     } else {
       atlas?.stop("ring");
     }
+    ringInstanceId = null;
   };
 
   return {

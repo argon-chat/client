@@ -105,6 +105,8 @@ export interface SoundPlayerOptions {
 export interface SoundPlayer {
   /** Play the sound or a sprite */
   play: (options?: PlayOptions) => number;
+  /** Fetch and decode the audio; resolves once the buffer is ready (no-op when it already is) */
+  load: () => Promise<void>;
   /** Stop a specific instance or all instances */
   stop: (instanceId?: number) => void;
   /** Pause a specific instance or all instances */
@@ -151,6 +153,8 @@ export interface AudioAtlasConfig {
 export interface AudioAtlas {
   /** Play a sprite by ID */
   play: (spriteId: string, options?: Omit<PlayOptions, 'id'>) => number;
+  /** Fetch and decode the atlas (no-op when already loaded) */
+  load: () => Promise<void>;
   /** Stop playing sprite(s) */
   stop: (spriteId?: string, instanceId?: number) => void;
   /** Check if loaded */
