@@ -30,6 +30,7 @@ import { logger } from "@argon/core";
 import { useSystemStore } from "./store";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useLocale } from "@/store/system/localeStore";
+import { initHotkeyActions } from "@/lib/hotkeys/actions";
 
 const { t } = useLocale();
 const sys = useSystemStore();
@@ -65,6 +66,7 @@ onMounted(() => {
   applyAppearanceSettings();
   initDeepLinks();
   initDesktopTaskbar();
+  initHotkeyActions();
   // If this load followed a renderer crash, rejoin the voice channel we were in.
   void call.maybeRecoverVoiceAfterCrash();
 });

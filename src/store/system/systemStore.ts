@@ -1,10 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useTone } from "@/store/media/toneStore";
-import { Subject, Subscription } from "rxjs";
-import { useHotkeys } from "@/store/ui/hotKeyStore";
+import { Subject } from "rxjs";
 import { IonWsClient } from "@argon-chat/ion.webcore";
-import { HotkeyPhase } from "@argon/glue/ipc";
 import { useBus } from "@/store/realtime/busStore";
 
 const LONG_RECONNECT_TIMEOUT = 5000;
@@ -12,12 +10,10 @@ const RESYNC_JITTER_MS = 15000;
 
 export const useSystemStore = defineStore("system", () => {
   // voice
-  const mainSub = new Subscription();
   let lastMicMuted = false;
   const microphoneMuted = ref(false);
   const headphoneMuted = ref(false);
   const tone = useTone();
-  const hotkeys = useHotkeys();
 
   // reconnection
   const isLongReconnecting = ref(false);
@@ -59,40 +55,31 @@ export const useSystemStore = defineStore("system", () => {
 
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);
 
-  mainSub.add(
-    hotkeys.onAction("key.microphone.toggle", (x) => {
-      if (x.phase == HotkeyPhase.Started) setMicrophoneMuted(false);
-      else if (x.phase == HotkeyPhase.Ended) setMicrophoneMuted(true);
-    })
-  );
-  mainSub.add(
-    hotkeys.onAction("key.microphone.on", () => {
-      if (microphoneMuted.value) toggleMicrophoneMute();
-    })
-  );
-  mainSub.add(
-    hotkeys.onAction("key.microphone.off", () => {
-      if (!microphoneMuted.value) toggleMicrophoneMute();
-    })
-  );
-
   preferUseWs.value = true; // TODO
 
-  async function setMicrophoneMuted(muted: boolean) {
+  /** Options for the mute setters. */
+  interface MuteOptions {
+    /** Skip the mute/unmute tones: push-to-talk flips the microphone on every key press. */
+    silent?: boolean;
+  }
+
+  async function setMicrophoneMuted(muted: boolean, opts?: MuteOptions) {
     if (microphoneMuted.value === muted) return;
 
     microphoneMuted.value = muted;
 
     if (!muted && headphoneMuted.value) headphoneMuted.value = false;
 
-    if (muted) tone.playMuteAllSound();
-    else tone.playUnmuteAllSound();
+    if (!opts?.silent) {
+      if (muted) tone.playMuteAllSound();
+      else tone.playUnmuteAllSound();
+    }
 
     muteEvent.next(microphoneMuted.value);
     muteHeadphoneEvent.next(headphoneMuted.value);
   }
 
-  async function setHeadphoneMuted(muted: boolean) {
+  async function setHeadphoneMuted(muted: boolean, opts?: MuteOptions) {
     if (headphoneMuted.value === muted) return;
 
     if (!headphoneMuted.value) lastMicMuted = microphoneMuted.value;
@@ -102,8 +89,10 @@ export const useSystemStore = defineStore("system", () => {
     if (muted) microphoneMuted.value = true;
     else if (!lastMicMuted) microphoneMuted.value = false;
 
-    if (muted) tone.playMuteAllSound();
-    else tone.playUnmuteAllSound();
+    if (!opts?.silent) {
+      if (muted) tone.playMuteAllSound();
+      else tone.playUnmuteAllSound();
+    }
 
     muteHeadphoneEvent.next(headphoneMuted.value);
     muteEvent.next(microphoneMuted.value);
@@ -233,6 +222,8 @@ export const useSystemStore = defineStore("system", () => {
     headphoneMuted,
     toggleHeadphoneMute,
     toggleMicrophoneMute,
+    setMicrophoneMuted,
+    setHeadphoneMuted,
 
     muteEvent,
     muteHeadphoneEvent,
