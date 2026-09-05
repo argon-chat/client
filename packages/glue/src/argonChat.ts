@@ -2036,6 +2036,15 @@ export interface SessionInfo {
   region: string;
   lastSeenAt: datetime;
   isCurrent: bool;
+  appId: string;
+  appName: string;
+  appVersion: string;
+  platform: ClientPlatform;
+  osName: string;
+  deviceName: string;
+  ip: string;
+  city: string;
+  startedAt: datetime;
 };
 
 
@@ -2771,6 +2780,41 @@ export const Ion_OtpMethod_OpenEnum = {
    */
   unknownValue(value: OtpMethod): u4 | undefined {
     return declaredOtpMethod.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum ClientPlatform
+{
+  UNKNOWN = 0,
+  WINDOWS = 1,
+  MACOS = 2,
+  LINUX = 3,
+  ANDROID = 4,
+  IOS = 5,
+}
+
+const declaredClientPlatform: ReadonlySet<unknown> = new Set<unknown>([ClientPlatform.UNKNOWN, ClientPlatform.WINDOWS, ClientPlatform.MACOS, ClientPlatform.LINUX, ClientPlatform.ANDROID, ClientPlatform.IOS]);
+
+/**
+ * Open-enum helpers for {@link ClientPlatform}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ClientPlatform_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ClientPlatform): boolean {
+    return declaredClientPlatform.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ClientPlatform): u4 | undefined {
+    return declaredClientPlatform.has(value) ? undefined : (value as unknown as u4);
   },
 } as const;
 
@@ -15106,24 +15150,52 @@ IonFormatterStorage.register("SubmitReportError", {
   }
 });
 
+IonFormatterStorage.register("ClientPlatform", {
+  read(reader: CborReader): ClientPlatform {
+    return IonFormatterStorage.readOpenEnum<ClientPlatform>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: ClientPlatform): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("SessionInfo", {
   read(reader: CborReader): SessionInfo {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SessionInfo");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "SessionInfo");
     const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const clientName = IonFormatterStorage.get<string>('string').read(reader);
     const region = IonFormatterStorage.get<string>('string').read(reader);
     const lastSeenAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
     const isCurrent = IonFormatterStorage.get<bool>('bool').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 5);
-    return { sessionId, clientName, region, lastSeenAt, isCurrent };
+    const appId = IonFormatterStorage.get<string>('string').read(reader);
+    const appName = IonFormatterStorage.get<string>('string').read(reader);
+    const appVersion = IonFormatterStorage.get<string>('string').read(reader);
+    const platform = IonFormatterStorage.get<ClientPlatform>('ClientPlatform').read(reader);
+    const osName = IonFormatterStorage.get<string>('string').read(reader);
+    const deviceName = IonFormatterStorage.get<string>('string').read(reader);
+    const ip = IonFormatterStorage.get<string>('string').read(reader);
+    const city = IonFormatterStorage.get<string>('string').read(reader);
+    const startedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { sessionId, clientName, region, lastSeenAt, isCurrent, appId, appName, appVersion, platform, osName, deviceName, ip, city, startedAt };
   },
   write(writer: CborWriter, value: SessionInfo): void {
-    writer.writeStartArray(5);
+    writer.writeStartArray(14);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sessionId);
     IonFormatterStorage.get<string>('string').write(writer, value.clientName);
     IonFormatterStorage.get<string>('string').write(writer, value.region);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.lastSeenAt);
     IonFormatterStorage.get<bool>('bool').write(writer, value.isCurrent);
+    IonFormatterStorage.get<string>('string').write(writer, value.appId);
+    IonFormatterStorage.get<string>('string').write(writer, value.appName);
+    IonFormatterStorage.get<string>('string').write(writer, value.appVersion);
+    IonFormatterStorage.get<ClientPlatform>('ClientPlatform').write(writer, value.platform);
+    IonFormatterStorage.get<string>('string').write(writer, value.osName);
+    IonFormatterStorage.get<string>('string').write(writer, value.deviceName);
+    IonFormatterStorage.get<string>('string').write(writer, value.ip);
+    IonFormatterStorage.get<string>('string').write(writer, value.city);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.startedAt);
     writer.writeEndArray();
   }
 });
