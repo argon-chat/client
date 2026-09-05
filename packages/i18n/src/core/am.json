@@ -719,7 +719,6 @@
   "web_signin_title": "Մուտք Argon",
   "web_signin_desc": "Կմտնես քո Argon հաշվով և միանգամից կվերադառնաս։",
   "web_signin_continue": "Շարունակել Argon-ով",
-  "web_signin_hint": "Գաղտնաբառն այստեղ չի մուտքագրվում — դրանով զբաղվում է Argon-ի մուտքի էջը։",
   "web_signin_failed": "Չհաջողվեց սկսել մուտքը։ Փորձիր նորից։",
   "web_signin_get_desktop": "Կամ ներբեռնիր Argon-ը համակարգչի համար",
   "material_mica_web_desc": "Նմանակված է զննարկչում",

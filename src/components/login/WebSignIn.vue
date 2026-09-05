@@ -71,10 +71,6 @@ function openDownload() {
         {{ t("web_signin_failed") }}
         <span v-if="returnedError" class="block mt-0.5 font-mono text-[11px] opacity-70">{{ returnedError }}</span>
       </p>
-
-      <p class="mt-3 text-center text-xs leading-5 text-muted-foreground">
-        {{ t("web_signin_hint") }}
-      </p>
     </CardContent>
 
     <CardFooter class="flex flex-col gap-2 pt-2">

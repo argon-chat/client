@@ -29,13 +29,8 @@ const AEGIS_TOKEN_URL = "https://aegis.argon.gl/connect/token";
 
 /**
  * The registered Aegis application. Web only — the desktop app authenticates against the API.
- *
- * TEMPORARY: borrowing Meet's client id while Argon Web's own one
- * (A37E7A1DB06E9610C9C0BD77C61A821B) is not yet usable. Swap it back before release — the redirect
- * URIs are registered per client, so this also decides which origins may complete a sign-in, and the
- * API's own allowlist is keyed on the audience those redirects produce.
  */
-const CLIENT_ID = "700E951110574351BEA823D2D8258BCA";
+const CLIENT_ID = "A37E7A1DB06E9610C9C0BD77C61A821B";
 
 /**
  * No `offline_access`.

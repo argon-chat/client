@@ -1356,7 +1356,6 @@
   "web_signin_title": "Вход в Argon",
   "web_signin_desc": "Вход через аккаунт Argon — и сразу обратно.",
   "web_signin_continue": "Продолжить с Argon",
-  "web_signin_hint": "Пароль здесь не вводится — им занимается страница входа Argon.",
   "web_signin_failed": "Не удалось начать вход. Попробуй ещё раз.",
   "web_signin_get_desktop": "Или скачать Argon для компьютера",
   "material_mica_web_desc": "Эмуляция в браузере",

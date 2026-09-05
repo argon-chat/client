@@ -1501,7 +1501,6 @@
   "web_signin_title": "Sign in to Argon",
   "web_signin_desc": "You'll sign in with your Argon account and come straight back.",
   "web_signin_continue": "Continue with Argon",
-  "web_signin_hint": "No password is typed here — Argon's own sign-in page handles it.",
   "web_signin_failed": "Couldn't start sign-in. Try again.",
   "web_signin_get_desktop": "Or get Argon for desktop",
   "material_mica_web_desc": "Emulated in the browser",

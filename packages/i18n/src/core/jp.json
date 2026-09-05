@@ -888,7 +888,6 @@
   "web_signin_title": "Argon にサインイン",
   "web_signin_desc": "Argon アカウントでサインインして、すぐにここへ戻ります。",
   "web_signin_continue": "Argon で続ける",
-  "web_signin_hint": "ここではパスワードを入力しません。Argon のサインインページで行います。",
   "web_signin_failed": "サインインを開始できませんでした。もう一度お試しください。",
   "web_signin_get_desktop": "またはデスクトップ版 Argon を入手",
   "material_mica_web_desc": "ブラウザーでの疑似表現",
