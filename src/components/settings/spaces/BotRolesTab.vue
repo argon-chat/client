@@ -44,7 +44,7 @@
     <!-- Right: Bot role detail (read-only) -->
     <ScrollArea class="max-h-[calc(100vh-220px)]">
       <TabTransition variant="rise">
-        <div v-if="selectedBot" :key="selectedBotId" class="p-5 space-y-5">
+        <div v-if="selectedBot" :key="selectedBotId ?? ''" class="p-5 space-y-5">
           <!-- Bot info header -->
           <section>
             <Card class="overflow-hidden">

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .dl{animation:es-dl 5s cubic-bezier(.4,0,.2,1) .9s infinite}
+.es-svg .bx{animation:es-bx 5s cubic-bezier(.4,0,.2,1) .9s infinite}
+.es-svg .pb{animation:es-pb 5s cubic-bezier(.4,0,.2,1) .9s infinite,pbc 5s steps(1,end) .9s infinite;transform-origin:60px 134px}
+.es-svg .shm{animation:es-shm 1.1s linear .9s infinite}
+.es-svg .shw{animation:es-shw 5s steps(1,end) .9s infinite}
+.es-svg .t1{animation:es-t1 5s steps(1,end) .9s infinite}
+.es-svg .t2{animation:es-t2 5s steps(1,end) .9s infinite}
+.es-svg .t3{animation:es-t3 5s steps(1,end) .9s infinite}
+.es-svg .ico{animation:es-ico 5s steps(1,end) .9s infinite}
+.es-svg .chk{animation:es-chk 5s cubic-bezier(.2,.9,.3,1.3) .9s infinite}
+.es-svg .tlc{animation:es-tlc 5s steps(1,end) .9s infinite}
+.es-svg .dn{animation:es-dn 5s ease-out .9s infinite;opacity:0}
+.es-svg .stt{animation:es-stt 5s ease-out .9s infinite;opacity:0}
+@keyframes es-dl{0%{transform:translateY(-60px);opacity:0}6%{opacity:1}14%{transform:translateY(0)}18%{transform:translateY(-4px)}22%,90%{transform:translateY(0);opacity:1}96%,100%{transform:translateY(-60px);opacity:0}}
+@keyframes es-bx{0%,13%,26%,100%{transform:scale(1,1)}16%{transform:scale(1.06,.92)}21%{transform:scale(.98,1.03)}}
+@keyframes es-pb{0%,22%{transform:scaleX(0)}40%{transform:scaleX(.45)}48%{transform:scaleX(.5)}68%{transform:scaleX(1)}90%{transform:scaleX(1);opacity:1}94%,100%{transform:scaleX(1);opacity:0}}
+@keyframes es-pbc{0%,68%{fill:var(--es-accent-deep,#7c5cf5)}69%,100%{fill:var(--es-ok,#3ba55c)}}
+@keyframes es-shm{0%{transform:translateX(-80px)}100%{transform:translateX(80px)}}
+@keyframes es-shw{0%,22%{opacity:0}23%,67%{opacity:1}68%,100%{opacity:0}}
+@keyframes es-t1{0%,34%{fill:var(--es-line,#3a3b45)}35%,92%{fill:var(--es-accent,#a78bfa)}93%,100%{fill:var(--es-line,#3a3b45)}}
+@keyframes es-t2{0%,50%{fill:var(--es-line,#3a3b45)}51%,92%{fill:var(--es-accent,#a78bfa)}93%,100%{fill:var(--es-line,#3a3b45)}}
+@keyframes es-t3{0%,67%{fill:var(--es-line,#3a3b45)}68%,92%{fill:var(--es-accent,#a78bfa)}93%,100%{fill:var(--es-line,#3a3b45)}}
+@keyframes es-ico{0%,68%{opacity:1}69%,100%{opacity:0}}
+@keyframes es-chk{0%,68%{transform:scale(0)}76%,90%{transform:scale(1)}94%,100%{transform:scale(0)}}
+@keyframes es-tlc{0%,68%{fill:var(--es-accent-deep,#7c5cf5)}69%,100%{fill:var(--es-ok,#3ba55c)}}
+@keyframes es-dn{0%,68%{opacity:0;transform:scale(.8)}72%{opacity:.7}90%,100%{opacity:0;transform:scale(1.6)}}
+@keyframes es-stt{0%,12%{opacity:0;transform:scale(.9)}15%{opacity:.6}30%,100%{opacity:0;transform:scale(1.4)}}</style>
+<defs><radialGradient id="g-installing" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-installing)"></circle><defs><clipPath id="c-installing"><rect x="60" y="130" width="80" height="8" rx="4"></rect></clipPath></defs>
+<circle class="e stt" cx="100" cy="120" r="36" fill="none" stroke-width="2" style="stroke:var(--es-accent,#a78bfa)"></circle>
+<circle class="e dn" cx="100" cy="120" r="36" fill="none" stroke-width="2" style="stroke:var(--es-ok,#3ba55c)"></circle>
+<g class="e in" style="animation-delay:.1s"><g class="e fl">
+<g class="e bx" style="transform-origin:100px 154px;transform-box:view-box">
+<path d="M46 118h108v26a10 10 0 0 1-10 10H56a10 10 0 0 1-10-10z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<rect x="60" y="130" width="80" height="8" rx="4" style="fill:var(--es-void,#131316)"></rect>
+<rect class="pb" x="60" y="130" width="80" height="8" rx="4"></rect>
+<g class="shw" clip-path="url(#c-installing)"><rect class="e shm" x="80" y="128" width="20" height="12" opacity=".35" style="fill:var(--es-on-accent,#fff)"></rect></g>
+<circle class="t1" cx="88" cy="146" r="2.5"></circle><circle class="t2" cx="100" cy="146" r="2.5"></circle><circle class="t3" cx="112" cy="146" r="2.5"></circle>
+</g></g></g>
+<g class="e in"><g class="e dl">
+<rect class="tlc" x="70" y="58" width="60" height="60" rx="16"></rect>
+<g class="ico"><rect x="84" y="72" width="32" height="32" rx="8" style="fill:var(--es-accent,#a78bfa)"></rect><path d="M100 80v14M94 89l6 6 6-6" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--es-on-accent,#fff)"></path></g>
+<g class="e chk"><path d="M86 88l9 9 19-19" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--es-on-accent,#fff)"></path></g>
+</g></g>
+</svg>

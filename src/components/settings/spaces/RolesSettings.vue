@@ -76,7 +76,7 @@
             <!-- Right: Role detail -->
             <ScrollArea class="max-h-[calc(100vh-220px)]">
               <TabTransition variant="rise">
-                <div v-if="selectedArchetype" :key="selectedArchetypeId" class="p-5 space-y-5">
+                <div v-if="selectedArchetype" :key="selectedArchetypeId ?? ''" class="p-5 space-y-5">
                   <!-- General section -->
                   <section>
                     <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">

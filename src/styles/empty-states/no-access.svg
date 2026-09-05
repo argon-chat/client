@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .lk{animation:es-lk 3.6s ease-in-out 1s infinite}
+.es-svg .hsh{animation:es-hsh 3s ease-in-out .9s infinite}
+.es-svg .kh{animation:es-kh 2s ease-in-out .9s infinite}
+@keyframes es-lk{0%,60%,100%{transform:rotate(0)}66%{transform:rotate(-6deg)}72%{transform:rotate(6deg)}78%{transform:rotate(-3deg)}84%{transform:rotate(0)}}
+@keyframes es-hsh{0%,100%{opacity:.35}50%{opacity:.6}}
+@keyframes es-kh{0%,100%{opacity:.4}50%{opacity:1}}</style>
+<defs><radialGradient id="g-noaccess" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-noaccess)"></circle>
+<g class="e in"><g class="e hsh"><g fill="none" stroke-width="9" stroke-linecap="round" style="stroke:var(--es-line-strong,#5c5e6b)"><path d="M84 50 72 134M124 50 112 134M60 76h80M54 108h80"></path></g></g></g>
+<g class="e in" style="animation-delay:.3s"><g class="e fl"><g class="e lk">
+<path d="M84 118v-12a16 16 0 0 1 32 0v12" fill="none" stroke-width="8" stroke-linecap="round" style="stroke:var(--es-line,#3a3b45)"></path>
+<rect x="72" y="114" width="56" height="44" rx="12" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></rect>
+<circle class="e kh" cx="100" cy="132" r="6" style="fill:var(--es-accent,#a78bfa)"></circle><rect x="97.5" y="134" width="5" height="12" rx="2.5" style="fill:var(--es-accent,#a78bfa)"></rect>
+</g></g></g>
+</svg>

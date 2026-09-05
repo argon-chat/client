@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppState } from "@/store/system/appState";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 
 const appState = useAppState();
 
@@ -23,7 +24,7 @@ function reloadPage() {
 
       <!-- Error: keep the failure + retry affordance -->
       <div v-else key="error" class="loader loader-error">
-        <div class="error-icon">⚠</div>
+        <EmptyStateArt name="error-generic" :size="152" />
         <h2 class="error-title">Initialization Failed</h2>
         <p class="error-message">{{ appState.initError }}</p>
         <button @click="reloadPage" class="retry-button">Retry</button>
@@ -92,24 +93,6 @@ function reloadPage() {
   max-width: 400px;
   padding: 2rem;
   text-align: center;
-}
-
-.error-icon {
-  font-size: 4rem;
-  color: #ef4444;
-  animation: error-shake 0.5s ease-in-out, error-pulse 2s ease-in-out infinite;
-  display: inline-block;
-}
-
-@keyframes error-shake {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  25% { transform: translateX(-10px) rotate(-5deg); }
-  75% { transform: translateX(10px) rotate(5deg); }
-}
-
-@keyframes error-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.9; }
 }
 
 .error-title {

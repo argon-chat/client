@@ -13,9 +13,7 @@
 
       <!-- Error -->
       <div v-else-if="errorMessage" class="flex flex-col items-center justify-center gap-4 px-8 py-14 text-center">
-        <div class="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-          <LinkIcon class="w-6 h-6 text-destructive" />
-        </div>
+        <EmptyStateArt :name="errorBanned ? 'forbidden' : 'invite-invalid'" :size="144" />
         <div>
           <h3 class="font-semibold">{{ t("invite_invalid") }}</h3>
           <p class="text-sm text-muted-foreground mt-1">{{ errorMessage }}</p>
@@ -91,12 +89,13 @@ import { ref, computed, watch } from "vue";
 import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
 import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { Button } from "@argon/ui/button";
-import { Loader2, UsersIcon, LogInIcon, LinkIcon } from "lucide-vue-next";
+import { Loader2, UsersIcon, LogInIcon } from "lucide-vue-next";
 import { PhSealCheck } from "@phosphor-icons/vue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useWindow } from "@/store/ui/windowStore";
 import { useApi } from "@/store/system/apiStore";
 import { useSpaceStore } from "@/store/data/serverStore";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { AcceptInviteError } from "@argon/glue";
@@ -122,6 +121,9 @@ const bannerUrl = computed(() =>
   preview.value?.topBannerFileId ? cdnUrl(preview.value.topBannerFileId, preview.value.spaceId) : "",
 );
 
+/** Whether the refusal was "you personally may not", as opposed to a link that no longer works. */
+const errorBanned = ref(false);
+
 function errorFor(error: AcceptInviteError): string {
   switch (error) {
     case AcceptInviteError.EXPIRED:
@@ -129,6 +131,7 @@ function errorFor(error: AcceptInviteError): string {
     case AcceptInviteError.LIMIT_REACHED:
       return t("invite_limit_reached");
     case AcceptInviteError.YOU_ARE_BANNED:
+      errorBanned.value = true;
       return t("invite_banned");
     default:
       return t("invite_not_found");
@@ -139,6 +142,7 @@ async function load(code: string) {
   loading.value = true;
   preview.value = null;
   errorMessage.value = "";
+  errorBanned.value = false;
   joinError.value = "";
   try {
     const result = await api.userInteraction.PreviewInvite({ inviteCode: code });

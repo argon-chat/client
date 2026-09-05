@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .tl2{animation:es-tl2 4s ease-in-out .9s infinite}
+.es-svg .tr2{animation:es-tr2 4s ease-in-out .9s infinite}
+.es-svg .hnd{animation:es-hnd 4s linear .9s infinite}
+.es-svg .hnd2{animation:es-hnd2 24s linear .9s infinite}
+@keyframes es-tl2{0%,100%{transform:rotate(-8deg) translate(0,0)}50%{transform:rotate(-12deg) translate(-3px,2px)}}
+@keyframes es-tr2{0%,100%{transform:rotate(8deg) translate(0,0)}50%{transform:rotate(12deg) translate(3px,2px)}}
+@keyframes es-hnd{to{transform:rotate(360deg)}}
+@keyframes es-hnd2{to{transform:rotate(360deg)}}</style>
+<defs><radialGradient id="g-inviteinvalid" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-inviteinvalid)"></circle>
+<g class="e in"><g class="e fl">
+<g class="e tl2" style="transform-origin:66px 110px;transform-box:view-box"><path d="M36 84h56l-6 12 6 12-6 12 6 12-6 12 6 12H36a6 6 0 0 1-6-6V90a6 6 0 0 1 6-6z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<rect x="42" y="98" width="30" height="5" rx="2.5" style="fill:var(--es-accent,#a78bfa)"></rect><rect x="42" y="110" width="22" height="5" rx="2.5" style="fill:var(--es-line,#3a3b45)"></rect><rect x="42" y="122" width="26" height="5" rx="2.5" style="fill:var(--es-line,#3a3b45)"></rect></g>
+<g class="e tr2" style="transform-origin:134px 110px;transform-box:view-box"><path d="M104 84h60a6 6 0 0 1 6 6v60a6 6 0 0 1-6 6h-60l-6-12 6-12-6-12 6-12-6-12z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<rect x="126" y="98" width="30" height="5" rx="2.5" style="fill:var(--es-line,#3a3b45)"></rect><rect x="118" y="122" width="38" height="5" rx="2.5" style="fill:var(--es-line,#3a3b45)"></rect></g>
+</g></g>
+<g class="e in" style="animation-delay:.4s"><circle cx="150" cy="56" r="18" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-danger,#f04747)"></circle>
+<g class="e hnd2" style="transform-origin:150px 56px;transform-box:view-box"><path d="M150 56v-8" stroke-width="2.5" stroke-linecap="round" style="stroke:var(--es-paper,#e4e4e8)"></path></g>
+<g class="e hnd" style="transform-origin:150px 56px;transform-box:view-box"><path d="M150 56v-12" stroke-width="2" stroke-linecap="round" style="stroke:var(--es-danger,#f04747)"></path></g>
+<circle cx="150" cy="56" r="2" style="fill:var(--es-paper,#e4e4e8)"></circle></g>
+</svg>

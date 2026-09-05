@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onErrorCaptured } from "vue";
 import { logger } from "@argon/core";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 
 const hasError = ref(false);
 const message = ref("");
@@ -27,7 +28,7 @@ function dismiss() {
 
   <div v-else class="error-boundary">
     <div class="eb-card">
-      <div class="eb-icon">⚠</div>
+      <EmptyStateArt name="error-generic" :size="148" />
       <h2 class="eb-title">Something went wrong</h2>
       <p v-if="message" class="eb-msg">{{ message }}</p>
       <div class="eb-actions">
@@ -62,11 +63,6 @@ function dismiss() {
   border-radius: var(--radius);
   background: hsl(var(--card));
   box-shadow: 0 18px 50px hsl(0 0% 0% / 0.25);
-}
-
-.eb-icon {
-  font-size: 3rem;
-  color: #ef4444;
 }
 
 .eb-title {

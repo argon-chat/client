@@ -4,9 +4,7 @@
             class="sm:max-w-[420px] rounded-2xl border bg-card/95 backdrop-blur-2xl p-8 space-y-6">
 
             <div class="relative text-center space-y-3">
-                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-                    <span class="i-lucide-phone-off text-destructive text-2xl"></span>
-                </div>
+                <EmptyStateArt name="call-failed" :size="140" class="mx-auto" />
                 <DialogTitle as="h2" class="text-xl font-bold text-foreground leading-7">
                     {{ t('call_connect_failed_title') }}
                 </DialogTitle>
@@ -30,6 +28,7 @@
 <script setup lang="ts">
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .pw{animation:es-pw 2.4s ease-in-out .9s infinite}
+.es-svg .rg2{animation:es-rg2 2.4s ease-out .9s infinite;opacity:0}
+@keyframes es-pw{0%,100%{opacity:.4;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes es-rg2{0%{opacity:.7;transform:scale(.6)}100%{opacity:0;transform:scale(2.4)}}</style>
+<defs><radialGradient id="g-nosessions" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-nosessions)"></circle>
+<g class="e in"><g class="e fl">
+<rect x="40" y="64" width="90" height="60" rx="8" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></rect><rect x="46" y="70" width="78" height="46" rx="4" style="fill:var(--es-void,#131316)"></rect>
+<path d="M30 132h110" stroke-width="6" stroke-linecap="round" style="stroke:var(--es-line,#3a3b45)"></path>
+<rect x="128" y="86" width="36" height="60" rx="8" stroke-width="3" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></rect><rect x="133" y="94" width="26" height="40" rx="3" style="fill:var(--es-void,#131316)"></rect>
+<circle class="e rg2" cx="85" cy="93" r="6" fill="none" stroke-width="2" style="stroke:var(--es-ok,#3ba55c)"></circle>
+<circle class="e pw" cx="85" cy="93" r="6" style="fill:var(--es-ok,#3ba55c)"></circle>
+</g></g>
+</svg>

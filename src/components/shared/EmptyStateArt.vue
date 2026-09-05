@@ -27,6 +27,10 @@
 
 <script lang="ts">
 export type EmptyStateArtName =
+  | "call-failed"
+  | "error-generic"
+  | "forbidden"
+  | "installing"
   | "inventory"
   | "no-bots"
   | "no-channels"
@@ -36,15 +40,45 @@ export type EmptyStateArtName =
   | "no-messages"
   | "no-one-here"
   | "no-text-channel"
+  | "invite-invalid"
+  | "no-access"
+  | "no-boosts"
+  | "no-devices"
+  | "no-hotkeys"
+  | "no-passkeys"
+  | "no-screens"
+  | "no-sessions"
+  | "no-transactions"
   | "not-found"
-  | "select-role";
+  | "offline"
+  | "permission-needed"
+  | "select-role"
+  | "unauthorized"
+  | "updating";
 </script>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { reduceMotion } from "@/composables/useReducedMotion";
 
+import callFailed from "@/styles/empty-states/call-failed.svg?raw";
+import errorGeneric from "@/styles/empty-states/error-generic.svg?raw";
+import forbidden from "@/styles/empty-states/forbidden.svg?raw";
+import installing from "@/styles/empty-states/installing.svg?raw";
 import inventory from "@/styles/empty-states/inventory.svg?raw";
+import inviteInvalid from "@/styles/empty-states/invite-invalid.svg?raw";
+import noAccess from "@/styles/empty-states/no-access.svg?raw";
+import noBoosts from "@/styles/empty-states/no-boosts.svg?raw";
+import noDevices from "@/styles/empty-states/no-devices.svg?raw";
+import noHotkeys from "@/styles/empty-states/no-hotkeys.svg?raw";
+import noPasskeys from "@/styles/empty-states/no-passkeys.svg?raw";
+import noScreens from "@/styles/empty-states/no-screens.svg?raw";
+import noSessions from "@/styles/empty-states/no-sessions.svg?raw";
+import noTransactions from "@/styles/empty-states/no-transactions.svg?raw";
+import offline from "@/styles/empty-states/offline.svg?raw";
+import permissionNeeded from "@/styles/empty-states/permission-needed.svg?raw";
+import unauthorized from "@/styles/empty-states/unauthorized.svg?raw";
+import updating from "@/styles/empty-states/updating.svg?raw";
 import noBots from "@/styles/empty-states/no-bots.svg?raw";
 import noChannels from "@/styles/empty-states/no-channels.svg?raw";
 import noFriendsOnline from "@/styles/empty-states/no-friends-online.svg?raw";
@@ -57,7 +91,24 @@ import notFound from "@/styles/empty-states/not-found.svg?raw";
 import selectRole from "@/styles/empty-states/select-role.svg?raw";
 
 const ART: Record<EmptyStateArtName, string> = {
+  "call-failed": callFailed,
+  "error-generic": errorGeneric,
+  forbidden,
+  installing,
   inventory,
+  "invite-invalid": inviteInvalid,
+  "no-access": noAccess,
+  "no-boosts": noBoosts,
+  "no-devices": noDevices,
+  "no-hotkeys": noHotkeys,
+  "no-passkeys": noPasskeys,
+  "no-screens": noScreens,
+  "no-sessions": noSessions,
+  "no-transactions": noTransactions,
+  offline,
+  "permission-needed": permissionNeeded,
+  unauthorized,
+  updating,
   "no-bots": noBots,
   "no-channels": noChannels,
   "no-friends-online": noFriendsOnline,
@@ -106,10 +157,15 @@ const px = computed(() => `${props.size}px`);
   --es-on-accent: #fff;
   --es-shadow: #000;
 
-  /* Semantic confetti — deliberately not the theme's destructive/success, which are UI states. */
+  /* Semantic confetti — deliberately not the theme's destructive/success, which are UI states.
+     Constant across themes: a warning sign that changed colour with the theme would stop reading
+     as one. --es-success is the decorative teal; --es-ok is an actual "this worked" green. */
   --es-danger: #f04747;
+  --es-danger-soft: #ffb3b3;
   --es-warning: #f0b232;
+  --es-warning-deep: #c98f1a;
   --es-success: #2bb3a3;
+  --es-ok: #3ba55c;
   --es-info: #5fb3f5;
 
   flex: none;

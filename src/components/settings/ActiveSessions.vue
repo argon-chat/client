@@ -19,8 +19,10 @@
 
     <!-- The server only reports sessions it currently sees, so an empty list means "nothing is
          signed in right now", not "we failed to ask" — a failed call keeps the previous list. -->
-    <div v-else-if="sessions.length === 0" class="text-center py-6 text-sm text-muted-foreground">
-      {{ t("sessions_empty") }}
+    <div v-else-if="sessions.length === 0"
+      class="flex flex-col items-center justify-center py-2 text-sm text-muted-foreground">
+      <EmptyStateArt name="no-sessions" :size="132" />
+      <span>{{ t("sessions_empty") }}</span>
     </div>
 
     <div v-else class="space-y-2">
@@ -109,6 +111,7 @@ import {
 } from "lucide-vue-next";
 import { SessionError, type IRevokeSessionResult, type SessionInfo } from "@argon/glue";
 import { useApi } from "@/store/system/apiStore";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";

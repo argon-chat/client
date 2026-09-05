@@ -356,8 +356,9 @@
                 </div>
               </div>
 
-              <div v-else class="text-center py-6 text-sm text-muted-foreground">
-                {{ t("no_passkeys") }}
+              <div v-else class="flex flex-col items-center justify-center py-2 text-sm text-muted-foreground">
+                <EmptyStateArt name="no-passkeys" :size="132" />
+                <span>{{ t("no_passkeys") }}</span>
               </div>
             </div>
             <!-- Password Change -->
@@ -885,6 +886,7 @@ import ProfileCardPreview from "./ProfileCardPreview.vue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import QRStyled from "../login/QRStyled.vue";
 import { useMe } from "@/store/auth/meStore";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import {
   UserIcon,

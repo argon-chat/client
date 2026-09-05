@@ -42,7 +42,7 @@
         </div>
 
         <div v-if="ultima.transactions.length === 0" class="empty-state">
-          <ReceiptIcon class="w-10 h-10 text-muted-foreground/30" />
+          <EmptyStateArt name="no-transactions" :size="140" />
           <p class="empty-label">{{ t('ultima_tx_no_transactions') }}</p>
           <p class="empty-hint">{{ t('ultima_tx_no_transactions_hint') }}</p>
         </div>
@@ -78,9 +78,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { Loader2, CreditCardIcon, ReceiptIcon, RocketIcon, GiftIcon, CrownIcon } from "lucide-vue-next";
+import { Loader2, CreditCardIcon, RocketIcon, GiftIcon, CrownIcon } from "lucide-vue-next";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import type { UltimaTransaction } from "@argon/glue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();

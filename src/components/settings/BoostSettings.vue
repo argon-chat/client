@@ -29,9 +29,7 @@
 
         <!-- Empty State -->
         <div v-if="ultima.boosts.length === 0" class="empty-state">
-          <div class="empty-icon-wrap">
-            <RocketIcon class="w-10 h-10 text-violet-500/30" />
-          </div>
+          <EmptyStateArt name="no-boosts" :size="140" />
           <p class="empty-label">{{ t('ultima_no_boosts') }}</p>
           <p class="empty-hint">{{ t('ultima_no_boosts_hint') }}</p>
           <button v-if="ultima.pricing" class="empty-cta" @click="scrollToShop">
@@ -317,6 +315,7 @@ import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { RealtimeUser } from "@/store/db/dexie";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 
 const { t } = useLocale();

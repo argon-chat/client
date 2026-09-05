@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="es-svg">
+<style>
+.es-svg .e{transform-box:fill-box;transform-origin:center}
+.es-svg .in{animation:es-pop .7s cubic-bezier(.2,.9,.3,1.25) both}
+.es-svg .fl{animation:es-fl 3.4s ease-in-out .8s infinite}
+.es-svg .glow{animation:es-glow 3.4s ease-in-out .8s infinite}
+@keyframes es-pop{0%{opacity:0;transform:scale(.6) translateY(14px)}70%{opacity:1;transform:scale(1.05) translateY(-2px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
+.es-svg .rk{animation:es-rk 3s ease-in-out .9s infinite}
+.es-svg .fm{animation:es-fm .45s ease-in-out infinite alternate}
+.es-svg .smk{animation:es-smk 2.4s ease-out infinite;opacity:0}
+@keyframes es-rk{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes es-fm{from{transform:scaleY(.6) scaleX(.9)}to{transform:scaleY(1.1) scaleX(1.05)}}
+@keyframes es-smk{0%{opacity:0;transform:translate(0,0) scale(.5)}30%{opacity:.5}100%{opacity:0;transform:translate(var(--dx,0),-26px) scale(1.4)}}</style>
+<defs><radialGradient id="g-noboosts" cx="50%" cy="55%" r="50%"><stop offset="0" stop-opacity=".22" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop><stop offset="1" stop-opacity="0" style="stop-color:var(--es-accent-deep,#7c5cf5)"></stop></radialGradient></defs>
+<circle class="glow" cx="100" cy="104" r="88" fill="url(#g-noboosts)"></circle>
+<g class="e in" style="animation-delay:.3s"><rect x="56" y="156" width="88" height="8" rx="4" style="fill:var(--es-surface-2,#2c2d34)"></rect><path d="M72 156v-14M128 156v-14" stroke-width="5" stroke-linecap="round" style="stroke:var(--es-line,#3a3b45)"></path></g>
+<g class="e in"><g class="e rk">
+<g class="e fm" style="transform-origin:100px 132px;transform-box:view-box"><path d="M90 132q10 22 20 0z" style="fill:var(--es-warning,#f0b232)"></path><path d="M95 132q5 12 10 0z" style="fill:var(--es-danger,#f04747)"></path></g>
+<path d="M100 42c16 14 22 34 22 60v22H78v-22c0-26 6-46 22-60z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-surface,#23242b);stroke:var(--es-line,#3a3b45)"></path>
+<path d="M78 104l-14 20h14zM122 104l14 20h-14z" stroke-width="3" stroke-linejoin="round" style="fill:var(--es-accent-deep,#7c5cf5);stroke:var(--es-line,#3a3b45)"></path>
+<circle cx="100" cy="88" r="10" stroke-width="3" style="fill:var(--es-void,#131316);stroke:var(--es-accent,#a78bfa)"></circle>
+<rect x="92" y="124" width="16" height="8" rx="3" style="fill:var(--es-line,#3a3b45)"></rect>
+</g></g>
+<g style="fill:var(--es-line-strong,#5c5e6b)"><circle class="e smk" style="--dx:-14px" cx="86" cy="150" r="5"></circle><circle class="e smk" style="--dx:12px;animation-delay:.8s" cx="112" cy="150" r="6"></circle><circle class="e smk" style="--dx:0px;animation-delay:1.6s" cx="100" cy="152" r="4"></circle></g>
+</svg>

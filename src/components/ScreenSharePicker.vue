@@ -62,7 +62,7 @@
                     </div>
 
                     <div v-else class="sp-state">
-                        <component :is="shareTab === 'screens' ? Monitor : AppWindow" class="w-7 h-7 text-muted-foreground/40 mb-2" />
+                        <EmptyStateArt name="no-screens" :size="128" />
                         <span class="sp-state-text">
                             {{ shareTab === 'screens' ? t("no_screens_found") : t("no_windows_found") }}
                         </span>
@@ -156,6 +156,7 @@ import {
     DialogDescription,
     DialogHeader,
 } from "@argon/ui/dialog";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useMe } from "@/store/auth/meStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";

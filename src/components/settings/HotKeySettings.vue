@@ -13,7 +13,8 @@ import Kbd from "@/components/kbd/Kbd.vue";
 import { keyCodeToFormatterSymbolsOrNames } from "@/lib/keyCodes";
 import AddHotkeyModal from "../modals/AddHotkeyModal.vue";
 import { Badge } from "@argon/ui/badge";
-import { PlusIcon, TrashIcon, KeyboardIcon, ShieldAlertIcon } from "lucide-vue-next";
+import { PlusIcon, TrashIcon, ShieldAlertIcon } from "lucide-vue-next";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import DesktopOnlyNotice from "@/components/shared/DesktopOnlyNotice.vue";
 import { supports } from "@/lib/platform";
 
@@ -191,9 +192,7 @@ function removeHotkey(id: string) {
 
       <!-- Empty State -->
       <div v-else class="empty-state">
-        <div class="empty-state-icon">
-          <KeyboardIcon class="w-16 h-16 text-muted-foreground/30" />
-        </div>
+        <EmptyStateArt name="no-hotkeys" :size="156" />
         <h3 class="empty-state-title">{{ t("no_hotkeys_yet") }}</h3>
         <p class="empty-state-description">
           {{ t("no_hotkeys_description") }}

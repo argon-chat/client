@@ -38,6 +38,13 @@ const COLORS: Record<string, string> = {
   "#f0b232": "es-warning",
   "#2bb3a3": "es-success",
   "#5fb3f5": "es-info",
+  // Shades the second drop of artwork brought: a true "done" green (the teal above is decorative
+  // confetti), the deeper gold a coin is shaded with, and the highlight on a stop sign.
+  "#3ba55c": "es-ok",
+  "#c98f1a": "es-warning-deep",
+  "#ffb3b3": "es-danger-soft",
+  // Dim label text — the same role --es-paper-dim already fills.
+  "#8b8d97": "es-paper-dim",
 };
 
 const COLOR_ATTRS = ["fill", "stroke", "stop-color"];
