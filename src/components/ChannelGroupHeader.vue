@@ -12,8 +12,8 @@
     @drop="emit('drop', group.groupId, $event)"
   >
     <div class="group-label" @click="emit('toggle', group.groupId)">
-      <ChevronRightIcon v-if="group.isCollapsed" class="group-chevron" />
-      <ChevronDownIcon v-else class="group-chevron" />
+      <ChevronRightIcon v-if="group.isCollapsed" class="group-chevron icon-appear" />
+      <ChevronDownIcon v-else class="group-chevron icon-appear" />
       <span class="group-name" :title="group.name">{{ group.name }}</span>
     </div>
 

@@ -4,14 +4,14 @@
         v-if="me.me"
         v-show="pex.has('ManageServer') || pex.has('ManageChannels') || pex.has('ManageArchetype') || pex.has('ManageBots')"
     >
-        <button
+        <button class="icon-motion icon-motion--pop"
             v-show="pex.has('ManageServer') || pex.has('ManageArchetype') || pex.has('ManageBots')"
             @click="openServerSettings"
             title="Server settings"
         >
             <SettingsIcon class="w-4 h-4" />
         </button>
-        <button
+        <button class="icon-motion icon-motion--pop"
             v-show="pex.has('ManageChannels')"
             @click="addGroupOpened = true"
             title="New group"

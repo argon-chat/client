@@ -219,7 +219,7 @@ const navItems = computed<NavItem[]>(() => [
                 <button v-if="dialpadActive"
                     @click="softphoneOpened = !softphoneOpened"
                     :title="t('dial_pad')"
-                    class="flex items-center justify-center w-9 h-8 rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-all">
+                    class="flex items-center justify-center w-9 h-8 rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-all icon-motion icon-motion--pop">
                     <IconDialpad class="w-[18px] h-[18px]" />
                 </button>
             </div>

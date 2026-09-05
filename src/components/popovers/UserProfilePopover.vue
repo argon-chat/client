@@ -6,7 +6,7 @@
             <div class="popover-menu-anchor">
                 <DropdownMenu v-model:open="menuOpen">
                     <DropdownMenuTrigger as-child>
-                        <button class="popover-menu-btn" :class="{ 'menu-is-open': menuOpen }">
+                        <button class="popover-menu-btn icon-motion icon-motion--pop" :class="{ 'menu-is-open': menuOpen }">
                             <EllipsisVertical :size="14" />
                         </button>
                     </DropdownMenuTrigger>

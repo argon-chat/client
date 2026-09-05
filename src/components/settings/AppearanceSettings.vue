@@ -300,11 +300,11 @@
                     :class="{ 'accent-selected': accentColor === 'system' }"
                     :style="systemAccent ? { backgroundColor: systemAccent } : undefined"
                     @click="accentColor = 'system'" :title="t('accent_system')">
-                    <CheckIcon v-if="accentColor === 'system'" class="w-4 h-4 text-white" />
-                    <MonitorIcon v-else class="w-4 h-4 text-white/90" />
+                    <CheckIcon v-if="accentColor === 'system'" class="w-4 h-4 text-white icon-appear" />
+                    <MonitorIcon v-else class="w-4 h-4 text-white/90 icon-appear" />
                 </button>
 
-                <button v-for="color in accentColors" :key="color.id" class="accent-color-btn"
+                <button v-for="color in accentColors" :key="color.id" class="accent-color-btn icon-motion icon-motion--pop"
                     :class="{ 'accent-selected': accentColor === color.id }" :style="{ backgroundColor: color.value }"
                     @click="accentColor = color.id" :title="color.name">
                     <CheckIcon v-if="accentColor === color.id" class="w-4 h-4 text-white" />

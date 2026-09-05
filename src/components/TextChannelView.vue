@@ -92,7 +92,7 @@
           </div>
           <!-- Close button -->
           <button
-            class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
+            class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 icon-motion icon-motion--pop"
             @click="clearReply"
           >
             <XIcon class="w-3.5 h-3.5" />

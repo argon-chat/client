@@ -21,16 +21,16 @@
             :title="activity.isPopout ? 'Dock' : 'Pop out'"
             @click="activity.togglePopout()"
           >
-            <Shrink v-if="activity.isPopout" class="w-4 h-4" />
-            <ExternalLink v-else class="w-4 h-4" />
+            <Shrink v-if="activity.isPopout" class="w-4 h-4 icon-appear" />
+            <ExternalLink v-else class="w-4 h-4 icon-appear" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             @click="toggleFullscreen"
           >
-            <Maximize2 v-if="!isFullscreen" class="w-4 h-4" />
-            <Minimize2 v-else class="w-4 h-4" />
+            <Maximize2 v-if="!isFullscreen" class="w-4 h-4 icon-appear" />
+            <Minimize2 v-else class="w-4 h-4 icon-appear" />
           </Button>
           <Button
             variant="ghost"

@@ -9,7 +9,7 @@
 
                 <button 
                     @click="closeSettings" 
-                    class="close-button transition-all duration-200 hover:scale-110"
+                    class="close-button transition-all duration-200 hover:scale-110 icon-motion icon-motion--pop"
                     aria-label="Close settings"
                 >
                     <CircleXIcon class="w-10 h-10" />

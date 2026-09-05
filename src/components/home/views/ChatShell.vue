@@ -205,8 +205,8 @@ onUnmounted(() => {
                     :title="chatSidebarOpen ? 'Hide chat' : 'Show chat'"
                     @click="chatSidebarOpen = !chatSidebarOpen"
                 >
-                    <PanelRightCloseIcon v-if="chatSidebarOpen" class="w-5 h-5" />
-                    <PanelRightOpenIcon v-else class="w-5 h-5" />
+                    <PanelRightCloseIcon v-if="chatSidebarOpen" class="w-5 h-5 icon-appear" />
+                    <PanelRightOpenIcon v-else class="w-5 h-5 icon-appear" />
                 </button>
             </template>
         </ChatHeader>
@@ -266,7 +266,7 @@ onUnmounted(() => {
                             </span>
                         </div>
                         <button
-                            class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
+                            class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 icon-motion icon-motion--pop"
                             @click="clearReply"
                         >
                             <XIcon class="w-3.5 h-3.5" />
@@ -340,7 +340,7 @@ onUnmounted(() => {
                                     </span>
                                 </div>
                                 <button
-                                    class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
+                                    class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 icon-motion icon-motion--pop"
                                     @click="clearReply"
                                 >
                                     <XIcon class="w-3.5 h-3.5" />

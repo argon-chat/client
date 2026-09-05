@@ -41,7 +41,7 @@
                     <p class="text-xs text-muted-foreground truncate">{{ friend.status }}</p>
                 </div>
                 <button @click.stop="callFriend(friend.id)"
-                    class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/10 rounded-lg shrink-0">
+                    class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary/10 rounded-lg shrink-0 icon-motion icon-motion--pop">
                     <IconPhoneCall class="w-5 h-5 text-primary" />
                 </button>
             </div>

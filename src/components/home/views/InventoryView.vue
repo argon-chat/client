@@ -68,8 +68,8 @@
                     <slot name="item" :index="i - 1">
                         <!-- Default slot: question mark for unknown items, basket for empty -->
                         <div class="flex items-center justify-center w-full h-full opacity-30 group-hover:opacity-50 transition-opacity">
-                            <IconQuestionMark v-if="props.isUnknownItem?.(i - 1)" class="w-16 h-16 text-amber-400/70" stroke-width="1.5" />
-                            <IconBasket v-else class="w-16 h-16 text-muted-foreground" stroke-width="1.5" />
+                            <IconQuestionMark v-if="props.isUnknownItem?.(i - 1)" class="w-16 h-16 text-amber-400/70 icon-appear" stroke-width="1.5" />
+                            <IconBasket v-else class="w-16 h-16 text-muted-foreground icon-appear" stroke-width="1.5" />
                         </div>
                     </slot>
                     <!-- Count badge -->

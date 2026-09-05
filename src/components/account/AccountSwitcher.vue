@@ -122,7 +122,7 @@ function confirmRemove(a: AccountRecord) {
         </div>
 
         <button
-          class="row-remove"
+          class="row-remove icon-motion icon-motion--pop"
           :class="{ 'is-confirming': removingId === a.id }"
           :title="t('remove_account')"
           @click.stop="confirmRemove(a)"

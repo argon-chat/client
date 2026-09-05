@@ -104,7 +104,7 @@
                       </label>
                       <button
                         v-if="editPrimaryColor != null"
-                        class="color-dot color-dot--reset"
+                        class="color-dot color-dot--reset icon-motion icon-motion--pop"
                         @click="editPrimaryColor = null"
                         :title="t('reset')"
                       >
@@ -135,7 +135,7 @@
                       </label>
                       <button
                         v-if="editAccentColor != null"
-                        class="color-dot color-dot--reset"
+                        class="color-dot color-dot--reset icon-motion icon-motion--pop"
                         @click="editAccentColor = null"
                         :title="t('reset')"
                       >

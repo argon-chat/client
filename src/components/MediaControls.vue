@@ -57,8 +57,8 @@
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <!-- System / desktop audio -->
                         <button class="device-row" :class="{ active: voice.systemAudioEnabled }" @click="voice.toggleSystemAudio()">
-                            <Volume2 v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 shrink-0" />
-                            <VolumeX v-else class="w-3.5 h-3.5 shrink-0" />
+                            <Volume2 v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 shrink-0 icon-appear" />
+                            <VolumeX v-else class="w-3.5 h-3.5 shrink-0 icon-appear" />
                             <span class="device-name">{{ t('system_audio') }}</span>
                             <Check v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 ml-auto shrink-0" />
                         </button>

@@ -3,7 +3,7 @@
     <Transition name="lightbox">
       <div v-if="isOpen" class="lightbox-overlay" @click.self="close" @keydown="onKeydown" tabindex="0" ref="overlayRef">
         <!-- Close button -->
-        <button class="lightbox-btn lightbox-close" @click="close">
+        <button class="lightbox-btn lightbox-close icon-motion icon-motion--pop" @click="close">
           <XIcon class="w-5 h-5" />
         </button>
 
@@ -44,7 +44,7 @@
         </button>
 
         <!-- Download button -->
-        <button class="lightbox-btn lightbox-download" @click.stop="download">
+        <button class="lightbox-btn lightbox-download icon-motion icon-motion--pop" @click.stop="download">
           <DownloadIcon class="w-5 h-5" />
         </button>
       </div>

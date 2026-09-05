@@ -111,7 +111,7 @@ const displayColor = computed(() =>
     <div class="flex items-center gap-3 mt-2">
       <div class="w-10 h-10 rounded-lg border border-white/10 shadow-sm"
         :style="{ backgroundColor: displayColor }" />
-      <button type="button" :disabled="readonly" :class="[
+      <button class="icon-motion icon-motion--pop" type="button" :disabled="readonly" :class="[
         'w-10 h-10 flex items-center justify-center rounded-lg border transition-all duration-150',
         'border-white/10 hover:border-white/40 hover:bg-white/5',
         readonly ? 'cursor-not-allowed opacity-50' : ''

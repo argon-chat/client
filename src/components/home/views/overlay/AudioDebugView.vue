@@ -122,8 +122,8 @@
                                     @click="toggleInputMute"
                                     :class="['w-6 h-6 rounded text-xs flex items-center justify-center', inputMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400']"
                                 >
-                                    <MicOff v-if="inputMuted" :size="12" />
-                                    <Mic v-else :size="12" />
+                                    <MicOff class="icon-appear" v-if="inputMuted" :size="12" />
+                                    <Mic class="icon-appear" v-else :size="12" />
                                 </button>
                             </div>
                         </div>
@@ -169,8 +169,8 @@
                                     @click="toggleOutputMute"
                                     :class="['w-6 h-6 rounded text-xs flex items-center justify-center', outputMuted ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400']"
                                 >
-                                    <VolumeX v-if="outputMuted" :size="12" />
-                                    <Volume2 v-else :size="12" />
+                                    <VolumeX class="icon-appear" v-if="outputMuted" :size="12" />
+                                    <Volume2 class="icon-appear" v-else :size="12" />
                                 </button>
                             </div>
                         </div>

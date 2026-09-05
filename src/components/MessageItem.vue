@@ -93,7 +93,7 @@
           <Tooltip>
             <TooltipTrigger as-child>
               <button
-                class="inline-flex items-center gap-0.5 text-destructive p-0 border-none bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
+                class="inline-flex items-center gap-0.5 text-destructive p-0 border-none bg-transparent cursor-pointer hover:opacity-70 transition-opacity icon-motion icon-motion--pop"
                 @click="emit('retry', props.message)"
               >
                 <AlertCircleIcon class="w-3.5 h-3.5" />

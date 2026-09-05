@@ -100,7 +100,7 @@
                             <span class="ml-2 text-xs">{{ isInputMonitoring ? t("mute") : t("monitor") }}</span>
                         </Button>
                         <button 
-                            class="gate-toggle-btn"
+                            class="gate-toggle-btn icon-motion icon-motion--pop"
                             :class="{ active: inputGateEnabled }"
                             @click="inputGateEnabled = !inputGateEnabled; onChangeInputGateEnabled(inputGateEnabled)"
                             :title="t('input_gate')"

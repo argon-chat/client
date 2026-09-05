@@ -61,7 +61,7 @@ onUnmounted(() => {
         <div class="flex items-center gap-3">
             <slot name="actions" />
             <button 
-                class="p-2 rounded-full bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed" 
+                class="p-2 rounded-full bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed icon-motion icon-motion--pop" 
                 :disabled="isAlreadyInCall"
                 @click="emit('call')">
                 <IconPhone class="w-5 h-5" />

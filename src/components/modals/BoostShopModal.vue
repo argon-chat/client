@@ -37,7 +37,7 @@
               <ShoppingBagIcon v-else class="w-4 h-4" />
               {{ t('ultima_boost_buy') }}
             </button>
-            <button v-else class="pack-buy-btn" :disabled="true">
+            <button v-else class="pack-buy-btn icon-motion icon-motion--pop" :disabled="true">
               <LockIcon class="w-4 h-4" />
             </button>
           </div>

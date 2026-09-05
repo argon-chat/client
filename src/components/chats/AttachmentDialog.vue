@@ -24,7 +24,7 @@
         <div v-if="selectedFile && isImage(selectedFile)" class="image-preview">
           <img :src="selectedFile.previewUrl!" alt="" class="preview-img" />
           <!-- Edit button -->
-          <button class="edit-btn" @click="openEditor" :title="t('edit')">
+          <button class="edit-btn icon-motion icon-motion--pop" @click="openEditor" :title="t('edit')">
             <PencilIcon class="w-4 h-4" />
           </button>
         </div>
@@ -35,15 +35,15 @@
             <PlayIcon class="w-5 h-5 fill-current" />
           </div>
           <!-- Edit button -->
-          <button class="edit-btn" @click="openEditor" :title="t('edit')">
+          <button class="edit-btn icon-motion icon-motion--pop" @click="openEditor" :title="t('edit')">
             <PencilIcon class="w-4 h-4" />
           </button>
         </div>
         <!-- File preview -->
         <div v-else-if="selectedFile" class="file-preview">
           <div class="file-preview-icon">
-            <FileTextIcon v-if="selectedFile.file.type === 'application/pdf'" class="w-12 h-12" />
-            <FileIcon v-else class="w-12 h-12" />
+            <FileTextIcon v-if="selectedFile.file.type === 'application/pdf'" class="w-12 h-12 icon-appear" />
+            <FileIcon v-else class="w-12 h-12 icon-appear" />
           </div>
           <div class="file-preview-name">{{ selectedFile.file.name }}</div>
           <div class="file-preview-size">{{ formatSize(selectedFile.file.size) }}</div>
@@ -69,7 +69,7 @@
             <XIcon class="w-2.5 h-2.5" />
           </div>
         </button>
-        <button class="strip-add" @click="$emit('add-more')">
+        <button class="strip-add icon-motion icon-motion--pop" @click="$emit('add-more')">
           <PlusIcon class="w-4 h-4" />
         </button>
       </div>

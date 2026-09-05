@@ -182,7 +182,7 @@
                             <div v-for="user in usersForRole" :key="user.userId"
                               class="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/30 transition-colors">
                               <button
-                                class="text-red-500 hover:text-red-400 transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed shrink-0"
+                                class="text-red-500 hover:text-red-400 transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed shrink-0 icon-motion icon-motion--pop"
                                 :disabled="selectedArchetype.isLocked || selectedArchetype.isDefault"
                                 @click="revokeArchetype(user.userId)">
                                 <BanIcon class="w-4 h-4" />

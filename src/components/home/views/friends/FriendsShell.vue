@@ -27,7 +27,7 @@
                     <button
                         v-if="query"
                         type="button"
-                        class="friends-search-clear"
+                        class="friends-search-clear icon-motion icon-motion--pop"
                         :title="t('clear')"
                         :aria-label="t('clear')"
                         @click="query = ''"

@@ -8,7 +8,7 @@
           {{ onlineCount }} online
         </div>
         <button
-          class="ulh-search-toggle"
+          class="ulh-search-toggle icon-motion icon-motion--pop"
           :class="{ 'ulh-search-toggle--active': searchOpen }"
           :title="t('search_placeholder')"
           @click="toggleSearch"

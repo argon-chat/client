@@ -1,8 +1,8 @@
 <template>
   <div class="file-card">
     <div class="file-icon">
-      <FileTextIcon v-if="isPdf" class="w-5 h-5" />
-      <ArchiveIcon v-else-if="isArchive" class="w-5 h-5" />
+      <FileTextIcon v-if="isPdf" class="w-5 h-5 icon-appear" />
+      <ArchiveIcon v-else-if="isArchive" class="w-5 h-5 icon-appear" />
       <FileIcon v-else class="w-5 h-5" />
     </div>
     <div class="file-info">

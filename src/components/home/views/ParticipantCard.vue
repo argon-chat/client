@@ -38,10 +38,10 @@
 
         <!-- Hover toolbar: full screen and picture-in-picture for this stream. -->
         <div v-if="showsVideo" class="tile-actions" @click.stop>
-            <button v-if="canPip" class="tile-action" :title="t('picture_in_picture')" @click="togglePip">
+            <button v-if="canPip" class="tile-action icon-motion icon-motion--pop" :title="t('picture_in_picture')" @click="togglePip">
                 <PictureInPictureIcon class="w-3.5 h-3.5" />
             </button>
-            <button class="tile-action" :title="t('fullscreen')" @click="toggleFullscreen">
+            <button class="tile-action icon-motion icon-motion--pop" :title="t('fullscreen')" @click="toggleFullscreen">
                 <MaximizeIcon class="w-3.5 h-3.5" />
             </button>
         </div>
