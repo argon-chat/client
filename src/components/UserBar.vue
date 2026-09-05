@@ -20,7 +20,8 @@
 
     <div class="control-bar">
       <div class="controls">
-        <button @click="windows.settingsOpen = true" style="padding-right: 5px;">
+        <button @click="windows.settingsOpen = true" class="icon-motion icon-motion--spin"
+          style="padding-right: 5px;">
           <Settings class="w-6 h-6" />
         </button>
       </div>

@@ -4,6 +4,7 @@ import "vfonts/FiraCode.css";
 import "@argon/assets/styles";
 import "@argon-chat/emojix/style.css";
 import "./styles/reduced-motion.css";
+import "./styles/icon-motion.css";
 import "./styles/ultrawide.css";
 
 import "@argon/glue";
@@ -52,6 +53,25 @@ app.config.errorHandler = (err, _instance, info) => {
   console.error(`[vue:errorHandler] ${info}`, err);
 };
 
+// Per-fingerprint budget for Sentry events: at most this many identical messages per window.
+const EVENT_BUDGET = 5;
+const EVENT_WINDOW_MS = 60_000;
+const eventCounts = new Map<string, { windowStart: number; count: number }>();
+function isRateLimited(event: Sentry.ErrorEvent): boolean {
+  const first = event.exception?.values?.[0];
+  const key = `${first?.type ?? event.level ?? ""}:${first?.value ?? event.message ?? ""}`.slice(0, 200);
+  if (!key.trim()) return false;
+  const now = Date.now();
+  const slot = eventCounts.get(key);
+  if (!slot || now - slot.windowStart > EVENT_WINDOW_MS) {
+    if (eventCounts.size > 200) eventCounts.clear();
+    eventCounts.set(key, { windowStart: now, count: 1 });
+    return false;
+  }
+  slot.count++;
+  return slot.count > EVENT_BUDGET;
+}
+
 Sentry.init({
   app,
   dsn: "https://9d074ba73b580b47cdcc16adf72f523d@sentry.argon.gl/22",
@@ -99,7 +119,12 @@ Sentry.init({
   tracesSampleRate: import.meta.env.DEV ? 0 : 0.15,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
   replaysSessionSampleRate: import.meta.env.DEV ? 0 : 0.03,
-  replaysOnErrorSampleRate: 1.0,
+  // Any on-error rate above zero puts every unsampled session into rrweb's buffer mode: a DOM
+  // mirror, a document-wide MutationObserver, a compression worker round-trip per event and a
+  // Range per selection change, all session long, so that the last minute can be sent on an error.
+  // The desktop app lives for days; it keeps only the sampled sessions. The web build is short-lived
+  // and keeps the on-error replays.
+  replaysOnErrorSampleRate: isWeb ? 1.0 : 0,
   environment: import.meta.env.MODE,
   release: pkg.version,
   enabled: true,
@@ -111,6 +136,9 @@ Sentry.init({
       delete event.request.headers['Authorization'];
       delete event.request.headers['Cookie'];
     }
+    // A failing loop (an event handler that throws per realtime event, say) must not become an
+    // event per iteration: the same message is let through a few times a minute, then dropped.
+    if (isRateLimited(event)) return null;
     return event;
   },
   ignoreErrors: [

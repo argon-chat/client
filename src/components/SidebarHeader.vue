@@ -44,9 +44,10 @@
           <div class="boost-strip-bar-fill" :style="{ width: boostProgressPercent + '%' }" />
         </div>
         <span class="boost-strip-count">{{ spaceName.boostCount }}</span>
-        <button class="boost-strip-btn" ref="boostBtnRef" :disabled="boosting" @click="handleBoostClick">
+        <button class="boost-strip-btn icon-motion icon-motion--lift" ref="boostBtnRef" :disabled="boosting"
+          @click="handleBoostClick">
           <Loader2 v-if="boosting" class="w-3 h-3 animate-spin" />
-          <RocketIcon v-else class="w-3 h-3" />
+          <RocketIcon v-else class="w-3 h-3 icon-appear" />
           Boost
         </button>
       </div>

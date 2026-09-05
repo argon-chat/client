@@ -207,6 +207,12 @@ export interface AudioManagerConfig {
    * Enable on macOS so the OS "microphone in use" state isn't held while idle.
    */
   releaseInputWhenIdle?: boolean;
+  /**
+   * Watch the DOM for <audio> elements created outside this manager and log them.
+   * Debug aid only: it installs a subtree MutationObserver on document.body that runs
+   * querySelectorAll('audio') on every inserted node for the whole session. Default: false.
+   */
+  monitorAudioElements?: boolean;
   /** URLs for noise suppressor worklets and WASM binaries (resolved via ?url imports) */
   noiseSuppressorUrls?: NoiseSuppressorUrls;
 }
@@ -301,6 +307,7 @@ export class AudioManagement implements IAudioManagement {
       enableInputLevelMonitoring: config.enableInputLevelMonitoring ?? false,
       autoInitialize: config.autoInitialize ?? true,
       releaseInputWhenIdle: config.releaseInputWhenIdle ?? false,
+      monitorAudioElements: config.monitorAudioElements ?? false,
     };
     this.audioCtx = new AudioContext({ sampleRate: this.config.sampleRate });
     if (config.noiseSuppressorUrls) {
@@ -311,7 +318,8 @@ export class AudioManagement implements IAudioManagement {
     this.validateAndAdaptConfig();
     this.loadSavedSettings();
     this.setupDeviceChangeListener();
-    this.setupAudioElementMonitor();
+    // Opt-in: the observer only logs and costs a querySelectorAll per DOM insert.
+    if (this.config.monitorAudioElements) this.setupAudioElementMonitor();
     
     // Initialize virtual output stream (synchronous, no permissions needed)
     this.initVirtualOutputStream();

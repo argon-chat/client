@@ -47,6 +47,13 @@ export const useUserStore = defineStore("user", () => {
 
   // Ignored users - users that failed to fetch from server
   const ignoredUsers = new Set<Guid>();
+  // One id per unresolvable user seen, only ever cleared on account switch — bounded here so a busy
+  // space with many departed users cannot grow it for the whole session.
+  const MAX_IGNORED_USERS = 5000;
+  function rememberIgnored(userId: Guid) {
+    if (ignoredUsers.size >= MAX_IGNORED_USERS) ignoredUsers.clear();
+    ignoredUsers.add(userId);
+  }
 
   // Lookups in flight, so several callers wanting the same unknown user share one request
   const pendingLookups = new Map<Guid, Promise<RealtimeUser | undefined>>();
@@ -171,7 +178,7 @@ export const useUserStore = defineStore("user", () => {
           // A real answer, not a failure to reach: this account has no standing reason to know that
           // one, so there is nothing to retry and no point asking again.
           logger.warn(`[UserStore] Cannot resolve user ${userId}, ignoring future lookups`);
-          ignoredUsers.add(userId);
+          rememberIgnored(userId);
           return undefined;
         }
 
@@ -532,10 +539,10 @@ export const useUserStore = defineStore("user", () => {
         // NO_ANCHOR is a real answer, not a failure to reach: this account has no standing reason
         // to know that one, so there is nothing to retry and no point asking again.
         logger.warn(`Cannot resolve user ${userId}, ignoring future updates`);
-        ignoredUsers.add(userId);
+        rememberIgnored(userId);
       } catch (err) {
         logger.error(`Error fetching user ${userId}:`, err);
-        ignoredUsers.add(userId);
+        rememberIgnored(userId);
       }
     }
   };

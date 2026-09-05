@@ -74,7 +74,7 @@
       <Tooltip>
         <TooltipTrigger as-child>
           <div class="rail-slot">
-            <button class="rail-icon-btn rail-add" @click="createSpaceOpened = true">
+            <button class="rail-icon-btn rail-add icon-motion icon-motion--turn" @click="createSpaceOpened = true">
               <Plus class="w-4 h-4" />
             </button>
           </div>
@@ -117,9 +117,9 @@
         :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
         @click="contextMenu.show = false"
       >
-        <button class="rail-ctx-item" @click="togglePin(contextMenu.serverId!)">
-          <IconPinFilled v-if="isServerPinned(contextMenu.serverId!)" class="w-4 h-4" />
-          <IconPin v-else class="w-4 h-4" />
+        <button class="rail-ctx-item icon-motion" @click="togglePin(contextMenu.serverId!)">
+          <IconPinFilled v-if="isServerPinned(contextMenu.serverId!)" class="w-4 h-4 icon-appear" />
+          <IconPin v-else class="w-4 h-4 icon-appear" />
           {{ isServerPinned(contextMenu.serverId!) ? t('unpin') : t('pin') }}
         </button>
 
@@ -137,7 +137,7 @@
         </template>
 
         <div class="rail-ctx-sep" />
-        <button class="rail-ctx-item rail-ctx-item--danger" @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
+        <button class="rail-ctx-item rail-ctx-item--danger icon-motion icon-motion--shake" @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
           <Flag class="w-4 h-4" />
           {{ t('report_space') }}
         </button>

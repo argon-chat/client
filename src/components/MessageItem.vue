@@ -353,7 +353,7 @@ const ActionBtn = defineComponent({
         "button",
         {
           class:
-            "flex items-center justify-center w-[26px] h-[26px] border-none bg-transparent text-muted-foreground rounded-md cursor-pointer transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1",
+            "icon-motion icon-motion--pop flex items-center justify-center w-[26px] h-[26px] border-none bg-transparent text-muted-foreground rounded-md cursor-pointer transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1",
         },
         slots.default?.(),
       );
@@ -361,6 +361,25 @@ const ActionBtn = defineComponent({
 });
 
 export { ActionBtn };
+
+// ── Shared singleton: timestamp format preference ──
+// Lives in this plain <script> block on purpose: module scope, one observer for every message.
+// It used to sit inside <script setup>, which is per instance — so every rendered message created
+// its own MutationObserver on <html> and never disconnected it, pinning the whole component.
+let _tsFmt: string | null = null;
+let _tsObs: MutationObserver | null = null;
+function tsFormat(): string {
+  if (!_tsFmt) {
+    _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+    if (!_tsObs) {
+      _tsObs = new MutationObserver(() => {
+        _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
+      });
+      _tsObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-timestamp-format"] });
+    }
+  }
+  return _tsFmt;
+}
 </script>
 
 <!-- ─────────────────────────────── -->
@@ -368,7 +387,7 @@ export { ActionBtn };
 <!-- ─────────────────────────────── -->
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
@@ -405,22 +424,6 @@ import {
   Loader2Icon, SmilePlusIcon, FlagIcon,
 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
-
-// ── Shared singleton: timestamp format preference ──
-let _tsFmt: string | null = null;
-let _tsObs: MutationObserver | null = null;
-function tsFormat(): string {
-  if (!_tsFmt) {
-    _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
-    if (!_tsObs) {
-      _tsObs = new MutationObserver(() => {
-        _tsFmt = document.documentElement.getAttribute("data-timestamp-format") || "24h";
-      });
-      _tsObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-timestamp-format"] });
-    }
-  }
-  return _tsFmt;
-}
 
 // ── Inline reply preview component ──
 const ReplyPreview = defineComponent({
@@ -573,6 +576,16 @@ function onMouseLeave() {
     }
   }, 200);
 }
+
+// Rows unmount constantly in the virtual scroller, often while hovered or with the reaction picker
+// open — the deferred mouseleave path never ran then, and the scroll listener stayed on the
+// container holding this instance alive.
+onBeforeUnmount(() => {
+  clearTimeout(_hoverTimer);
+  _scrollParent?.removeEventListener('scroll', onScroll);
+  _scrollParent = null;
+  _hoveredEl = null;
+});
 
 function openReactionFromMenu() {
   nextTick(() => { reactionPickerOpen.value = true; });

@@ -325,6 +325,13 @@ export const useNotificationStore = defineStore("notifications", () => {
   // ── ACK ────────────────────────────────────────────────
 
   function scheduleAck(channelId: Guid, messageId: bigint, spaceId?: Guid | null) {
+    // The scroller reports "at bottom" on every render pass, not only on user scrolls; without this
+    // check the same message was re-acked (server call + badge recalculation) every 1.5 s for as
+    // long as the user sat at the bottom of a chat.
+    const current = readStates.value.get(channelId);
+    if (current && current.lastReadMessageId >= messageId) return;
+    const queued = pendingAck.get(channelId);
+    if (queued && queued.messageId >= messageId) return;
     pendingAck.set(channelId, { messageId, spaceId: spaceId ?? null });
     if (!ackTimer) {
       ackTimer = setTimeout(flushAcks, 1500);

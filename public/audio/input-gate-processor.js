@@ -13,8 +13,10 @@ class InputGateProcessor extends AudioWorkletProcessor {
         this._holdSamples = Math.round(sampleRate * 0.15); // 150ms hold
         this._holdCounter = 0;
         this._isOpen = false;
-        this._samplesSincePost = 0;
-        this._samplesPerUpdate = Math.round(sampleRate / 30); // 30 Hz state updates
+        // Last state posted to the main thread; null = nothing posted yet, so the first
+        // process() call always reports once. After that only transitions are posted — the
+        // 150ms hold bounds them to a few per second, so no rate cap is needed.
+        this._lastPostedOpen = null;
     }
 
     process(inputs, outputs, parameters) {
@@ -34,7 +36,7 @@ class InputGateProcessor extends AudioWorkletProcessor {
                     out.set(inp);
                 }
             }
-            // Report open state when disabled
+            // Disabled means open. Posted once on the transition, not every quantum.
             this._postState(true);
             return true;
         }
@@ -83,17 +85,15 @@ class InputGateProcessor extends AudioWorkletProcessor {
             }
         }
 
-        // Post gate state at reduced rate
-        this._samplesSincePost += input[0].length;
-        if (this._samplesSincePost >= this._samplesPerUpdate) {
-            this._samplesSincePost -= this._samplesPerUpdate;
-            this._postState(this._isOpen);
-        }
+        // Report transitions only (plus the initial state)
+        this._postState(this._isOpen);
 
         return true;
     }
 
     _postState(isOpen) {
+        if (isOpen === this._lastPostedOpen) return;
+        this._lastPostedOpen = isOpen;
         this.port.postMessage({ isOpen });
     }
 }

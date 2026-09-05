@@ -3,7 +3,9 @@ import type { ToastProps } from ".";
 import { computed, ref } from "vue";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// Long enough for the dismiss animation; it used to be 1 000 000 ms, which parked a live timer (and
+// its closure) in the module-level map for 16 minutes after every dismissed toast.
+const TOAST_REMOVE_DELAY = 1000;
 
 export type StringOrVNode = string | VNode | (() => VNode);
 
@@ -111,6 +113,16 @@ function dispatch(action: Action) {
     }
 
     case actionTypes.REMOVE_TOAST:
+      if (action.toastId === undefined) {
+        for (const timeout of toastTimeouts.values()) clearTimeout(timeout);
+        toastTimeouts.clear();
+      } else {
+        const timeout = toastTimeouts.get(action.toastId);
+        if (timeout) {
+          clearTimeout(timeout);
+          toastTimeouts.delete(action.toastId);
+        }
+      }
       if (action.toastId === undefined) state.value.toasts = [];
       else
         state.value.toasts = state.value.toasts.filter(

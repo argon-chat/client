@@ -19,7 +19,7 @@
         <Popover>
           <PopoverTrigger as-child>
             <button
-              class="relative flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg text-muted-foreground cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
+              class="icon-motion icon-motion--shake relative flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg text-muted-foreground cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
               :title="t('notification_settings')"
             >
               <BellIcon class="w-4 h-4" :class="{ 'opacity-40': channelMuted }" />

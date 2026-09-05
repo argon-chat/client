@@ -187,8 +187,10 @@ export function useTheme(config: ThemeConfig = {}) {
     const densityEnabled = config.uiDensityEnabled?.() ?? false;
     root.classList.add(`density-${densityEnabled ? uiDensity.value : "comfortable"}`);
 
-    // Apply animations — always on, except when the user opts into reduced motion.
+    // Apply animations — always on, except when the user opts into reduced motion. The class is
+    // what stylesheets can key off; a duration variable only helps the rules that happen to read it.
     root.style.setProperty("--transition-duration", reduceMotion.value ? "0ms" : "200ms");
+    root.classList.toggle("reduce-motion", reduceMotion.value);
 
     // Blur is always on now.
     root.classList.remove("no-blur");

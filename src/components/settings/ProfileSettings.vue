@@ -867,7 +867,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+
+// The security-details subscription is bound in onMounted; without an unsubscribe every opening of
+// this pane (and every account switch, which remounts it) left another permanent bus subscriber
+// holding the whole pane's state.
+let securitySub: { unsubscribe(): void } | null = null;
+onUnmounted(() => {
+  securitySub?.unsubscribe();
+  securitySub = null;
+});
 import { Input } from "@argon/ui/input";
 import InputWithError from "@/components/shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
@@ -1957,7 +1966,8 @@ onMounted(async () => {
     userEmail.value = details.email ?? "";
     userPhone.value = details.phone ?? "";
 
-    bus.onServerEvent<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated", (event) => {
+    securitySub?.unsubscribe();
+    securitySub = bus.onServerEvent<UserSecurityDetailsUpdated>("UserSecurityDetailsUpdated", (event) => {
       if (event.userId === me.me?.userId) {
         otpEnabled.value = event.details.otpEnabled;
 

@@ -11,6 +11,7 @@
             <!-- Mute Toggle -->
             <button 
                 @click="toggleMute"
+                class="icon-motion"
                 :class="[
                     'w-full flex items-center justify-between p-2 rounded-lg transition-all',
                     isMuted 
@@ -20,8 +21,8 @@
             >
                 <div class="flex items-center gap-2">
                     <div :class="['p-1.5 rounded-lg', isMuted ? 'bg-red-500/20' : 'bg-green-500/20']">
-                        <IconMicrophoneOff v-if="isMuted" class="w-4 h-4 text-red-500" />
-                        <IconMicrophone v-else class="w-4 h-4 text-green-500" />
+                        <IconMicrophoneOff v-if="isMuted" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconMicrophone v-else class="w-4 h-4 text-green-500 icon-appear" />
                     </div>
                     <span class="text-xs font-medium">{{ isMuted ? t('unmute') : t('muted') }}</span>
                 </div>
@@ -33,6 +34,7 @@
             <!-- Deafen Toggle -->
             <button 
                 @click="toggleDeafen"
+                class="icon-motion"
                 :class="[
                     'w-full flex items-center justify-between p-2 rounded-lg transition-all',
                     isDeafened 
@@ -42,8 +44,8 @@
             >
                 <div class="flex items-center gap-2">
                     <div :class="['p-1.5 rounded-lg', isDeafened ? 'bg-red-500/20' : 'bg-blue-500/20']">
-                        <IconHeadphonesOff v-if="isDeafened" class="w-4 h-4 text-red-500" />
-                        <IconHeadphones v-else class="w-4 h-4 text-blue-500" />
+                        <IconHeadphonesOff v-if="isDeafened" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconHeadphones v-else class="w-4 h-4 text-blue-500 icon-appear" />
                     </div>
                     <span class="text-xs font-medium">{{ isDeafened ? t('undeafen') : t('deafened') }}</span>
                 </div>

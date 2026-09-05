@@ -54,8 +54,8 @@
               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
               : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-zinc-300'"
           >
-            <IconCheck v-if="copied" class="w-3.5 h-3.5" />
-            <IconCopy v-else class="w-3.5 h-3.5" />
+            <IconCheck v-if="copied" class="w-3.5 h-3.5 icon-appear" />
+            <IconCopy v-else class="w-3.5 h-3.5 icon-appear" />
             {{ copied ? t('linux_update_copied') : t('linux_update_copy') }}
           </button>
         </div>

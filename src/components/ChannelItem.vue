@@ -32,7 +32,7 @@
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
             <button
               v-if="canButton"
-              class="split-btn ml-auto"
+              class="split-btn ml-auto icon-motion icon-motion--pop"
               @click.stop="emit('open-split', channel.channelId)"
               title="Open in split"
             >

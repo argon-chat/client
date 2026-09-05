@@ -1,8 +1,18 @@
 let cachedDevice: GPUDevice | undefined;
+let pendingDevice: Promise<GPUDevice> | undefined;
 
 export async function initDevice(): Promise<GPUDevice> {
-  if (cachedDevice && !cachedDevice.lost) return cachedDevice;
+  if (cachedDevice) return cachedDevice;
 
+  // Callers racing before the first device resolves share one request; otherwise each would get
+  // its own adapter + device, and devices are never destroyed.
+  if (!pendingDevice) {
+    pendingDevice = requestDevice().finally(() => { pendingDevice = undefined; });
+  }
+  return pendingDevice;
+}
+
+async function requestDevice(): Promise<GPUDevice> {
   const gpu = navigator.gpu;
   if (!gpu) throw new Error('WebGPU is not supported in this browser');
 

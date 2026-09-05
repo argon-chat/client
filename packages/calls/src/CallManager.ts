@@ -25,7 +25,7 @@ import {
   isRemoteTrack,
   VideoPresets,
 } from "livekit-client";
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, toRaw } from "vue";
 import { Subscription } from "rxjs";
 import { logger, startTimer, DisposableBag } from "@argon/core";
 import type { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
@@ -315,6 +315,25 @@ export function createCallManager(config: CallManagerConfig) {
 
   let disposables = new DisposableBag();
 
+  // Teardown handles for the remote playback graphs, by user id. They are enrolled in
+  // `disposables` too, for leave(); but a graph that goes away mid-call (track unsubscribed,
+  // participant gone) has to be released through its handle: unsubscribing takes it out of the
+  // bag and leaves it inert, which is what stops the bag growing with every join and leave and
+  // stops leave() disposing the same graph a second time. Kept out of the reactive
+  // `participants` record on purpose — Vue would hand back a proxy, and rxjs detaches a child
+  // from its parent by identity, so a proxied handle would never leave the bag.
+  const audioGraphSubs = new Map<string, Subscription>();
+  const screenAudioGraphSubs = new Map<string, Subscription>();
+
+  /** Dispose one participant's playback graph exactly once, whichever path gets there first. */
+  function releaseAudioGraph(uid: string, kind: "mic" | "screen") {
+    const subs = kind === "mic" ? audioGraphSubs : screenAudioGraphSubs;
+    const sub = subs.get(uid);
+    if (!sub) return;
+    subs.delete(uid);
+    sub.unsubscribe();
+  }
+
   const qualityConnection = computed(() => {
     if (!isConnected.value) return "NONE";
 
@@ -375,6 +394,16 @@ export function createCallManager(config: CallManagerConfig) {
     // reconnect clock here, or a leave mid-reconnect would time the next call's reconnect from now.
     reconnectStartedAt = null;
 
+    // A share's drawing session is a native overlay window that nothing below tears down:
+    // stopScreenShare() ends it, but a leave() mid-share never went through there and the
+    // window outlived the call. The share's tracks need no round trip of their own —
+    // disconnect() unpublishes and stops every local track (stopLocalTrackOnUnpublish is on
+    // by default).
+    if (isSharing.value) {
+      try { drawing.endStreamerSession(); }
+      catch (e) { logger.warn("[CALL] endStreamerSession failed", e); }
+    }
+
     try {
       if (room.value) {
         room.value.removeAllListeners();
@@ -419,12 +448,20 @@ export function createCallManager(config: CallManagerConfig) {
     stopTimerRTT();
     ping.value = -1;
     disposables.dispose();
+    // Every graph handle still open sat in the bag and is closed now; drop the dead ones.
+    audioGraphSubs.clear();
+    screenAudioGraphSubs.clear();
 
     // Release the mic held for this call (detaches the device on macOS when idle).
     audio.releaseInput();
 
     isSharing.value = false;
     screenTrackPub = null;
+    // Otherwise stopScreenShare() in the next call would unpublish a publication from a room
+    // that no longer exists, and toggleSystemAudio() would restart a share that isn't there.
+    screenAudioTrackPub = null;
+    lastShareOpts.value = null;
+    systemAudioEnabled.value = false;
 
     isCameraOn.value = false;
     cameraTrackPub = null;
@@ -657,10 +694,16 @@ export function createCallManager(config: CallManagerConfig) {
     pingHistory.length = 0; // Clear history
   }
 
+  // Participants whose LiveKit listeners are already attached. addParticipant runs for the
+  // same participant more than once — participantConnected plus the post-connect sweep, and
+  // after a full reconnect the SDK hands back the very same objects — and every pass used to
+  // stack another set of handlers on them.
+  const boundParticipants = new WeakSet<RemoteParticipant>();
+
   async function addParticipant(p: RemoteParticipant) {
     const uid = p.identity;
 
-    // Skip if already added
+    // Already known: the state below is refreshed, the listeners are not attached again.
     if (participants[uid]) {
       logger.warn(`[CALL] Participant ${uid} already exists, updating state`);
     }
@@ -761,7 +804,10 @@ export function createCallManager(config: CallManagerConfig) {
       setVolume(uid, savedVolume);
     }
 
-    // Setup event listeners for this participant
+    // Setup event listeners for this participant — once per participant object.
+    if (boundParticipants.has(p)) return;
+    boundParticipants.add(p);
+
     p.on("trackMuted", (pub) => {
       if (pub.kind === Track.Kind.Audio) {
         const pm = participants[uid];
@@ -1010,6 +1056,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     r.on("participantDisconnected", (p) => {
       const uid = p.identity;
+      // Normally already released by the trackUnsubscribed events the SDK fires first; the
+      // graphs just must not depend on that ordering.
+      releaseAudioGraph(uid, "mic");
+      releaseAudioGraph(uid, "screen");
       delete participants[uid];
       speaking.delete(uid);
       deleteVideoTracksForUser(uid);
@@ -1564,7 +1614,7 @@ export function createCallManager(config: CallManagerConfig) {
           return;
         }
         logger.info(`[CALL] Setting up screen-audio graph for ${uid}`);
-        disposables.addSubscription(setupScreenAudioGraph(uid, track));
+        setupScreenAudioGraph(uid, track);
         return;
       }
 
@@ -1577,7 +1627,7 @@ export function createCallManager(config: CallManagerConfig) {
       }
 
       logger.info(`[CALL] Setting up audio graph for ${uid}`);
-      disposables.addSubscription(setupAudioGraph(uid, track));
+      setupAudioGraph(uid, track);
     }
   }
 
@@ -1601,21 +1651,11 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (track.kind === "audio") {
       track.detach();
-      const pdata = participants[uid];
       const isScreenAudio =
         (track.source || pub.source) === Track.Source.ScreenShareAudio;
-      if (isScreenAudio) {
-        if (pdata?.screenAudioGraph) {
-          pdata.screenAudioGraph.dispose();
-          pdata.screenAudioGraph = null;
-        }
-        return;
-      }
-      // Dispose mic audio graph if exists
-      if (pdata?.audioGraph) {
-        pdata.audioGraph.dispose();
-        pdata.audioGraph = null;
-      }
+      // Through the handle rather than the graph: that clears the record's slot and takes the
+      // graph out of `disposables` in the same step (see releaseAudioGraph).
+      releaseAudioGraph(uid, isScreenAudio ? "screen" : "mic");
     }
   }
 
@@ -1625,8 +1665,10 @@ export function createCallManager(config: CallManagerConfig) {
       logger.error(
         `[CALL] setupAudioGraph called for ${userId} but audioGraph already exists! Preventing duplicate.`,
       );
-      return new Subscription(() => {}); // Return empty subscription
+      return;
     }
+    // No graph on the record, so any handle left here is stale: run it down before installing.
+    releaseAudioGraph(userId, "mic");
 
     // Get saved volume and mute state
     const savedVolume = userVolume.getUserVolume(userId);
@@ -1659,10 +1701,16 @@ export function createCallManager(config: CallManagerConfig) {
       }
     }
 
-    return new Subscription(() => {
+    const sub = new Subscription(() => {
       speaking.delete(userId);
       audioGraph.dispose();
+      // Clear the slot only while it still holds this graph — the record hands back a reactive
+      // proxy, hence toRaw — so a replacement installed since is left alone.
+      const pm = participants[userId];
+      if (pm && toRaw(pm.audioGraph) === audioGraph) pm.audioGraph = null;
     });
+    audioGraphSubs.set(userId, sub);
+    disposables.addSubscription(sub);
   }
 
   /**
@@ -1674,8 +1722,9 @@ export function createCallManager(config: CallManagerConfig) {
   function setupScreenAudioGraph(userId: string, track: RemoteTrack) {
     const pdata = participants[userId];
     if (pdata?.screenAudioGraph) {
-      return new Subscription(() => {});
+      return;
     }
+    releaseAudioGraph(userId, "screen");
 
     const savedVolume = userVolume.getUserVolume(userId);
     const isMutedAll = sys.headphoneMuted;
@@ -1692,9 +1741,13 @@ export function createCallManager(config: CallManagerConfig) {
       pdata.screenAudioGraph = screenAudioGraph;
     }
 
-    return new Subscription(() => {
+    const sub = new Subscription(() => {
       screenAudioGraph.dispose();
+      const pm = participants[userId];
+      if (pm && toRaw(pm.screenAudioGraph) === screenAudioGraph) pm.screenAudioGraph = null;
     });
+    screenAudioGraphSubs.set(userId, sub);
+    disposables.addSubscription(sub);
   }
 
   function setVolume(userId: string, vol: number, skipSave = false) {
@@ -1750,33 +1803,62 @@ export function createCallManager(config: CallManagerConfig) {
       throw err;
     }
 
-    const vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
-    vid.source = Track.Source.ScreenShare;
-
-    // A ScreenShare-source track takes screenShareEncoding; videoEncoding is ignored here.
-    screenTrackPub = await room.value.localParticipant.publishTrack(vid, {
-      screenShareEncoding: {
-        maxBitrate: opts.maxBitrate ?? 5_000_000,
-        maxFramerate: fr,
-      },
-    });
-
-    // Publish the desktop/system audio captured alongside the video. Electron's
-    // display-media handler returns `audio: "loopback"` when system audio is
-    // requested, so the stream carries a real audio track — forward it to the room.
-    const audioTrack = stream.getAudioTracks()[0];
-    if (opts.systemAudio === "include" && audioTrack) {
-      const sysAudio = new LocalAudioTrack(audioTrack);
-      sysAudio.source = Track.Source.ScreenShareAudio;
-      try {
-        screenAudioTrackPub = await room.value.localParticipant.publishTrack(sysAudio, {
-          dtx: false, // keep continuous music/game audio intact (DTX is for speech gaps)
-          red: false,
-          audioPreset: AudioPresets.musicHighQualityStereo,
-        });
-      } catch (err) {
-        logger.error("[CALL] Failed to publish system audio:", err);
+    // From here on the capture is live. Should anything below fail, every track of it has to
+    // be stopped, or the OS keeps its "sharing" indicator up for the rest of the session with
+    // nothing behind it.
+    const stopCapture = () => {
+      for (const t of stream.getTracks()) {
+        try { t.stop(); } catch { /* already stopped */ }
       }
+    };
+
+    let vid: LocalVideoTrack;
+    try {
+      vid = new LocalVideoTrack(stream.getVideoTracks()[0]);
+      vid.source = Track.Source.ScreenShare;
+
+      // A ScreenShare-source track takes screenShareEncoding; videoEncoding is ignored here.
+      screenTrackPub = await room.value.localParticipant.publishTrack(vid, {
+        screenShareEncoding: {
+          maxBitrate: opts.maxBitrate ?? 5_000_000,
+          maxFramerate: fr,
+        },
+      });
+
+      // Publish the desktop/system audio captured alongside the video. Electron's
+      // display-media handler returns `audio: "loopback"` when system audio is
+      // requested, so the stream carries a real audio track — forward it to the room.
+      const audioTrack = stream.getAudioTracks()[0];
+      if (opts.systemAudio === "include" && audioTrack) {
+        const sysAudio = new LocalAudioTrack(audioTrack);
+        sysAudio.source = Track.Source.ScreenShareAudio;
+        try {
+          screenAudioTrackPub = await room.value.localParticipant.publishTrack(sysAudio, {
+            dtx: false, // keep continuous music/game audio intact (DTX is for speech gaps)
+            red: false,
+            audioPreset: AudioPresets.musicHighQualityStereo,
+          });
+        } catch (err) {
+          logger.error("[CALL] Failed to publish system audio:", err);
+          // The share goes on without it; the loopback capture must not — nothing else would
+          // ever stop it.
+          try { audioTrack.stop(); } catch { /* already stopped */ }
+        }
+      }
+    } catch (err) {
+      logger.error("[CALL] Failed to publish screen share:", err);
+      telemetry.count("call.screenshare.start", { result: "failed", error: errorName(err), system_audio: opts.systemAudio === "include" });
+      // Whatever did get published goes too (unpublishing with stop=true stops its track).
+      const published = [screenAudioTrackPub, screenTrackPub].filter((pub) => pub?.track);
+      screenTrackPub = null;
+      screenAudioTrackPub = null;
+      for (const pub of published) {
+        try { await room.value.localParticipant.unpublishTrack(pub.track, true); }
+        catch (e) { logger.warn("[CALL] Failed to unpublish half-started share:", e); }
+      }
+      stopCapture();
+      isSharing.value = false;
+      throw err;
     }
 
     isSharing.value = true;
@@ -1833,12 +1915,13 @@ export function createCallManager(config: CallManagerConfig) {
     if (!room.value) return;
     if (isCameraOn.value) return;
 
+    let cam: LocalVideoTrack | null = null;
     try {
       // Prompt for camera access before capturing (macOS native host only — elsewhere a no-op).
       await ensureMediaPermission("camera");
 
       const dev = deviceId || preference.defaultVideoDevice || undefined;
-      const cam = await createLocalVideoTrack({
+      cam = await createLocalVideoTrack({
         deviceId: dev,
         resolution: VideoPresets.h720.resolution,
       });
@@ -1860,6 +1943,11 @@ export function createCallManager(config: CallManagerConfig) {
     } catch (err) {
       logger.error("[CALL] Failed to start camera:", err);
       telemetry.count("call.camera.start", { result: "failed", mode: mode.value, error: errorName(err) });
+      // createLocalVideoTrack has already opened the device: a publish that fails after it
+      // has to close it again, or the camera LED stays on with nothing behind it.
+      if (cam && !isCameraOn.value) {
+        try { cam.stop(); } catch { /* already stopped */ }
+      }
     }
   }
 

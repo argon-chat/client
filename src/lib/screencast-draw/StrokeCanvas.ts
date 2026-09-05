@@ -18,6 +18,9 @@ import {
   type NormPoint,
 } from "./types";
 
+/** How long an unfinished stroke may go without new points before it is treated as finished. */
+const STALE_STROKE_MS = 10_000;
+
 export class StrokeCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -127,7 +130,17 @@ export class StrokeCanvas {
 
   /** Compute decay alpha for a finished stroke; in-progress strokes are fully opaque. */
   private alphaFor(s: LiveStroke, t: number): number {
-    if (!s.ended) return 1;
+    if (!s.ended) {
+      // An in-progress stroke whose `end` packet never arrives (drawer dropped mid-stroke, packet
+      // lost) would otherwise stay opaque forever and keep this loop — and the streamer's native
+      // overlay presenting behind it — running until the session ends. createdAt is refreshed on
+      // every append, so this is "no new points for a while".
+      if (t - s.createdAt > STALE_STROKE_MS) {
+        s.ended = true;
+        s.createdAt = t;
+      }
+      return 1;
+    }
     const age = t - s.createdAt;
     if (age <= s.fadeStartMs) return 1;
     if (age >= s.ttlMs) return 0;

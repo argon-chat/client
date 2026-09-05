@@ -135,7 +135,8 @@ declare global {
     maximize(): void;
     close(): void;
     isMaximized(): Promise<boolean>;
-    onMaximizeChange(callback: (isMaximized: boolean) => void): void;
+    /** Returns an unsubscribe; the preload keeps one listener per call, so drop it on unmount. */
+    onMaximizeChange(callback: (isMaximized: boolean) => void): () => void;
     setZoom(factor: number): void;
   }
 
@@ -144,7 +145,8 @@ declare global {
     setSource(source: "dark" | "light" | "system"): Promise<boolean>;
     getAccent(): Promise<string | null>;
     isSystemDark(): Promise<boolean>;
-    onSystemUpdated(callback: (data: { dark: boolean; accent: string | null }) => void): void;
+    /** Returns an unsubscribe; the preload keeps one listener per call, so drop it on unmount. */
+    onSystemUpdated(callback: (data: { dark: boolean; accent: string | null }) => void): () => void;
   }
 
   interface Window {

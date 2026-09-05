@@ -48,6 +48,12 @@ type CreateFinalResultArgs = {
   getMediaBlob?: () => Promise<Blob | null>;
 };
 
+// Export canvases are full output resolution; a zero size drops the backing store now, not at GC.
+function releaseCanvas(canvas: HTMLCanvasElement): void {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
 export async function createFinalResult(args: CreateFinalResultArgs): Promise<MediaEditorFinalResult> {
   const { mediaSrc, mediaType, mediaState, canvasSize, mediaRatio, renderingPayload } = args;
 
@@ -87,102 +93,124 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     waitToSeek: true
   });
 
-  const finalTransform = getResultTransform({
-    scaledWidth,
-    scaledHeight,
-    imageWidth: gpuPayload.media.width,
-    imageHeight: gpuPayload.media.height,
-    cropOffset,
-    mediaState
-  });
-
-  // Draw with adjustments
-  const drawParams: DrawingParameters = {
-    rotation: finalTransform.rotation,
-    scale: finalTransform.scale,
-    translation: finalTransform.translation,
-    imageSize: finalTransform.imageSize,
-    flip: finalTransform.flip,
-    perspective: mediaState.perspective,
-    curves: mediaState.curves ?? { r: [0, 0], g: [0, 0], b: [0, 0] },
-    selective: mediaState.selective ?? { hue: 0, range: 0, shift: 0, sat: 0, luma: 0 },
-    ...(mediaState.adjustments as Record<AdjustmentKey, number>)
-  };
-
-  draw(gpuPayload.device, gpuContext, gpuPayload, drawParams);
-
   // Render brushes onto a separate canvas
   const brushResultCanvas = document.createElement('canvas');
   brushResultCanvas.width = scaledWidth;
   brushResultCanvas.height = scaledHeight;
 
-  const { scaledLayers, scaledLines } = getScaledLayersAndLines({
-    layers: mediaState.resizableLayers,
-    lines: mediaState.brushDrawnLines,
-    canvasSize,
-    resultSize: [scaledWidth, scaledHeight]
-  });
-
-  // Redraw brush lines at output resolution
-  if (scaledLines.length) {
-    const painter = createBrushPainter({
-      targetCanvas: brushResultCanvas,
-      imageCanvas: resultCanvas
-    });
-    for (const line of scaledLines) {
-      painter.commitLine(line);
-    }
-  }
-
-  if (mediaType === 'image') {
-    // Image export
-    const compositeCanvas = document.createElement('canvas');
-    compositeCanvas.width = scaledWidth;
-    compositeCanvas.height = scaledHeight;
-    const ctx = compositeCanvas.getContext('2d')!;
-
-    ctx.drawImage(resultCanvas, 0, 0);
-    ctx.drawImage(brushResultCanvas, 0, 0);
-
-    // Draw text layers
-    for (const layer of scaledLayers) {
-      if (layer.type === 'text') drawTextLayer(ctx, layer);
-      else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
-    }
-
-    const blob = await new Promise<Blob>((resolve) =>
-      compositeCanvas.toBlob((b) => resolve(b!), 'image/png')
-    );
-
+  // The export payload and both canvases are owned here only. Releasing is idempotent because the
+  // video path hands it to getResult()/cancel() while every earlier exit (return or throw) runs it too.
+  let released = false;
+  const release = (): void => {
+    if (released) return;
+    released = true;
     cleanupWebGPU(gpuPayload);
+    gpuContext.unconfigure();
+    releaseCanvas(resultCanvas);
+    releaseCanvas(brushResultCanvas);
+  };
 
-    return {
-      preview: blob,
-      getResult: () => ({ blob, hasSound: false }),
-      isVideo: false,
-      width: scaledWidth,
-      height: scaledHeight,
-      originalSrc: mediaSrc,
-      editingMediaState: structuredClone(toRaw(mediaState))
+  try {
+    const finalTransform = getResultTransform({
+      scaledWidth,
+      scaledHeight,
+      imageWidth: gpuPayload.media.width,
+      imageHeight: gpuPayload.media.height,
+      cropOffset,
+      mediaState
+    });
+
+    // Draw with adjustments
+    const drawParams: DrawingParameters = {
+      rotation: finalTransform.rotation,
+      scale: finalTransform.scale,
+      translation: finalTransform.translation,
+      imageSize: finalTransform.imageSize,
+      flip: finalTransform.flip,
+      perspective: mediaState.perspective,
+      curves: mediaState.curves ?? { r: [0, 0], g: [0, 0], b: [0, 0] },
+      selective: mediaState.selective ?? { hue: 0, range: 0, shift: 0, sat: 0, luma: 0 },
+      ...(mediaState.adjustments as Record<AdjustmentKey, number>)
     };
-  }
 
-  // Video export
-  return renderVideoResult({
-    payload: gpuPayload,
-    device: gpuPayload.device,
-    context: gpuContext,
-    resultCanvas,
-    brushResultCanvas,
-    scaledWidth,
-    scaledHeight,
-    scaledLayers,
-    scaledLines,
-    mediaState,
-    mediaSrc,
-    drawParams,
-    args
-  });
+    draw(gpuPayload.device, gpuContext, gpuPayload, drawParams);
+
+    const { scaledLayers, scaledLines } = getScaledLayersAndLines({
+      layers: mediaState.resizableLayers,
+      lines: mediaState.brushDrawnLines,
+      canvasSize,
+      resultSize: [scaledWidth, scaledHeight]
+    });
+
+    // Redraw brush lines at output resolution
+    if (scaledLines.length) {
+      const painter = createBrushPainter({
+        targetCanvas: brushResultCanvas,
+        imageCanvas: resultCanvas
+      });
+      for (const line of scaledLines) {
+        painter.commitLine(line);
+      }
+    }
+
+    if (mediaType === 'image') {
+      // Image export
+      const compositeCanvas = document.createElement('canvas');
+      compositeCanvas.width = scaledWidth;
+      compositeCanvas.height = scaledHeight;
+      try {
+        const ctx = compositeCanvas.getContext('2d')!;
+
+        ctx.drawImage(resultCanvas, 0, 0);
+        ctx.drawImage(brushResultCanvas, 0, 0);
+
+        // Draw text layers
+        for (const layer of scaledLayers) {
+          if (layer.type === 'text') drawTextLayer(ctx, layer);
+          else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
+        }
+
+        const blob = await new Promise<Blob>((resolve) =>
+          compositeCanvas.toBlob((b) => resolve(b!), 'image/png')
+        );
+
+        return {
+          preview: blob,
+          getResult: () => ({ blob, hasSound: false }),
+          isVideo: false,
+          width: scaledWidth,
+          height: scaledHeight,
+          originalSrc: mediaSrc,
+          editingMediaState: structuredClone(toRaw(mediaState))
+        };
+      } finally {
+        // The PNG blob is self-contained; nothing GPU- or canvas-side needs to outlive this call.
+        releaseCanvas(compositeCanvas);
+        release();
+      }
+    }
+
+    // Video export
+    return await renderVideoResult({
+      payload: gpuPayload,
+      device: gpuPayload.device,
+      context: gpuContext,
+      resultCanvas,
+      brushResultCanvas,
+      scaledWidth,
+      scaledHeight,
+      scaledLayers,
+      scaledLines,
+      mediaState,
+      mediaSrc,
+      drawParams,
+      args,
+      release
+    });
+  } catch (e) {
+    release();
+    throw e;
+  }
 }
 
 async function renderVideoResult(opts: {
@@ -199,8 +227,9 @@ async function renderVideoResult(opts: {
   mediaSrc: string;
   drawParams: DrawingParameters;
   args: CreateFinalResultArgs;
+  release: () => void;
 }): Promise<MediaEditorFinalResult> {
-  const { payload, device, context, resultCanvas, brushResultCanvas, scaledWidth, scaledHeight, scaledLayers, scaledLines, mediaState, mediaSrc, drawParams, args } = opts;
+  const { payload, device, context, resultCanvas, brushResultCanvas, scaledWidth, scaledHeight, scaledLayers, scaledLines, mediaState, mediaSrc, drawParams, args, release } = opts;
 
   const video = payload.media.video!;
   const startTime = video.duration * mediaState.videoCropStart;
@@ -209,6 +238,7 @@ async function renderVideoResult(opts: {
 
   const progress = { value: 0 };
   let canceled = false;
+  let exporting = false;
 
   // Generate preview from first frame
   const previewCanvas = document.createElement('canvas');
@@ -221,92 +251,107 @@ async function renderVideoResult(opts: {
   const previewBlob = await new Promise<Blob>((resolve) =>
     previewCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8)
   );
+  releaseCanvas(previewCanvas);
 
   const getResult = async (): Promise<MediaEditorFinalResultPayload> => {
-    const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
-
-    const target = new ArrayBufferTarget();
-    const muxer = new Muxer({
-      target,
-      video: {
-        codec: 'avc',
-        width: scaledWidth,
-        height: scaledHeight
-      },
-      fastStart: 'in-memory'
-    });
-
-    const { codec, bitrate } = selectEncodingProfile(scaledWidth, scaledHeight, 30);
-
-    const encoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-      error: (e) => console.error('VideoEncoder error:', e)
-    });
-
-    encoder.configure({
-      codec,
-      width: scaledWidth,
-      height: scaledHeight,
-      bitrate
-    });
-
+    exporting = true;
     const compositeCanvas = document.createElement('canvas');
     compositeCanvas.width = scaledWidth;
     compositeCanvas.height = scaledHeight;
-    const compositeCtx = compositeCanvas.getContext('2d')!;
+    let encoder: VideoEncoder | undefined;
 
-    const expectedFps = 30;
-    const totalFrames = Math.ceil(duration * expectedFps);
+    try {
+      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
 
-    for (let frameIdx = 0; frameIdx < totalFrames && !canceled; frameIdx++) {
-      const time = startTime + frameIdx / expectedFps;
-      const timestamp = (frameIdx / expectedFps) * 1e6;
-
-      // Seek video to frame
-      video.currentTime = time;
-      await new Promise<void>((resolve) => {
-        video.addEventListener('seeked', () => resolve(), { once: true });
+      const target = new ArrayBufferTarget();
+      const muxer = new Muxer({
+        target,
+        video: {
+          codec: 'avc',
+          width: scaledWidth,
+          height: scaledHeight
+        },
+        fastStart: 'in-memory'
       });
 
-      // Update WebGPU texture
-      updateVideoTexture(device, payload.texture, video);
-      draw(device, context, payload, drawParams);
+      const { codec, bitrate } = selectEncodingProfile(scaledWidth, scaledHeight, 30);
 
-      // Compose
-      compositeCtx.clearRect(0, 0, scaledWidth, scaledHeight);
-      compositeCtx.drawImage(resultCanvas, 0, 0);
-      compositeCtx.drawImage(brushResultCanvas, 0, 0);
-      for (const layer of scaledLayers) {
-        if (layer.type === 'text') drawTextLayer(compositeCtx, layer);
-        else if (layer.type === 'sticker') await drawStickerLayer(compositeCtx, layer);
+      encoder = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: (e) => console.error('VideoEncoder error:', e)
+      });
+
+      encoder.configure({
+        codec,
+        width: scaledWidth,
+        height: scaledHeight,
+        bitrate
+      });
+
+      const compositeCtx = compositeCanvas.getContext('2d')!;
+
+      const expectedFps = 30;
+      const totalFrames = Math.ceil(duration * expectedFps);
+
+      for (let frameIdx = 0; frameIdx < totalFrames && !canceled; frameIdx++) {
+        const time = startTime + frameIdx / expectedFps;
+        const timestamp = (frameIdx / expectedFps) * 1e6;
+
+        // Seek video to frame
+        video.currentTime = time;
+        await new Promise<void>((resolve) => {
+          video.addEventListener('seeked', () => resolve(), { once: true });
+        });
+
+        // Update WebGPU texture
+        updateVideoTexture(device, payload.texture, video);
+        draw(device, context, payload, drawParams);
+
+        // Compose
+        compositeCtx.clearRect(0, 0, scaledWidth, scaledHeight);
+        compositeCtx.drawImage(resultCanvas, 0, 0);
+        compositeCtx.drawImage(brushResultCanvas, 0, 0);
+        for (const layer of scaledLayers) {
+          if (layer.type === 'text') drawTextLayer(compositeCtx, layer);
+          else if (layer.type === 'sticker') await drawStickerLayer(compositeCtx, layer);
+        }
+
+        // Encode frame
+        const frame = new VideoFrame(compositeCanvas, {
+          timestamp,
+          duration: 1e6 / expectedFps
+        });
+        encoder.encode(frame, { keyFrame: frameIdx % 60 === 0 });
+        frame.close();
+
+        progress.value = frameIdx / totalFrames;
       }
 
-      // Encode frame
-      const frame = new VideoFrame(compositeCanvas, {
-        timestamp,
-        duration: 1e6 / expectedFps
-      });
-      encoder.encode(frame, { keyFrame: frameIdx % 60 === 0 });
-      frame.close();
+      await encoder.flush();
+      encoder.close();
+      muxer.finalize();
 
-      progress.value = frameIdx / totalFrames;
+      const blob = new Blob([target.buffer], { type: 'video/mp4' });
+
+      return { blob, hasSound: false };
+    } finally {
+      exporting = false;
+      // Left open after a failed export the encoder keeps its codec session; already closed on success.
+      if (encoder && encoder.state !== 'closed') encoder.close();
+      releaseCanvas(compositeCanvas);
+      release();
     }
-
-    await encoder.flush();
-    encoder.close();
-    muxer.finalize();
-
-    const blob = new Blob([target.buffer], { type: 'video/mp4' });
-
-    cleanupWebGPU(payload);
-
-    return { blob, hasSound: false };
   };
 
   return {
     preview: previewBlob,
     getResult,
-    cancel: () => { canceled = true; },
+    cancel: () => {
+      canceled = true;
+      // A running export is awaiting `seeked` on the video; unloading it underneath would leave that
+      // wait hanging forever, so the export's own finally releases once the loop has bailed out.
+      if (!exporting) release();
+    },
     isVideo: true,
     width: scaledWidth,
     height: scaledHeight,

@@ -7,9 +7,9 @@
                 </div>
                 {{ t('recent_spaces') }}
             </h2>
-            <button @click="toggleView" class="p-1 rounded hover:bg-accent/50 transition-colors">
-                <IconLayoutGrid v-if="viewMode === 'list'" class="w-4 h-4 text-muted-foreground" />
-                <IconList v-else class="w-4 h-4 text-muted-foreground" />
+            <button @click="toggleView" class="icon-motion icon-motion--pop p-1 rounded hover:bg-accent/50 transition-colors">
+                <IconLayoutGrid v-if="viewMode === 'list'" class="w-4 h-4 text-muted-foreground icon-appear icon-appear--turn" />
+                <IconList v-else class="w-4 h-4 text-muted-foreground icon-appear icon-appear--turn" />
             </button>
         </div>
         
@@ -26,11 +26,11 @@
                     class="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all group relative">
                     <button 
                         @click.stop="togglePinSpace(space.id)"
-                        class="absolute top-1 right-1 p-1 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        class="icon-motion icon-motion--pop absolute top-1 right-1 p-1 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         :class="{ '!opacity-100': space.isPinned }"
                     >
-                        <IconPinFilled v-if="space.isPinned" class="w-3 h-3 text-primary" />
-                        <IconPin v-else class="w-3 h-3 text-muted-foreground" />
+                        <IconPinFilled v-if="space.isPinned" class="w-3 h-3 text-primary icon-appear" />
+                        <IconPin v-else class="w-3 h-3 text-muted-foreground icon-appear" />
                     </button>
                     
                     <div @click="goToSpace(space.id)" class="flex items-center gap-2 flex-1 cursor-pointer">
@@ -56,11 +56,11 @@
                     class="relative group">
                     <button 
                         @click.stop="togglePinSpace(space.id)"
-                        class="absolute top-1 right-1 p-1 rounded-full bg-card/80 backdrop-blur-sm hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        class="icon-motion icon-motion--pop absolute top-1 right-1 p-1 rounded-full bg-card/80 backdrop-blur-sm hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         :class="{ '!opacity-100': space.isPinned }"
                     >
-                        <IconPinFilled v-if="space.isPinned" class="w-3 h-3 text-primary" />
-                        <IconPin v-else class="w-3 h-3 text-muted-foreground" />
+                        <IconPinFilled v-if="space.isPinned" class="w-3 h-3 text-primary icon-appear" />
+                        <IconPin v-else class="w-3 h-3 text-muted-foreground icon-appear" />
                     </button>
                     
                     <div @click="goToSpace(space.id)" 

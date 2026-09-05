@@ -31,7 +31,7 @@
 
             <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
-                <button v-if="!captionMode && canAttachFiles" class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
+                <button v-if="!captionMode && canAttachFiles" class="icon-motion icon-motion--lift flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
                 </button>
                 <input
@@ -61,7 +61,7 @@
                 <!-- Emoji picker -->
                 <Popover>
                     <PopoverTrigger>
-                        <button class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                        <button class="icon-motion icon-motion--pop flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
                             <SmileIcon class="w-5 h-5" />
                         </button>
                     </PopoverTrigger>
@@ -91,7 +91,7 @@
                 >
                     <button
                       v-if="hasContent"
-                      class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      class="icon-motion icon-motion--nudge flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       @click="captionMode ? $emit('submit') : handleSend()"
                       :title="t('send')"
                     >

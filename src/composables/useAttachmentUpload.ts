@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref, computed, getCurrentScope, onScopeDispose } from "vue";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import {
@@ -285,6 +285,11 @@ export function useAttachmentUpload() {
     }
     pendingFiles.value = [];
   }
+
+  // Files staged in a composer that unmounts (channel switch, space closed) used to stay pinned by
+  // their object URLs with nothing left to revoke them — up to ten 8 MB blobs per abandoned draft.
+  // A send in flight is unaffected: detach() has already moved its entries out of pendingFiles.
+  if (getCurrentScope()) onScopeDispose(() => clear());
 
   function hasErrors(): boolean {
     return pendingFiles.value.some((f) => f.status === "error");

@@ -7,7 +7,7 @@
                     <DrawerDescription>{{ t("manage_settings") }}</DrawerDescription>
                 </div>
 
-                <button @click="windows.serverSettingsOpen = false" class="close-button">
+                <button @click="windows.serverSettingsOpen = false" class="close-button icon-motion icon-motion--pop">
                     <CircleXIcon class="w-10 h-10" />
                 </button>
             </DrawerHeader>

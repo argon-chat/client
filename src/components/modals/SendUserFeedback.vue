@@ -70,7 +70,7 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@argon/ui/dialog'
 import { Button } from '@argon/ui/button'
 import { Label } from '@argon/ui/label'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useLocale } from '@/store/system/localeStore'
 import { captureFeedback } from "@sentry/vue";
 import { metrics } from "@/lib/telemetry/metrics";
@@ -91,6 +91,13 @@ interface Attachment {
 
 const attachments = ref<Attachment[]>([])
 const attachmentsPreview = ref<string[]>([])
+
+// Closing without sending kept up to three 2 MB screenshots plus their base64 previews in memory.
+watch(open, (isOpen) => {
+    if (isOpen) return
+    attachments.value = []
+    attachmentsPreview.value = []
+})
 const isLoading = ref(false)
 
 const fileInput = ref<HTMLInputElement | null>(null)

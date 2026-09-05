@@ -157,6 +157,7 @@ function getDefaultUIState(): MediaEditorUIState {
     cropTabAnimationProgress: 0,
 
     mediaSize: undefined,
+    mediaRatio: undefined,
     canvasSize: undefined,
     fixedImageRatioKey: undefined,
     finalTransform: {
@@ -168,6 +169,10 @@ function getDefaultUIState(): MediaEditorUIState {
 
     currentTextLayerInfo: structuredClone(DEFAULT_TEXT_STYLE),
     selectedResizableLayer: undefined,
+
+    // Both are full-resolution canvases, so reset() must drop them with the rest.
+    imageCanvas: undefined,
+    brushCanvas: undefined,
 
     currentBrush: structuredClone(DEFAULT_BRUSH),
     previewBrushSize: undefined,

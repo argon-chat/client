@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
 import { IconUsers, IconPhoneCall } from '@tabler/icons-vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useApi } from '@/store/system/apiStore';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useMe } from '@/store/auth/meStore';
@@ -63,6 +63,7 @@ import ArgonAvatar from '@/components/ArgonAvatar.vue';
 import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { logger } from '@argon/core';
 import { db } from '@/store/db/dexie';
+import { liveQuery, type Subscription } from 'dexie';
 
 const { t } = useLocale();
 const api = useApi();
@@ -79,65 +80,33 @@ interface Friend {
 
 const friendIds = ref<string[]>([]);
 const loading = ref(true);
-const friendsUsers = ref<RealtimeUser[]>([]);
-let updateInterval: any = null;
+const friendsUsers = shallowRef<RealtimeUser[]>([]);
+let friendsSub: Subscription | null = null;
 
-// Load friends data from DB
-async function updateFriendsData() {
-    if (friendIds.value.length === 0) {
-        friendsUsers.value = [];
-        return;
-    }
-    
-    const users = await db.users.where('userId').anyOf(friendIds.value).toArray();
-    
-    // Only update if data actually changed
-    const hasChanges = users.length !== friendsUsers.value.length || 
-        users.some((user, i) => {
-            const existing = friendsUsers.value.find(u => u.userId === user.userId);
-            return !existing || 
-                existing.status !== user.status ||
-                existing.activity?.titleName !== user.activity?.titleName;
-        });
-    
-    if (hasChanges) {
-        friendsUsers.value = users;
-    }
-}
+// Friends come from the local cache through a live query: Dexie re-runs it when one of these
+// users changes. This replaced a 2 s poll (an IndexedDB read plus an O(n²) diff on the idle home
+// screen) that kept the renderer busy for the whole session.
+watch(friendIds, (ids) => {
+    friendsSub?.unsubscribe();
+    friendsSub = null;
 
-// Watch friendIds changes
-watch(friendIds, async (ids) => {
-    // Clear previous interval
-    if (updateInterval) {
-        clearInterval(updateInterval);
-        updateInterval = null;
-    }
-    
     if (ids.length === 0) {
         friendsUsers.value = [];
         return;
     }
-    
-    // Initial load
-    await updateFriendsData();
-    
-    // Update every 2 seconds
-    updateInterval = setInterval(updateFriendsData, 2000);
+
+    friendsSub = liveQuery(() => db.users.where('userId').anyOf(ids).toArray()).subscribe({
+        next: (users) => { friendsUsers.value = users; },
+        error: (err) => logger.warn('[ActiveNowWidget] friends query failed:', err),
+    });
 }, { immediate: true });
 
 // Get online friends with their user data
 const onlineFriends = computed(() => {
     const result: Friend[] = [];
 
-    logger.log('[ActiveNowWidget] Computing online friends from', friendsUsers.value.length, 'users');
 
     for (const user of friendsUsers.value) {
-        logger.log('[ActiveNowWidget] User:', {
-            id: user.userId,
-            name: user.displayName || user.username,
-            status: user.status,
-            statusName: UserStatus[user.status]
-        });
 
         if (user.status !== UserStatus.Offline) {
             result.push({
@@ -149,7 +118,6 @@ const onlineFriends = computed(() => {
         }
     }
 
-    logger.log('[ActiveNowWidget] Online friends result:', result.length);
     return result;
 });
 
@@ -218,8 +186,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    if (updateInterval) {
-        clearInterval(updateInterval);
-    }
+    friendsSub?.unsubscribe();
+    friendsSub = null;
 });
 </script>

@@ -78,4 +78,16 @@ export function cleanupWebGPU(payload: RenderingPayload): void {
   payload.vertexBuffer.destroy();
   payload.uniformBuffer.destroy();
   payload.texture.destroy();
+
+  // The decoded source would otherwise outlive the GPU resources: a detached <video> keeps its
+  // decoder and buffered data until the source is dropped, and the payload pins both elements.
+  const { video } = payload.media;
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.srcObject = null;
+    video.load();
+  }
+  payload.media.video = undefined;
+  payload.media.image = undefined;
 }

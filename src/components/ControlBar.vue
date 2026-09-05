@@ -1,33 +1,37 @@
 <template>
     <div v-if="me.me" class="control-bar">
         <div class="controls">
-            <button :disabled="!isConnected" @click="endActiveCall" class="active">
+            <button :disabled="!isConnected" @click="endActiveCall" class="active icon-motion icon-motion--lift">
                 <PhoneOffIcon class="w-5 h-5" />
             </button>
 
-            <button @click="toggleMic" :class="{ active: isMicMuted }">
-                <MicOff v-if="isMicMuted" class="w-5 h-5" />
-                <Mic v-else class="w-5 h-5" />
+            <button @click="toggleMic" class="icon-motion icon-motion--lift" :class="{ active: isMicMuted }">
+                <MicOff v-if="isMicMuted" class="w-5 h-5 icon-appear" />
+                <Mic v-else class="w-5 h-5 icon-appear" />
             </button>
 
-            <button @click="sys.toggleHeadphoneMute" :class="{ active: sys.headphoneMuted }">
-                <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5" />
-                <Headphones v-else class="w-5 h-5" />
+            <button @click="sys.toggleHeadphoneMute" class="icon-motion icon-motion--lift"
+                :class="{ active: sys.headphoneMuted }">
+                <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5 icon-appear" />
+                <Headphones v-else class="w-5 h-5 icon-appear" />
             </button>
 
-            <button @click="toggleScreenCast" :class="{ active: voice.isSharing }" :disabled="!isConnected">
-                <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5" />
-                <ScreenShare v-else class="w-5 h-5" />
+            <button @click="toggleScreenCast" class="icon-motion icon-motion--lift"
+                :class="{ active: voice.isSharing }" :disabled="!isConnected">
+                <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5 icon-appear" />
+                <ScreenShare v-else class="w-5 h-5 icon-appear" />
             </button>
 
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
-                <button @click="voice.toggleCamera()" :class="{ active: voice.isCameraOn }" :disabled="!isConnected">
-                    <CameraOff v-if="voice.isCameraOn" class="w-5 h-5" />
-                    <CameraIcon v-else class="w-5 h-5" />
+                <button @click="voice.toggleCamera()" class="icon-motion icon-motion--lift"
+                    :class="{ active: voice.isCameraOn }" :disabled="!isConnected">
+                    <CameraOff v-if="voice.isCameraOn" class="w-5 h-5 icon-appear" />
+                    <CameraIcon v-else class="w-5 h-5 icon-appear" />
                 </button>
 
                 <button v-if="playframeActive"
+                    class="icon-motion icon-motion--lift"
                     @click="activity.openPicker()" 
                     :disabled="!isConnected"
                     :class="{ active: activity.isActive }"
@@ -36,9 +40,9 @@
                     <Gamepad2 class="w-5 h-5" />
                 </button>
 
-                <button @click="toggleDoNotDistrurb">
-                    <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600" />
-                    <OctagonMinusIcon v-else class="w-5 h-5" />
+                <button @click="toggleDoNotDistrurb" class="icon-motion icon-motion--lift">
+                    <OctagonMinusIcon v-if="status == UserStatus.DoNotDisturb" class="w-5 h-5 text-red-600 icon-appear" />
+                    <OctagonMinusIcon v-else class="w-5 h-5 icon-appear" />
                 </button>
             </div>
     </div>

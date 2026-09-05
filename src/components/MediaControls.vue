@@ -1,7 +1,7 @@
 <template>
     <Transition name="controls-reveal">
         <div v-if="isConnected || isConnecting" class="controls-block">
-            <button class="ctrl-btn ctrl-btn--danger" @click="$emit('hangup')" :disabled="!isConnected">
+            <button class="ctrl-btn ctrl-btn--danger icon-motion icon-motion--lift" @click="$emit('hangup')" :disabled="!isConnected">
                 <PhoneOffIcon class="w-[18px] h-[18px]" />
             </button>
 
@@ -9,13 +9,13 @@
 
             <!-- Microphone + device switch -->
             <div class="ctrl-split">
-                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
-                    <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px]" />
-                    <Mic v-else class="w-[18px] h-[18px]" />
+                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
+                    <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px] icon-appear" />
+                    <Mic v-else class="w-[18px] h-[18px] icon-appear" />
                 </button>
                 <Popover v-model:open="micMenuOpen">
                     <PopoverTrigger as-child>
-                        <button class="ctrl-chevron" :title="t('switch_microphone')"><ChevronUp class="w-3 h-3" /></button>
+                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_microphone')"><ChevronUp class="w-3 h-3" /></button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="start" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('microphone') }}</div>
@@ -37,22 +37,22 @@
                 </Popover>
             </div>
 
-            <button class="ctrl-btn" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
-                <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px]" />
-                <Headphones v-else class="w-[18px] h-[18px]" />
+            <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
+                <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px] icon-appear" />
+                <Headphones v-else class="w-[18px] h-[18px] icon-appear" />
             </button>
 
             <div class="ctrl-divider" />
 
             <!-- Screen share + options menu (system audio / source / quality) -->
             <div class="ctrl-split">
-                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
-                    <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px]" />
-                    <ScreenShare v-else class="w-[18px] h-[18px]" />
+                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
+                    <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px] icon-appear" />
+                    <ScreenShare v-else class="w-[18px] h-[18px] icon-appear" />
                 </button>
                 <Popover v-model:open="shareMenuOpen">
                     <PopoverTrigger as-child>
-                        <button class="ctrl-chevron" :title="t('screencast')" :disabled="!isConnected"><ChevronUp class="w-3 h-3" /></button>
+                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('screencast')" :disabled="!isConnected"><ChevronUp class="w-3 h-3" /></button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <!-- System / desktop audio -->
@@ -106,13 +106,13 @@
 
             <!-- Camera + device switch -->
             <div class="ctrl-split">
-                <button class="ctrl-btn" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
-                    <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px]" />
-                    <CameraIcon v-else class="w-[18px] h-[18px]" />
+                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
+                    <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px] icon-appear" />
+                    <CameraIcon v-else class="w-[18px] h-[18px] icon-appear" />
                 </button>
                 <Popover v-model:open="camMenuOpen">
                     <PopoverTrigger as-child>
-                        <button class="ctrl-chevron" :title="t('switch_camera')" :disabled="!isConnected">
+                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_camera')" :disabled="!isConnected">
                             <ChevronUp class="w-3 h-3" />
                         </button>
                     </PopoverTrigger>
@@ -137,11 +137,11 @@
             </div>
 
             <!-- Toggle the drawing toolbar on streams you're allowed to annotate -->
-            <button v-if="draw.canDrawAnywhere" class="ctrl-btn" :class="{ 'ctrl-btn--active': draw.drawMode }" @click="draw.toggleDrawMode()" :disabled="!isConnected" title="Draw on stream">
+            <button v-if="draw.canDrawAnywhere" class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': draw.drawMode }" @click="draw.toggleDrawMode()" :disabled="!isConnected" title="Draw on stream">
                 <Pencil class="w-[18px] h-[18px]" />
             </button>
 
-            <button v-if="showPlayframe" class="ctrl-btn" :class="{ 'ctrl-btn--active': activity.isActive }" @click="activity.openPicker()" :disabled="!isConnected">
+            <button v-if="showPlayframe" class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': activity.isActive }" @click="activity.openPicker()" :disabled="!isConnected">
                 <Gamepad2 class="w-[18px] h-[18px]" />
             </button>
         </div>

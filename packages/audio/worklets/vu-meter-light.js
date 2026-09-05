@@ -4,9 +4,13 @@ class VUMeterLight extends AudioWorkletProcessor {
         super();
         this._env = 0;
         this._samplesSincePost = 0;
-        this._samplesPerUpdate = sampleRate / 30; // 30 Hz for widget
+        this._samplesPerUpdate = sampleRate / 30; // 30 Hz cap for widget
         this._attack = 0.2;
         this._release = 0.8;
+        // Last posted level as a 0-100 integer; -1 forces the first post. The consumer
+        // rounds the level anyway, so a sub-integer change is never visible — posting only
+        // on an integer change makes a silent input cost no messages.
+        this._lastPosted = -1;
     }
 
     process(inputs) {
@@ -31,10 +35,14 @@ class VUMeterLight extends AudioWorkletProcessor {
 
         this._samplesSincePost += input[0].length;
 
-        // Send update at lower rate for performance
+        // Rate-capped, and only when the rounded level actually moved
         if (this._samplesSincePost >= this._samplesPerUpdate) {
             this._samplesSincePost -= this._samplesPerUpdate;
-            this.port.postMessage(this._env);
+            const level = Math.round(Math.min(1, this._env) * 100);
+            if (level !== this._lastPosted) {
+                this._lastPosted = level;
+                this.port.postMessage(this._env);
+            }
         }
 
         return true;

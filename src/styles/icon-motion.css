@@ -1,0 +1,118 @@
+/*
+ * Icon motion — appear, hover, press.
+ *
+ * Deliberately CSS and not motion-v. There are several hundred icons in the app; a JS animation
+ * per icon costs memory and a listener each, buys nothing over a transform transition, and would
+ * need its own reduced-motion plumbing. Motion is reached for where there is real orchestration to
+ * do; this is three transforms.
+ *
+ * The classes go on the *control*, not on the icon. A 16px glyph is a poor hover target and every
+ * one of these already sits inside a button that is a good one:
+ *
+ *   <button class="icon-motion icon-motion--lift">   hover lifts the icon, press pushes it in
+ *   <button class="icon-motion icon-motion--spin">   hover turns it half a revolution
+ *
+ * `icon-appear` is the exception and goes on the icon itself. It replays whenever the element is
+ * created, so an icon swapped by v-if — a mic that becomes a muted mic, a copy that becomes a tick
+ * — animates its own state change for free, without a morph or a second library.
+ *
+ * Both honour "reduce motion": the OS preference through styles/reduced-motion.css, and the
+ * in-app switch through the `reduce-motion` class the theme puts on <html>.
+ */
+
+:root {
+  --icon-motion-duration: 160ms;
+  --icon-motion-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+html.reduce-motion {
+  --icon-motion-duration: 0ms;
+}
+
+/* ── hover and press ───────────────────────────────────────────────────────────────────────── */
+
+.icon-motion svg {
+  transform-origin: center;
+  transition: transform var(--icon-motion-duration) var(--icon-motion-ease);
+}
+
+.icon-motion--lift:hover svg {
+  transform: translateY(-1px) scale(1.08);
+}
+
+.icon-motion--pop:hover svg {
+  transform: scale(1.15);
+}
+
+/* Refresh, retry, sync. */
+.icon-motion--spin:hover svg {
+  transform: rotate(180deg);
+}
+
+/* A plus that leans towards being a cross, a chevron that opens. */
+.icon-motion--turn:hover svg {
+  transform: rotate(90deg);
+}
+
+/* Anything that means "onwards": arrows, external links. */
+.icon-motion--nudge:hover svg {
+  transform: translateX(2px);
+}
+
+/* Bells and warnings, where the point is to be noticed rather than to look smooth. */
+.icon-motion--shake:hover svg {
+  animation: icon-motion-shake 420ms var(--icon-motion-ease);
+}
+
+@keyframes icon-motion-shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-12deg); }
+  55% { transform: rotate(9deg); }
+  80% { transform: rotate(-4deg); }
+}
+
+/* After the hover rules, so a press wins while the pointer is still over the control. */
+.icon-motion:active svg {
+  transform: scale(0.86);
+  transition-duration: 60ms;
+}
+
+/* Nothing should move under a pointer that cannot do anything. */
+.icon-motion:disabled svg,
+.icon-motion[aria-disabled="true"] svg,
+.icon-motion[data-disabled] svg {
+  transform: none;
+  animation: none;
+}
+
+/* ── appearing ─────────────────────────────────────────────────────────────────────────────── */
+
+/* No fill mode on purpose: cancelling the animation has to leave the icon in its normal state,
+   which is what makes the reduce-motion override below a one-liner. */
+.icon-appear {
+  animation: icon-appear var(--icon-appear-duration, 220ms) var(--icon-motion-ease);
+}
+
+.icon-appear--turn {
+  animation-name: icon-appear-turn;
+}
+
+.icon-appear--drop {
+  animation-name: icon-appear-drop;
+}
+
+@keyframes icon-appear {
+  from { opacity: 0; transform: scale(0.6); }
+}
+
+@keyframes icon-appear-turn {
+  from { opacity: 0; transform: rotate(-100deg) scale(0.6); }
+}
+
+@keyframes icon-appear-drop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.85); }
+}
+
+html.reduce-motion .icon-appear {
+  animation: none;
+}

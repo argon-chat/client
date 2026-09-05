@@ -203,10 +203,10 @@ watch(password, () => {
                 <button
                   type="button"
                   @click="showPassword = !showPassword"
-                  class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                  class="icon-motion icon-motion--pop absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
                 >
-                  <EyeOffIcon v-if="showPassword" class="w-4 h-4" />
-                  <EyeIcon v-else class="w-4 h-4" />
+                  <EyeOffIcon v-if="showPassword" class="w-4 h-4 icon-appear" />
+                  <EyeIcon v-else class="w-4 h-4 icon-appear" />
                 </button>
               </div>
               <div v-if="!isEnroll" class="flex justify-end mt-1">

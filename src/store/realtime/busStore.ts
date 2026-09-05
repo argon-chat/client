@@ -67,7 +67,9 @@ export const useBus = defineStore("bus", () => {
         case "event":
           try {
             const event = decodeEvent(msg.data);
-            logger.log("Received event from worker:", event);
+            // debug, not log: every realtime event went to the console (and, via the console
+            // integration, into a Sentry breadcrumb) with the whole decoded payload attached.
+            logger.debug("Received event from worker:", event);
             argonEventBus.next(event);
           } catch (err) {
             // One unreadable payload is not worth tearing the connection down for — the rest of

@@ -117,7 +117,7 @@
 
         <div class="space-y-2">
           <label class="text-sm font-medium text-muted-foreground">{{ t("server_id") }}</label>
-          <button class="id-field" @click="copyServerId" :title="t('copy')">
+          <button class="id-field icon-motion icon-motion--pop" @click="copyServerId" :title="t('copy')">
             <code class="id-value">{{ currentSpace.spaceId }}</code>
             <CopyIcon class="w-4 h-4 shrink-0 text-muted-foreground" />
           </button>

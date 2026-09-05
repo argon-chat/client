@@ -201,14 +201,14 @@ const onTitlebarDblClick = (e: MouseEvent) => {
     <!-- Right actions -->
     <div class="titlebar-actions">
       <Transition name="update-pop">
-        <button v-if="needsUpdate" class="update-btn" @click="doUpdate" :title="t('update_is_ready')">
+        <button v-if="needsUpdate" class="update-btn icon-motion icon-motion--lift" @click="doUpdate" :title="t('update_is_ready')">
           <IconArrowBigDownFilled class="w-3.5 h-3.5" />
           <span class="update-label">{{ t("update_is_ready") }}</span>
         </button>
       </Transition>
 
       <Transition name="update-pop">
-        <button v-if="linux.hasUpdate.value" class="update-btn linux-update-btn" @click="linux.showModal.value = true" :title="t('linux_update_available')">
+        <button v-if="linux.hasUpdate.value" class="update-btn linux-update-btn icon-motion icon-motion--lift" @click="linux.showModal.value = true" :title="t('linux_update_available')">
           <IconDownload class="w-3.5 h-3.5" />
           <span class="update-label">{{ t("linux_update_available") }}</span>
         </button>
@@ -221,7 +221,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
         :command="linux.downloadCommand.value"
       />
 
-      <button class="action-btn" @click="emit('feedback')" :title="t('send_feedback')">
+      <button class="action-btn icon-motion icon-motion--lift" @click="emit('feedback')" :title="t('send_feedback')">
         <IconMessageReport class="w-4 h-4" />
       </button>
 

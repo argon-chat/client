@@ -58,7 +58,8 @@
           </div>
         </div>
         <div class="flex items-center gap-1 shrink-0">
-          <Button @click="copyInvite(invite)" variant="ghost" size="icon" :title="t('copy')">
+          <Button @click="copyInvite(invite)" variant="ghost" size="icon"
+            class="icon-motion icon-motion--pop" :title="t('copy')">
             <CopyIcon class="w-4 h-4" />
           </Button>
           <Button

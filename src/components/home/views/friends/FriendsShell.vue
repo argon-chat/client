@@ -38,7 +38,7 @@
 
                 <Button
                     size="icon"
-                    class="h-9 w-9 shrink-0"
+                    class="h-9 w-9 shrink-0 icon-motion icon-motion--turn"
                     :title="t('add_friend')"
                     :aria-label="t('add_friend')"
                     :disabled="loading"

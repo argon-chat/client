@@ -1,4 +1,8 @@
 import { defineStore } from "pinia";
+import { onSessionReset } from "@/store/system/sessionLifecycle";
+
+/** Colours are derived from the id, so the cache is only a speed-up; it must not outgrow a session. */
+const MAX_CACHED_COLORS = 4096;
 
 // Палитра приглушенных цветов, которые не бьют по глазам
 const colorPalette = [
@@ -18,7 +22,9 @@ const colorPalette = [
 
 export const useUserColors = defineStore("userColors", () => {
   const userColorCache = new Map<string, string>();
+  onSessionReset(() => userColorCache.clear());
   function getColorByUserId(userId: string): string {
+    if (userColorCache.size >= MAX_CACHED_COLORS) userColorCache.clear();
     if (userColorCache.has(userId)) {
       return userColorCache.get(userId) ?? "";
     }

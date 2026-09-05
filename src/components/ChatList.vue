@@ -16,7 +16,7 @@
         <p class="text-sm text-muted-foreground/60">{{ t("no_channels") }}</p>
         <button 
           v-if="pex.has('ManageChannels')"
-          class="empty-state-btn"
+          class="empty-state-btn icon-motion icon-motion--turn"
           @click="openAddChannelForGroup(null)"
         >
           <PlusIcon class="w-4 h-4" />

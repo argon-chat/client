@@ -8,11 +8,21 @@ import { native } from "@argon/glue/native";
 
 export const useIdleStore = defineStore("idle", () => {
   const subscription = ref<Subscription | null>(null);
+  // useTimestamp is overloaded, and ReturnType picks its last signature — the `controls: true`
+  // shape, which is not what the call below returns. Inferring the annotation from the factory
+  // keeps the two from drifting apart again.
+  const createWebTrackers = () => ({
+    lastActive: useIdle(IDLE_TIME_SECONDS * 1000).lastActive,
+    now: useTimestamp({ interval: 1000 }),
+  });
+  let webTrackers: ReturnType<typeof createWebTrackers> | null = null;
   const isAutoAway = ref(false); // Track if Away was set automatically
   const idleSeconds = ref(0);
 
   const IDLE_TIME_SECONDS = 60 * 3; // 3 minutes
-  const CHECK_INTERVAL_MS = 2000; // 2 seconds
+  // Each tick is an IPC round trip to the host (or a timestamp read on the web); the verdict only
+  // needs minute-level accuracy, so 15 s is plenty and 43k round trips a day become ~6k.
+  const CHECK_INTERVAL_MS = 15_000;
 
   function handleStatusChange(inactiveSeconds: number) {
     const me = useMe();
@@ -73,8 +83,10 @@ export const useIdleStore = defineStore("idle", () => {
         )
         .subscribe();
     } else {
-      const { lastActive } = useIdle(IDLE_TIME_SECONDS * 1000);
-      const now = useTimestamp({ interval: 1000 });
+      // Created once: init() re-runs on every boot retry and account switch, and each call used to
+      // add another set of window activity listeners plus a 1 s timestamp interval.
+      if (!webTrackers) webTrackers = createWebTrackers();
+      const { lastActive, now } = webTrackers;
 
       subscription.value = interval(CHECK_INTERVAL_MS)
         .pipe(

@@ -56,6 +56,11 @@ export const useBotInteraction = defineStore("botInteraction", () => {
     subs.push(
       bus.onServerEvent<InteractionDeferred>("InteractionDeferred", (ev) => {
         pendingInteractions.set(ev.interactionId, "deferred");
+        // A deferred interaction is answered later by the bot; nothing else ever removed the entry,
+        // so the reactive map grew by one per deferral for the whole session.
+        setTimeout(() => {
+          if (pendingInteractions.get(ev.interactionId) === "deferred") pendingInteractions.delete(ev.interactionId);
+        }, 60_000);
       }),
     );
   }
