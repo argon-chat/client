@@ -26,21 +26,25 @@
     </div>
 
     <div v-else class="space-y-2">
-      <!-- The raw client string sits in the tooltip: the label below is a guess made from a
-           User-Agent, and on a security screen the unguessed original has to stay reachable. -->
+      <!-- Three lines per session, the way a phone's "devices" screen does it: what is signed in
+           (app and version), on what (computer name, operating system), from where (city, country,
+           address) and when it was last heard from. The raw client string sits in the tooltip: every
+           label below is something the client said about itself, and on a security screen the
+           unedited original has to stay reachable. -->
       <div v-for="session in sessions" :key="session.sessionId" class="session-row" :title="session.clientName">
-        <component :is="clientIcon(session)" class="w-4 h-4 text-muted-foreground shrink-0" />
+        <component :is="clientIcon(session)" class="w-5 h-5 text-muted-foreground shrink-0" />
 
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 space-y-0.5">
           <div class="text-sm font-medium flex items-center gap-2">
-            <span class="truncate">{{ clientLabel(session) }}</span>
+            <span class="truncate">{{ titleLabel(session) }}</span>
             <Badge v-if="session.isCurrent" variant="outline"
               class="bg-green-500/10 text-green-500 border-green-500/30 shrink-0">
               {{ t("sessions_current") }}
             </Badge>
           </div>
+          <div class="text-xs text-muted-foreground truncate">{{ deviceLabel(session) }}</div>
           <div class="text-xs text-muted-foreground truncate">
-            {{ regionLabel(session) }} · {{ lastSeenLabel(session) }}
+            {{ locationLabel(session) }} · {{ lastSeenLabel(session) }}
           </div>
         </div>
 
@@ -102,6 +106,7 @@ import {
 import { AtomSpinner } from "epic-spinners";
 import {
   GlobeIcon,
+  LaptopIcon,
   Loader2,
   LogOutIcon,
   MonitorIcon,
@@ -109,7 +114,8 @@ import {
   RefreshCwIcon,
   SmartphoneIcon,
 } from "lucide-vue-next";
-import { SessionError, type IRevokeSessionResult, type SessionInfo } from "@argon/glue";
+import { ClientPlatform, SessionError, type IRevokeSessionResult, type SessionInfo } from "@argon/glue";
+import { readPersistedValue } from "@argon/storage";
 import { useApi } from "@/store/system/apiStore";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
@@ -230,16 +236,34 @@ async function reportFailure(result: IRevokeSessionResult) {
 
 // ── Display helpers ───────────────────────────────────────
 
+const PLATFORM_NAMES: Record<ClientPlatform, string> = {
+  [ClientPlatform.UNKNOWN]: "",
+  [ClientPlatform.WINDOWS]: "Windows",
+  [ClientPlatform.MACOS]: "macOS",
+  [ClientPlatform.LINUX]: "Linux",
+  [ClientPlatform.ANDROID]: "Android",
+  [ClientPlatform.IOS]: "iOS",
+};
+
+/** Browser names the server resolves for web sessions; anything else with a name is an Argon app. */
+const BROWSER_NAME = /\b(Chrome|Edge|Firefox|Safari|Opera|Yandex)\b/i;
+
 /**
- * The name a person recognises, guessed off the client string (a User-Agent).
+ * First line: the application and its version — "Argon Desktop 1.4.0", "Chrome".
  *
- * Argon's own clients name themselves in it — ArgonChat-Android/… — and everything else is a
- * browser, where the leading token is always "Mozilla" and so tells nobody anything; the browser
- * has to be read out of the middle of the string instead, most specific first, because an Edge
- * agent also says Chrome and a Chrome agent also says Safari. Anything unrecognised falls back to
- * the string itself, which the row truncates and the tooltip shows whole: a bad guess on a
- * security screen costs more than an ugly label.
+ * The server names first-party applications from its registry and web sessions from the browser;
+ * a session it could name neither way (an older client, a record written before names existed)
+ * falls back to a guess made from the client string, and failing that to the string itself, which
+ * the row truncates and the tooltip shows whole. A bad guess on a security screen costs more than
+ * an ugly label.
  */
+function titleLabel(session: SessionInfo): string {
+  const named = `${session.appName} ${session.appVersion}`.trim();
+  if (named) return named;
+
+  return clientLabel(session);
+}
+
 function clientLabel(session: SessionInfo): string {
   const client = session.clientName.trim();
   if (!client) return t("sessions_unknown_client");
@@ -259,16 +283,62 @@ function clientLabel(session: SessionInfo): string {
   return browser?.name ?? client;
 }
 
-function clientIcon(session: SessionInfo) {
-  const client = session.clientName;
+/** Second line: the machine — "DESKTOP-7F2 · Windows 11 Pro", or just the OS for a browser. */
+function deviceLabel(session: SessionInfo): string {
+  const os = session.osName.trim() || PLATFORM_NAMES[session.platform] || "";
+  const parts = [session.deviceName.trim(), os].filter(Boolean);
 
+  return parts.length > 0 ? parts.join(" · ") : t("sessions_unknown_client");
+}
+
+/**
+ * Third line: where from — "Moscow, Russia · 203.0.113.7".
+ *
+ * The country arrives as an ISO code and is spelled out in the app's language; the city is
+ * whatever the edge in front of the server knew, in English, which is how such databases ship.
+ */
+function locationLabel(session: SessionInfo): string {
+  const place = [session.city.trim(), countryName(session.region)].filter(Boolean).join(", ");
+  const ip = session.ip.trim();
+  const where = place || t("sessions_unknown_region");
+
+  return ip && ip !== "unknown" ? `${where} · ${ip}` : where;
+}
+
+/** The app's locale codes are not all BCP-47; the display-name API wants ones that are. */
+const INTL_LOCALE: Record<string, string> = { en: "en", ru: "ru", ru_pt: "ru", jp: "ja", am: "hy" };
+
+const regionNames = computed(() => {
+  const app = readPersistedValue<string>("locale", "en");
+  try {
+    return new Intl.DisplayNames([INTL_LOCALE[app] ?? "en", "en"], { type: "region" });
+  } catch {
+    return null;
+  }
+});
+
+function countryName(code: string): string {
+  const iso = code.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(iso) || iso === "XX") return "";
+
+  try {
+    return regionNames.value?.of(iso) ?? iso;
+  } catch {
+    return iso;
+  }
+}
+
+function clientIcon(session: SessionInfo) {
+  if (session.platform === ClientPlatform.ANDROID || session.platform === ClientPlatform.IOS) return SmartphoneIcon;
+  if (BROWSER_NAME.test(session.appName)) return GlobeIcon;
+  if (session.platform === ClientPlatform.MACOS) return LaptopIcon;
+  if (session.platform === ClientPlatform.WINDOWS || session.platform === ClientPlatform.LINUX) return MonitorIcon;
+
+  // Nothing said what it is — fall back to what the client string looks like.
+  const client = session.clientName;
   if (/Android|iPhone|iPad/i.test(client)) return SmartphoneIcon;
   if (/Electron|Argon/i.test(client)) return MonitorIcon;
   return GlobeIcon;
-}
-
-function regionLabel(session: SessionInfo): string {
-  return session.region.trim() || t("sessions_unknown_region");
 }
 
 /**

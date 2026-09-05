@@ -59,7 +59,6 @@ import { useLocale } from "@/store/system/localeStore";
 // thirteen pulled the payment SDK, QR rendering and the whole media editor into the boot bundle
 // for everyone, whether or not they ever opened settings.
 const ProfileSettings = defineAsyncComponent(() => import("@/components/settings/ProfileSettings.vue"));
-const ConnectedDevices = defineAsyncComponent(() => import("@/components/settings/ConnectedDevices.vue"));
 const ApplicationSettings = defineAsyncComponent(() => import("./settings/ApplicationSettings.vue"));
 const HotKeySettings = defineAsyncComponent(() => import("./settings/HotKeySettings.vue"));
 const LanguageSettings = defineAsyncComponent(() => import("./settings/LanguageSettings.vue"));
@@ -132,7 +131,6 @@ const categoryComponents: Record<string, any> = {
     ultima: UltimaSettings,
     boosts: BoostSettings,
     transactions: TransactionSettings,
-    devices: ConnectedDevices,
     appearance: AppearanceSettings,
     audio: AudioSettings,
     application: ApplicationSettings,

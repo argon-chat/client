@@ -28,6 +28,12 @@ export interface IIdleNative {
   getIdleTime(): Promise<IdleTimeInfo | null>;
 }
 
+/** Native plugin `sec` (libsec). */
+export interface ISecNative {
+  /** A fresh device proof for the request the renderer is about to make, or null when this machine has no usable TPM. Sent as the Sec-Proof header on sign-in and token refresh. Runs on a libuv worker thread. */
+  makeDeviceProof(): Promise<string | null>;
+}
+
 function service<T>(name: string): T {
   return new Proxy({} as Record<string, unknown>, {
     get: (_target, method: string) => (...args: unknown[]) =>
@@ -37,3 +43,4 @@ function service<T>(name: string): T {
 
 export const AudioNative = service<IAudioNative>('AudioNative');
 export const IdleNative = service<IIdleNative>('IdleNative');
+export const SecNative = service<ISecNative>('SecNative');

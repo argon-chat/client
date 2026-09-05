@@ -4,6 +4,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useApi } from "@/store/system/apiStore";
+import { withDeviceProof } from "@/lib/net/deviceProofHeader";
 import { useBus } from "@/store/realtime/busStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useUltimaStore } from "@/store/data/ultimaStore";
@@ -186,10 +187,15 @@ export const useMe = defineStore("me", () => {
       // we park instead of hammering, and a connection that drops mid-flight is
       // retried once it's back — it is NOT mistaken for a rejected session below
       // (only a real `isBadAuthStatus()` verdict from the server logs the user out).
+      // A device-bound session can only be refreshed with a proof from this machine's TPM, made
+      // for this very call; a session that was never bound refreshes as before and the proof, if
+      // any, enrols the machine.
       const result = await runWhenOnline(() =>
-        api.identityInteraction.GetMyAuthorization(
-          authStore.token!,
-          authStore.getRefreshToken()
+        withDeviceProof(() =>
+          api.identityInteraction.GetMyAuthorization(
+            authStore.token!,
+            authStore.getRefreshToken()
+          )
         )
       );
 

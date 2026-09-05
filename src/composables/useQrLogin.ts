@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from "vue";
 import { useApi } from "@/store/system/apiStore";
+import { withDeviceProof } from "@/lib/net/deviceProofHeader";
 import { useAuthStore } from "@/store/auth/authStore";
 import { useAccounts } from "@/store/auth/accountsStore";
 import { LoginRequestError } from "@argon/glue";
@@ -65,7 +66,9 @@ export function useQrLogin() {
     errorMessage.value = "";
 
     try {
-      const result = await api.identityInteraction.CreateLoginRequest();
+      // The proof, where this machine can make one, binds the session the phone will approve to
+      // this machine's TPM — the same binding a password sign-in gets.
+      const result = await withDeviceProof(() => api.identityInteraction.CreateLoginRequest());
 
       if (result.isFailedCreateLoginRequest()) {
         fail(result.error);

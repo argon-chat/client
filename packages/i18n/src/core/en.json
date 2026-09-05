@@ -429,8 +429,6 @@
   "close_behaviour": "Close Behaviour",
   "minimize_to_tray": "Minimize to tray or close application",
   "application_settings": "Application Settings",
-  "connected_devices": "Connected Devices",
-  "logout_all_devices": "Logout All",
   "name": "Name",
   "add_invite": "Add Invite",
   "remove": "Remove",

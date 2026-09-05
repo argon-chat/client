@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { useApi } from "@/store/system/apiStore";
+import { withDeviceProof } from "@/lib/net/deviceProofHeader";
 import {
   AuthorizationError,
   NewUserCredentialsInput,
@@ -36,14 +37,15 @@ export const useAuthStore = defineStore("auth", () => {
   ): Promise<AuthorizationError | null> => {
     const api = useApi();
     await delay(500);
-    const r = await api.identityInteraction.Authorize({
+    // With a device proof, so the session the server mints is tied to this machine's TPM.
+    const r = await withDeviceProof(() => api.identityInteraction.Authorize({
       email: email,
       password: pass,
       phone: null,
       otpCode: otp ?? null,
       captchaToken: captchaToken ?? null,
       username: null,
-    });
+    }));
     metrics.count("auth.login", {
       method: "password",
       result: r.isSuccessAuthorize()
@@ -78,7 +80,7 @@ export const useAuthStore = defineStore("auth", () => {
   const register = async (data: NewUserCredentialsInput) => {
     const api = useApi();
     logger.warn(data);
-    const r = await api.identityInteraction.Registration(data);
+    const r = await withDeviceProof(() => api.identityInteraction.Registration(data));
     metrics.count("auth.register", {
       result: r.isSuccessRegistration() ? "ok" : "failed",
       error: r.isFailedRegistration() ? enumName(RegistrationError, r.error) : undefined,
@@ -265,11 +267,11 @@ export const useAuthStore = defineStore("auth", () => {
   ) => {
     const api = useApi();
 
-    const r = await api.identityInteraction.ResetPassword(
+    const r = await withDeviceProof(() => api.identityInteraction.ResetPassword(
       email,
       resetCode,
       newPass
-    );
+    ));
 
     metrics.count("auth.password_reset", {
       result: r.isSuccessAuthorize() ? "ok" : "failed",

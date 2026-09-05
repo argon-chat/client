@@ -6,6 +6,8 @@ import { IonCallContext, IonInterceptor } from "@argon-chat/ion.webcore";
 import { useAuthStore } from "@/store/auth/authStore";
 import { readPersistedValue } from "@argon/storage";
 import { v7 } from "uuid";
+import { DEVICE_PROOF_HEADER, deviceProof } from "@/lib/net/deviceProofHeader";
+import { CLIENT_DESCRIPTOR_HEADER, clientDescriptorHeader } from "@/lib/net/clientDescriptor";
 
 export function lazy<T>(getter: () => T): ComputedRef<T> {
   let initialized = false;
@@ -72,23 +74,43 @@ export class LocaleInterceptor implements IonInterceptor {
 }
 
 /**
- * Carries a device proof to the one call that needs it.
+ * Carries a device proof to the one call that asked for it — see `withDeviceProof` in
+ * `@/lib/net/deviceProofHeader` for the contract. Taken, not read: the server accepts each proof once.
  *
- * Only the refresh asks for proof of possession, and obtaining one costs a round trip of its own —
- * so it cannot ride on every request, and it especially cannot ride on the call that fetches the
- * challenge, which would recurse forever. The value is set for the duration of one call and cleared
- * straight after.
+ * This interceptor is first in the chain so that the take happens in the synchronous prefix of the
+ * call that set the proof, before anything else has had a chance to yield.
  */
-export const deviceProof = { pending: null as string | null };
-
 export class DeviceProofInterceptor implements IonInterceptor {
   async invokeAsync(
     ctx: IonCallContext,
     next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
     signal?: AbortSignal
   ): Promise<void> {
-    if (deviceProof.pending) {
-      ctx.requestHeaders = { ...ctx.requestHeaders, "Sec-Proof": deviceProof.pending };
+    const proof = deviceProof.pending;
+    if (proof) {
+      deviceProof.pending = null;
+      ctx.requestHeaders = { ...ctx.requestHeaders, [DEVICE_PROOF_HEADER]: proof };
+    }
+    await next(ctx, signal);
+  }
+}
+
+/**
+ * Says what this client is on every request, so the server can name the session on the devices
+ * screen. Built once; see `clientDescriptorHeader`. A request never fails over a header that only
+ * describes the device.
+ */
+export class ClientDescriptorInterceptor implements IonInterceptor {
+  async invokeAsync(
+    ctx: IonCallContext,
+    next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    try {
+      const value = await clientDescriptorHeader();
+      if (value) ctx.requestHeaders = { ...ctx.requestHeaders, [CLIENT_DESCRIPTOR_HEADER]: value };
+    } catch {
+      /* described below as best effort */
     }
     await next(ctx, signal);
   }
@@ -105,7 +127,13 @@ export const useApi = defineStore("api", () => {
 
   const rpcClient = computed(() => {
     void rpcEpoch.value;
-    return createClient(cfg.apiEndpoint, [new AuthInterceptor(authLazy), new LocaleInterceptor(), new DeviceProofInterceptor()]);
+    // DeviceProofInterceptor goes first on purpose — see its doc comment.
+    return createClient(cfg.apiEndpoint, [
+      new DeviceProofInterceptor(),
+      new AuthInterceptor(authLazy),
+      new LocaleInterceptor(),
+      new ClientDescriptorInterceptor(),
+    ]);
   });
 
   function recycleClient() {

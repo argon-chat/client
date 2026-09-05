@@ -278,8 +278,6 @@
   "close_behaviour": "閉じる動作",
   "minimize_to_tray": "トレイに最小化するかアプリを終了する",
   "application_settings": "アプリケーション設定",
-  "connected_devices": "接続されたデバイス",
-  "logout_all_devices": "すべてのデバイスからログアウト",
   "name": "名前",
   "add_invite": "招待を追加",
   "remove": "削除",

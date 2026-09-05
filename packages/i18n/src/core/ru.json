@@ -354,8 +354,6 @@
   "close_behaviour": "Поведение при закрытии",
   "minimize_to_tray": "Сворачивать в трей или закрывать приложение",
   "application_settings": "Настройки приложения",
-  "connected_devices": "Подключенные устройства",
-  "logout_all_devices": "Выйти из всех устройств",
   "name": "Название",
   "add_invite": "Добавить приглашение",
   "remove": "Удалить",
