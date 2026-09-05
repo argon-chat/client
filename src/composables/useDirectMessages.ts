@@ -72,7 +72,12 @@ export function useDirectMessages(peerId: () => Guid) {
   const optimisticTimers = new Map<bigint, ReturnType<typeof setTimeout>>();
   const messageIdSet = new Set<bigint>();
 
-  /** Trim messages to MAX_MESSAGES_IN_MEMORY from the tail (newest kept) */
+  /**
+   * Drop the oldest messages beyond MAX_MESSAGES_IN_MEMORY (newest kept). Only for the append path:
+   * history loads prepend at the head, and trimming from the head right after used to delete exactly
+   * the page just fetched — the list never grew, hasReachedEnd flipped back, and scrolling past
+   * 500 messages re-fetched the same page forever.
+   */
   const trimMessages = () => {
     if (messages.value.length > MAX_MESSAGES_IN_MEMORY) {
       const removed = messages.value.splice(0, messages.value.length - MAX_MESSAGES_IN_MEMORY);
@@ -167,7 +172,6 @@ export function useDirectMessages(peerId: () => Guid) {
       callbacks.beforePrepend();
       for (const m of sorted) messageIdSet.add(m.messageId);
       messages.value.unshift(...sorted);
-      trimMessages();
       triggerRef(messages);
       callbacks.afterPrepend();
 
