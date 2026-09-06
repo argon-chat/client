@@ -189,4 +189,71 @@ const { t } = useLocale();
   border-color: hsl(350 25% 45% / 0.5);
   box-shadow: none;
 }
+
+/* Light theme (no .dark on the root): the same hazard language on a pale ground. The dark
+   values above are the design; these only replace what would vanish on white. */
+:root:not(.dark) .danger-zone-wrap {
+  filter: drop-shadow(0 0 12px hsl(350 90% 55% / 0.18));
+}
+
+:root:not(.dark) .danger-zone {
+  background: linear-gradient(180deg, hsl(350 80% 97%), hsl(350 70% 94%));
+  border-color: hsl(350 85% 55% / 0.45);
+}
+
+:root:not(.dark) .danger-hazard {
+  background: repeating-linear-gradient(-45deg, #e0113d 0, #e0113d 10px, #fbd5de 10px, #fbd5de 20px);
+}
+
+:root:not(.dark) .danger-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    hsl(350 90% 40% / 0.035) 0,
+    hsl(350 90% 40% / 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+:root:not(.dark) .danger-icon {
+  color: hsl(350 85% 45%);
+  filter: drop-shadow(0 0 3px hsl(350 90% 55% / 0.35));
+}
+
+:root:not(.dark) .danger-title {
+  color: hsl(350 85% 42%);
+  text-shadow: none;
+}
+
+:root:not(.dark) .danger-title::before {
+  color: hsl(190 90% 38%);
+}
+
+:root:not(.dark) .danger-action-title {
+  color: hsl(350 30% 15%);
+}
+
+:root:not(.dark) .danger-action-desc,
+:root:not(.dark) :slotted(.danger-action-desc) {
+  color: hsl(350 15% 38%);
+}
+
+:root:not(.dark) :slotted(.danger-btn) {
+  color: hsl(350 85% 42%);
+  background: hsl(350 85% 50% / 0.08);
+  border-color: hsl(350 85% 50% / 0.55);
+  box-shadow: 0 0 8px hsl(350 90% 55% / 0.15), inset 0 0 8px hsl(350 90% 50% / 0.04);
+}
+
+:root:not(.dark) :slotted(.danger-btn:not(:disabled):hover) {
+  background: hsl(350 85% 48%);
+  color: #fff;
+  box-shadow: 0 0 14px hsl(350 90% 55% / 0.35);
+}
+
+:root:not(.dark) :slotted(.danger-btn:disabled) {
+  color: hsl(350 20% 60%);
+  border-color: hsl(350 20% 70% / 0.6);
+  background: hsl(350 20% 90% / 0.5);
+}
 </style>

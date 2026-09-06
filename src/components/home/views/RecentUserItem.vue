@@ -1,16 +1,46 @@
+<script lang="ts">
+/** What the row's context menu can ask the list to do. The list owns the calls and confirmations. */
+export type RecentChatAction =
+    | "pin"
+    | "unpin"
+    | "mark-read"
+    | "call"
+    | "remove-friend"
+    | "ignore"
+    | "unignore"
+    | "delete-chat"
+    | "block"
+    | "unblock"
+    | "copy-id";
+</script>
+
 <script setup lang="ts">
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import StatusDot from "@/components/StatusDot.vue";
 import { UserStatus, ActivityPresenceKind } from "@argon/glue";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useFriendsStore } from "@/store/data/friendsStore";
+import { useCallManager } from "@/store/media/callManagerStore";
 import { useLocale } from "@/store/system/localeStore";
 import { computed } from "vue";
 import { IconPin } from "@tabler/icons-vue";
+import {
+    Pin, PinOff, CheckCheck, Phone, UserMinus, EyeOff, Eye, Trash2, Ban, CircleCheck, Copy,
+} from "lucide-vue-next";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger,
+} from "@argon/ui/context-menu";
 import type { IonDateTime } from "@argon-chat/ion.webcore";
 
 const me = useMe();
 const pool = usePoolStore();
+const friends = useFriendsStore();
+const calls = useCallManager();
 const { t } = useLocale();
 
 const props = defineProps<{
@@ -25,6 +55,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: "open", userId: string): void;
+    (e: "action", action: RecentChatAction, userId: string): void;
 }>();
 
 const user = pool.getUserReactive(computed(() => props.userId));
@@ -87,45 +118,105 @@ const timeAgo = computed(() => {
     const weeks = Math.floor(days / 7);
     return `${weeks}w`;
 });
+
+// ── Context menu state ──
+// The echo chat is a fixture, not a person: it can be read and its id copied, nothing else.
+const isFriend = computed(() => friends.isFriend(props.userId));
+const isBlocked = computed(() => friends.isBlocked(props.userId));
+const isIgnored = computed(() => friends.isIgnored(props.userId));
+const hasUnread = computed(() => (props.unreadCount ?? 0) > 0);
+// One call at a time, and not to someone who could not answer it anyway.
+const canCall = computed(() => !isEchoUser.value && !isBlocked.value && !calls.activeCallId);
+
+const act = (action: RecentChatAction) => emit("action", action, props.userId);
 </script>
 
 <template>
-    <div class="recent-user flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-accent/50 min-w-0"
-        @click="emit('open', userId)">
-        <!-- Avatar with status dot -->
-        <div class="relative w-[36px] h-[36px] shrink-0">
-            <ArgonAvatar :user-id="userId" :overrided-size="36" />
-            <StatusDot :status="displayStatus" :size="12" class="absolute -bottom-0.5 -right-0.5" />
-        </div>
+    <ContextMenu>
+        <ContextMenuTrigger as="div">
+            <div class="recent-user flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-accent/50 min-w-0"
+                @click="emit('open', userId)">
+                <!-- Avatar with status dot -->
+                <div class="relative w-[36px] h-[36px] shrink-0">
+                    <ArgonAvatar :user-id="userId" :overrided-size="36" />
+                    <StatusDot :status="displayStatus" :size="12" class="absolute -bottom-0.5 -right-0.5" />
+                </div>
 
-        <!-- Name + subtitle -->
-        <div class="flex flex-col flex-1 overflow-hidden min-w-0 gap-0.5">
-            <div class="flex items-center gap-1">
-                <IconPin v-if="isPinned" class="w-3 h-3 text-primary shrink-0" />
-                <span class="text-[13px] font-medium truncate leading-tight"
-                    :class="{ 'font-semibold': unreadCount && unreadCount > 0 }">
-                    {{ name }}
-                </span>
+                <!-- Name + subtitle -->
+                <div class="flex flex-col flex-1 overflow-hidden min-w-0 gap-0.5">
+                    <div class="flex items-center gap-1">
+                        <IconPin v-if="isPinned" class="w-3 h-3 text-primary shrink-0" />
+                        <span class="text-[13px] font-medium truncate leading-tight"
+                            :class="{ 'font-semibold': hasUnread }">
+                            {{ name }}
+                        </span>
+                        <EyeOff v-if="isIgnored" class="w-3 h-3 text-muted-foreground shrink-0" :title="t('ignored')" />
+                    </div>
+                    <span v-if="subtitleText"
+                        class="text-[11px] text-muted-foreground truncate leading-tight"
+                        :class="{ 'text-foreground/70': activityText }">
+                        {{ subtitleText }}
+                    </span>
+                </div>
+
+                <!-- Time + unread badge -->
+                <div class="flex flex-col items-end gap-1 shrink-0 self-start pt-0.5">
+                    <span v-if="timeAgo" class="text-[10px] text-muted-foreground leading-none"
+                        :class="{ 'text-primary font-medium': hasUnread }">
+                        {{ timeAgo }}
+                    </span>
+                    <span v-if="hasUnread"
+                        class="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                        {{ (unreadCount ?? 0) > 99 ? '99+' : unreadCount }}
+                    </span>
+                </div>
             </div>
-            <span v-if="subtitleText"
-                class="text-[11px] text-muted-foreground truncate leading-tight"
-                :class="{ 'text-foreground/70': activityText }">
-                {{ subtitleText }}
-            </span>
-        </div>
+        </ContextMenuTrigger>
 
-        <!-- Time + unread badge -->
-        <div class="flex flex-col items-end gap-1 shrink-0 self-start pt-0.5">
-            <span v-if="timeAgo" class="text-[10px] text-muted-foreground leading-none"
-                :class="{ 'text-primary font-medium': unreadCount && unreadCount > 0 }">
-                {{ timeAgo }}
-            </span>
-            <span v-if="unreadCount && unreadCount > 0"
-                class="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
-                {{ unreadCount > 99 ? '99+' : unreadCount }}
-            </span>
-        </div>
-    </div>
+        <ContextMenuContent class="w-56">
+            <ContextMenuItem v-if="!isEchoUser" @click="act(isPinned ? 'unpin' : 'pin')">
+                <PinOff v-if="isPinned" class="w-4 h-4 mr-2" />
+                <Pin v-else class="w-4 h-4 mr-2" />
+                {{ isPinned ? t("unpin") : t("pin") }}
+            </ContextMenuItem>
+            <ContextMenuItem :disabled="!hasUnread" @click="act('mark-read')">
+                <CheckCheck class="w-4 h-4 mr-2" />
+                {{ t("mark_as_read") }}
+            </ContextMenuItem>
+            <ContextMenuItem v-if="!isEchoUser" :disabled="!canCall" @click="act('call')">
+                <Phone class="w-4 h-4 mr-2" />
+                {{ t("start_call") }}
+            </ContextMenuItem>
+
+            <template v-if="!isEchoUser">
+                <ContextMenuSeparator />
+                <ContextMenuItem v-if="isFriend" @click="act('remove-friend')">
+                    <UserMinus class="w-4 h-4 mr-2" />
+                    {{ t("remove_friend") }}
+                </ContextMenuItem>
+                <ContextMenuItem @click="act(isIgnored ? 'unignore' : 'ignore')">
+                    <Eye v-if="isIgnored" class="w-4 h-4 mr-2" />
+                    <EyeOff v-else class="w-4 h-4 mr-2" />
+                    {{ isIgnored ? t("unignore_user") : t("ignore_user") }}
+                </ContextMenuItem>
+                <ContextMenuItem class="text-red-400" @click="act('delete-chat')">
+                    <Trash2 class="w-4 h-4 mr-2" />
+                    {{ t("delete_chat") }}
+                </ContextMenuItem>
+                <ContextMenuItem class="text-red-400" @click="act(isBlocked ? 'unblock' : 'block')">
+                    <CircleCheck v-if="isBlocked" class="w-4 h-4 mr-2" />
+                    <Ban v-else class="w-4 h-4 mr-2" />
+                    {{ isBlocked ? t("unblock_user") : t("block_user") }}
+                </ContextMenuItem>
+            </template>
+
+            <ContextMenuSeparator />
+            <ContextMenuItem @click="act('copy-id')">
+                <Copy class="w-4 h-4 mr-2" />
+                {{ t("copy_user_id") }}
+            </ContextMenuItem>
+        </ContextMenuContent>
+    </ContextMenu>
 </template>
 
 <style scoped>

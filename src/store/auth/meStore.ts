@@ -270,7 +270,23 @@ export const useMe = defineStore("me", () => {
         return false;
       }
 
-      me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
+      try {
+        me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
+      } catch (e) {
+        // The refresh above was accepted and the first real call was not: the server is refusing
+        // the session as a whole — the row was signed out from another device between the two, or
+        // the token the refresh minted names a session on the tombstone list. Same landing as the
+        // web build's: keep the account, drop its credentials, start over at sign-in. A server
+        // having a bad minute is rethrown for the boot sequence to retry, as before.
+        if (!isSessionRejected(e)) throw e;
+
+        logger.warn("The session was refused right after refreshing it; signing out on this device", e);
+        metrics.count("auth.session.check", { result: "rejected" });
+        useAccounts().markActiveNeedsReauth();
+        useAuthStore().logout();
+        location.reload();
+        return false;
+      }
       announceStatus(me.value.currentStatus);
     }
 

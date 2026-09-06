@@ -17,20 +17,26 @@ import {
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue';
 import { useLocale } from "@/store/system/localeStore";
 import { Separator } from '@argon/ui/separator';
-import RecentUserItem from './views/RecentUserItem.vue';
+import { Button as UiButton } from '@argon/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@argon/ui/dialog';
+import { useToast } from '@argon/ui/toast';
+import RecentUserItem, { type RecentChatAction } from './views/RecentUserItem.vue';
 import router from '@/router';
 import { useRoute } from 'vue-router';
 import { useRecentChatsStore } from '@/store/chat/useRecentChatsStore';
+import { useFriendsStore } from '@/store/data/friendsStore';
+import { useCallManager } from '@/store/media/callManagerStore';
 import { useApi } from "@/store/system/apiStore";
 import type {
     RecentChatUpdatedEvent,
     ChatPinnedEvent,
     ChatUnpinnedEvent,
     ChatReadEvent,
+    ChatDeletedEvent,
     DirectMessageSent,
 } from "@argon/glue";
 import { useBus } from '@/store/realtime/busStore';
-import { DisposableBag } from '@argon/core';
+import { DisposableBag, logger } from '@argon/core';
 import { useMe } from '@/store/auth/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { useNotificationStore } from '@/store/data/notificationStore';
@@ -49,11 +55,14 @@ const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' 
 });
 
 const recentStore = useRecentChatsStore();
+const friendsStore = useFriendsStore();
+const calls = useCallManager();
 const api = useApi();
 const client = api.userChatInteractions;
 const bus = useBus();
 const me = useMe();
 const ntf = useNotificationStore();
+const { toast } = useToast();
 const softphoneOpened = ref(false);
 const searchQuery = ref('');
 
@@ -100,10 +109,122 @@ async function loadChats() {
 onMounted(() => {
     loadChats();
     subscribeEvents();
+    // The context menu on every row asks "friend? blocked? ignored?" — one load answers all of them.
+    void friendsStore.ensureLoaded();
 });
 
 function openChat(peerId: string) {
     router.push({ name: "HomeChat", params: { userId: peerId } });
+}
+
+// --- Row context menu ---
+
+/** An action that must not happen on a slip of the hand waits here for a second click. */
+const pendingConfirm = ref<{ kind: "remove-friend" | "block" | "delete-chat"; peerId: string; name: string } | null>(null);
+
+const confirmText = computed(() => {
+    const c = pendingConfirm.value;
+    if (!c) return { title: "", body: "", action: "" };
+    switch (c.kind) {
+        case "remove-friend":
+            return { title: t("remove_friend"), body: t("remove_friend_confirmation", { name: c.name }), action: t("remove_friend") };
+        case "block":
+            return { title: t("block_user"), body: t("block_user_confirmation", { name: c.name }), action: t("block_user") };
+        default:
+            return { title: t("delete_chat"), body: t("delete_chat_confirmation", { name: c.name }), action: t("delete_chat") };
+    }
+});
+
+/**
+ * Mark read from the list: the row, the badge in the rail and then the server, so the list reacts
+ * at once and a failed call only costs the server its copy of the count. The same steps the open
+ * chat takes when it scrolls to the bottom.
+ */
+async function markChatRead(peerId: string) {
+    const unread = recentStore.recent.find((c) => c.peerId === peerId)?.unreadCount ?? 0;
+    recentStore.markRead(peerId);
+    if (unread > 0) ntf.unreadDmCount = Math.max(0, ntf.unreadDmCount - unread);
+    await client.MarkChatRead(peerId);
+}
+
+/** The chat is gone from this account's list: drop the row and leave it if it is open. */
+function onChatGone(peerId: string) {
+    recentStore.removeChat(peerId);
+    if (route.name === "HomeChat" && route.params.userId === peerId) {
+        router.push({ name: "HomeDashboard" });
+    }
+}
+
+async function onChatAction(action: RecentChatAction, peerId: string) {
+    const name = recentStore.recent.find((c) => c.peerId === peerId)?.displayName ?? peerId;
+    try {
+        switch (action) {
+            case "pin":
+                // The store is updated by the ChatPinnedEvent the server sends straight back.
+                await client.PinChat(peerId);
+                break;
+            case "unpin":
+                await client.UnpinChat(peerId);
+                break;
+            case "mark-read":
+                await markChatRead(peerId);
+                break;
+            case "call":
+                await calls.startOutgoingCall(peerId);
+                break;
+            case "ignore":
+                await friendsStore.ignore(peerId);
+                toast({ title: t("user_ignored", { name }) });
+                break;
+            case "unignore":
+                await friendsStore.unignore(peerId);
+                toast({ title: t("user_unignored", { name }) });
+                break;
+            case "unblock":
+                await friendsStore.unblock(peerId);
+                toast({ title: t("user_unblocked", { name }) });
+                break;
+            case "copy-id":
+                await navigator.clipboard.writeText(peerId);
+                toast({ title: t("user_id_copied") });
+                break;
+            case "remove-friend":
+            case "block":
+            case "delete-chat":
+                pendingConfirm.value = { kind: action, peerId, name };
+                break;
+        }
+    } catch (e) {
+        logger.error(`[HomeSideShell] chat action ${action} failed`, e);
+        toast({ title: t("error"), description: t("chat_action_failed"), variant: "destructive" });
+    }
+}
+
+async function runConfirmed() {
+    const c = pendingConfirm.value;
+    if (!c) return;
+    pendingConfirm.value = null;
+    try {
+        switch (c.kind) {
+            case "remove-friend":
+                await friendsStore.removeFriend(c.peerId);
+                toast({ title: t("friend_removed") });
+                break;
+            case "block":
+                await friendsStore.block(c.peerId);
+                toast({ title: t("user_blocked", { name: c.name }) });
+                break;
+            case "delete-chat":
+                await client.DeleteChat(c.peerId);
+                // Dropped locally too: the deleter should not wait for their own event to come back.
+                onChatGone(c.peerId);
+                toast({ title: t("chat_deleted") });
+                break;
+        }
+    } catch (e) {
+        logger.error(`[HomeSideShell] ${c.kind} failed`, e);
+        toast({ title: t("error"), description: t("chat_action_failed"), variant: "destructive" });
+    }
 }
 
 // --- EventBus ---
@@ -131,7 +252,13 @@ function subscribeEvents() {
         bus.onServerEvent<DirectMessageSent>("DirectMessageSent", (e) => {
             if (e.receiverId !== me.me?.userId) return;
             const isOpen = route.name === "HomeChat" && route.params.userId === e.senderId;
-            if (!isOpen) recentStore.bumpUnread(e.senderId);
+            // An ignored sender's message arrives but does not count, matching the server's count.
+            if (!isOpen && !friendsStore.isIgnored(e.senderId)) recentStore.bumpUnread(e.senderId);
+        })
+    );
+    subs.addSubscription(
+        bus.onServerEvent<ChatDeletedEvent>("ChatDeletedEvent", (e) => {
+            onChatGone(e.peerId);
         })
     );
     subs.addSubscription(
@@ -257,6 +384,7 @@ const navItems = computed<NavItem[]>(() => [
                             :is-pinned="true"
                             :unread-count="u.unreadCount"
                             @open="openChat"
+                            @action="onChatAction"
                         />
                         <Separator class="mx-2 my-1" />
                     </template>
@@ -275,6 +403,7 @@ const navItems = computed<NavItem[]>(() => [
                         :last-message-at="u.lastMessageAt"
                         :unread-count="u.unreadCount"
                         @open="openChat"
+                        @action="onChatAction"
                     />
 
                     <!-- Empty state -->
@@ -292,6 +421,20 @@ const navItems = computed<NavItem[]>(() => [
         <ControlBar />
         <UserBar />
         <SoftphoneModal v-model:open="softphoneOpened" />
+
+        <!-- Second click for the actions that are not undone by a second click -->
+        <Dialog :open="pendingConfirm !== null" @update:open="(open) => { if (!open) pendingConfirm = null; }">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ confirmText.title }}</DialogTitle>
+                    <DialogDescription>{{ confirmText.body }}</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <UiButton variant="outline" @click="pendingConfirm = null">{{ t("cancel") }}</UiButton>
+                    <UiButton variant="destructive" @click="runConfirmed">{{ confirmText.action }}</UiButton>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>
 

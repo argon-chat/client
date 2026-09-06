@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { readPersistedValue } from "@argon/storage";
 import { v7 } from "uuid";
 import { DEVICE_PROOF_HEADER, deviceProof } from "@/lib/net/deviceProofHeader";
+import { isSessionRejected } from "@/lib/net/authFailure";
 import { CLIENT_DESCRIPTOR_HEADER, clientDescriptorHeader } from "@/lib/net/clientDescriptor";
 
 export function lazy<T>(getter: () => T): ComputedRef<T> {
@@ -30,16 +31,33 @@ class AuthInterceptor implements IonInterceptor {
     signal?: AbortSignal
   ): Promise<void> {
     let authData = {} as any;
+    const token = this.lazyStore.value.token;
 
-    if ( this.lazyStore.value.token) {
-      authData.Authorization = `Bearer ${this.lazyStore.value.token}`;
+    if (token) {
+      authData.Authorization = `Bearer ${token}`;
     }
-    
+
     ctx.requestHeaders = {
       ...ctx.requestHeaders,
       ...authData,
     };
-    await next(ctx, signal);
+
+    try {
+      await next(ctx, signal);
+    } catch (e) {
+      // The server refused the credentials this call carried. That is either an access token that
+      // has run out — refreshable — or a session that was ended from another device, and only the
+      // server can say which. `handleSessionRejected` asks it and signs out if the answer is "ended";
+      // it is single-flight, so a burst of refused calls costs one refresh. The refresh call itself
+      // is excluded: its refusal is the answer, not a reason to ask again.
+      //
+      // Fire-and-forget on purpose. This call still fails — its caller already knows how to retry
+      // or to report — and holding it open for a round trip would only delay that.
+      if (token && isSessionRejected(e) && ctx.methodName !== "GetMyAuthorization") {
+        void import("@/lib/net/sessionRecovery").then((m) => m.handleSessionRejected(`${ctx.interfaceName}.${ctx.methodName}`));
+      }
+      throw e;
+    }
   }
 }
 

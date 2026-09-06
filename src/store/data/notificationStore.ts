@@ -7,6 +7,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
 import { useChannelStore } from "@/store/data/channelStore";
+import { useFriendsStore } from "@/store/data/friendsStore";
 import { useTone } from "@/store/media/toneStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import {
@@ -277,6 +278,8 @@ export const useNotificationStore = defineStore("notifications", () => {
 
   function handleDirectMessageSent(e: DirectMessageSent) {
     if (e.receiverId === me.me?.userId) {
+      // Matches the server, which does not count an ignored sender's messages as unread.
+      if (useFriendsStore().isIgnored(e.senderId)) return;
       unreadDmCount.value++;
       flashForAttention();
     }

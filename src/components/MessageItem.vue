@@ -75,8 +75,9 @@
 
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
-              <span class="text-[11px] text-muted-foreground/60 tabular-nums">{{ formattedTime }}</span>
+            <!-- as-child: the span is the trigger, so no button line box pads the meta row above the bubble. -->
+            <TooltipTrigger as-child>
+              <span class="text-[11px] leading-none text-muted-foreground/60 tabular-nums">{{ formattedTime }}</span>
             </TooltipTrigger>
             <TooltipContent>
               <p>{{ formattedFullTime }}</p>
@@ -176,7 +177,7 @@
                 <!-- Text/file bubble -->
                 <div
                   v-if="!hasOnlyImages"
-                  class="flex flex-col px-[var(--chat-bubble-px,0.75rem)] py-[var(--chat-bubble-py,0.5rem)] text-foreground text-sm leading-[1.45] break-words whitespace-pre-wrap max-w-[520px] min-w-[120px]"
+                  class="flex flex-col px-[var(--chat-bubble-px,0.75rem)] py-[var(--chat-bubble-py,0.5rem)] text-foreground text-sm leading-[1.45] break-words whitespace-pre-wrap max-w-[520px]"
                   :class="bubbleBg"
                   :style="{ borderRadius: bubbleRadius }"
                 >

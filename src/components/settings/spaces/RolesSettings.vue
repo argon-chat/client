@@ -200,19 +200,12 @@
 
                   <!-- Danger Zone -->
                   <section v-if="!isLockedArchetype(selectedArchetype) && !selectedArchetype.isDefault">
-                    <Card class="border-red-500/20">
-                      <CardContent class="p-4 space-y-3">
-                        <div class="flex items-center gap-2">
-                          <AlertTriangleIcon class="w-4 h-4 text-red-400" />
-                          <h3 class="font-semibold text-sm text-red-400">{{ t("danger_zone") }}</h3>
-                        </div>
-                        <p class="text-muted-foreground text-xs">{{ t("delete_role_warning") }}</p>
-                        <Button variant="destructive" size="sm" @click="confirmDeleteArchetype" :disabled="deletingArchetype">
-                          <Trash2Icon class="w-3.5 h-3.5 mr-1.5" />
-                          {{ t("delete_role") }}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <DangerZone :title="t('delete_role')" :description="t('delete_role_warning')">
+                      <button class="danger-btn" :disabled="deletingArchetype" @click="confirmDeleteArchetype">
+                        <Trash2Icon class="w-4 h-4" />
+                        <span>{{ t("delete_role") }}</span>
+                      </button>
+                    </DangerZone>
                   </section>
                 </div>
 
@@ -314,6 +307,7 @@ import { usePexStore } from "@/store/data/permissionStore";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
+import DangerZone from "@/components/shared/DangerZone.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
 import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";

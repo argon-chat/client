@@ -282,7 +282,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
   display: flex;
   align-items: center;
   position: relative;
-  padding: 4px 10px;
+  padding: 4px 18px;
   margin: 3px 0 3px 4px;
   border: none;
   background: transparent;

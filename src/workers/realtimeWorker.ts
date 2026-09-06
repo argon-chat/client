@@ -28,7 +28,19 @@ import { DeliveryFilter } from "./streamDelivery";
 
 // --- Token request management ---
 let tokenRequestId = 0;
-const pendingTokenRequests = new Map<string, (token: string, error?: boolean) => void>();
+const pendingTokenRequests = new Map<string, (token: string, error?: boolean, fatal?: boolean) => void>();
+
+/**
+ * The main thread found out the session is over while fetching a ticket. Not a failure to retry:
+ * every further attempt would ask the server the same question and get the same answer, which is
+ * the 400-per-second loop a signed-out device used to sit in.
+ */
+class SessionEndedError extends Error {
+  constructor() {
+    super("The session has been signed out");
+  }
+}
+
 function requestToken(): Promise<string> {
   return new Promise((resolve, reject) => {
     const id = String(++tokenRequestId);
@@ -36,9 +48,11 @@ function requestToken(): Promise<string> {
       pendingTokenRequests.delete(id);
       reject(new Error("Token request timed out"));
     }, 10000);
-    pendingTokenRequests.set(id, (token: string, error?: boolean) => {
+    pendingTokenRequests.set(id, (token: string, error?: boolean, fatal?: boolean) => {
       clearTimeout(timeout);
-      if (error || !token) {
+      if (fatal) {
+        reject(new SessionEndedError());
+      } else if (error || !token) {
         reject(new Error("Token request failed"));
       } else {
         resolve(token);
@@ -46,6 +60,26 @@ function requestToken(): Promise<string> {
     });
     self.postMessage({ type: "tokenRequest", requestId: id });
   });
+}
+
+/**
+ * Stops this connection for good because the session behind it is over.
+ *
+ * `stop()` rather than waiting for a close: a connection in SignalR's own reconnect loop keeps
+ * asking for tickets until the retry policy gives up, and ours never does — so it has to be told.
+ * The main thread owns what happens next (it is already signing the device out); a later `connect`
+ * message re-arms everything.
+ */
+function stopForSessionEnd(why: string) {
+  postLog("warn", `Realtime connection stopped: ${why}`);
+  shouldReconnect = false;
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  stopHeartbeat();
+  void hubConnection?.stop();
+  self.postMessage({ type: "state", state: "disconnected", intentional: true });
 }
 
 // --- Helpers ---
@@ -212,6 +246,13 @@ async function connect(endpoint: string) {
             try {
               return await requestToken();
             } catch (e) {
+              // Signed out: no retry, and no reconnect loop either. This factory runs inside
+              // SignalR's own reconnect as well as on the first connect, and from inside it the only
+              // way to end that loop is to stop the connection.
+              if (e instanceof SessionEndedError) {
+                stopForSessionEnd(e.message);
+                throw e;
+              }
               postLog("warn", `Token request attempt ${attempt + 1} failed, retrying...`);
               if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
@@ -279,6 +320,16 @@ async function connect(endpoint: string) {
       }
     });
 
+    // The server says so before it closes the socket of a session that was signed out — from another
+    // device, by a password change, by the periodic sweep. The argument is a reason code, not text;
+    // the main thread translates it and signs this device out. Stopped here so SignalR does not
+    // answer the close with a reconnect.
+    hubConnection.on("sessionRevoked", (reason?: string) => {
+      const code = typeof reason === "string" && reason.length > 0 ? reason : "session_ended";
+      self.postMessage({ type: "sessionRevoked", reason: code });
+      stopForSessionEnd(`the server ended this session (${code})`);
+    });
+
     hubConnection.onreconnecting((error) => {
       postLog("warn", "SignalR reconnecting...", error?.message);
       self.postMessage({ type: "state", state: "reconnecting" });
@@ -344,6 +395,9 @@ async function connect(endpoint: string) {
 
     startHeartbeat();
   } catch (error: any) {
+    // Already stopped and reported by the token factory; a reconnect here would undo that.
+    if (error instanceof SessionEndedError) return;
+
     postLog("error", "SignalR connection error", error?.message);
     self.postMessage({ type: "state", state: "disconnected" });
     scheduleReconnect(endpoint);
@@ -429,7 +483,7 @@ self.onmessage = (e: MessageEvent) => {
       const resolve = pendingTokenRequests.get(msg.requestId);
       if (resolve) {
         pendingTokenRequests.delete(msg.requestId);
-        resolve(msg.token, msg.error);
+        resolve(msg.token, msg.error, msg.fatal);
       }
       break;
     }

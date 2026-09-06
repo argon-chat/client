@@ -1401,6 +1401,13 @@ export interface FeatureFlagData {
 };
 
 
+export interface UserIgnore {
+  userId: guid;
+  ignoredId: guid;
+  ignoredAt: datetime;
+};
+
+
 export interface UserBlock {
   userId: guid;
   blockedId: guid;
@@ -6733,6 +6740,15 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isMessageUpdated(): this is MessageUpdated {
     return this.UnionKey === "MessageUpdated";
   }
+  public isUserIgnoredEvent(): this is UserIgnoredEvent {
+    return this.UnionKey === "UserIgnoredEvent";
+  }
+  public isUserUnignoredEvent(): this is UserUnignoredEvent {
+    return this.UnionKey === "UserUnignoredEvent";
+  }
+  public isChatDeletedEvent(): this is ChatDeletedEvent {
+    return this.UnionKey === "ChatDeletedEvent";
+  }
 
 }
 
@@ -7257,11 +7273,35 @@ export class MessageUpdated extends IArgonEvent
   UnionIndex: number = 64;
 }
 
+export class UserIgnoredEvent extends IArgonEvent
+{
+  constructor(public ignoredId: guid) { super(); }
+
+  UnionKey: string = "UserIgnoredEvent";
+  UnionIndex: number = 65;
+}
+
+export class UserUnignoredEvent extends IArgonEvent
+{
+  constructor(public ignoredId: guid) { super(); }
+
+  UnionKey: string = "UserUnignoredEvent";
+  UnionIndex: number = 66;
+}
+
+export class ChatDeletedEvent extends IArgonEvent
+{
+  constructor(public peerId: guid) { super(); }
+
+  UnionKey: string = "ChatDeletedEvent";
+  UnionIndex: number = 67;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 65);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 68);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -7396,8 +7436,14 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<SpaceDeletionCancelled>("SpaceDeletionCancelled").read(reader);
     else if (unionIndex == 64)
       value = IonFormatterStorage.get<MessageUpdated>("MessageUpdated").read(reader);
+    else if (unionIndex == 65)
+      value = IonFormatterStorage.get<UserIgnoredEvent>("UserIgnoredEvent").read(reader);
+    else if (unionIndex == 66)
+      value = IonFormatterStorage.get<UserUnignoredEvent>("UserUnignoredEvent").read(reader);
+    else if (unionIndex == 67)
+      value = IonFormatterStorage.get<ChatDeletedEvent>("ChatDeletedEvent").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 65);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 68);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -7602,8 +7648,17 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 64) {
         IonFormatterStorage.get<MessageUpdated>("MessageUpdated").write(writer, value as MessageUpdated);
     }
+    else if (value.UnionIndex == 65) {
+        IonFormatterStorage.get<UserIgnoredEvent>("UserIgnoredEvent").write(writer, value as UserIgnoredEvent);
+    }
+    else if (value.UnionIndex == 66) {
+        IonFormatterStorage.get<UserUnignoredEvent>("UserUnignoredEvent").write(writer, value as UserUnignoredEvent);
+    }
+    else if (value.UnionIndex == 67) {
+        IonFormatterStorage.get<ChatDeletedEvent>("ChatDeletedEvent").write(writer, value as ChatDeletedEvent);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 65 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 68 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -8723,6 +8778,48 @@ IonFormatterStorage.register("MessageUpdated", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserIgnoredEvent", {
+  read(reader: CborReader): UserIgnoredEvent {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "UserIgnoredEvent");
+    const ignoredId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new UserIgnoredEvent(ignoredId);
+  },
+  write(writer: CborWriter, value: UserIgnoredEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ignoredId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UserUnignoredEvent", {
+  read(reader: CborReader): UserUnignoredEvent {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "UserUnignoredEvent");
+    const ignoredId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new UserUnignoredEvent(ignoredId);
+  },
+  write(writer: CborWriter, value: UserUnignoredEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ignoredId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChatDeletedEvent", {
+  read(reader: CborReader): ChatDeletedEvent {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "ChatDeletedEvent");
+    const peerId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ChatDeletedEvent(peerId);
+  },
+  write(writer: CborWriter, value: ChatDeletedEvent): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
     writer.writeEndArray();
   }
 });
@@ -14731,6 +14828,24 @@ IonFormatterStorage.register("FeatureFlagData", {
   }
 });
 
+IonFormatterStorage.register("UserIgnore", {
+  read(reader: CborReader): UserIgnore {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserIgnore");
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const ignoredId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const ignoredAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { userId, ignoredId, ignoredAt };
+  },
+  write(writer: CborWriter, value: UserIgnore): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ignoredId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.ignoredAt);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UserBlock", {
   read(reader: CborReader): UserBlock {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserBlock");
@@ -16819,6 +16934,9 @@ export interface IFriendsInteraction extends IIonService
   CancelFriendRequest(toUserId: guid): Promise<void>;
   BlockUser(userId: guid): Promise<void>;
   UnblockUser(userId: guid): Promise<void>;
+  GetIgnoreList(limit: i4, offset: i4): Promise<IonArray<UserIgnore>>;
+  IgnoreUser(userId: guid): Promise<void>;
+  UnignoreUser(userId: guid): Promise<void>;
 }
 
 
@@ -16828,6 +16946,7 @@ export interface IUserChatInteractions extends IIonService
   PinChat(peerId: guid): Promise<void>;
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
+  DeleteChat(peerId: guid): Promise<void>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
@@ -17152,6 +17271,9 @@ export interface IFriendsInteraction extends IIonService
   CancelFriendRequest(toUserId: guid): Promise<void>;
   BlockUser(userId: guid): Promise<void>;
   UnblockUser(userId: guid): Promise<void>;
+  GetIgnoreList(limit: i4, offset: i4): Promise<IonArray<UserIgnore>>;
+  IgnoreUser(userId: guid): Promise<void>;
+  UnignoreUser(userId: guid): Promise<void>;
 }
 
 
@@ -17161,6 +17283,7 @@ export interface IUserChatInteractions extends IIonService
   PinChat(peerId: guid): Promise<void>;
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
+  DeleteChat(peerId: guid): Promise<void>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
@@ -18403,6 +18526,46 @@ export class FriendsInteraction_Executor extends ServiceExecutor<IFriendsInterac
           
     await req.callAsync(writer.data, this.signal);
   }
+  async GetIgnoreList(limit: i4, offset: i4): Promise<IonArray<UserIgnore>> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "GetIgnoreList");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<i4>('i4').write(writer, limit);
+    IonFormatterStorage.get<i4>('i4').write(writer, offset);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UserIgnore>>("IonArray<UserIgnore>", writer.data, this.signal);
+  }
+  async IgnoreUser(userId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "IgnoreUser");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async UnignoreUser(userId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IFriendsInteraction", "UnignoreUser");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
 
 }
 
@@ -18456,6 +18619,19 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
   }
   async MarkChatRead(peerId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IUserChatInteractions", "MarkChatRead");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async DeleteChat(peerId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "DeleteChat");
           
     const writer = new CborWriter();
       

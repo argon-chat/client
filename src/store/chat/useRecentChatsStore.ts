@@ -199,6 +199,12 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     if (chat) chat.unreadCount = 0;
   }
 
+  /** The chat left this account's list (deleted here or in another window). */
+  function removeChat(peerId: string) {
+    pendingUnread.delete(peerId);
+    recent.value = recent.value.filter((x) => x.peerId !== peerId);
+  }
+
   /**
    * RecentChatUpdatedEvent says a conversation moved, not who spoke — it is raised for the owner of
    * the list either way. DirectMessageSent is the one that knows the direction, so that is what
@@ -231,6 +237,7 @@ export const useRecentChatsStore = defineStore("recentChatsStore", () => {
     upsert,
     markPinned,
     markRead,
+    removeChat,
     bumpUnread,
   };
 });

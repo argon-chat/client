@@ -14,8 +14,12 @@ import { IonRequestException } from "@argon-chat/ion.webcore";
 export function isSessionRejected(error: unknown): boolean {
   if (!(error instanceof IonRequestException)) return false;
 
+  // NO_AUTH is what the API's own interceptor answers with — for a missing or expired token, and
+  // for a session that was ended from another device. It was not on this list, so a signed-out
+  // device read its refusals as a flaky server and kept reconnecting. DEVICE_BANNED is the machine
+  // being barred, which no refresh can undo either.
   const code = String(error.error?.code ?? "").toUpperCase();
-  if (["UNAUTHORIZED", "FORBIDDEN", "BAD_TOKEN", "SESSION_EXPIRED"].includes(code)) return true;
+  if (["UNAUTHORIZED", "FORBIDDEN", "BAD_TOKEN", "SESSION_EXPIRED", "NO_AUTH", "DEVICE_BANNED"].includes(code)) return true;
 
   // `UPSTREAM_ERROR` is what the client throws when the body was not a protocol error it could
   // read; its message is the bare HTTP status.

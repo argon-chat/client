@@ -8,6 +8,8 @@ import { IArgonEvent, UserStatus } from "@argon/glue";
 import { CborReader, IonFormatterStorage, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
+import { isSessionRejected } from "@/lib/net/authFailure";
+import { forceSignOut, handleSessionRejected } from "@/lib/net/sessionRecovery";
 
 export type EventWithServerId<T> = { spaceId: string } & T;
 
@@ -87,9 +89,28 @@ export const useBus = defineStore("bus", () => {
           } catch (err) {
             logger.error("Failed to get token for worker", err);
             metrics.count("realtime.ticket.failed", { error: errorKind(err) });
+
+            // A refused ticket is the way a signed-out device finds out: the server ended this session
+            // from another device, or the access token has simply run out. Only a refresh can tell the
+            // two apart, so ask, and let the answer decide whether the worker keeps trying — a renewed
+            // token makes its next attempt succeed, a refused one means the page is already reloading
+            // into sign-in and the worker must stop rather than ask the server the same thing forever.
+            let fatal = false;
+            if (isSessionRejected(err)) {
+              fatal = (await handleSessionRejected("realtime ticket")) === "signed_out";
+            }
+
             // Always respond so worker doesn't hang
-            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true });
+            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true, fatal });
           }
+          break;
+
+        case "sessionRevoked":
+          // The server said so on the socket itself, right before closing it. There is nothing to
+          // ask: the session is over on this device. The reason is a code the sign-in screen
+          // translates once the page has reloaded into it.
+          logger.warn("[RealtimeWorker] the server ended this session:", msg.reason);
+          forceSignOut(msg.reason, "server signal");
           break;
 
         case "heartbeatRequest":

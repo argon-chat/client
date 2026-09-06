@@ -72,7 +72,7 @@
     --chat-bubble-tail: 7px;
     --chat-group-gap: 0.75rem;   /* gap before a new sender group */
     --chat-stack-gap: 0.125rem;  /* gap between stacked messages of one group */
-    --chat-row-gap: 0.5rem;      /* gap between avatar column and content */
+    --chat-row-gap: 0.875rem;    /* gap between avatar column and content; 8px read as glued */
     --chat-bubble-px: 0.75rem;
     --chat-bubble-py: 0.5rem;
   }
@@ -366,7 +366,7 @@
 :root[data-chat-density="compact"] {
   --chat-group-gap: 0.4rem;
   --chat-stack-gap: 0.075rem;
-  --chat-row-gap: 0.5rem;
+  --chat-row-gap: 0.75rem;
   --chat-bubble-px: 0.6rem;
   --chat-bubble-py: 0.3rem;
   --chat-bubble-radius: 0.85rem;
