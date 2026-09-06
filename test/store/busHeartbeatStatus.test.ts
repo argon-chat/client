@@ -1,13 +1,16 @@
 /**
  * The status the client puts on the wire, and when it puts it there.
  *
- * The heartbeat is the ONLY thing that tells the server what this user's status really is: the hub
- * starts every fresh session as Online and only learns otherwise from a heartbeat. Two things
- * follow, and both are pinned here. The first heartbeat of a session decides how a Do-Not-Disturb
- * user is shown to everyone until the next one, so it must already carry the status they chose in
- * a previous session — which it does because the boot sequence loads the profile before the worker
- * that heartbeats exists, an ordering guarded below rather than assumed. And a status the user
- * picks mid-session goes out at once, because a tick is 15 s and a decision is not a sample.
+ * The heartbeat is the ONLY thing that tells the server what this user's status really is. The hub
+ * no longer assumes Online at connect: it starts a session statusless and waits out a short
+ * deadline for the first heartbeat, which makes that heartbeat the whole answer rather than a
+ * correction to a guess. Three things follow, and all three are pinned here. It must carry the
+ * status the user chose in a previous session, whether or not the profile has landed — the boot
+ * sequence usually loads it first, but a heartbeat that beats it falls back to the persisted
+ * preference rather than to Online. The profile landing on a connection that is already up (a
+ * resync, an account switch, a retried boot step) announces itself instead of waiting for the
+ * tick. And a status the user picks mid-session goes out at once, because a tick is 15 s and a
+ * decision is not a sample.
  */
 
 import { describe, test, expect, beforeEach, vi } from "vitest";
@@ -151,17 +154,15 @@ describe("heartbeat status", () => {
   });
 
   /**
-   * The boot-order contract behind `me.me?.currentStatus ?? UserStatus.Online` in
-   * `src/store/realtime/busStore.ts`.
+   * The boot-order contract behind the heartbeat's answer in `src/store/realtime/busStore.ts`.
    *
-   * That fallback is a hard-coded Online, i.e. exactly the status a Do-Not-Disturb user did not
-   * choose — so what keeps a DND user from being announced Online on every cold start is that the
-   * fallback is never reached: the realtime worker is built by `completeInit()`, which runs after
-   * `init()` has loaded the profile, and `init()` seeds `currentStatus` from the persisted
-   * `preferredStatus` before the first `GetMe` answer is merged in. Nothing about that ordering is
-   * self-evident from either file, and moving the connect ahead of the profile load would silently
-   * turn every persisted DND into an Online announcement, so the order is asserted here (no worker
-   * exists until `completeInit`) together with what it buys (the FIRST heartbeat is already DND).
+   * The realtime worker is built by `completeInit()`, which runs after `init()` has loaded the
+   * profile, and `init()` seeds `currentStatus` from the persisted `preferredStatus` before the
+   * first `GetMe` answer is merged in. Nothing about that ordering is self-evident from either
+   * file, and it is what makes the FIRST heartbeat of a cold start already say Do Not Disturb — on
+   * a server that now takes that first heartbeat as the session's status outright. The order is
+   * asserted (no worker exists until `completeInit`) together with what it buys. The test below it
+   * covers the same user when the order does not hold.
    */
   test("the first heartbeat of a cold start carries the persisted Do Not Disturb", async () => {
     // The user chose Do Not Disturb in a previous session; nothing has been fetched yet this one.
@@ -244,6 +245,65 @@ describe("heartbeat status", () => {
    * such a session to Offline), so a client that reported Online here would hide that defect rather
    * than merely mis-state a status.
    */
+  /**
+   * The fallback, for the boot orders where the profile is not in yet.
+   *
+   * The test above pins the cold start, where nothing heartbeats before `init()` returns. It is not
+   * the only order: the worker reconnects on its own and heartbeats the moment it is back, and the
+   * boot sequence re-runs (a full resync, an account switch, a step that failed and is retried)
+   * with `me` cleared by `onSessionReset` while that connection is still up. A hard-coded Online
+   * there announced the one status a Do-Not-Disturb user did not choose, and — since the server
+   * stopped inventing a status of its own — it was the client, not the hub, producing the flash.
+   */
+  test("a heartbeat that beats the profile reports the persisted status, not Online", async () => {
+    localStorage.setItem(PREFERRED_KEY, String(UserStatus.DoNotDisturb));
+
+    const me = useMe();
+    expect(me.me).toBeNull();
+
+    const worker = await connectedWorker();
+    await worker.say({ type: "heartbeatRequest" });
+
+    expect(worker.heartbeats()).toEqual([
+      { type: "heartbeatInvoke", status: UserStatus.DoNotDisturb },
+    ]);
+  });
+
+  /**
+   * With no preference persisted there is nothing to prefer, and Online is the right answer: it is
+   * the absence of a choice, not a choice. Pinned so the fallback chain above cannot be "fixed"
+   * into reporting Offline (which the server maps back to Online anyway) or nothing at all.
+   */
+  test("a heartbeat that beats the profile reports Online when nothing was persisted", async () => {
+    const worker = await connectedWorker();
+    await worker.say({ type: "heartbeatRequest" });
+
+    expect(worker.heartbeats()).toEqual([{ type: "heartbeatInvoke", status: UserStatus.Online }]);
+  });
+
+  /**
+   * The profile landing is a status decision too, and is announced like one.
+   *
+   * When the connection is already up — the boot sequence re-running after a resync or an account
+   * switch — the session is being heartbeated with whatever the fallback or the previous account
+   * left behind, and `init()` is the moment that stops being true. Waiting for the next tick showed
+   * the wrong user's status for up to 15 s; the push costs one `Heartbeat` the server no-ops when
+   * it repeats what it already has.
+   */
+  test("the profile landing on a live connection announces its status at once", async () => {
+    localStorage.setItem(PREFERRED_KEY, String(UserStatus.DoNotDisturb));
+
+    const worker = await connectedWorker();
+    worker.posted.length = 0;
+
+    const me = useMe();
+    expect(await me.init()).toBe(true);
+
+    expect(worker.posted).toEqual([
+      { type: "invoke", method: "Heartbeat", args: [UserStatus.DoNotDisturb] },
+    ]);
+  });
+
   test("the first heartbeat of a cold start carries a persisted TouchGrass", async () => {
     localStorage.setItem(PREFERRED_KEY, String(UserStatus.TouchGrass));
 

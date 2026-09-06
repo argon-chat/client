@@ -127,6 +127,15 @@ export const useMe = defineStore("me", () => {
    * while the user's own screen already showed it. `pushStatusNow` sends the same `Heartbeat` the
    * tick sends, so the server sees no new kind of traffic and the tick keeps its job.
    *
+   * The boot sequence announces too, not only `changeStatusTo`/`setTemporaryStatus`. The server no
+   * longer invents a status at attach — it starts a session statusless and waits up to its 5 s
+   * deadline for the first heartbeat — so whatever this client says first is what everyone sees.
+   * On a cold start the connection does not exist yet and the push is a no-op (the first heartbeat
+   * carries the status anyway, see `busStore`), but the profile also lands with a connection already
+   * up: a re-run of the boot sequence after a full resync, an account switch, or a retried step. In
+   * those the next tick was up to 15 s away, and the session spent them showing the status the
+   * previous account — or the fallback — left behind.
+   *
    * Only ever called where `me` has been written first: the push must state what this client
    * actually holds, or the next tick would contradict it. Defect C2, pinned by
    * `test/store/busHeartbeatStatus.test.ts` "choosing a status pushes it instead of waiting for the
@@ -179,6 +188,7 @@ export const useMe = defineStore("me", () => {
   async function initWebSession(): Promise<boolean> {
     try {
       me.value = { currentStatus: preferredStatus.value, ...(await runWhenOnline(() => getMe())) };
+      announceStatus(me.value.currentStatus);
       return true;
     } catch (e) {
       // `runWhenOnline` has already absorbed the case where the connection dropped mid-request. What
@@ -261,6 +271,7 @@ export const useMe = defineStore("me", () => {
       }
 
       me.value = { currentStatus: preferredStatus.value, ...(await getMe()) };
+      announceStatus(me.value.currentStatus);
     }
 
     // Both branches above set it, but only one of them does so where the compiler can see it.
@@ -315,5 +326,9 @@ export const useMe = defineStore("me", () => {
     statusClass,
     isPremium,
     limitation,
+    // Exposed for `busStore`'s heartbeat: when the profile has not landed the persisted preference
+    // is the only thing that knows this user chose Do Not Disturb, and reporting Online instead
+    // announces a status they did not pick.
+    preferredStatus,
   };
 });

@@ -93,11 +93,18 @@ export const useBus = defineStore("bus", () => {
           break;
 
         case "heartbeatRequest":
-          // Worker requests heartbeat — provide current user status
+          // The worker asks what to report; this is the only channel by which the server learns
+          // this user's status at all. It starts a session statusless and waits out a short
+          // deadline for the first heartbeat, so the answer below IS the status everyone sees —
+          // and the fallback matters, because the worker heartbeats the moment it connects and
+          // the profile is not always in by then (a reconnect that beats a re-run of the boot
+          // sequence, a resync). A hard-coded Online there announced exactly the status a Do Not
+          // Disturb user did not choose; the persisted preference is what they last picked, and it
+          // is read per call so a status chosen or switched to since the store was built counts.
           try {
             const { useMe } = await import("../auth/meStore");
             const me = useMe();
-            const status = me.me?.currentStatus ?? UserStatus.Online;
+            const status = me.me?.currentStatus ?? me.preferredStatus ?? UserStatus.Online;
             worker!.postMessage({ type: "heartbeatInvoke", status });
           } catch (err) {
             logger.error("Failed to send heartbeat status to worker", err);
