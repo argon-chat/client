@@ -22,6 +22,28 @@ const stubs = vi.hoisted(() => ({
   remove: vi.fn(),
 }));
 
+/** The bus, reduced to the one thing this store listens for: the connection came back. */
+const bus = vi.hoisted(() => {
+  const listeners: Array<() => void> = [];
+  return {
+    listeners,
+    reconnected: {
+      subscribe(handler: () => void) {
+        listeners.push(handler);
+        return {
+          unsubscribe() {
+            listeners.splice(listeners.indexOf(handler), 1);
+          },
+        };
+      },
+    },
+    /** Speak as the bus does when the realtime connection is re-established. */
+    reconnect() {
+      for (const handler of [...listeners]) handler();
+    },
+  };
+});
+
 vi.mock("@argon/core", () => ({
   logger: { log() {}, debug() {}, info() {}, warn() {}, error() {} },
 }));

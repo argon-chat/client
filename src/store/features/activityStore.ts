@@ -208,14 +208,6 @@ export const useActivity = defineStore("activity", () => {
     if (!argon.isArgonHost || bound) return;
     bound = true;
 
-    // The other clock an owed removal rides. The host's repeat is half a minute away and keeps
-    // trying into a connection that is still down; the bus knows the moment it is back, which is
-    // the first attempt with a chance of landing. Imported here rather than at the top because the
-    // bus owns the realtime worker: a store that only publishes activities has no business pulling
-    // that in on the web build, where `init` returns above and this never runs.
-    const { useBus } = await import("@/store/realtime/busStore");
-    useBus().reconnected.subscribe(() => retryOwedRemoval());
-
     window.argonIpc?.onPresenceUpdate((data: any) => {
       const presence = data as Presence;
       // The host repeats the current presence every half minute, so that a window which reloaded
@@ -235,6 +227,15 @@ export const useActivity = defineStore("activity", () => {
       () => applyPresence(),
       { deep: true },
     );
+
+    // The other clock an owed removal rides, and the only one that knows the connection is back
+    // rather than guessing every half minute that it might be — so a removal owed across an outage
+    // goes out on the first attempt with a chance of landing. Imported here, last and awaited,
+    // rather than at the top: the bus owns the realtime worker, and a store that publishes what the
+    // desktop host is playing has no business pulling that in on the web build, where the guard
+    // above returns before any of this.
+    const { useBus } = await import("@/store/realtime/busStore");
+    useBus().reconnected.subscribe(() => retryOwedRemoval());
   }
 
   function cleanup() {
