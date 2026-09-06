@@ -59,6 +59,14 @@ export const useUserStore = defineStore("user", () => {
   const pendingLookups = new Map<Guid, Promise<RealtimeUser | undefined>>();
   const LOOKUP_BATCH = 10;
 
+  // What the newest status event for a user carried, and in which order it arrived. Kept only
+  // while a lookup for that user is in flight, which is the only window in which a status can be
+  // written out of order: `updateUserStatus` has to wait for the row to exist, and by the time it
+  // does, the status it waited with may be two events old. Whoever finishes the row finishes it
+  // with what arrived LAST, and this is where "last" is recorded.
+  const latestStatus = new Map<Guid, { seq: number; status: UserStatus }>();
+  let statusSeq = 0;
+
   // Seamless account switch: drop all live user subscriptions (bound to the old DB) and caches.
   onSessionReset(() => {
     for (const entry of reactiveUserCache.values()) {
@@ -69,6 +77,7 @@ export const useUserStore = defineStore("user", () => {
     pendingRequests.clear();
     requestTimestamps.clear();
     pendingLookups.clear();
+    latestStatus.clear();
     ignoredUsers.clear();
   });
 

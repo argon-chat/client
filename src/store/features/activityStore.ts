@@ -137,7 +137,7 @@ export const useActivity = defineStore("activity", () => {
     }
     // A broadcast supersedes an owed removal: whatever the server is still holding is about to be
     // overwritten by this one, and a removal landing after it would erase the new activity. A
-    // broadcast that fails is covered by its own retry — the stamp below — not by this removal.
+    // broadcast that fails has a retry of its own (it puts the stamp back), not this one.
     pendingRemoval = false;
     void publishBroadcast(effective, generation);
   }
@@ -169,7 +169,10 @@ export const useActivity = defineStore("activity", () => {
         if (generation !== publishGeneration || !pendingRemoval) return;
         try {
           await api.userInteraction.RemoveBroadcastPresence();
-          pendingRemoval = false;
+          // Owed no more — unless the world moved while this call was out and what the server now
+          // holds is a newer activity with a removal of its own. Marking that one done here would
+          // pin it exactly as if this attempt had never been made.
+          if (generation === publishGeneration) pendingRemoval = false;
           return;
         } catch (e) {
           if (attempt === attempts) {
