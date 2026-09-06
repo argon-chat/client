@@ -1,67 +1,28 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from "vue";
-import type { Guid } from "@argon-chat/ion.webcore";
-import ParticipantCard from "@/components/home/views/ParticipantCard.vue";
+import { computed, ref } from "vue";
+import CallGrid from "@/components/calls/CallGrid.vue";
 import MediaControls from "@/components/MediaControls.vue";
 import PingDetailsPopup from "@/components/PingDetailsPopup.vue";
+import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
 import { Signal, Users2 } from "lucide-vue-next";
 
-const emit = defineEmits<{ (e: "end"): void }>();
+defineEmits<{ (e: "end"): void }>();
 
 const voice = useUnifiedCall();
+const { t } = useLocale();
 
-const {
-    allUsers,
-    mainStreamer,
-    otherUsers,
-    hasActiveStream,
-    gridClasses,
-    gridCardStyle,
-    isSpeaking,
-    hasVideo,
-    getPreferredSource,
-    tileProps,
-    setVideoHidden,
-    setVideoQuality,
-    isScreenSharing,
-    isMuted,
-    isHeadphoneMuted,
-    toggleFocus,
-    qualityConnection,
-} = useMediaLayout(() => null, "dm");
+// Same layout as a voice channel, fed from the call's own participants instead of a
+// channel's member list. The tiles themselves are rendered by the shared CallGrid.
+const layout = useMediaLayout(() => null, "dm");
+const { allUsers, qualityConnection } = layout;
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);
 
-const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const openPingDetails = ref(false);
-
-const setVideoRef = (el: Element | null | any, userId: Guid, source: string = 'camera') => {
-    const trackKey = voice.videoTrackKey(userId, source);
-
-    if (el instanceof HTMLVideoElement) {
-        videoRefs.value.set(trackKey, el);
-        const track = voice.videoTracks.get(trackKey);
-        if (track) track.attach(el);
-    } else if (el === null) {
-        const oldEl = videoRefs.value.get(trackKey);
-        if (oldEl) {
-            const track = voice.videoTracks.get(trackKey);
-            if (track) track.detach(oldEl);
-        }
-        videoRefs.value.delete(trackKey);
-    }
-};
-
-onUnmounted(() => {
-    voice.videoTracks.forEach((track, key) => {
-        const el = videoRefs.value.get(key);
-        if (track && el) track.detach(el);
-    });
-    videoRefs.value.clear();
-});
 </script>
 
 <template>
@@ -86,113 +47,15 @@ onUnmounted(() => {
 
         <!-- Content area -->
         <div class="media-content">
-            <!-- Empty state -->
+            <!-- Nobody yet: the room is still being joined (the dialing screen sits on
+                 top of this while the call rings). -->
             <div v-if="allUsers.length === 0" class="empty-state">
-                <div class="empty-state-icon">
-                    <Users2 class="w-10 h-10" />
-                </div>
-                <span class="empty-state-title">Waiting for connection...</span>
+                <EmptyStateArt name="no-one-here" :size="164" />
+                <span class="empty-state-title">{{ t("connecting") }}</span>
             </div>
 
-            <!-- Voice Call View -->
-            <Transition v-else name="stream-layout" mode="out-in">
-                <!-- Stream Mode: Main video + horizontal thumbnails -->
-                <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0 items-center justify-center">
-                    <ParticipantCard
-                        :user-id="mainStreamer.User.userId"
-                        :display-name="mainStreamer.User.displayName"
-                        :is-speaking="isSpeaking(mainStreamer.User.userId)"
-                        :is-muted="isMuted(mainStreamer.User.userId)"
-                        :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
-                        :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
-                        :has-video="hasVideo(mainStreamer.User.userId)"
-                        v-bind="tileProps(mainStreamer.User.userId, 'screen_share')"
-                        @toggle-pin="toggleFocus"
-                        @set-video-hidden="setVideoHidden"
-                        @set-video-quality="setVideoQuality"
-                        :avatar-size="180"
-                        class="flex-1 min-h-0"
-                        :custom-style="{ maxWidth: '100%', width: '100%' }"
-                        name-class="text-base"
-                        :centered="false"
-                        icon-position="top-2 left-2"
-                        @video-ref="setVideoRef" />
-
-                    <div class="flex flex-row gap-3 overflow-x-auto w-full shrink-0" style="max-height: 9rem;">
-                        <ParticipantCard
-                            v-for="[userId, user] in otherUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            v-bind="tileProps(userId, 'camera')"
-                            @toggle-pin="toggleFocus"
-                            @set-video-hidden="setVideoHidden"
-                            @set-video-quality="setVideoQuality"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            :avatar-size="80"
-                            :icon-size="16"
-                            class-name="flex-shrink-0"
-                            :custom-style="{ width: '14rem', height: '8rem' }"
-                            name-class="text-xs"
-                            icon-position="top-1 right-1"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                    </div>
-                </div>
-
-                <!-- Grid / 2-user -->
-                <div v-else key="grid-mode" class="flex-1 flex items-center justify-center min-h-0">
-                    <!-- 2 Users: side by side -->
-                    <div v-if="allUsers.length === 2" class="flex gap-4 items-center justify-center w-full h-full p-4">
-                        <ParticipantCard
-                            v-for="[userId, user] in allUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            v-bind="tileProps(userId, 'camera')"
-                            @toggle-pin="toggleFocus"
-                            @set-video-hidden="setVideoHidden"
-                            @set-video-quality="setVideoQuality"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            class-name="flex-1 min-w-0"
-                            :custom-style="{ height: '100%', maxHeight: '20rem' }"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                    </div>
-
-                    <!-- Other: Grid Layout -->
-                    <div v-else class="grid gap-4 place-items-center place-content-center"
-                        style="grid-auto-rows: minmax(min-content, max-content);"
-                        :class="gridClasses">
-                        <ParticipantCard
-                            v-for="[userId, user] in allUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            v-bind="tileProps(userId, 'camera')"
-                            @toggle-pin="toggleFocus"
-                            @set-video-hidden="setVideoHidden"
-                            @set-video-quality="setVideoQuality"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            class-name="w-full"
-                            :custom-style="gridCardStyle(allUsers.length)"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                    </div>
-                </div>
-            </Transition>
+            <!-- Participants: the shared stage picks grid or main+strip. -->
+            <CallGrid v-else :layout="layout" />
         </div>
 
         <!-- Controls Block -->
@@ -207,7 +70,7 @@ onUnmounted(() => {
 
 <style scoped>
 .dm-call-panel {
-    background: hsl(var(--card) / 0.2);
+    background: hsl(var(--card) / 0.4);
 }
 
 .media-content {
@@ -228,18 +91,6 @@ onUnmounted(() => {
     flex: 1;
     gap: 8px;
     user-select: none;
-}
-
-.empty-state-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: hsl(var(--muted) / 0.5);
-    color: hsl(var(--muted-foreground) / 0.5);
-    margin-bottom: 4px;
 }
 
 .empty-state-title {
@@ -263,7 +114,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 4px;
     padding: 3px 8px;
-    border-radius: 8px;
+    border-radius: calc(var(--radius) - 4px);
     background: hsl(var(--card) / 0.85);
     backdrop-filter: blur(8px);
     border: 1px solid hsl(var(--border) / 0.3);
@@ -297,26 +148,4 @@ onUnmounted(() => {
 .info-pill.quality-orange { color: #f97316; }
 .info-pill.quality-red { color: #ef4444; }
 .info-pill.quality-none { color: hsl(var(--muted-foreground)); }
-
-/* Stream layout transition */
-.stream-layout-enter-active,
-.stream-layout-leave-active {
-    transition: all 0.25s ease-in-out;
-}
-
-.stream-layout-enter-from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-}
-
-.stream-layout-leave-to {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-}
-
-.stream-layout-enter-to,
-.stream-layout-leave-from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-}
 </style>

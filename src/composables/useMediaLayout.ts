@@ -49,6 +49,13 @@ function buildDmUsers(
   return map;
 }
 
+/**
+ * What `useMediaLayout` returns. The tile stage (`CallGrid`) takes one of these from its
+ * parent instead of building its own, so the header, the stage and the strip all read
+ * the same participant list and the same focus state.
+ */
+export type MediaLayout = ReturnType<typeof useMediaLayout>;
+
 export function useMediaLayout(
   selectedChannelId: () => string | null,
   mode: MediaLayoutMode = "channel",
@@ -102,19 +109,6 @@ export function useMediaLayout(
   });
 
   const hasActiveStream = computed(() => !!mainStreamer.value);
-
-  const gridClasses = computed(() => ({
-    "grid-cols-1": allUsers.value.length === 1,
-    "grid-cols-2": allUsers.value.length >= 3 && allUsers.value.length <= 4,
-    "grid-cols-3": allUsers.value.length > 4,
-  }));
-
-  const gridCardStyle = (userCount: number) => ({
-    aspectRatio: "16/9",
-    maxHeight: userCount === 1 ? "25rem" : "19rem",
-    minWidth: userCount === 1 ? "28rem" : "20rem",
-    minHeight: userCount === 1 ? "15.75rem" : "11.25rem",
-  });
 
   const muteStates = computed(() => {
     const states = new Map<Guid, { muted: boolean; headphoneMuted: boolean }>();
@@ -228,8 +222,8 @@ export function useMediaLayout(
   };
 
   /**
-   * The per-tile bindings every ParticipantCard needs, in one object — there are eight
-   * call sites across the channel and DM views and they must not drift apart.
+   * The per-tile bindings every ParticipantCard needs, in one object, so the main tile,
+   * the strip and the grid in CallGrid cannot drift apart.
    */
   const tileProps = (uid: Guid, prefer: "camera" | "screen_share" = "camera") => {
     const source = getPreferredSource(uid, prefer);
@@ -310,8 +304,6 @@ export function useMediaLayout(
     mainStreamer,
     otherUsers,
     hasActiveStream,
-    gridClasses,
-    gridCardStyle,
     isSpeaking,
     hasVideo,
     hasCameraVideo,

@@ -1,6 +1,5 @@
 <template>
-    <div class="flex flex-col h-full gap-3">
-    <div ref="mediaChannelContainer" class="media-channel flex flex-col flex-1 min-h-0 transition-all duration-300 relative">
+    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300 relative">
         <!-- Top Info Overlay (hidden while a game occupies the channel in-place,
              to avoid overlapping the PlayFrame panel header) -->
         <div v-show="!activity.isActive || activity.isPopout" class="media-info-bar">
@@ -71,98 +70,13 @@
                 <span class="empty-state-sub">{{ t("empty_channel_hint") }}</span>
             </div>
 
-            <!-- Normal Voice Channel View -->
-            <Transition v-else name="stream-layout" mode="out-in">
-                <!-- Stream Mode: Main video + horizontal thumbnails -->
-                <div v-if="hasActiveStream && mainStreamer" key="stream-mode" class="flex flex-col gap-3 flex-1 min-h-0">
-                    <div ref="mainArea" class="flex-1 min-h-0 w-full flex items-center justify-center">
-                        <ParticipantCard
-                            :user-id="mainStreamer.User.userId"
-                            :display-name="mainStreamer.User.displayName"
-                            :is-speaking="isSpeaking(mainStreamer.User.userId)"
-                            :is-muted="isMuted(mainStreamer.User.userId)"
-                            :is-headphone-muted="isHeadphoneMuted(mainStreamer.User.userId)"
-                            :is-screen-sharing="isScreenSharing(mainStreamer.User.userId)"
-                            :has-video="hasVideo(mainStreamer.User.userId)"
-                            v-bind="tileProps(mainStreamer.User.userId, 'screen_share')"
-                            @toggle-pin="toggleFocus"
-                            @set-video-hidden="setVideoHidden"
-                            @set-video-quality="setVideoQuality"
-                            :avatar-size="180"
-                            :custom-style="tileStyle(mainTile, mainRatio)"
-                            name-class="text-base"
-                            :centered="false"
-                            video-fit="contain"
-                            icon-position="top-2 left-2"
-                            @video-ref="setVideoRef" />
-                    </div>
-
-                    <div v-if="stripCount > 0" ref="stripArea" class="flex flex-row gap-3 overflow-x-auto overflow-y-hidden w-full shrink-0" style="height: clamp(6rem, 18%, 11rem);">
-                        <ParticipantCard
-                            v-for="[userId, user] in otherUsers"
-                            :key="userId"
-                            :user-id="userId"
-                            :display-name="user.User.displayName"
-                            :is-speaking="isSpeaking(userId)"
-                            :is-muted="isMuted(userId)"
-                            :is-headphone-muted="isHeadphoneMuted(userId)"
-                            :has-video="hasVideo(userId)"
-                            v-bind="tileProps(userId, 'camera')"
-                        @toggle-pin="toggleFocus"
-                        @set-video-hidden="setVideoHidden"
-                        @set-video-quality="setVideoQuality"
-                            :is-screen-sharing="isScreenSharing(userId)"
-                            :avatar-size="90"
-                            :icon-size="18"
-                            class-name="flex-shrink-0"
-                            :custom-style="tileStyle(strip)"
-                            name-class="text-xs"
-                            icon-position="top-1 right-1"
-                            @click="toggleFocus"
-                            @video-ref="setVideoRef" />
-                        <ActivityCard
-                            v-for="a in activityTiles"
-                            :key="a.sessionId"
-                            :presence="a"
-                            class-name="flex-shrink-0"
-                            :custom-style="tileStyle(strip)" />
-                    </div>
-                </div>
-
-                <!-- Grid Mode: fluid 16:9 tiles that fill the area for any count -->
-                <div v-else key="grid-mode" ref="gridArea"
-                    class="flex-1 w-full min-h-0 flex flex-wrap gap-4 items-center justify-center content-center overflow-y-auto">
-                    <ParticipantCard
-                        v-for="[userId, user] in allUsers"
-                        :key="userId"
-                        :user-id="userId"
-                        :display-name="user.User.displayName"
-                        :is-speaking="isSpeaking(userId)"
-                        :is-muted="isMuted(userId)"
-                        :is-headphone-muted="isHeadphoneMuted(userId)"
-                        :has-video="hasVideo(userId)"
-                        v-bind="tileProps(userId, 'camera')"
-                        @toggle-pin="toggleFocus"
-                        @set-video-hidden="setVideoHidden"
-                        @set-video-quality="setVideoQuality"
-                        :is-screen-sharing="isScreenSharing(userId)"
-                        class-name="flex-shrink-0"
-                        :custom-style="tileStyle(grid)"
-                        @click="toggleFocus"
-                        @video-ref="setVideoRef" />
-                    <ActivityCard
-                        v-for="a in activityTiles"
-                        :key="a.sessionId"
-                        :presence="a"
-                        class-name="flex-shrink-0"
-                        :custom-style="tileStyle(grid)" />
-                </div>
-            </Transition>
+            <!-- Participants: the shared stage picks grid or main+strip. -->
+            <CallGrid v-else :layout="layout" :activities="activityTiles" />
         </div>
-    </div>
 
-        <!-- Controls Block -->
+        <!-- Controls Block: inside the card, under the stage — same placement as a DM call -->
         <MediaControls
+            class="mx-3 mb-3"
             :is-connected="isConnected"
             :is-connecting="isConnecting"
             :show-playframe="playframeActive"
@@ -172,11 +86,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useElementSize } from "@vueuse/core";
-import type { Guid } from "@argon-chat/ion.webcore";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
+import CallGrid from "./calls/CallGrid.vue";
 import { useResponsiveGrid, tileStyle } from "@/composables/useResponsiveGrid";
+import { useVideoTrackAttach } from "@/composables/useVideoTrackAttach";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -185,7 +100,6 @@ import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
-import ActivityCard from "./playframe/ActivityCard.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
 import EmptyStateArt from "./shared/EmptyStateArt.vue";
@@ -208,55 +122,37 @@ watch(selectedChannelId, async (id) => {
     channelName.value = id ? (await pool.getChannel(id))?.name ?? "" : "";
 }, { immediate: true });
 
-const videoRefs = ref<Map<Guid, HTMLVideoElement>>(new Map());
 const mediaChannelContainer = ref<HTMLElement | null>(null);
 const openPingDetails = ref(false);
 
+// One layout for the whole view: the header pills, the game-mode strip and the
+// CallGrid stage all read the same participant list and focus state.
+const layout = useMediaLayout(() => selectedChannelId.value);
 const {
     allUsers,
-    mainStreamer,
-    otherUsers,
-    hasActiveStream,
     isSpeaking,
     hasVideo,
-    getPreferredSource,
     tileProps,
     setVideoHidden,
     setVideoQuality,
-    videoAspectRatio,
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
     isPlayingActivity,
     toggleFocus,
     qualityConnection,
-} = useMediaLayout(() => selectedChannelId.value);
+} = layout;
+const { setVideoRef } = useVideoTrackAttach();
 
 // Activities others started (shown as grid tiles until you join one).
 const activityTiles = computed(() =>
     playframeActive && !activity.isActive ? activity.joinableActivities : [],
 );
-// --- Fluid tile sizing: measure each region and let the solver pick the
-// optimal column count for a 16:9 grid that fills the space without overflow. ---
-const gridArea = ref<HTMLElement | null>(null);
-const stripArea = ref<HTMLElement | null>(null);
-const mainArea = ref<HTMLElement | null>(null);
+
+// Game mode keeps its own participant strip under the stage; it is measured and solved
+// here the same way CallGrid sizes its regions.
 const activityStripArea = ref<HTMLElement | null>(null);
-const { width: gW, height: gH } = useElementSize(gridArea);
-const { width: sW, height: sH } = useElementSize(stripArea);
-const { width: mW, height: mH } = useElementSize(mainArea);
 const { width: aW, height: aH } = useElementSize(activityStripArea);
-
-// Participant tiles + activity tiles drive the grid; only non-main tiles fill the strip.
-const gridCount = computed(() => allUsers.value.length + activityTiles.value.length);
-const stripCount = computed(() => otherUsers.value.length + activityTiles.value.length);
-
-const grid = useResponsiveGrid({ width: gW, height: gH, count: gridCount, gap: 16, maxTileWidth: 720, minTileWidth: 150 });
-const strip = useResponsiveGrid({ width: sW, height: sH, count: stripCount, gap: 12, singleRow: true });
-// The main tile follows the real shape of the incoming picture, so an ultrawide or
-// portrait share isn't letterboxed inside a fixed 16:9 box.
-const mainRatio = computed(() => videoAspectRatio(mainStreamer.value?.User.userId));
-const mainTile = useResponsiveGrid({ width: mW, height: mH, count: 1, ratio: mainRatio });
 const activityStrip = useResponsiveGrid({ width: aW, height: aH, count: () => allUsers.value.length, gap: 8, singleRow: true });
 
 const isConnected = computed(() => voice.isConnected);
@@ -268,39 +164,13 @@ async function endActiveCall() {
     }
     await voice.leave();
 }
-
-const setVideoRef = (el: Element | null | any, userId: Guid, source: string = 'camera') => {
-    const trackKey = voice.videoTrackKey(userId, source);
-    const refKey = trackKey;
-
-    if (el instanceof HTMLVideoElement) {
-        videoRefs.value.set(refKey, el);
-        const track = voice.videoTracks.get(trackKey);
-        if (track) track.attach(el);
-    } else if (el === null) {
-        const oldEl = videoRefs.value.get(refKey);
-        if (oldEl) {
-            const track = voice.videoTracks.get(trackKey);
-            if (track) track.detach(oldEl);
-        }
-        videoRefs.value.delete(refKey);
-    }
-};
-
-onUnmounted(() => {
-    voice.videoTracks.forEach((track, key) => {
-        const el = videoRefs.value.get(key);
-        if (track && el) track.detach(el);
-    });
-    videoRefs.value.clear();
-});
 </script>
 
 <style scoped>
 .media-channel {
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: var(--radius);
-    background: hsl(var(--card) / 0.6);
+    background: hsl(var(--card) / 0.5);
     backdrop-filter: blur(8px);
 }
 
@@ -443,27 +313,5 @@ onUnmounted(() => {
 .info-pill.quality-orange { color: #f97316; }
 .info-pill.quality-red { color: #ef4444; }
 .info-pill.quality-none { color: hsl(var(--muted-foreground)); }
-
-/* Stream layout transition */
-.stream-layout-enter-active,
-.stream-layout-leave-active {
-    transition: all 0.25s ease-in-out;
-}
-
-.stream-layout-enter-from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-}
-
-.stream-layout-leave-to {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-}
-
-.stream-layout-enter-to,
-.stream-layout-leave-from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-}
 </style>
 

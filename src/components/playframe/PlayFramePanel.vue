@@ -201,7 +201,7 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding: 6px 8px 6px 12px;
-  background: hsl(var(--card) / 0.4);
+  background: hsl(var(--card) / 0.5);
   border-bottom: 1px solid hsl(var(--border) / 0.4);
   flex-shrink: 0;
 }
