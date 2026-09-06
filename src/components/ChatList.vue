@@ -39,7 +39,6 @@
             :voice-users="voiceChannelUsers.get(channel.channelId)"
             @select="channelSelect"
             @switch-voice="switchVoiceChannel"
-            @delete="channelDelete"
             @dragstart="onDragStart"
             @dragover="onDragOver"
             @drop="onDrop"
@@ -106,7 +105,6 @@
                 @select="channelSelect"
                 @open-split="openChannelInSplit"
                 @switch-voice="switchVoiceChannel"
-                @delete="channelDelete"
                 @dragstart="onDragStart"
                 @dragover="onDragOver"
                 @drop="onDrop"
@@ -141,7 +139,6 @@
 import { computed, ref } from 'vue';
 import { PlusIcon } from 'lucide-vue-next';
 import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
-import { useSpaceStore } from '@/store/data/serverStore';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
 import { usePexStore } from '@/store/data/permissionStore';
@@ -169,7 +166,6 @@ import { setLastChannel } from '@/lib/recentSpaces';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
 
-const servers = useSpaceStore();
 const pool = usePoolStore();
 const voice = useUnifiedCall();
 const pex = usePexStore();
@@ -318,10 +314,6 @@ async function switchVoiceChannel(channelId: string) {
   await voice.joinVoiceChannel(channelId);
   
   logger.info(`Switched to voice channel`, channel);
-}
-
-async function channelDelete(channelId: string) {
-  await servers.deleteChannel(channelId);
 }
 
 const kickMember = async (userId: string, channelId: string, spaceId: string) => {

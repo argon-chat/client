@@ -88,6 +88,8 @@ export interface ICallApiClient {
 export interface ICallUserPool {
   readonly selectedServer: string | null;
   getUser(userId: string): Promise<{ displayName?: string } | null | undefined>;
+  /** The channel being joined, for its per-room settings (bitrate). Optional: a pool without it joins with defaults. */
+  getChannel?(channelId: string): Promise<{ bitrate?: number | null } | null | undefined>;
   trackUser(user: unknown): Promise<unknown>;
   readonly _realtimeStore: {
     addUserToChannel(channelId: string, userId: string, user: unknown): void;

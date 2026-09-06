@@ -125,39 +125,25 @@
       </div>
 
       <!-- Danger Zone (cyberpunk) -->
-      <div v-if="canManageServer" class="danger-zone-wrap">
-        <div class="danger-zone">
-          <div class="danger-hazard"></div>
-          <div class="danger-scanlines"></div>
-          <div class="danger-content">
-            <div class="danger-header">
-              <AlertTriangleIcon class="w-5 h-5 danger-icon" />
-              <h3 class="danger-title" :data-text="t('danger_zone')">{{ t("danger_zone") }}</h3>
-            </div>
+      <DangerZone v-if="canManageServer" :title="t('delete_server')" :description="t('delete_server_desc')">
+        <!-- Once scheduled the button would be a second countdown to nowhere: what the owner
+             needs from here on is the date and a way out of it. -->
+        <template v-if="isDeletionScheduled">
+          <p class="danger-action-desc">
+            {{ t("server_deletion_scheduled_desc", {
+              date: deletionState?.executionAt?.toDate().toLocaleString() ?? "",
+            }) }}
+          </p>
+          <button class="danger-btn" :disabled="isDeletingServer" @click="cancelServerDeletion">
+            <span>{{ t("cancel_server_deletion") }}</span>
+          </button>
+        </template>
 
-            <h4 class="danger-action-title">{{ t("delete_server") }}</h4>
-            <p class="danger-action-desc">{{ t("delete_server_desc") }}</p>
-
-            <!-- Once scheduled the button would be a second countdown to nowhere: what the owner
-                 needs from here on is the date and a way out of it. -->
-            <template v-if="isDeletionScheduled">
-              <p class="danger-action-desc">
-                {{ t("server_deletion_scheduled_desc", {
-                  date: deletionState?.executionAt?.toDate().toLocaleString() ?? "",
-                }) }}
-              </p>
-              <button class="danger-btn" :disabled="isDeletingServer" @click="cancelServerDeletion">
-                <span>{{ t("cancel_server_deletion") }}</span>
-              </button>
-            </template>
-
-            <button v-else class="danger-btn" @click="showDeleteServerDialog = true">
-              <TrashIcon class="w-4 h-4" />
-              <span>{{ t("delete_server") }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+        <button v-else class="danger-btn" @click="showDeleteServerDialog = true">
+          <TrashIcon class="w-4 h-4" />
+          <span>{{ t("delete_server") }}</span>
+        </button>
+      </DangerZone>
     </div>
 
     <!-- Delete confirmation -->
@@ -217,6 +203,7 @@ import type { IonDateTime } from "@argon-chat/ion.webcore";
 import { SpaceDeletionStatus, type SpaceStats } from "@argon/glue";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
 import ServerHeaderUploader from "./ServerHeaderUploader.vue";
+import DangerZone from "@/components/shared/DangerZone.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { usePexStore } from "@/store/data/permissionStore";
@@ -491,169 +478,7 @@ onMounted(async () => {
 
 /* ───────────────── Cyberpunk Danger Zone ───────────────── */
 /* Outer wrapper carries the neon glow so it can follow the clipped shape. */
-.danger-zone-wrap {
-  filter: drop-shadow(0 0 14px hsl(350 90% 50% / 0.3));
-}
-
-.danger-zone {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, hsl(350 55% 7% / 0.96), hsl(350 50% 4% / 0.98));
-  border: 1px solid hsl(350 90% 55% / 0.45);
-  /* Angular, chamfered corners (top-right + bottom-left). */
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
-}
-
-/* Animated hazard tape. */
-.danger-hazard {
-  height: 6px;
-  background: repeating-linear-gradient(-45deg, #ff003c 0, #ff003c 10px, #2a0010 10px, #2a0010 20px);
-  opacity: 0.9;
-  animation: dz-hazard 1.4s linear infinite;
-}
-
-@keyframes dz-hazard {
-  to { background-position: 28.28px 0; }
-}
-
-/* CRT scanlines. */
-.danger-scanlines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    hsl(350 90% 60% / 0.05) 0,
-    hsl(350 90% 60% / 0.05) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
-
-.danger-content {
-  position: relative;
-  padding: 1.1rem 1.5rem 1.4rem;
-}
-
-.danger-header {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin-bottom: 0.9rem;
-}
-
-.danger-icon {
-  color: #ff2a6d;
-  filter: drop-shadow(0 0 5px hsl(350 90% 55% / 0.85));
-}
-
-.danger-title {
-  position: relative;
-  font-family: ui-monospace, "Courier New", monospace;
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #ff2a6d;
-  text-shadow: 0 0 8px hsl(350 90% 55% / 0.7), 0 0 2px hsl(350 90% 60% / 0.9);
-}
-
-/* Glitch: cyan top-half + red bottom-half offsets that flicker occasionally. */
-.danger-title::before,
-.danger-title::after {
-  content: attr(data-text);
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  pointer-events: none;
-  opacity: 0;
-}
-
-.danger-title::before {
-  color: #05d9e8;
-  clip-path: inset(0 0 52% 0);
-  animation: dz-glitch-a 3s infinite steps(1);
-}
-
-.danger-title::after {
-  color: #ff003c;
-  clip-path: inset(52% 0 0 0);
-  animation: dz-glitch-b 2.7s infinite steps(1);
-}
-
-@keyframes dz-glitch-a {
-  0%, 92%, 100% { transform: translate(0, 0); opacity: 0; }
-  93% { transform: translate(-3px, -1px); opacity: 0.85; }
-  96% { transform: translate(2px, 1px); opacity: 0.85; }
-}
-
-@keyframes dz-glitch-b {
-  0%, 90%, 100% { transform: translate(0, 0); opacity: 0; }
-  91% { transform: translate(3px, 1px); opacity: 0.85; }
-  95% { transform: translate(-2px, -1px); opacity: 0.85; }
-}
-
-.danger-action-title {
-  font-weight: 700;
-  color: hsl(0 0% 90%);
-  margin-bottom: 0.25rem;
-}
-
-.danger-action-desc {
-  font-size: 0.85rem;
-  color: hsl(350 18% 68%);
-  margin-bottom: 1rem;
-  max-width: 52ch;
-}
-
-.danger-btn {
-  display: flex;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 0.7rem 1.1rem;
-  color: #ff2a6d;
-  background: hsl(350 80% 50% / 0.1);
-  border: 1px solid hsl(350 90% 55% / 0.6);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 0 10px hsl(350 90% 50% / 0.25), inset 0 0 12px hsl(350 90% 50% / 0.08);
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-}
-
-.danger-btn:not(:disabled):hover {
-  background: hsl(350 85% 50% / 0.22);
-  color: #fff;
-  box-shadow: 0 0 18px hsl(350 90% 55% / 0.6), inset 0 0 18px hsl(350 90% 50% / 0.2);
-}
-
-.danger-btn:disabled {
-  cursor: not-allowed;
-  color: hsl(350 25% 55%);
-  border-color: hsl(350 25% 45% / 0.5);
-  background: hsl(350 25% 28% / 0.15);
-  box-shadow: none;
-}
-
-.danger-lock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  margin-top: 0.6rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: hsl(350 20% 55%);
-}
+/* The danger zone itself (tape, glitch title, button) lives in shared/DangerZone.vue. */
 
 /* Light theme: the same warning drawn on paper instead of neon on black. A black slab in the
    middle of a white settings page read as a rendering fault rather than as a hazard. */

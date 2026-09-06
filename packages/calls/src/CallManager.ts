@@ -596,11 +596,17 @@ export function createCallManager(config: CallManagerConfig) {
     lastVoiceServerId.value = String(selected);
     lastVoiceChannelId.value = channelId;
 
+    // The room's own bitrate, when a moderator set one; null keeps the SDK preset. Read here, at
+    // join, because that is when the microphone track is published with it.
+    const channel = await pool.getChannel?.(channelId).catch(() => null);
+    const audioBitrateKbps = channel?.bitrate ?? null;
+
     await joinLiveKit({
       token: join.token,
       callId: callId.value!,
       selfId: me.me!.userId,
       rts: join.rtc,
+      audioBitrateKbps,
     });
 
     startTimersRTT();
@@ -1001,6 +1007,8 @@ export function createCallManager(config: CallManagerConfig) {
     callId: string;
     selfId: string;
     rts: RtcEndpoint;
+    /** Microphone bitrate cap for this room (kbps); null/undefined publishes with the SDK preset. */
+    audioBitrateKbps?: number | null;
   }) {
     if (isConnecting.value) return;
 
@@ -1317,10 +1325,14 @@ export function createCallManager(config: CallManagerConfig) {
 
       // simulcast/degradationPreference are video-only and were carried over from an
       // older SDK; the SDK now also picks the right degradation preference per source.
+      // A channel bitrate replaces the preset's cap only; RED, stereo and mute handling stay as
+      // they are, so a low cap degrades quality rather than behaviour.
       await r.localParticipant.publishTrack(mic, {
         red: true,
         stopMicTrackOnMute: false,
-        audioPreset: AudioPresets.musicStereo,
+        audioPreset: opts.audioBitrateKbps
+          ? { maxBitrate: opts.audioBitrateKbps * 1000 }
+          : AudioPresets.musicStereo,
         forceStereo: true,
       });
 

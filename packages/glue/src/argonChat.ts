@@ -351,6 +351,7 @@ export interface ArgonChannel {
   fractionalIndex: string | null;
   lastMessageId: i8;
   slowModeSeconds: i4 | null;
+  bitrate: i4 | null;
 };
 
 
@@ -693,9 +694,11 @@ export enum UpdateChannelError
   DESCRIPTION_TOO_LONG = 5,
   SLOW_MODE_NOT_ALLOWED = 6,
   NOT_A_TEXT_CHANNEL = 7,
+  BITRATE_OUT_OF_RANGE = 8,
+  NOT_A_VOICE_CHANNEL = 9,
 }
 
-const declaredUpdateChannelError: ReadonlySet<unknown> = new Set<unknown>([UpdateChannelError.NONE, UpdateChannelError.CHANNEL_NOT_FOUND, UpdateChannelError.INSUFFICIENT_PERMISSIONS, UpdateChannelError.NAME_EMPTY, UpdateChannelError.NAME_TOO_LONG, UpdateChannelError.DESCRIPTION_TOO_LONG, UpdateChannelError.SLOW_MODE_NOT_ALLOWED, UpdateChannelError.NOT_A_TEXT_CHANNEL]);
+const declaredUpdateChannelError: ReadonlySet<unknown> = new Set<unknown>([UpdateChannelError.NONE, UpdateChannelError.CHANNEL_NOT_FOUND, UpdateChannelError.INSUFFICIENT_PERMISSIONS, UpdateChannelError.NAME_EMPTY, UpdateChannelError.NAME_TOO_LONG, UpdateChannelError.DESCRIPTION_TOO_LONG, UpdateChannelError.SLOW_MODE_NOT_ALLOWED, UpdateChannelError.NOT_A_TEXT_CHANNEL, UpdateChannelError.BITRATE_OUT_OF_RANGE, UpdateChannelError.NOT_A_VOICE_CHANNEL]);
 
 /**
  * Open-enum helpers for {@link UpdateChannelError}.
@@ -716,6 +719,39 @@ export const Ion_UpdateChannelError_OpenEnum = {
    */
   unknownValue(value: UpdateChannelError): u2 | undefined {
     return declaredUpdateChannelError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum DuplicateChannelError
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  INTERNAL_ERROR = 3,
+}
+
+const declaredDuplicateChannelError: ReadonlySet<unknown> = new Set<unknown>([DuplicateChannelError.NONE, DuplicateChannelError.CHANNEL_NOT_FOUND, DuplicateChannelError.INSUFFICIENT_PERMISSIONS, DuplicateChannelError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link DuplicateChannelError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_DuplicateChannelError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: DuplicateChannelError): boolean {
+    return declaredDuplicateChannelError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: DuplicateChannelError): u2 | undefined {
+    return declaredDuplicateChannelError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -5268,6 +5304,107 @@ IonFormatterStorage.register("FailedUpdateChannel", {
   write(writer: CborWriter, value: FailedUpdateChannel): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<UpdateChannelError>('UpdateChannelError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IDuplicateChannelResult implements IIonUnion<IDuplicateChannelResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessDuplicateChannel(): this is SuccessDuplicateChannel {
+    return this.UnionKey === "SuccessDuplicateChannel";
+  }
+  public isFailedDuplicateChannel(): this is FailedDuplicateChannel {
+    return this.UnionKey === "FailedDuplicateChannel";
+  }
+
+}
+
+
+export class SuccessDuplicateChannel extends IDuplicateChannelResult
+{
+  constructor(public channel: ArgonChannel) { super(); }
+
+  UnionKey: string = "SuccessDuplicateChannel";
+  UnionIndex: number = 0;
+}
+
+export class FailedDuplicateChannel extends IDuplicateChannelResult
+{
+  constructor(public error: DuplicateChannelError) { super(); }
+
+  UnionKey: string = "FailedDuplicateChannel";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IDuplicateChannelResult", {
+  read(reader: CborReader): IDuplicateChannelResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDuplicateChannelResult", 2);
+    let value: IDuplicateChannelResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessDuplicateChannel>("SuccessDuplicateChannel").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedDuplicateChannel>("FailedDuplicateChannel").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IDuplicateChannelResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IDuplicateChannelResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessDuplicateChannel>("SuccessDuplicateChannel").write(writer, value as SuccessDuplicateChannel);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedDuplicateChannel>("FailedDuplicateChannel").write(writer, value as FailedDuplicateChannel);
+    }
+  
+    else throw new Error(`Ion union 'IDuplicateChannelResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessDuplicateChannel", {
+  read(reader: CborReader): SuccessDuplicateChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessDuplicateChannel");
+    const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessDuplicateChannel(channel);
+  },
+  write(writer: CborWriter, value: SuccessDuplicateChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedDuplicateChannel", {
+  read(reader: CborReader): FailedDuplicateChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedDuplicateChannel");
+    const error = IonFormatterStorage.get<DuplicateChannelError>('DuplicateChannelError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedDuplicateChannel(error);
+  },
+  write(writer: CborWriter, value: FailedDuplicateChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<DuplicateChannelError>('DuplicateChannelError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -13759,7 +13896,7 @@ IonFormatterStorage.register("CreateChannelRequest", {
 
 IonFormatterStorage.register("ArgonChannel", {
   read(reader: CborReader): ArgonChannel {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ArgonChannel");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "ArgonChannel");
     const type = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -13769,11 +13906,12 @@ IonFormatterStorage.register("ArgonChannel", {
     const fractionalIndex = IonFormatterStorage.readNullable<string>(reader, 'string');
     const lastMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const slowModeSeconds = IonFormatterStorage.readNullable<i4>(reader, 'i4');
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds };
+    const bitrate = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds, bitrate };
   },
   write(writer: CborWriter, value: ArgonChannel): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(10);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -13783,6 +13921,7 @@ IonFormatterStorage.register("ArgonChannel", {
     IonFormatterStorage.writeNullable<string>(writer, value.fractionalIndex, 'string');
     IonFormatterStorage.get<i8>('i8').write(writer, value.lastMessageId);
     IonFormatterStorage.writeNullable<i4>(writer, value.slowModeSeconds, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.bitrate, 'i4');
     writer.writeEndArray();
   }
 });
@@ -14417,6 +14556,16 @@ IonFormatterStorage.register("UpdateChannelError", {
     return IonFormatterStorage.readOpenEnum<UpdateChannelError>(reader, 'u2');
   },
   write(writer: CborWriter, value: UpdateChannelError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("DuplicateChannelError", {
+  read(reader: CborReader): DuplicateChannelError {
+    return IonFormatterStorage.readOpenEnum<DuplicateChannelError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: DuplicateChannelError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -16611,7 +16760,8 @@ export interface IChannelInteraction extends IIonService
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
-  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult>;
+  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
+  DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
@@ -16943,7 +17093,8 @@ export interface IChannelInteraction extends IIonService
   DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
-  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult>;
+  UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
+  DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
@@ -17636,22 +17787,37 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     await req.callAsync(writer.data, this.signal);
   }
-  async UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null): Promise<IUpdateChannelResult> {
+  async UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateChannel");
           
     const writer = new CborWriter();
       
-    writer.writeStartArray(5);
+    writer.writeStartArray(6);
           
     IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, channelId);
     IonFormatterStorage.writeNullable<string>(writer, name, 'string');
     IonFormatterStorage.writeNullable<string>(writer, description, 'string');
     IonFormatterStorage.writeNullable<i4>(writer, slowModeSeconds, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, bitrate, 'i4');
       
     writer.writeEndArray();
           
     return await req.callAsyncT<IUpdateChannelResult>("IUpdateChannelResult", writer.data, this.signal);
+  }
+  async DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "DuplicateChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IDuplicateChannelResult>("IDuplicateChannelResult", writer.data, this.signal);
   }
   async CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateVoiceInviteCode");

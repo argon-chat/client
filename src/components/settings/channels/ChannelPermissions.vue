@@ -1,122 +1,115 @@
 <template>
-  <Dialog :open="open" @update:open="$emit('update:open', $event)">
-    <DialogContent described class="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-      <DialogHeader>
-        <DialogTitle>{{ t("channel_permissions") }} — #{{ channelName }}</DialogTitle>
-        <DialogDescription>
-          {{ t("channel_permissions_desc") }}
-        </DialogDescription>
-      </DialogHeader>
+  <div class="space-y-4">
+    <div>
+      <h3 class="text-lg font-semibold">{{ t("channel_permissions") }}</h3>
+      <p class="text-sm text-muted-foreground">{{ t("channel_permissions_desc") }}</p>
+    </div>
 
-      <div class="flex gap-4 flex-1 overflow-hidden min-h-0">
-        <!-- Left: Role list -->
-        <div class="w-1/3 border-r border-border pr-3 overflow-y-auto">
-          <div class="text-xs font-semibold text-muted-foreground mb-2 uppercase">
-            {{ t("roles") }}
-          </div>
-          <div class="space-y-1">
-            <button
-              v-for="arch in archetypes"
-              :key="arch.id"
-              class="w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
-              :class="selectedArchetypeId === arch.id ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-muted/50'"
-              @click="selectArchetype(arch.id)"
-            >
-              <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: formatColour(arch.colour) }"></span>
-              <span class="truncate">{{ arch.name }}</span>
-              <span v-if="hasOverwrite(arch.id)" class="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" title="Has overwrites"></span>
-            </button>
-          </div>
+    <div class="flex gap-4 min-h-[420px]">
+      <!-- Left: Role list -->
+      <div class="w-1/3 border-r border-border pr-3 overflow-y-auto">
+        <div class="text-xs font-semibold text-muted-foreground mb-2 uppercase">
+          {{ t("roles") }}
         </div>
-
-        <!-- Right: Overwrite toggles -->
-        <ScrollArea class="flex-1 overflow-y-auto">
-          <TabTransition variant="rise">
-            <div v-if="selectedArchetypeId" :key="selectedArchetypeId" class="space-y-3 pr-2">
-              <div class="flex items-center justify-between mb-2">
-                <div class="text-sm font-medium">
-                  {{ selectedArchetypeName }}
-                </div>
-                <Button
-                  v-if="hasOverwrite(selectedArchetypeId)"
-                  variant="ghost"
-                  size="sm"
-                  class="text-red-400 hover:text-red-300 text-xs"
-                  @click="resetOverwrite"
-                >
-                  <Trash2Icon class="w-3.5 h-3.5 mr-1" />
-                  {{ t("reset") }}
-                </Button>
-              </div>
-
-              <Card v-for="group in ChannelEntitlementGroups" :key="group.i18nKey">
-                <CardContent class="p-3 space-y-1.5">
-                  <div class="font-semibold text-sm">{{ t(group.i18nKey + '.name') }}</div>
-                  <ul class="space-y-1">
-                    <li
-                      v-for="flag in group.flags"
-                      :key="flag.value.toString()"
-                      class="flex items-center justify-between text-sm py-1"
-                    >
-                      <div class="flex-1 mr-3">
-                        <div class="font-medium text-xs">{{ t(flag.i18nKey + '.name') }}</div>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <button
-                          class="overwrite-btn"
-                          :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
-                          @click="setOverwriteState(flag.value, 'inherit')"
-                          :title="t('inherit')"
-                        >
-                          /
-                        </button>
-                        <button
-                          class="overwrite-btn"
-                          :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
-                          @click="setOverwriteState(flag.value, 'allow')"
-                          :title="t('allow')"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          class="overwrite-btn"
-                          :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
-                          @click="setOverwriteState(flag.value, 'deny')"
-                          :title="t('deny')"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <div class="flex justify-end pt-2 pb-1">
-                <Button :disabled="saving" @click="saveOverwrite">
-                  {{ saving ? t("saving") : t("save_changes") }}
-                </Button>
-              </div>
-            </div>
-            <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
-              {{ t("select_role_to_configure") }}
-            </div>
-          </TabTransition>
-        </ScrollArea>
+        <div class="space-y-1">
+          <button
+            v-for="arch in archetypes"
+            :key="arch.id"
+            class="w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
+            :class="selectedArchetypeId === arch.id ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-muted/50'"
+            @click="selectArchetype(arch.id)"
+          >
+            <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: formatColour(arch.colour) }"></span>
+            <span class="truncate">{{ arch.name }}</span>
+            <span v-if="hasOverwrite(arch.id)" class="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" title="Has overwrites"></span>
+          </button>
+        </div>
       </div>
-    </DialogContent>
-  </Dialog>
+
+      <!-- Right: Overwrite toggles -->
+      <ScrollArea class="flex-1 overflow-y-auto">
+        <TabTransition variant="rise">
+          <div v-if="selectedArchetypeId" :key="selectedArchetypeId" class="space-y-3 pr-2">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-medium">
+                {{ selectedArchetypeName }}
+              </div>
+              <Button
+                v-if="hasOverwrite(selectedArchetypeId)"
+                variant="ghost"
+                size="sm"
+                class="text-red-400 hover:text-red-300 text-xs"
+                @click="resetOverwrite"
+              >
+                <Trash2Icon class="w-3.5 h-3.5 mr-1" />
+                {{ t("reset") }}
+              </Button>
+            </div>
+
+            <Card v-for="group in ChannelEntitlementGroups" :key="group.i18nKey">
+              <CardContent class="p-3 space-y-1.5">
+                <div class="font-semibold text-sm">{{ t(group.i18nKey + '.name') }}</div>
+                <ul class="space-y-1">
+                  <li
+                    v-for="flag in group.flags"
+                    :key="flag.value.toString()"
+                    class="flex items-center justify-between text-sm py-1"
+                  >
+                    <div class="flex-1 mr-3">
+                      <div class="font-medium text-xs">{{ t(flag.i18nKey + '.name') }}</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <button
+                        class="overwrite-btn"
+                        :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
+                        @click="setOverwriteState(flag.value, 'inherit')"
+                        :title="t('inherit')"
+                      >
+                        /
+                      </button>
+                      <button
+                        class="overwrite-btn"
+                        :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
+                        @click="setOverwriteState(flag.value, 'allow')"
+                        :title="t('allow')"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        class="overwrite-btn"
+                        :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
+                        @click="setOverwriteState(flag.value, 'deny')"
+                        :title="t('deny')"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <div class="flex justify-end pt-2 pb-1">
+              <Button :disabled="saving" @click="saveOverwrite">
+                {{ saving ? t("saving") : t("save_changes") }}
+              </Button>
+            </div>
+          </div>
+          <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
+            {{ t("select_role_to_configure") }}
+          </div>
+        </TabTransition>
+      </ScrollArea>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
+/**
+ * The "Permissions" tab of the channel settings: per-role allow/deny overwrites for this channel.
+ * Used to be a dialog off the channel's context menu; the editing logic is unchanged.
+ */
 import { ref, computed, watch } from "vue";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@argon/ui/dialog";
 import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
 import TabTransition from "@/components/shared/TabTransition.vue";
@@ -127,22 +120,12 @@ import { useLocale } from "@/store/system/localeStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { db } from "@/store/db/dexie";
-import {
-  ArgonEntitlementGroups,
-  type ArgonEntitlementFlagDefinition,
-} from "@/lib/rbac/ArgonEntitlement";
-import { ArgonEntitlement, type Archetype, type ChannelEntitlementOverwrite } from "@argon/glue";
+import { ArgonEntitlementGroups } from "@/lib/rbac/ArgonEntitlement";
+import { ArgonEntitlement, type Archetype, type ArgonChannel, type ChannelEntitlementOverwrite } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
 const props = defineProps<{
-  open: boolean;
-  spaceId: Guid;
-  channelId: Guid;
-  channelName: string;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:open", value: boolean): void;
+  channel: ArgonChannel;
 }>();
 
 const api = useApi();
@@ -218,8 +201,8 @@ async function saveOverwrite() {
   saving.value = true;
   try {
     const result = await api.archetypeInteraction.UpsertArchetypeEntitlementForChannel(
-      props.spaceId,
-      props.channelId,
+      props.channel.spaceId,
+      props.channel.channelId,
       selectedArchetypeId.value,
       localDeny.value as unknown as ArgonEntitlement,
       localAllow.value as unknown as ArgonEntitlement,
@@ -250,8 +233,8 @@ async function resetOverwrite() {
   saving.value = true;
   try {
     await api.archetypeInteraction.DeleteEntitlementForChannel(
-      props.spaceId,
-      props.channelId,
+      props.channel.spaceId,
+      props.channel.channelId,
       existing.id,
     );
     overwrites.value = overwrites.value.filter((o) => o.archetypeId !== selectedArchetypeId.value);
@@ -267,19 +250,18 @@ async function resetOverwrite() {
 }
 
 async function loadData() {
-  if (!props.open) return;
   try {
     // Load archetypes from local DB
     archetypes.value = await db.archetypes
       .where("spaceId")
-      .equals(props.spaceId)
+      .equals(props.channel.spaceId)
       .filter((a) => !a.isHidden)
       .toArray();
 
     // Load existing overwrites from API
     const result = await api.archetypeInteraction.GetChannelEntitlementOverwrites(
-      props.spaceId,
-      props.channelId,
+      props.channel.spaceId,
+      props.channel.channelId,
     );
     overwrites.value = [...result];
   } catch (e) {
@@ -287,14 +269,18 @@ async function loadData() {
   }
 }
 
-watch(() => props.open, (isOpen) => {
-  if (isOpen) {
+// The tab is keyed by channel in the drawer, but reload on the id anyway so the component is
+// correct on its own.
+watch(
+  () => props.channel.channelId,
+  () => {
     selectedArchetypeId.value = null;
     localAllow.value = 0n;
     localDeny.value = 0n;
-    loadData();
-  }
-});
+    void loadData();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

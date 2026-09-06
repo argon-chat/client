@@ -42,35 +42,40 @@
           </div>
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent class="w-52">
+      <ContextMenuContent class="w-56">
+        <ContextMenuItem v-if="isVoice" :disabled="!canJoinVoice" @click="emit('switch-voice', channel.channelId)">
+          <Volume2Icon class="w-4 h-4 mr-2" />
+          {{ t("join_channel") }}
+        </ContextMenuItem>
         <ContextMenuItem v-if="splitEnabled" @click="emit('open-split', channel.channelId)">
+          <IconColumns class="w-4 h-4 mr-2" />
           {{ t("open_in_split") }}
         </ContextMenuItem>
-        <ContextMenuSeparator v-if="splitEnabled && canManageChannels" />
-        <ContextMenuItem
-          v-if="canManageChannels"
-          @click="channelPermissionsOpen = true"
-        >
-          {{ t("edit_permissions") }}
+        <ContextMenuItem @click="toggleMute">
+          <BellIcon v-if="channelMutedItself" class="w-4 h-4 mr-2" />
+          <BellOffIcon v-else class="w-4 h-4 mr-2" />
+          {{ channelMutedItself ? t("unmute_channel") : t("mute_channel") }}
         </ContextMenuItem>
-        <ContextMenuSeparator v-if="canManageChannels" />
-        <ContextMenuItem
-          v-if="canManageChannels"
-          class="text-red-400"
-          @click="emit('delete', channel.channelId)"
-        >
-          {{ t("delete_channel") }}
+
+        <template v-if="canManageChannels">
+          <ContextMenuSeparator />
+          <ContextMenuItem @click="windows.openChannelSettings(channel.spaceId, channel.channelId)">
+            <SettingsIcon class="w-4 h-4 mr-2" />
+            {{ t("edit_channel") }}
+          </ContextMenuItem>
+          <ContextMenuItem :disabled="duplicating" @click="duplicateChannel">
+            <CopyPlusIcon class="w-4 h-4 mr-2" />
+            {{ t("duplicate_channel") }}
+          </ContextMenuItem>
+        </template>
+
+        <ContextMenuSeparator />
+        <ContextMenuItem @click="copyChannelId">
+          <CopyIcon class="w-4 h-4 mr-2" />
+          {{ t("copy_channel_id") }}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-
-    <ChannelPermissions
-      :open="channelPermissionsOpen"
-      @update:open="channelPermissionsOpen = $event"
-      :space-id="channel.spaceId"
-      :channel-id="channel.channelId"
-      :channel-name="channel.name"
-    />
 
     <!-- Voice channel users -->
     <TransitionGroup
@@ -105,12 +110,13 @@
 
 <script setup lang="ts">
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
-import { HashIcon, Volume2Icon, AntennaIcon } from 'lucide-vue-next';
+import {
+  HashIcon, Volume2Icon, AntennaIcon, BellIcon, BellOffIcon, SettingsIcon, CopyIcon, CopyPlusIcon,
+} from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
 import {
   ContextMenu,
-  ContextMenuCheckboxItem,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
@@ -118,21 +124,22 @@ import {
   ContextMenuTrigger,
   ContextMenuLabel,
 } from '@argon/ui/context-menu';
-import { ChannelType } from '@argon/glue';
+import { useToast } from '@argon/ui/toast';
+import { logger } from '@argon/core';
+import { ChannelType, MuteLevelType, MuteTargetKind } from '@argon/glue';
 import { usePexStore } from '@/store/data/permissionStore';
 import { useLocale } from '@/store/system/localeStore';
 import { useMe } from '@/store/auth/meStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import { useNotificationStore } from '@/store/data/notificationStore';
-import { MuteLevelType } from '@argon/glue';
+import { useSpaceStore } from '@/store/data/serverStore';
+import { useWindow } from '@/store/ui/windowStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
-import { useApi } from '@/store/system/apiStore';
 import type { DropPosition } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
-import ChannelPermissions from '@/components/settings/channels/ChannelPermissions.vue';
 
 const props = defineProps<{
   channel: ArgonChannel;
@@ -148,7 +155,6 @@ const emit = defineEmits<{
   select: [channelId: string];
   'open-split': [channelId: string];
   'switch-voice': [channelId: string];
-  delete: [channelId: string];
   dragstart: [channel: ArgonChannel, groupId: Guid | null, event: DragEvent];
   dragover: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
   drop: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
@@ -175,8 +181,10 @@ const pex = usePexStore();
 const { t } = useLocale();
 const me = useMe();
 const voice = useUnifiedCall();
-const api = useApi();
 const ntf = useNotificationStore();
+const servers = useSpaceStore();
+const windows = useWindow();
+const { toast } = useToast();
 
 const channelUnread = computed(() => {
   const mute = ntf.effectiveMuteLevel(props.channel.channelId, props.channel.spaceId);
@@ -211,7 +219,44 @@ const isUserConnecting = (userId: string) => {
   return !voice.participants[userId];
 };
 
-const channelPermissionsOpen = vueRef(false);
+// ── Context menu actions ──
+
+const isVoice = computed(() => props.channel.type === ChannelType.Voice);
+const canJoinVoice = computed(() => isVoice.value && !isConnectedVoiceChannel.value && pex.has('Connect'));
+
+// This channel's own mute, not the space's: the menu item toggles this channel only.
+const channelMutedItself = computed(() => ntf.isTargetMuted(props.channel.channelId));
+
+function toggleMute() {
+  if (channelMutedItself.value) {
+    void ntf.unmuteTarget(props.channel.channelId);
+  } else {
+    void ntf.muteTarget(props.channel.channelId, MuteTargetKind.Channel, MuteLevelType.All, false, null);
+  }
+}
+
+const duplicating = vueRef(false);
+
+async function duplicateChannel() {
+  if (duplicating.value) return;
+  duplicating.value = true;
+  try {
+    const copy = await servers.duplicateChannel(props.channel.spaceId, props.channel.channelId);
+    if (copy) toast({ title: t('channel_duplicated') });
+    else toast({ title: t('channel_duplicate_failed'), variant: 'destructive' });
+  } finally {
+    duplicating.value = false;
+  }
+}
+
+async function copyChannelId() {
+  try {
+    await navigator.clipboard.writeText(props.channel.channelId);
+    toast({ title: t('channel_id_copied') });
+  } catch (e) {
+    logger.warn('[channel] clipboard write failed', e);
+  }
+}
 </script>
 
 <style scoped>

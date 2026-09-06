@@ -165,8 +165,20 @@ export const useEventStore = defineStore("events", () => {
       })();
     });
 
-    bus.onServerEvent<ChannelModified>("ChannelModified", () => {
-      // TODO: implement
+    bus.onServerEvent<ChannelModified>("ChannelModified", (x) => {
+      void (async () => {
+        try {
+          // The event only names the fields that changed; the channel itself is re-read so a
+          // rename, a cooldown or a bitrate change lands in the sidebar and the settings sheet on
+          // every client, not only on the one that made it.
+          const list = await api.channelInteraction.GetChannels(x.spaceId, x.channelId);
+          const fresh = Array.from(list).find((c) => c.channel.channelId === x.channelId)?.channel;
+          if (fresh) await channelStore.trackChannel(fresh);
+          else logger.warn("[EventStore] ChannelModified for a channel the server no longer lists", x.channelId);
+        } catch (error) {
+          logger.error("Error handling ChannelModified", error);
+        }
+      })();
     });
 
     bus.onServerEvent<JoinedToChannelUser>("JoinedToChannelUser", (x) => {

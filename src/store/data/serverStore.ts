@@ -11,10 +11,12 @@ import {
   InviteCode,
   ServerInvites,
   SpaceDeletionStatus,
+  type ArgonChannel,
   type SpaceDeletionState,
 } from "@argon/glue";
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
+import { useChannelStore } from "@/store/data/channelStore";
 
 export const useSpaceStore = defineStore("spaces", () => {
   const api = useApi();
@@ -109,12 +111,39 @@ export const useSpaceStore = defineStore("spaces", () => {
     metrics.count("channel.created", { kind: enumName(ChannelType, channelKind), grouped: groupId !== null });
   }
 
-  async function deleteChannel(channelId: string) {
-    const selectedServer = pool.selectedServer;
+  /** @param spaceId the channel's space; defaults to the selected one, which is where the sidebar lives. */
+  async function deleteChannel(channelId: string, spaceId?: string) {
+    const selectedServer = spaceId ?? pool.selectedServer;
     if (!selectedServer) return;
 
     await api.channelInteraction.DeleteChannel(selectedServer, channelId);
     metrics.count("channel.deleted");
+  }
+
+  /**
+   * A copy of a channel, placed right after it with the same settings and permission overwrites.
+   * Returns the new channel, or null when the server refused or the call failed (both logged).
+   */
+  async function duplicateChannel(spaceId: string, channelId: string): Promise<ArgonChannel | null> {
+    try {
+      const result = await api.channelInteraction.DuplicateChannel(spaceId, channelId);
+      if (!result.isSuccessDuplicateChannel()) {
+        logger.warn("[SpaceStore] DuplicateChannel refused", result.isFailedDuplicateChannel() ? result.error : result);
+        return null;
+      }
+      // Stored now rather than on the ChannelCreated event, so the copy is in the sidebar by the
+      // time the toast says it is.
+      await useChannelStore().trackChannel(result.channel);
+      // Counted as a creation: it is one, and a separate metric would split the same event in two.
+      metrics.count("channel.created", {
+        kind: enumName(ChannelType, result.channel.type),
+        grouped: result.channel.groupId !== null,
+      });
+      return result.channel;
+    } catch (e) {
+      logger.error("[SpaceStore] DuplicateChannel failed", e);
+      return null;
+    }
   }
 
   async function getServerInvites(): Promise<ServerInvites | null> {
@@ -158,6 +187,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     joinToServer,
     addChannelToServer,
     deleteChannel,
+    duplicateChannel,
     getServerInvites,
     addInvite,
     revokeInvite,

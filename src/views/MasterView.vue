@@ -11,12 +11,14 @@
 
     <SettingsWindow />
     <ServerSettingsWindow />
+    <ChannelSettingsWindow />
   </div>
 </template>
 
 <script setup lang="ts">
 import SettingsWindow from "@/components/SettingsWindow.vue";
 import ServerSettingsWindow from "@/components/ServerSettingsWindow.vue";
+import ChannelSettingsWindow from "@/components/ChannelSettingsWindow.vue";
 import RouteTransition from "@/components/shared/RouteTransition.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import ServerSelector from "@/components/ServerSelector.vue";
