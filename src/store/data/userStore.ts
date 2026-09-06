@@ -150,8 +150,16 @@ export const useUserStore = defineStore("user", () => {
    * avatars. LookupUser takes the user id alone and lets the server decide whether this account has
    * standing to know it; the answer is written to the database, so every reactive binding on that
    * user picks it up on its own.
+   *
+   * `status` is for the one caller that already knows one — a presence event about a user the cache
+   * has never seen. Passing it through means the row is created carrying the status that arrived
+   * rather than being inserted Offline and corrected a write later, which is a grey dot on screen
+   * in between.
    */
-  const lookupUser = async (userId: Guid): Promise<RealtimeUser | undefined> => {
+  const lookupUser = async (
+    userId: Guid,
+    status: UserStatus | null = null
+  ): Promise<RealtimeUser | undefined> => {
     if (ignoredUsers.has(userId)) return undefined;
 
     const inFlight = pendingLookups.get(userId);
@@ -182,7 +190,7 @@ export const useUserStore = defineStore("user", () => {
           return undefined;
         }
 
-        await trackUser(result.user);
+        await trackUser(result.user, status);
         return await db.users.get(userId);
       } catch (err) {
         logger.error(`[UserStore] Lookup failed for user ${userId}:`, err);
@@ -203,7 +211,9 @@ export const useUserStore = defineStore("user", () => {
     const resolved: RealtimeUser[] = [];
 
     for (let i = 0; i < wanted.length; i += LOOKUP_BATCH) {
-      const batch = await Promise.all(wanted.slice(i, i + LOOKUP_BATCH).map(lookupUser));
+      // Wrapped rather than passed by reference: `map` hands its callback the index too, and that
+      // would arrive as the `status` argument.
+      const batch = await Promise.all(wanted.slice(i, i + LOOKUP_BATCH).map((id) => lookupUser(id)));
       for (const user of batch) if (user) resolved.push(user);
     }
 
@@ -507,7 +517,20 @@ export const useUserStore = defineStore("user", () => {
   };
 
   /**
-   * Update user status
+   * Update user status.
+   *
+   * The miss goes through this store's own `lookupUser` rather than straight to
+   * `api.userInteraction.LookupUser`, because that is the only place that tells the two possible
+   * failures apart. A NO_ANCHOR answer is the server saying this account has no standing to know
+   * that user, so it is remembered and never asked again; a THROWN request is a failure to reach —
+   * a 502, an expired token, a dropped connection — and remembering it used to mute that user for
+   * the whole session (`ignoredUsers` is cleared only on an account switch), taking their name and
+   * avatar down with their presence. `lookupUser` also folds a burst of events about the same
+   * stranger into one request via `pendingLookups`.
+   *
+   * Defects C3 and C4, pinned by `test/store/userStatusUpdates.test.ts` — "a request that failed to
+   * reach the server does not ignore the user forever" and "a burst of events for one stranger is a
+   * single lookup".
    */
   const updateUserStatus = async (userId: Guid, status: UserStatus) => {
     // Skip ignored users
@@ -523,26 +546,23 @@ export const useUserStore = defineStore("user", () => {
     });
     if (updated === 0) {
       logger.warn(`User ${userId} not found for status update, fetching from server...`);
-      
+
       // One call, not a shotgun across the first five servers. PrefetchUser needs a space id, so
       // this used to guess which space the two of you shared and fire five requests hoping one
       // landed — capped at five, so a user in the sixth was silently unresolvable. LookupUser takes
       // the user id alone and lets the server find the relationship, whichever one it is.
-      try {
-        const result = await api.userInteraction.LookupUser(userId);
+      const resolved = await lookupUser(userId, status);
 
-        if (result.isSuccessLookupUser()) {
-          await trackUser(result.user, status);
-          return;
-        }
-
-        // NO_ANCHOR is a real answer, not a failure to reach: this account has no standing reason
-        // to know that one, so there is nothing to retry and no point asking again.
-        logger.warn(`Cannot resolve user ${userId}, ignoring future updates`);
-        rememberIgnored(userId);
-      } catch (err) {
-        logger.error(`Error fetching user ${userId}:`, err);
-        rememberIgnored(userId);
+      // A second event that shared the in-flight lookup carries a newer status than the one the row
+      // was created with, so it is written on top. When there was only one event the two agree and
+      // nothing is written.
+      if (resolved && resolved.status !== status) {
+        await db.users.update(userId, (user) => {
+          user.status = status;
+          if (status === UserStatus.Offline && user.activity) {
+            user.activity = undefined;
+          }
+        });
       }
     }
   };
@@ -558,7 +578,15 @@ export const useUserStore = defineStore("user", () => {
   };
 
   /**
-   * Reset all users to Offline status (on reconnect)
+   * Reset all users to Offline status (on reconnect).
+   *
+   * The activity goes with the status: offline and "Playing X" cannot both be true, and every other
+   * path that takes a user offline (`updateUserStatus`, `loadServerDetails`'s reconciliation pass)
+   * already says so. This one is the first to run on a bootstrap, so when the presence snapshot
+   * that follows it never lands — a rejected `GetMemberPresence` — the roster would otherwise show
+   * grey dots under yesterday's games. Defect C5, pinned by
+   * `test/store/userStatusUpdates.test.ts` "a user taken offline does not keep the game they were
+   * playing".
    */
   const resetAllUsersToOffline = async () => {
     await db.transaction("rw", db.users, async () => {
@@ -567,6 +595,7 @@ export const useUserStore = defineStore("user", () => {
         .notEqual(UserStatus.Offline)
         .modify((user) => {
           user.status = UserStatus.Offline;
+          user.activity = undefined;
         });
     });
   };

@@ -119,10 +119,31 @@ export const useMe = defineStore("me", () => {
     metrics.count("legal.accepted");
   }
 
+  /**
+   * Send a status the moment it is decided, instead of leaving it to the next heartbeat.
+   *
+   * The heartbeat samples this store every 15 s, so until now a status change — one the user made
+   * on purpose, or the idle detector's Away — reached everyone else up to a full interval late,
+   * while the user's own screen already showed it. `pushStatusNow` sends the same `Heartbeat` the
+   * tick sends, so the server sees no new kind of traffic and the tick keeps its job.
+   *
+   * Only ever called where `me` has been written first: the push must state what this client
+   * actually holds, or the next tick would contradict it. Defect C2, pinned by
+   * `test/store/busHeartbeatStatus.test.ts` "choosing a status pushes it instead of waiting for the
+   * next tick". Optional call because tests that exercise only the preference bookkeeping stand
+   * this store up against a stub bus, and the push is best-effort in any case.
+   */
+  function announceStatus(status: UserStatus) {
+    bus.pushStatusNow?.(status);
+  }
+
   // For automatic status changes (idle detection) - doesn't touch preferredStatus
   function setTemporaryStatus(status: UserStatus) {
     if (me.value?.currentStatus === status) return;
-    if (me.value) me.value.currentStatus = status;
+    if (me.value) {
+      me.value.currentStatus = status;
+      announceStatus(status);
+    }
   }
 
   // For user-initiated status changes - only updates preferredStatus for DND/TouchGrass
@@ -137,7 +158,10 @@ export const useMe = defineStore("me", () => {
       // Coming back from DND/TouchGrass - reset to Online
       preferredStatus.value = UserStatus.Online;
     }
-    if (me.value) me.value.currentStatus = status;
+    if (me.value) {
+      me.value.currentStatus = status;
+      announceStatus(status);
+    }
   }
 
   async function completeInit() {

@@ -199,6 +199,26 @@ export const useBus = defineStore("bus", () => {
     worker?.postMessage({ type: "invoke", method: "IAmStopTyping", args: [channelId] });
   }
 
+  /**
+   * Put a status on the wire now instead of at the next heartbeat tick.
+   *
+   * The heartbeat samples `me.currentStatus` every 15 s, which is the right cadence for keeping a
+   * session alive but the wrong one for a decision the user just made: someone who picks Do Not
+   * Disturb before a meeting kept being shown to everyone else as whatever they were, for up to a
+   * full interval, with nothing on their own screen saying so. This sends the same `Heartbeat` the
+   * tick sends — the server treats a repeat of the current status as a no-op and rate-limits real
+   * changes with its own token bucket — so an early one costs nothing and the tick stays as it is.
+   *
+   * Best-effort by design: with no worker (not connected yet) or a hub that is down, the worker's
+   * `invoke` is a no-op and the next tick after the connection returns carries the status anyway.
+   *
+   * Defect C2, pinned by `test/store/busHeartbeatStatus.test.ts` "choosing a status pushes it
+   * instead of waiting for the next tick".
+   */
+  function pushStatusNow(status: UserStatus) {
+    worker?.postMessage({ type: "invoke", method: "Heartbeat", args: [status] });
+  }
+
   // Tell the server this client is going offline intentionally (logout / quit / account switch) so
   // others see it immediately instead of waiting out the disconnect grace window. Best-effort: if the
   // connection is already gone the server-side grace covers it anyway.
@@ -293,6 +313,7 @@ export const useBus = defineStore("bus", () => {
     doListenMyEvents,
     sendEventAsync,
     goOffline,
+    pushStatusNow,
     subscribeToSpace,
     unsubscribeFromSpace,
     subscribeToChannel,
