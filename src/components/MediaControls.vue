@@ -8,27 +8,27 @@
             <div class="ctrl-divider" />
 
             <!-- Microphone + device switch -->
-            <div class="ctrl-split">
+            <div class="ctrl-split ctrl-split--mic">
                 <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
                     <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px] icon-appear" />
                     <Mic v-else class="w-[18px] h-[18px] icon-appear" />
                 </button>
-                <Popover v-model:open="micMenuOpen">
+                <Popover v-model:open="mic.open">
                     <PopoverTrigger as-child>
                         <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_microphone')"><ChevronUp class="w-3 h-3" /></button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="start" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('microphone') }}</div>
-                        <div v-if="mics.length === 0" class="device-row device-row--empty">
+                        <div v-if="mic.devices.length === 0" class="device-row device-row--empty">
                             {{ t('no_microphones_found') }}
                         </div>
                         <button
-                            v-for="d in mics"
+                            v-for="d in mic.devices"
                             :key="d.deviceId"
                             class="device-row"
                             :class="{ active: d.deviceId === activeMicId }"
-                            :disabled="micSwitching"
-                            @click="pickMic(d.deviceId)">
+                            :disabled="mic.switching"
+                            @click="mic.pick(d.deviceId)">
                             <Mic class="w-3.5 h-3.5 shrink-0" />
                             <span class="device-name">{{ d.label || t('microphone') }}</span>
                             <Check v-if="d.deviceId === activeMicId" class="w-3.5 h-3.5 ml-auto shrink-0" />
@@ -37,15 +37,40 @@
                 </Popover>
             </div>
 
-            <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
-                <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px] icon-appear" />
-                <Headphones v-else class="w-[18px] h-[18px] icon-appear" />
-            </button>
+            <!-- Headphones (deafen) + output device switch -->
+            <div class="ctrl-split ctrl-split--speakers">
+                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
+                    <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px] icon-appear" />
+                    <Headphones v-else class="w-[18px] h-[18px] icon-appear" />
+                </button>
+                <Popover v-model:open="speakers.open">
+                    <PopoverTrigger as-child>
+                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_speakers')"><ChevronUp class="w-3 h-3" /></button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start" class="ctrl-popover">
+                        <div class="ctrl-popover-title">{{ t('speakers') }}</div>
+                        <div v-if="speakers.devices.length === 0" class="device-row device-row--empty">
+                            {{ t('no_speakers_found') }}
+                        </div>
+                        <button
+                            v-for="d in speakers.devices"
+                            :key="d.deviceId"
+                            class="device-row"
+                            :class="{ active: d.deviceId === activeSpeakerId }"
+                            :disabled="speakers.switching"
+                            @click="speakers.pick(d.deviceId)">
+                            <Headphones class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name">{{ d.label || t('speakers') }}</span>
+                            <Check v-if="d.deviceId === activeSpeakerId" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
+                    </PopoverContent>
+                </Popover>
+            </div>
 
             <div class="ctrl-divider" />
 
             <!-- Screen share + options menu (system audio / source / quality) -->
-            <div class="ctrl-split">
+            <div class="ctrl-split ctrl-split--share">
                 <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
                     <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px] icon-appear" />
                     <ScreenShare v-else class="w-[18px] h-[18px] icon-appear" />
@@ -105,12 +130,12 @@
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
             <!-- Camera + device switch -->
-            <div class="ctrl-split">
+            <div class="ctrl-split ctrl-split--camera">
                 <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
                     <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px] icon-appear" />
                     <CameraIcon v-else class="w-[18px] h-[18px] icon-appear" />
                 </button>
-                <Popover v-model:open="camMenuOpen">
+                <Popover v-model:open="cam.open">
                     <PopoverTrigger as-child>
                         <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_camera')" :disabled="!isConnected">
                             <ChevronUp class="w-3 h-3" />
@@ -118,16 +143,16 @@
                     </PopoverTrigger>
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('camera') }}</div>
-                        <div v-if="cams.length === 0" class="device-row device-row--empty">
+                        <div v-if="cam.devices.length === 0" class="device-row device-row--empty">
                             {{ t('no_cameras_found') }}
                         </div>
                         <button
-                            v-for="d in cams"
+                            v-for="d in cam.devices"
                             :key="d.deviceId"
                             class="device-row"
                             :class="{ active: d.deviceId === activeCamId }"
-                            :disabled="switching"
-                            @click="pickCam(d.deviceId)">
+                            :disabled="cam.switching"
+                            @click="cam.pick(d.deviceId)">
                             <CameraIcon class="w-3.5 h-3.5 shrink-0" />
                             <span class="device-name">{{ d.label || t('camera') }}</span>
                             <Check v-if="d.deviceId === activeCamId" class="w-3.5 h-3.5 ml-auto shrink-0" />
@@ -149,7 +174,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
+import { useDeviceMenu } from "@/composables/useDeviceMenu";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
@@ -234,48 +260,17 @@ async function applyQuality(q: (typeof qualityPresets)[number]) {
     });
 }
 
-// --- Microphone device switcher ---
-const mics = ref<MediaDeviceInfo[]>([]);
-const micMenuOpen = ref(false);
-const micSwitching = ref(false);
+// --- Quick device switchers: the chevron next to a button lists that kind of device.
+// Microphone, speakers and camera share one behaviour (see useDeviceMenu). ---
+const mic = useDeviceMenu("audioinput", (id) => audio.setInputDevice(id));
 const activeMicId = computed(() => audio.getInputDevice().value);
 
-watch(micMenuOpen, async (open) => {
-    if (open) mics.value = await audio.enumerateDevicesByKind("audioinput");
-});
+const speakers = useDeviceMenu("audiooutput", (id) => audio.setOutputDevice(id));
+const activeSpeakerId = computed(() => audio.getOutputDevice().value);
 
-async function pickMic(deviceId: string) {
-    if (micSwitching.value) return;
-    micSwitching.value = true;
-    micMenuOpen.value = false;
-    try {
-        await audio.setInputDevice(deviceId);
-    } finally {
-        micSwitching.value = false;
-    }
-}
-
-// --- Camera device switcher ---
-const cams = ref<MediaDeviceInfo[]>([]);
-const camMenuOpen = ref(false);
-const switching = ref(false);
+// The camera goes through the call store so a live track is swapped, not just the preference.
+const cam = useDeviceMenu("videoinput", (id) => voice.switchCamera(id));
 const activeCamId = computed(() => pref.defaultVideoDevice);
-
-watch(camMenuOpen, async (open) => {
-    // Enumerate lazily on open — labels populate after camera permission is granted once.
-    if (open) cams.value = await audio.enumerateDevicesByKind("videoinput");
-});
-
-async function pickCam(deviceId: string) {
-    if (switching.value) return;
-    switching.value = true;
-    camMenuOpen.value = false;
-    try {
-        await voice.switchCamera(deviceId);
-    } finally {
-        switching.value = false;
-    }
-}
 </script>
 
 <style scoped>

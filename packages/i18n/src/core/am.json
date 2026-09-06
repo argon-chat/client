@@ -250,6 +250,8 @@
   "required_premium": "Պահանջվում է պրեմիում",
   "switch_microphone": "Փոխել խոսափողը",
   "no_microphones_found": "Խոսափող չի գտնվել",
+  "switch_speakers": "Փոխել բարձրախոսը",
+  "speakers": "Բարձրախոսներ",
   "screencast_title": "Ցուցադրել ձեր էկրանն կամ պատուհանը",
   "screencast": "Էկրանային շփում",
   "monitors": "Մոնիտորներ",

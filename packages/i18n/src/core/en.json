@@ -401,6 +401,8 @@
   "required_premium": "Required Premium",
   "switch_microphone": "Switch microphone",
   "no_microphones_found": "No microphones found",
+  "switch_speakers": "Switch speakers",
+  "speakers": "Speakers",
   "empty_channel": "No one here yet",
   "empty_channel_hint": "Join the channel to start chatting",
   "live_badge": "LIVE",

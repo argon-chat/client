@@ -271,7 +271,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
   background-color: hsl(var(--card) / var(--card-alpha));
   border: 1px solid hsl(var(--border) / 0.5);
   border-top: none;
-  border-radius: 0 0 15px 15px;
+  border-radius: 0 0 10px 10px;
   -webkit-app-region: drag;
   user-select: none;
   padding: 0 4px;

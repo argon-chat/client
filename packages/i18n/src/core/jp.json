@@ -260,6 +260,8 @@
   "required_premium": "プレミアムが必要",
   "switch_microphone": "マイクを切り替え",
   "no_microphones_found": "マイクが見つかりません",
+  "switch_speakers": "スピーカーを切り替え",
+  "speakers": "スピーカー",
   "screencast_title": "画面またはウィンドウを共有",
   "screencast": "画面共有",
   "monitors": "モニター",

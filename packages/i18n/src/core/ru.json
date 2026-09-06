@@ -320,6 +320,8 @@
   "required_premium": "Нужен премиум",
   "switch_microphone": "Сменить микрофон",
   "no_microphones_found": "Микрофоны не найдены",
+  "switch_speakers": "Сменить устройство вывода",
+  "speakers": "Динамики",
   "screencast_title": "Показать свой экран или окна",
   "screencast": "Трансляция экрана",
   "monitors": "Мониторы",
