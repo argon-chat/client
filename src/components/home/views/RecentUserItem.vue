@@ -125,8 +125,8 @@ const isFriend = computed(() => friends.isFriend(props.userId));
 const isBlocked = computed(() => friends.isBlocked(props.userId));
 const isIgnored = computed(() => friends.isIgnored(props.userId));
 const hasUnread = computed(() => (props.unreadCount ?? 0) > 0);
-// One call at a time, and not to someone who could not answer it anyway.
-const canCall = computed(() => !isEchoUser.value && !isBlocked.value && !calls.activeCallId);
+// One call at a time (including one still being dialled), and not to someone who could not answer it anyway.
+const canCall = computed(() => !isEchoUser.value && !isBlocked.value && !calls.activeCallId && !calls.dialingPeerId);
 
 const act = (action: RecentChatAction) => emit("action", action, props.userId);
 </script>

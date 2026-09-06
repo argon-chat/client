@@ -8,8 +8,11 @@ import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useFriendsStore } from "@/store/data/friendsStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import { useTone } from "@/store/media/toneStore";
+import { useLocale } from "@/store/system/localeStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
+import { toast } from "@argon/ui/toast";
 import {
   type ChannelReadState,
   type MuteSettingsDto,
@@ -24,6 +27,8 @@ import {
   type BatchMentionOccurred,
   type DirectMessageSent,
   type MessageSent,
+  type FriendRequestReceivedEvent,
+  type FriendRequestCanceledEvent,
 } from "@argon/glue";
 import type { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 
@@ -273,6 +278,26 @@ export const useNotificationStore = defineStore("notifications", () => {
     if (mute !== MuteLevelType.All) {
       tone.playNotificationSound();
       flashForAttention();
+    }
+  }
+
+  // The server files no system notification for a friend request — the event is all there is —
+  // so the badge, the sound and the toast are raised here. The count is reconciled from the
+  // server's own tally of pending requests on the next load.
+  function handleFriendRequestReceived(e: FriendRequestReceivedEvent) {
+    notifications.value = { ...notifications.value, friendRequests: notifications.value.friendRequests + 1 };
+    tone.playNotificationSound();
+    flashForAttention();
+    void (async () => {
+      const user = await usePoolStore().getUser(e.requesterId);
+      const { t } = useLocale();
+      toast({ title: t("friend_request_from", { name: user?.displayName ?? t("unknown_display_name") }) });
+    })();
+  }
+
+  function handleFriendRequestCanceled(_e: FriendRequestCanceledEvent) {
+    if (notifications.value.friendRequests > 0) {
+      notifications.value = { ...notifications.value, friendRequests: notifications.value.friendRequests - 1 };
     }
   }
 
@@ -542,6 +567,8 @@ export const useNotificationStore = defineStore("notifications", () => {
     bus.onServerEvent<BatchMentionOccurred>("BatchMentionOccurred", handleBatchMentionOccurred);
     bus.onServerEvent<DirectMessageSent>("DirectMessageSent", handleDirectMessageSent);
     bus.onServerEvent<MessageSent>("MessageSent", handleMessageSent);
+    bus.onServerEvent<FriendRequestReceivedEvent>("FriendRequestReceivedEvent", handleFriendRequestReceived);
+    bus.onServerEvent<FriendRequestCanceledEvent>("FriendRequestCanceledEvent", handleFriendRequestCanceled);
   }
 
   return {

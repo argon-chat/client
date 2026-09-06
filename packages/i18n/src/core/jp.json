@@ -314,6 +314,7 @@
   "remove_friend_confirmation": "{name} をフレンドから削除しますか？",
   "block_user_confirmation": "{name} をブロックしますか？相手はあなたにメッセージや通話ができなくなり、フレンドではなくなります。",
   "delete_chat_confirmation": "{name} とのチャットを削除しますか？あなたのリストからのみ消え、どちらかが新しいメッセージを送ると戻ります。",
+  "friend_request_from": "{name} からフレンド申請が届きました",
   "screencast_title": "画面またはウィンドウを共有",
   "screencast": "画面共有",
   "monitors": "モニター",

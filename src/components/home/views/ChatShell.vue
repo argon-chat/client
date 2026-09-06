@@ -3,7 +3,7 @@ import { computed, shallowRef, watch, onUnmounted, ref, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { useCallManager } from "@/store/media/callManagerStore";
 import DmChatView from "./dms/DmChatView.vue";
-import ChatInput from "./dms/ChatInput.vue";
+import EnterText from "@/components/chats/EnterText.vue";
 import ChatPanel from "./dms/ChatPanel.vue";
 import ChatHeader from "./dms/ChatHeader.vue";
 import CallConnecting from "./dms/CallConnecting.vue";
@@ -25,7 +25,8 @@ const { t } = useLocale();
 // ── Refs ──
 
 const chatViewRef = ref<InstanceType<typeof DmChatView> | null>(null);
-const chatInputRef = ref<InstanceType<typeof ChatInput> | null>(null);
+// The same composer as a text channel's, pointed at a person instead of a channel.
+const chatInputRef = ref<InstanceType<typeof EnterText> | null>(null);
 
 const userId = computed(() => route.params.userId as string | undefined);
 const isProfileOpen = shallowRef(false);
@@ -34,9 +35,6 @@ const isDragging = ref(false);
 
 /** Whether the chat sidebar is open during a call */
 const chatSidebarOpen = ref(true);
-
-/** Local flag: true from moment user clicks call until callManager takes over */
-const isDialing = ref(false);
 
 // ── Peer lifecycle ──
 
@@ -54,14 +52,11 @@ const stopUserIdWatch = watch(
 
 // ── Call management ──
 
+// The dialing state lives in the call manager, so a call started from the DM list's menu or the
+// "active now" widget shows the same "calling…" overlay here as one started from the header.
 async function onCall() {
     if (!userId.value) return;
-    isDialing.value = true;
-    try {
-        await calls.startOutgoingCall(userId.value);
-    } finally {
-        isDialing.value = false;
-    }
+    await calls.startOutgoingCall(userId.value);
 }
 
 const isCallActive = computed(() => {
@@ -78,8 +73,8 @@ const isCallActive = computed(() => {
 const isCallConnecting = computed(() => {
     const uid = userId.value;
     if (!uid) return false;
-    // Local dialing flag covers the gap before callManager sets activePeerId
-    if (isDialing.value) return true;
+    // Dialing covers the gap before the server has answered and a call id exists.
+    if (calls.dialingPeerId === uid) return true;
     return (
         calls.activePeerId === uid &&
         !dmCall.isConnected &&
@@ -94,7 +89,6 @@ function endCall() {
 }
 
 function cancelOutgoingCall() {
-    isDialing.value = false;
     calls.hangupCall();
 }
 
@@ -275,7 +269,7 @@ onUnmounted(() => {
                 </Transition>
 
                 <div class="px-5 py-4">
-                    <ChatInput
+                    <EnterText
                         v-if="userId"
                         ref="chatInputRef"
                         :receiver-id="userId"
@@ -349,7 +343,7 @@ onUnmounted(() => {
                         </Transition>
 
                         <div class="px-3 py-3">
-                            <ChatInput
+                            <EnterText
                                 v-if="userId"
                                 ref="chatInputRef"
                                 :receiver-id="userId"

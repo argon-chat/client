@@ -18,6 +18,11 @@ const THUMBHASH_MAX_DIM = 100;
 
 export type AttachmentStatus = "pending" | "uploading" | "done" | "error";
 
+/** Where the files go: a channel of a space, or the direct chat with one person. */
+export type UploadTarget =
+  | { kind: "channel"; spaceId: Guid; channelId: Guid }
+  | { kind: "dm"; peerId: Guid };
+
 export interface PendingAttachment {
   file: File;
   previewUrl: string | null;
@@ -197,8 +202,7 @@ export function useAttachmentUpload() {
 
   async function uploadSingleFile(
     entry: PendingAttachment,
-    spaceId: Guid,
-    channelId: Guid,
+    target: UploadTarget,
   ): Promise<void> {
     entry.status = "uploading";
     entry.progress = 0;
@@ -209,10 +213,9 @@ export function useAttachmentUpload() {
 
     try {
       // Step 1: Begin upload
-      const begin = await api.channelInteraction.BeginUploadAttachment(
-        spaceId,
-        channelId,
-      );
+      const begin = target.kind === "dm"
+        ? await api.userChatInteractions.BeginUploadAttachment(target.peerId)
+        : await api.channelInteraction.BeginUploadAttachment(target.spaceId, target.channelId);
 
       entry.progress = 20;
 
@@ -222,11 +225,9 @@ export function useAttachmentUpload() {
       entry.progress = 80;
 
       // Step 3: Complete upload
-      const info = await api.channelInteraction.CompleteUploadAttachment(
-        spaceId,
-        channelId,
-        blobId,
-      );
+      const info = target.kind === "dm"
+        ? await api.userChatInteractions.CompleteUploadAttachment(target.peerId, blobId)
+        : await api.channelInteraction.CompleteUploadAttachment(target.spaceId, target.channelId, blobId);
 
       entry.result = info;
       entry.progress = 100;
@@ -242,14 +243,11 @@ export function useAttachmentUpload() {
     }
   }
 
-  async function uploadAll(
-    spaceId: Guid,
-    channelId: Guid,
-  ): Promise<IMessageEntity[]> {
+  async function uploadAll(target: UploadTarget): Promise<IMessageEntity[]> {
     const pending = pendingFiles.value.filter((f) => f.status !== "done");
 
     await Promise.all(
-      pending.map((entry) => uploadSingleFile(entry, spaceId, channelId)),
+      pending.map((entry) => uploadSingleFile(entry, target)),
     );
 
     const entities: IMessageEntity[] = [];
@@ -329,10 +327,10 @@ export function useAttachmentUpload() {
     return {
       files: snapshot,
       hasFiles: snapshot.length > 0,
-      async uploadAll(spaceId: Guid, channelId: Guid): Promise<IMessageEntity[]> {
+      async uploadAll(target: UploadTarget): Promise<IMessageEntity[]> {
         const pending = snapshot.filter((f) => f.status !== "done");
         await Promise.all(
-          pending.map((entry) => uploadSingleFile(entry, spaceId, channelId)),
+          pending.map((entry) => uploadSingleFile(entry, target)),
         );
 
         const entities: IMessageEntity[] = [];

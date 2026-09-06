@@ -2123,7 +2123,6 @@ export interface DataExportStatus {
   completedAt: datetime | null;
   downloadUrl: string | null;
   itemsProcessed: i4;
-  totalItemsEstimate: i4;
 };
 
 
@@ -2416,9 +2415,10 @@ export enum DataExportError
   ALREADY_IN_PROGRESS = 1,
   RATE_LIMITED = 2,
   NOT_CONFIGURED = 3,
+  ACCOUNT_DELETION_SCHEDULED = 4,
 }
 
-const declaredDataExportError: ReadonlySet<unknown> = new Set<unknown>([DataExportError.NONE, DataExportError.ALREADY_IN_PROGRESS, DataExportError.RATE_LIMITED, DataExportError.NOT_CONFIGURED]);
+const declaredDataExportError: ReadonlySet<unknown> = new Set<unknown>([DataExportError.NONE, DataExportError.ALREADY_IN_PROGRESS, DataExportError.RATE_LIMITED, DataExportError.NOT_CONFIGURED, DataExportError.ACCOUNT_DELETION_SCHEDULED]);
 
 /**
  * Open-enum helpers for {@link DataExportError}.
@@ -15538,26 +15538,24 @@ IonFormatterStorage.register("DataExportStatusKind", {
 
 IonFormatterStorage.register("DataExportStatus", {
   read(reader: CborReader): DataExportStatus {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "DataExportStatus");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "DataExportStatus");
     const status = IonFormatterStorage.get<DataExportStatusKind>('DataExportStatusKind').read(reader);
     const exportId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const startedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const completedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
     const itemsProcessed = IonFormatterStorage.get<i4>('i4').read(reader);
-    const totalItemsEstimate = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 7);
-    return { status, exportId, startedAt, completedAt, downloadUrl, itemsProcessed, totalItemsEstimate };
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { status, exportId, startedAt, completedAt, downloadUrl, itemsProcessed };
   },
   write(writer: CborWriter, value: DataExportStatus): void {
-    writer.writeStartArray(7);
+    writer.writeStartArray(6);
     IonFormatterStorage.get<DataExportStatusKind>('DataExportStatusKind').write(writer, value.status);
     IonFormatterStorage.writeNullable<guid>(writer, value.exportId, 'guid');
     IonFormatterStorage.writeNullable<datetime>(writer, value.startedAt, 'datetime');
     IonFormatterStorage.writeNullable<datetime>(writer, value.completedAt, 'datetime');
     IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
     IonFormatterStorage.get<i4>('i4').write(writer, value.itemsProcessed);
-    IonFormatterStorage.get<i4>('i4').write(writer, value.totalItemsEstimate);
     writer.writeEndArray();
   }
 });
@@ -16947,6 +16945,8 @@ export interface IUserChatInteractions extends IIonService
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
   DeleteChat(peerId: guid): Promise<void>;
+  BeginUploadAttachment(peerId: guid): Promise<IUploadFileResult>;
+  CompleteUploadAttachment(peerId: guid, blobId: guid): Promise<AttachmentInfo>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
@@ -17284,6 +17284,8 @@ export interface IUserChatInteractions extends IIonService
   UnpinChat(peerId: guid): Promise<void>;
   MarkChatRead(peerId: guid): Promise<void>;
   DeleteChat(peerId: guid): Promise<void>;
+  BeginUploadAttachment(peerId: guid): Promise<IUploadFileResult>;
+  CompleteUploadAttachment(peerId: guid, blobId: guid): Promise<AttachmentInfo>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
 }
@@ -18642,6 +18644,33 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
     writer.writeEndArray();
           
     await req.callAsync(writer.data, this.signal);
+  }
+  async BeginUploadAttachment(peerId: guid): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "BeginUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadAttachment(peerId: guid, blobId: guid): Promise<AttachmentInfo> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "CompleteUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<AttachmentInfo>("AttachmentInfo", writer.data, this.signal);
   }
   async SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8> {
     const req = new IonRequest(this.ctx, "IUserChatInteractions", "SendDirectMessage");

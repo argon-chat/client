@@ -26,6 +26,16 @@ export interface OverlayMember {
   isScreenShare: boolean;
 }
 
+/**
+ * The overlay draws avatars onto a canvas, so it loads them with crossorigin="anonymous" — a CORS
+ * request. The main window shows the same picture through a plain <img>, whose cached 302 from
+ * the API carried no CORS header, and the browser handed that cached redirect to the overlay and
+ * failed the load. A query marker gives the overlay a cache entry of its own; the API ignores it.
+ */
+function overlayAvatarUrl(fileId: string): string {
+  return `${cdnUrl(fileId)}?overlay=1`;
+}
+
 export function useOverlayPublisher(): void {
   const bridge = (globalThis as any).argonOverlay;
   // Only the main app window (with the preload bridge) publishes. The overlay
@@ -70,7 +80,7 @@ export function useOverlayPublisher(): void {
       result.push({
         userId,
         displayName: user.User?.displayName ?? "Unknown",
-        avatarUrl: fileId ? cdnUrl(fileId) : null,
+        avatarUrl: fileId ? overlayAvatarUrl(fileId) : null,
         avatarColor: userColors.getColorByUserId(userId),
         isSpeaking: voice.speaking.has(userId),
         isMuted,

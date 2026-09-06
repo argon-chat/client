@@ -455,6 +455,7 @@
   "remove_friend_confirmation": "Remove {name} from your friends?",
   "block_user_confirmation": "Block {name}? They will not be able to message or call you, and you will no longer be friends.",
   "delete_chat_confirmation": "Delete the chat with {name}? It disappears from your list only; a new message from either of you brings it back.",
+  "friend_request_from": "{name} sent you a friend request",
   "empty_channel": "No one here yet",
   "empty_channel_hint": "Join the channel to start chatting",
   "live_badge": "LIVE",

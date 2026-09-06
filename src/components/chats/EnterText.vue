@@ -262,6 +262,7 @@
             :files="attachments.pendingFiles.value"
             :open="showAttachmentDialog"
             :space-id="spaceId"
+            :receiver-id="receiverId"
             @send="onAttachmentDialogSend"
             @close="showAttachmentDialog = false"
             @add-more="openFilePicker"
@@ -319,7 +320,7 @@ import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEnt
 import type { GifItem, SavedGif } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
-import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
+import { useAttachmentUpload, type UploadTarget } from "@/composables/useAttachmentUpload";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
@@ -354,11 +355,11 @@ const handlePickerTabChange = (tabId: string) => {
 
 const handleGifSelect = (gif: GifItem) => {
   if (!canSendMessages.value) return;
-  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) return;
 
   const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
-  const spaceId = props.spaceId;
+  const spaceId = optimisticSpaceId();
   const replyTo = props.replyTo?.messageId ?? null;
 
   const gifEntity = new MessageEntityGif(
@@ -392,9 +393,7 @@ const handleGifSelect = (gif: GifItem) => {
   (async () => {
     const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
-      const readback = await api.channelInteraction.SendMessageWithReadback(
-        spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
-      );
+      const readback = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
       emit("resolve-optimistic", randomId, readback);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
@@ -409,11 +408,11 @@ const handleGifSelect = (gif: GifItem) => {
 
 const handleSavedGifSelect = (gif: SavedGif) => {
   if (!canSendMessages.value) return;
-  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) return;
 
   const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
-  const spaceId = props.spaceId;
+  const spaceId = optimisticSpaceId();
   const replyTo = props.replyTo?.messageId ?? null;
 
   const gifEntity = new MessageEntityGif(
@@ -441,9 +440,7 @@ const handleSavedGifSelect = (gif: SavedGif) => {
   (async () => {
     const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
-      const readback = await api.channelInteraction.SendMessageWithReadback(
-        spaceId, resolvedChannelId, '', [gifEntity], randomId, replyTo,
-      );
+      const readback = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
       emit("resolve-optimistic", randomId, readback);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
@@ -457,8 +454,6 @@ const handleSavedGifSelect = (gif: SavedGif) => {
 };
 
 const pex = usePexStore();
-const canSendMessages = computed(() => pex.has("SendMessages"));
-const canAttachFiles = computed(() => pex.has("AttachFiles"));
 
 // ── Character limit ──
 
@@ -572,10 +567,60 @@ watch(debouncedQuery, async (query) => {
 
 const props = defineProps<{
   replyTo: ArgonMessage | null;
-  spaceId: Guid;
+  /** The space of a channel composer. Absent in a direct chat. */
+  spaceId?: Guid;
   channelId?: Guid;
+  /** Set for a direct chat: the message goes to this person instead of a channel. */
+  receiverId?: Guid;
   captionMode?: boolean;
 }>();
+
+// ── Where the message goes ──
+// One composer for channels and direct chats. What differs: which call sends the message, which
+// endpoint takes its files, and that a direct chat has no permissions to check and no bot
+// commands to offer. Everything else — formatting, mentions, emoji, GIFs, attachments, link
+// previews, the character limit — is the same in both.
+const isDm = computed(() => !!props.receiverId);
+
+const canSendMessages = computed(() => isDm.value || pex.has("SendMessages"));
+const canAttachFiles = computed(() => isDm.value || pex.has("AttachFiles"));
+
+/** The id the message is filed under: the channel, or the peer in a direct chat. */
+function resolveTargetId(): Guid | null {
+  if (props.receiverId) return props.receiverId;
+  return props.channelId ?? pool.selectedTextChannel ?? null;
+}
+
+/** The space an optimistic row carries: none in a direct chat. */
+function optimisticSpaceId(): Guid {
+  return props.receiverId ? ("" as Guid) : props.spaceId!;
+}
+
+/** Where this composer's files are uploaded. */
+function uploadTarget(targetId: Guid): UploadTarget {
+  return props.receiverId
+    ? { kind: "dm", peerId: props.receiverId }
+    : { kind: "channel", spaceId: props.spaceId!, channelId: targetId };
+}
+
+/**
+ * Sends to the channel or the peer and returns what the list needs to replace the optimistic row.
+ * A direct send answers with the message id only; the rest is filled in so both paths look alike
+ * to the caller.
+ */
+async function sendToTarget(
+  targetId: Guid,
+  text: string,
+  entities: IMessageEntity[],
+  randomId: bigint,
+  replyTo: bigint | null,
+): Promise<{ messageId: bigint; channelId: Guid; spaceId: Guid }> {
+  if (props.receiverId) {
+    const messageId = await api.userChatInteractions.SendDirectMessage(props.receiverId, text, entities, randomId, replyTo);
+    return { messageId, channelId: props.receiverId, spaceId: "" as Guid };
+  }
+  return api.channelInteraction.SendMessageWithReadback(props.spaceId!, targetId, text, entities, randomId, replyTo);
+}
 
 const emit = defineEmits<{
   (e: "clear-reply"): void;
@@ -591,7 +636,7 @@ const emit = defineEmits<{
 // ── Link preview of the draft ──
 // Off for captions (a picture already is the preview), for members without PostEmbeddedLinks (the
 // server would drop the stub anyway) and when the user turned it off in settings.
-const canEmbedLinks = computed(() => pex.has("PostEmbeddedLinks"));
+const canEmbedLinks = computed(() => isDm.value || pex.has("PostEmbeddedLinks"));
 const linkPreview = useLinkPreviewDraft({
   text: () => messageText.value,
   enabled: () => !props.captionMode && canEmbedLinks.value && sendLinkPreviews.value,
@@ -748,8 +793,8 @@ function onEditorInput() {
 
   mention.show = false;
 
-  // Check for slash command trigger: "/" at start of line
-  if (text.startsWith("/") && cursorPos > 0) {
+  // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats)
+  if (!isDm.value && text.startsWith("/") && cursorPos > 0) {
     const query = text.slice(1, cursorPos);
     if (/^[\w\d_-]{0,32}$/.test(query)) {
       const filtered = slashCommands.filterCommands(query);
@@ -893,11 +938,14 @@ function selectSlashCommand(cmd: SpaceCommand) {
   slashCmd.show = false;
   messageText.value = "";
 
+  const spaceId = props.spaceId;
+  if (!spaceId) return;
+
   // If command has no options, invoke immediately
   if (!cmd.options || cmd.options.length === 0) {
     const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
     if (resolvedChannelId) {
-      botInteraction.invokeSlashCommand(props.spaceId, resolvedChannelId, cmd.commandId, []);
+      botInteraction.invokeSlashCommand(spaceId, resolvedChannelId, cmd.commandId, []);
     }
     return;
   }
@@ -1090,14 +1138,14 @@ async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
 
 const handleSend = async (captionContent?: { text: string; entities: IMessageEntity[] }) => {
   if (!canSendMessages.value) return;
-  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
+  const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) {
     logger.warn("selected text channel is not defined");
     return;
   }
 
   // Handle slash command invocation
-  if (selectedSlashCommand.value && messageText.value.startsWith("/")) {
+  if (selectedSlashCommand.value && props.spaceId && messageText.value.startsWith("/")) {
     const { cmd, channelId } = selectedSlashCommand.value;
     const optionText = messageText.value.slice(cmd.name.length + 2).trim(); // Remove "/name "
     const options: { name: string; value: string }[] = [];
@@ -1147,7 +1195,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   // Mask top bit: server expects signed Int64 (max 2^63-1)
   const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
   const channelId = resolvedChannelId;
-  const spaceId = props.spaceId;
+  const spaceId = optimisticSpaceId();
   const replyTo = props.replyTo?.messageId ?? null;
 
   // Build optimistic attachment entities (with placeholder fileId + real thumbHash)
@@ -1195,7 +1243,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
       // Upload attachments if any
       if (detachedUploader) {
-        const realAttachEntities = await detachedUploader.uploadAll(spaceId, channelId);
+        const realAttachEntities = await detachedUploader.uploadAll(uploadTarget(channelId));
 
         if (detachedUploader.hasErrors()) {
           emit("mark-optimistic-failed", randomId, "Failed to upload attachments");
@@ -1209,14 +1257,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
       }
 
       // Send to server
-      const readback = await api.channelInteraction.SendMessageWithReadback(
-        spaceId,
-        channelId,
-        plainText,
-        finalEntities,
-        randomId,
-        replyTo,
-      );
+      const readback = await sendToTarget(channelId, plainText, finalEntities, randomId, replyTo);
 
       // Step 1: Resolve optimistic → replace placeholder with real messageId
       emit("resolve-optimistic", randomId, readback);

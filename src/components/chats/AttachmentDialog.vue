@@ -80,6 +80,7 @@
           ref="captionInputRef"
           :reply-to="null"
           :space-id="spaceId"
+          :receiver-id="receiverId"
           caption-mode
           @submit="send"
         />
@@ -132,7 +133,10 @@ const { t } = useLocale();
 const props = defineProps<{
   files: PendingAttachment[];
   open: boolean;
-  spaceId: Guid;
+  /** The space of a channel composer; absent in a direct chat. */
+  spaceId?: Guid;
+  /** The peer of a direct chat, so the caption composer knows it needs no permissions. */
+  receiverId?: Guid;
 }>();
 
 const emit = defineEmits<{
