@@ -547,13 +547,20 @@ export const useUserStore = defineStore("user", () => {
       return;
     }
 
-    const updated = await db.users.update(userId, (user) => {
-      user.status = status;
-      if (status === UserStatus.Offline && user.activity) {
-        user.activity = undefined;
-      }
-    });
-    if (updated === 0) {
+    // Where this event sits in the arrival order for that user — the only thing that decides who
+    // gets the last word once a lookup has made one event wait for another.
+    const arrival = ++statusSeq;
+    latestStatus.set(userId, { seq: arrival, status });
+
+    try {
+      const updated = await db.users.update(userId, (user) => {
+        user.status = status;
+        if (status === UserStatus.Offline && user.activity) {
+          user.activity = undefined;
+        }
+      });
+      if (updated !== 0) return;
+
       logger.warn(`User ${userId} not found for status update, fetching from server...`);
 
       // One call, not a shotgun across the first five servers. PrefetchUser needs a space id, so
@@ -561,18 +568,27 @@ export const useUserStore = defineStore("user", () => {
       // landed — capped at five, so a user in the sixth was silently unresolvable. LookupUser takes
       // the user id alone and lets the server find the relationship, whichever one it is.
       const resolved = await lookupUser(userId, status);
+      if (!resolved) return;
 
-      // A second event that shared the in-flight lookup carries a newer status than the one the row
-      // was created with, so it is written on top. When there was only one event the two agree and
-      // nothing is written.
-      if (resolved && resolved.status !== status) {
-        await db.users.update(userId, (user) => {
-          user.status = status;
-          if (status === UserStatus.Offline && user.activity) {
-            user.activity = undefined;
-          }
-        });
-      }
+      // The row exists now, stamped with the status THIS event handed the lookup — and that status
+      // is not necessarily the user's any more. A second event may have shared this very lookup and
+      // be waiting behind it, or have written the row while the lookup was in flight only for the
+      // lookup's own write to land on top of it. So the row is finished with whatever arrived last
+      // for this user, tested against the live row rather than against `resolved`, which is a
+      // snapshot from before any of that. It used to be finished with `status` whenever it differed
+      // from that snapshot, which is how an older status ended up overwriting a newer one.
+      const newest = latestStatus.get(userId) ?? { seq: arrival, status };
+      await db.users.update(userId, (user) => {
+        if (user.status === newest.status) return false;
+        user.status = newest.status;
+        if (newest.status === UserStatus.Offline && user.activity) {
+          user.activity = undefined;
+        }
+      });
+    } finally {
+      // Nothing can still be waiting to write once no lookup for this user is in flight, so the
+      // arrival record goes with it rather than growing one entry per user seen this session.
+      if (!pendingLookups.has(userId)) latestStatus.delete(userId);
     }
   };
 
@@ -596,12 +612,17 @@ export const useUserStore = defineStore("user", () => {
    * grey dots under yesterday's games. Defect C5, pinned by
    * `test/store/userStatusUpdates.test.ts` "a user taken offline does not keep the game they were
    * playing".
+   *
+   * The rows this touches are the ones that are not already where it leaves them — either not
+   * Offline, or Offline and still wearing an activity. That second half is the one that used to be
+   * missed: selecting on `status != Offline` skipped precisely the rows nobody else will revisit,
+   * so a user who reached Offline by a path that left the activity behind kept yesterday's game
+   * under a grey dot until something else happened to write that row.
    */
   const resetAllUsersToOffline = async () => {
     await db.transaction("rw", db.users, async () => {
       await db.users
-        .where("status")
-        .notEqual(UserStatus.Offline)
+        .filter((user) => user.status !== UserStatus.Offline || user.activity !== undefined)
         .modify((user) => {
           user.status = UserStatus.Offline;
           user.activity = undefined;
