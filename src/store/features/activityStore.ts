@@ -201,9 +201,17 @@ export const useActivity = defineStore("activity", () => {
     applyPresence();
   }
 
-  function init() {
+  async function init() {
     if (!argon.isArgonHost || bound) return;
     bound = true;
+
+    // The other clock an owed removal rides. The host's repeat is half a minute away and keeps
+    // trying into a connection that is still down; the bus knows the moment it is back, which is
+    // the first attempt with a chance of landing. Imported here rather than at the top because the
+    // bus owns the realtime worker: a store that only publishes activities has no business pulling
+    // that in on the web build, where `init` returns above and this never runs.
+    const { useBus } = await import("@/store/realtime/busStore");
+    useBus().reconnected.subscribe(() => retryOwedRemoval());
 
     window.argonIpc?.onPresenceUpdate((data: any) => {
       const presence = data as Presence;
