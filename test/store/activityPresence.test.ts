@@ -63,6 +63,8 @@ vi.mock("@/store/features/featureFlagsStore", () => ({
 vi.mock("@/store/features/gameOverlaySettingsStore", () => ({
   useGameOverlaySettings: () => ({ activityPublishEnabled: true, games: {} }),
 }));
+// The real one builds a SignalR worker on import; all this store wants from it is `reconnected`.
+vi.mock("@/store/realtime/busStore", () => ({ useBus: () => bus }));
 
 import { useActivity } from "@/store/features/activityStore";
 
@@ -79,15 +81,17 @@ const FACTORIO: HostPresence = { kind: ActivityPresenceKind.GAME, titleName: "Fa
 /** The host's side of the IPC channel: `init()` hands it a listener, tests speak through it. */
 let announce: (presence: HostPresence) => void;
 
-function startedStore() {
+/** `init` is awaited because the reconnect hook is wired through a dynamic import of the bus. */
+async function startedStore() {
   const store = useActivity();
-  store.init();
+  await store.init();
   return store;
 }
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
+  bus.listeners.length = 0;
   stubs.broadcast.mockResolvedValue(undefined);
   stubs.remove.mockResolvedValue(undefined);
   setActivePinia(createPinia());
@@ -107,7 +111,7 @@ afterEach(() => {
 
 describe("activity presence publication", () => {
   test("an activity is broadcast once, and the host's repeats are not news", async () => {
-    startedStore();
+    await startedStore();
 
     announce(PORTAL);
     await vi.advanceTimersByTimeAsync(REPEAT_MS);
@@ -133,7 +137,7 @@ describe("activity presence publication", () => {
    * keep alive rather than the server's to guess at.
    */
   test("a live activity is re-asserted once the interval has passed", async () => {
-    startedStore();
+    await startedStore();
 
     announce(PORTAL);
     expect(stubs.broadcast).toHaveBeenCalledTimes(1);
@@ -157,7 +161,7 @@ describe("activity presence publication", () => {
    * no effect at all. The retry below is what covers a removal that did NOT land.
    */
   test("an absence of activity is not re-asserted", async () => {
-    startedStore();
+    await startedStore();
 
     announce(PORTAL);
     announce(null);
@@ -183,7 +187,7 @@ describe("activity presence publication", () => {
       .mockRejectedValueOnce(new Error("upstream"))
       .mockRejectedValueOnce(new Error("upstream"));
 
-    startedStore();
+    await startedStore();
     announce(PORTAL);
     announce(null);
 
@@ -194,17 +198,84 @@ describe("activity presence publication", () => {
     expect(stubs.remove).toHaveBeenCalledTimes(3);
   });
 
-  /** Bounded: a server that is properly down gets a few tries, not a loop for the whole session. */
-  test("a removal that keeps failing is given up on rather than retried forever", async () => {
+  /**
+   * Bounded: the quick retries are a burst, not a loop. A server that is properly down gets three
+   * attempts over six seconds and is then left alone until something says the world may have
+   * changed — the two tests below are what says it.
+   */
+  test("the quick retries stop rather than hammering a server that is down", async () => {
     stubs.remove.mockRejectedValue(new Error("upstream"));
 
-    startedStore();
+    await startedStore();
     announce(PORTAL);
     announce(null);
 
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(stubs.remove).toHaveBeenCalledTimes(3);
+  });
+
+  /**
+   * Six seconds is not an outage.
+   *
+   * The burst above covers what it was written for — a request that raced a token refresh, a 502
+   * from the edge — and nothing else: a wifi handover, a laptop that slept, a deploy rolling
+   * through are all measured in tens of seconds or minutes, and all three attempts fall inside
+   * them. So the removal is not a loop that gives up but a debt that stays owed, and the host's
+   * repeat of "nothing is running" — the one clock still ticking after the game is closed — is
+   * what carries it. Without this, the user who quit Portal 2 during a ten-second blip is playing
+   * it on every roster until they sign out.
+   */
+  test("a removal the quick retries could not land is re-attempted on the host's next repeat", async () => {
+    stubs.remove
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"));
+
+    await startedStore();
+    announce(PORTAL);
+    announce(null);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(stubs.remove).toHaveBeenCalledTimes(3);
+
+    // The connection is back by the time the host repeats itself, and the repeat spends it.
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(null);
+    expect(stubs.remove).toHaveBeenCalledTimes(4);
+
+    // It landed. Nothing is owed any more, so the repeats after it are silent again.
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(null);
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(null);
+    expect(stubs.remove).toHaveBeenCalledTimes(4);
+  });
+
+  /**
+   * The reconnect is the better of the two clocks: the host's repeat retries into a connection that
+   * is still down and is up to half a minute late when it is not, while the bus knows the moment
+   * the socket is back — which is the first attempt with any chance of landing. It is also the only
+   * clock left when the host has nothing to repeat because the window reloaded, or the presence
+   * feed went quiet with no game running.
+   */
+  test("a removal owed across an outage is re-attempted the moment the connection is back", async () => {
+    stubs.remove.mockRejectedValue(new Error("offline"));
+
+    await startedStore();
+    announce(PORTAL);
+    announce(null);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(stubs.remove).toHaveBeenCalledTimes(3);
+
+    stubs.remove.mockResolvedValue(undefined);
+    bus.reconnect();
+    expect(stubs.remove).toHaveBeenCalledTimes(4);
+
+    // And that one landed, so neither clock has anything left to send.
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(null);
+    bus.reconnect();
+    expect(stubs.remove).toHaveBeenCalledTimes(4);
   });
 
   /**
@@ -218,7 +289,7 @@ describe("activity presence publication", () => {
   test("a removal overtaken by a new activity stops retrying", async () => {
     stubs.remove.mockRejectedValue(new Error("upstream"));
 
-    startedStore();
+    await startedStore();
     announce(PORTAL);
     announce(null);
     expect(stubs.remove).toHaveBeenCalledTimes(1);
@@ -236,6 +307,39 @@ describe("activity presence publication", () => {
   });
 
   /**
+   * The same rule, one step later: a removal that is still OWED after its retries were spent is
+   * owed no more once a new activity has been published over it. The broadcast overwrites whatever
+   * the server was left holding, so there is nothing to take down — and a retry riding one of the
+   * clocks would take down Factorio instead, which is the failure the debt exists to prevent.
+   */
+  test("a new activity settles the debt of a removal that never landed", async () => {
+    stubs.remove.mockRejectedValue(new Error("offline"));
+
+    await startedStore();
+    announce(PORTAL);
+    announce(null);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(stubs.remove).toHaveBeenCalledTimes(3);
+
+    announce(FACTORIO);
+    stubs.remove.mockResolvedValue(undefined);
+
+    // Both clocks tick, and neither has anything to say.
+    bus.reconnect();
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(FACTORIO);
+    await vi.advanceTimersByTimeAsync(REPEAT_MS);
+    announce(FACTORIO);
+
+    expect(stubs.remove).toHaveBeenCalledTimes(3);
+    expect(stubs.broadcast).toHaveBeenLastCalledWith({
+      kind: ActivityPresenceKind.GAME,
+      titleName: "Factorio",
+      startTimestampSeconds: 0n,
+    });
+  });
+
+  /**
    * A broadcast that failed did not happen, and the dedupe must not remember it as though it had —
    * otherwise the user plays for five minutes before anyone is told. The host's next repeat is half
    * a minute away and is the cheapest possible retry, so a failed send simply stops counting as a
@@ -244,7 +348,7 @@ describe("activity presence publication", () => {
   test("a broadcast that fails is re-sent on the host's next repeat", async () => {
     stubs.broadcast.mockRejectedValueOnce(new Error("upstream"));
 
-    startedStore();
+    await startedStore();
     announce(PORTAL);
     expect(stubs.broadcast).toHaveBeenCalledTimes(1);
 
