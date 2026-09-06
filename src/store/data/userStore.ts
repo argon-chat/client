@@ -59,13 +59,12 @@ export const useUserStore = defineStore("user", () => {
   const pendingLookups = new Map<Guid, Promise<RealtimeUser | undefined>>();
   const LOOKUP_BATCH = 10;
 
-  // What the newest status event for a user carried, and in which order it arrived. Kept only
-  // while a lookup for that user is in flight, which is the only window in which a status can be
-  // written out of order: `updateUserStatus` has to wait for the row to exist, and by the time it
-  // does, the status it waited with may be two events old. Whoever finishes the row finishes it
-  // with what arrived LAST, and this is where "last" is recorded.
-  const latestStatus = new Map<Guid, { seq: number; status: UserStatus }>();
-  let statusSeq = 0;
+  // What the newest status event for a user carried. Written on the way in, so the entry is always
+  // the last status to have ARRIVED, whatever order the writes behind them complete in. It is kept
+  // only while a lookup for that user is in flight, which is the only window in which a status can
+  // be written out of order: `updateUserStatus` has to wait there for the row to exist, and by the
+  // time it does, the status it waited with may be two events old.
+  const latestStatus = new Map<Guid, UserStatus>();
 
   // Seamless account switch: drop all live user subscriptions (bound to the old DB) and caches.
   onSessionReset(() => {
@@ -547,10 +546,9 @@ export const useUserStore = defineStore("user", () => {
       return;
     }
 
-    // Where this event sits in the arrival order for that user — the only thing that decides who
-    // gets the last word once a lookup has made one event wait for another.
-    const arrival = ++statusSeq;
-    latestStatus.set(userId, { seq: arrival, status });
+    // Recorded on arrival rather than on the write, because arrival order is what decides who gets
+    // the last word once a lookup has made one event wait for another.
+    latestStatus.set(userId, status);
 
     try {
       const updated = await db.users.update(userId, (user) => {
@@ -577,11 +575,11 @@ export const useUserStore = defineStore("user", () => {
       // for this user, tested against the live row rather than against `resolved`, which is a
       // snapshot from before any of that. It used to be finished with `status` whenever it differed
       // from that snapshot, which is how an older status ended up overwriting a newer one.
-      const newest = latestStatus.get(userId) ?? { seq: arrival, status };
+      const newest = latestStatus.get(userId) ?? status;
       await db.users.update(userId, (user) => {
-        if (user.status === newest.status) return false;
-        user.status = newest.status;
-        if (newest.status === UserStatus.Offline && user.activity) {
+        if (user.status === newest) return false;
+        user.status = newest;
+        if (newest === UserStatus.Offline && user.activity) {
           user.activity = undefined;
         }
       });

@@ -222,6 +222,48 @@ describe("updateUserStatus", () => {
     // Sharing the request must not cost the status: the stranger is written with a status one of
     // those events carried, never inserted Offline for a roster to render as a grey dot first.
     expect(h.db.users.peek("stranger").status).not.toBe(UserStatus.Offline);
+    // And not just any of them — the one that arrived last. The row is created carrying the status
+    // the FIRST event handed the lookup, so the second is only correct if it is written on top.
+    expect(h.db.users.peek("stranger").status).toBe(UserStatus.DoNotDisturb);
+  });
+
+  /**
+   * A status that had to wait for a lookup is a message from the past, and the past must not win.
+   *
+   * The wait is unbounded — a `LookupUser` over a slow link, a retried request — and the user goes
+   * on living while it runs: they may change status twice more, and the row may be created by an
+   * entirely different route (a roster load, a batch lookup) in the meantime. Whatever this
+   * continuation does when it finally wakes, it must not put the user back where they no longer
+   * are, and `lookupUser`'s own write is part of the problem rather than outside it: it stamps the
+   * row with the status IT was handed, on top of anything newer that landed while it was in flight.
+   *
+   * So the rule is arrival order, not "whatever this call happened to carry": the row ends up with
+   * the last status that arrived for that user. It used to end up with whichever write ran last,
+   * which is how a Do Not Disturb user reappeared as Online for everyone who could see them.
+   */
+  test("a status that arrived later is not overwritten by one that was waiting on a lookup", async () => {
+    let resolveLookup!: (value: unknown) => void;
+    const gate = new Promise((resolve) => (resolveLookup = resolve));
+    h.lookupUser = vi.fn(async () => {
+      await gate;
+      return found(user("stranger"));
+    });
+    const store = useUserStore();
+
+    // The first event: nothing in the cache, so it waits for the lookup.
+    const waiting = store.updateUserStatus("stranger", UserStatus.Online);
+    await vi.waitFor(() => expect(h.lookupUser).toHaveBeenCalledTimes(1));
+
+    // While it waits, the roster arrives by another route and a newer event lands on the row it
+    // created. Both are finished before the lookup answers.
+    await store.trackUser(user("stranger") as never, UserStatus.Offline);
+    await store.updateUserStatus("stranger", UserStatus.DoNotDisturb);
+    expect(h.db.users.peek("stranger").status).toBe(UserStatus.DoNotDisturb);
+
+    resolveLookup(undefined);
+    await waiting;
+
+    expect(h.db.users.peek("stranger").status).toBe(UserStatus.DoNotDisturb);
   });
 });
 
@@ -266,5 +308,30 @@ describe("resetAllUsersToOffline", () => {
 
     expect(h.db.users.peek("a").status).toBe(UserStatus.Offline);
     expect(h.db.users.peek("a").activity).toBeUndefined();
+  });
+
+  /**
+   * The row that needs this most is the one that looks like it does not.
+   *
+   * A user can reach Offline with an activity still on them — a snapshot that carried the status
+   * and no activity, an `OnUserPresenceActivityRemoved` that never arrived because the client that
+   * owed it lost the connection, an activity written after the status. Selecting on
+   * `status != Offline` skipped exactly those rows, so the one pass that exists to clean the slate
+   * before a bootstrap left them alone, and nothing else ever revisits a row for a user who stays
+   * offline: the game stayed under the grey dot for the whole session.
+   */
+  test("a user who was already offline still loses yesterday's game", async () => {
+    h.db.users.seed(
+      user("a", { status: UserStatus.Offline, activity: playing("Half-Life 3") }),
+      user("b", { status: UserStatus.Online, activity: playing("Portal 2") }),
+    );
+    const store = useUserStore();
+
+    await store.resetAllUsersToOffline();
+
+    expect(h.db.users.peek("a").status).toBe(UserStatus.Offline);
+    expect(h.db.users.peek("a").activity).toBeUndefined();
+    expect(h.db.users.peek("b").status).toBe(UserStatus.Offline);
+    expect(h.db.users.peek("b").activity).toBeUndefined();
   });
 });
