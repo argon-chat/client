@@ -36,7 +36,15 @@ function avatarSrc(a: AccountRecord): string | null {
 
 function select(a: AccountRecord) {
   if (a.id === accounts.active?.id && !a.needsReauth) return;
-  void accounts.switchTo(a.id); // reloads
+  // An expired sign-in cannot be re-entered by switching into it: the credential a switch would use
+  // is the very one the server refused, so the attempt only ends where it started. It takes a
+  // password, and the sign-in dialog is what asks for one without disturbing the live session —
+  // signing in there re-adopts this same account and clears the mark.
+  if (a.needsReauth) {
+    emit("add");
+    return;
+  }
+  void accounts.switchTo(a.id);
 }
 
 /**

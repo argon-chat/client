@@ -208,16 +208,23 @@ function signOutLocally(reason: SignOutReason, detail: string): void {
   logger.warn(`[session] signing out on this device: ${reason} (${detail})`);
   metrics.count("auth.session.check", { result: "rejected" });
 
+  // Marked first, because it decides where the reload lands. A session refused during an account
+  // switch does not end the user's day: the account being switched away from is still signed in and
+  // gets the pointer back, so there is no sign-in screen to explain anything to and the reason must
+  // not be left waiting for the next, unrelated one.
+  let outcome: "signed_out" | "reverted" = "signed_out";
   try {
-    sessionStorage.setItem(SIGN_OUT_REASON_KEY, reason);
-  } catch {
-    /* no storage, no message — the sign-out itself does not depend on it */
-  }
-
-  try {
-    useAccounts().markActiveNeedsReauth();
+    outcome = useAccounts().markActiveNeedsReauth();
   } catch (e) {
     logger.warn("[session] could not mark the account for re-authentication", e);
+  }
+
+  if (outcome === "signed_out") {
+    try {
+      sessionStorage.setItem(SIGN_OUT_REASON_KEY, reason);
+    } catch {
+      /* no storage, no message — the sign-out itself does not depend on it */
+    }
   }
 
   useAuthStore().logout();

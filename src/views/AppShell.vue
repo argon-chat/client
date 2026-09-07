@@ -33,10 +33,13 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useAppState } from "@/store/system/appState";
 import { sessionEpoch, isSwitchingAccount } from "@/store/system/sessionLifecycle";
 import { useLocale } from "@/store/system/localeStore";
+import { useToast } from "@argon/ui/toast";
+import { consumeSwitchFailure } from "@/store/auth/accountsStore";
 import { Loader2Icon } from "lucide-vue-next";
 import router from "@/router";
 
 const { t } = useLocale();
+const { toast } = useToast();
 const pool = usePoolStore();
 const appState = useAppState();
 const feedbackOpened = ref(false);
@@ -46,7 +49,19 @@ const showTitlebar = computed(() => window.devolution_titlebar === 0x1);
 
 // Shell mounts once at app start — boot the app here (replaces the old Entry view).
 onMounted(() => {
-  appState.initApp();
+  // A switch that could not be completed puts the user back where they were, which without a word
+  // looks like the click did nothing. Told once the app is up, so the message is not spent behind
+  // the loading screen.
+  void appState.initApp().then(() => {
+    const name = consumeSwitchFailure();
+    if (name) {
+      toast({
+        title: t("account_switch_failed_title"),
+        description: t("account_switch_failed_desc", { name }),
+        duration: 8000,
+      });
+    }
+  });
   // Expose the titlebar height (0 when absent) so modals can keep clear of the
   // window controls. The titlebar is 38px tall — see AppTitlebar.vue.
   document.documentElement.style.setProperty(

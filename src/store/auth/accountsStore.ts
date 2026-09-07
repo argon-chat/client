@@ -106,6 +106,30 @@ function loadRegistry(): AccountRecord[] {
   }
 }
 
+/** Where the name of an account a switch could not enter waits across the reload back into the
+ *  previous one, so the app can say what happened instead of silently staying put. */
+const SWITCH_FAILED_KEY = "argon.switch_failed";
+
+function rememberSwitchFailure(displayName: string | null | undefined): void {
+  if (!displayName) return;
+  try {
+    sessionStorage.setItem(SWITCH_FAILED_KEY, displayName);
+  } catch {
+    /* no storage, no message — the switch back does not depend on it */
+  }
+}
+
+/** The account a switch was turned away from, if there was one and nothing has shown it yet. Read once. */
+export function consumeSwitchFailure(): string | null {
+  try {
+    const name = sessionStorage.getItem(SWITCH_FAILED_KEY);
+    if (name) sessionStorage.removeItem(SWITCH_FAILED_KEY);
+    return name;
+  } catch {
+    return null;
+  }
+}
+
 export const useAccounts = defineStore("accounts", () => {
   const accounts = ref<AccountRecord[]>(loadRegistry());
   const activeId = ref<string | null>(localStorage.getItem(ACTIVE_KEY));
@@ -180,6 +204,43 @@ export const useAccounts = defineStore("accounts", () => {
 
   let switchInFlight = false;
 
+  /**
+   * The account a switch is being made FROM, for as long as the attempt lasts.
+   *
+   * A target can turn out to be unusable — its session was revoked, or the account was deleted on
+   * the server — and the answer to that is normally the answer to any refused session: drop the
+   * credentials and reload into the sign-in screen. On a switch that is the wrong answer twice over.
+   * The account being switched away from is still perfectly signed in, and the sign-in screen is
+   * outside the app, where the picker that would go back to it is not — so one click on a dead
+   * account signed the device out of every other one. `abandonSwitch` hands the pointer back here
+   * instead, and the reload that follows lands where the user already was.
+   */
+  let switchOriginId: string | null = null;
+
+  /** The account a failed switch can be handed back to: still registered, still signed in. */
+  function switchOrigin(): AccountRecord | null {
+    if (!switchOriginId || switchOriginId === activeId.value) return null;
+    return accounts.value.find(a => a.id === switchOriginId && !a.needsReauth) ?? null;
+  }
+
+  /**
+   * Give up on the switch in flight and point back at the account it started from. The caller
+   * reloads (every path that ends a session does) and the boot projects that account's credentials
+   * again. False when there is nothing to go back to — then the sign-out runs its normal course.
+   */
+  function abandonSwitch(): boolean {
+    const origin = switchOrigin();
+    if (!origin) return false;
+
+    const failed = active.value;
+    setActivePointer(origin.id);
+    switchOriginId = null;
+    rememberSwitchFailure(failed?.displayName);
+    metrics.count("account.switch", { mode: "revert" });
+    logger.warn(`Could not enter ${failed?.id ?? "the account"}; returning to ${origin.id}`);
+    return true;
+  }
+
   /** Make `id` active. Tries a seamless in-place switch (no page reload); falls back to a reload. */
   async function switchTo(id: string): Promise<void> {
     if (switchInFlight) return; // ignore rapid double-clicks
@@ -187,6 +248,7 @@ export const useAccounts = defineStore("accounts", () => {
     if (!acc) return;
     if (id === activeId.value && !acc.needsReauth) return; // already active
     switchInFlight = true;
+    switchOriginId = activeId.value;
     acc.lastUsedAt = Date.now();
     persist();
     try {
@@ -204,6 +266,7 @@ export const useAccounts = defineStore("accounts", () => {
       await hardSwitch(id);
     } finally {
       switchInFlight = false;
+      switchOriginId = null;
     }
   }
 
@@ -310,12 +373,20 @@ export const useAccounts = defineStore("accounts", () => {
     if (activeId.value) await removeAccount(activeId.value);
   }
 
-  function markActiveNeedsReauth() {
+  /**
+   * The active account's session is no longer valid: flag it for re-auth and keep the account with
+   * its cached data. Callers reload right after.
+   *
+   * `reverted` says the refusal came mid-switch and the pointer went back to the account the switch
+   * started from — the device is still signed in and the reload lands there, not on sign-in.
+   */
+  function markActiveNeedsReauth(): "signed_out" | "reverted" {
     const acc = active.value;
-    if (!acc) return;
+    if (!acc) return "signed_out";
     acc.needsReauth = true;
     acc.accessToken = null; // drop the stale token so the next boot lands on login, not a refresh loop
     persist();
+    return abandonSwitch() ? "reverted" : "signed_out";
   }
 
   /**
@@ -511,6 +582,7 @@ export const useAccounts = defineStore("accounts", () => {
     isMigrating,
     addAccount,
     switchTo,
+    abandonSwitch,
     removeAccount,
     logoutActive,
     markActiveNeedsReauth,

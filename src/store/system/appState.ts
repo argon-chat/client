@@ -256,6 +256,10 @@ export const useAppState = defineStore("app", () => {
     } catch (e) {
       logger.error("Post-login init failed, reloading as fallback:", e);
       metrics.count("app.post_login.failed", { error: errorKind(e), via });
+      // An account that cannot be loaded must not take the session down with it: hand the pointer
+      // back to the account the switch came from, so the reload lands there instead of retrying a
+      // broken one until the boot gives up. No-op when there is nothing to go back to.
+      if (via === "account_switch") useAccounts().abandonSwitch();
       window.location.reload();
       return false;
     }
