@@ -1042,6 +1042,12 @@ async function onDrop(e: DragEvent) {
 }
 
 async function onPaste(e: ClipboardEvent) {
+  // `types` is a list the event already carries; `files` is not — reading it makes Chromium
+  // materialise every file on the clipboard, and for a bitmap that is a synchronous PNG encode in
+  // the browser process, which stalls every window of the app. Only ask when there is a file, and
+  // let text win when the clipboard holds both (copies from Office and browsers often do).
+  const types = e.clipboardData?.types ?? [];
+  if (!types.includes("Files") || types.includes("text/plain")) return;
   const files = e.clipboardData?.files;
   if (files?.length) {
     e.preventDefault();
