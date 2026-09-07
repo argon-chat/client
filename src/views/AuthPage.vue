@@ -52,12 +52,14 @@ const changeEndpoint = () => {
 
 <template>
   <div v-motion-slide-visible-once-top :duration="200"
-    class="auth-page relative flex h-full w-full justify-center overflow-y-auto overflow-x-hidden p-10 text-white">
-    <!-- `my-auto` rather than centring the scroll container: a window too short for the form plus
-         the account list would otherwise clip the top of it out of reach. -->
-    <div class="my-auto flex w-full flex-col items-center gap-4">
-      <AuthTabs />
+    class="auth-page relative flex h-full w-full items-center justify-center overflow-hidden p-10 text-white">
+    <!-- The panel stands beside the form as the other way in, and is absent entirely when there is
+         no account on the device to offer — which is the ordinary case. -->
+    <!-- Width fixed by the row, not by what the form happens to be showing: the panel would
+         otherwise slide sideways every time a form of a different width takes over. -->
+    <div class="flex w-full max-w-[1000px] items-center justify-center gap-5">
       <SignedInAccounts v-if="showAccounts" />
+      <AuthTabs />
     </div>
   </div>
 </template>
