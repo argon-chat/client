@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import BotTag from "@/components/shared/BotTag.vue";
 import { RealtimeUser } from "@/store/db/dexie";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useCallManager } from "@/store/media/callManagerStore";
@@ -53,8 +54,9 @@ onUnmounted(() => {
                 <ArgonAvatar :user-id="userId" />
             </div>
 
-            <div class="font-bold text-lg">
-                {{ user?.displayName }}
+            <div class="flex items-center gap-1.5 min-w-0">
+                <span class="font-bold text-lg truncate">{{ user?.displayName }}</span>
+                <BotTag :flags="user?.flags" />
             </div>
         </div>
 

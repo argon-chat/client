@@ -17,6 +17,7 @@ export type RecentChatAction =
 <script setup lang="ts">
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import StatusDot from "@/components/StatusDot.vue";
+import BotTag from "@/components/shared/BotTag.vue";
 import { UserStatus, ActivityPresenceKind } from "@argon/glue";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -150,6 +151,7 @@ const act = (action: RecentChatAction) => emit("action", action, props.userId);
                             :class="{ 'font-semibold': hasUnread }">
                             {{ name }}
                         </span>
+                        <BotTag :flags="user?.flags" />
                         <EyeOff v-if="isIgnored" class="w-3 h-3 text-muted-foreground shrink-0" :title="t('ignored')" />
                     </div>
                     <span v-if="subtitleText"
