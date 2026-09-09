@@ -10,21 +10,12 @@
         <div class="h-10 header-top-gradient rounded-t-lg" />
         <div class="absolute inset-0 flex items-start pt-1.5">
           <h2 class="text-lg font-bold header-space-name text-shadow-lg pl-4 pr-24 flex items-center gap-2">
-            <TooltipProvider v-if="spaceBadge">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <span class="relative group">
-                    <PhSealCheck
-                      class="w-6 h-6 cursor-pointer transition-all duration-500 group-hover:rotate-[360deg] group-hover:scale-110"
-                      :class="spaceBadge.iconClass"
-                      weight="fill" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" class="bg-gray-900 text-white px-2 py-1 rounded text-sm">
-                  {{ spaceBadge.label }}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <SpaceBadges
+              v-if="spaceName"
+              :is-official="spaceName.isOfficial"
+              :is-verified="spaceName.isVerified"
+              :is-community="spaceName.isCommunity"
+              :size="24" />
             <span
               class="header-name-text"
               :class="{ 'header-name-text--clickable': canManageSpace }"
@@ -60,8 +51,6 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import { cdnUrl } from "@/store/system/fileStorage";
-import { PhSealCheck } from "@phosphor-icons/vue";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 import { RocketIcon, Loader2 } from "lucide-vue-next";
 import confetti from "@/lib/useConfetti";
 import { useUltimaStore } from "@/store/data/ultimaStore";
@@ -70,6 +59,7 @@ import { useWindow } from "@/store/ui/windowStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import BoostShopModal from "@/components/modals/BoostShopModal.vue";
 import AdminControlBar from "@/components/AdminControlBar.vue";
+import SpaceBadges from "@/components/shared/SpaceBadges.vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import { db } from "@/store/db/dexie";
@@ -89,18 +79,6 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 });
 
 const spaceName = useLiveQuery(() => db.servers.where("spaceId").equals(selectedSpaceId.value).first())
-
-// Verification/official badges are now driven by real space flags (server-controlled),
-// not a hardcoded space id. Official outranks verified when both are set.
-const spaceBadge = computed(() => {
-  const s = spaceName.value;
-  if (!s) return null;
-  if (s.isOfficial)
-    return { label: "Official Space", iconClass: "text-sky-400 group-hover:drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]" };
-  if (s.isVerified)
-    return { label: "Verified Space", iconClass: "text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" };
-  return null;
-});
 
 const boostBtnRef = ref<HTMLButtonElement | null>(null);
 const boosting = ref(false);

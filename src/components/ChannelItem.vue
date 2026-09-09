@@ -47,6 +47,13 @@
           <Volume2Icon class="w-4 h-4 mr-2" />
           {{ t("join_channel") }}
         </ContextMenuItem>
+        <!-- Sits next to Join, because it is the same act performed for somebody else: the server
+             mints a room link only for a caller who could walk in themselves. -->
+        <ContextMenuItem v-if="isVoice" :disabled="creatingVoiceInvite || !pex.has('Connect')" @click="copyVoiceInvite">
+          <Loader2 v-if="creatingVoiceInvite" class="w-4 h-4 mr-2 animate-spin" />
+          <LinkIcon v-else class="w-4 h-4 mr-2" />
+          {{ t("invite_to_voice") }}
+        </ContextMenuItem>
         <ContextMenuItem v-if="splitEnabled" @click="emit('open-split', channel.channelId)">
           <IconColumns class="w-4 h-4 mr-2" />
           {{ t("open_in_split") }}
@@ -112,6 +119,7 @@
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
 import {
   HashIcon, Volume2Icon, AntennaIcon, BellIcon, BellOffIcon, SettingsIcon, CopyIcon, CopyPlusIcon,
+  LinkIcon, Loader2,
 } from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
@@ -126,7 +134,9 @@ import {
 } from '@argon/ui/context-menu';
 import { useToast } from '@argon/ui/toast';
 import { logger } from '@argon/core';
-import { ChannelType, MuteLevelType, MuteTargetKind } from '@argon/glue';
+import { ChannelType, MuteLevelType, MuteTargetKind, VoiceInviteError } from '@argon/glue';
+import { enumName } from '@/lib/telemetry/metrics';
+import { useApi } from '@/store/system/apiStore';
 import { usePexStore } from '@/store/data/permissionStore';
 import { useLocale } from '@/store/system/localeStore';
 import { useMe } from '@/store/auth/meStore';
@@ -178,6 +188,7 @@ function onAuxClick(e: MouseEvent) {
 }
 
 const pex = usePexStore();
+const api = useApi();
 const { t } = useLocale();
 const me = useMe();
 const voice = useUnifiedCall();
@@ -246,6 +257,46 @@ async function duplicateChannel() {
     else toast({ title: t('channel_duplicate_failed'), variant: 'destructive' });
   } finally {
     duplicating.value = false;
+  }
+}
+
+// A day, and no cap on how many people walk through. A room link is shared to get a conversation
+// started now — an eternal one would keep letting strangers in long after that conversation ended,
+// and a used-once one breaks the moment somebody forwards it to the person who was actually meant
+// to come. Permanent links with limits are what the space's invite settings are for.
+const VOICE_INVITE_MINUTES = 24 * 60;
+const VOICE_INVITE_MAX_USES = 0;
+
+const creatingVoiceInvite = vueRef(false);
+
+/**
+ * Mints a link to this room and puts it on the clipboard.
+ *
+ * The URL comes from the server rather than being composed here: the invite domain is deployment
+ * configuration (Invites:VoiceDomain), and a self-hosted instance whose links all pointed at
+ * argon.gl would be handing out invitations to somebody else's server.
+ */
+async function copyVoiceInvite() {
+  if (creatingVoiceInvite.value) return;
+  creatingVoiceInvite.value = true;
+  try {
+    const result = await api.channelInteraction.CreateVoiceInviteCode(
+      props.channel.spaceId, props.channel.channelId, VOICE_INVITE_MINUTES, VOICE_INVITE_MAX_USES);
+
+    if (!result?.isSuccessCreateVoiceInvite()) {
+      const error = result?.isFailedCreateVoiceInvite() ? enumName(VoiceInviteError, result.error) : 'unknown';
+      logger.warn('[channel] voice invite refused', error);
+      toast({ title: t('voice_invite_failed'), variant: 'destructive' });
+      return;
+    }
+
+    await navigator.clipboard.writeText(result.url);
+    toast({ title: t('voice_invite_copied'), description: result.url });
+  } catch (e) {
+    logger.error('[channel] failed to create voice invite', e);
+    toast({ title: t('voice_invite_failed'), variant: 'destructive' });
+  } finally {
+    creatingVoiceInvite.value = false;
   }
 }
 

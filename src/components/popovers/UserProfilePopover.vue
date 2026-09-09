@@ -71,6 +71,7 @@
                         <div class="hero-info">
                             <div class="hero-name-row">
                                 <span class="hero-display-name" :style="nameAccentStyle">{{ user.displayName }}</span>
+                                <BotTag :flags="user.flags" />
                             </div>
                             <div class="hero-username-row">
                                 <span class="hero-username">@{{ user.username }}</span>
@@ -189,6 +190,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ArgonAvatar from "./../ArgonAvatar.vue";
 import StatusDot from "./../StatusDot.vue";
+import BotTag from "@/components/shared/BotTag.vue";
 import { CrownIcon, Gamepad2, Headphones, Monitor, Radio, EllipsisVertical, Ban, Flag, Copy } from "lucide-vue-next";
 import { IconDiamondFilled } from "@tabler/icons-vue";
 import {

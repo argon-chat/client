@@ -30,8 +30,11 @@
                 <div class="min-w-0 pb-1">
                   <div class="flex items-center gap-1.5">
                     <span class="font-bold truncate">{{ currentSpace.name }}</span>
-                    <PhSealCheck v-if="currentSpace.isOfficial" weight="fill" class="w-4 h-4 text-sky-400 shrink-0" title="Official" />
-                    <PhSealCheck v-else-if="currentSpace.isVerified" weight="fill" class="w-4 h-4 text-yellow-400 shrink-0" title="Verified" />
+                    <SpaceBadges
+                      :is-official="currentSpace.isOfficial"
+                      :is-verified="currentSpace.isVerified"
+                      :is-community="currentSpace.isCommunity"
+                      :size="16" />
                   </div>
                   <div class="text-xs text-muted-foreground">
                     {{ stats ? stats.memberCount : "—" }} {{ t("members") }}
@@ -198,7 +201,7 @@ import {
   RocketIcon,
   Loader2,
 } from "lucide-vue-next";
-import { PhSealCheck } from "@phosphor-icons/vue";
+import SpaceBadges from "@/components/shared/SpaceBadges.vue";
 import type { IonDateTime } from "@argon-chat/ion.webcore";
 import { SpaceDeletionStatus, type SpaceStats } from "@argon/glue";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";

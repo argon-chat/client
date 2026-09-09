@@ -12,7 +12,10 @@
           <StatusDot :status="user.status" class="status-dot" />
         </div>
         <div class="user-text">
-          <span class="user-name">{{ user.displayName }}</span>
+          <span class="user-name-row">
+            <span class="user-name">{{ user.displayName }}</span>
+            <BotTag :flags="user.flags" />
+          </span>
           <span class="user-activity" v-if="user.activity && props.showActivity">
             <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
             <span class="font-semibold">{{ user.activity.titleName }}</span>
@@ -30,7 +33,10 @@
       <StatusDot :status="user.status" class="status-dot" />
     </div>
     <div class="user-text">
-      <span class="user-name">{{ user.displayName }}</span>
+      <span class="user-name-row">
+        <span class="user-name">{{ user.displayName }}</span>
+        <BotTag :flags="user.flags" />
+      </span>
       <span class="user-activity" v-if="user.activity && props.showActivity">
         <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
         <span class="font-semibold">{{ user.activity.titleName }}</span>
@@ -52,6 +58,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import StatusDot from "@/components/StatusDot.vue";
+import BotTag from "@/components/shared/BotTag.vue";
 import {
   Popover,
   PopoverTrigger,
@@ -170,6 +177,13 @@ function onReportProfile(userId: string) {
   flex-direction: column;
   min-width: 0;
   gap: 1px;
+}
+
+.user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
 .user-name {

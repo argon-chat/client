@@ -48,6 +48,11 @@
   "invite_invalid": "Invite unavailable",
   "invite_expired": "This invite link has expired.",
   "invite_limit_reached": "This invite has reached its usage limit.",
+  "voice_channel": "Voice room",
+  "invite_join_voice": "Join the voice room",
+  "invite_to_voice": "Invite to this room",
+  "voice_invite_copied": "Room link copied",
+  "voice_invite_failed": "Could not create a room link",
   "invite_banned": "You can't join this space.",
   "invite_not_found": "This invite link is invalid or no longer exists.",
   "close": "Close",
@@ -1683,5 +1688,12 @@
   "ultima_boost_expand": "Expand",
   "unmuted": "All notifications",
   "unpin": "Unpin",
-  "works_correctly": "works correctly"
+  "works_correctly": "works correctly",
+  "space_badge_official": "Official Space",
+  "space_badge_verified": "Verified Space",
+  "space_badge_community": "Community Space",
+  "bot_tag": "Bot",
+  "system_tag": "System",
+  "bot_account": "Bot account",
+  "system_account": "System account"
 }

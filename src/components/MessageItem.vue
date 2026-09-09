@@ -73,6 +73,8 @@
           {{ user.displayName || t('unknown_display_name') }}
         </span>
 
+        <BotTag :flags="user?.flags" />
+
         <TooltipProvider>
           <Tooltip>
             <!-- as-child: the span is the trigger, so no button line box pads the meta row above the bubble. -->
@@ -400,6 +402,7 @@ import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import BotTag from "@/components/shared/BotTag.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";

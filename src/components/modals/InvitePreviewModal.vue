@@ -43,10 +43,15 @@
             </div>
           </div>
 
-          <div class="mt-3 flex items-center gap-1.5">
-            <h2 class="text-xl font-bold truncate">{{ preview.name }}</h2>
-            <PhSealCheck v-if="preview.isOfficial" weight="fill" class="w-5 h-5 text-sky-400 shrink-0" />
-            <PhSealCheck v-else-if="preview.isVerified" weight="fill" class="w-5 h-5 text-yellow-400 shrink-0" />
+          <h2 class="text-xl font-bold truncate mt-3">{{ preview.name }}</h2>
+
+          <!-- Written out rather than left to the seal icons used elsewhere: this is the one screen
+               where the reader has never seen the space before and decides from it alone. -->
+          <div v-if="spaceTags.length" class="flex flex-wrap items-center gap-1.5 mt-2">
+            <span v-for="tag in spaceTags" :key="tag.key" class="space-tag" :class="tag.class">
+              <component :is="tag.icon" weight="fill" class="w-3.5 h-3.5" />
+              {{ tag.label }}
+            </span>
           </div>
 
           <p v-if="preview.description" class="text-sm text-muted-foreground mt-1 line-clamp-3">
@@ -65,6 +70,15 @@
             </span>
           </div>
 
+          <!-- A link minted for a room says so: the room, not the space, is where this drops you. -->
+          <div v-if="preview.voiceChannelId" class="voice-target mt-4">
+            <Volume2Icon class="w-4 h-4 shrink-0" />
+            <div class="min-w-0">
+              <div class="text-[11px] uppercase tracking-wider opacity-80">{{ t("voice_channel") }}</div>
+              <div class="text-sm font-medium truncate">{{ preview.voiceChannelName }}</div>
+            </div>
+          </div>
+
           <div v-if="joinError" class="text-sm text-destructive mt-3">{{ joinError }}</div>
 
           <!-- Actions -->
@@ -74,8 +88,9 @@
             </Button>
             <Button class="flex-1" :disabled="joining" @click="doJoin">
               <Loader2 v-if="joining" class="w-4 h-4 mr-2 animate-spin" />
+              <Volume2Icon v-else-if="preview.voiceChannelId" class="w-4 h-4 mr-2" />
               <LogInIcon v-else class="w-4 h-4 mr-2" />
-              {{ t("join_to_server") }}
+              {{ preview.voiceChannelId ? t("invite_join_voice") : t("join_to_server") }}
             </Button>
           </div>
         </div>
@@ -85,16 +100,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, type Component } from "vue";
 import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
 import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { Button } from "@argon/ui/button";
-import { Loader2, UsersIcon, LogInIcon } from "lucide-vue-next";
-import { PhSealCheck } from "@phosphor-icons/vue";
+import { Loader2, UsersIcon, LogInIcon, Volume2Icon } from "lucide-vue-next";
+import { useRouter } from "vue-router";
+import { PhSealCheck, PhUsersThree } from "@phosphor-icons/vue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useWindow } from "@/store/ui/windowStore";
 import { useApi } from "@/store/system/apiStore";
 import { useSpaceStore } from "@/store/data/serverStore";
+import { usePoolStore } from "@/store/data/poolStore";
+import { usePexStore } from "@/store/data/permissionStore";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { logger } from "@argon/core";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { cdnUrl } from "@/store/system/fileStorage";
@@ -105,6 +125,10 @@ const { t } = useLocale();
 const windows = useWindow();
 const api = useApi();
 const spaceStore = useSpaceStore();
+const pool = usePoolStore();
+const pex = usePexStore();
+const voice = useUnifiedCall();
+const router = useRouter();
 
 const open = computed({
   get: () => windows.invitePreviewOpen,
@@ -116,6 +140,19 @@ const preview = ref<InvitePreview | null>(null);
 const errorMessage = ref("");
 const joining = ref(false);
 const joinError = ref("");
+
+const spaceTags = computed(() => {
+  const p = preview.value;
+  if (!p) return [];
+  const tags: { key: string; label: string; class: string; icon: Component }[] = [];
+  if (p.isOfficial)
+    tags.push({ key: "official", label: t("space_badge_official"), class: "space-tag--official", icon: PhSealCheck });
+  else if (p.isVerified)
+    tags.push({ key: "verified", label: t("space_badge_verified"), class: "space-tag--verified", icon: PhSealCheck });
+  if (p.isCommunity)
+    tags.push({ key: "community", label: t("space_badge_community"), class: "space-tag--community", icon: PhUsersThree });
+  return tags;
+});
 
 const bannerUrl = computed(() =>
   preview.value?.topBannerFileId ? cdnUrl(preview.value.topBannerFileId, preview.value.spaceId) : "",
@@ -162,15 +199,66 @@ async function doJoin() {
   joining.value = true;
   joinError.value = "";
   try {
+    const target = preview.value;
     const err = await spaceStore.joinToServer(windows.invitePreviewCode);
     if (err) {
       joinError.value = err;
       return;
     }
     open.value = false;
+
+    // A room link is a link to the room, not to the space around it. Joining is only half of what
+    // was asked for; the other half is being in the room, which the person who sent the link is
+    // already sitting in. Already-a-member is the same path: JoinToSpace succeeds either way.
+    if (target?.voiceChannelId) await enterVoiceRoom(target.spaceId, target.voiceChannelId);
   } finally {
     joining.value = false;
   }
+}
+
+/**
+ * Opens the space on the room, then connects.
+ *
+ * The connect cannot simply be called: CallManager reads `pool.selectedServer` and the caller's
+ * `Connect` entitlement, and refuses — silently, by design — when either is not there yet. Both
+ * arrive asynchronously after the space is selected (the permission set is a liveQuery bound to the
+ * selection), so this waits for them rather than firing into a window where the answer is always no.
+ */
+async function enterVoiceRoom(spaceId: string, channelId: string) {
+  try {
+    await router.push({ name: "SpaceChannel", params: { id: spaceId, channelId } });
+
+    const ready = await until(() => pool.selectedServer === spaceId && pex.has("Connect"), 8000);
+    if (!ready) {
+      logger.warn("[invite] voice room join skipped: space or permissions never arrived");
+      return;
+    }
+
+    if (voice.connectedVoiceChannelId === channelId) return;
+    if (voice.isConnected) await voice.leave();
+
+    await voice.joinVoiceChannel(channelId);
+  } catch (e) {
+    logger.error("[invite] failed to enter the invited voice room", e);
+  }
+}
+
+/** Resolves true as soon as the condition holds, false if it never does inside `timeoutMs`. */
+function until(condition: () => boolean, timeoutMs: number): Promise<boolean> {
+  if (condition()) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      if (condition()) {
+        window.clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() - started >= timeoutMs) {
+        window.clearInterval(timer);
+        resolve(false);
+      }
+    }, 100);
+  });
 }
 
 // Load the preview whenever the modal opens with a code.
@@ -194,8 +282,46 @@ watch(
   background-position: center;
 }
 
+.voice-target {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--primary) / 0.25);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+}
+
 .invite-banner.is-empty {
   background: linear-gradient(135deg, hsl(var(--primary) / 0.35), hsl(var(--primary) / 0.1));
+}
+
+.space-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.space-tag--official {
+  color: #38bdf8;
+  background: rgb(56 189 248 / 0.12);
+}
+
+.space-tag--verified {
+  color: #fbbf24;
+  background: rgb(251 191 36 / 0.12);
+}
+
+.space-tag--community {
+  color: #34d399;
+  background: rgb(52 211 153 / 0.12);
 }
 
 .online-dot {

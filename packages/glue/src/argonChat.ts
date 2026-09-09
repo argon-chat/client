@@ -2463,6 +2463,7 @@ export interface ArgonSpaceBase {
   isOfficial: bool;
   hideBoostStrip: bool;
   inviteImageFileId: string | null;
+  isCommunity: bool | null;
 };
 
 
@@ -2479,6 +2480,7 @@ export interface ArgonSpace {
   isOfficial: bool;
   hideBoostStrip: bool;
   inviteImageFileId: string | null;
+  isCommunity: bool | null;
 };
 
 
@@ -3354,6 +3356,7 @@ export interface InvitePreview {
   onlineCount: i4;
   voiceChannelId: guid | null;
   voiceChannelName: string | null;
+  isCommunity: bool | null;
 };
 
 
@@ -15672,7 +15675,7 @@ IonFormatterStorage.register("SpaceDeletionState", {
 
 IonFormatterStorage.register("ArgonSpaceBase", {
   read(reader: CborReader): ArgonSpaceBase {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonSpaceBase");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "ArgonSpaceBase");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -15684,11 +15687,12 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
     const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
     const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 11);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel, isVerified, isOfficial, hideBoostStrip, inviteImageFileId };
+    const isCommunity = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity };
   },
   write(writer: CborWriter, value: ArgonSpaceBase): void {
-    writer.writeStartArray(11);
+    writer.writeStartArray(12);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -15700,13 +15704,14 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
     IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
     IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
+    IonFormatterStorage.writeNullable<bool>(writer, value.isCommunity, 'bool');
     writer.writeEndArray();
   }
 });
 
 IonFormatterStorage.register("ArgonSpace", {
   read(reader: CborReader): ArgonSpace {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "ArgonSpace");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "ArgonSpace");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -15719,11 +15724,12 @@ IonFormatterStorage.register("ArgonSpace", {
     const isOfficial = IonFormatterStorage.get<bool>('bool').read(reader);
     const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
     const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 12);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes, isVerified, isOfficial, hideBoostStrip, inviteImageFileId };
+    const isCommunity = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity };
   },
   write(writer: CborWriter, value: ArgonSpace): void {
-    writer.writeStartArray(12);
+    writer.writeStartArray(13);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -15736,6 +15742,7 @@ IonFormatterStorage.register("ArgonSpace", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.isOfficial);
     IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
     IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
+    IonFormatterStorage.writeNullable<bool>(writer, value.isCommunity, 'bool');
     writer.writeEndArray();
   }
 });
@@ -16635,7 +16642,7 @@ IonFormatterStorage.register("AcceptLegalInput", {
 
 IonFormatterStorage.register("InvitePreview", {
   read(reader: CborReader): InvitePreview {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "InvitePreview");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "InvitePreview");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -16648,11 +16655,12 @@ IonFormatterStorage.register("InvitePreview", {
     const onlineCount = IonFormatterStorage.get<i4>('i4').read(reader);
     const voiceChannelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const voiceChannelName = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 12);
-    return { spaceId, name, description, avatarFileId, topBannerFileId, inviteImageFileId, isVerified, isOfficial, memberCount, onlineCount, voiceChannelId, voiceChannelName };
+    const isCommunity = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { spaceId, name, description, avatarFileId, topBannerFileId, inviteImageFileId, isVerified, isOfficial, memberCount, onlineCount, voiceChannelId, voiceChannelName, isCommunity };
   },
   write(writer: CborWriter, value: InvitePreview): void {
-    writer.writeStartArray(12);
+    writer.writeStartArray(13);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -16665,6 +16673,7 @@ IonFormatterStorage.register("InvitePreview", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.onlineCount);
     IonFormatterStorage.writeNullable<guid>(writer, value.voiceChannelId, 'guid');
     IonFormatterStorage.writeNullable<string>(writer, value.voiceChannelName, 'string');
+    IonFormatterStorage.writeNullable<bool>(writer, value.isCommunity, 'bool');
     writer.writeEndArray();
   }
 });

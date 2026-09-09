@@ -1575,6 +1575,11 @@
   "invite_30_minutes": "30 минут",
   "invite_6_hours": "6 часов",
   "invite_7_days": "7 дней",
+  "voice_channel": "Голосовая комната",
+  "invite_join_voice": "Зайти в комнату",
+  "invite_to_voice": "Пригласить в комнату",
+  "voice_invite_copied": "Ссылка на комнату скопирована",
+  "voice_invite_failed": "Не удалось создать ссылку на комнату",
   "invite_banned": "Вы не можете войти в этот спейс.",
   "invite_expired": "Срок действия приглашения истёк.",
   "invite_expires_after": "Истекает через",
@@ -1683,5 +1688,12 @@
   "upload_image": "Загрузить изображение",
   "use_official": "Использовать официальный Argon",
   "verification_code_sent_to_phone": "Код подтверждения отправлен на",
-  "verify_phone": "Подтвердить номер телефона"
+  "verify_phone": "Подтвердить номер телефона",
+  "space_badge_official": "Официальный спейс",
+  "space_badge_verified": "Верифицированный спейс",
+  "space_badge_community": "Сообщество",
+  "bot_tag": "Бот",
+  "system_tag": "Система",
+  "bot_account": "Аккаунт бота",
+  "system_account": "Системный аккаунт"
 }

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { extractInviteCode } from "@/lib/inviteCode";
 
 export const useWindow = defineStore("window", () => {
   const settingsOpen = ref(false);
@@ -10,8 +11,12 @@ export const useWindow = defineStore("window", () => {
   const invitePreviewCode = ref("");
 
   function openInvitePreview(code: string) {
-    if (!code) return;
-    invitePreviewCode.value = code;
+    // Normalised here rather than at each caller: the join box, the quick-join widget and the
+    // argon:// handler all receive whatever was pasted, and a full invite URL sent to the server as
+    // if it were a code comes back as "invite not found" — which blames the invite for a paste.
+    const normalized = extractInviteCode(code);
+    if (!normalized) return;
+    invitePreviewCode.value = normalized;
     invitePreviewOpen.value = true;
   }
 
