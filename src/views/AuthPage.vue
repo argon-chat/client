@@ -2,7 +2,6 @@
 import router from "@/router";
 import { useAuthStore } from "@/store/auth/authStore";
 import { onMounted } from "vue";
-import { useConfig } from "@/store/system/remoteConfig";
 import { useLocale } from "@/store/system/localeStore";
 import { useToast } from "@argon/ui/toast";
 import { consumeSignOutReason, signOutReasonMessageKey } from "@/lib/net/sessionRecovery";
@@ -11,17 +10,33 @@ import SignedInAccounts from "@/components/account/SignedInAccounts.vue";
 import { useAccounts } from "@/store/auth/accountsStore";
 import { supports } from "@/lib/platform";
 import { computed } from "vue";
+import { isSwitchingAccount } from "@/store/system/sessionLifecycle";
 import IconSw from "@argon/assets/icons/icon_cat.svg"
 
-const cfg = useConfig();
 const authStore = useAuthStore();
 const accounts = useAccounts();
 const { t } = useLocale();
 const { toast } = useToast();
 
-// The accounts already on this device, so a session refused by the server (revoked, or the account
-// deleted outright) does not strand the user here with no way back into the others.
-const showAccounts = computed(() => supports("multiAccount") && accounts.accounts.length > 0);
+/**
+ * The accounts already on this device, so a session refused by the server (revoked, or the account
+ * deleted outright) does not strand the user here with no way back into the others.
+ *
+ * **Not while a sign-in is succeeding**, which is what `isAuthenticated` rules out. Signing in for
+ * the first time adopts the account into the registry and only then leaves for home, and in the gap
+ * between those two the list stopped being empty while the sign-in screen was still on top of it —
+ * so the panel appeared for a moment on a screen the user was already leaving, advertising the
+ * account they had just that second created. It is a way back in, and someone who is already in
+ * does not need one.
+ *
+ * `isSwitchingAccount` covers the same shape for a deliberate switch, where the overlay is what the
+ * user is meant to be looking at.
+ */
+const showAccounts = computed(() =>
+  supports("multiAccount")
+  && accounts.accounts.length > 0
+  && !authStore.isAuthenticated
+  && !isSwitchingAccount.value);
 
 onMounted(() => {
   if (authStore.isAuthenticated) {
@@ -38,16 +53,6 @@ onMounted(() => {
     toast({ title: t("session_ended_title"), description: t(signOutReasonMessageKey(reason)), duration: 8000 });
   }
 });
-
-const changeEndpoint = () => {
-  if (cfg.isDev) {
-    localStorage.setItem("api_endpoint", "live");
-    window.location.reload();
-  } else {
-    localStorage.setItem("api_endpoint", "local");
-    window.location.reload();
-  }
-};
 </script>
 
 <template>

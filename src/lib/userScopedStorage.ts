@@ -31,3 +31,19 @@ export function activeAccountId(): string {
 export function userScopedKey(base: string): string {
   return `${base}::${activeAccountId()}`;
 }
+
+/**
+ * Forgets everything scoped to the account that is signing out.
+ *
+ * The database is the visible half of a leaked session; this is the rest of it — recent spaces, the
+ * last channel per space, folder layout, preferred status, per-user volumes. `removeAccount` clears
+ * exactly these when a multi-account entry goes away, and the browser build has no entry to remove,
+ * so it has to ask for the same thing directly.
+ */
+export function clearUserScopedKeys(): void {
+  const id = activeAccountId();
+
+  for (const base of USER_SCOPED_BASE_KEYS) {
+    try { localStorage.removeItem(`${base}::${id}`); } catch { /* nothing to remove */ }
+  }
+}

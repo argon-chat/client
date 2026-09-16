@@ -10,6 +10,7 @@ import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport, IconDownload } from '@tabler/icons-vue';
 import { TerminalIcon } from 'lucide-vue-next';
+import { isWeb } from '@/lib/platform';
 import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import { NBadge } from 'naive-ui';
@@ -132,7 +133,9 @@ const onTitlebarDblClick = (e: MouseEvent) => {
 <template>
   <div class="app-titlebar" :class="{ 'app-titlebar--mac': isMac }" @dblclick="onTitlebarDblClick">
     <!-- Mac: traffic lights on the left -->
-    <div v-if="isMac" class="titlebar-controls titlebar-controls--mac">
+    <!-- Desktop only: a tab has no window to close, and the buttons would be lies. Everything else
+         on this bar — home, the breadcrumb, the unread badge — is the app and stays. -->
+    <div v-if="isMac && !isWeb" class="titlebar-controls titlebar-controls--mac">
       <button class="mac-btn mac-close" @click="windowClose" title="Close">
         <svg width="6" height="6" viewBox="0 0 6 6">
           <line x1="0" y1="0" x2="6" y2="6" stroke="currentColor" stroke-width="1.2" />
@@ -225,7 +228,10 @@ const onTitlebarDblClick = (e: MouseEvent) => {
         <IconMessageReport class="w-4 h-4" />
       </button>
 
+      <!-- Desktop only: it opens the Electron host's inspector, which a tab does not have — the
+           browser's own devtools are a keystroke away and this button would do nothing. -->
       <button
+        v-if="!isWeb"
         class="action-btn devtools-btn"
         :class="{ 'devtools-btn--error': hasRuntimeErrors }"
         @click="openDevTools"
@@ -237,7 +243,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
     </div>
 
     <!-- Windows: controls on the right -->
-    <div v-if="!isMac" class="titlebar-controls titlebar-controls--win">
+    <div v-if="!isMac && !isWeb" class="titlebar-controls titlebar-controls--win">
       <button class="win-btn" @click="windowMinimize" title="Minimize">
         <svg width="10" height="1" viewBox="0 0 10 1">
           <rect width="10" height="1" fill="currentColor" />

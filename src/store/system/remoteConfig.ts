@@ -8,8 +8,31 @@ export const useConfig = defineStore("config", () => {
   const overrides = ref<{ [key: string]: string | boolean | number }>({
    // apiEndpoint: 'https://localhost:5001'
    apiEndpoint: "https://api.argon.gl",
-   apiDevEndpoint: "https://dev.api.argon.gl",
-   apiLocalEndpoint: "https://localhost:5001"
+   // dev-api, not dev.api: the stand is served off a single-label host (see the dev IngressRoute),
+   // and the dotted spelling resolves nowhere at all.
+   apiDevEndpoint: "https://dev-api.argon.gl",
+   // 5002 is what Kestrel:Argon:Port binds on the `dev` role — see deploy/dev/README.md. HTTPS and
+   // not HTTP: a page served over TLS cannot call a plain-text API, and OpenIddict refuses one too.
+   apiLocalEndpoint: "https://localhost:5002",
+
+   // Where the browser build sends the user to sign in. One per API, because an Aegis only knows
+   // about the applications registered in its own database: a token from the live identity server
+   // means nothing to a server running on this machine, and the exchange refuses it.
+   //
+   // A local stand runs the identity server as its own process, on its own port, exactly as the
+   // deployment does. It has to: `HostHooksFeature` maps a version document at `/` on every role
+   // that does not serve a site there, and the co-hosted `dev` role deliberately serves no widget —
+   // so the sign-in page is unreachable while Aegis shares a port with the API.
+   //
+   //   dotnet run --project src/Argon.Api -- --role aegis     (Kestrel__Argon__Port=5003)
+   aegisEndpoint: "https://aegis.argon.gl",
+   aegisDevEndpoint: "https://dev-aegis.argon.gl",
+   aegisLocalEndpoint: "https://localhost:5003",
+
+   // The OAuth client the browser build signs in as. Overridable because it is a row in the identity
+   // server's database rather than a constant: a local stand issues its own id when the application
+   // is registered there, and it will not be this one.
+   webClientId: "A37E7A1DB06E9610C9C0BD77C61A821B"
   });
 
   function setOverride(key: string, value: string | boolean | number) {
@@ -39,23 +62,41 @@ export const useConfig = defineStore("config", () => {
   }
 
   const isGenderEnabled = computed(() => boolVal("enabled_sex_field"));
+
+  /** Which of the three stands this browser is pointed at. */
+  const endpoint = computed<"live" | "dev" | "local">(() => {
+    const selected = localStorage.getItem("api_endpoint");
+    return selected === "dev" || selected === "local" ? selected : "live";
+  });
+
   const apiEndpoint = computed(() => {
-    const endpointSelector = localStorage.getItem("api_endpoint");
-    if (endpointSelector && endpointSelector === "live")
-      return stringVal("apiEndpoint");
-    if (endpointSelector && endpointSelector === "dev")
-      return stringVal("apiDevEndpoint") ?? "https://dev.argon.gl";
-    if (endpointSelector && endpointSelector === "local")
-      return stringVal("apiLocalEndpoint") ?? "https://localhost:5001";
+    if (endpoint.value === "dev") return stringVal("apiDevEndpoint");
+    if (endpoint.value === "local") return stringVal("apiLocalEndpoint");
     return stringVal("apiEndpoint");
   });
+
+  /**
+   * The identity server that goes with {@link apiEndpoint}, and it has to be that one.
+   *
+   * An Aegis only knows the applications registered in its own database, and the exchange at
+   * `/auth/web/session` only accepts a token its own identity server signed. Signing in at the live
+   * Aegis and presenting the result to a server on this machine fails at the exchange, not at the
+   * redirect, so the two selectors can never be set independently.
+   */
+  const aegisEndpoint = computed(() => {
+    if (endpoint.value === "dev") return stringVal("aegisDevEndpoint");
+    if (endpoint.value === "local") return stringVal("aegisLocalEndpoint");
+    return stringVal("aegisEndpoint");
+  });
+
+  const webClientId = computed(() => stringVal("webClientId"));
+
   const cdnEndpoint = computed(() => stringVal("cdnEndpoint"));
   const webRtcEndpoint = computed(() => stringVal("webRtcEndpoint"));
+  // Scheme-agnostic on purpose: a local stand serves plain HTTP unless it has been given a
+  // certificate, and matching on "https://localhost:" quietly stopped recognising it as dev.
   const isDev = computed(
-    () =>
-      localStorage.getItem("api_endpoint") === "dev" ||
-      localStorage.getItem("api_endpoint") === "local" ||
-      apiEndpoint.value.includes("https://localhost:"),
+    () => endpoint.value !== "live" || /^https?:\/\/localhost(:|\/|$)/.test(apiEndpoint.value),
   );
 
   const scheme = z.object({
@@ -76,7 +117,10 @@ export const useConfig = defineStore("config", () => {
 
   return {
     isGenderEnabled,
+    endpoint,
     apiEndpoint,
+    aegisEndpoint,
+    webClientId,
     cdnEndpoint,
     webRtcEndpoint,
     scheme,

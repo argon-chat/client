@@ -249,7 +249,7 @@ export const useInstance = defineStore("instance", () => {
     const { useAuthStore } = await import("@/store/auth/authStore");
     const auth = useAuthStore();
     if (auth.isAuthenticated) {
-      auth.logout();
+      await auth.logout();
       localStorage.removeItem("rft");
       const { pruneIndexDb, pruneBuckets, pruneCache } = await import("@/store/system/fileStorage");
       await pruneIndexDb();

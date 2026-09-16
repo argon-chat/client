@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, provide, ref } from "vue";
+import { computed, onMounted, provide, ref, watchEffect } from "vue";
 import AppTitlebar from "@/components/AppTitlebar.vue";
 import SendUserFeedback from "@/components/modals/SendUserFeedback.vue";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -37,6 +37,8 @@ import { useToast } from "@argon/ui/toast";
 import { consumeSwitchFailure } from "@/store/auth/accountsStore";
 import { Loader2Icon } from "lucide-vue-next";
 import router from "@/router";
+import { useRoute } from "vue-router";
+import { isWeb } from "@/lib/platform";
 
 const { t } = useLocale();
 const { toast } = useToast();
@@ -44,8 +46,19 @@ const pool = usePoolStore();
 const appState = useAppState();
 const feedbackOpened = ref(false);
 
-// Unified titlebar — present on every view in the shell, gated only by the host flag.
-const showTitlebar = computed(() => window.devolution_titlebar === 0x1);
+const route = useRoute();
+
+// Unified titlebar — present on every view in the shell except sign-in.
+//
+// The host flag is what the desktop sets; the browser has no host to set it, and hiding the bar
+// there took the home button, the breadcrumb and the unread badge with it. Those are not window
+// chrome — they are the app. What a tab genuinely has no use for is the close/minimize/maximize
+// group, and that is dropped inside AppTitlebar rather than by hiding the whole bar.
+//
+// Sign-in is the exception on every build: there is no home to go to, no breadcrumb to show and
+// nothing unread, so the bar would be a strip of disabled affordances above a login form.
+const showTitlebar = computed(() =>
+  route.name !== "Login" && (window.devolution_titlebar === 0x1 || isWeb));
 
 // Shell mounts once at app start — boot the app here (replaces the old Entry view).
 onMounted(() => {
@@ -62,8 +75,14 @@ onMounted(() => {
       });
     }
   });
-  // Expose the titlebar height (0 when absent) so modals can keep clear of the
-  // window controls. The titlebar is 38px tall — see AppTitlebar.vue.
+});
+
+// Expose the titlebar height (0 when absent) so modals can keep clear of the window controls. The
+// titlebar is 38px tall — see AppTitlebar.vue.
+//
+// Recomputed rather than set once at mount: the bar now comes and goes with the route, and a value
+// frozen on the sign-in screen would leave every modal in the app padding for a bar that is there.
+watchEffect(() => {
   document.documentElement.style.setProperty(
     "--app-titlebar-height",
     showTitlebar.value ? "38px" : "0px"

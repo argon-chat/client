@@ -9,6 +9,8 @@ import { v7 } from "uuid";
 import { DEVICE_PROOF_HEADER, deviceProof } from "@/lib/net/deviceProofHeader";
 import { isSessionRejected } from "@/lib/net/authFailure";
 import { CLIENT_DESCRIPTOR_HEADER, clientDescriptorHeader } from "@/lib/net/clientDescriptor";
+import { MACHINE_ID_HEADER, SESSION_ID_HEADER, machineId, sessionId } from "@/lib/net/machineId";
+import { isWeb } from "@/lib/platform";
 
 export function lazy<T>(getter: () => T): ComputedRef<T> {
   let initialized = false;
@@ -134,6 +136,40 @@ export class ClientDescriptorInterceptor implements IonInterceptor {
   }
 }
 
+/**
+ * Carries this browser's machine identity and session label, for the case where the cookie holding
+ * them cannot travel.
+ *
+ * Web only. An installed client writes the identity into `ArgonSecure` from native code, and sending
+ * a second one from here would be a second answer to a question already answered — the server reads
+ * the cookie first, so it would be ignored, but it would still be a value on the wire suggesting the
+ * page had a say in it.
+ *
+ * Harmless where it is not needed: a tab served from the same site as the API sends the cookie, and
+ * the cookie wins. It is the cross-site case — a development build on localhost, a self-hosted
+ * front-end on its own host — where this header is the only channel the identity has. See
+ * `@/lib/net/machineId`.
+ */
+export class MachineIdInterceptor implements IonInterceptor {
+  async invokeAsync(
+    ctx: IonCallContext,
+    next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const scid = sessionId();
+
+    ctx.requestHeaders = {
+      ...ctx.requestHeaders,
+      [MACHINE_ID_HEADER]: machineId(),
+      // Only once the API has minted one. Sending an invented value would be worse than sending
+      // none: `GetSessionId` parses it and refuses the request outright when it is not a guid,
+      // where an absent header at least lets the development placeholder stand in.
+      ...(scid ? { [SESSION_ID_HEADER]: scid } : {}),
+    };
+    await next(ctx, signal);
+  }
+}
+
 export const useApi = defineStore("api", () => {
   const cfg = useConfig();
   const authLazy = lazy(() => useAuthStore());
@@ -151,6 +187,7 @@ export const useApi = defineStore("api", () => {
       new AuthInterceptor(authLazy),
       new LocaleInterceptor(),
       new ClientDescriptorInterceptor(),
+      ...(isWeb ? [new MachineIdInterceptor()] : []),
     ]);
   });
 

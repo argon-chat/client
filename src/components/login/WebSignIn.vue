@@ -7,16 +7,18 @@
  * tab, no QR pairing (that pairs a device, and a tab is not one) and no self-hosted entry — the web
  * build serves the official instance only.
  */
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@argon/ui/card";
 import { Button } from "@argon/ui/button";
 import { ArrowRightIcon, Loader2Icon, MonitorDownIcon, ShieldCheckIcon } from "lucide-vue-next";
-import { beginSignIn, lastSignInError } from "@/lib/webAuth";
+import { beginSignIn, forgetSession, lastSignInError } from "@/lib/webAuth";
 import { DOWNLOAD_URL } from "@/lib/platform";
 import { useLocale } from "@/store/system/localeStore";
+import { useConfig } from "@/store/system/remoteConfig";
 import { logger } from "@argon/core";
 
 const { t } = useLocale();
+const cfg = useConfig();
 
 const isLeaving = ref(false);
 const failed = ref(false);
@@ -32,7 +34,9 @@ async function signIn() {
   failed.value = false;
   returnedError.value = null;
   try {
-    await beginSignIn();
+    // The identity server that goes with the selected API, never a fixed one: a token the live Aegis
+    // signed is refused by a server running on this machine, and the reverse is just as true.
+    await beginSignIn({ baseUrl: cfg.aegisEndpoint, clientId: cfg.webClientId });
     // The page is navigating away; the spinner stays up until it does.
   } catch (e) {
     logger.error("[web-auth] could not start sign-in", e);
@@ -43,6 +47,36 @@ async function signIn() {
 
 function openDownload() {
   window.open(DOWNLOAD_URL, "_blank", "noopener");
+}
+
+// ── the stand switcher, development builds only ──────────────────────────────────────────────────
+//
+// `import.meta.env.DEV` is resolved at build time, so this block and its markup are dropped from a
+// production bundle rather than merely hidden in it. There is deliberately no translation: it is a
+// tool for whoever is working on the app, and never reaches a user.
+//
+// It lives on the sign-in screen because that is the only place it is usable. The endpoint selector
+// in settings is behind a session, and a browser pointed at a local stand has none yet — which left
+// the web build with no way to reach a local server at all.
+const showStands = import.meta.env.DEV;
+
+const STANDS = [
+  { id: "live", label: "live" },
+  { id: "dev", label: "dev" },
+  { id: "local", label: "local" },
+] as const;
+
+const stand = computed(() => cfg.endpoint);
+
+function useStand(next: (typeof STANDS)[number]["id"]) {
+  if (next === stand.value) return;
+
+  // The session marker belongs to the stand being left. Kept across the switch it would send the
+  // next boot down the cookie path against a server that has never heard of this browser, so the
+  // app would start by failing a refresh instead of showing this screen.
+  forgetSession();
+  localStorage.setItem("api_endpoint", next);
+  window.location.reload();
 }
 </script>
 
@@ -79,6 +113,16 @@ function openDownload() {
         <MonitorDownIcon class="w-3.5 h-3.5" />
         {{ t("web_signin_get_desktop") }}
       </button>
+
+      <!-- Development builds only; compiled out of a production bundle. -->
+      <div v-if="showStands" class="stand-switch">
+        <span class="stand-label">stand</span>
+        <button v-for="option in STANDS" :key="option.id" type="button" class="stand-chip"
+          :class="{ 'stand-chip--on': stand === option.id }" @click="useStand(option.id)">
+          {{ option.label }}
+        </button>
+        <span class="stand-host">{{ cfg.apiEndpoint }}</span>
+      </div>
     </CardFooter>
   </Card>
 </template>
@@ -101,5 +145,27 @@ function openDownload() {
 .download-link {
   @apply inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground
          hover:text-primary transition-colors;
+}
+
+.stand-switch {
+  @apply mt-1 flex w-full flex-wrap items-center justify-center gap-1.5
+         rounded-lg border border-dashed border-border/60 px-2 py-1.5;
+}
+
+.stand-label {
+  @apply text-[10px] uppercase tracking-wider text-muted-foreground/70;
+}
+
+.stand-chip {
+  @apply rounded px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground
+         hover:text-foreground transition-colors;
+}
+
+.stand-chip--on {
+  @apply bg-primary/15 text-primary;
+}
+
+.stand-host {
+  @apply w-full text-center font-mono text-[10px] text-muted-foreground/60;
 }
 </style>

@@ -275,7 +275,7 @@ watch(selected_api_endpoint, async (e) => {
     if (localStorage.getItem("api_endpoint") === e) return;
     localStorage.setItem("api_endpoint", e);
 
-    useAuthStore().logout();
+    await useAuthStore().logout();
     await pruneDatabases(false);
 });
 

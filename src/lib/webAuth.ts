@@ -23,14 +23,32 @@
  */
 
 import { logger } from "@argon/core";
-
-const AEGIS_AUTHORIZE_URL = "https://aegis.argon.gl/";
-const AEGIS_TOKEN_URL = "https://aegis.argon.gl/connect/token";
+import { MACHINE_ID_HEADER, SESSION_ID_HEADER, forgetSessionId, machineId, rememberSessionId, sessionId } from "@/lib/net/machineId";
 
 /**
- * The registered Aegis application. Web only — the desktop app authenticates against the API.
+ * Which identity server to use, and as which application.
+ *
+ * Passed in rather than hard-coded because an Aegis only knows the applications registered in its own
+ * database, and `/auth/web/session` only accepts a token its own identity server signed. Pointing the
+ * app at a stand therefore moves both together — see `aegisEndpoint` in the config store — and a
+ * local stand issues a client id of its own, because the application is a row there too.
  */
-const CLIENT_ID = "A37E7A1DB06E9610C9C0BD77C61A821B";
+export interface AegisTarget {
+  /** Origin of the identity server. No trailing slash. */
+  readonly baseUrl: string;
+  readonly clientId: string;
+}
+
+/** The official instance, and what every build falls back to. */
+const OFFICIAL: AegisTarget = {
+  baseUrl: "https://aegis.argon.gl",
+  clientId: "A37E7A1DB06E9610C9C0BD77C61A821B",
+};
+
+const authorizeUrl = (target: AegisTarget) => `${trimSlash(target.baseUrl)}/`;
+const tokenUrl = (target: AegisTarget) => `${trimSlash(target.baseUrl)}/connect/token`;
+
+const trimSlash = (url: string) => url.replace(/\/+$/, "");
 
 /**
  * No `offline_access`.
@@ -55,6 +73,17 @@ export const CALLBACK_PATH = "/callback";
 const SESSION_HINT_KEY = "argon_web_session";
 
 const VERIFIER_KEY = "argon_web_pkce_verifier";
+
+/**
+ * The identity server the in-flight sign-in was started against.
+ *
+ * Kept beside the verifier and for the same reason: the authorization code is only redeemable at the
+ * Aegis that minted it, and the endpoint selector is a `localStorage` value the user can change from
+ * the settings screen while the browser is away at the sign-in widget. Without this the callback
+ * would redeem the code at whichever stand is selected when it lands, which fails as an unreadable
+ * `http_400` rather than as anything to do with having switched.
+ */
+const TARGET_KEY = "argon_web_aegis_target";
 
 /** Treat a token as spent this long before it actually expires. */
 const EXPIRY_SKEW_SECONDS = 60;
@@ -90,6 +119,8 @@ export function hasSession(): boolean {
 export function forgetSession(): void {
   localStorage.removeItem(SESSION_HINT_KEY);
   localStorage.removeItem(VERIFIER_KEY);
+  localStorage.removeItem(TARGET_KEY);
+  forgetSessionId();
 }
 
 // ── token inspection ─────────────────────────────────────────────────────────────────────────────
@@ -146,21 +177,47 @@ function redirectUri(): string {
 
 // ── flow ─────────────────────────────────────────────────────────────────────────────────────────
 
-/** Leave for Aegis. Does not return — the page navigates away. */
-export async function beginSignIn(): Promise<void> {
+/**
+ * Leave for Aegis. Does not return — the page navigates away.
+ *
+ * The target is recorded before the redirect so that the callback redeems the code where it was
+ * minted, whatever the endpoint selector says by the time it lands.
+ */
+export async function beginSignIn(target: AegisTarget = OFFICIAL): Promise<void> {
   lastError = null;
   const { verifier, challenge } = await createPkcePair();
   localStorage.setItem(VERIFIER_KEY, verifier);
+  localStorage.setItem(TARGET_KEY, JSON.stringify(target));
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: target.clientId,
     redirect_uri: redirectUri(),
     response_type: "code",
     scope: SCOPE,
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
-  window.location.href = `${AEGIS_AUTHORIZE_URL}?${params.toString()}`;
+  window.location.href = `${authorizeUrl(target)}?${params.toString()}`;
+}
+
+/**
+ * The identity server this browser left for, or the official one.
+ *
+ * Falls back rather than failing: a callback with no recorded target is a sign-in started by a build
+ * from before this was written, and for every one of those the answer was the official instance.
+ */
+function startedTarget(): AegisTarget {
+  try {
+    const stored = localStorage.getItem(TARGET_KEY);
+    if (!stored) return OFFICIAL;
+
+    const parsed = JSON.parse(stored) as Partial<AegisTarget>;
+    return typeof parsed?.baseUrl === "string" && typeof parsed?.clientId === "string"
+      ? { baseUrl: parsed.baseUrl, clientId: parsed.clientId }
+      : OFFICIAL;
+  } catch {
+    return OFFICIAL;
+  }
 }
 
 /** Is this page load the return leg of a sign-in? */
@@ -186,17 +243,17 @@ function cleanUpUrl(): void {
  * The token it returns is held for the length of one call and never written down: its only use is
  * the exchange below, and after that it is of no further interest to this app.
  */
-async function redeemCode(code: string, verifier: string): Promise<string | null> {
+async function redeemCode(code: string, verifier: string, target: AegisTarget): Promise<string | null> {
   let res: Response;
   try {
-    res = await fetch(AEGIS_TOKEN_URL, {
+    res = await fetch(tokenUrl(target), {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
         redirect_uri: redirectUri(),
-        client_id: CLIENT_ID,
+        client_id: target.clientId,
         code_verifier: verifier,
       }),
     });
@@ -242,7 +299,14 @@ async function openSession(apiBase: string, aegisToken: string): Promise<string 
     res = await fetch(`${apiBase}/auth/web/session`, {
       method: "POST",
       credentials: "include",
-      headers: { authorization: `Bearer ${aegisToken}` },
+      headers: {
+        authorization: `Bearer ${aegisToken}`,
+        // The session is bound to whatever machine identity this call presents, and every later
+        // call is checked against it. Sending it here is what makes the two the same value: with
+        // nothing to read the API mints one of its own, writes it into a cookie a cross-site page
+        // never gets back, and every call after this one fails the binding.
+        [MACHINE_ID_HEADER]: machineId(),
+      },
     });
   } catch (e) {
     lastError = "network";
@@ -267,6 +331,11 @@ async function openSession(apiBase: string, aegisToken: string): Promise<string 
     return null;
   }
 
+  // The scid the API filed this session under. Every later call presents it in X-Sec-Ref, because a
+  // cross-site tab never gets the cookie that would otherwise carry it back.
+  if (typeof data.sessionId === "string") rememberSessionId(data.sessionId);
+  else logger.warn("[web-auth] the session response carried no sessionId; calls will be refused for want of one");
+
   localStorage.setItem(SESSION_HINT_KEY, "1");
   lastError = null;
   return data.accessToken as string;
@@ -284,7 +353,9 @@ export async function completeSignIn(apiBase: string): Promise<string | null> {
   const error = query.get("error");
   const code = query.get("code");
   const verifier = localStorage.getItem(VERIFIER_KEY);
+  const target = startedTarget();
   localStorage.removeItem(VERIFIER_KEY);
+  localStorage.removeItem(TARGET_KEY);
   cleanUpUrl();
 
   if (error) {
@@ -300,7 +371,7 @@ export async function completeSignIn(apiBase: string): Promise<string | null> {
     return null;
   }
 
-  const aegisToken = await redeemCode(code, verifier);
+  const aegisToken = await redeemCode(code, verifier, target);
   if (!aegisToken) return null;
 
   const token = await openSession(apiBase, aegisToken);
@@ -325,7 +396,19 @@ export async function signOut(apiBase: string): Promise<void> {
   try {
     // keepalive: callers reload the page right after signing out, and a plain fetch is cancelled
     // with the document — the tombstone would never be written.
-    await fetch(`${apiBase}/auth/web/logout`, { method: "POST", credentials: "include", keepalive: true });
+    await fetch(`${apiBase}/auth/web/logout`, {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+      // Signing out reads the refresh token against this browser's machine identity, so the same
+      // header has to be here or the tombstone is written for nobody.
+      // Both halves: signing out reads the refresh token against this machine, and tombstones the
+      // session this label names.
+      headers: {
+        [MACHINE_ID_HEADER]: machineId(),
+        ...(sessionId() ? { [SESSION_ID_HEADER]: sessionId()! } : {}),
+      },
+    });
   } catch (e) {
     logger.warn("[web-auth] sign-out could not reach the API; clearing locally anyway", e);
   } finally {

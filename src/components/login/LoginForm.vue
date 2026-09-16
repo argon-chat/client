@@ -27,7 +27,7 @@ const { t } = useLocale();
 const props = defineProps<{ auth: ReturnType<typeof import("@/composables/useAuthForm").useAuthForm> }>();
 const {
   email, password, isLoading, goToResetPass, onSubmit, authError,
-  prepareEmailStep, effectiveOfficial, effectiveBranding, showQr, useOfficial, isEnroll,
+  prepareEmailStep, effectiveOfficial, effectiveBranding, showQr, useOfficial,
 } = props.auth;
 
 // Local busy flag for the email step's async resolution (separate from auth's isLoading,
@@ -209,7 +209,7 @@ watch(password, () => {
                   <EyeIcon v-else class="w-4 h-4 icon-appear" />
                 </button>
               </div>
-              <div v-if="!isEnroll" class="flex justify-end mt-1">
+              <div class="flex justify-end mt-1">
                 <a @click="goToResetPass" class="cursor-pointer text-xs text-primary hover:underline transition">
                   {{ t("forgot_password") }}
                 </a>

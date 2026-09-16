@@ -221,8 +221,28 @@ export function useAuthForm(opts: { mode?: AuthFormMode } = {}) {
   }
 
   async function onSubmitEnroll() {
-    if (isResetPass.value) return; // password reset isn't part of adding an account
     const manifest = enrollManifest.value ?? DEFAULT_MANIFEST;
+
+    // Password reset IS part of adding an account. It used to return here, and the form hid the
+    // link to match — which meant someone who had forgotten the password of a second account could
+    // neither reset it nor add it, with nothing on screen to say why. It runs against the target
+    // instance's client, so the code goes to the server that account is on rather than to whichever
+    // one the live session happens to be signed into.
+    if (isResetPass.value) {
+      if (tabValue.value !== "otp-reset") {
+        await enrollment.beginResetPass(manifest, email.value);
+        tabValue.value = "otp-reset";
+        return;
+      }
+
+      const reset = await enrollment.resetPass(manifest, {
+        email: email.value, code: otpCode.value, password: password.value,
+      });
+      if (reset.kind === "otp") return;                       // the code was not accepted; stay put
+      if (reset.kind === "error") { authError.value = describeAuthError(reset.error); return; }
+      finishEnroll(reset.account);
+      return;
+    }
 
     if (isRegister.value) {
       const outcome = await enrollment.register(manifest, registrationPayload());

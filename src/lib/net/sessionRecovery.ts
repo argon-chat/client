@@ -227,6 +227,6 @@ function signOutLocally(reason: SignOutReason, detail: string): void {
     }
   }
 
-  useAuthStore().logout();
+  void useAuthStore().logout();
   location.reload();
 }

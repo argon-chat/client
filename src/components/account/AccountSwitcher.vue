@@ -50,12 +50,15 @@ function select(a: AccountRecord) {
 /**
  * Signing out of the browser build.
  *
- * There is no registry entry to remove and no other account to fall back into — dropping the local
- * tokens and reloading into the sign-in screen is the whole of it. The Aegis session itself is left
- * alone, so signing back in does not ask for a password again.
+ * There is no registry entry to remove and no other account to fall back into, so `logout` does the
+ * removal's job directly: tokens, the user-scoped keys and the cache this browser holds. Awaited
+ * before the reload, because deleting an IndexedDB is a request the browser abandons when the page
+ * goes away — and half a deleted cache is the one this exists to remove.
+ *
+ * The Aegis session itself is left alone, so signing back in does not ask for a password again.
  */
-function signOutWeb() {
-  useAuthStore().logout();
+async function signOutWeb() {
+  await useAuthStore().logout();
   location.reload();
 }
 

@@ -12,6 +12,8 @@ import {
 import { IonMaybe } from "@argon-chat/ion.webcore";
 import { isWeb } from "@/lib/platform";
 import * as webAuth from "@/lib/webAuth";
+import { dropCurrentDb } from "@/store/db/dexie";
+import { clearUserScopedKeys } from "@/lib/userScopedStorage";
 import { metrics, enumName, errorKind } from "@/lib/telemetry/metrics";
 const { toast } = useToast();
 
@@ -136,8 +138,28 @@ export const useAuthStore = defineStore("auth", () => {
     return localStorage.setItem("rft", refreshToken);
   };
 
+  /**
+   * Hold the access token, and on the web hold it only in memory.
+   *
+   * <p>This is what `webAuth`'s header comment has said all along — "it belongs in memory and in the
+   * `Authorization` header" — and what the code did not do: the token was written to `localStorage`
+   * on every build. On the web that copy was never read back. `restoreSession` hands the web build
+   * to `restoreWebSession`, which mints a fresh token from the session cookie and ignores storage;
+   * `migrateLegacySessionIfNeeded` returns early on web by its own admission that this key holds the
+   * OAuth token; and `adoptCurrentSession` is reached only from the desktop password form and QR
+   * pairing, neither of which the browser build has. It sat there readable by any script on the
+   * page, for nothing.</p>
+   *
+   * <p>The desktop keeps the write. There the token survives a restart and there is no cookie to
+   * mint a new one from, so storage is doing real work rather than leaving a spare key out.</p>
+   *
+   * <p>What this does not do is make a stolen page safe: script running on the origin can still read
+   * `_token` out of the store, and the token is good for as long as `Jwt:AccessTokenLifetime` says.
+   * It removes the copy that outlives the tab, which is the half an attacker can take away with
+   * them.</p>
+   */
   const setAuthToken = (t: string) => {
-    localStorage.setItem("token", t);
+    if (!isWeb) localStorage.setItem("token", t);
     _token.value = t;
   };
 
@@ -196,6 +218,11 @@ export const useAuthStore = defineStore("auth", () => {
    * indistinguishable from here on.
    */
   const restoreWebSession = async (): Promise<void> => {
+    // Builds before the token stopped being persisted left one behind, and it outlives every session
+    // it belonged to because nothing on this path ever reads the key again. Cleared on the way in
+    // rather than left for the next sign-out, which a browser that is simply closed never reaches.
+    localStorage.removeItem("token");
+
     const method = webAuth.isCallback() ? "callback" : webAuth.hasSession() ? "cookie" : "none";
     const token =
       method === "callback"
@@ -219,7 +246,20 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated.value = true;
   };
 
-  const logout = () => {
+  /**
+   * Ends the session, and on the web build takes the cache with it.
+   *
+   * <p><b>Why only the web build.</b> The desktop holds a registry: every account has its own Dexie
+   * database and its own namespaced keys, and signing one out goes through `removeAccount`, which
+   * drops both. A tab has no registry — one database, one set of keys, shared by whoever signs in —
+   * so leaving them behind hands the next account the last one's sidebar. That is how a space the
+   * user was never a member of turned up after switching, and then failed to load.</p>
+   *
+   * <p>Returns a promise so a caller that is about to reload can wait for it: deleting an IndexedDB
+   * is a request the browser can abandon when the page goes away, and a half-deleted cache is the
+   * one this was meant to remove.</p>
+   */
+  const logout = async (): Promise<void> => {
     metrics.count("auth.logout");
     // Best-effort: announce intentional offline so others don't see us linger for the disconnect
     // grace window. Fire-and-forget + lazy import to avoid a circular store dependency; if the realtime
@@ -237,6 +277,11 @@ export const useAuthStore = defineStore("auth", () => {
     _token.value = null;
     isAuthenticated.value = false;
     localStorage.removeItem("token");
+
+    if (isWeb) {
+      clearUserScopedKeys();
+      await dropCurrentDb();
+    }
   };
 
   const restoreSession = async (): Promise<void> => {
@@ -318,7 +363,15 @@ export const useAuthStore = defineStore("auth", () => {
       isRequiredOtp.value = false;
       isRequiredFormResetPass.value = false;
       isAuthenticated.value = true;
-      localStorage.setItem("token", r.token);
+
+      // Through setAuthToken, and not `localStorage.setItem` on its own. The token every request
+      // carries is the reactive `_token`, which the bare write never touched — so a reset ended with
+      // the session marked authenticated, the token on disk, and nothing on the wire: the very next
+      // call was `GetMe` with no Authorization header, and the server answered 500. The refresh
+      // token went missing the same way, which is what left a reset session unable to survive a
+      // restart. Every other success path here already does both.
+      setAuthToken(r.token);
+      if (r.refreshToken) setRefreshToken(r.refreshToken);
     }
   };
 

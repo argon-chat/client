@@ -97,6 +97,45 @@ export function useAccountEnrollment() {
     return { kind: "error", error: AuthorizationError.NONE };
   }
 
+  /**
+   * Sends the reset code for an account being added, to the instance that account lives on.
+   *
+   * The reason this exists rather than reusing `authStore.beginResetPass`: that one runs on
+   * `useApi()`, which is the *live* session's client. Called while adding an account it would send
+   * the code to whichever instance the user is already signed into — the wrong server, and for a
+   * self-hosted target, a different one entirely. Everything here goes through a one-off client
+   * pointed at the manifest, exactly as `authorize` does.
+   */
+  async function beginResetPass(manifest: InstanceManifest, email: string): Promise<void> {
+    const client = clientFor(manifest);
+    await client.IdentityInteraction.BeginResetPassword(email);
+  }
+
+  /**
+   * Redeems the code and the new password, and signs the account in.
+   *
+   * Answers the same shape `authorize` does, because it ends in the same place: a reset that works
+   * leaves the server having issued a session, and the account is enrolled from it rather than
+   * asking the user to type the password they have only just chosen.
+   */
+  async function resetPass(
+    manifest: InstanceManifest,
+    args: { email: string; code: string; password: string },
+  ): Promise<AuthorizeOutcome> {
+    const client = clientFor(manifest);
+    const r = await client.IdentityInteraction.ResetPassword(args.email, args.code, args.password);
+
+    if (r.isFailedAuthorize()) {
+      if (r.error === AuthorizationError.REQUIRED_OTP) return { kind: "otp" };
+      return { kind: "error", error: r.error };
+    }
+    if (r.isSuccessAuthorize()) {
+      const account = await buildAccount(manifest, r.token, r.refreshToken ?? null);
+      return { kind: "account", account };
+    }
+    return { kind: "error", error: AuthorizationError.NONE };
+  }
+
   async function register(manifest: InstanceManifest, data: NewUserCredentialsInput): Promise<RegisterOutcome> {
     const client = clientFor(manifest);
     const r = await client.IdentityInteraction.Registration(data);
@@ -110,5 +149,5 @@ export function useAccountEnrollment() {
     return { kind: "error", error: RegistrationError.VALIDATION_FAILED };
   }
 
-  return { resolveTargetInstance, fetchManifest, scenarioFor, authorize, register };
+  return { resolveTargetInstance, fetchManifest, scenarioFor, authorize, register, beginResetPass, resetPass };
 }

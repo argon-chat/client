@@ -273,3 +273,30 @@ export async function reopenActiveAccountDb(): Promise<void> {
   _dbName = next;
   _instance = await openOrRebuild(new PoolDatabase(next));
 }
+
+/**
+ * Drops the cache this browser is holding, and leaves nothing open behind it.
+ *
+ * <p>For signing out of the web build, where there is no account registry to remove an entry from
+ * and therefore nothing that would ever reap the database. A tab keeps one database — the plain
+ * `-default` one the first account has always used — so the next person to sign in on this browser
+ * inherits whatever the last one cached: their spaces in the sidebar, and a fetch against a space
+ * they are not a member of.</p>
+ *
+ * <p>Closed before deletion because an open connection makes `deleteDatabase` block rather than
+ * fail: it waits for every connection to go away and, if the page is still holding one, waits for
+ * ever. The caller reloads afterwards, which is what reopens a fresh one.</p>
+ */
+export async function dropCurrentDb(): Promise<void> {
+  const name = _dbName;
+
+  try { _instance.close(); } catch { /* already closed, or never opened */ }
+
+  try {
+    await Dexie.delete(name);
+  } catch (e) {
+    // Not worth failing a sign-out over: the credentials are gone either way, and a cache that
+    // survived is a stale sidebar rather than an open door.
+    logger.warn("[db] could not drop the local cache on sign-out", e);
+  }
+}

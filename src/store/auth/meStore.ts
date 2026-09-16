@@ -204,7 +204,7 @@ export const useMe = defineStore("me", () => {
       metrics.count("auth.session.check", { result: "rejected" });
       // `logout` already ends the session at the API and drops the local marker; calling signOut
       // here as well would only be a second request saying the same thing.
-      useAuthStore().logout();
+      await useAuthStore().logout();
       location.reload();
       return false;
     }
@@ -252,7 +252,7 @@ export const useMe = defineStore("me", () => {
         // The active account's session is no longer valid. Flag it for re-auth (drops its stale token
         // so the next boot lands on login instead of looping) but keep the account + its cached data.
         useAccounts().markActiveNeedsReauth();
-        useAuthStore().logout();
+        await useAuthStore().logout();
         location.reload();
         return false;
       }
@@ -283,7 +283,7 @@ export const useMe = defineStore("me", () => {
         logger.warn("The session was refused right after refreshing it; signing out on this device", e);
         metrics.count("auth.session.check", { result: "rejected" });
         useAccounts().markActiveNeedsReauth();
-        useAuthStore().logout();
+        await useAuthStore().logout();
         location.reload();
         return false;
       }
