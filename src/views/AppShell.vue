@@ -48,17 +48,20 @@ const feedbackOpened = ref(false);
 
 const route = useRoute();
 
-// Unified titlebar — present on every view in the shell except sign-in.
+// Unified titlebar.
 //
 // The host flag is what the desktop sets; the browser has no host to set it, and hiding the bar
 // there took the home button, the breadcrumb and the unread badge with it. Those are not window
 // chrome — they are the app. What a tab genuinely has no use for is the close/minimize/maximize
 // group, and that is dropped inside AppTitlebar rather than by hiding the whole bar.
 //
-// Sign-in is the exception on every build: there is no home to go to, no breadcrumb to show and
-// nothing unread, so the bar would be a strip of disabled affordances above a login form.
+// SIGN-IN HIDES IT ON THE WEB ONLY, and the asymmetry is the whole point. In a tab the bar would be
+// a strip of dead affordances above a login form — nowhere to go home to, no breadcrumb, nothing
+// unread. On the desktop it is the window's only chrome: the host runs frameless, so this bar is
+// what drags, minimises and closes it. Take it off the login screen there and the window cannot be
+// moved or shut until somebody signs in.
 const showTitlebar = computed(() =>
-  route.name !== "Login" && (window.devolution_titlebar === 0x1 || isWeb));
+  window.devolution_titlebar === 0x1 || (isWeb && route.name !== "Login"));
 
 // Shell mounts once at app start — boot the app here (replaces the old Entry view).
 onMounted(() => {
