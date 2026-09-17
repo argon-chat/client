@@ -124,7 +124,11 @@ async function recover(source: string): Promise<RecoveryOutcome> {
 
   // Nothing to recover on the sign-in screen: a rejection there is the sign-in itself failing, and
   // it has its own reporting.
-  if (!authStore.isAuthenticated || !authStore.token) return "unknown";
+  //
+  // The token is only asked about off the web. There the session lives in a cookie, so an empty
+  // token in memory is not the sign-in screen at all — it is a page whose access token has run out,
+  // which is precisely the case this exists to recover.
+  if (!authStore.isAuthenticated || (!isWeb && !authStore.token)) return "unknown";
 
   const now = Date.now();
   recentRenewals = recentRenewals.filter((t) => now - t < RENEWAL_LOOP_WINDOW_MS);

@@ -62,7 +62,11 @@ class AuthInterceptor implements IonInterceptor {
       //
       // Fire-and-forget on purpose. This call still fails — its caller already knows how to retry
       // or to report — and holding it open for a round trip would only delay that.
-      if (token && isSessionRejected(e) && ctx.methodName !== "GetMyAuthorization") {
+      //
+      // `token || isWeb`: on the web the credential is the cookie, which goes with every call
+      // whether or not a token happens to be in memory. Asking only about the token would skip
+      // recovery for exactly the session that needs it.
+      if ((token || isWeb) && isSessionRejected(e) && ctx.methodName !== "GetMyAuthorization") {
         void import("@/lib/net/sessionRecovery").then((m) => m.handleSessionRejected(`${ctx.interfaceName}.${ctx.methodName}`));
       }
       throw e;
