@@ -28,6 +28,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+/** How long to let a history fetch run before giving up and taking the wrong number. */
+const DEEPEN_TIMEOUT_MS = 60_000;
+
 export interface BuildInfo {
   /** `{Major}.{Minor}.{Patch}.{CommitsSinceVersionSource}` — what GitVersion calls AssemblySemFileVer. */
   version: string;
@@ -52,6 +55,49 @@ function git(...args: string[]): string | null {
     // caller: fall through to the next source.
     return null;
   }
+}
+
+/**
+ * Runs git for its effect rather than its output, and says whether it worked.
+ *
+ * `git` above cannot answer that: it returns null both for a failure and for a command that simply
+ * printed nothing, which is every fetch — progress goes to stderr and stdout stays empty.
+ */
+function tryGit(...args: string[]): boolean {
+  try {
+    execFileSync("git", args, { stdio: "ignore", timeout: DEEPEN_TIMEOUT_MS });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetches the history a CI clone left behind, so that counting it means something.
+ *
+ * Cloudflare Pages clones at depth 1 — as do GitHub Actions and most others by default — which
+ * makes `CommitsSinceVersionSource` exactly 1 and every build 2.255.0.1. Pages has no setting to
+ * clone deeper, so the repository asks for what it needs rather than depending on a build command
+ * in a dashboard to remember to.
+ *
+ * `--filter=blob:none` is what makes it affordable: commits and trees, no file contents. The count
+ * needs the shape of the history, never anything in it. Against this repository that is under two
+ * seconds, where a full unshallow is closer to a minute.
+ *
+ * ONLY ON CI, where the clone is disposable and was truncated by a machine. A developer who has a
+ * shallow clone chose it, and a build is not the place to quietly undo that choice — the warning
+ * below is the right way to raise it with them.
+ */
+function deepenHistory(): void {
+  if (!firstOf(process.env.CF_PAGES, process.env.CI, process.env.GITHUB_ACTIONS, process.env.GITLAB_CI))
+    return;
+
+  console.info("[build-info] shallow CI clone; fetching the history the commit count needs");
+
+  // Failure is not fatal: it lands on the warning below with a version that is merely too low,
+  // which beats failing a deploy over a version string.
+  if (!tryGit("fetch", "--unshallow", "--filter=blob:none"))
+    console.warn("[build-info] could not deepen the clone; the commit count will be the clone depth");
 }
 
 const firstOf = (...values: (string | undefined | null)[]): string | null =>
@@ -125,16 +171,18 @@ export function resolveBuildInfo(root: string): BuildInfo {
     ) ?? "unknown";
 
   // WITH NO VERSION SOURCE THIS IS THE WHOLE HISTORY. It is also the one number a shallow clone
-  // gets wrong — and wrong quietly, because a truncated history still counts. Said out loud below
-  // rather than left to be discovered from a version that went backwards between two builds.
+  // gets wrong — and wrong quietly, because a truncated history still counts perfectly well. At the
+  // depth CI clones at, it counts to 1.
+  if (git("rev-parse", "--is-shallow-repository") === "true") deepenHistory();
+
   const shallow = git("rev-parse", "--is-shallow-repository") === "true";
   const commitCount = git("rev-list", "--count", "HEAD") ?? "0";
 
   if (shallow) {
     console.warn(
       "[build-info] this is a shallow clone, so CommitsSinceVersionSource is the depth of the " +
-      "clone rather than of the history — the version will be too low. Clone with full history, " +
-      "or pass ARGON_BUILD_VERSION.",
+      "clone rather than of the history — the version will be too low. Deepen it with " +
+      "`git fetch --unshallow --filter=blob:none`, or pass ARGON_BUILD_VERSION.",
     );
   }
 

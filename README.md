@@ -96,16 +96,25 @@ is what puts bun in the image in the first place — without it there is no `bun
 curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"   && bun install --frozen-lockfile && bun run build
 ```
 
-**One thing worth watching: the version.** `scripts/buildInfo.ts` derives
-`CommitsSinceVersionSource` from the depth of history, the way GitVersion does with no version
-source — and a shallow clone counts what it was given. The build warns when it sees one:
+**About the version.** `scripts/buildInfo.ts` derives `CommitsSinceVersionSource` from the depth of
+history, the way GitVersion does with no version source — and a shallow clone counts only what it
+was given. Pages clones at depth 1 and offers no setting to clone deeper, so that count would be
+exactly 1 on every deploy, and the app would report `2.255.0.1` for ever.
+
+The build handles it: on CI, a shallow clone is deepened before the count is taken.
 
 ```
-[build-info] this is a shallow clone, so CommitsSinceVersionSource is the depth of the clone
+[build-info] shallow CI clone; fetching the history the commit count needs
 ```
 
-If that appears in a Pages log, set `ARGON_BUILD_VERSION` in the build variables; it overrides
-everything else.
+It fetches with `--filter=blob:none` — commits and trees, no file contents — which is under two
+seconds here against nearly a minute for a plain `--unshallow`. Nothing is fetched when the clone
+is already complete, and **never off CI**: a shallow clone on a developer's machine is left alone
+and only warned about.
+
+If the fetch cannot run at all — no remote, no network — the version comes out too low rather than
+failing the deploy, and the log says so. `ARGON_BUILD_VERSION` overrides the whole calculation if
+it ever needs pinning by hand.
 
 
 # License    

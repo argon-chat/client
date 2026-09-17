@@ -9,6 +9,7 @@ import SvgImporter from "vite-svg-loader";
 import pkg from "./package.json";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { resolveBuildInfo } from "./scripts/buildInfo";
+import { cspHeaders } from "./scripts/cspHeaders";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -75,6 +76,7 @@ export default defineConfig(({ mode }) => {
       Icons({ compiler: "vue3", autoInstall: true }) as any,
       vueDevTools(),
       SvgImporter(),
+      cspHeaders(),
       sentryVitePlugin({
         url: env.SENTRY_URL,
         org: env.SENTRY_ORG,
