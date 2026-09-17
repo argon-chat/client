@@ -55,6 +55,52 @@ The application supports the following host arguments for runtime configuration:
 
 
 
+# Deploying the browser build
+
+Cloudflare Pages, connected to this repository by Git. `wrangler.jsonc` carries what belongs in the
+repository — the project name and the output directory; the rest is build-image configuration and
+Pages reads that only from the project's own settings.
+
+**Set these in Settings → Build:**
+
+| | |
+|---|---|
+| Build command | `bun install --frozen-lockfile && bun run build` |
+| Build output directory | `dist` |
+| `BUN_VERSION` | `1.4.1` — or whatever the lockfile was written by |
+| `SKIP_DEPENDENCY_INSTALL` | `1` |
+
+**Why the install is in the build command.** Pages picks a package manager by lockfile, and it does
+not recognise `bun.lock` — the text format bun 1.2 replaced `bun.lockb` with. It falls back to npm
+silently, and npm then fails on the nineteen `workspace:*` dependencies it cannot resolve:
+
+```
+Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+Installing project dependencies: npm install --progress=false
+npm error Cannot read properties of null (reading 'explain')
+```
+
+`SKIP_DEPENDENCY_INSTALL` turns that step off and the build command does it properly. `BUN_VERSION`
+is what puts bun in the image in the first place — without it there is no `bun` on the PATH to run.
+
+**If bun is still missing**, the image can be told to fetch it, at the cost of a download per build:
+
+```
+curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"   && bun install --frozen-lockfile && bun run build
+```
+
+**One thing worth watching: the version.** `scripts/buildInfo.ts` derives
+`CommitsSinceVersionSource` from the depth of history, the way GitVersion does with no version
+source — and a shallow clone counts what it was given. The build warns when it sees one:
+
+```
+[build-info] this is a shallow clone, so CommitsSinceVersionSource is the depth of the clone
+```
+
+If that appears in a Pages log, set `ARGON_BUILD_VERSION` in the build variables; it overrides
+everything else.
+
+
 # License    
     
 GNU General Public License v2.0

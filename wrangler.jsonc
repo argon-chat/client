@@ -1,0 +1,28 @@
+{
+  // Cloudflare Pages project configuration.
+  //
+  // Added for two reasons: the build log said "No Wrangler configuration file found", and the build
+  // output directory is a property of this repository rather than of a form somebody filled in once.
+  //
+  // THIS PROJECT HAS NO FUNCTIONS AND NO BINDINGS. It is a static bundle: everything dynamic talks
+  // to api.argon.gl over the network. So there is nothing here but the three keys Pages requires —
+  // and that matters, because once a Wrangler file exists Pages takes it as the source of truth for
+  // runtime configuration and stops honouring variables set in the dashboard. With no runtime
+  // variables to lose, that is a simplification; adding a binding later means adding it HERE.
+  //
+  // What is NOT here, and cannot be: the build settings. `BUN_VERSION`, `SKIP_DEPENDENCY_INSTALL`
+  // and the build command are properties of the build image, not of the deployed project, and Pages
+  // reads them only from the project's settings. See README for the values.
+
+  // MUST MATCH THE PAGES PROJECT EXACTLY — it is how a deploy finds the project it belongs to, and a
+  // name that does not exist is a failure at the last step of an otherwise green build. Change this
+  // if the project is called something else.
+  "name": "argon-client",
+
+  // What `bun run build` produces. Pages uploads this directory and nothing else.
+  "pages_build_output_dir": "./dist",
+
+  // Required even with no Functions: it pins which Workers runtime semantics apply. Inert for a
+  // purely static upload, and the thing to bump deliberately if Functions are ever added.
+  "compatibility_date": "2026-09-17"
+}
