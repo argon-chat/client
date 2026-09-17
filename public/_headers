@@ -1,0 +1,53 @@
+# Response headers for Cloudflare Pages.
+#
+# Two groups, and the split is deliberate.
+#
+# THE ENFORCED ONES are the headers that cannot break a working app: they forbid things this app
+# never does. Shipping them enforcing from the first deploy costs nothing.
+#
+# THE CONTENT SECURITY POLICY IS REPORT-ONLY, and should stay that way until somebody has looked at
+# the reports. A CSP is the one header that breaks an application silently — a blocked script is a
+# feature that quietly stops existing, with the reason in a console nobody has open. This app loads
+# a third-party stylesheet, runs WebAssembly, opens sockets to several hosts, renders a QR code by
+# *fetching* a data: URI, and embeds games in iframes; every one of those is a directive that has to
+# be right. Report-Only exercises the whole policy against real traffic and blocks nothing.
+#
+# To enforce it: check the reports, then rename the header to `Content-Security-Policy`. Both may be
+# sent at once during a changeover — the browser honours the enforcing one and reports on the other.
+
+/*
+  # An asset whose Content-Type is wrong is not to be guessed at; that guess is how an uploaded
+  # image becomes a script.
+  X-Content-Type-Options: nosniff
+
+  # Referrers are useful to our own origin and nobody else's business. `strict-origin-...` also stops
+  # a path leaking over the wire when leaving https.
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Nothing here is meant to be framed. `frame-ancestors` in the CSP below says the same thing to
+  # anything modern; this covers what is left.
+  X-Frame-Options: DENY
+
+  # The app asks for the microphone and the camera itself, from its own origin — everything else is
+  # denied outright so an embedded game cannot ask on its behalf.
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=()
+
+  # REPORT-ONLY — see the note at the top before enforcing.
+  #
+  #   script-src      'wasm-unsafe-eval' because the app runs WebAssembly, which is in the boot
+  #                   gate's required list. Deliberately NOT 'unsafe-eval': nothing should need it,
+  #                   and the reports are how we find out whether something does.
+  #   style-src       'unsafe-inline' is not optional — Vue writes inline styles for every scoped
+  #                   rule and transition — and emoji-css is the third-party sheet index.html pulls.
+  #   connect-src     data: is not a mistake: qr-code-styling loads the logo in the middle of the QR
+  #                   by fetching it, and the bundler inlines that SVG as a data: URI. Listed under
+  #                   img-src alone, the QR code silently loses its centre.
+  #                   wss: for the realtime socket and for LiveKit's SFU.
+  #   frame-src       blob: for the playframe host; games themselves are served from this origin.
+  #   worker-src      blob: because vite's worker format produces blob-backed workers.
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://emoji-css.afeld.me; img-src 'self' data: blob: https://*.argon.gl https://*.argon.zone; media-src 'self' blob: https://*.argon.gl; font-src 'self' data: https://emoji-css.afeld.me; connect-src 'self' data: blob: https://*.argon.gl wss://*.argon.gl https://*.argon.zone wss://*.argon.zone; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'
+
+# The service worker is served from the root so it can claim the whole origin, and it must never be
+# held by a cache — a stale one keeps serving an old cache strategy long after a deploy.
+/media-sw.js
+  Cache-Control: no-cache

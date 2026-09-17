@@ -8,6 +8,7 @@ import vueDevTools from "vite-plugin-vue-devtools";
 import SvgImporter from "vite-svg-loader";
 import pkg from "./package.json";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { resolveBuildInfo } from "./scripts/buildInfo";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -24,7 +25,13 @@ export default defineConfig(({ mode }) => {
     process.env.VERCEL_GIT_COMMIT_SHA ??
     process.env.BUILD_VCS_NUMBER;
 
-  const releaseName = pkg.version;
+  // GitVersion's answer, computed here — see scripts/buildInfo.ts. Reads GitVersion.yml, so the
+  // version this ships under is the one the configuration declares rather than a second opinion.
+  const build = resolveBuildInfo(__dirname);
+
+  // The Sentry release has to be the same string the app reports, or a stack trace arrives under a
+  // version nobody can find a build for.
+  const releaseName = build.version;
 
   return {
     server: {
@@ -100,6 +107,9 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __VUE_PROD_DEVTOOLS__: false,
+      // Inlined at build time, so every way of building the app carries it — including the dev
+      // server, where it is how you tell which branch the tab in front of you came from.
+      __ARGON_BUILD__: JSON.stringify(build),
     },
     worker: {
       format: "es",

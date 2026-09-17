@@ -164,3 +164,23 @@ declare global {
     argon_host_version_full?: string;
   }
 }
+
+declare global {
+  /**
+   * What this build is, inlined by vite — see `scripts/buildInfo.ts`.
+   *
+   * A compile-time constant rather than a module, so it costs nothing at runtime and cannot be out
+   * of date: whatever produced the bundle is what is in it.
+   *
+   * Inside `declare global` because this file carries top-level imports, which makes it a module —
+   * a bare `declare const` here would be visible to nothing.
+   */
+  const __ARGON_BUILD__: {
+    readonly version: string;
+    readonly fullVersion: string;
+    readonly branch: string;
+    readonly commit: string;
+    readonly builtAt: string;
+    readonly dirty: boolean;
+  };
+}
