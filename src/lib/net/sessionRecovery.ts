@@ -25,6 +25,7 @@
  */
 
 import { logger } from "@argon/core";
+import { refreshDeviceBinding } from "@/lib/net/deviceBinding";
 import { useApi } from "@/store/system/apiStore";
 import { useAuthStore } from "@/store/auth/authStore";
 import { useAccounts } from "@/store/auth/accountsStore";
@@ -189,6 +190,22 @@ async function refreshWeb(): Promise<RecoveryOutcome> {
   const token = await authStore.refreshWebToken();
 
   if (token) return "renewed";
+
+  // A BOUND SESSION IS NOT OVER WHEN ITS COOKIE EXPIRES — that is the arrangement. Binding cuts the
+  // session cookie from a month to minutes on purpose: a copied cookie is then worth only its
+  // remaining ones, because obtaining another needs a signature from a key that cannot leave this
+  // browser. Chromium renews it on its own; everywhere else it has to be asked, and asking is this
+  // call. Signing out with a usable key in hand would throw away a session that is still good — and
+  // would do it every ten minutes.
+  //
+  // It needs no cookie of its own: the server re-issues from the record it holds against the
+  // binding, so this is exactly the case where the cookie is already gone.
+  if (await refreshDeviceBinding(useApi().apiEndpoint)) {
+    if (await authStore.refreshWebToken()) {
+      metrics.count("auth.token.refresh", { result: "device_bound" });
+      return "renewed";
+    }
+  }
 
   // `refreshWebToken` forgets the local marker only on an explicit refusal, so a missing marker
   // afterwards is the server's verdict and everything else was a bad minute.
