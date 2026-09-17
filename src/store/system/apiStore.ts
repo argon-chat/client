@@ -35,7 +35,14 @@ class AuthInterceptor implements IonInterceptor {
     let authData = {} as any;
     const token = this.lazyStore.value.token;
 
-    if (token) {
+    // ON THE WEB THE CREDENTIAL IS A COOKIE, so no header goes out. The session exchange sets an
+    // HttpOnly cookie on the API host and the transport already sends it — `credentials: "include"`
+    // on every Ion call — which puts the thing that authorises a request out of reach of script,
+    // and gives a device-bound session something to protect. A bearer would defeat both: the server
+    // still accepts one, so sending it would just be handing back the property we went to get.
+    //
+    // Native clients have no cookie jar and keep the header.
+    if (token && !isWeb) {
       authData.Authorization = `Bearer ${token}`;
     }
 
