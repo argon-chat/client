@@ -20,8 +20,16 @@ const decode = (segment: string): any =>
     Uint8Array.from(atob(segment.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)),
   ));
 
-const rawSignature = (segment: string): Uint8Array =>
-  Uint8Array.from(atob(segment.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+// Backed by a real ArrayBuffer rather than Uint8Array.from, whose ArrayBufferLike does not satisfy
+// the BufferSource that crypto.subtle.verify wants.
+const rawSignature = (segment: string): Uint8Array<ArrayBuffer> => {
+  const binary = atob(segment.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  return bytes;
+};
 
 /** As `deviceKey()` makes them, minus the IndexedDB that jsdom does not have. */
 const generate = () =>
