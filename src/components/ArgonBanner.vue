@@ -1,7 +1,7 @@
 <template>
   <keep-alive :max="10" :key="props.fileId!">
     <div class="relative h-24 w-full rounded-t-2xl overflow-hidden">
-      <img v-if="props.fileId && loaded" :src="blobSrc" class="w-full h-full object-cover"
+      <img v-if="props.fileId && loaded" crossorigin="anonymous" :src="blobSrc" class="w-full h-full object-cover"
         alt="banner" />
       <div v-else class="w-full h-full bg-gradient-to-r from-gray-900 via-gray-900 to-gray-900" />
     </div>

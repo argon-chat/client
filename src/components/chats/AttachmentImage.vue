@@ -10,7 +10,7 @@
     <!-- Actual image -->
     <img
       v-if="imageSrc"
-      :src="imageSrc"
+      crossorigin="anonymous" :src="imageSrc"
       :alt="fileName"
       class="actual-image"
       :class="{ visible: loaded }"
