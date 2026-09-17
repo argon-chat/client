@@ -58,16 +58,23 @@ The application supports the following host arguments for runtime configuration:
 # Deploying the browser build
 
 Cloudflare Pages, connected to this repository by Git. `wrangler.jsonc` carries what belongs in the
-repository — the project name and the output directory; the rest is build-image configuration and
-Pages reads that only from the project's own settings.
+repository — the project name, the output directory, and the build variables. The build command is
+the one piece Pages reads only from the project's own settings.
 
-**Set these in Settings → Build:**
+**The build command has to be set in Settings → Build — there is nowhere else for it:**
+
+```
+bun install --frozen-lockfile && bun run build
+```
+
+The output directory and the two build variables are in `wrangler.jsonc`. The variables are there on
+the strength of one line in the build log — it reports "Build environment variables: (none found)"
+right after reading the file, so it looks for them there — which Cloudflare's documentation does not
+confirm. **If a build still prints "(none found)", they belong in Settings → Build instead:**
 
 | | |
 |---|---|
-| Build command | `bun install --frozen-lockfile && bun run build` |
-| Build output directory | `dist` |
-| `BUN_VERSION` | `1.4.1` — or whatever the lockfile was written by |
+| `BUN_VERSION` | `1.4.1` — or whatever wrote the lockfile |
 | `SKIP_DEPENDENCY_INSTALL` | `1` |
 
 **Why the install is in the build command.** Pages picks a package manager by lockfile, and it does

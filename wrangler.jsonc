@@ -10,9 +10,8 @@
   // runtime configuration and stops honouring variables set in the dashboard. With no runtime
   // variables to lose, that is a simplification; adding a binding later means adding it HERE.
   //
-  // What is NOT here, and cannot be: the build settings. `BUN_VERSION`, `SKIP_DEPENDENCY_INSTALL`
-  // and the build command are properties of the build image, not of the deployed project, and Pages
-  // reads them only from the project's settings. See README for the values.
+  // The BUILD COMMAND is not here and cannot be — Pages reads that only from the project's
+  // settings. The build variables below are an attempt to keep the rest of it in the repository.
 
   // The Pages project this deploys to. It must match exactly — the name is how a deploy finds the
   // project it belongs to, and one that does not exist fails at the last step of an otherwise green
@@ -24,5 +23,31 @@
 
   // Required even with no Functions: it pins which Workers runtime semantics apply. Inert for a
   // purely static upload, and the thing to bump deliberately if Functions are ever added.
-  "compatibility_date": "2026-09-17"
+  "compatibility_date": "2026-09-17",
+
+  // BUILD VARIABLES — AND THIS IS A BET WORTH KNOWING ABOUT.
+  //
+  // The build log prints, immediately after reading this file:
+  //
+  //     Found wrangler.json file. Reading build configuration...
+  //     pages_build_output_dir: dist
+  //     Build environment variables: (none found)
+  //
+  // So the build system does look here for them. What it does NOT say, and what Cloudflare's
+  // documentation does not either, is under which key — `vars` is the only variable-shaped one a
+  // Pages configuration has, so that is what this is. If the next build still reports "(none
+  // found)", the answer is no and these belong in the project's settings instead; see README.
+  //
+  // Harmless either way: `vars` is otherwise a runtime binding, and there are no Functions here to
+  // receive one.
+  //
+  // WHY THESE TWO. Pages chooses a package manager by lockfile and does not recognise `bun.lock` —
+  // the text format bun 1.2 replaced `bun.lockb` with. It falls back to npm, which then dies on the
+  // nineteen `workspace:*` dependencies it cannot resolve, with a message about reading 'explain'
+  // that says nothing about any of this. BUN_VERSION puts bun in the image; SKIP_DEPENDENCY_INSTALL
+  // stops Pages installing anything itself, leaving it to the build command.
+  "vars": {
+    "BUN_VERSION": "1.4.1",
+    "SKIP_DEPENDENCY_INSTALL": "1"
+  }
 }
