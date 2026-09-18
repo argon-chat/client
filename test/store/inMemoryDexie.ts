@@ -183,6 +183,10 @@ export class FakeTable<T extends Row> {
     return this.rows.size;
   }
 
+  async clear(): Promise<void> {
+    this.rows.clear();
+  }
+
   where(field: string) {
     return new FakeWhere<T>(this, field);
   }

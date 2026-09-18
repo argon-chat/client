@@ -1,0 +1,17 @@
+{
+  "name": "Argon",
+  "short_name": "Argon",
+  "description": "Argon - voice, video and text for communities.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#242424",
+  "theme_color": "#242424",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}
