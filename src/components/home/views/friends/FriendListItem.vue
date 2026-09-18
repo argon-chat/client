@@ -8,6 +8,7 @@ import UserProfilePopover from "@/components/popovers/UserProfilePopover.vue";
 import ReportDialog from "@/components/modals/ReportDialog.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
 import { useMe } from "@/store/auth/meStore";
 import { ref, computed, watch } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
@@ -47,6 +48,9 @@ const props = defineProps<{
 }>();
 
 const user = pool.getUserReactive(computed(() => props.item.userId));
+
+/** Room between the card and the window for whatever this person's frame hangs outside it. */
+const popoverRoom = useCosmeticOverhang(() => props.item.userId, () => null);
 
 // getUserReactive only mirrors what the local cache already holds, and someone who sent a friend
 // request from outside any shared space has never been cached — which is why pending rows rendered
@@ -100,8 +104,9 @@ const statusKey = computed(() => {
 
 <template>
     <Popover v-if="user && item.kind === 'friend'" v-model:open="isOpened">
-        <PopoverContent style="width: 24rem;"
-            class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
+        <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
+        <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+            class="profile-popover p-0 rounded-2xl shadow-xl border overflow-visible">
             <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
         <!-- The identity is its own <button>, not a clickable row. A row that wraps the remove

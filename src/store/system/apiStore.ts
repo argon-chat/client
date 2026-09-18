@@ -205,6 +205,9 @@ export const useApi = defineStore("api", () => {
   const inventoryInteraction = computed(
     () => rpcClient.value.InventoryInteraction
   );
+  const cosmeticsInteraction = computed(
+    () => rpcClient.value.CosmeticsInteraction
+  );
   const serverInteraction = computed(() => rpcClient.value.ServerInteraction);
   const callInteraction = computed(() => rpcClient.value.CallInteraction);
   const freindsInteraction = computed(() => rpcClient.value.FriendsInteraction);
@@ -237,6 +240,7 @@ export const useApi = defineStore("api", () => {
     channelInteraction,
     archetypeInteraction,
     inventoryInteraction,
+    cosmeticsInteraction,
     identityInteraction,
     freindsInteraction,
     userChatInteractions,

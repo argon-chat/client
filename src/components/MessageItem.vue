@@ -32,17 +32,26 @@
       <template v-if="isFirstInGroup">
         <Popover v-model:open="profileOpen">
           <PopoverTrigger>
+            <!--
+              The space goes in as well as the user. Without it the avatar asked the store what this
+              person wears with no scope at all, which is a different question with a different
+              answer — and the answer to that one is usually nothing, so the decoration the rest of
+              the space could see was missing here and nowhere else.
+            -->
             <ArgonAvatar
-              :file-id="user.avatarFileId"
+              :file-id="cosmetics.wornAvatar(pool.selectedServer ?? null, user.userId, user.avatarFileId)"
               :fallback="user.displayName"
               :userId="user.userId"
+              :space-id="props.message.spaceId ?? pool.selectedServer ?? undefined"
               :overrided-size="36"
               class="w-9 h-9 rounded-full cursor-pointer transition-transform hover:scale-105"
             />
           </PopoverTrigger>
+          <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
           <PopoverContent
             style="width: 24rem"
-            class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden"
+            :collision-padding="popoverRoom"
+            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-visible"
           >
             <UserProfilePopover :user-id="user!.userId" @close:pressed="profileOpen = false" @report="onReportProfile" />
           </PopoverContent>
@@ -66,12 +75,20 @@
         class="flex items-center gap-1.5 mb-0.5"
         :class="isRight ? 'flex-row-reverse' : ''"
       >
-        <span
+        <!--
+          The role colour goes in as the fallback and nowhere else. Set as an inline style it won the
+          cascade against what the person is wearing, so a styled name came out flat here and styled
+          everywhere else; handed over, it is what gets painted only when nothing is worn.
+        -->
+        <CosmeticNickname
           class="text-[13px] font-semibold leading-none"
-          :style="{ color: userColor }"
+          surface="nicknameInMessages"
+          :user-id="user.userId"
+          :space-id="props.message.spaceId ?? null"
+          :fallback-color="userColor"
         >
           {{ user.displayName || t('unknown_display_name') }}
-        </span>
+        </CosmeticNickname>
 
         <BotTag :flags="user?.flags" />
 
@@ -392,6 +409,7 @@ function tsFormat(): string {
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
 import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
@@ -402,6 +420,8 @@ import type { ChatMessage } from "@/composables/useChatMessages";
 import { isEmojiOnly } from "@argon-chat/emojix";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
 import BotTag from "@/components/shared/BotTag.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ChatSegment from "./chats/ChatSegment.vue";
@@ -471,6 +491,7 @@ const ReplyPreview = defineComponent({
 
 const { t } = useLocale();
 const pool = usePoolStore();
+const cosmetics = useCosmeticsStore();
 const me = useMe();
 const userColors = useUserColors();
 
@@ -597,6 +618,12 @@ function openReactionFromMenu() {
 
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
+
+/** Room between the card and the window for whatever this person's frame hangs outside it. */
+const popoverRoom = useCosmeticOverhang(
+  userIdRef,
+  () => props.message.spaceId ?? pool.selectedServer ?? null,
+);
 const userColor = computed(() => userColors.getColorByUserId(props.message.sender ?? ""));
 
 const { isSystemMessage, systemMessageText } = useMessageContent(() => props.message);

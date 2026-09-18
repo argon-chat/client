@@ -70,6 +70,7 @@ import { useLocale } from "@/store/system/localeStore";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import ChannelOverview from "@/components/settings/channels/ChannelOverview.vue";
 import ChannelPermissions from "@/components/settings/channels/ChannelPermissions.vue";
+import { isModalLayerOpen } from "@/lib/modalLayers";
 
 const windows = useWindow();
 const { t } = useLocale();
@@ -114,9 +115,13 @@ const channelIcon = computed(() => {
 });
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && windows.channelSettingsOpen) {
-        windows.closeChannelSettings();
-    }
+    if (event.key !== "Escape" || !windows.channelSettingsOpen) return;
+
+    // A dialog opened inside this window owns the key first; closing both on one press undoes
+    // something nobody asked to undo.
+    if (isModalLayerOpen()) return;
+
+    windows.closeChannelSettings();
 };
 
 onMounted(() => {

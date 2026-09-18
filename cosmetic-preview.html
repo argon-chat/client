@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Argon Cosmetic Preview</title>
+    <style>
+      html,
+      body,
+      #cosmetic-preview {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Framed by the admin console, never opened on its own. It holds no session and renders only what
+      it is posted, so that an operator authoring a cosmetic sees it drawn by the client's own
+      renderers rather than by a second drawing of them.
+    -->
+    <div id="cosmetic-preview"></div>
+    <script type="module" src="/src/cosmetic-preview-main.ts"></script>
+  </body>
+</html>

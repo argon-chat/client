@@ -23,7 +23,7 @@
                             <span class="text-xs">•</span>
                             <span class="text-xs">{{ t('member_since') }} {{ new Date().toLocaleDateString() }}</span>
                         </div>
-                        <ProfileBadges :badges="profile.badges" />
+                        <ProfileBadges :profile="profile" :flags="me.me?.flags ?? 0" />
                     </div>
 
                     <div class="ml-auto flex flex-col gap-2">

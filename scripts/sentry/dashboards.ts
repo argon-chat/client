@@ -135,6 +135,13 @@ const METRICS = {
   "activity.start": C,
   "activity.stop": C,
   "activity.duration": SEC,
+  // profile cosmetics
+  "cosmetic.equipped": C,
+  "cosmetic.catalogue.opened": C,
+  // A cosmetic the server served and this build could not draw: malformed payload, or one its kind
+  // rejected. Worth a widget of its own because it is silent by design — the surface renders without
+  // it and nobody sees an error — so the count is the only way to notice a kind authored wrong.
+  "cosmetic.render.failed": C,
 } as const satisfies Record<string, MetricSpec>;
 
 type MetricName = keyof typeof METRICS;
@@ -305,6 +312,17 @@ const PRODUCT: WidgetDraft[] = [
   bars("Status changes", M("user.status.changed"), "status", "sum", { w: 2 }),
   bars("Locale switches", M("locale.changed"), "locale", "sum", { w: 2 }),
   series("Feedback / legal accepted", [["feedback", M("feedback.sent")], ["legal accepted", M("legal.accepted")]], { w: 2 }),
+
+  big("Cosmetics equipped", M("cosmetic.equipped", "result:ok")),
+  big("Cosmetics refused", M("cosmetic.equipped", "result:refused")),
+  big("Cosmetics that would not draw", M("cosmetic.render.failed"), "sum",
+    "A payload this build could not parse, or one its kind rejected. Silent on screen by design, so this count is the only signal that a cosmetic was authored wrong"),
+  bars("Unrenderable cosmetics by kind", M("cosmetic.render.failed"), "kind", "sum", { w: 3 }),
+  by("Why a cosmetic would not draw", M("cosmetic.render.failed"), "reason", { w: 3 }),
+  series("Cosmetics catalogue opens", [
+    ["ok", M("cosmetic.catalogue.opened", "result:ok")],
+    ["failed", M("cosmetic.catalogue.opened", "result:failed")],
+  ], { w: 3 }),
 ];
 
 const CALLS: WidgetDraft[] = [
@@ -383,6 +401,7 @@ const RELIABILITY: WidgetDraft[] = [
     ["token expired", M("session.resume", "token_expired:true")],
     ["token fine", M("session.resume", "token_expired:false")],
   ], { w: 3 }),
+
 ];
 
 const ULTIMA: WidgetDraft[] = [

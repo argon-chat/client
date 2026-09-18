@@ -116,6 +116,12 @@ export class PoolDatabase extends Dexie {
     this.version(6).stores({
       spaceVersions: "spaceId",
     }).upgrade(purgeEverything);
+    // v7: profiles grew cosmetics. A row cached before this build has no `cosmetics` on it, which
+    // reads as "wearing nothing" rather than as "not known" — so every profile cached across the
+    // upgrade would render bare for up to the cache lifetime, three hours, with nothing to say why.
+    // No new table: what a person is wearing is held in memory for the session and refetched in
+    // batches, because it changes under us and is cheap to ask for.
+    this.version(7).stores({}).upgrade(purgeEverything);
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
     // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier

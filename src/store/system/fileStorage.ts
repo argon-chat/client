@@ -23,6 +23,41 @@ export type StorageUsageReport = {
 const isNative = typeof window !== "undefined" && "argonIpc" in window;
 
 /**
+ * Where files come from, when this page is not the app.
+ *
+ * <b>Set by the cosmetics preview page and nothing else.</b> That page is framed by the admin
+ * console and draws rows off whichever stand the console administers — a local api, a staging one,
+ * the CDN — which is a base neither this build's config nor the signed-in session knows. Everything
+ * it reads is public by design, so the override carries no credentials and grants no access; it only
+ * says which host to ask.
+ *
+ * Null in the app, where the instance's own api is the answer and the caching schemes below apply.
+ */
+let fileUrlOverride: ((fileId: string) => string) | null = null;
+
+export function setFileUrlOverride(resolve: ((fileId: string) => string) | null): void {
+  fileUrlOverride = resolve;
+}
+
+/**
+ * Files whose bytes already ship inside this build: `fileId` to a url within the application.
+ *
+ * The registry does not know the word "cosmetic" — it only says "this blob need not be fetched".
+ * Filled at start-up from `@argon/cosmetics-pack`; empty wherever no pack is registered, and then
+ * everything below behaves exactly as it did before there was one.
+ *
+ * <b>Matched on the fileId, never on the catalogue row.</b> An asset replaced in the admin console
+ * is a new file with a new id, so this map misses it and the client returns to the network by
+ * itself — until a later release exports the new bytes. That is the whole of the pack's cache
+ * invalidation, and it is why a stale pack can only ever be slower, never wrong.
+ */
+let bundledFiles: ReadonlyMap<string, string> = new Map();
+
+export function registerBundledFiles(files: ReadonlyMap<string, string>): void {
+  bundledFiles = files;
+}
+
+/**
  * Every file (avatar / banner / attachment) resolves to a single region-agnostic, by-fileId URL on
  * THIS instance's API: `{apiEndpoint}/files/{fileId}`. The API 302s it to the nearest reachable
  * regional mirror at fetch time (geo decided then, never baked in), so a transient VPN/region can't
@@ -31,6 +66,17 @@ const isNative = typeof window !== "undefined" && "argonIpc" in window;
  * resolves the S3 key from the fileId) — kept for call-site compatibility.
  */
 export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
+  if (fileUrlOverride) return fileUrlOverride(fileId);
+
+  // Under `cdnCacheEnabled`, and above `apiBase()`. Under, because that switch promises there are
+  // no layers left between the screen and the server's answer, and a bundled file is the layer most
+  // likely to be holding the wrong bytes when somebody reaches for it. Above, because when it is on
+  // a file already in the build needs neither the instance's config nor any scheme below.
+  if (cdnCacheEnabled.value) {
+    const bundled = bundledFiles.get(fileId);
+    if (bundled) return bundled;
+  }
+
   const full = `${apiBase()}/files/${fileId}`;
 
   // Caching turned off for diagnosis — ask the server directly, so what is drawn is its answer and
@@ -56,6 +102,13 @@ export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
  * `fetch`. Code that has to read the bytes (rather than display them) asks for this instead.
  */
 export function cdnFetchUrl(fileId: string): string {
+  if (fileUrlOverride) return fileUrlOverride(fileId);
+
+  if (cdnCacheEnabled.value) {
+    const bundled = bundledFiles.get(fileId);
+    if (bundled) return bundled;
+  }
+
   return `${apiBase()}/files/${fileId}`;
 }
 

@@ -40,11 +40,14 @@
                 <div class="relative flex h-[240px] w-[240px] items-center justify-center z-30">
                   <div class="animate-float">
                     <img 
+                      v-if="item?.icon" 
                       :src="item?.icon" 
                       :alt="item?.name" 
                       class="pointer-events-none h-full w-full select-none object-contain drop-shadow-[0_20px_60px_rgba(0,0,0,.8)] animate-flicker" 
                       draggable="false" 
                     />
+                    <!-- Same fallback the grid draws: an item with no art is unknown, not broken. -->
+                    <IconQuestionMark v-else class="h-32 w-32 text-amber-400/60" stroke-width="1.5" />
                   </div>
                   <div class="pointer-events-none absolute bottom-0 h-8 w-40 rounded-full bg-foreground/20 blur-xl" />
                 </div>
@@ -91,7 +94,8 @@
                   v-if="primaryAction" 
                   size="lg" 
                   variant="default"
-                  class="group relative overflow-hidden bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-primary/50 transition-all duration-300"
+                  :disabled="primaryDisabled"
+                  class="group relative overflow-hidden bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-primary/50 transition-all duration-300 disabled:opacity-50 disabled:shadow-none"
                   @click="onPrimaryAction"
                   @keydown.enter.prevent="onPrimaryAction"
                 >
@@ -109,8 +113,13 @@
                 </Button>
               </div>
 
+              <!-- Note: why the action above is offered but refused -->
+              <p v-if="note" class="mt-4 max-w-md text-center text-sm leading-relaxed text-muted-foreground animate-slide-in-right animation-delay-300">
+                {{ note }}
+              </p>
+
               <!-- Keyboard hint -->
-              <div v-if="primaryAction" class="mt-6 flex items-center gap-2 text-xs text-muted-foreground/70 animate-slide-in-right animation-delay-400 justify-center">
+              <div v-if="primaryAction && !primaryDisabled" class="mt-6 flex items-center gap-2 text-xs text-muted-foreground/70 animate-slide-in-right animation-delay-400 justify-center">
                 <KbdGroup>
                   <Kbd>Enter</Kbd>
                 </KbdGroup>
@@ -139,6 +148,7 @@ import { useI18n } from 'vue-i18n'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@argon/ui/dialog'
 import { VisuallyHidden } from '@argon/ui/visually-hidden'
 import { Button } from '@argon/ui/button'
+import { IconQuestionMark } from '@tabler/icons-vue'
 import Kbd from '@/components/kbd/Kbd.vue'
 import KbdGroup from '@/components/kbd/KbdGroup.vue'
 import ItemGrantEffect from './ItemGrantEffect.vue'
@@ -159,6 +169,10 @@ const props = withDefaults(defineProps<{
   title?: string
   secondaryAction?: string
   primaryAction?: string
+  /** Offers the action but refuses it, for when the owner should still see what it would have been. */
+  primaryDisabled?: boolean
+  /** A line under the buttons explaining the state of things. Not an error — it reads as information. */
+  note?: string
   modelValue?: boolean
   item?: ItemDef | null
   videoSrc?: string
@@ -167,6 +181,8 @@ const props = withDefaults(defineProps<{
   showVideo?: boolean
 }>(), {
   primaryAction: undefined,
+  primaryDisabled: false,
+  note: undefined,
   showVideo: true
 })
 
@@ -185,6 +201,10 @@ watch(open, v => emit('update:modelValue', v))
 
 // Keyboard shortcuts
 function onPrimaryAction() {
+  // The one guard for both the click and the Enter key, so a disabled action cannot be reached by
+  // the shortcut that the button's own `disabled` says nothing about.
+  if (props.primaryDisabled) return
+
   emit('primary')
   open.value = false
 }

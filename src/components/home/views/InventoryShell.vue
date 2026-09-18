@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import InventoryView from './InventoryView.vue';
 import InventoryItemGranted from './InventoryItemGranted.vue';
 import { useApi } from '@/store/system/apiStore';
 import { logger } from '@argon/core';
-import { InventoryItem, RedeemError } from '@argon/glue';
+import { CosmeticAcquisition, InventoryItem, RedeemError, type CatalogueCosmetic } from '@argon/glue';
 import { IonDateTime } from '@argon-chat/ion.webcore';
 import { type ItemDef, type ItemQuality, itemsById, getItemIcon, rarityClasses, rarityClassesCards, rarities, allItems } from "@argon/inventory";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@argon/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
 import { IconFilter, IconSortAscending, IconSparkles, IconQuestionMark, IconStack2 } from '@tabler/icons-vue';
 import { useConfigStore } from '@/store/ui/configStore';
+import { useCosmeticsStore } from '@/store/features/cosmeticsStore';
+import { resolveKind } from '@/cosmetics/registry';
+import { cdnUrl } from '@/store/system/fileStorage';
 import { Button } from '@argon/ui/button';
 import { useLocale } from '@/store/system/localeStore';
+import { cosmeticName } from '@/lib/cosmeticText';
 import { useToast } from '@argon/ui/toast';
 import { useNotifications } from '@/composables/useNotifications';
 
@@ -22,20 +27,105 @@ export type InventoryItemView = InventoryItem & ItemDef & {
 
 defineOptions({ inheritAttrs: false });
 
-const { t } = useLocale();
+const localeStore = useLocale();
+const { t } = localeStore;
+const { currentLocale } = storeToRefs(localeStore);
 const api = useApi();
 const inventory = computed(() => api.inventoryInteraction);
 const toast = useToast();
 const notificationsStore = useNotifications();
 
 const configStore = useConfigStore();
+const cosmetics = useCosmeticsStore();
 const isDevMode = computed(() => {
   if (!argon.isArgonHost) return true;
   return configStore.devModeEnabled;
 });
 
-const myInventoryItems = ref<InventoryItemView[]>([]);
+const rawInventoryItems = ref<InventoryItem[]>([]);
+
+/**
+ * What the grid draws, derived rather than built once on load.
+ *
+ * A key describes itself from the cosmetics catalogue, and the inventory deliberately does not wait
+ * for that catalogue — so this has to re-run when it lands. Built once, a key granted before the
+ * rows arrived would keep the placeholder it was first drawn with until the screen was reopened.
+ */
+const myInventoryItems = computed<InventoryItemView[]>(() => rawInventoryItems.value.map(toItemView));
 const itemsByInstanceId = computed(() => new Map(myInventoryItems.value.map(i => [i.instanceId, i])));
+
+/**
+ * A still picture of a cosmetic, for drawing in an `<img>`.
+ *
+ * The slot cannot be picked by name. `Primary` means "the thing itself", and for a background the
+ * thing itself is a video — putting that file in an `<img>` is a broken image, not a picture. So
+ * ask the kind what it draws with instead of guessing: a `videoLayer` keeps its still in `Poster`,
+ * which is the whole reason that slot exists.
+ *
+ * A row with no usable picture leaves the icon empty, which every caller already draws as its
+ * unknown-item placeholder — the honest answer, and better than a broken image.
+ */
+function cosmeticIcon(cosmetic: CatalogueCosmetic): string {
+  const slot = (name: string) => cosmetic.assets.find(asset => asset.slot === name);
+
+  // `Poster` is optional on the server, so a video with no still has nothing to show here.
+  if (resolveKind(cosmetic.kindKey)?.primitive === 'videoLayer') {
+    const poster = slot('Poster');
+
+    return poster ? cdnUrl(poster.fileId) : '';
+  }
+
+  // Everything else draws a picture of some kind. The loose end is a frame, whose parts are keyed by
+  // their own per-part slot names — there may be no `Primary` at all, and the first asset is then a
+  // known approximation of "the piece a person would recognise" rather than a considered choice.
+  const asset = slot('Poster') ?? slot('Primary') ?? cosmetic.assets[0];
+
+  return asset ? cdnUrl(asset.fileId) : '';
+}
+
+/**
+ * A catalogue rarity as something the inventory has a style for.
+ *
+ * Rarity is free text on the server — an operator types it into the admin console — so anything
+ * that is not one of the four qualities falls back to the plainest rather than to a missing class.
+ * Matched case-insensitively because the only thing between "legendary" and "Legendary" is whoever
+ * was typing.
+ */
+function cosmeticRarity(rarity: string | null): ItemQuality {
+  const named = (rarity ?? '').trim().toLowerCase() as ItemQuality;
+
+  return rarities.includes(named) ? named : 'common';
+}
+
+function toItemView(item: InventoryItem): InventoryItemView {
+  const meta = itemsById[item.id];
+  const view: InventoryItemView = {
+    ...item,
+    ...(meta ?? { id: item.id, desc: "", name: item.id, class: "common" as ItemQuality, size: 0 }),
+    icon: meta ? (getItemIcon(meta.id) ?? '') : '',
+  };
+
+  // Translate name and desc using locale keys
+  if (meta) {
+    view.name = t(meta.name);
+    view.desc = t(meta.desc);
+  }
+
+  // `cosmeticId` is what makes an item a key, and what it opens is the only thing worth showing for
+  // it. That description has to come from the catalogue: describing every key in the static package
+  // would make each new cosmetic in a case a client release, which is the whole reason for this.
+  // A row that is not here — not read yet, unpublished, deleted — leaves the item as the plain one
+  // built above rather than breaking the list.
+  const opens = cosmetics.catalogueItemById(item.cosmeticId);
+
+  if (opens) {
+    view.name = cosmeticName(opens, currentLocale.value);
+    view.class = cosmeticRarity(opens.rarity);
+    view.icon = cosmeticIcon(opens);
+  }
+
+  return view;
+}
 
 const grantQueue = ref<InventoryItemView[]>([]);
 const loading = ref(true);
@@ -88,12 +178,15 @@ const groupedItems = computed<GroupedItem[]>(() => {
   }
   const groups = new Map<string, GroupedItem>();
   for (const item of filteredItems.value) {
-    const existing = groups.get(item.id);
+    // Two keys are the same item only when they open the same cosmetic. Stacking them by template
+    // alone would show one name and a count over a pile of different things.
+    const groupKey = item.cosmeticId ? `${item.id}:${item.cosmeticId}` : item.id;
+    const existing = groups.get(groupKey);
     if (existing) {
       existing.count++;
       existing.instances.push(item);
     } else {
-      groups.set(item.id, { representative: item, count: 1, instances: [item] });
+      groups.set(groupKey, { representative: item, count: 1, instances: [item] });
     }
   }
   return [...groups.values()];
@@ -102,6 +195,11 @@ const groupedItems = computed<GroupedItem[]>(() => {
 const displayItems = computed(() => groupedItems.value);
 
 onMounted(async () => {
+  // Nothing here has necessarily read the catalogue — the cosmetics picker is what usually does, and
+  // somebody can walk straight into the inventory. Deliberately not awaited: keys draw as plain
+  // items until the rows land and redraw themselves when they do, rather than holding up the grid.
+  if (!cosmetics.catalogue) void cosmetics.loadCatalogue();
+
   await reloadData();
 });
 
@@ -113,22 +211,7 @@ async function reloadData() {
       inventory.value.GetNotifications()
     ]);
 
-    myInventoryItems.value = myItems.map(it => {
-      const meta = itemsById[it.id];
-      const baseItem = {
-        ...it,
-        ...(meta ?? { id: it.id, desc: "", name: it.id, class: "common" as ItemQuality, size: 0 }),
-        icon: meta ? (getItemIcon(meta.id) ?? '') : '',
-      };
-      
-      // Translate name and desc using locale keys
-      if (meta) {
-        baseItem.name = t(meta.name);
-        baseItem.desc = t(meta.desc);
-      }
-      
-      return baseItem;
-    });
+    rawInventoryItems.value = myItems;
 
     grantQueue.value = notifications
       .map(n => itemsByInstanceId.value.get(n.inventoryItemId))
@@ -146,7 +229,16 @@ async function reloadData() {
 async function nextGrant() {
   const next = grantQueue.value.shift();
   if (!next) return;
-  selected.value = next;
+
+  // A key has no static definition — that is the entire point of it — so until the catalogue is
+  // here it is a raw id and a placeholder. Showing that off as "you received an item", then
+  // rewriting the name under the player when the rows land, is worse than a moment's wait. Only
+  // this path waits: the grid behind the dialog keeps rendering, and a catalogue already read makes
+  // this a no-op.
+  if (next.cosmeticId && !cosmetics.catalogue) await cosmetics.loadCatalogue();
+
+  // Re-read after the wait, because `next` is a snapshot from before the catalogue answered.
+  selected.value = itemsByInstanceId.value.get(next.instanceId) ?? next;
   open.value = true;
 
   if (next.instanceId.startsWith("debug-")) return;
@@ -202,9 +294,62 @@ async function onRedeem(code: string) {
   await reloadData();
 }
 
+/** The cosmetic the selected item opens, when the selection is a key at all. */
+const selectedCosmetic = computed(() =>
+  selected.value ? cosmetics.catalogueItemById(selected.value.cosmeticId) : null);
+
+/**
+ * The ways the server answers "owned" with no ownership row behind it.
+ *
+ * `Owns` on the server says true for a `Free` item for everybody, and for an `UltimaTier` item for
+ * anybody currently subscribed — in both cases without a row existing. A key to such a cosmetic is
+ * still worth using: it writes a real, permanent row, which is exactly the thing that outlives a
+ * subscription. So a row reachable either of these ways tells us nothing about whether a use would
+ * be refused, and must not be the reason a key is greyed out.
+ */
+const OWNED_WITHOUT_A_ROW: readonly CosmeticAcquisition[] = [
+  CosmeticAcquisition.Free,
+  CosmeticAcquisition.UltimaTier,
+];
+
+/**
+ * Whether the selected key opens something its owner already holds outright.
+ *
+ * The server refuses such a use and, deliberately, keeps the item rather than spending it, so a
+ * spare can be given away. It cannot say why: `UseItem` answers with a bare bool and widening it
+ * would break every client already installed. So this is the one place that can explain the refusal
+ * — the server still enforces it, this only tells the player.
+ *
+ * `owned` on its own is the wrong question. It means "can wear right now", not "has a row", and the
+ * two differ for precisely the cosmetics a key is most worth spending on. Nothing in this client
+ * reads the ownership rows themselves — `GetMyCosmetics`, which carries `viaSubscription` and would
+ * answer this exactly, is on the wire but called nowhere — and fetching them here would add a second
+ * thing to keep fresh on every use. So the question is narrowed instead: grey out only when the row
+ * is owned and could not have been owned without a row.
+ *
+ * It errs towards letting the player press the button. A wrong "yes, press it" costs one refused
+ * call and keeps the item; a wrong "no" talks somebody out of a permanent cosmetic they could have
+ * had. The known residual is a kind whose entitlement is `Free` as a whole: the server grants that
+ * with no row and no per-item flag, and `CosmeticKindSummary` does not carry entitlement, so this
+ * cannot see it — it fails in the safe direction, towards a pressable button.
+ */
+const selectedIsOwnedKey = computed(() => {
+  const cosmetic = selectedCosmetic.value;
+
+  if (cosmetic?.owned !== true) return false;
+
+  const ways = cosmetic.acquisition ?? [];
+
+  return !ways.some(way => OWNED_WITHOUT_A_ROW.includes(way));
+});
+
 async function useItem() {
   openSidebar.value = false;
   const itemName = selected.value?.name || 'item';
+
+  // Read before the call, because the success path clears the selection before anything can ask
+  // what was spent.
+  const openedCosmeticId = selected.value?.cosmeticId ?? null;
 
   try {
     const result = await api.inventoryInteraction.UseItem(selected.value!.instanceId);
@@ -218,7 +363,20 @@ async function useItem() {
         duration: 3000,
       });
       selected.value = null;
-      await reloadData();
+
+      // Spending a key flips `owned` on the row it opened, and nothing else on this screen ever
+      // re-reads the catalogue — `reloadData` refetches inventory items and notifications only, and
+      // `loadCatalogue` otherwise runs on mount and on the grant path. Without this, a second key
+      // for the same cosmetic stays pressable for the rest of the session: the server refuses it and
+      // the player gets the generic destructive failure instead of the calm explanation written for
+      // exactly this moment. `loadCatalogue` shares a read already in flight, so it is cheap.
+      const refreshes: Promise<unknown>[] = [reloadData()];
+
+      if (openedCosmeticId) {
+        refreshes.push(cosmetics.loadCatalogue());
+      }
+
+      await Promise.all(refreshes);
     } else {
       logger.fail("Failed to use item");
       toast.toast({
@@ -240,6 +398,22 @@ async function useItem() {
   }
 }
 
+/**
+ * Keeps the open dialog on the same item as the grid.
+ *
+ * `selected` is a snapshot taken when the slot was clicked, and the catalogue can land a moment
+ * later — this is what stops a key that was opened early from sitting there under its placeholder
+ * while the grid behind it already shows the real thing. An item that is simply gone (used, or
+ * a debug grant that was never in the list) is left alone.
+ */
+watch(myInventoryItems, (items) => {
+  if (!selected.value) return;
+
+  const fresh = items.find(item => item.instanceId === selected.value!.instanceId);
+
+  if (fresh) selected.value = fresh;
+});
+
 watch(open, (v) => {
   if (!v && grantQueue.value.length > 0) {
     requestAnimationFrame(() => nextGrant());
@@ -257,6 +431,7 @@ function debugGrantTestItem() {
     usableVector: null,
     receivedFrom: null,
     ttl: null,
+    cosmeticId: null,
     icon: getItemIcon(randomItem.id) ?? '',
     ...randomItem,
     // Translate name and desc for test items
@@ -432,6 +607,8 @@ function debugGrantTestItem() {
     :item="selected" 
     @primary="useItem()"
     :primary-action="selected?.usable ? t('inventory_use') : undefined" 
+    :primary-disabled="selectedIsOwnedKey"
+    :note="selectedIsOwnedKey ? t('inventory_key_already_owned') : undefined"
     :title="t('inventory_item_details')"
     :getCardClass="(i: string | null) => rarityClasses[(i as ItemQuality) ?? 'rare']" 
   />

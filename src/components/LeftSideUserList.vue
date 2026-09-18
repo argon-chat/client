@@ -81,10 +81,11 @@
 <script setup lang="ts">
 import { useLocale } from "@/store/system/localeStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
 import UserInListSideElement from "./UserInListSideElement.vue";
 import Skeleton from "./shared/Skeleton.vue";
 import EmptyStateArt from "./shared/EmptyStateArt.vue";
-import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, ref, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { persistedValue } from "@argon/storage";
 import { useListLoading } from "@/composables/useListLoading";
 import { IconChevronDown, IconSearch } from "@tabler/icons-vue";
@@ -98,6 +99,7 @@ const model = defineModel<string | null>('selectedSpace', {
 });
 
 const dataPool = usePoolStore();
+const cosmetics = useCosmeticsStore();
 const groupedUsers = dataPool.useGroupedServerUsers(model);
 
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
@@ -251,6 +253,26 @@ const visibleRange = computed(() => {
 
 const visibleRows = computed(() => rows.value.slice(visibleRange.value.start, visibleRange.value.end));
 const windowTop = computed(() => rowOffsets.value[visibleRange.value.start] ?? 0);
+
+/**
+ * What the people on screen are wearing, asked for a window at a time.
+ *
+ * The rows themselves read this synchronously and never ask for it — a row that fetched would turn
+ * a scroll through a large space into a request per person. Asking here, for the slice that is
+ * actually rendered, is one call per scroll that reveals somebody new, and the store remembers who
+ * it has already asked about.
+ */
+watch(
+  [visibleRows, () => dataPool.selectedServer],
+  ([visible, spaceId]) => {
+    if (!spaceId) return;
+
+    const userIds = visible.filter(row => row.kind === "user").map(row => row.user.userId);
+
+    if (userIds.length > 0) void cosmetics.prefetchWorn(spaceId, userIds);
+  },
+  { immediate: true },
+);
 
 // Calculate relative luminance
 const getLuminance = (r: number, g: number, b: number) => {
@@ -531,7 +553,13 @@ const formatColour = (argb: number) => {
   border-radius: calc(var(--radius) - 4px);
   cursor: pointer;
   transition: background 0.15s ease;
-  overflow: hidden;
+
+  /*
+   * No clip. The row is exactly as tall as an avatar's decoration is wide, so hiding what leaves it
+   * took the top and bottom off every one of them. Nothing here needs the row to clip: the hover
+   * background is a background and follows the corners on its own, a long name is cut by its own
+   * rule, and the row background has a clip of its own inside.
+   */
 }
 
 .user-item:hover {

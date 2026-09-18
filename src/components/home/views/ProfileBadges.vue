@@ -1,47 +1,21 @@
-<template>
-    <Badge variant="secondary" class="flex items-center gap-1" v-for="badge in badges" :key="badge">
-        <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true" v-if="badge === 'premium'">
-            <Tooltip>
-                <TooltipTrigger>
-                    <IconDiamondFilled class="w-4 h-4 align-middle text-violet-400" />
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Argon Ultima</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true" v-if="badge === 'staff'">
-            <Tooltip>
-                <TooltipTrigger>
-                    <IconCat class="w-4 h-4 align-middle" />
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Argon Staff</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true" v-if="badge == 'contributor'">
-            <Tooltip>
-                <TooltipTrigger>
-                    <IconCpu class="w-4 h-4 align-middle" />
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Argon Contributor</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-        <template v-if="badge == 'premium'">Argon Ultima</template>
-        <template v-if="badge == 'staff'">Argon Staff</template>
-        <template v-if="badge == 'contributor'">Argon Contributor</template>
-    </Badge>
-</template>
 <script setup lang="ts">
-import { Badge } from '@argon/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@argon/ui/tooltip';
-import { IconCat, IconCpu, IconDiamondFilled } from '@tabler/icons-vue';
+import type { ArgonUserProfile } from "@argon/glue";
+import CosmeticBadges from "@/cosmetics/CosmeticBadges.vue";
 
-
-const props = defineProps<{
-    badges: string[],
-}>()
+/**
+ * The labelled badge chips on a profile page.
+ *
+ * Kept as its own component because the chips are a different shape from the bare icons beside a
+ * username, but the badges themselves are now decided in one place. This used to hold its own
+ * hardcoded list of three — premium, staff, contributor — which was not the same three the popover
+ * drew, so a space owner never saw their owner badge here.
+ */
+defineProps<{
+  profile: ArgonUserProfile | null | undefined;
+  flags?: number;
+}>();
 </script>
+
+<template>
+  <CosmeticBadges :profile="profile" :flags="flags" variant="chips" />
+</template>

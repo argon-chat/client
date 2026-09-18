@@ -28,6 +28,25 @@ export const FeatureFlagKeys = {
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
 
+/**
+ * Kill switches for cosmetic kinds, which cannot be an entry in the map above.
+ *
+ * The map is a closed list with a default per key, and it has to be: every other flag gates a piece
+ * of this client, so a key it does not know is a key nothing reads. Cosmetic kinds are the opposite
+ * — the server decides which kinds exist, and a build may meet a flag for a kind it has never heard
+ * of — so they are matched by prefix and kept apart from the declared flags.
+ *
+ * Absence means enabled, the same rule the server applies. The flag is a kill switch, not an
+ * enabler: a kind exists because a file in the build declares it, and requiring somebody to also
+ * create a database row before shipped code does anything is how a feature ends up live, correct,
+ * and invisible.
+ */
+export const COSMETIC_FLAG_PREFIX = "af.cosmetics.";
+
+export function cosmeticFlagKeyFor(kindKey: string): string {
+  return `${COSMETIC_FLAG_PREFIX}${kindKey.replaceAll(".", "-")}.active`;
+}
+
 export const useFeatureFlags = defineStore("featureFlags", () => {
   const api = useApi();
   const bus = useBus();
@@ -54,25 +73,49 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
 
   const flags = ref<Record<string, boolean>>(defaultFlags());
 
+  // Only the cosmetic kill switches the server actually declared. A kind with no entry here is on.
+  const cosmeticFlags = ref<Record<string, boolean>>({});
+
   const isLoaded = ref(false);
 
   // Seamless account switch: reset to defaults; loadFeatureFlags() repopulates for the new account.
   onSessionReset(() => {
     flags.value = defaultFlags();
+    cosmeticFlags.value = {};
     isLoaded.value = false;
   });
+
+  /**
+   * Records a flag the server sent, in whichever of the two sets it belongs to.
+   *
+   * Returns true when it was a cosmetic kill switch, because that is the case a caller may need to
+   * react to — and having one function do this is what keeps the loader and the live event from
+   * drifting apart, which is exactly what they did before: both had the same guard, and adding a
+   * new kind of flag meant remembering both.
+   */
+  function record(flagId: string, isEnabled: boolean): boolean {
+    if (flagId in flags.value) {
+      flags.value[flagId] = isEnabled;
+      return false;
+    }
+
+    if (flagId.startsWith(COSMETIC_FLAG_PREFIX)) {
+      cosmeticFlags.value[flagId] = isEnabled;
+      return true;
+    }
+
+    return false;
+  }
 
   async function loadFeatureFlags(): Promise<void> {
     try {
       const serverFlags = await api.featureFlagInteraction.GetMyFeatureFlags();
-      
+
       for (const flag of serverFlags) {
-        if (flag.flagId in flags.value) {
-          flags.value[flag.flagId] = flag.isEnabled;
-        }
+        record(flag.flagId, flag.isEnabled);
       }
 
-      logger.info("Feature flags loaded", flags.value);
+      logger.info("Feature flags loaded", flags.value, cosmeticFlags.value);
       isLoaded.value = true;
     } catch (error) {
       logger.error("Failed to load feature flags", error);
@@ -83,14 +126,18 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     return flags.value[flagKey] ?? false;
   }
 
+  function isCosmeticKindEnabled(kindKey: string): boolean {
+    return cosmeticFlags.value[cosmeticFlagKeyFor(kindKey)] ?? true;
+  }
+
   function subscribeToEvents(): void {
     bus.onServerEvent<FeatureFlagActivated>("FeatureFlagActivated", (event) => {
-      if (!(event.flagId in flags.value)) {
+      if (!(event.flagId in flags.value) && !event.flagId.startsWith(COSMETIC_FLAG_PREFIX)) {
         logger.debug("Ignoring activation for unknown feature flag", event.flagId);
         return;
       }
 
-      flags.value[event.flagId] = event.isEnabled;
+      record(event.flagId, event.isEnabled);
       logger.info("Feature flag activated", event.flagId, event.isEnabled, event.variant);
     });
   }
@@ -115,10 +162,12 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
 
   return {
     flags,
+    cosmeticFlags,
     isLoaded,
     loadFeatureFlags,
     subscribeToEvents,
     isEnabled,
+    isCosmeticKindEnabled,
     dialpadActive,
     inventoryActive,
     profileCoinsActive,

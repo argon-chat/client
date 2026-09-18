@@ -29,5 +29,15 @@ const sizeStyle = computed(() => ({
   border-radius: 9999px;
   border: 2px solid hsl(var(--card));
   flex-shrink: 0;
+
+  /*
+   * Above every decoration, always.
+   *
+   * Whether somebody is here is not decoration and cannot be something a ring hides. A decoration
+   * asks for z-index 2 inside an avatar that makes no stacking context of its own, so the two were
+   * competing in the same context and the dot — asking for nothing — lost.
+   */
+  position: relative;
+  z-index: 5;
 }
 </style>

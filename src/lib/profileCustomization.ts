@@ -46,6 +46,17 @@ export function argbToRgb(argb: number): string {
 }
 
 /**
+ * Mix an ARGB colour towards black by `amount`, keeping its alpha.
+ */
+export function shadeArgb(argb: number, amount: number): number {
+  const alpha = (argb >>> 24) & 0xff;
+  const channels = [(argb >>> 16) & 0xff, (argb >>> 8) & 0xff, argb & 0xff];
+  const shaded = channels.map(channel => Math.round(channel * (1 - amount)));
+
+  return ((alpha << 24) | (shaded[0] << 16) | (shaded[1] << 8) | shaded[2]) >>> 0;
+}
+
+/**
  * Convert hex color (#RRGGBB) to ARGB signed i32 with full opacity
  */
 export function hexToArgb(hex: string): number {
