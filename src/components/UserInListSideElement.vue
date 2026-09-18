@@ -66,7 +66,7 @@ import {
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -92,12 +92,38 @@ const isOffline = computed(() => props.user.status === UserStatus.Offline);
 const profileCache = useProfileCacheStore();
 const customStatus = ref<string | null>(null);
 
-onMounted(async () => {
-  if (pool.selectedServer) {
-    const profile = await profileCache.getProfile(pool.selectedServer, props.user.userId);
-    customStatus.value = profile.customStatus || null;
-  }
-});
+// A custom status is only ever rendered when the row is showing activity at all and the member has
+// no activity to show instead. The member list is virtualised, so every row used to ask for a full
+// profile on mount — including the rows that had nowhere to put the answer (the role editor renders
+// them with show-activity off) and the ones the user scrolled straight past.
+const wantsStatus = computed(() => props.showActivity && !props.user.activity);
+
+let inflight: AbortController | null = null;
+
+watch(
+  () => [pool.selectedServer, props.user.userId, wantsStatus.value] as const,
+  ([spaceId, userId, wanted]) => {
+    inflight?.abort();
+    inflight = null;
+    customStatus.value = null;
+
+    if (!wanted || !spaceId) return;
+
+    const request = new AbortController();
+    inflight = request;
+    profileCache
+      .getStatus(spaceId, userId, { signal: request.signal })
+      .then(status => {
+        if (!request.signal.aborted) customStatus.value = status.customStatus || null;
+      })
+      // Aborted on unmount, or the member's profile could not be read — the row renders without it.
+      .catch(() => {});
+  },
+  { immediate: true },
+);
+
+// Scrolling a row out of view drops its request before it reaches the wire.
+onUnmounted(() => inflight?.abort());
 
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
   switch (activityKind) {

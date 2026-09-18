@@ -27,6 +27,7 @@ import { evaluateBootGate, renderBootGate } from "./lib/bootGate";
 import { isWeb } from "./lib/platform";
 import { initMediaCache } from "./lib/webMediaCache";
 import { installWebSocketStreamShim } from "./lib/shims/webSocketStream";
+import { installStaleBuildRecovery } from "./lib/staleBuild";
 
 // From __ARGON_BUILD__, not package.json. The placeholders in package.json are only rewritten by
 // the NUKE desktop pipeline, so every other build — the dev server, `bun run build`, Cloudflare
@@ -42,6 +43,11 @@ window.ui_branch = __ARGON_BUILD__.branch;
 // wrapper around a WebSocket every browser has. Installing first means the gate then sees it and
 // still fails honestly if the shim could not be put in place.
 installWebSocketStreamShim();
+
+// Also before the gate, and for the same kind of reason: a page carried over a deploy will fail on
+// its first lazy route, and it should recover by reloading rather than by showing a MIME-type error
+// nobody can act on. Installed early so the very first navigation after a deploy is covered.
+installStaleBuildRecovery(isWeb);
 
 // Whether this page is allowed to run the app at all — an old browser or a phone gets a screen of
 // its own instead. Decided here, before any of the work below, because none of it would help.

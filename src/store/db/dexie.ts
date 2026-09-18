@@ -54,12 +54,22 @@ export interface StoredSpaceVersions {
   versions: SpaceVersions;
 }
 
+/**
+ * How much of a profile a cached row holds.
+ *
+ * A member-list row renders one line of custom status, so that is all it is allowed to leave on
+ * disk ("status"); a row written for an opened profile card holds the whole thing ("full"). Rows
+ * written before this field existed were always full ones, so an absent value reads as "full".
+ */
+export type ProfileScope = "full" | "status";
+
 export interface CachedProfile {
   key: string; // `${spaceId}:${userId}`
   spaceId: string;
   userId: string;
   profile: ArgonUserProfile;
   fetchedAt: number;
+  scope?: ProfileScope;
 }
 
 export class PoolDatabase extends Dexie {

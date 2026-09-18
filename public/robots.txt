@@ -1,0 +1,12 @@
+# This is the application, not a website.
+#
+# Every URL under it is either a sign-in screen or something behind one: a space, a channel, a
+# message. There is nothing here a search engine could index for anyone's benefit, and plenty it
+# would waste a crawl budget discovering it cannot reach. The marketing site is argon.gl, and that
+# is what should be found.
+#
+# Note this is a request, not a control. It stops well-behaved crawlers from wandering the app; it
+# is not what keeps anything private — that is the session on every route behind the sign-in.
+
+User-agent: *
+Disallow: /
