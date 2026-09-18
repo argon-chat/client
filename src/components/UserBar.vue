@@ -3,10 +3,22 @@
     <Popover>
       <PopoverTrigger as-child>
         <button type="button" class="user-info" style="width: 150px;">
-          <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
-            :user-id="me.me.userId" />
+          <!--
+            The look worn where the person is standing, decoration and all. This bar is the one place
+            somebody sees themselves as everybody else sees them, and showing the account here while
+            the space showed a persona made it look like the persona had not taken.
+          -->
+          <ArgonAvatar class="user-avatar" :fallback="me.me.displayName"
+            :file-id="cosmetics.wornAvatar(pool.selectedServer ?? null, me.me.userId, me.me?.avatarFileId)"
+            :user-id="me.me.userId" :space-id="pool.selectedServer ?? undefined" />
+
           <div class="user-details items-start">
-            <span class="user-name">{{ me.me?.displayName }}</span>
+            <CosmeticNickname
+              class="user-name"
+              surface="memberListRow"
+              :user-id="me.me.userId"
+              :space-id="pool.selectedServer ?? null"
+            >{{ me.me?.displayName }}</CosmeticNickname>
             <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
               {{ t(`status_${me.me?.currentStatus}`) }}
             </span>
@@ -32,9 +44,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watchEffect } from "vue";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
+import { usePoolStore } from "@/store/data/poolStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { Settings } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
@@ -45,7 +60,17 @@ import AddAccountModal from "@/components/account/AddAccountModal.vue";
 const { t } = useLocale();
 const windows = useWindow();
 const me = useMe();
+const pool = usePoolStore();
+const cosmetics = useCosmeticsStore();
 const addAccountOpen = ref(false);
+
+/**
+ * The bar draws somebody who is not in the member list it would otherwise be fed from, so it asks
+ * for its own answer — one person, one scope, and the store remembers it for the rest of the page.
+ */
+watchEffect(() => {
+  if (me.me) void cosmetics.prefetchWorn(pool.selectedServer ?? null, [me.me.userId]);
+});
 </script>
 
 <style scoped>
@@ -75,10 +100,11 @@ const addAccountOpen = ref(false);
 }
 
 .user-avatar {
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
-  border-radius: 50%;
   margin-right: 10px;
+  border-radius: 50%;
 }
 
 .user-details {

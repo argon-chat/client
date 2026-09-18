@@ -26,6 +26,9 @@ import { createEmojix, initializeEmojix } from "@argon-chat/emojix";
 import { evaluateBootGate, renderBootGate } from "./lib/bootGate";
 import { isWeb } from "./lib/platform";
 import { initMediaCache } from "./lib/webMediaCache";
+import { logger } from "@argon/core";
+import { pack as cosmeticsPack } from "@argon/cosmetics-pack";
+import { registerBundledFiles } from "./store/system/fileStorage";
 import { installWebSocketStreamShim } from "./lib/shims/webSocketStream";
 import { installStaleBuildRecovery } from "./lib/staleBuild";
 
@@ -58,6 +61,17 @@ const bootBlock = evaluateBootGate();
 if (isWeb) document.documentElement.classList.add("argon-web");
 
 export { i18n };
+
+// Cosmetics whose bytes ship inside this build answer from the bundle instead of the CDN. Done here
+// rather than in a store because it is pure data and has to be in place before the first thing that
+// draws a cosmetic asks for a url. The preview page deliberately does not do this: an operator has
+// to see what the stand holds, not what this build happens to carry.
+registerBundledFiles(cosmeticsPack.urlByFileId);
+
+for (const problem of cosmeticsPack.problems) {
+  logger.error("cosmetics pack", problem);
+}
+
 const pinia = createPinia();
 const app = createApp(App);
 app.use(i18n);

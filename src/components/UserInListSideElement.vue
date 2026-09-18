@@ -1,19 +1,25 @@
 <template>
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
-    <PopoverContent style="width: 24rem;"
-      class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
+    <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
+    <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+      class="profile-popover p-0 rounded-2xl shadow-xl border overflow-visible">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
     <PopoverTrigger as-child>
       <div class="user-element" :class="{ 'is-offline': isOffline }">
+        <div class="row-backdrop">
+          <CosmeticSurface surface="memberListRow" :user-id="user.userId" :space-id="pool.selectedServer ?? null" :primitives="ROW_BACKGROUND" />
+        </div>
         <div class="user-avatar-wrap">
-          <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-            :overridedSize="34" />
+          <ArgonAvatar :fallback="user.displayName"
+            :file-id="cosmetics.wornAvatar(pool.selectedServer ?? null, user.userId, user.avatarFileId)"
+            :user-id="user.userId"
+            :overridedSize="34" :space-id="pool.selectedServer ?? undefined" />
           <StatusDot :status="user.status" class="status-dot" />
         </div>
         <div class="user-text">
           <span class="user-name-row">
-            <span class="user-name">{{ user.displayName }}</span>
+            <CosmeticNickname class="user-name" surface="memberListRow" :user-id="user.userId" :space-id="pool.selectedServer ?? null">{{ user.displayName }}</CosmeticNickname>
             <BotTag :flags="user.flags" />
           </span>
           <span class="user-activity" v-if="user.activity && props.showActivity">
@@ -27,14 +33,19 @@
   </Popover>
 
   <div v-else class="user-element" :class="{ 'is-offline': isOffline }">
+    <div class="row-backdrop">
+      <CosmeticSurface surface="memberListRow" :user-id="user.userId" :space-id="pool.selectedServer ?? null" :primitives="ROW_BACKGROUND" />
+    </div>
     <div class="user-avatar-wrap">
-      <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-        :overridedSize="34" />
+      <ArgonAvatar :fallback="user.displayName"
+        :file-id="cosmetics.wornAvatar(pool.selectedServer ?? null, user.userId, user.avatarFileId)"
+        :user-id="user.userId"
+        :overridedSize="34" :space-id="pool.selectedServer ?? undefined" />
       <StatusDot :status="user.status" class="status-dot" />
     </div>
     <div class="user-text">
       <span class="user-name-row">
-        <span class="user-name">{{ user.displayName }}</span>
+        <CosmeticNickname class="user-name" surface="memberListRow" :user-id="user.userId" :space-id="pool.selectedServer ?? null">{{ user.displayName }}</CosmeticNickname>
         <BotTag :flags="user.flags" />
       </span>
       <span class="user-activity" v-if="user.activity && props.showActivity">
@@ -57,6 +68,9 @@ import type { RealtimeUser } from "@/store/db/dexie";
 import { useLocale } from "@/store/system/localeStore";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
+import CosmeticSurface from "@/cosmetics/CosmeticSurface.vue";
 import StatusDot from "@/components/StatusDot.vue";
 import BotTag from "@/components/shared/BotTag.vue";
 import {
@@ -70,6 +84,7 @@ import { ref, computed, watch, onUnmounted } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
 import { useProfileCacheStore } from "@/store/data/profileCacheStore";
 
 const isOpened = ref(false);
@@ -86,6 +101,22 @@ const props = withDefaults(
 const me = useMe();
 const { t } = useLocale();
 const pool = usePoolStore();
+const cosmetics = useCosmeticsStore();
+
+/**
+ * How far this person's frame hangs outside their card, kept as room between the card and the window.
+ *
+ * A popover is placed by measuring its own box, and a frame draws outside that box on purpose — so a
+ * card opened from this list, which lives against the right edge, had its right-hand side cut off by
+ * the window. Zero for anyone wearing nothing, and the card sits where it always did.
+ */
+const popoverRoom = useCosmeticOverhang(
+  () => props.user.userId,
+  () => pool.selectedServer ?? null,
+);
+
+/** What may paint a row's background: layer renderers, whatever kind produced them. */
+const ROW_BACKGROUND = ["imageLayer", "videoLayer", "spriteSheet"] as const;
 
 // Dim offline members (status dot already shows it; dim the whole row too).
 const isOffline = computed(() => props.user.status === UserStatus.Offline);
@@ -175,6 +206,30 @@ function onReportProfile(userId: string) {
   min-width: 0;
   width: 100%;
   transition: opacity 0.15s ease;
+
+  /* The positioning context for a row background. Inert for a row with none. */
+  position: relative;
+}
+
+/*
+ * The clip belongs to the background, not to the row.
+ *
+ * It was on the row, which also cropped the avatar's decoration — a decoration is bigger than what
+ * it decorates, so the row cut the top and the sides off every one of them. A background still may
+ * not spill past the row it is the background of.
+ */
+.row-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Everything the row itself draws sits above a background that may be behind it. */
+.user-element > .user-avatar-wrap,
+.user-element > .user-text {
+  position: relative;
+  z-index: 1;
 }
 
 /* Offline members are dimmed (Discord-like); brighten on hover. */

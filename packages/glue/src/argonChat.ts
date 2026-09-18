@@ -1393,6 +1393,200 @@ export enum ChannelMemberState
 }
 
 
+export interface WornCosmetics {
+  userId: guid;
+  cosmetics: IonArray<EquippedCosmetic>;
+  displayNameOverride: string | null;
+  avatarFileIdOverride: string | null;
+};
+
+
+export interface CosmeticCatalogue {
+  kinds: IonArray<CosmeticKindSummary>;
+  items: IonArray<CatalogueCosmetic>;
+};
+
+
+export interface CosmeticKindSummary {
+  kindKey: string;
+  primitive: string;
+  surfaces: IonArray<string>;
+  scopes: IonArray<string>;
+  layer: i4;
+  maxSlots: i4;
+};
+
+
+export interface CatalogueCosmetic {
+  cosmeticId: guid;
+  kindKey: string;
+  slug: string;
+  nameKey: string;
+  descriptionKey: string | null;
+  rarity: string | null;
+  version: i4;
+  payloadJson: string;
+  assets: IonArray<EquippedCosmeticAsset>;
+  owned: bool;
+  availableUntil: datetime | null;
+  acquisition: IonArray<CosmeticAcquisition> | null;
+  board: CatalogueBoardPolicy | null;
+  text: IonArray<CosmeticText> | null;
+};
+
+
+export interface CosmeticText {
+  locale: string;
+  name: string;
+  description: string | null;
+};
+
+
+export interface CatalogueBoardPolicy {
+  maxPerBoard: i4;
+  defaultWidth: i4;
+  defaultHeight: i4;
+  maxWidth: i4;
+  minHeight: i4;
+  maxHeight: i4;
+  minWidth: i4 | null;
+};
+
+
+export interface MyCosmetics {
+  items: IonArray<OwnedCosmetic>;
+};
+
+
+export interface OwnedCosmetic {
+  cosmeticId: guid;
+  kindKey: string;
+  slug: string;
+  expiresAt: datetime | null;
+  viaSubscription: bool;
+};
+
+
+export interface CosmeticLoadoutList {
+  loadouts: IonArray<CosmeticLoadout>;
+  assignments: IonArray<CosmeticScopeAssignment>;
+};
+
+
+export interface CosmeticLoadout {
+  loadoutId: guid;
+  name: string;
+  isDefault: bool;
+  sortOrder: i4;
+  equipped: IonArray<EquippedCosmetic>;
+  displayNameOverride: string | null;
+  avatarFileIdOverride: string | null;
+  bioOverride: string | null;
+  isPaused: bool | null;
+};
+
+
+export interface LoadoutIdentityInput {
+  loadoutId: guid;
+  displayName: string | null;
+  bio: string | null;
+  keepAvatar: bool;
+};
+
+
+export interface WidgetCard {
+  cosmeticId: guid;
+  contentJson: string | null;
+  x: i4;
+  y: i4;
+  w: i4;
+  h: i4;
+};
+
+
+export interface CosmeticScopeAssignment {
+  spaceId: guid | null;
+  loadoutId: guid;
+};
+
+
+export enum CosmeticAcquisition
+{
+  OperatorGrant = 0,
+  PromoCode = 1,
+  UltimaTier = 2,
+  Purchase = 3,
+  Gift = 4,
+  Free = 5,
+}
+
+const declaredCosmeticAcquisition: ReadonlySet<unknown> = new Set<unknown>([CosmeticAcquisition.OperatorGrant, CosmeticAcquisition.PromoCode, CosmeticAcquisition.UltimaTier, CosmeticAcquisition.Purchase, CosmeticAcquisition.Gift, CosmeticAcquisition.Free]);
+
+/**
+ * Open-enum helpers for {@link CosmeticAcquisition}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CosmeticAcquisition_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CosmeticAcquisition): boolean {
+    return declaredCosmeticAcquisition.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CosmeticAcquisition): u4 | undefined {
+    return declaredCosmeticAcquisition.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum CosmeticError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  NOT_OWNED = 2,
+  UNKNOWN_KIND = 3,
+  KIND_DISABLED = 4,
+  ITEM_UNAVAILABLE = 5,
+  SLOT_OUT_OF_RANGE = 6,
+  SCOPE_NOT_SUPPORTED = 7,
+  NAME_INVALID = 8,
+  NAME_TAKEN = 9,
+  LOADOUT_LIMIT = 10,
+  CANNOT_DELETE_DEFAULT = 11,
+  OVERRIDE_INVALID = 12,
+}
+
+const declaredCosmeticError: ReadonlySet<unknown> = new Set<unknown>([CosmeticError.NONE, CosmeticError.NOT_FOUND, CosmeticError.NOT_OWNED, CosmeticError.UNKNOWN_KIND, CosmeticError.KIND_DISABLED, CosmeticError.ITEM_UNAVAILABLE, CosmeticError.SLOT_OUT_OF_RANGE, CosmeticError.SCOPE_NOT_SUPPORTED, CosmeticError.NAME_INVALID, CosmeticError.NAME_TAKEN, CosmeticError.LOADOUT_LIMIT, CosmeticError.CANNOT_DELETE_DEFAULT, CosmeticError.OVERRIDE_INVALID]);
+
+/**
+ * Open-enum helpers for {@link CosmeticError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CosmeticError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CosmeticError): boolean {
+    return declaredCosmeticError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CosmeticError): u4 | undefined {
+    return declaredCosmeticError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
 export interface FeatureFlagData {
   flagId: string;
   isEnabled: bool;
@@ -1648,6 +1842,7 @@ export interface InventoryItem {
   usableVector: ItemUseVector | null;
   receivedFrom: guid | null;
   ttl: duration | null;
+  cosmeticId: guid | null;
 };
 
 
@@ -2580,6 +2775,8 @@ export interface ArgonUser {
 
 export interface ArgonUserProfile {
   userId: guid;
+  displayNameOverride: string | null;
+  avatarFileIdOverride: string | null;
   customStatus: string | null;
   customStatusIconId: string | null;
   bannerFileID: string | null;
@@ -2594,6 +2791,43 @@ export interface ArgonUserProfile {
   primaryColor: i4 | null;
   accentColor: i4 | null;
   registeredAt: datetime | null;
+  cosmetics: IonArray<EquippedCosmetic> | null;
+  loadoutId: guid | null;
+};
+
+
+export interface EquippedCosmetic {
+  kindKey: string;
+  itemId: guid;
+  slug: string;
+  layer: i4;
+  slotIndex: i4;
+  payloadJson: string;
+  assets: IonArray<EquippedCosmeticAsset>;
+  options: IonArray<EquippedCosmeticOption> | null;
+  contentJson: string | null;
+  boardX: i4 | null;
+  boardY: i4 | null;
+  boardW: i4 | null;
+  boardH: i4 | null;
+  version: i4 | null;
+};
+
+
+export interface EquippedCosmeticOption {
+  facetId: string;
+  kindKey: string;
+  itemId: guid;
+  slug: string;
+  payloadJson: string;
+  assets: IonArray<EquippedCosmeticAsset>;
+  version: i4 | null;
+};
+
+
+export interface EquippedCosmeticAsset {
+  slot: string;
+  fileId: string;
 };
 
 
@@ -8990,6 +9224,410 @@ IonFormatterStorage.register("SubscribeToMySpaces", {
 
 
 
+export abstract class IWidgetPictureResult implements IIonUnion<IWidgetPictureResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessWidgetPicture(): this is SuccessWidgetPicture {
+    return this.UnionKey === "SuccessWidgetPicture";
+  }
+  public isFailedWidgetPicture(): this is FailedWidgetPicture {
+    return this.UnionKey === "FailedWidgetPicture";
+  }
+
+}
+
+
+export class SuccessWidgetPicture extends IWidgetPictureResult
+{
+  constructor(public fileId: string) { super(); }
+
+  UnionKey: string = "SuccessWidgetPicture";
+  UnionIndex: number = 0;
+}
+
+export class FailedWidgetPicture extends IWidgetPictureResult
+{
+  constructor(public error: CosmeticError) { super(); }
+
+  UnionKey: string = "FailedWidgetPicture";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IWidgetPictureResult", {
+  read(reader: CborReader): IWidgetPictureResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IWidgetPictureResult", 2);
+    let value: IWidgetPictureResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessWidgetPicture>("SuccessWidgetPicture").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedWidgetPicture>("FailedWidgetPicture").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IWidgetPictureResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IWidgetPictureResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessWidgetPicture>("SuccessWidgetPicture").write(writer, value as SuccessWidgetPicture);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedWidgetPicture>("FailedWidgetPicture").write(writer, value as FailedWidgetPicture);
+    }
+  
+    else throw new Error(`Ion union 'IWidgetPictureResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessWidgetPicture", {
+  read(reader: CborReader): SuccessWidgetPicture {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessWidgetPicture");
+    const fileId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessWidgetPicture(fileId);
+  },
+  write(writer: CborWriter, value: SuccessWidgetPicture): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedWidgetPicture", {
+  read(reader: CborReader): FailedWidgetPicture {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedWidgetPicture");
+    const error = IonFormatterStorage.get<CosmeticError>('CosmeticError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedWidgetPicture(error);
+  },
+  write(writer: CborWriter, value: FailedWidgetPicture): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CosmeticError>('CosmeticError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICreateLoadoutResult implements IIonUnion<ICreateLoadoutResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateLoadout(): this is SuccessCreateLoadout {
+    return this.UnionKey === "SuccessCreateLoadout";
+  }
+  public isFailedCreateLoadout(): this is FailedCreateLoadout {
+    return this.UnionKey === "FailedCreateLoadout";
+  }
+
+}
+
+
+export class SuccessCreateLoadout extends ICreateLoadoutResult
+{
+  constructor(public loadoutId: guid) { super(); }
+
+  UnionKey: string = "SuccessCreateLoadout";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateLoadout extends ICreateLoadoutResult
+{
+  constructor(public error: CosmeticError) { super(); }
+
+  UnionKey: string = "FailedCreateLoadout";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateLoadoutResult", {
+  read(reader: CborReader): ICreateLoadoutResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateLoadoutResult", 2);
+    let value: ICreateLoadoutResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateLoadout>("SuccessCreateLoadout").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateLoadout>("FailedCreateLoadout").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICreateLoadoutResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateLoadoutResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateLoadout>("SuccessCreateLoadout").write(writer, value as SuccessCreateLoadout);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateLoadout>("FailedCreateLoadout").write(writer, value as FailedCreateLoadout);
+    }
+  
+    else throw new Error(`Ion union 'ICreateLoadoutResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateLoadout", {
+  read(reader: CborReader): SuccessCreateLoadout {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCreateLoadout");
+    const loadoutId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreateLoadout(loadoutId);
+  },
+  write(writer: CborWriter, value: SuccessCreateLoadout): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.loadoutId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateLoadout", {
+  read(reader: CborReader): FailedCreateLoadout {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateLoadout");
+    const error = IonFormatterStorage.get<CosmeticError>('CosmeticError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateLoadout(error);
+  },
+  write(writer: CborWriter, value: FailedCreateLoadout): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CosmeticError>('CosmeticError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILoadoutActionResult implements IIonUnion<ILoadoutActionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessLoadoutAction(): this is SuccessLoadoutAction {
+    return this.UnionKey === "SuccessLoadoutAction";
+  }
+  public isFailedLoadoutAction(): this is FailedLoadoutAction {
+    return this.UnionKey === "FailedLoadoutAction";
+  }
+
+}
+
+
+export class SuccessLoadoutAction extends ILoadoutActionResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessLoadoutAction";
+  UnionIndex: number = 0;
+}
+
+export class FailedLoadoutAction extends ILoadoutActionResult
+{
+  constructor(public error: CosmeticError) { super(); }
+
+  UnionKey: string = "FailedLoadoutAction";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILoadoutActionResult", {
+  read(reader: CborReader): ILoadoutActionResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILoadoutActionResult", 2);
+    let value: ILoadoutActionResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessLoadoutAction>("SuccessLoadoutAction").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedLoadoutAction>("FailedLoadoutAction").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ILoadoutActionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ILoadoutActionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessLoadoutAction>("SuccessLoadoutAction").write(writer, value as SuccessLoadoutAction);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedLoadoutAction>("FailedLoadoutAction").write(writer, value as FailedLoadoutAction);
+    }
+  
+    else throw new Error(`Ion union 'ILoadoutActionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessLoadoutAction", {
+  read(reader: CborReader): SuccessLoadoutAction {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessLoadoutAction");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessLoadoutAction();
+  },
+  write(writer: CborWriter, value: SuccessLoadoutAction): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLoadoutAction", {
+  read(reader: CborReader): FailedLoadoutAction {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLoadoutAction");
+    const error = IonFormatterStorage.get<CosmeticError>('CosmeticError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLoadoutAction(error);
+  },
+  write(writer: CborWriter, value: FailedLoadoutAction): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CosmeticError>('CosmeticError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IEquipResult implements IIonUnion<IEquipResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessEquip(): this is SuccessEquip {
+    return this.UnionKey === "SuccessEquip";
+  }
+  public isFailedEquip(): this is FailedEquip {
+    return this.UnionKey === "FailedEquip";
+  }
+
+}
+
+
+export class SuccessEquip extends IEquipResult
+{
+  constructor(public profile: ArgonUserProfile) { super(); }
+
+  UnionKey: string = "SuccessEquip";
+  UnionIndex: number = 0;
+}
+
+export class FailedEquip extends IEquipResult
+{
+  constructor(public error: CosmeticError) { super(); }
+
+  UnionKey: string = "FailedEquip";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IEquipResult", {
+  read(reader: CborReader): IEquipResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IEquipResult", 2);
+    let value: IEquipResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessEquip>("SuccessEquip").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedEquip>("FailedEquip").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IEquipResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IEquipResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessEquip>("SuccessEquip").write(writer, value as SuccessEquip);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedEquip>("FailedEquip").write(writer, value as FailedEquip);
+    }
+  
+    else throw new Error(`Ion union 'IEquipResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessEquip", {
+  read(reader: CborReader): SuccessEquip {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessEquip");
+    const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessEquip(profile);
+  },
+  write(writer: CborWriter, value: SuccessEquip): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedEquip", {
+  read(reader: CborReader): FailedEquip {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedEquip");
+    const error = IonFormatterStorage.get<CosmeticError>('CosmeticError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedEquip(error);
+  },
+  write(writer: CborWriter, value: FailedEquip): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CosmeticError>('CosmeticError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ISaveGifResult implements IIonUnion<ISaveGifResult>
 {
   abstract UnionKey: string;
@@ -14811,6 +15449,312 @@ IonFormatterStorage.register("MentionTargetType", {
   }
 });
 
+IonFormatterStorage.register("WornCosmetics", {
+  read(reader: CborReader): WornCosmetics {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "WornCosmetics");
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const cosmetics = IonFormatterStorage.readArray<EquippedCosmetic>(reader, 'EquippedCosmetic');
+    const displayNameOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarFileIdOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { userId, cosmetics, displayNameOverride, avatarFileIdOverride };
+  },
+  write(writer: CborWriter, value: WornCosmetics): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeArray<EquippedCosmetic>(writer, value.cosmetics, 'EquippedCosmetic');
+    IonFormatterStorage.writeNullable<string>(writer, value.displayNameOverride, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileIdOverride, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticCatalogue", {
+  read(reader: CborReader): CosmeticCatalogue {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CosmeticCatalogue");
+    const kinds = IonFormatterStorage.readArray<CosmeticKindSummary>(reader, 'CosmeticKindSummary');
+    const items = IonFormatterStorage.readArray<CatalogueCosmetic>(reader, 'CatalogueCosmetic');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { kinds, items };
+  },
+  write(writer: CborWriter, value: CosmeticCatalogue): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeArray<CosmeticKindSummary>(writer, value.kinds, 'CosmeticKindSummary');
+    IonFormatterStorage.writeArray<CatalogueCosmetic>(writer, value.items, 'CatalogueCosmetic');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticKindSummary", {
+  read(reader: CborReader): CosmeticKindSummary {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "CosmeticKindSummary");
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const primitive = IonFormatterStorage.get<string>('string').read(reader);
+    const surfaces = IonFormatterStorage.readArray<string>(reader, 'string');
+    const scopes = IonFormatterStorage.readArray<string>(reader, 'string');
+    const layer = IonFormatterStorage.get<i4>('i4').read(reader);
+    const maxSlots = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { kindKey, primitive, surfaces, scopes, layer, maxSlots };
+  },
+  write(writer: CborWriter, value: CosmeticKindSummary): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<string>('string').write(writer, value.primitive);
+    IonFormatterStorage.writeArray<string>(writer, value.surfaces, 'string');
+    IonFormatterStorage.writeArray<string>(writer, value.scopes, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.layer);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxSlots);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CatalogueCosmetic", {
+  read(reader: CborReader): CatalogueCosmetic {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "CatalogueCosmetic");
+    const cosmeticId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const nameKey = IonFormatterStorage.get<string>('string').read(reader);
+    const descriptionKey = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const rarity = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const payloadJson = IonFormatterStorage.get<string>('string').read(reader);
+    const assets = IonFormatterStorage.readArray<EquippedCosmeticAsset>(reader, 'EquippedCosmeticAsset');
+    const owned = IonFormatterStorage.get<bool>('bool').read(reader);
+    const availableUntil = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const acquisition = IonFormatterStorage.readNullableArray<CosmeticAcquisition>(reader, 'CosmeticAcquisition');
+    const board = IonFormatterStorage.readNullable<CatalogueBoardPolicy>(reader, 'CatalogueBoardPolicy');
+    const text = IonFormatterStorage.readNullableArray<CosmeticText>(reader, 'CosmeticText');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { cosmeticId, kindKey, slug, nameKey, descriptionKey, rarity, version, payloadJson, assets, owned, availableUntil, acquisition, board, text };
+  },
+  write(writer: CborWriter, value: CatalogueCosmetic): void {
+    writer.writeStartArray(14);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.cosmeticId);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.get<string>('string').write(writer, value.nameKey);
+    IonFormatterStorage.writeNullable<string>(writer, value.descriptionKey, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.rarity, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<string>('string').write(writer, value.payloadJson);
+    IonFormatterStorage.writeArray<EquippedCosmeticAsset>(writer, value.assets, 'EquippedCosmeticAsset');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.owned);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.availableUntil, 'datetime');
+    IonFormatterStorage.writeNullableArray<CosmeticAcquisition>(writer, value.acquisition, 'CosmeticAcquisition');
+    IonFormatterStorage.writeNullable<CatalogueBoardPolicy>(writer, value.board, 'CatalogueBoardPolicy');
+    IonFormatterStorage.writeNullableArray<CosmeticText>(writer, value.text, 'CosmeticText');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticText", {
+  read(reader: CborReader): CosmeticText {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CosmeticText");
+    const locale = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { locale, name, description };
+  },
+  write(writer: CborWriter, value: CosmeticText): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.locale);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CatalogueBoardPolicy", {
+  read(reader: CborReader): CatalogueBoardPolicy {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "CatalogueBoardPolicy");
+    const maxPerBoard = IonFormatterStorage.get<i4>('i4').read(reader);
+    const defaultWidth = IonFormatterStorage.get<i4>('i4').read(reader);
+    const defaultHeight = IonFormatterStorage.get<i4>('i4').read(reader);
+    const maxWidth = IonFormatterStorage.get<i4>('i4').read(reader);
+    const minHeight = IonFormatterStorage.get<i4>('i4').read(reader);
+    const maxHeight = IonFormatterStorage.get<i4>('i4').read(reader);
+    const minWidth = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { maxPerBoard, defaultWidth, defaultHeight, maxWidth, minHeight, maxHeight, minWidth };
+  },
+  write(writer: CborWriter, value: CatalogueBoardPolicy): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxPerBoard);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.defaultWidth);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.defaultHeight);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxWidth);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.minHeight);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.maxHeight);
+    IonFormatterStorage.writeNullable<i4>(writer, value.minWidth, 'i4');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MyCosmetics", {
+  read(reader: CborReader): MyCosmetics {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "MyCosmetics");
+    const items = IonFormatterStorage.readArray<OwnedCosmetic>(reader, 'OwnedCosmetic');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { items };
+  },
+  write(writer: CborWriter, value: MyCosmetics): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<OwnedCosmetic>(writer, value.items, 'OwnedCosmetic');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("OwnedCosmetic", {
+  read(reader: CborReader): OwnedCosmetic {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "OwnedCosmetic");
+    const cosmeticId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const expiresAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const viaSubscription = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { cosmeticId, kindKey, slug, expiresAt, viaSubscription };
+  },
+  write(writer: CborWriter, value: OwnedCosmetic): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.cosmeticId);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.expiresAt, 'datetime');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.viaSubscription);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticLoadoutList", {
+  read(reader: CborReader): CosmeticLoadoutList {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CosmeticLoadoutList");
+    const loadouts = IonFormatterStorage.readArray<CosmeticLoadout>(reader, 'CosmeticLoadout');
+    const assignments = IonFormatterStorage.readArray<CosmeticScopeAssignment>(reader, 'CosmeticScopeAssignment');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { loadouts, assignments };
+  },
+  write(writer: CborWriter, value: CosmeticLoadoutList): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeArray<CosmeticLoadout>(writer, value.loadouts, 'CosmeticLoadout');
+    IonFormatterStorage.writeArray<CosmeticScopeAssignment>(writer, value.assignments, 'CosmeticScopeAssignment');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticLoadout", {
+  read(reader: CborReader): CosmeticLoadout {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "CosmeticLoadout");
+    const loadoutId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const isDefault = IonFormatterStorage.get<bool>('bool').read(reader);
+    const sortOrder = IonFormatterStorage.get<i4>('i4').read(reader);
+    const equipped = IonFormatterStorage.readArray<EquippedCosmetic>(reader, 'EquippedCosmetic');
+    const displayNameOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarFileIdOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const bioOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const isPaused = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { loadoutId, name, isDefault, sortOrder, equipped, displayNameOverride, avatarFileIdOverride, bioOverride, isPaused };
+  },
+  write(writer: CborWriter, value: CosmeticLoadout): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.loadoutId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isDefault);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.sortOrder);
+    IonFormatterStorage.writeArray<EquippedCosmetic>(writer, value.equipped, 'EquippedCosmetic');
+    IonFormatterStorage.writeNullable<string>(writer, value.displayNameOverride, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileIdOverride, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.bioOverride, 'string');
+    IonFormatterStorage.writeNullable<bool>(writer, value.isPaused, 'bool');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LoadoutIdentityInput", {
+  read(reader: CborReader): LoadoutIdentityInput {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "LoadoutIdentityInput");
+    const loadoutId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const displayName = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const bio = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const keepAvatar = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { loadoutId, displayName, bio, keepAvatar };
+  },
+  write(writer: CborWriter, value: LoadoutIdentityInput): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.loadoutId);
+    IonFormatterStorage.writeNullable<string>(writer, value.displayName, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.bio, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.keepAvatar);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("WidgetCard", {
+  read(reader: CborReader): WidgetCard {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "WidgetCard");
+    const cosmeticId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const contentJson = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const x = IonFormatterStorage.get<i4>('i4').read(reader);
+    const y = IonFormatterStorage.get<i4>('i4').read(reader);
+    const w = IonFormatterStorage.get<i4>('i4').read(reader);
+    const h = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { cosmeticId, contentJson, x, y, w, h };
+  },
+  write(writer: CborWriter, value: WidgetCard): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.cosmeticId);
+    IonFormatterStorage.writeNullable<string>(writer, value.contentJson, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.x);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.y);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.w);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.h);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticScopeAssignment", {
+  read(reader: CborReader): CosmeticScopeAssignment {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CosmeticScopeAssignment");
+    const spaceId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const loadoutId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { spaceId, loadoutId };
+  },
+  write(writer: CborWriter, value: CosmeticScopeAssignment): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeNullable<guid>(writer, value.spaceId, 'guid');
+    IonFormatterStorage.get<guid>('guid').write(writer, value.loadoutId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticAcquisition", {
+  read(reader: CborReader): CosmeticAcquisition {
+    return IonFormatterStorage.readOpenEnum<CosmeticAcquisition>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: CosmeticAcquisition): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CosmeticError", {
+  read(reader: CborReader): CosmeticError {
+    return IonFormatterStorage.readOpenEnum<CosmeticError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: CosmeticError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("FeatureFlagData", {
   read(reader: CborReader): FeatureFlagData {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FeatureFlagData");
@@ -15123,7 +16067,7 @@ IonFormatterStorage.register("BadAuthKind", {
 
 IonFormatterStorage.register("InventoryItem", {
   read(reader: CborReader): InventoryItem {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "InventoryItem");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "InventoryItem");
     const id = IonFormatterStorage.get<string>('string').read(reader);
     const instanceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const grantedDate = IonFormatterStorage.get<datetime>('datetime').read(reader);
@@ -15132,11 +16076,12 @@ IonFormatterStorage.register("InventoryItem", {
     const usableVector = IonFormatterStorage.readNullable<ItemUseVector>(reader, 'ItemUseVector');
     const receivedFrom = IonFormatterStorage.readNullable<guid>(reader, 'guid');
     const ttl = IonFormatterStorage.readNullable<duration>(reader, 'duration');
-    reader.readEndArrayAndSkip(arraySize - 8);
-    return { id, instanceId, grantedDate, usable, giftable, usableVector, receivedFrom, ttl };
+    const cosmeticId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { id, instanceId, grantedDate, usable, giftable, usableVector, receivedFrom, ttl, cosmeticId };
   },
   write(writer: CborWriter, value: InventoryItem): void {
-    writer.writeStartArray(8);
+    writer.writeStartArray(9);
     IonFormatterStorage.get<string>('string').write(writer, value.id);
     IonFormatterStorage.get<guid>('guid').write(writer, value.instanceId);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.grantedDate);
@@ -15145,6 +16090,7 @@ IonFormatterStorage.register("InventoryItem", {
     IonFormatterStorage.writeNullable<ItemUseVector>(writer, value.usableVector, 'ItemUseVector');
     IonFormatterStorage.writeNullable<guid>(writer, value.receivedFrom, 'guid');
     IonFormatterStorage.writeNullable<duration>(writer, value.ttl, 'duration');
+    IonFormatterStorage.writeNullable<guid>(writer, value.cosmeticId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -16006,8 +16952,10 @@ IonFormatterStorage.register("SpaceStats", {
 
 IonFormatterStorage.register("ArgonUserProfile", {
   read(reader: CborReader): ArgonUserProfile {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 15, "ArgonUserProfile");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 19, "ArgonUserProfile");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const displayNameOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarFileIdOverride = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const bannerFileID = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -16022,12 +16970,16 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const registeredAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
-    reader.readEndArrayAndSkip(arraySize - 15);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt };
+    const cosmetics = IonFormatterStorage.readNullableArray<EquippedCosmetic>(reader, 'EquippedCosmetic');
+    const loadoutId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 19);
+    return { userId, displayNameOverride, avatarFileIdOverride, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics, loadoutId };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(15);
+    writer.writeStartArray(19);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeNullable<string>(writer, value.displayNameOverride, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileIdOverride, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.bannerFileID, 'string');
@@ -16042,6 +16994,90 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
+    IonFormatterStorage.writeNullableArray<EquippedCosmetic>(writer, value.cosmetics, 'EquippedCosmetic');
+    IonFormatterStorage.writeNullable<guid>(writer, value.loadoutId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("EquippedCosmetic", {
+  read(reader: CborReader): EquippedCosmetic {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "EquippedCosmetic");
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const layer = IonFormatterStorage.get<i4>('i4').read(reader);
+    const slotIndex = IonFormatterStorage.get<i4>('i4').read(reader);
+    const payloadJson = IonFormatterStorage.get<string>('string').read(reader);
+    const assets = IonFormatterStorage.readArray<EquippedCosmeticAsset>(reader, 'EquippedCosmeticAsset');
+    const options = IonFormatterStorage.readNullableArray<EquippedCosmeticOption>(reader, 'EquippedCosmeticOption');
+    const contentJson = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const boardX = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const boardY = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const boardW = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const boardH = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const version = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { kindKey, itemId, slug, layer, slotIndex, payloadJson, assets, options, contentJson, boardX, boardY, boardW, boardH, version };
+  },
+  write(writer: CborWriter, value: EquippedCosmetic): void {
+    writer.writeStartArray(14);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.layer);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.slotIndex);
+    IonFormatterStorage.get<string>('string').write(writer, value.payloadJson);
+    IonFormatterStorage.writeArray<EquippedCosmeticAsset>(writer, value.assets, 'EquippedCosmeticAsset');
+    IonFormatterStorage.writeNullableArray<EquippedCosmeticOption>(writer, value.options, 'EquippedCosmeticOption');
+    IonFormatterStorage.writeNullable<string>(writer, value.contentJson, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, value.boardX, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.boardY, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.boardW, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.boardH, 'i4');
+    IonFormatterStorage.writeNullable<i4>(writer, value.version, 'i4');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("EquippedCosmeticOption", {
+  read(reader: CborReader): EquippedCosmeticOption {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "EquippedCosmeticOption");
+    const facetId = IonFormatterStorage.get<string>('string').read(reader);
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const payloadJson = IonFormatterStorage.get<string>('string').read(reader);
+    const assets = IonFormatterStorage.readArray<EquippedCosmeticAsset>(reader, 'EquippedCosmeticAsset');
+    const version = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { facetId, kindKey, itemId, slug, payloadJson, assets, version };
+  },
+  write(writer: CborWriter, value: EquippedCosmeticOption): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<string>('string').write(writer, value.facetId);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.get<string>('string').write(writer, value.payloadJson);
+    IonFormatterStorage.writeArray<EquippedCosmeticAsset>(writer, value.assets, 'EquippedCosmeticAsset');
+    IonFormatterStorage.writeNullable<i4>(writer, value.version, 'i4');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("EquippedCosmeticAsset", {
+  read(reader: CborReader): EquippedCosmeticAsset {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "EquippedCosmeticAsset");
+    const slot = IonFormatterStorage.get<string>('string').read(reader);
+    const fileId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { slot, fileId };
+  },
+  write(writer: CborWriter, value: EquippedCosmeticAsset): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.slot);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileId);
     writer.writeEndArray();
   }
 });
@@ -16920,6 +17956,33 @@ export interface IEventBus extends IIonService
 
 
 
+export interface ICosmeticsInteraction extends IIonService
+{
+  GetCatalogue(): Promise<CosmeticCatalogue>;
+  GetMyCosmetics(): Promise<MyCosmetics>;
+  GetMyLoadouts(): Promise<CosmeticLoadoutList>;
+  CreateLoadout(name: string): Promise<ICreateLoadoutResult>;
+  RenameLoadout(loadoutId: guid, name: string): Promise<ILoadoutActionResult>;
+  SetDefaultLoadout(loadoutId: guid): Promise<ILoadoutActionResult>;
+  SetLoadoutPaused(loadoutId: guid, paused: bool): Promise<ILoadoutActionResult>;
+  DeleteLoadout(loadoutId: guid): Promise<ILoadoutActionResult>;
+  Equip(loadoutId: guid, cosmeticId: guid, slotIndex: i4, overridesJson: string | null): Promise<IEquipResult>;
+  Unequip(loadoutId: guid, kindKey: string, slotIndex: i4): Promise<IEquipResult>;
+  ConfigureCosmetic(loadoutId: guid, kindKey: string, slotIndex: i4, overridesJson: string | null, contentJson: string | null): Promise<IEquipResult>;
+  SetLoadoutIdentity(input: LoadoutIdentityInput): Promise<ILoadoutActionResult>;
+  BeginUploadLoadoutAvatar(loadoutId: guid): Promise<IUploadFileResult>;
+  CompleteUploadLoadoutAvatar(loadoutId: guid, blobId: guid): Promise<ILoadoutActionResult>;
+  BeginUploadWidgetPicture(loadoutId: guid): Promise<IUploadFileResult>;
+  CompleteUploadWidgetPicture(loadoutId: guid, blobId: guid): Promise<IWidgetPictureResult>;
+  SetWidgetBoard(loadoutId: guid, cards: IonArray<WidgetCard>): Promise<ILoadoutActionResult>;
+  AssignLoadoutToSpace(spaceId: guid | null, loadoutId: guid): Promise<ILoadoutActionResult>;
+  UnassignLoadoutFromSpace(spaceId: guid | null): Promise<ILoadoutActionResult>;
+  GetWornBy(spaceId: guid | null, userIds: IonArray<guid>): Promise<IonArray<WornCosmetics>>;
+}
+
+
+
+
 export interface IFeatureFlagInteractions extends IIonService
 {
   GetMyFeatureFlags(): Promise<IonArray<FeatureFlagData>>;
@@ -17255,6 +18318,33 @@ export interface IEventBus extends IIonService
   Dispatch(ev: IArgonClientEvent): Promise<void>;
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
+}
+
+
+
+
+export interface ICosmeticsInteraction extends IIonService
+{
+  GetCatalogue(): Promise<CosmeticCatalogue>;
+  GetMyCosmetics(): Promise<MyCosmetics>;
+  GetMyLoadouts(): Promise<CosmeticLoadoutList>;
+  CreateLoadout(name: string): Promise<ICreateLoadoutResult>;
+  RenameLoadout(loadoutId: guid, name: string): Promise<ILoadoutActionResult>;
+  SetDefaultLoadout(loadoutId: guid): Promise<ILoadoutActionResult>;
+  SetLoadoutPaused(loadoutId: guid, paused: bool): Promise<ILoadoutActionResult>;
+  DeleteLoadout(loadoutId: guid): Promise<ILoadoutActionResult>;
+  Equip(loadoutId: guid, cosmeticId: guid, slotIndex: i4, overridesJson: string | null): Promise<IEquipResult>;
+  Unequip(loadoutId: guid, kindKey: string, slotIndex: i4): Promise<IEquipResult>;
+  ConfigureCosmetic(loadoutId: guid, kindKey: string, slotIndex: i4, overridesJson: string | null, contentJson: string | null): Promise<IEquipResult>;
+  SetLoadoutIdentity(input: LoadoutIdentityInput): Promise<ILoadoutActionResult>;
+  BeginUploadLoadoutAvatar(loadoutId: guid): Promise<IUploadFileResult>;
+  CompleteUploadLoadoutAvatar(loadoutId: guid, blobId: guid): Promise<ILoadoutActionResult>;
+  BeginUploadWidgetPicture(loadoutId: guid): Promise<IUploadFileResult>;
+  CompleteUploadWidgetPicture(loadoutId: guid, blobId: guid): Promise<IWidgetPictureResult>;
+  SetWidgetBoard(loadoutId: guid, cards: IonArray<WidgetCard>): Promise<ILoadoutActionResult>;
+  AssignLoadoutToSpace(spaceId: guid | null, loadoutId: guid): Promise<ILoadoutActionResult>;
+  UnassignLoadoutFromSpace(spaceId: guid | null): Promise<ILoadoutActionResult>;
+  GetWornBy(spaceId: guid | null, userIds: IonArray<guid>): Promise<IonArray<WornCosmetics>>;
 }
 
 
@@ -18361,6 +19451,293 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class CosmeticsInteraction_Executor extends ServiceExecutor<ICosmeticsInteraction> implements ICosmeticsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetCatalogue(): Promise<CosmeticCatalogue> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetCatalogue");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<CosmeticCatalogue>("CosmeticCatalogue", writer.data, this.signal);
+  }
+  async GetMyCosmetics(): Promise<MyCosmetics> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetMyCosmetics");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<MyCosmetics>("MyCosmetics", writer.data, this.signal);
+  }
+  async GetMyLoadouts(): Promise<CosmeticLoadoutList> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetMyLoadouts");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<CosmeticLoadoutList>("CosmeticLoadoutList", writer.data, this.signal);
+  }
+  async CreateLoadout(name: string): Promise<ICreateLoadoutResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "CreateLoadout");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, name);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreateLoadoutResult>("ICreateLoadoutResult", writer.data, this.signal);
+  }
+  async RenameLoadout(loadoutId: guid, name: string): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "RenameLoadout");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<string>('string').write(writer, name);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async SetDefaultLoadout(loadoutId: guid): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "SetDefaultLoadout");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async SetLoadoutPaused(loadoutId: guid, paused: bool): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "SetLoadoutPaused");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<bool>('bool').write(writer, paused);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async DeleteLoadout(loadoutId: guid): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "DeleteLoadout");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async Equip(loadoutId: guid, cosmeticId: guid, slotIndex: i4, overridesJson: string | null): Promise<IEquipResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "Equip");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<guid>('guid').write(writer, cosmeticId);
+    IonFormatterStorage.get<i4>('i4').write(writer, slotIndex);
+    IonFormatterStorage.writeNullable<string>(writer, overridesJson, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEquipResult>("IEquipResult", writer.data, this.signal);
+  }
+  async Unequip(loadoutId: guid, kindKey: string, slotIndex: i4): Promise<IEquipResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "Unequip");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<string>('string').write(writer, kindKey);
+    IonFormatterStorage.get<i4>('i4').write(writer, slotIndex);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEquipResult>("IEquipResult", writer.data, this.signal);
+  }
+  async ConfigureCosmetic(loadoutId: guid, kindKey: string, slotIndex: i4, overridesJson: string | null, contentJson: string | null): Promise<IEquipResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "ConfigureCosmetic");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<string>('string').write(writer, kindKey);
+    IonFormatterStorage.get<i4>('i4').write(writer, slotIndex);
+    IonFormatterStorage.writeNullable<string>(writer, overridesJson, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, contentJson, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEquipResult>("IEquipResult", writer.data, this.signal);
+  }
+  async SetLoadoutIdentity(input: LoadoutIdentityInput): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "SetLoadoutIdentity");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<LoadoutIdentityInput>('LoadoutIdentityInput').write(writer, input);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async BeginUploadLoadoutAvatar(loadoutId: guid): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "BeginUploadLoadoutAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadLoadoutAvatar(loadoutId: guid, blobId: guid): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "CompleteUploadLoadoutAvatar");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async BeginUploadWidgetPicture(loadoutId: guid): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "BeginUploadWidgetPicture");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async CompleteUploadWidgetPicture(loadoutId: guid, blobId: guid): Promise<IWidgetPictureResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "CompleteUploadWidgetPicture");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IWidgetPictureResult>("IWidgetPictureResult", writer.data, this.signal);
+  }
+  async SetWidgetBoard(loadoutId: guid, cards: IonArray<WidgetCard>): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "SetWidgetBoard");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+    IonFormatterStorage.writeArray<WidgetCard>(writer, cards, 'WidgetCard');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async AssignLoadoutToSpace(spaceId: guid | null, loadoutId: guid): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "AssignLoadoutToSpace");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.writeNullable<guid>(writer, spaceId, 'guid');
+    IonFormatterStorage.get<guid>('guid').write(writer, loadoutId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async UnassignLoadoutFromSpace(spaceId: guid | null): Promise<ILoadoutActionResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "UnassignLoadoutFromSpace");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.writeNullable<guid>(writer, spaceId, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILoadoutActionResult>("ILoadoutActionResult", writer.data, this.signal);
+  }
+  async GetWornBy(spaceId: guid | null, userIds: IonArray<guid>): Promise<IonArray<WornCosmetics>> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetWornBy");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.writeNullable<guid>(writer, spaceId, 'guid');
+    IonFormatterStorage.writeArray<guid>(writer, userIds, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<WornCosmetics>>("IonArray<WornCosmetics>", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ICosmeticsInteraction>('CosmeticsInteraction', CosmeticsInteraction_Executor);
 
 export class FeatureFlagInteractions_Executor extends ServiceExecutor<IFeatureFlagInteractions> implements IFeatureFlagInteractions {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -20579,6 +21956,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "BotManagementInteraction") return IonFormatterStorage.createExecutor("BotManagementInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "CosmeticsInteraction") return IonFormatterStorage.createExecutor("CosmeticsInteraction", ctx, controller.signal);
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
@@ -20605,6 +21983,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     BotManagementInteraction: IBotManagementInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    CosmeticsInteraction: ICosmeticsInteraction;
     FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;
     UserChatInteractions: IUserChatInteractions;

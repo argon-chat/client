@@ -72,6 +72,7 @@ const BoostSettings = defineAsyncComponent(() => import("./settings/BoostSetting
 const TransactionSettings = defineAsyncComponent(() => import("./settings/TransactionSettings.vue"));
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { isModalLayerOpen } from "@/lib/modalLayers";
 
 // Stores
 const { t } = useLocale();
@@ -155,9 +156,13 @@ const changeCategory = (categoryId: string) => {
 };
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && windows.settingsOpen) {
-        closeSettings();
-    }
+    if (event.key !== "Escape" || !windows.settingsOpen) return;
+
+    // A dialog opened inside this window owns the key first; closing both on one press undoes
+    // something nobody asked to undo.
+    if (isModalLayerOpen()) return;
+
+    closeSettings();
 };
 
 // Lifecycle

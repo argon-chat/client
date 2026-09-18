@@ -1,7 +1,11 @@
 <template>
     <template v-if="!isLoading && user && userProfile">
         <Transition name="profile-reveal" appear>
-        <div class="popover-inner" :style="cardGlowStyle">
+        <div
+            class="popover-inner"
+            :style="[cardGlowStyle, cosmeticFit.style, cardMap]"
+            :data-framed="cosmeticFit.framed ? '' : null"
+        >
             <!-- Three-dot menu -->
             <div class="popover-menu-anchor">
                 <DropdownMenu v-model:open="menuOpen">
@@ -30,10 +34,25 @@
                 </DropdownMenu>
             </div>
 
-            <!-- Full-bleed background (extends behind everything) -->
+            <!--
+                Full-bleed background (extends behind everything).
+
+                A catalogue background wins when there is one; otherwise this falls back to the five
+                clips bundled with the client, which is how everybody's background works today and
+                will until an operator uploads them to storage and publishes them. The fallback is
+                not dead code waiting to be cleaned up — it is what makes this release a no-op for
+                every profile that already has a background.
+            -->
             <div class="card-bg">
+                <CosmeticSurface
+                    v-if="hasCosmeticBackground"
+                    surface="profileCard"
+                    :profile="userProfile"
+                    :primitives="BACKGROUND_PRIMITIVES"
+                    :tint-color="userProfile?.primaryColor ?? null"
+                />
                 <video
-                    v-if="bgSrc"
+                    v-else-if="bgSrc"
                     :src="bgSrc"
                     autoplay
                     loop
@@ -44,8 +63,19 @@
                 <div v-else-if="hasColors" class="card-bg-media" :style="gradientStyle" />
                 <div v-else class="card-bg-media card-bg-default" />
                 <!-- Color tint overlay -->
-                <div v-if="bgSrc && primaryTintStyle" class="card-bg-tint" :style="primaryTintStyle" />
+                <div v-if="!hasCosmeticBackground && bgSrc && primaryTintStyle" class="card-bg-tint" :style="primaryTintStyle" />
             </div>
+
+            <!--
+              Over everything on the card: the frame around it and whatever moves across it. Outside
+              the background wrapper on purpose — that one is under the card's own contents, and
+              these are the two kinds whose whole point is that they are not.
+            -->
+            <CosmeticSurface
+                surface="profileCard"
+                :profile="userProfile"
+                :primitives="OVERLAY_PRIMITIVES"
+            />
 
             <!-- Empty hero zone to reserve space for the background -->
             <div class="hero-spacer"></div>
@@ -63,62 +93,31 @@
                     <div class="profile-header">
                         <div class="avatar-anchor">
                             <div class="hero-avatar" :style="avatarRingStyle">
-                                <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
-                                    :overridedSize="80" />
+                                <!--
+                                  The look's picture where the look has one. The account's name stays
+                                  the fallback, because that is what a card falls back to when there
+                                  is no picture at all.
+                                -->
+                                <ArgonAvatar :fallback="user.displayName"
+                                    :file-id="userProfile?.avatarFileIdOverride ?? user.avatarFileId"
+                                    :user-id="props.userId"
+                                    :overridedSize="80" :profile="userProfile" />
                                 <StatusDot :status="user.status" :size="18" class="status-dot-pos" />
                             </div>
                         </div>
                         <div class="hero-info">
                             <div class="hero-name-row">
-                                <span class="hero-display-name" :style="nameAccentStyle">{{ user.displayName }}</span>
+                                <CosmeticNickname
+                                    class="hero-display-name"
+                                    :profile="userProfile"
+                                    surface="profileCard"
+                                    :fallback-color="nameAccentColor"
+                                >{{ user.displayName }}</CosmeticNickname>
                                 <BotTag :flags="user.flags" />
                             </div>
                             <div class="hero-username-row">
                                 <span class="hero-username">@{{ user.username }}</span>
-                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                                    v-if="user && (user.flags & UserFlag.PREMIUM) !== 0">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <IconDiamondFilled class="badge-icon text-violet-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Argon Ultima</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                                    v-if="userProfile.badges.find(q => q == 'owner')">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <CrownIcon class="badge-icon fill-blue-400 text-yellow-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Space Owner</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                                    v-if="userProfile.badges.find(q => q == 'staff')">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <IconCat class="badge-icon fill-purple-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Argon Staff</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider :delayDuration="300" :ignoreNonKeyboardFocus="true"
-                                    v-if="userProfile.badges.find(q => q == 'contributor')">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <IconCpu class="badge-icon fill-yellow-400" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Argon Contributor</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <CosmeticBadges :profile="userProfile" :flags="user.flags" />
                             </div>
                             <!-- Status / Activity -->
                             <div class="hero-status">
@@ -169,6 +168,13 @@
                 <div v-if="userProfile.bio" class="bio-block">
                     {{ userProfile.bio }}
                 </div>
+
+                <!--
+                    The board: cards this person put on their profile. Filtered to the widget
+                    renderer, because the background and the badges claim the same surface and
+                    belong elsewhere on it.
+                -->
+                <CosmeticBoard class="widget-board" :profile="userProfile" />
                 </div><!-- .glass-body -->
             </div><!-- .glass-zone -->
         </div>
@@ -189,6 +195,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import ArgonAvatar from "./../ArgonAvatar.vue";
+import CosmeticBadges from "@/cosmetics/CosmeticBadges.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import CosmeticBoard from "@/cosmetics/CosmeticBoard.vue";
+import CosmeticSurface from "@/cosmetics/CosmeticSurface.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
+import { useCosmeticFit } from "@/composables/useCosmeticFit";
+import { useCardMap, POPOVER_CARD } from "@/composables/useCardMap";
 import StatusDot from "./../StatusDot.vue";
 import BotTag from "@/components/shared/BotTag.vue";
 import { CrownIcon, Gamepad2, Headphones, Monitor, Radio, EllipsisVertical, Ban, Flag, Copy } from "lucide-vue-next";
@@ -217,7 +230,7 @@ import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
 import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
-import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
+import { argbToRgba, getBackgroundSrc, shadeArgb } from "@/lib/profileCustomization";
 
 const isLoading = ref(true);
 const pool = usePoolStore();
@@ -245,6 +258,45 @@ const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
 
 // ── Profile customization computeds ──
+
+const cosmetics = useCosmeticsStore();
+
+/** What counts as "the background" on a card: the layer renderers, whatever kind produced them. */
+const BACKGROUND_PRIMITIVES = ["videoLayer", "imageLayer", "spriteSheet"] as const;
+
+/**
+ * Mounted beside the card's own contents rather than inside them, which is what makes them
+ * different kinds.
+ *
+ * Three of them: a frame is a set of pieces arranged against the card's edges, some of which hang
+ * outside it; an effect is one picture laid across the whole thing; a scene is a list of moving
+ * things that puts its own boxes at whichever depths its row named — so it is mounted here and does
+ * not necessarily end up over anything.
+ */
+const OVERLAY_PRIMITIVES = ["frameAssembly", "cardLayer", "sceneStage"] as const;
+
+/**
+ * The room a worn frame asks the card to leave it, as custom properties the layout below adds to
+ * what it already had. Empty numbers when nothing is worn, so the card is unchanged.
+ */
+const cosmeticFit = useCosmeticFit(userProfile, "profileCard");
+
+/**
+ * Where this card's own parts are, for the things drawn on top of it.
+ *
+ * The other direction of the same seam: `cosmeticFit` carries what a cosmetic asks of the card, and
+ * this carries what the card can tell one about itself — where its board starts and where its face
+ * is. A whole-card cosmetic cannot work either out, and neither is worth measuring for.
+ */
+const cardMap = useCardMap(userProfile, "profileCard", POPOVER_CARD);
+
+
+
+const hasCosmeticBackground = computed(() =>
+  cosmetics
+    .resolve(userProfile.value, "profileCard")
+    .some(item => (BACKGROUND_PRIMITIVES as readonly string[]).includes(item.kind.primitive)),
+);
 
 const bgSrc = computed(() => getBackgroundSrc(userProfile.value?.backgroundId));
 
@@ -318,18 +370,14 @@ const avatarRingStyle = computed(() => {
   };
 });
 
-// Name accent highlight
-const nameAccentStyle = computed(() => {
-  if (!userProfile.value?.accentColor) return {};
-  const accent = argbToRgba(userProfile.value.accentColor);
-  if (isLightTheme.value) {
-    // Darken the accent for readability on white
-    const darkened = accent.replace(/rgba\((\d+), (\d+), (\d+)/, (_m, r, g, b) => {
-      return `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}`;
-    });
-    return { color: darkened };
-  }
-  return { color: accent };
+/** The colour this card would paint the name in, handed to whatever is worn as its fallback. */
+const nameAccentColor = computed(() => {
+  const accent = userProfile.value?.accentColor;
+
+  if (!accent) return undefined;
+
+  // Darkened for readability on white.
+  return argbToRgba(isLightTheme.value ? shadeArgb(accent, 0.3) : accent);
 });
 
 // Status text + class
@@ -531,10 +579,18 @@ function onCopyUserId() {
   transform: scale(0.96) translateY(6px);
 }
 
+/*
+ * Not clipped, which is what lets a frame hang a piece over the card's edge.
+ *
+ * The clip used to live here and did two jobs at once: it rounded the full-bleed background and it
+ * fenced everything in. Only the first was ever wanted, so it moved down to the two things that
+ * actually paint into the corners — the background and the glass — and a frame is now free to draw
+ * outside. Nothing else on the card reaches past its own box, so nothing else notices.
+ */
 .popover-inner {
   position: relative;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   transition: box-shadow 0.3s ease;
   background: hsl(var(--card));
 }
@@ -544,6 +600,9 @@ function onCopyUserId() {
   position: absolute;
   inset: 0;
   z-index: 0;
+
+  /* Its own clip now rounds it, rather than the card's doing it from outside. */
+  border-radius: inherit;
   overflow: hidden;
 }
 
@@ -567,7 +626,10 @@ function onCopyUserId() {
 /* ── Hero spacer — reserves space for the visible background ── */
 .hero-spacer {
   position: relative;
-  height: 100px;
+
+  /* Grows by whatever a worn frame asks for, so an avatar does not end up under a branch. Nothing
+     worn, nothing asked for, and this is the 100px it has always been. */
+  height: calc(100px + var(--cosmetic-inset-top, 0px));
   z-index: 1;
 }
 
@@ -613,6 +675,12 @@ function onCopyUserId() {
 .glass-zone {
   position: relative;
   z-index: 2;
+
+  /* The other half of the clip that used to sit on the card. The glass is the only thing that paints
+     into the bottom corners, so without this it comes out square inside a rounded card. */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  overflow: hidden;
 }
 
 /* Frosted glass transition band */
@@ -641,7 +709,13 @@ function onCopyUserId() {
   background: hsl(var(--card) / 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 0 16px 16px;
+
+  /* Added to the padding rather than replacing it: a card with nothing worn is the card it was. */
+  padding:
+    0
+    calc(16px + var(--cosmetic-inset-right, 0px))
+    calc(16px + var(--cosmetic-inset-bottom, 0px))
+    calc(16px + var(--cosmetic-inset-left, 0px));
 }
 
 /* ── Profile header: overlapping avatar + name ── */
@@ -892,6 +966,23 @@ function onCopyUserId() {
   border: 1px solid hsl(var(--border) / 0.15);
 }
 
+/*
+ * The board lays itself out, and this says nothing about how.
+ *
+ * It used to declare `display: flex; gap: 6px` here while `CosmeticBoard` declared `display: grid;
+ * gap: 8px` on the same element — two scoped rules of equal specificity, so which one won came down
+ * to the order the stylesheets happened to be injected in. It never looked broken, because both
+ * arrangements draw a stack of cards. It matters now: a whole-card cosmetic works the board's height
+ * out from those constants rather than measuring it, and an answer that depends on bundling order is
+ * not an answer.
+ *
+ * Kept as a marker class with no layout in it — the board still takes no room at all when nothing is
+ * on it, because it renders nothing at all.
+ */
+.widget-board {
+  min-width: 0;
+}
+
 /* Loading skeleton */
 .loading-skeleton {
   width: 100%;
@@ -980,5 +1071,16 @@ function onCopyUserId() {
 .profile-popover[data-state="closed"] {
   animation-duration: 0.15s !important;
   animation-timing-function: ease-in !important;
+}
+
+/*
+ * A framed card's hairline belongs to the frame now.
+ *
+ * The line is drawn by the portal box around the card, not by the card, so no custom property set
+ * inside can reach it — hence a selector that looks down instead. Art has gaps in it, and a popover
+ * that went on drawing its own border put a thin rule through every space between the thorns.
+ */
+.profile-popover:has(.popover-inner[data-framed]) {
+  border-color: transparent;
 }
 </style>

@@ -18,6 +18,7 @@ import {
   LockdownSeverity,
   LockedAuthStatus,
   UserFlag,
+  UserProfileUpdated,
   UserStatus,
 } from "@argon/glue";
 import { useAuthStore } from "@/store/auth/authStore";
@@ -175,6 +176,31 @@ export const useMe = defineStore("me", () => {
 
   async function completeInit() {
     bus.doListenMyEvents();
+
+    /**
+     * Keep our own profile in step with what the server says about us.
+     *
+     * `meProfile` was fetched once at boot and patched by hand wherever something changed it, which
+     * held while the only writer was this tab: an edit here updated the ref, and everyone else heard
+     * about it through the broadcast. Cosmetics break that — equipping on the phone changes what the
+     * desktop should draw — and nothing was listening for us.
+     *
+     * The broadcast's payload is deliberately not used. It is resolved for one space, and a person
+     * can wear a different loadout in each, so assigning it here would write a space's answer into
+     * the global one. Re-reading costs one call on an event that only fires when somebody changes
+     * their own profile.
+     */
+    bus.onServerEvent<UserProfileUpdated>("UserProfileUpdated", (event) => {
+      if (!me.value || event.userId !== me.value.userId) return;
+
+      void (async () => {
+        try {
+          meProfile.value = await getMeProfile();
+        } catch (e) {
+          logger.warn("Could not refresh our own profile after an update broadcast", e);
+        }
+      })();
+    });
   }
 
   /**

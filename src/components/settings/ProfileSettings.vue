@@ -17,17 +17,41 @@
             <!-- Live Preview + Avatar Uploader -->
             <div class="flex-shrink-0 space-y-3">
               <div class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t("preview") }}</div>
+
+              <!--
+                Which look the card is showing. The account is a choice in the same list rather than a
+                separate mode, because that is what it is: the bottom of the stack every look sits on.
+                Choosing one here is the same choice as opening it below — there is one look being
+                worked on and one card showing it.
+              -->
+              <div v-if="cosmetics.loadouts?.loadouts.length" class="preview-looks">
+                <button
+                  class="preview-look"
+                  :class="{ 'preview-look--active': !cosmetics.editingLoadout }"
+                  @click="cosmetics.editing = null"
+                >{{ t("cosmetic_preview_account") }}</button>
+
+                <button
+                  v-for="look in cosmetics.loadouts.loadouts"
+                  :key="look.loadoutId"
+                  class="preview-look"
+                  :class="{ 'preview-look--active': cosmetics.editing === look.loadoutId }"
+                  @click="cosmetics.editing = look.loadoutId"
+                >{{ look.name }}</button>
+              </div>
+
               <ProfileCardPreview
-                :display-name="editDisplayName || me.me.displayName"
+                :display-name="previewName"
                 :username="me.me.username"
                 :user-id="me.me.userId"
-                :avatar-file-id="me.me.avatarFileId"
+                :avatar-file-id="previewAvatar"
                 :is-premium="me.isPremium"
                 :custom-status="editCustomStatus"
-                :bio="editBio"
+                :bio="previewBio"
                 :primary-color="editPrimaryColor"
                 :accent-color="editAccentColor"
                 :background-id="editBackgroundId"
+                :profile="previewProfile"
                 :avatar-preview="avatarLocalPreview"
                 :avatar-upload-failed="avatarUploadFailed"
                 editable
@@ -190,6 +214,13 @@
             </div>
           </div>
         </div>
+
+        <!--
+          Cosmetics live in their own component rather than in this file: this one is already past
+          two and a half thousand lines and holds sessions, passkeys, phone, email and the danger
+          zone as well as the profile. It renders nothing when the build ships no enabled kinds.
+        -->
+        <CosmeticsPanel />
 
         <!-- Username Card (read-only, separate) -->
         <div class="setting-card">
@@ -892,6 +923,8 @@ import {
 import AvatarCropDialog from "./AvatarCropDialog.vue";
 import ActiveSessions from "./ActiveSessions.vue";
 import ProfileCardPreview from "./ProfileCardPreview.vue";
+import CosmeticsPanel from "./cosmetics/CosmeticsPanel.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import QRStyled from "../login/QRStyled.vue";
 import { useMe } from "@/store/auth/meStore";
@@ -929,6 +962,36 @@ import { useUltimaStore } from "@/store/data/ultimaStore";
 
 const { t } = useLocale();
 const me = useMe();
+const cosmetics = useCosmeticsStore();
+
+/**
+ * The card shows whichever look is open, and the account when none is.
+ *
+ * <b>Assembled here rather than fetched.</b> A look is a diff whose parts are already in hand — its
+ * overrides and its equipped list both arrive with the wardrobe — so previewing one is putting those
+ * over the account's own profile, which is exactly what the server does when somebody else reads it.
+ */
+const previewProfile = computed(() => {
+  const look = cosmetics.editingLoadout;
+
+  if (!look || !me.meProfile) return me.meProfile;
+
+  return {
+    ...me.meProfile,
+    cosmetics: look.equipped,
+    displayNameOverride: look.displayNameOverride,
+    avatarFileIdOverride: look.avatarFileIdOverride,
+    bio: look.bioOverride ?? me.meProfile.bio,
+  };
+});
+
+const previewName = computed(() =>
+  cosmetics.editingLoadout?.displayNameOverride || editDisplayName.value || me.me?.displayName || "");
+
+const previewAvatar = computed(() =>
+  cosmetics.editingLoadout?.avatarFileIdOverride ?? me.me?.avatarFileId ?? null);
+
+const previewBio = computed(() => cosmetics.editingLoadout?.bioOverride ?? editBio.value);
 
 const { toast } = useToast();
 
@@ -1079,12 +1142,20 @@ async function saveCustomization() {
     const result = await api.userInteraction.UpdateMe({
       displayName: nameChanged ? editDisplayName.value : null,
       avatarId: null,
+      // `backgroundId` is still set from here because the five bundled backgrounds are still what
+      // this picker offers, and the server keeps accepting the id.
       backgroundId: editBackgroundId.value,
+
+      // The rest of the pre-cosmetics preset fields are not this form's to set any more — the
+      // loadout editor owns them, through CosmeticsInteraction. Null means "leave alone" on the
+      // server, and the wire requires every field, so they are passed rather than omitted. They
+      // stayed null here for a different reason before: nothing could set them at all.
       voiceCardEffectId: null,
       avatarFrameId: null,
       nickEffectId: null,
-      customStatus: editCustomStatus.value || null,
       customStatusIconId: null,
+
+      customStatus: editCustomStatus.value || null,
       primaryColor: editPrimaryColor.value,
       accentColor: editAccentColor.value,
       // `bio` became a required field on UserEditInput. The textarea and the change detection
@@ -2004,6 +2075,31 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.preview-looks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.preview-look {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: hsl(var(--background));
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.preview-look:hover {
+  color: hsl(var(--foreground));
+}
+
+.preview-look--active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--foreground));
+}
+
 .profile-settings-container {
   max-width: 900px;
   margin: 0 auto;

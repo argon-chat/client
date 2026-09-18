@@ -53,6 +53,7 @@ import ServerProfile from "./settings/spaces/ServerProfile.vue";
 import BotsSettings from "./settings/spaces/BotsSettings.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import { useLocale } from "@/store/system/localeStore";
+import { isModalLayerOpen } from "@/lib/modalLayers";
 
 const windows = useWindow();
 const pex = usePexStore();
@@ -87,9 +88,13 @@ watch(
 );
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && windows.serverSettingsOpen) {
-        windows.serverSettingsOpen = false;
-    }
+    if (event.key !== "Escape" || !windows.serverSettingsOpen) return;
+
+    // A dialog opened inside this window owns the key first; closing both on one press undoes
+    // something nobody asked to undo.
+    if (isModalLayerOpen()) return;
+
+    windows.serverSettingsOpen = false;
 };
 
 onMounted(() => {

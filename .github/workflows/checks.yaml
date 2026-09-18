@@ -35,6 +35,12 @@ jobs:
       - name: Locales
         run: bun run validate:locales
 
+      # Cosmetics whose bytes ship inside the build. `buildPack` can only check that a declared file
+      # is present; that the bytes beside an entry are still the bytes that entry names is checkable
+      # nowhere else, and a mismatch is the one way a pack can be wrong rather than merely stale.
+      - name: Cosmetics pack
+        run: bun run cosmetics:check
+
       # App tests (vitest, Vue SFCs) and package tests (bun test) run separately —
       # the packages import from "bun:test" and only bun can execute them.
       - name: Test

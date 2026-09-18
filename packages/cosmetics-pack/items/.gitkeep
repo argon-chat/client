@@ -1,0 +1,2 @@
+Cosmetic packs are unzipped here, one folder per catalogue row: <kindKey>/<slug>/.
+An empty folder is the correct default — every asset then comes from the CDN, as before.

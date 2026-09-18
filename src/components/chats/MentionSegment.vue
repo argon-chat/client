@@ -1,7 +1,8 @@
 <template>
     <Popover v-model:open="isOpened">
-        <PopoverContent style="width: 24rem;"
-            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
+        <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
+        <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-visible">
             <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
         <PopoverTrigger>
@@ -22,6 +23,7 @@
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
 import { computed, ref } from "vue";
 import UserProfilePopover from "../popovers/UserProfilePopover.vue";
 import ReportDialog from "../modals/ReportDialog.vue";
@@ -43,6 +45,9 @@ const props = defineProps<{
 }>();
 
 const user = computed(() => pool.getUserReactive(computed(() => props.entity.userId)).value);
+
+/** Room between the card and the window for whatever this person's frame hangs outside it. */
+const popoverRoom = useCosmeticOverhang(() => props.entity.userId, () => pool.selectedServer ?? null);
 const me = useMe();
 
 const isForMeMention = computed(() => user.value?.userId === me.me?.userId);

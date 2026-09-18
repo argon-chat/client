@@ -1,0 +1,19 @@
+{
+  "name": "@argon/cosmetics-pack",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./build": {
+      "import": "./src/build.ts",
+      "types": "./src/build.ts"
+    },
+    "./items/*": "./items/*"
+  }
+}

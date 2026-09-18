@@ -1,9 +1,28 @@
 <template>
-  <div class="preview-card" :style="cardGlowStyle">
-    <!-- Full-bleed background -->
+  <!--
+    Room around the card for whatever a worn frame hangs outside it.
+
+    A wrapper with padding rather than a margin on the card itself, and that is not a stylistic
+    preference: this sits inside a `space-y-*` container, whose `> * + *` rule is more specific than
+    any scoped class here and had been quietly winning. A padding is nobody else's property.
+  -->
+  <div class="preview-room" :style="roomStyle">
+  <div class="preview-card" :style="[cardGlowStyle, cardMap]">
+    <!--
+      Full-bleed background. A worn cosmetic wins over the bundled clip the picker below offers,
+      the same order the real card uses — a preview that disagreed with the card would be worse
+      than none.
+    -->
     <div class="preview-bg">
+      <CosmeticSurface
+        v-if="hasCosmeticBackground"
+        surface="profileCard"
+        :profile="profile"
+        :primitives="BACKGROUND_PRIMITIVES"
+        :tint-color="primaryColor"
+      />
       <video
-        v-if="bgSrc"
+        v-else-if="bgSrc"
         :src="bgSrc"
         autoplay
         loop
@@ -13,8 +32,19 @@
       />
       <div v-else-if="hasColors" class="preview-bg-media" :style="gradientStyle" />
       <div v-else class="preview-bg-media preview-bg-default" />
-      <div v-if="bgSrc && primaryTintStyle" class="preview-bg-tint" :style="primaryTintStyle" />
+      <div v-if="!hasCosmeticBackground && bgSrc && primaryTintStyle" class="preview-bg-tint" :style="primaryTintStyle" />
     </div>
+
+    <!--
+      Over everything on the card: the frame around it and whatever moves across it. Outside the
+      background wrapper on purpose — that one is under the card's own contents, and these are the
+      two kinds whose whole point is that they are not.
+    -->
+    <CosmeticSurface
+      surface="profileCard"
+      :profile="profile"
+      :primitives="OVERLAY_PRIMITIVES"
+    />
 
     <!-- Hero spacer -->
     <div class="preview-spacer"></div>
@@ -39,6 +69,7 @@
                 :file-id="avatarFileId"
                 :user-id="userId"
                 :overridedSize="56"
+                :profile="profile"
               />
               <!-- Upload spinner -->
               <div v-if="avatarPreview && !avatarUploadFailed" class="preview-avatar-overlay" style="opacity: 1">
@@ -55,11 +86,14 @@
             </div>
           </div>
           <div class="preview-info">
-            <div class="preview-name" :style="nameAccentStyle">
+            <CosmeticNickname class="preview-name" surface="profileCard" :profile="profile" :fallback-color="nameAccentColor">
               {{ displayName }}
-              <IconDiamondFilled v-if="isPremium" class="inline w-3.5 h-3.5 text-violet-400 ml-0.5" />
+            </CosmeticNickname>
+            <div class="preview-username">
+              @{{ username }}
+              <!-- Premium is one of the badges this renders, so the lone diamond above went with it. -->
+              <CosmeticBadges :profile="profile" :flags="isPremium ? UserFlag.PREMIUM : 0" />
             </div>
-            <div class="preview-username">@{{ username }}</div>
             <div class="preview-status">{{ statusLabel }}</div>
           </div>
         </div>
@@ -71,17 +105,32 @@
         </div>
         <div v-if="bio" class="preview-bio">{{ bio }}</div>
         <div v-else class="preview-bio preview-bio--placeholder">Your bio appears here...</div>
+
+        <!--
+          The board, here for the same reason the rest of this card is: somebody arranging their
+          cards a few centimetres below should be looking at what everybody else will see, not at a
+          second drawing of it.
+        -->
+        <CosmeticBoard class="preview-board" :profile="profile" />
       </div>
     </div>
+  </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconDiamondFilled } from "@tabler/icons-vue";
 import { CameraIcon, Loader2, X } from "lucide-vue-next";
+import { UserFlag, type ArgonUserProfile } from "@argon/glue";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
-import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
+import CosmeticBadges from "@/cosmetics/CosmeticBadges.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import CosmeticBoard from "@/cosmetics/CosmeticBoard.vue";
+import CosmeticSurface from "@/cosmetics/CosmeticSurface.vue";
+import { useCosmeticsStore } from "@/store/features/cosmeticsStore";
+import { useCosmeticFit } from "@/composables/useCosmeticFit";
+import { useCardMap, SETTINGS_CARD } from "@/composables/useCardMap";
+import { argbToRgba, getBackgroundSrc, shadeArgb } from "@/lib/profileCustomization";
 import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
 
@@ -98,14 +147,91 @@ const props = withDefaults(defineProps<{
   primaryColor: number | null;
   accentColor: number | null;
   backgroundId: number | null;
+
+  /**
+   * What is actually being worn, for the parts of the card that are cosmetics rather than settings.
+   *
+   * The saved profile rather than a speculative one: equipping goes through the server, which
+   * broadcasts, which refreshes this. So the preview shows what other people would see, which is the
+   * only thing it is for.
+   */
+  profile?: ArgonUserProfile | null;
+
   editable?: boolean;
   avatarPreview?: string | null;
   avatarUploadFailed?: boolean;
+
+  /**
+   * A fixed amount of room round the card for a frame's overhang, instead of exactly what the
+   * worn one asks for.
+   *
+   * <b>For a host where the card sits next to something else that must not move.</b> Every frame
+   * hangs a different distance past the card, so a card that reserves exactly the right room is a
+   * card that changes size when the frame does — which in a picker means the whole dialog jumps
+   * sideways every time somebody clicks a different one. A constant gutter costs a little slack
+   * round most frames and lets a very big one draw over it, which nothing here clips.
+   *
+   * Null asks for exactly what is worn, which is right everywhere the card stands on its own.
+   */
+  gutter?: number | null;
 }>(), {
+  profile: null,
   editable: false,
   avatarPreview: null,
   avatarUploadFailed: false,
+  gutter: null,
 });
+
+const cosmetics = useCosmeticsStore();
+
+const BACKGROUND_PRIMITIVES = ["videoLayer", "imageLayer", "spriteSheet"] as const;
+
+/**
+ * Mounted beside the card's own contents rather than inside them, which is what makes them
+ * different kinds.
+ *
+ * Three of them: a frame is a set of pieces arranged against the card's edges, some of which hang
+ * outside it; an effect is one picture laid across the whole thing; a scene is a list of moving
+ * things that puts its own boxes at whichever depths its row named.
+ */
+const OVERLAY_PRIMITIVES = ["frameAssembly", "cardLayer", "sceneStage"] as const;
+
+/** The room a worn frame asks this card to leave it. Zero when nothing is worn. */
+const cosmeticFit = useCosmeticFit(() => props.profile, "profileCard");
+
+/**
+ * Where this card's own parts are, for the things drawn on top of it.
+ *
+ * Its own numbers rather than the popover's: this card is 320px wide with a 65px avatar in a
+ * different place, and handing a scene the popover's measurements would put its face-shaped hole a
+ * centimetre from the face.
+ */
+const cardMap = useCardMap(() => props.profile, "profileCard", SETTINGS_CARD);
+
+/**
+ * The same fit, with the overhang pinned where a host has asked for that.
+ *
+ * Only the outsets are replaced: the insets still say how far the frame reaches over the card's
+ * own top, and the edge flags still say which sides it has taken over, and both of those are the
+ * frame doing its job rather than the layout reacting to it.
+ */
+const roomStyle = computed(() => {
+  if (props.gutter === null) return cosmeticFit.value.style;
+
+  return {
+    ...cosmeticFit.value.style,
+    "--cosmetic-outset-top": `${props.gutter}px`,
+    "--cosmetic-outset-right": `${props.gutter}px`,
+    "--cosmetic-outset-bottom": `${props.gutter}px`,
+    "--cosmetic-outset-left": `${props.gutter}px`,
+  };
+});
+
+const hasCosmeticBackground = computed(() =>
+  cosmetics
+    .resolve(props.profile, "profileCard")
+    .some(item => (BACKGROUND_PRIMITIVES as readonly string[]).includes(item.kind.primitive)),
+);
 
 defineEmits<{
   clickAvatar: [];
@@ -171,29 +297,60 @@ const avatarRingStyle = computed(() => {
   return { borderColor: accent, boxShadow: `0 0 10px ${glow}` };
 });
 
-const nameAccentStyle = computed(() => {
-  if (!props.accentColor) return {};
-  const accent = argbToRgba(props.accentColor);
-  if (isLightTheme.value) {
-    // Darken the accent for readability on white
-    const darkened = accent.replace(/rgba\((\d+), (\d+), (\d+)/, (_m, r, g, b) => {
-      return `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}`;
-    });
-    return { color: darkened };
-  }
-  return { color: accent };
+/** The colour this card would paint the name in, handed to whatever is worn as its fallback. */
+const nameAccentColor = computed(() => {
+  const accent = props.accentColor;
+
+  if (!accent) return undefined;
+
+  // Darkened for readability on white.
+  return argbToRgba(isLightTheme.value ? shadeArgb(accent, 0.3) : accent);
 });
 </script>
 
 <style scoped>
+
+/*
+ * Not clipped, so a frame worn here hangs over the edge exactly as it does on the real card. The
+ * rounding moved down to the two things that paint into the corners — see the popover, which made
+ * the same move for the same reason.
+ */
 .preview-card {
   position: relative;
   width: 320px;
   border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.5);
+  overflow: visible;
   background: hsl(var(--card));
   transition: box-shadow 0.3s ease;
+
+  /*
+   * The hairline, on every side nothing worn has taken over.
+   *
+   * A frame is the card's edge rather than something lying on one, and art has gaps in it — so a card
+   * that went on drawing its own line put a thin grey rule through every space between the thorns.
+   */
+  border-style: solid;
+  border-color: hsl(var(--border) / 0.5);
+  border-width:
+    var(--cosmetic-edge-top, 1px)
+    var(--cosmetic-edge-right, 1px)
+    var(--cosmetic-edge-bottom, 1px)
+    var(--cosmetic-edge-left, 1px);
+}
+
+/*
+ * The room the card is given, so a piece sitting on its top edge does not land on the buttons above.
+ *
+ * This card is not a popover floating over a page — it sits in a settings column, and the column is
+ * ours to arrange while the frame is what somebody chose. So the card moves and the frame does not.
+ */
+.preview-room {
+  width: max-content;
+  padding:
+    var(--cosmetic-outset-top, 0px)
+    var(--cosmetic-outset-right, 0px)
+    var(--cosmetic-outset-bottom, 0px)
+    var(--cosmetic-outset-left, 0px);
 }
 
 /* Full-bleed background */
@@ -201,6 +358,7 @@ const nameAccentStyle = computed(() => {
   position: absolute;
   inset: 0;
   z-index: 0;
+  border-radius: inherit;
   overflow: hidden;
 }
 
@@ -224,7 +382,7 @@ const nameAccentStyle = computed(() => {
 /* Hero spacer */
 .preview-spacer {
   position: relative;
-  height: 90px;
+  height: calc(90px + var(--cosmetic-inset-top, 0px));
   z-index: 1;
 }
 
@@ -232,6 +390,9 @@ const nameAccentStyle = computed(() => {
 .preview-glass-zone {
   position: relative;
   z-index: 2;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  overflow: hidden;
 }
 
 .preview-frost {
@@ -257,7 +418,11 @@ const nameAccentStyle = computed(() => {
   background: hsl(var(--card) / 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  padding: 0 12px 12px;
+  padding:
+    0
+    calc(12px + var(--cosmetic-inset-right, 0px))
+    calc(12px + var(--cosmetic-inset-bottom, 0px))
+    calc(12px + var(--cosmetic-inset-left, 0px));
 }
 
 /* Profile header with overlapping avatar */
@@ -362,6 +527,10 @@ const nameAccentStyle = computed(() => {
   border: 1px solid hsl(var(--border) / 0.25);
 }
 
+.preview-board {
+  margin-top: 8px;
+}
+
 .preview-bio {
   font-size: 0.72rem;
   color: hsl(var(--foreground) / 0.8);
@@ -379,7 +548,8 @@ const nameAccentStyle = computed(() => {
 
 /* ── Light theme overrides ── */
 :root:not(.dark) .preview-card {
-  border: 1px solid hsl(var(--border));
+  /* The colour only — the widths stay where a worn frame can turn them off. */
+  border-color: hsl(var(--border));
   background: hsl(var(--card));
   box-shadow: 0 2px 16px hsl(var(--foreground) / 0.06);
 }
