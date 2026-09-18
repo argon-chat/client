@@ -7,15 +7,26 @@
  * a screen reader picking a voice, the browser picking hyphenation and quote marks, the offer to
  * translate the page — so nothing here looks wrong while all of them are wrong.
  *
- * The bundle names are `am`, `en`, `jp`, `ru` and `ru_pt`, and only the last one has anything to
- * convert; the tests cover the shapes rather than the list, because the list grows.
+ * The bundle names are `am`, `en`, `jp`, `ru` and `ru_pt`. Two of them need converting and for
+ * different reasons — `ru_pt` has a separator no tag may contain, and `jp` is the country Japan
+ * where the language Japanese is `ja` — so the tests cover the shapes rather than the list, because
+ * the list grows.
  */
 import { describe, it, expect } from "vitest";
 import { documentLanguage } from "@/store/system/localeStore";
 
 describe("locale key as a document language", () => {
-  it.each(["en", "ru", "jp", "am"])("passes a plain language through: %s", (locale) => {
+  it.each(["en", "ru", "am"])("passes a plain language through: %s", (locale) => {
     expect(documentLanguage(locale)).toBe(locale);
+  });
+
+  /**
+   * The bundle is named after the flag on the language picker. `jp` is Japan; Japanese is `ja`, and
+   * a screen reader handed the country code reads the page in whatever it defaulted to instead.
+   */
+  it("gives Japanese its language subtag rather than its country code", () => {
+    expect(documentLanguage("jp")).toBe("ja");
+    expect(documentLanguage("JP")).toBe("ja");
   });
 
   /** The one bundle that would otherwise emit an invalid tag. */

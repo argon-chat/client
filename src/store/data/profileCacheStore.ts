@@ -72,6 +72,12 @@ interface Job {
   /** Sitting in the queue, not yet on the wire — the only state a job can be cancelled from. */
   queued: boolean;
   cancelled: boolean;
+  /**
+   * Whether what this job learns is still worth writing down. Cleared when the cache is emptied
+   * underneath it: the answer it is carrying was asked for before the purge, so writing it back
+   * would put the purged row straight back.
+   */
+  cacheable: boolean;
   promise: Promise<ArgonUserProfile>;
   resolve: (profile: ArgonUserProfile) => void;
   reject: (err: unknown) => void;
@@ -87,6 +93,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
   const queue: string[] = [];
   let inflight = 0;
   let pumpTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * A purge of the stored rows, while it is running. A lookup that started during one would read
+   * rows on their way out, so it waits for the purge and reads what is left.
+   */
+  let purge: Promise<unknown> | null = null;
 
   // Outside a space — the friends list, a DM, a mention in a direct chat — there is nothing to
   // scope the profile to, and those rows get their own cache namespace.
@@ -218,24 +230,43 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     }, BATCH_WINDOW_MS);
   }
 
+  /**
+   * Takes a finished job off the registry — but only if it is still the job the registry holds.
+   *
+   * A job that has already been dropped can finish afterwards: an account switch cancels everything
+   * in flight, and the call that was on the wire lands a moment later and settles the object it was
+   * carrying. By then a new request for the same member may have registered a job of its own, and a
+   * blind `delete` by key would evict that live job while it is still running — leaving its callers
+   * waiting on a promise nothing can find, and the next request opening a second call for a profile
+   * already on its way.
+   */
+  function removeJob(job: Job) {
+    if (jobs.get(job.key) === job) jobs.delete(job.key);
+  }
+
   function settle(job: Job, profile: ArgonUserProfile) {
-    jobs.delete(job.key);
+    removeJob(job);
     job.resolve(profile);
   }
 
   function fail(job: Job, err: unknown) {
-    jobs.delete(job.key);
+    removeJob(job);
     job.reject(err);
   }
 
   function cancel(job: Job) {
     job.cancelled = true;
     job.queued = false;
-    jobs.delete(job.key);
+    removeJob(job);
     job.reject(new DOMException("Profile request cancelled", "AbortError"));
   }
 
   function keep(job: Job, profile: ArgonUserProfile) {
+    // The cache was emptied while this was in flight. The row it would write is the one that was
+    // just thrown away, so the answer goes to the callers waiting on it and no further — and the
+    // next reader, finding nothing cached, asks again.
+    if (!job.cacheable) return;
+
     const fetchedAt = Date.now();
     const kept = job.scope === "full" ? profile : statusProjection(profile);
 
@@ -307,10 +338,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
 
   async function begin(job: Job) {
     try {
+      if (purge) await purge.catch(() => {});
+
       const cached = await db.profileCache.get(job.key);
       if (job.cancelled) return;
 
-      if (cached && Date.now() - cached.fetchedAt < CACHE_TTL && satisfies(cached.scope, job.scope)) {
+      if (job.cacheable && cached && Date.now() - cached.fetchedAt < CACHE_TTL && satisfies(cached.scope, job.scope)) {
         remember(job.key, cached.profile, cached.fetchedAt, cached.scope ?? "full");
         settle(job, cached.profile);
         return;
@@ -323,6 +356,9 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
         return;
       }
 
+      // Nothing has been fetched yet, so whatever a purge said about this job no longer applies:
+      // what it brings back will be read after the purge, and is worth keeping.
+      job.cacheable = true;
       job.queued = true;
       queue.push(job.key);
       schedulePump();
@@ -347,6 +383,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       waiters: 0,
       queued: false,
       cancelled: false,
+      cacheable: true,
       promise, resolve, reject,
     };
     jobs.set(key, job);
@@ -440,8 +477,14 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
    */
   async function updateProfile(spaceId: string, userId: string, profile: ArgonUserProfile) {
     const key = cacheKey(spaceId, userId);
+
+    // Which account the event was addressed to. The read below is an await, and a seamless switch
+    // swaps the Dexie database underneath it — so without this the payload that arrived for the
+    // previous account would be written into the incoming account's cache.
+    const askedIn = sessionEpoch.value;
+
     const existing = memory.get(key) ?? await db.profileCache.get(key);
-    if (!existing) return;
+    if (!existing || sessionEpoch.value !== askedIn) return;
 
     const scope = existing.scope ?? "full";
     const fetchedAt = Date.now();
@@ -451,16 +494,48 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     await db.profileCache.put({ key, spaceId, userId, profile: kept, fetchedAt, scope });
   }
 
+  /**
+   * Stops the jobs an invalidation has overtaken from putting back what it is removing.
+   *
+   * A job that is only queued is left alone on purpose: it has not fetched anything yet, so what it
+   * brings back will be read after the purge and is exactly the fresh data the invalidation wanted.
+   * The ones that matter are already on the wire, or still reading a stored row — those learned
+   * what they know before the purge, and would otherwise write it back over it.
+   */
+  function overtakeInFlight(matches: (job: Job) => boolean) {
+    for (const job of jobs.values()) {
+      if (!job.queued && matches(job)) job.cacheable = false;
+    }
+  }
+
+  /**
+   * Runs a purge of the stored rows, holding lookups off until it has finished.
+   *
+   * Without the hold, a request arriving mid-purge reads a row that is on its way out and remembers
+   * it — which is the same repopulation the flag above prevents, arriving through the other door.
+   */
+  async function purging(clear: () => Promise<unknown>) {
+    const running = clear();
+    purge = running;
+    try {
+      await running;
+    } finally {
+      if (purge === running) purge = null;
+    }
+  }
+
   async function invalidateAll() {
+    overtakeInFlight(() => true);
     memory.clear();
-    await db.profileCache.clear();
+    await purging(() => db.profileCache.clear());
   }
 
   async function invalidateUser(userId: string) {
+    overtakeInFlight(job => job.userId === userId);
     for (const [key, entry] of memory) {
       if (entry.profile.userId === userId) memory.delete(key);
     }
-    await db.profileCache.where("userId").equals(userId).delete();
+    await purging(() => db.profileCache.where("userId").equals(userId).delete());
   }
 
   // Seamless account switch: drop everything in flight and everything held in memory. The cached
@@ -480,8 +555,10 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     void (async () => {
       await updateProfile(e.spaceId, e.userId, e.profile);
       // The space-less copy of a profile is a different thing — no archetypes — so a space-scoped
-      // payload cannot stand in for it. Drop it and let the next read fetch its own.
+      // payload cannot stand in for it. Drop it and let the next read fetch its own; a lookup that
+      // is already on its way with the old one does not get to put it back.
       const globalKey = cacheKey(null, e.userId);
+      overtakeInFlight(job => job.key === globalKey);
       memory.delete(globalKey);
       await db.profileCache.delete(globalKey);
     })();

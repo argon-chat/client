@@ -14,11 +14,12 @@
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import type { ArgonUserProfile } from "@argon/glue";
 import type { FakeTable } from "./inMemoryDexie";
 
 /** One entry per call that reached the transport, held open until the test lets it answer. */
 const { wire } = vi.hoisted(() => ({
-  wire: [] as { userIds: string[]; answer: (profiles: unknown[]) => void }[],
+  wire: [] as { userIds: string[]; answer: (profiles: unknown[]) => void; answered?: boolean }[],
 }));
 
 vi.mock("@argon/core", () => ({
@@ -32,9 +33,14 @@ vi.mock("@/store/db/dexie", async () => {
   return { db: { profileCache: new FakeTable("profileCache", "key") } };
 });
 
+const { resetters } = vi.hoisted(() => ({ resetters: [] as (() => void)[] }));
+
 vi.mock("@/store/system/sessionLifecycle", async () => {
   const { ref } = await import("vue");
-  return { sessionEpoch: ref(0), onSessionReset: () => {} };
+  return {
+    sessionEpoch: ref(0),
+    onSessionReset: (fn: () => void) => resetters.push(fn),
+  };
 });
 vi.mock("@/store/realtime/busStore", () => ({ useBus: () => ({ onServerEvent: () => {} }) }));
 vi.mock("@/store/system/systemStore", () => ({
@@ -52,13 +58,26 @@ vi.mock("@/store/system/apiStore", () => ({
 }));
 
 import { db } from "@/store/db/dexie";
+import { sessionEpoch } from "@/store/system/sessionLifecycle";
 import { useProfileCacheStore } from "@/store/data/profileCacheStore";
+
+/** What accountsStore.switchTo does when an account switch lands. */
+const switchAccount = () => {
+  sessionEpoch.value++;
+  for (const reset of resetters) reset();
+};
 
 const profileCache = db.profileCache as unknown as FakeTable<any>;
 
 const SPACE = "space-1";
 
-/** What the server sends back: everything, whatever the caller asked for. */
+/**
+ * What the server sends back: everything, whatever the caller asked for.
+ *
+ * The one cast in this file. `dateOfBirth` is a `DateOnly` on the wire and a readable string here,
+ * because what these tests have to say about it is that it never reaches the cache — and a real one
+ * would put a glue constructor between the reader and that point for no gain.
+ */
 const serverProfile = (userId: string, customStatus: string | null = "at work") => ({
   userId,
   customStatus,
@@ -75,7 +94,7 @@ const serverProfile = (userId: string, customStatus: string | null = "at work") 
   primaryColor: null,
   accentColor: null,
   registeredAt: null,
-});
+}) as unknown as ArgonUserProfile;
 
 /**
  * Lets the store's coalescing window close, its cache reads resolve and its un-awaited cache writes
@@ -87,14 +106,34 @@ const settle = async () => {
 };
 
 /** Answers a held-open call the way the server does: one entry per id it was given. */
-const answerAll = (call: { userIds: string[]; answer: (profiles: unknown[]) => void }, status = "at work") =>
+const answerAll = (call: (typeof wire)[number], status = "at work") => {
+  if (call.answered) return;
+  call.answered = true;
   call.answer(call.userIds.map(id => serverProfile(id, status)));
+};
+
+/**
+ * Answers everything on the wire, including the calls that go out as slots free up, until the queue
+ * behind them is empty. Bounded, so a store that never stops sending fails the test rather than the
+ * suite.
+ */
+const drainWire = async (status = "at work") => {
+  for (let round = 0; round < 12; round++) {
+    const pending = wire.filter(call => !call.answered);
+    if (pending.length === 0) return;
+    for (const call of pending) answerAll(call, status);
+    await settle();
+  }
+  throw new Error("the wire never drained");
+};
 
 /** Every id carried by every call that has reached the transport. */
 const asked = () => wire.flatMap(call => call.userIds);
 
 beforeEach(() => {
   wire.length = 0;
+  resetters.length = 0;
+  sessionEpoch.value = 0;
   profileCache.clear();
   setActivePinia(createPinia());
 });
@@ -176,9 +215,8 @@ describe("member list prefetch", () => {
     scrolledPast.abort();
     await expect(dropped).rejects.toMatchObject({ name: "AbortError" });
 
-    // Draining what is on the wire lets the queue behind it through; the abandoned row is not in it.
-    for (const call of [...wire]) answerAll(call);
-    await settle();
+    // Draining the wire lets the queue behind it through; the abandoned row is not in it.
+    await drainWire();
 
     expect(asked().length).toBeGreaterThan(300);
     expect(asked()).not.toContain("scrolled-past");
@@ -233,6 +271,159 @@ describe("member list prefetch", () => {
 
     expect(await present).toEqual({ customStatus: "away", customStatusIconId: null });
     await expect(absent).rejects.toThrow(/u2/);
+  });
+});
+
+/**
+ * Two things happening at once: a reply on its way in, and the ground moving under it. An account
+ * switch swaps the API client and the Dexie database; an invalidation empties the cache on purpose.
+ * Either way a call that was already in flight is carrying an answer from before the change, and
+ * the bugs here are all the same bug — that answer being written down as though nothing happened.
+ */
+describe("an answer that arrives after the ground moved", () => {
+  test("a reply from the previous account does not evict the new account's job", async () => {
+    const store = useProfileCacheStore();
+
+    const abandoned = store.getStatus(SPACE, "u1");
+    abandoned.catch(() => {});
+    await settle();
+    expect(wire).toHaveLength(1);
+
+    // The switch drops everything in flight; the call it dropped is still on the wire.
+    switchAccount();
+
+    const afterSwitch = store.getStatus(SPACE, "u1");
+    afterSwitch.catch(() => {});
+    await settle();
+    expect(wire).toHaveLength(2);
+
+    // The previous account's call lands. It has no business touching the registry any more: the
+    // key it was filed under now belongs to somebody else's job.
+    answerAll(wire[0], "stale");
+    await settle();
+
+    // Which is what this proves — a third request still joins the live job rather than opening a
+    // call of its own, because that job is still registered.
+    const joining = store.getStatus(SPACE, "u1");
+    joining.catch(() => {});
+    await settle();
+    expect(wire).toHaveLength(2);
+
+    answerAll(wire[1], "current");
+    expect(await joining).toEqual({ customStatus: "current", customStatusIconId: null });
+  });
+
+  test("an update event for the previous account is not written into the new one's cache", async () => {
+    const store = useProfileCacheStore();
+
+    const key = `${SPACE}:u1`;
+    profileCache.seed({
+      key,
+      spaceId: SPACE,
+      userId: "u1",
+      profile: serverProfile("u1", "before"),
+      fetchedAt: Date.now(),
+      scope: "full",
+    });
+
+    // The event is read out of Dexie first, and that read is where the switch gets in.
+    const applying = store.updateProfile(SPACE, "u1", serverProfile("u1", "after"));
+    switchAccount();
+    await applying;
+    await settle();
+
+    expect(profileCache.peek(key).profile.customStatus).toBe("before");
+  });
+
+  test("an invalidated profile is not put back by the call that was already asking for it", async () => {
+    const store = useProfileCacheStore();
+
+    const asking = store.getStatus(SPACE, "u1");
+    await settle();
+    expect(wire).toHaveLength(1);
+
+    // The long reconnect ends and the cache is emptied — while the answer is still on the wire.
+    await store.invalidateAll();
+    answerAll(wire[0], "from before the reconnect");
+    await settle();
+
+    // The caller is still answered: it asked, and dropping the reply on the floor would leave a row
+    // blank for no reason.
+    expect(await asking).toEqual({
+      customStatus: "from before the reconnect",
+      customStatusIconId: null,
+    });
+
+    // But nothing was written down, so the next reader goes and asks.
+    expect(profileCache.peek(`${SPACE}:u1`)).toBeUndefined();
+
+    const next = store.getStatus(SPACE, "u1");
+    next.catch(() => {});
+    await settle();
+    expect(wire).toHaveLength(2);
+  });
+
+  test("invalidating one member leaves the others in flight alone", async () => {
+    const store = useProfileCacheStore();
+
+    const purged = store.getStatus(SPACE, "u1");
+    const kept = store.getStatus(SPACE, "u2");
+    await settle();
+    expect(wire).toHaveLength(1);
+
+    await store.invalidateUser("u1");
+    answerAll(wire[0], "away");
+    await Promise.all([purged, kept]);
+    await settle();
+
+    expect(profileCache.peek(`${SPACE}:u1`)).toBeUndefined();
+    expect(profileCache.peek(`${SPACE}:u2`)?.profile.customStatus).toBe("away");
+  });
+
+  test("a stored row read across the purge is not handed out as though it survived", async () => {
+    const store = useProfileCacheStore();
+
+    profileCache.seed({
+      key: `${SPACE}:u1`,
+      spaceId: SPACE,
+      userId: "u1",
+      profile: serverProfile("u1", "from before the purge"),
+      fetchedAt: Date.now(),
+      scope: "status",
+    });
+
+    // The local read is already in flight — begin() has issued it and is waiting on it — when the
+    // cache is emptied underneath it.
+    const reading = store.getStatus(SPACE, "u1");
+    reading.catch(() => {});
+    await store.invalidateAll();
+    await settle();
+
+    // So the row it comes back holding is one that no longer exists, and it has to go and ask.
+    expect(wire).toHaveLength(1);
+    expect(wire[0].userIds).toEqual(["u1"]);
+
+    answerAll(wire[0], "current");
+    expect(await reading).toEqual({ customStatus: "current", customStatusIconId: null });
+  });
+
+  test("a member still waiting its turn when the cache is emptied is cached as usual", async () => {
+    const store = useProfileCacheStore();
+
+    // Asked for first, so the three hundred rows that mount after it are drained ahead of it and it
+    // is still sitting in the queue, having fetched nothing, when the purge lands.
+    const queued = store.getStatus(SPACE, "still-queued");
+    for (let i = 0; i < 300; i++) void store.getStatus(SPACE, `visible-${i}`).catch(() => {});
+    await settle();
+    expect(asked()).not.toContain("still-queued");
+
+    await store.invalidateAll();
+
+    // Whatever it brings back is read after the purge, so it is the fresh data the purge wanted.
+    await drainWire();
+
+    await queued;
+    expect(profileCache.peek(`${SPACE}:still-queued`)?.profile.customStatus).toBe("at work");
   });
 });
 

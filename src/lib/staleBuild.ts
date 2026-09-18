@@ -38,25 +38,60 @@ const MARK = "argon.staleBuild.reloadedAt";
  */
 const COOLDOWN_MS = 30_000;
 
-/** Whether this looks like a chunk that is no longer on the server. */
+/**
+ * Whether this looks like a chunk that is no longer on the server.
+ *
+ * Two of the four wordings are proof and two are only evidence. "Expected a JavaScript module
+ * script" and the `text/html` MIME complaint mean the server answered and what it answered with was
+ * the SPA fallback document — nothing but a build that moved produces that. "Failed to fetch a
+ * dynamically imported module" covers a chunk that is gone and a chunk that could not be reached,
+ * in the same words, and a reload fixes only the first. When the browser says it has no network,
+ * the second is what happened.
+ */
 function isMissingChunk(reason: unknown): boolean {
   const text = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason ?? "");
 
-  return /Failed to fetch dynamically imported module/i.test(text)
-    || /error loading dynamically imported module/i.test(text)
-    // What the browser says when the SPA fallback answered a .js request with the document.
-    || /Expected a JavaScript(-or-Wasm)? module script/i.test(text)
-    || /'text\/html' is not a valid JavaScript MIME type/i.test(text);
+  // What the browser says when the SPA fallback answered a .js request with the document.
+  if (/Expected a JavaScript(-or-Wasm)? module script/i.test(text)) return true;
+  if (/'text\/html' is not a valid JavaScript MIME type/i.test(text)) return true;
+
+  const couldNotFetch = /Failed to fetch dynamically imported module/i.test(text)
+    || /error loading dynamically imported module/i.test(text);
+
+  return couldNotFetch && !isOffline();
+}
+
+/**
+ * Whether the browser believes it has no network at all.
+ *
+ * `onLine` is worth exactly this much: false is reliable — the machine has no interface up — while
+ * true only means an interface exists. So it is read as a veto and never as permission.
+ */
+function isOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
 function reloadOnce(reason: unknown): void {
-  let last = 0;
+  // The mark is not bookkeeping, it is the whole guard: without a record of the last attempt, a
+  // chunk that is genuinely missing turns recovery into a refresh that never stops. So storage
+  // refusing (private mode, a blocked origin, a full quota) is not something to shrug off and carry
+  // on from — it is the one condition under which reloading cannot be made safe, and the failure is
+  // left to surface instead.
+  let last: number;
   try {
     last = Number(sessionStorage.getItem(MARK) ?? 0);
-  } catch {
-    // Storage refused (private mode, a blocked origin). Treating that as "not recently" risks one
-    // extra reload and never a loop, because the failure has to recur for it to happen again.
+  } catch (err) {
+    logger.error(
+      "[stale-build] cannot read the reload mark, so a reload could not be kept to one; leaving the failure alone",
+      reason,
+      err,
+    );
+    return;
   }
+
+  // A mark written by something else, or truncated: no usable answer, so treat it as no mark. One
+  // reload follows, and it writes a mark that parses.
+  if (!Number.isFinite(last)) last = 0;
 
   if (Date.now() - last < COOLDOWN_MS) {
     logger.error(
@@ -68,8 +103,13 @@ function reloadOnce(reason: unknown): void {
 
   try {
     sessionStorage.setItem(MARK, String(Date.now()));
-  } catch {
-    /* see above */
+  } catch (err) {
+    logger.error(
+      "[stale-build] cannot record the reload mark, so a reload could not be kept to one; leaving the failure alone",
+      reason,
+      err,
+    );
+    return;
   }
 
   logger.warn("[stale-build] this page was loaded from an older build; reloading to pick up the current one", reason);
@@ -91,13 +131,21 @@ function reloadOnce(reason: unknown): void {
 export function installStaleBuildRecovery(isWeb: boolean): boolean {
   if (!isWeb || typeof window === "undefined") return false;
 
-  // Vite's own signal, raised by the preload helper around every lazy import. It is the precise
-  // one: it fires for exactly this failure and carries the chunk that could not be loaded.
+  // Vite's own signal, raised by the preload helper around every lazy import. It is the closest
+  // thing to a precise signal — it carries the error the chunk failed with — but it is raised for
+  // every reason a preload can fail, not only for a build that moved.
   window.addEventListener("vite:preloadError", (event) => {
-    // Without this Vite rethrows, which would reach the unhandled-rejection handler below and be
-    // reported as a crash on the way out of a page that is about to be replaced anyway.
+    const payload = (event as unknown as { payload?: unknown }).payload;
+
+    // Anything else is somebody else's failure to report. Left alone, Vite rethrows it and it
+    // surfaces the way it would have if none of this were installed — which is what a caller
+    // handling its own import errors, and anyone reading a crash report, is entitled to.
+    if (!isMissingChunk(payload)) return;
+
+    // Suppressed only now that it is known to be recoverable: without this Vite rethrows, and the
+    // rethrow is reported as a crash on the way out of a page that is about to be replaced anyway.
     event.preventDefault();
-    reloadOnce((event as unknown as { payload?: unknown }).payload ?? "vite:preloadError");
+    reloadOnce(payload);
   });
 
   // The net under it. A dynamic import made outside Vite's helper, or a module script the browser

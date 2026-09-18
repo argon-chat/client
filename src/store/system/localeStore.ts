@@ -5,21 +5,36 @@ import { watch } from "vue";
 import { ensureLocale, i18n } from "@/lib/i18n";
 
 /**
+ * Bundle names that are not the language subtag they look like.
+ *
+ * `jp` is the country Japan, not the language Japanese — that is `ja`, and nothing reading `lang`
+ * accepts the other one. The bundle keeps its name because it is a filename and renaming it would
+ * move every reference to it; the tag it turns into is the part that has to be right.
+ */
+const CANONICAL_LANGUAGE: Readonly<Record<string, string>> = {
+  jp: "ja",
+};
+
+/**
  * The locale key as an HTML `lang` value.
  *
- * **Why it is not just the key.** The bundles are named with an underscore — `ru_pt` — and BCP 47
- * has no underscore in it, so putting the key straight onto `<html lang>` produces a tag every
- * consumer of it rejects. The consumers are the ones nobody sees working: a screen reader choosing
- * a voice, the browser choosing hyphenation and quotation marks, a translation prompt deciding
- * whether to offer itself. All of them fail silently and fall back to English.
+ * **Why it is not just the key.** The bundles are named the way files are — with an underscore in
+ * `ru_pt`, and with `jp` for Japanese — and BCP 47 accepts neither. Putting a key straight onto
+ * `<html lang>` therefore produces a tag every consumer of it rejects, and the consumers are the
+ * ones nobody sees working: a screen reader choosing a voice, the browser choosing hyphenation and
+ * quotation marks, a translation prompt deciding whether to offer itself. All of them fail silently
+ * and fall back to English.
  *
  * Region is upper-cased because that is the convention the tag is matched by, and an unknown region
  * is harmless — the language subtag in front of it is what anything actually acts on.
  */
 export function documentLanguage(locale: string): string {
-  const [language, region] = locale.replace(/_/g, "-").split("-");
+  const [subtag, region] = locale.replace(/_/g, "-").split("-");
 
-  return region ? `${language.toLowerCase()}-${region.toUpperCase()}` : language.toLowerCase();
+  const lowered  = subtag.toLowerCase();
+  const language = CANONICAL_LANGUAGE[lowered] ?? lowered;
+
+  return region ? `${language}-${region.toUpperCase()}` : language;
 }
 
 export const useLocale = defineStore("locale", () => {
