@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import ArgonAvatar from "./../ArgonAvatar.vue";
 import CosmeticBadges from "@/cosmetics/CosmeticBadges.vue";
 import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
@@ -479,13 +479,25 @@ const formatDate = (date: Date) => {
 const me = useMe();
 const isOwnProfile = computed(() => me.me?.userId === props.userId);
 
+// A popover that is closed before its profile arrives gives the slot back to the member list.
+const profileRequest = new AbortController();
+onUnmounted(() => profileRequest.abort());
+
 onMounted(async () => {
   // No space to scope against on the friends screen or in a direct chat — the store falls back to
   // the space-less lookup rather than handing the transport a null id.
-  userProfile.value = await profileCache.getProfile(
-    pool.selectedServer,
-    props.userId,
-  );
+  let profile: ArgonUserProfile;
+  try {
+    profile = await profileCache.getProfile(pool.selectedServer, props.userId, {
+      signal: profileRequest.signal,
+    });
+  } catch {
+    // Closed before the profile landed, or it could not be read — either way there is no card to
+    // fill in and the skeleton stands.
+    return;
+  }
+
+  userProfile.value = profile;
   userProfile.value.badges.push(
     ...(await pool.generateBadgesByArchetypes(userProfile.value.archetypes)),
   );

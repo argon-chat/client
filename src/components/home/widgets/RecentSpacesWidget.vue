@@ -35,7 +35,7 @@
                     
                     <div @click="goToSpace(space.id)" class="flex items-center gap-2 flex-1 cursor-pointer">
                         <div v-if="space.avatarFieldId" class="w-8 h-8 rounded-lg overflow-hidden shrink-0">
-                            <img :src="cdnUrl(space.avatarFieldId)" :alt="space.name" class="w-full h-full object-cover" />
+                            <img crossorigin="anonymous" :src="cdnUrl(space.avatarFieldId)" :alt="space.name" class="w-full h-full object-cover" />
                         </div>
                         <div v-else class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center font-bold text-primary text-xs shrink-0">
                             {{ space.name[0] }}
@@ -66,7 +66,7 @@
                     <div @click="goToSpace(space.id)" 
                         class="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-all cursor-pointer">
                         <div v-if="space.avatarFieldId" class="w-12 h-12 rounded-lg overflow-hidden">
-                            <img :src="cdnUrl(space.avatarFieldId)" :alt="space.name" class="w-full h-full object-cover" />
+                            <img crossorigin="anonymous" :src="cdnUrl(space.avatarFieldId)" :alt="space.name" class="w-full h-full object-cover" />
                         </div>
                         <div v-else class="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center font-bold text-primary text-sm">
                             {{ space.name[0] }}

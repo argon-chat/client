@@ -10,6 +10,12 @@
  * — a quota Argon owns, persisted, with its own eviction policy, separate from the app's database so
  * that clearing pictures never threatens the message cache.
  *
+ * WHERE THERE ARE NO BUCKETS, the global CacheStorage is used instead. The Storage Buckets API is
+ * Chromium-only — Firefox has shipped no version of it and Safari none up to 27 — and every property
+ * above is a property of the bucket, not of the cache: without one the bytes are still kept and still
+ * served, they simply share the origin's quota and its eviction. That is a worse cache, not a broken
+ * one, and it is the difference between Firefox having a media cache and having none.
+ *
  * Sitting in a service worker rather than in the app means `<img src>` and `fetch` are both covered
  * without a single call site knowing about it.
  *
@@ -52,11 +58,18 @@ function mediaBucket() {
   return bucketPromise;
 }
 
-/** The cache inside that bucket, opened once. */
+/**
+ * The cache: inside the bucket where there is one, otherwise the origin's own.
+ *
+ * The fallback is taken on any failure to open a bucket, not only on the API being absent — a
+ * browser that has buckets but refuses this one (quota, a private window, a policy) is in the same
+ * position as one that never had them.
+ */
 function mediaCache() {
   if (!cachePromise) {
     cachePromise = mediaBucket()
       .then((bucket) => bucket.caches.open(CACHE_NAME))
+      .catch(() => self.caches.open(CACHE_NAME))
       .catch((e) => {
         cachePromise = null;
         throw e;

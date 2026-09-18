@@ -18141,6 +18141,7 @@ export interface IServerInteraction extends IIonService
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
+  PrefetchProfiles(spaceId: guid, userIds: IonArray<guid>): Promise<IonArray<ArgonUserProfile>>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
@@ -18507,6 +18508,7 @@ export interface IServerInteraction extends IIonService
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
+  PrefetchProfiles(spaceId: guid, userIds: IonArray<guid>): Promise<IonArray<ArgonUserProfile>>;
   GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>>;
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
@@ -21036,6 +21038,20 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
     writer.writeEndArray();
           
     return await req.callAsyncT<ArgonUserProfile>("ArgonUserProfile", writer.data, this.signal);
+  }
+  async PrefetchProfiles(spaceId: guid, userIds: IonArray<guid>): Promise<IonArray<ArgonUserProfile>> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "PrefetchProfiles");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.writeArray<guid>(writer, userIds, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ArgonUserProfile>>("IonArray<ArgonUserProfile>", writer.data, this.signal);
   }
   async GetChannels(spaceId: guid): Promise<IonArray<RealtimeChannel>> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetChannels");

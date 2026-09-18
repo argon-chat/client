@@ -11,7 +11,6 @@ import "@argon/glue";
 import "@argon/glue/ipc";
 import { native } from "@argon/glue/native";
 
-import pkg from "../package.json";
 import tailwindColorMap from "../tailwind-colors.json";
 
 import * as Sentry from "@sentry/vue";
@@ -30,12 +29,28 @@ import { initMediaCache } from "./lib/webMediaCache";
 import { logger } from "@argon/core";
 import { pack as cosmeticsPack } from "@argon/cosmetics-pack";
 import { registerBundledFiles } from "./store/system/fileStorage";
+import { installWebSocketStreamShim } from "./lib/shims/webSocketStream";
+import { installStaleBuildRecovery } from "./lib/staleBuild";
 
-window.ui_version = pkg.version;
-window.ui_buildtime = pkg.lastBuildTime;
-window.ui_fullversion = pkg.fullVersion;
-window.ui_branch = pkg.branch;
+// From __ARGON_BUILD__, not package.json. The placeholders in package.json are only rewritten by
+// the NUKE desktop pipeline, so every other build — the dev server, `bun run build`, Cloudflare
+// Pages — used to ship them verbatim and report itself as `v0.0.0 {branch}`.
+window.ui_version = __ARGON_BUILD__.version;
+window.ui_buildtime = __ARGON_BUILD__.builtAt;
+window.ui_fullversion = __ARGON_BUILD__.fullVersion;
+window.ui_branch = __ARGON_BUILD__.branch;
 (window as any).tailwindColorMap = tailwindColorMap;
+
+// BEFORE the gate, on purpose. `WebSocketStream` is Chromium-only, and the gate requires it — so
+// without this Firefox and Safari were turned away at the door over an interface that is a thin
+// wrapper around a WebSocket every browser has. Installing first means the gate then sees it and
+// still fails honestly if the shim could not be put in place.
+installWebSocketStreamShim();
+
+// Also before the gate, and for the same kind of reason: a page carried over a deploy will fail on
+// its first lazy route, and it should recover by reloading rather than by showing a MIME-type error
+// nobody can act on. Installed early so the very first navigation after a deploy is covered.
+installStaleBuildRecovery(isWeb);
 
 // Whether this page is allowed to run the app at all — an old browser or a phone gets a screen of
 // its own instead. Decided here, before any of the work below, because none of it would help.
@@ -140,7 +155,7 @@ Sentry.init({
   // and keeps the on-error replays.
   replaysOnErrorSampleRate: isWeb ? 1.0 : 0,
   environment: import.meta.env.MODE,
-  release: pkg.version,
+  release: __ARGON_BUILD__.version,
   enabled: true,
   normalizeDepth: 5,
   maxBreadcrumbs: 50,
@@ -165,9 +180,10 @@ Sentry.init({
   ...{ tunnel: "https://api.argon.gl/k" },
 });
 
-Sentry.setTag("branch", pkg.branch);
-Sentry.setTag("version.full", pkg.fullVersion);
-Sentry.setTag("version.build.time", pkg.lastBuildTime);
+Sentry.setTag("branch", __ARGON_BUILD__.branch);
+Sentry.setTag("version.full", __ARGON_BUILD__.fullVersion);
+Sentry.setTag("version.build.time", __ARGON_BUILD__.builtAt);
+Sentry.setTag("commit", __ARGON_BUILD__.commit);
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
@@ -193,7 +209,7 @@ if (bootBlock) {
 const argonSvg = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path d="M114.54,88.82c5.35-2.75,9.96-6.72,13.46-11.53c-4.67-3.14-9.86-5.56-15.4-7.09c0.01-24.5-6.29-48.6-18.25-69.73c-7.96,8.45-14.3,18.49-18.62,29.31c-7.66-1.22-15.65-1.06-23.27,0.31C48.13,19.15,41.74,9.02,33.71,0.47C21.76,21.62,15.45,45.7,15.46,70.2c-5.54,1.53-10.73,3.95-15.4,7.09c3.49,4.82,8.1,8.78,13.46,11.53c-3.64,2.85-6.74,6.37-9.14,10.33c5.87,4.32,12.67,7.48,20.05,9.09c19.68,25.4,59.51,25.41,79.2,0c7.38-1.61,14.18-4.78,20.05-9.09C121.28,95.19,118.18,91.68,114.54,88.82z M23.7,68.22c0,0,4.13-2.07,12.4-2.07c8.27,0,19.64,11.37,19.64,11.37s-8.27,6.2-19.64,9.3C32.11,87.91,26.8,77.52,23.7,68.22z M64,98.19c-5.71,0-10.33-4.13-10.33-12.4c1.04-0.35,2.16-0.62,3.3-0.85l3,6.02l1.21-6.61c1.9-0.14,3.84-0.14,5.75,0.01l1.22,6.65l3.01-6.05c1.1,0.23,2.17,0.49,3.18,0.82C74.33,94.05,69.71,98.19,64,98.19z M92.99,86.03c-11.37-3.1-19.63-9.3-19.63-9.3s11.37-11.37,19.63-11.37s12.4,2.07,12.4,2.07C102.29,76.73,96.98,87.12,92.99,86.03z" fill="#3B82F6"/></svg>`)}`;
 
 console.log(
-  `%c %c %c ARGON %c v${pkg.version} %c ${pkg.branch} %c`,
+  `%c %c %c ARGON %c v${__ARGON_BUILD__.version}${__ARGON_BUILD__.dirty ? "*" : ""} %c ${__ARGON_BUILD__.branch} @ ${__ARGON_BUILD__.commit} %c`,
   `background: url('${argonSvg}') no-repeat center center / contain; padding: 20px 24px; margin-right: 4px;`,
   `background: transparent; padding: 0;`,
   `background: linear-gradient(135deg, #3B82F6, #8B5CF6); color: #fff; font-size: 18px; font-weight: 900; padding: 8px 16px; border-radius: 6px 0 0 6px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 3px;`,
@@ -203,7 +219,7 @@ console.log(
 );
 
 console.log(
-  `%c✦ Build %c${pkg.lastBuildTime}%c ✦ Environment %c${import.meta.env.MODE}%c ✦`,
+  `%c✦ Build %c${__ARGON_BUILD__.builtAt}%c ✦ Environment %c${import.meta.env.MODE}%c ✦`,
   `color: #64748b; font-size: 11px;`,
   `color: #38BDF8; font-size: 11px; font-weight: bold;`,
   `color: #64748b; font-size: 11px;`,

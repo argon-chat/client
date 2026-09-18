@@ -1,0 +1,18 @@
+# Cloudflare Pages routing.
+#
+# The app routes in memory (`createMemoryHistory`), so it has no deep links of its own and would
+# seem not to need a fallback at all. It needs exactly one, and losing it breaks sign-in rather
+# than navigation: Aegis returns from OAuth to `/callback?code=…`, which is a real request to this
+# origin for a path no file exists at. Without this line Pages answers it with a 404 and the code
+# is spent on an error page — the user is bounced back to sign-in with nothing said.
+#
+# `webAuth.cleanUpUrl()` puts the address bar back to `/` immediately afterwards, which is why this
+# is the only path that ever needs rewriting and why it is worth writing down: nothing else in the
+# app will remind anyone that it does.
+#
+# 200, not 302: the browser must keep the URL it asked for, because the query string carries the
+# authorization code the page is about to read.
+#
+# Static files are matched before this — Pages serves what exists first — so `overlay.html`,
+# `screencast-overlay.html` and everything under `assets/` are unaffected.
+/*    /index.html   200

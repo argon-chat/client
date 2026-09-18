@@ -2,10 +2,20 @@
  * What the browser build needs from the browser.
  *
  * Argon in a tab is not a page — it holds a realtime socket, an audio graph with worklets, a WebRTC
- * session, a local database and a bucket-backed media cache. Every entry below is load-bearing: the
- * app cannot degrade around a missing one, it can only fail later and more confusingly. So the check
- * runs once before anything mounts, and a browser that comes up short is told so plainly instead of
- * being walked into a white screen twenty seconds in.
+ * session and a local database. Every entry below is load-bearing: the app cannot degrade around a
+ * missing one, it can only fail later and more confusingly. So the check runs once before anything
+ * mounts, and a browser that comes up short is told so plainly instead of being walked into a white
+ * screen twenty seconds in.
+ *
+ * **What is deliberately NOT here.** Storage Buckets used to be, and it turned Firefox away — the
+ * API is Chromium-only and Firefox has shipped no version of it. But nothing in the app needs a
+ * bucket: the media service worker prefers one and now falls back to the global CacheStorage, and
+ * `pruneBuckets` has always been a no-op without them. A capability the app can do without does not
+ * belong in a list whose whole meaning is "cannot start".
+ *
+ * `WebSocketStream` is Chromium-only too and stays, because the transport genuinely has no other
+ * path — but it is shimmed over a plain WebSocket before this runs, so the entry now catches a
+ * failed shim rather than an ordinary Firefox.
  *
  * The desktop build ships its own Chromium and never runs this.
  */
@@ -43,11 +53,6 @@ export const REQUIRED_CAPABILITIES: CapabilityCheck[] = [
   },
   { id: "worker", label: "Web Workers", present: () => has(() => window.Worker) },
   { id: "indexeddb", label: "IndexedDB", present: () => has(() => window.indexedDB) },
-  {
-    id: "storage_buckets",
-    label: "Storage Buckets",
-    present: () => has(() => (navigator as any).storageBuckets?.open),
-  },
   {
     id: "service_worker",
     label: "Service Workers",

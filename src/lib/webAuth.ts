@@ -23,6 +23,8 @@
  */
 
 import { logger } from "@argon/core";
+import { bindDevice, forgetBoundSession } from "@/lib/net/deviceBinding";
+import { forgetDeviceKey } from "@/lib/net/deviceKey";
 import { MACHINE_ID_HEADER, SESSION_ID_HEADER, forgetSessionId, machineId, rememberSessionId, sessionId } from "@/lib/net/machineId";
 
 /**
@@ -337,6 +339,13 @@ async function openSession(apiBase: string, aegisToken: string): Promise<string 
   else logger.warn("[web-auth] the session response carried no sessionId; calls will be refused for want of one");
 
   localStorage.setItem(SESSION_HINT_KEY, "1");
+
+  // Bind the session to a key this browser cannot hand over. Chromium does this for itself off the
+  // Secure-Session-Registration header the same response carried, so this is for everything else —
+  // and deliberately not awaited: it is hardening, and a sign-in must not wait on it or fail with
+  // it. bindDevice swallows its own failures.
+  void bindDevice(apiBase);
+
   lastError = null;
   return data.accessToken as string;
 }
@@ -413,5 +422,10 @@ export async function signOut(apiBase: string): Promise<void> {
     logger.warn("[web-auth] sign-out could not reach the API; clearing locally anyway", e);
   } finally {
     forgetSession();
+
+    // The key outlives the cookies unless it is dropped, and a key left behind would bind the next
+    // person to sign in on this browser to the device identity of the last one.
+    forgetBoundSession();
+    void forgetDeviceKey();
   }
 }

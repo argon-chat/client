@@ -64,6 +64,16 @@ export function registerBundledFiles(files: ReadonlyMap<string, string>): void {
  * pin a dead cross-region URL. The api base comes from the client's own config, so self-hosted
  * instances point at their own server automatically. `spaceId` is no longer needed (the server
  * resolves the S3 key from the fileId) — kept for call-site compatibility.
+ *
+ * **Render these with `crossorigin="anonymous"`.** An `<img>` without it makes a `no-cors` request,
+ * and the browser hands the service worker an *opaque* response — which `media-sw.js` refuses to
+ * store, because an opaque response cannot be measured against the quota and a partial one would
+ * later be served as though it were whole. So every such image is fetched again on every view, and
+ * the media cache silently holds nothing. With the attribute the response is a CORS one and the
+ * cache works; the CDN allows it, and the file endpoint is anonymous, so no credentials are lost.
+ *
+ * It applies only to URLs from here. The same attribute on a third party's image — a link preview,
+ * a GIF from the picker — breaks it outright, because their servers send no CORS headers at all.
  */
 export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   if (fileUrlOverride) return fileUrlOverride(fileId);

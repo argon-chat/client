@@ -2,9 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Argon App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>Argon</title>
+    <meta name="description" content="Argon - voice, video and text for communities." />
+    <meta name="application-name" content="Argon" />
+
+    <!--
+      The app lives behind a sign-in and has nothing anyone could usefully index. robots.txt asks
+      crawlers not to fetch these pages; this asks the ones that learn a URL by other means not to
+      list it. They answer different questions and neither stands in for the other.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!--
+      Declared for both themes so the browser paints its own chrome to match before Vue has mounted
+      and could say which one is in use. Values mirror src/style.css; change them together.
+    -->
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#242424" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      The desktop application's own icon, so a pinned tab and an installed window are recognisably
+      the same program. Rendered from the 1024px master inside ArgonApp/appicon.icns rather than
+      scaled up from the .ico, which holds one 256px image and nothing larger.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/icon-256.png" sizes="256x256" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!--
+      Installable as an app. Chromium will not offer it without a manifest carrying BOTH a 192px
+      and a 512px icon, a start_url, and a display mode — miss any one and the install option
+      simply never appears, with nothing said about why.
+
+      iOS reads none of that: it has always taken these three meta tags instead, and ignoring them
+      leaves an installed icon that opens in a Safari chrome with an address bar.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Argon" />
+
+    <!--
+      What a pasted link looks like in someone else's chat. Absolute URLs on purpose: a crawler
+      resolves a relative one against its own host and quietly gets nothing.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Argon" />
+    <meta property="og:title" content="Argon" />
+    <meta property="og:description" content="Argon - voice, video and text for communities." />
+    <meta property="og:url" content="https://app.argon.gl/" />
+    <meta property="og:image" content="https://app.argon.gl/icon-256.png" />
+    <meta name="twitter:card" content="summary" />
+
     <link rel="preconnect" href="https://api.argon.gl" />
     <link rel="preconnect" href="https://rts.argon.gl" />
     <link href="https://emoji-css.afeld.me/emoji.css" rel="stylesheet">
@@ -72,8 +124,6 @@
     
     <div vaul-drawer-wrapper id="app"></div>
     <script type="module" src="/src/main.ts"></script>
-    <script>
-    </script>
     <style>
       button.separate-window {
         display: none !important;

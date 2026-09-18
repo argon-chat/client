@@ -177,7 +177,7 @@ const avatarRootStyle = computed(() => {
       :key="cacheKey"
       :style="{ width: size, height: size, ...avatarRootStyle }"
     >
-      <img v-if="avatarSrc && !imgFailed" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
+      <img v-if="avatarSrc && !imgFailed" crossorigin="anonymous" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
       <AvatarFallback v-else>
         {{ fallbackLetter }}
       </AvatarFallback>

@@ -15,7 +15,7 @@
         <!-- Main image -->
         <div class="lightbox-content" @click.stop>
           <img
-            :src="currentSrc ?? ''"
+            crossorigin="anonymous" :src="currentSrc ?? ''"
             :alt="currentImage?.fileName ?? ''"
             class="lightbox-image"
             :class="{ loaded: imageLoaded }"

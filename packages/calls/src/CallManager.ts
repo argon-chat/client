@@ -388,7 +388,7 @@ export function createCallManager(config: CallManagerConfig) {
   }
 
   async function leave() {
-    logger.warn("[CALL] leave()");
+    logger.info("[CALL] leave()");
     recordCallEnded("leave");
     // The room's listeners go with it below, so its "disconnected" handler will not run: clear the
     // reconnect clock here, or a leave mid-reconnect would time the next call's reconnect from now.
