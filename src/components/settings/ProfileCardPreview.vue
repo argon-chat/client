@@ -2,18 +2,8 @@
   <div class="preview-card" :style="cardGlowStyle">
     <!-- Full-bleed background -->
     <div class="preview-bg">
-      <video
-        v-if="bgSrc"
-        :src="bgSrc"
-        autoplay
-        loop
-        muted
-        playsinline
-        class="preview-bg-media"
-      />
-      <div v-else-if="hasColors" class="preview-bg-media" :style="gradientStyle" />
+      <div v-if="hasColors" class="preview-bg-media" :style="gradientStyle" />
       <div v-else class="preview-bg-media preview-bg-default" />
-      <div v-if="bgSrc && primaryTintStyle" class="preview-bg-tint" :style="primaryTintStyle" />
     </div>
 
     <!-- Hero spacer -->
@@ -81,7 +71,7 @@ import { computed } from "vue";
 import { IconDiamondFilled } from "@tabler/icons-vue";
 import { CameraIcon, Loader2, X } from "lucide-vue-next";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
-import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
+import { argbToRgba } from "@/lib/profileCustomization";
 import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
 
@@ -97,7 +87,6 @@ const props = withDefaults(defineProps<{
   bio?: string | null;
   primaryColor: number | null;
   accentColor: number | null;
-  backgroundId: number | null;
   editable?: boolean;
   avatarPreview?: string | null;
   avatarUploadFailed?: boolean;
@@ -114,7 +103,6 @@ defineEmits<{
 const currentTheme = persistedValue<string>("appearance.theme", "dark");
 const isLightTheme = computed(() => currentTheme.value === "light");
 
-const bgSrc = computed(() => getBackgroundSrc(props.backgroundId));
 const hasColors = computed(() => props.primaryColor != null || props.accentColor != null);
 
 const statusLabel = computed(() => t("status_online"));
@@ -123,13 +111,6 @@ const gradientStyle = computed(() => {
   const primary = props.primaryColor ? argbToRgba(props.primaryColor) : "hsl(var(--muted))";
   const accent = props.accentColor ? argbToRgba(props.accentColor) : primary;
   return { background: `linear-gradient(135deg, ${primary}, ${accent})` };
-});
-
-const primaryTintStyle = computed(() => {
-  if (!props.primaryColor) return null;
-  const color = argbToRgba(props.primaryColor);
-  const opacity = isLightTheme.value ? "0.12)" : "0.2)";
-  return { background: color.replace(/[\d.]+\)$/, opacity) };
 });
 
 const glassTintStyle = computed(() => {
@@ -212,13 +193,6 @@ const nameAccentStyle = computed(() => {
 
 .preview-bg-default {
   background: linear-gradient(160deg, hsl(var(--muted) / 0.5) 0%, hsl(var(--card)) 100%);
-}
-
-.preview-bg-tint {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: overlay;
 }
 
 /* Hero spacer */

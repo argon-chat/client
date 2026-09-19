@@ -27,7 +27,6 @@
                 :bio="editBio"
                 :primary-color="editPrimaryColor"
                 :accent-color="editAccentColor"
-                :background-id="editBackgroundId"
                 :avatar-preview="avatarLocalPreview"
                 :avatar-upload-failed="avatarUploadFailed"
                 editable
@@ -142,39 +141,6 @@
                         <XIcon class="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
-                </div>
-
-                <!-- Background (horizontal scroll) -->
-                <div class="mt-5">
-                  <div class="text-sm font-medium mb-2">{{ t("profile_background") }}</div>
-                  <div class="bg-scroll">
-                    <!-- None option -->
-                    <button
-                      class="bg-scroll-item"
-                      :class="{ 'bg-scroll-item--active': editBackgroundId == null }"
-                      @click="editBackgroundId = null"
-                    >
-                      <div class="bg-scroll-thumb bg-scroll-thumb--none">
-                        <XIcon class="w-4 h-4 text-muted-foreground" />
-                      </div>
-                      <span class="bg-scroll-label">{{ t("none") }}</span>
-                    </button>
-                    <!-- Background options -->
-                    <button
-                      v-for="bg in PROFILE_BACKGROUNDS"
-                      :key="bg.id"
-                      class="bg-scroll-item"
-                      :class="{ 'bg-scroll-item--active': editBackgroundId === bg.id }"
-                      @click="editBackgroundId = bg.id"
-                      @mouseenter="($event.currentTarget as HTMLElement).querySelector('video')?.play()"
-                      @mouseleave="($event.currentTarget as HTMLElement).querySelector('video')?.pause()"
-                    >
-                      <div class="bg-scroll-thumb">
-                        <video :src="bg.src" muted loop playsinline preload="metadata" class="bg-scroll-video" />
-                      </div>
-                      <span class="bg-scroll-label">{{ bg.name }}</span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -924,7 +890,7 @@ import { v7 } from "uuid";
 import { useBus } from "@/store/realtime/busStore";
 import { PasskeyManager, type PasskeyApiCallbacks } from "@argon/passkey";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
-import { COLOR_PRESETS, PROFILE_BACKGROUNDS, argbToHex, hexToArgb } from "@/lib/profileCustomization";
+import { COLOR_PRESETS, argbToHex, hexToArgb } from "@/lib/profileCustomization";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 
 const { t } = useLocale();
@@ -982,7 +948,6 @@ const editCustomStatus = ref("");
 const editBio = ref("");
 const editPrimaryColor = ref<number | null>(null);
 const editAccentColor = ref<number | null>(null);
-const editBackgroundId = ref<number | null>(null);
 const isSavingCustomization = ref(false);
 
 // ── Avatar Upload State ──
@@ -1055,17 +1020,15 @@ const customizationDirty = computed(() => {
     editCustomStatus.value !== (profile.customStatus ?? "") ||
     editBio.value !== (profile.bio ?? "") ||
     editPrimaryColor.value !== (profile.primaryColor ?? null) ||
-    editAccentColor.value !== (profile.accentColor ?? null) ||
-    editBackgroundId.value !== (profile.backgroundId ?? null)
+    editAccentColor.value !== (profile.accentColor ?? null)
   );
 });
 
 async function saveCustomization() {
-  // Premium check for colors, background, and custom status
+  // Premium check for colors and custom status
   const hasPremiumFields =
     editPrimaryColor.value !== (me.meProfile?.primaryColor ?? null) ||
     editAccentColor.value !== (me.meProfile?.accentColor ?? null) ||
-    editBackgroundId.value !== (me.meProfile?.backgroundId ?? null) ||
     editCustomStatus.value !== (me.meProfile?.customStatus ?? "");
 
   if (hasPremiumFields && !me.isPremium) {
@@ -1079,7 +1042,9 @@ async function saveCustomization() {
     const result = await api.userInteraction.UpdateMe({
       displayName: nameChanged ? editDisplayName.value : null,
       avatarId: null,
-      backgroundId: editBackgroundId.value,
+      // Still on UserEditInput so the generated client keeps its shape; the server ignores all
+      // four and the presets they named are gone.
+      backgroundId: null,
       voiceCardEffectId: null,
       avatarFrameId: null,
       nickEffectId: null,
@@ -1102,7 +1067,6 @@ async function saveCustomization() {
         me.meProfile.bio = editBio.value || null;
         me.meProfile.primaryColor = editPrimaryColor.value;
         me.meProfile.accentColor = editAccentColor.value;
-        me.meProfile.backgroundId = editBackgroundId.value;
       }
       toast({ title: t("profile_updated") });
     } else {
@@ -1993,7 +1957,6 @@ onMounted(async () => {
   if (me.meProfile) {
     editPrimaryColor.value = me.meProfile.primaryColor ?? null;
     editAccentColor.value = me.meProfile.accentColor ?? null;
-    editBackgroundId.value = me.meProfile.backgroundId ?? null;
     editCustomStatus.value = me.meProfile.customStatus ?? "";
     editBio.value = me.meProfile.bio ?? "";
   }
@@ -2067,76 +2030,6 @@ onMounted(async () => {
 .color-dot--reset:hover {
   background: hsl(var(--destructive) / 0.15);
   color: hsl(var(--destructive));
-}
-
-/* Horizontal scrolling background strip */
-.bg-scroll {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
-}
-.bg-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-.bg-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.bg-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.25);
-  border-radius: 4px;
-}
-
-.bg-scroll-item {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: border-color 0.15s, transform 0.15s;
-  background: hsl(var(--muted) / 0.3);
-  width: 130px;
-}
-.bg-scroll-item:hover {
-  transform: translateY(-2px);
-  border-color: hsl(var(--border));
-}
-.bg-scroll-item--active {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3);
-}
-
-.bg-scroll-thumb {
-  width: 100%;
-  height: 68px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bg-scroll-thumb--none {
-  background: hsl(var(--muted) / 0.4);
-}
-
-.bg-scroll-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.bg-scroll-label {
-  padding: 4px 8px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ═══ PREMIUM GATE ═══ */

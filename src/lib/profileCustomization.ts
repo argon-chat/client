@@ -1,29 +1,3 @@
-import bgBlackhole from "@argon/assets/backgrounds/blackhole.webm";
-import bgDreamCity from "@argon/assets/backgrounds/dream_city.webm";
-import bgRain from "@argon/assets/backgrounds/rain.webm";
-import bgSakura from "@argon/assets/backgrounds/sakura.webm";
-import bgShells from "@argon/assets/backgrounds/shells.webm";
-
-export interface ProfileBackground {
-  id: number;
-  name: string;
-  src: string;
-}
-
-export const PROFILE_BACKGROUNDS: ProfileBackground[] = [
-  { id: 1, name: "Black Hole", src: bgBlackhole },
-  { id: 2, name: "Dream City", src: bgDreamCity },
-  { id: 3, name: "Rain", src: bgRain },
-  { id: 4, name: "Sakura", src: bgSakura },
-  { id: 5, name: "Shells", src: bgShells },
-];
-
-export function getBackgroundSrc(backgroundId: number | null | undefined): string | null {
-  if (!backgroundId) return null;
-  const bg = PROFILE_BACKGROUNDS.find(b => b.id === backgroundId);
-  return bg?.src ?? null;
-}
-
 /**
  * Convert ARGB i32 to CSS rgba() string
  */

@@ -32,19 +32,8 @@
 
             <!-- Full-bleed background (extends behind everything) -->
             <div class="card-bg">
-                <video
-                    v-if="bgSrc"
-                    :src="bgSrc"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    class="card-bg-media"
-                />
-                <div v-else-if="hasColors" class="card-bg-media" :style="gradientStyle" />
+                <div v-if="hasColors" class="card-bg-media" :style="gradientStyle" />
                 <div v-else class="card-bg-media card-bg-default" />
-                <!-- Color tint overlay -->
-                <div v-if="bgSrc && primaryTintStyle" class="card-bg-tint" :style="primaryTintStyle" />
             </div>
 
             <!-- Empty hero zone to reserve space for the background -->
@@ -217,7 +206,7 @@ import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
 import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
-import { argbToRgba, getBackgroundSrc } from "@/lib/profileCustomization";
+import { argbToRgba } from "@/lib/profileCustomization";
 
 const isLoading = ref(true);
 const pool = usePoolStore();
@@ -246,8 +235,6 @@ const isLightTheme = computed(() => currentTheme.value === "light");
 
 // ── Profile customization computeds ──
 
-const bgSrc = computed(() => getBackgroundSrc(userProfile.value?.backgroundId));
-
 const hasColors = computed(() =>
   userProfile.value?.primaryColor != null || userProfile.value?.accentColor != null
 );
@@ -260,14 +247,6 @@ const gradientStyle = computed(() => {
     ? argbToRgba(userProfile.value.accentColor)
     : primary;
   return { background: `linear-gradient(135deg, ${primary}, ${accent})` };
-});
-
-// Tint overlay when background + primaryColor
-const primaryTintStyle = computed(() => {
-  if (!userProfile.value?.primaryColor) return null;
-  const color = argbToRgba(userProfile.value.primaryColor);
-  const opacity = isLightTheme.value ? "0.12)" : "0.2)";
-  return { background: color.replace(/[\d.]+\)$/, opacity) };
 });
 
 // Glass area tint from primaryColor
@@ -555,13 +534,6 @@ function onCopyUserId() {
 
 .card-bg-default {
   background: linear-gradient(160deg, hsl(var(--muted) / 0.5) 0%, hsl(var(--card)) 100%);
-}
-
-.card-bg-tint {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: overlay;
 }
 
 /* ── Hero spacer — reserves space for the visible background ── */
