@@ -67,7 +67,14 @@ describe("placementOf", () => {
 
   it("spreads a glow only when the ring is glowing", () => {
     expect(placementOf(ring({ thickness: 3 })).filter).toBeUndefined();
-    expect(placementOf(ring({ thickness: 3, glowPct: 60 })).filter).toContain("drop-shadow(0 0 9px");
+  });
+
+  it("spreads a glow as far as it is strong", () => {
+    expect(placementOf(ring({ thickness: 3, glowPct: 100 })).filter).toContain("drop-shadow(0 0 9px");
+    expect(placementOf(ring({ thickness: 3, glowPct: 60 })).filter).toContain("drop-shadow(0 0 5.4px");
+
+    // And shrinks with the frame, like every other measurement.
+    expect(placementOf(ring({ thickness: 3, glowPct: 60 }), 0.5).filter).toContain("drop-shadow(0 0 2.7px");
   });
 });
 

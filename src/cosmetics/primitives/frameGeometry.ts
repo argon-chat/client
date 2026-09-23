@@ -1,5 +1,6 @@
 import { argbToRgb } from "@/lib/profileCustomization";
 import { resolveMotion } from "@/cosmetics/frameMotion";
+import { ringGlowRadius } from "@/cosmetics/kinds/profile-frame";
 import type {
   FrameAnchor,
   FramePart,
@@ -52,7 +53,7 @@ export function placementOf(part: FramePart, scale = 1): Style {
       // animates `filter`, and the two cannot share one element without one of them winning.
       const colours = part.colors.map(argbToRgb);
 
-      style.filter = `drop-shadow(0 0 ${at(part.thickness * 3, scale)}px ${colours[colours.length - 1]})`;
+      style.filter = `drop-shadow(0 0 ${at(ringGlowRadius(part), scale)}px ${colours[colours.length - 1]})`;
     }
 
     return style;

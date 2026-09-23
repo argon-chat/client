@@ -39,8 +39,19 @@ export function emptyNicknameStyleTuning(): NicknameStyleTuning {
   return { colors: null, angle: null, shape: null, animate: null, weight: null, letterSpacingCentiEm: null };
 }
 
+/**
+ * Whether the wearer has chosen nothing at all.
+ *
+ * Every field, not only the colours: a weight or a spacing on its own is a choice, and a caller
+ * that skips an "empty" tuning when saving would quietly throw it away.
+ */
 export function isNicknameStyleTuningEmpty(value: NicknameStyleTuning): boolean {
-  return value.colors === null || value.colors.length === 0;
+  return (value.colors === null || value.colors.length === 0)
+    && value.angle === null
+    && value.shape === null
+    && value.animate === null
+    && value.weight === null
+    && value.letterSpacingCentiEm === null;
 }
 
 function bounded(raw: unknown, low: number, high: number): number | null {

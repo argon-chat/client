@@ -290,6 +290,19 @@ function partOf(raw: unknown): FramePart | null {
 }
 
 /**
+ * How far a ring's glow spreads past the edge, in pixels at full size.
+ *
+ * Three thicknesses at full strength, scaled by `glowPct`. One function because two readers need
+ * it — the paint that draws the glow and the reach a host reserves room for — and a glow that is
+ * drawn wider than the room kept for it is clipped by whatever sits beside the card.
+ */
+export function ringGlowRadius(part: FrameRingPart): number {
+  // Multiplied before it is divided: 9 * 0.6 is 5.3999999999999995 in floating point, and that
+  // string would reach the style attribute.
+  return (part.thickness * 3 * part.glowPct) / 100;
+}
+
+/**
  * A part this build cannot read is dropped and the rest are kept.
  *
  * Deliberately not all-or-nothing. A frame authored against a newer build is most likely one whose
@@ -392,7 +405,8 @@ function reachOf(part: FramePart): CosmeticEdges {
 
   if (part.type === "ring") {
     // What the glow's drop-shadow spreads to, which is the only way a ring leaves the card.
-    const glow = part.glowPct > 0 ? part.thickness * 3 : 0;
+    // Rounded up, so the room reserved is never a fraction short of what is drawn.
+    const glow = Math.ceil(ringGlowRadius(part));
 
     return { top: glow, right: glow, bottom: glow, left: glow };
   }

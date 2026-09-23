@@ -141,9 +141,16 @@ describe("what a frame asks of the card around it", () => {
   it("counts a ring's reach only when it is glowing", () => {
     expect(frameOutsets(parsed({ parts: [ring({ thickness: 3 })] })))
       .toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+  });
 
-    expect(frameOutsets(parsed({ parts: [ring({ thickness: 3, glowPct: 50 })] })))
-      .toEqual({ top: 9, right: 9, bottom: 9, left: 9 });
+  it("reaches as far as its glow is strong", () => {
+    const full = frameOutsets(parsed({ parts: [ring({ thickness: 3, glowPct: 100 })] }));
+    const half = frameOutsets(parsed({ parts: [ring({ thickness: 3, glowPct: 50 })] }));
+
+    expect(full).toEqual({ top: 9, right: 9, bottom: 9, left: 9 });
+
+    // 4.5 drawn, 5 reserved: the room kept is never a fraction short of the glow.
+    expect(half).toEqual({ top: 5, right: 5, bottom: 5, left: 5 });
   });
 
   it("hides the card's own edge only where something covers it", () => {

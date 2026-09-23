@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { textEffect, textEffects } from "@/cosmetics/kinds/option-text-effect";
+import { parseTextEffectOptionPayload, textEffect, textEffects } from "@/cosmetics/kinds/option-text-effect";
 import type { TextEffectContext } from "@/cosmetics/textEffect";
 
 /**
@@ -16,6 +16,18 @@ const context = (stops: string[]): TextEffectContext => ({
   lighten: (hex, amount) => `lighten(${hex}, ${amount})`,
   shade: (hex, amount) => `shade(${hex}, ${amount})`,
   gradient: (...laid) => ({ backgroundImage: `linear-gradient(90deg, ${laid.join(", ")})` }),
+});
+
+describe("the payload of a treatment row", () => {
+  it("is an empty object and nothing else", () => {
+    expect(parseTextEffectOptionPayload({})).toEqual({});
+
+    // The server refuses a member the type does not declare, and this type declares none.
+    expect(parseTextEffectOptionPayload({ css: "color: red" })).toBeNull();
+    expect(parseTextEffectOptionPayload([])).toBeNull();
+    expect(parseTextEffectOptionPayload(null)).toBeNull();
+    expect(parseTextEffectOptionPayload("gradient")).toBeNull();
+  });
 });
 
 describe("the treatments this build ships", () => {

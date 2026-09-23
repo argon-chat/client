@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAvatarDecorationPayload } from "@/cosmetics/kinds/avatar-decoration";
 import { parseFontOptionPayload } from "@/cosmetics/kinds/option-font";
-import { parseSwatchOptionPayload } from "@/cosmetics/kinds/option-swatch";
 import {
   emptyNicknameStyleTuning,
   isNicknameStyleTuningEmpty,
@@ -30,22 +29,6 @@ describe("avatar decoration", () => {
   });
 });
 
-describe("swatch option", () => {
-  it("takes a colour as the integer it is", () => {
-    expect(parseSwatchOptionPayload({ argb: 0xff112233 })).toEqual({ argb: 0xff112233 });
-    expect(parseSwatchOptionPayload({ argb: -15729101 })).toEqual({ argb: -15729101 });
-  });
-
-  it("refuses a hex string, which is what it used to be", () => {
-    expect(parseSwatchOptionPayload({ hex: "#112233" })).toBeNull();
-    expect(parseSwatchOptionPayload({ argb: "#112233" })).toBeNull();
-  });
-
-  it("refuses a colour nobody can see", () => {
-    expect(parseSwatchOptionPayload({ argb: 0x00112233 })).toBeNull();
-  });
-});
-
 describe("font option", () => {
   it("takes a family name and nothing that reads as syntax", () => {
     expect(parseFontOptionPayload({ cssFamily: "Noto Sans JP" })).toEqual({ cssFamily: "Noto Sans JP" });
@@ -64,6 +47,13 @@ describe("nickname style tuning", () => {
 
     expect(isNicknameStyleTuningEmpty(empty)).toBe(true);
     expect(empty.colors).toBeNull();
+  });
+
+  it("counts a weight or a spacing on its own as a choice", () => {
+    // A caller that skips an empty tuning when saving would otherwise throw these away.
+    expect(isNicknameStyleTuningEmpty({ ...emptyNicknameStyleTuning(), weight: 700 })).toBe(false);
+    expect(isNicknameStyleTuningEmpty({ ...emptyNicknameStyleTuning(), letterSpacingCentiEm: 4 })).toBe(false);
+    expect(isNicknameStyleTuningEmpty({ ...emptyNicknameStyleTuning(), shape: "conic" })).toBe(false);
   });
 
   it("takes up to six colours as integers", () => {

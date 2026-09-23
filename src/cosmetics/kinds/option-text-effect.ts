@@ -15,8 +15,16 @@ import type { TextEffectModule } from "@/cosmetics/textEffect";
  */
 export type TextEffectOptionPayload = Record<string, never>;
 
+/**
+ * An empty object, and nothing else.
+ *
+ * The server refuses a member the payload type does not declare, and this one declares none — so
+ * an array, or an object carrying anything, is a row this build and the server disagree about.
+ */
 export function parseTextEffectOptionPayload(raw: unknown): TextEffectOptionPayload | null {
-  return typeof raw === "object" && raw !== null ? {} : null;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+
+  return Object.keys(raw).length === 0 ? {} : null;
 }
 
 const effectModules = import.meta.glob("../effects/*.ts", {
