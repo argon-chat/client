@@ -10,7 +10,8 @@
  * the number for CSS at the point of drawing, which is the only place the string form is useful.
  *
  * There is no payload here to go with the tuning: the kind is bare, so there are no catalogue rows
- * of it. Everything anybody sees comes from the three axes and from this.
+ * of it. Everything anybody sees comes from its two axes, the font and the treatment, and from
+ * this.
  */
 export type NicknameGradientShape = "linear" | "radial" | "conic";
 
@@ -35,6 +36,7 @@ export const MAX_STOPS = 6;
 
 const SHAPES: readonly string[] = ["linear", "radial", "conic"];
 
+/** A tuning with nothing chosen in it: the name is drawn as it would have been without one. */
 export function emptyNicknameStyleTuning(): NicknameStyleTuning {
   return { colors: null, angle: null, shape: null, animate: null, weight: null, letterSpacingCentiEm: null };
 }
@@ -54,6 +56,12 @@ export function isNicknameStyleTuningEmpty(value: NicknameStyleTuning): boolean 
     && value.letterSpacingCentiEm === null;
 }
 
+/**
+ * A whole number within the bounds, or null.
+ *
+ * Out of range is null rather than pinned to the nearest bound, for the same reason a seventh
+ * colour is refused: the edge of the range is a value its wearer did not choose.
+ */
 function bounded(raw: unknown, low: number, high: number): number | null {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
 

@@ -21,6 +21,7 @@ const FAMILY = /^[A-Za-z0-9][A-Za-z0-9 _-]*$/;
 
 const MAX_LENGTH = 96;
 
+/** The family, or null when it is too long or has anything in it `FAMILY` does not allow. */
 export function parseFontOptionPayload(raw: unknown): FontOptionPayload | null {
   if (typeof raw !== "object" || raw === null) return null;
 

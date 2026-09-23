@@ -17,6 +17,13 @@ export interface AvatarDecorationPayload {
 
 const MAX_INSET_PCT = 40;
 
+/**
+ * The decoration's placement, or null when the inset is not a whole percent between 0 and 40.
+ *
+ * A missing inset is zero and a missing `beneath` is over, which is an overlay drawn on top — the
+ * plainest thing a decoration can be. An inset out of range is refused rather than clamped: the
+ * server holds the row to the same bound, so one past it is a row the two disagree about.
+ */
 export function parseAvatarDecorationPayload(raw: unknown): AvatarDecorationPayload | null {
   if (typeof raw !== "object" || raw === null) return null;
 

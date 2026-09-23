@@ -23,6 +23,7 @@ const parsed = (payload: unknown): ProfileFramePayload => {
   return read as ProfileFramePayload;
 };
 
+/** A raw ring as the payload column holds it, with only what a test is about overridden. */
 const ring = (over: Record<string, unknown> = {}) => ({
   type: "ring",
   thickness: 2,

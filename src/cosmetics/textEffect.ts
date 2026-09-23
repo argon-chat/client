@@ -1,8 +1,8 @@
 /**
  * A treatment: the one kind of option a catalogue row cannot carry on its own.
  *
- * Everything else an axis offers is data — a colour is a hex, a face is a family name and a file —
- * so an operator adds it from the admin console and no release is involved. A treatment is rules and
+ * The other axis offers data — a face is a family name and a file — so an operator adds one from
+ * the admin console and no release is involved. A treatment is rules and
  * keyframes, and letting a row carry those would mean CSS arriving from the database, which is the
  * thing this design refuses outright.
  *
@@ -13,7 +13,7 @@
 export interface TextEffectContext {
   /**
    * Every colour in play, in the order they were given: the wearer's own if they picked any, else
-   * the style's, else the one swatch or role colour.
+   * the one the name would have been drawn in anyway, such as its role colour.
    *
    * <b>A treatment is how a name is painted, not what colour it is.</b> The first version handed one
    * colour, so anybody who had chosen two or more of their own got no treatment at all — the
@@ -46,6 +46,12 @@ export interface TextEffectModule {
   readonly keyframes?: string;
 }
 
+/**
+ * Hands the treatment back as it was given.
+ *
+ * It exists for the type: a file under `effects/` is checked against the contract where it is
+ * written, rather than turning out to be the wrong shape when the registry finds it.
+ */
 export function defineTextEffect(effect: TextEffectModule): TextEffectModule {
   return effect;
 }

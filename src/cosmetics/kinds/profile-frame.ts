@@ -137,10 +137,12 @@ const SLOTS: readonly string[] = ["primary", "secondary", "tertiary", "quaternar
 
 const ZERO: FrameSides = [0, 0, 0, 0];
 
+/** The value, pulled into the range. */
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
+/** A finite number, or the fallback when the field is missing or is not one. */
 function num(raw: unknown, fallback: number): number {
   return typeof raw === "number" && Number.isFinite(raw) ? raw : fallback;
 }
@@ -165,6 +167,13 @@ function sides(raw: unknown, low: number, high: number): FrameSides | null {
   return [read[0], read[1], read[2], read[3]];
 }
 
+/**
+ * How a part moves, or null for a part that stands still.
+ *
+ * Only the name decides whether there is a movement at all; the numbers are clamped and filled in.
+ * Whether this build has a file for the name is not asked here — that is the renderer's question,
+ * and a name it does not know leaves the part drawn and still.
+ */
 function motionOf(raw: unknown): FrameMotionSpec | null {
   if (typeof raw !== "object" || raw === null) return null;
 
@@ -180,6 +189,13 @@ function motionOf(raw: unknown): FrameMotionSpec | null {
   };
 }
 
+/**
+ * The strip of frames a piece is drawn from, or null for a single picture.
+ *
+ * The frames have to fill whole rows of the sheet: the renderer steps along columns and down rows
+ * separately, and a short last row would step onto empty cells. A still frame that is not on the
+ * sheet falls back to the first.
+ */
 function spriteOf(raw: unknown): FrameSpriteSpec | null {
   if (typeof raw !== "object" || raw === null) return null;
 
@@ -200,6 +216,10 @@ function spriteOf(raw: unknown): FrameSpriteSpec | null {
   };
 }
 
+/**
+ * What every part has whatever its type. Each is filled in when it is missing: over the content,
+ * solid, no inset, standing still.
+ */
 function commonOf(value: Record<string, unknown>): FramePartCommon {
   return {
     over: value.over !== false,
@@ -209,12 +229,19 @@ function commonOf(value: Record<string, unknown>): FramePartCommon {
   };
 }
 
+/** The file a part draws, or null when the slot is not one of the four. */
 function slotOf(value: Record<string, unknown>): FrameSlot | null {
   return typeof value.slot === "string" && SLOTS.includes(value.slot)
     ? value.slot as FrameSlot
     : null;
 }
 
+/**
+ * One part, or null when it is not one this build can draw.
+ *
+ * Null for a type this build does not know, as much as for a part that is broken: which of the two
+ * it was cannot be told apart from here, and either way the frame goes on with its other parts.
+ */
 function partOf(raw: unknown): FramePart | null {
   if (typeof raw !== "object" || raw === null) return null;
 
@@ -371,6 +398,12 @@ export function frameHidesEdges(payload: ProfileFramePayload): CosmeticSides {
   return { top, right, bottom, left };
 }
 
+/**
+ * The furthest any part asks for, per side.
+ *
+ * A max rather than a sum: every part is placed against the card, not against the part before it,
+ * so two that reach out on the same side overlap instead of stacking.
+ */
 function widestOf(parts: readonly FramePart[], ask: (part: FramePart) => CosmeticEdges): CosmeticEdges {
   let top = 0;
   let right = 0;

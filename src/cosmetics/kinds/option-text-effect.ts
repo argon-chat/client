@@ -53,6 +53,7 @@ export function textEffect(slug: string): TextEffectModule | undefined {
   return bySlug.get(slug);
 }
 
+/** Every treatment this build ships, which is all a picker may offer. */
 export function textEffects(): readonly TextEffectModule[] {
   return [...bySlug.values()];
 }

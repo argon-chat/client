@@ -36,6 +36,13 @@ const UNDER = "0";
 
 type Style = Record<string, string>;
 
+/**
+ * The outer box of a part: where it sits against the card, how solid it is, and above or below the
+ * content.
+ *
+ * A band and a ring fill the card and take its corners; a piece gets its own size and a position
+ * from its anchor. What is painted inside the box is `paintOf`'s.
+ */
 export function placementOf(part: FramePart, scale = 1): Style {
   const style: Style = {
     position: "absolute",
@@ -224,6 +231,13 @@ function surroundPaint(part: FrameSurroundPart, url: string, scale: number): Sty
   };
 }
 
+/**
+ * A piece: one picture fitted to its box, or one cell of a sheet of frames.
+ *
+ * A sheet is sized so that one cell fills the box, and the walk across it is left to `animationOf`.
+ * Under reduced motion there is no walk, so the sheet is set on the frame the author chose to stand
+ * on rather than left on the first.
+ */
 function propPaint(part: FramePropPart, url: string, reduced: boolean, scale: number): Style {
   const style: Style = {
     backgroundImage: `url("${url}")`,
@@ -324,6 +338,7 @@ function at(value: number, scale: number): number {
   return scale === 1 ? value : Math.round(value * scale * 100) / 100;
 }
 
+/** Four sides as a CSS box, each at the size this frame is being drawn. */
 function px(sides: FrameSides, scale: number): string {
   return `${at(sides[0], scale)}px ${at(sides[1], scale)}px ${at(sides[2], scale)}px ${at(sides[3], scale)}px`;
 }

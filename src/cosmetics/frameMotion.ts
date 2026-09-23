@@ -47,6 +47,12 @@ export interface FrameMotionParams {
   readonly phaseMs: number;
 }
 
+/**
+ * Hands the movement back as it was given.
+ *
+ * It exists for the type: a file under `motions/` is checked against the contract where it is
+ * written, rather than turning out to be the wrong shape when the registry finds it.
+ */
 export function defineFrameMotion(motion: FrameMotionModule): FrameMotionModule {
   return motion;
 }
@@ -78,6 +84,7 @@ for (const [path, motion] of Object.entries(motionModules)) {
   byKey.set(motion.key, motion);
 }
 
+/** The movement a payload's `motion.kind` names, or undefined when this build has no file for it. */
 export function resolveMotion(kind: string): FrameMotionModule | undefined {
   return byKey.get(kind);
 }

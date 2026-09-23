@@ -6,8 +6,8 @@ import { defineTextEffect } from "@/cosmetics/textEffect";
  * <b>`color-mix` rather than a hex suffix.</b> The faint outer ring used to be written by tacking
  * `80` onto the colour, which is only alpha if the colour happens to be a six-digit hex — and a role
  * colour arrives as `rgb(…)`, which made the whole `text-shadow` invalid and dropped the glow
- * entirely. Nobody saw an error; the treatment simply did nothing for anyone who had not chosen a
- * swatch.
+ * entirely. Nobody saw an error; the treatment simply did nothing for anyone who had not chosen
+ * colours of their own.
  *
  * The halo is drawn behind the glyphs, so it shows through even when the letters themselves are a
  * gradient clipped to their shape.
@@ -29,6 +29,7 @@ export default defineTextEffect({
   },
 });
 
+/** The same colour at half strength, for the wide outer ring of the halo. */
 function fade(colour: string): string {
   return `color-mix(in srgb, ${colour} 50%, transparent)`;
 }

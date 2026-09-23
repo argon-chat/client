@@ -18,12 +18,15 @@ const part = (raw: Record<string, unknown>): FramePart => {
   return payload!.parts[0];
 };
 
+/** A 40 by 20 piece hung off the top edge, with only what a test is about overridden. */
 const prop = (over: Record<string, unknown> = {}) =>
   part({ type: "prop", slot: "primary", anchor: "top", w: 40, h: 20, ...over });
 
+/** A thin one-colour ring with no glow, with only what a test is about overridden. */
 const ring = (over: Record<string, unknown> = {}) =>
   part({ type: "ring", thickness: 2, colors: [0xff112233], ...over });
 
+/** A band four pixels thick on every side, with only what a test is about overridden. */
 const surround = (over: Record<string, unknown> = {}) =>
   part({ type: "surround", slot: "primary", slice: [8, 8, 8, 8], width: [4, 4, 4, 4], ...over });
 
