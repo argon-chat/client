@@ -11,7 +11,7 @@ bun add @argon/glue
 ## Features
 
 - **Type-safe API client** - Auto-generated from Ion schema definitions
-- **SignalR integration** - Real-time bidirectional communication
+- **Ion streams** - Real-time bidirectional communication (`EventBus.Realtime`)
 - **IPC support** - Native app communication layer
 - **Native glue** - Cross-platform native integrations
 
@@ -33,22 +33,11 @@ const user = await client.getUserProfile(userId)
 const channels = await client.getChannels(serverId)
 ```
 
-### Server Events (SignalR)
+### Server Events
 
-```typescript
-import { createClient, CallIncoming, MessageCreated } from '@argon/glue'
-
-const client = await createClient({ ... })
-
-// Subscribe to server events
-client.on<CallIncoming>('CallIncoming', (event) => {
-  console.log('Incoming call from:', event.callerId)
-})
-
-client.on<MessageCreated>('MessageCreated', (event) => {
-  console.log('New message:', event.content)
-})
-```
+Realtime events arrive over the `EventBus.Realtime` Ion stream (`RealtimeFrame` in, `RealtimeCommand`
+out); each event payload is the CBOR of an `ArgonEvent`. In the app the stream runs in
+`src/workers/realtimeWorker.ts`.
 
 ### Native Glue
 
@@ -113,8 +102,7 @@ bun run generate:types
 
 ## Dependencies
 
-- `@microsoft/signalr` - Real-time communication
-- `msgpackr` - MessagePack serialization
+- `@argon-chat/ion.webcore` - Ion runtime: CBOR formatters, unary calls and streams
 
 ## License
 

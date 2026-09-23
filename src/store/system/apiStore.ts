@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ComputedRef, ref } from "vue";
 import { useConfig } from "@/store/system/remoteConfig";
 import { createClient } from "@argon/glue";
-import { IonCallContext, IonInterceptor } from "@argon-chat/ion.webcore";
+import { IonWsClient, type IonCallContext, type IonClientContext, type IonInterceptor } from "@argon-chat/ion.webcore";
 import { useAuthStore } from "@/store/auth/authStore";
 import { readPersistedValue } from "@argon/storage";
 import { v7 } from "uuid";
@@ -190,16 +190,26 @@ export const useApi = defineStore("api", () => {
   // (cross-instance switch); rpcEpoch covers the same-endpoint case (two official accounts).
   const rpcEpoch = ref(0);
 
-  const rpcClient = computed(() => {
+  const rpcContext = computed((): IonClientContext => {
     void rpcEpoch.value;
-    // DeviceProofInterceptor goes first on purpose — see its doc comment.
-    return createClient(cfg.apiEndpoint, [
-      new DeviceProofInterceptor(),
-      new AuthInterceptor(authLazy),
-      new LocaleInterceptor(),
-      new ClientDescriptorInterceptor(),
-      ...(isWeb ? [new MachineIdInterceptor()] : []),
-    ]);
+    return {
+      baseUrl: cfg.apiEndpoint,
+      // DeviceProofInterceptor goes first on purpose — see its doc comment.
+      interceptors: [
+        new DeviceProofInterceptor(),
+        new AuthInterceptor(authLazy),
+        new LocaleInterceptor(),
+        new ClientDescriptorInterceptor(),
+        ...(isWeb ? [new MachineIdInterceptor()] : []),
+      ],
+      // Shared with the realtime worker's stream, so its connection and its tickets carry one id.
+      sessionId: crypto.randomUUID(),
+    };
+  });
+
+  const rpcClient = computed(() => {
+    const ctx = rpcContext.value;
+    return createClient(ctx.baseUrl, ctx.interceptors, { sessionId: ctx.sessionId });
   });
 
   function recycleClient() {
@@ -207,6 +217,31 @@ export const useApi = defineStore("api", () => {
   }
 
   const apiEndpoint = computed(() => cfg.apiEndpoint);
+  const webTransportEndpoint = computed(() => cfg.webTransportEndpoint);
+  const ionSessionId = computed(() => rpcContext.value.sessionId);
+
+  /**
+   * Exchanges this client's credentials for a stream ticket exactly as a stream call does
+   * (`POST /ion.att` through every interceptor) and returns the raw response, for a stream that
+   * runs where the interceptors cannot: the realtime worker has no stores to take a token from.
+   */
+  async function exchangeStreamTicket(interfaceName: string, methodName: string): Promise<Uint8Array> {
+    const ctx = rpcContext.value;
+    let response: Uint8Array | undefined;
+    const capture: IonInterceptor = {
+      async invokeAsync(c, next, signal) {
+        await next(c, signal);
+        response = c.responsePayload;
+      },
+    };
+    await new IonWsClient(
+      { ...ctx, interceptors: [...ctx.interceptors, capture] },
+      interfaceName,
+      methodName,
+    ).createExchangeToken();
+    if (!response) throw new Error("The ticket exchange returned no response");
+    return response;
+  }
 
   const userInteraction = computed(() => rpcClient.value.UserInteraction);
   const securityInteraction = computed(() => rpcClient.value.SecurityInteraction);
@@ -242,6 +277,9 @@ export const useApi = defineStore("api", () => {
   return {
     recycleClient,
     apiEndpoint,
+    webTransportEndpoint,
+    ionSessionId,
+    exchangeStreamTicket,
     userInteraction,
     securityInteraction,
     serverInteraction,

@@ -857,7 +857,7 @@ export function createCallManager(config: CallManagerConfig) {
    * Reconcile the realtime channel member list against LiveKit's participant list.
    *
    * LiveKit runs on its own connection and stays authoritative about who is actually
-   * in the voice channel even while the realtime (SignalR) hub is down. If the hub
+   * in the voice channel even while the realtime stream is down. If the stream
    * drops briefly (VPN switch, network hiccup) we miss JoinedToChannelUser /
    * LeavedFromChannelUser events and the member list goes stale — classic "audible but
    * not shown" desync. Here we trust LiveKit: add anyone it sees but the store is

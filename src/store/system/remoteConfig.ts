@@ -91,6 +91,22 @@ export const useConfig = defineStore("config", () => {
 
   const webClientId = computed(() => stringVal("webClientId"));
 
+  /**
+   * Where the realtime stream reaches WebTransport, for the stand {@link apiEndpoint} points at, or
+   * null when that stand advertises none (the stream then uses WebSocket only). Set from the
+   * instance manifest for `live`; `dev` and `local` only when overridden by hand.
+   */
+  const webTransportEndpoint = computed<string | null>(() => {
+    const key =
+      endpoint.value === "dev"
+        ? "webTransportDevEndpoint"
+        : endpoint.value === "local"
+          ? "webTransportLocalEndpoint"
+          : "webTransportEndpoint";
+    const value = overrides.value[key];
+    return typeof value === "string" && value.length > 0 ? value : null;
+  });
+
   const cdnEndpoint = computed(() => stringVal("cdnEndpoint"));
   const webRtcEndpoint = computed(() => stringVal("webRtcEndpoint"));
   // Scheme-agnostic on purpose: a local stand serves plain HTTP unless it has been given a
@@ -121,6 +137,7 @@ export const useConfig = defineStore("config", () => {
     apiEndpoint,
     aegisEndpoint,
     webClientId,
+    webTransportEndpoint,
     cdnEndpoint,
     webRtcEndpoint,
     scheme,

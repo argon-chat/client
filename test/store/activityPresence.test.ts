@@ -22,24 +22,35 @@ const stubs = vi.hoisted(() => ({
   remove: vi.fn(),
 }));
 
-/** The bus, reduced to the one thing this store listens for: the connection came back. */
+/**
+ * The bus, reduced to the one thing this store listens for: the connection came back — on a fresh
+ * server-side session (`reconnected`) or on the same one, resumed (`resumed`).
+ */
 const bus = vi.hoisted(() => {
   const listeners: Array<() => void> = [];
+  const resumedListeners: Array<() => void> = [];
+  const subject = (list: Array<() => void>) => ({
+    subscribe(handler: () => void) {
+      list.push(handler);
+      return {
+        unsubscribe() {
+          list.splice(list.indexOf(handler), 1);
+        },
+      };
+    },
+  });
   return {
     listeners,
-    reconnected: {
-      subscribe(handler: () => void) {
-        listeners.push(handler);
-        return {
-          unsubscribe() {
-            listeners.splice(listeners.indexOf(handler), 1);
-          },
-        };
-      },
-    },
+    resumedListeners,
+    reconnected: subject(listeners),
+    resumed: subject(resumedListeners),
     /** Speak as the bus does when the realtime connection is re-established. */
     reconnect() {
       for (const handler of [...listeners]) handler();
+    },
+    /** Speak as the bus does when the realtime stream was resumed. */
+    resume() {
+      for (const handler of [...resumedListeners]) handler();
     },
   };
 });
@@ -63,7 +74,7 @@ vi.mock("@/store/features/featureFlagsStore", () => ({
 vi.mock("@/store/features/gameOverlaySettingsStore", () => ({
   useGameOverlaySettings: () => ({ activityPublishEnabled: true, games: {} }),
 }));
-// The real one builds a SignalR worker on import; all this store wants from it is `reconnected`.
+// The real one builds the realtime worker on import; all this store wants from it is the reconnect.
 vi.mock("@/store/realtime/busStore", () => ({ useBus: () => bus }));
 
 import { useActivity } from "@/store/features/activityStore";
@@ -92,6 +103,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   bus.listeners.length = 0;
+  bus.resumedListeners.length = 0;
   stubs.broadcast.mockResolvedValue(undefined);
   stubs.remove.mockResolvedValue(undefined);
   setActivePinia(createPinia());
@@ -275,6 +287,21 @@ describe("activity presence publication", () => {
     await vi.advanceTimersByTimeAsync(REPEAT_MS);
     announce(null);
     bus.reconnect();
+    expect(stubs.remove).toHaveBeenCalledTimes(4);
+  });
+
+  /** A stream that resumed its session is just as much a connection that is back. */
+  test("a removal owed across a short outage is re-attempted when the stream resumes", async () => {
+    stubs.remove.mockRejectedValue(new Error("offline"));
+
+    await startedStore();
+    announce(PORTAL);
+    announce(null);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(stubs.remove).toHaveBeenCalledTimes(3);
+
+    stubs.remove.mockResolvedValue(undefined);
+    bus.resume();
     expect(stubs.remove).toHaveBeenCalledTimes(4);
   });
 

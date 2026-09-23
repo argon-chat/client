@@ -26,11 +26,15 @@ export const instanceManifestSchema = z.object({
     kind: z.enum(["official", "selfhosted", "managed"]).catch("selfhosted"),
   }),
   // Only what the client consumes. The voice/WebRTC endpoint is negotiated per-connection by the
-  // server (it arrives with the call grant), and SignalR is derived from `api` (`${api}/w`) — so
-  // neither belongs in the manifest.
+  // server (it arrives with the call grant), and the realtime stream's WebSocket is derived from
+  // `api` (`${api}/ion/IEventBus/Realtime.ws`) — so neither belongs in the manifest. WebTransport is
+  // served on an origin of its own (e.g. "https://api.argon.gl:4433"), when the instance offers it.
   endpoints: z.object({
     api: z.string().url(),
     cdn: z.string().url(),
+    // Optional, so a malformed value (an empty string, say) degrades to "none" instead of
+    // invalidating the whole manifest.
+    webTransport: z.string().url().nullish().catch(null),
   }),
   branding: z
     .object({
@@ -65,6 +69,7 @@ export const DEFAULT_MANIFEST: InstanceManifest = {
   endpoints: {
     api: "https://api.argon.gl",
     cdn: "https://cdn.argon.gl",
+    webTransport: null,
   },
   branding: { displayName: "Argon", accentColor: "#3B82F6" },
   features: { registrationEnabled: true, qrLoginEnabled: true, ssoUrl: null },
@@ -106,6 +111,8 @@ export const useInstance = defineStore("instance", () => {
   function pushOverrides(m: InstanceManifest) {
     cfg.setOverride("apiEndpoint", m.endpoints.api);
     cfg.setOverride("cdnEndpoint", m.endpoints.cdn);
+    if (m.endpoints.webTransport) cfg.setOverride("webTransportEndpoint", m.endpoints.webTransport);
+    else cfg.removeOverride("webTransportEndpoint");
     // webRtcEndpoint is intentionally NOT set here: the voice endpoint is granted per-connection
     // by the server, so re-pointing `api` is enough (calls automatically target the new instance).
     if (m.instance.kind !== "official") localStorage.setItem("api_endpoint", "live");

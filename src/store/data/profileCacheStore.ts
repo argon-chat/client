@@ -145,6 +145,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       primaryColor: null,
       accentColor: null,
       registeredAt: null,
+      cosmetics: null,
     };
   }
 

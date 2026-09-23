@@ -9,15 +9,15 @@
  * That is deliberate, and this file pins it. `loadServerDetails()` exists to replace what the client
  * holds with the server's answer, and `MemberPresence` carries no timestamp or version to merge by,
  * so there is nothing the write could compare against to decide it is older. The window in which it
- * matters is also much narrower than it looks: the SignalR worker is created in exactly one place
- * (`busStore.doListenSignalR` <- `doListenMyEvents` <- `meStore.completeInit`), and
+ * matters is also much narrower than it looks: the realtime worker is created in exactly one place
+ * (`busStore.connectRealtime` <- `doListenMyEvents` <- `meStore.completeInit`), and
  * `appState.loadUserData()` awaits `poolStore.loadServerDetails()` BEFORE calling `completeInit()`.
  * So at cold boot, after login and after an account switch there is no transport yet and no event
  * can arrive at all. `poolStore.init()` only wires RxJS subjects; it creates nothing.
  *
  * Where the window is real is the resync call sites the bootstrap story never mentions:
  * `systemStore`'s `bus.reconnected` after a long outage and `bus.needFullResync`,
- * `IonWsClient.on("reconnected")`, `serverStore.createServer`/`joinToServer`, and the settings
+ * `serverStore.createServer`/`joinToServer`, and the settings
  * refreshes. There the connection is live, `GetMemberPresence` is served from `SpaceReadGrain`'s 1 s
  * HybridCache, and three `replaceSpaceRows` writes are awaited before `writeUsers` lands. A status
  * event arriving inside that sub-second window is replaced by the snapshot's older value and the

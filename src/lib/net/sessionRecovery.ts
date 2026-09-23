@@ -16,8 +16,8 @@
  * asked for a hub ticket, was told `NO_AUTH`, and asked again on every reconnect attempt, forever,
  * while the app sat there "reconnecting" and kept the tokens of a session that no longer existed.
  *
- * Single-flight: a burst of rejected calls (the worker retries its ticket three times) collapses
- * into one refresh and one decision.
+ * Single-flight: a burst of rejected calls (a ticket for every reconnect attempt of the realtime
+ * stream, among others) collapses into one refresh and one decision.
  *
  * Reasons are codes, never sentences. The server sends `session_signed_out` on the socket before it
  * closes it, this module adds its own, and the sign-in screen turns whichever it finds into a message
@@ -81,8 +81,8 @@ export function handleSessionRejected(source: string): Promise<RecoveryOutcome> 
 }
 
 /**
- * The server said, in as many words, that this session is over — the hub told the socket so before
- * closing it. No refresh to try: drop the credentials and return to sign-in.
+ * The server said, in as many words, that this session is over — it told the realtime stream so
+ * before closing it. No refresh to try: drop the credentials and return to sign-in.
  *
  * @param reason The code the server sent. Unknown codes are kept as they are and shown generically.
  * @param detail For the log only.

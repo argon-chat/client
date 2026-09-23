@@ -1,7 +1,7 @@
 /**
  * The status the client puts on the wire, and when it puts it there.
  *
- * The heartbeat is the ONLY thing that tells the server what this user's status really is. The hub
+ * The heartbeat is the ONLY thing that tells the server what this user's status really is. The server
  * no longer assumes Online at connect: it starts a session statusless and waits out a short
  * deadline for the first heartbeat, which makes that heartbeat the whole answer rather than a
  * correction to a guess. Three things follow, and all three are pinned here. It must carry the
@@ -74,8 +74,10 @@ vi.mock("@/store/system/apiStore", () => ({
       GetMyLegalState: async () => ({ tosVersion: null, privacyVersion: null }),
     },
     identityInteraction: {},
-    eventBus: { PickTicket: async () => "ticket" },
+    exchangeStreamTicket: async () => Uint8Array.of(0x81, 0x41, 0x42),
     apiEndpoint: "https://api.test",
+    ionSessionId: "sid-1",
+    webTransportEndpoint: null,
   }),
 }));
 vi.mock("@/store/features/featureFlagsStore", () => ({
@@ -198,7 +200,7 @@ describe("heartbeat status", () => {
    *
    * The mechanism is asserted, not just the effect, because the client has a second one that looks
    * like it would do: `wakeConnection()`. It must NOT be used here — `wake` resets the worker's
-   * reconnect attempt counter, cancels its backoff timer and can re-dial the hub, which is
+   * reconnect attempt counter, cancels its backoff timer and can re-dial the stream, which is
    * reconnect machinery that has no business running because someone opened a status menu.
    */
   test("choosing a status pushes it instead of waiting for the next tick", async () => {
@@ -253,7 +255,7 @@ describe("heartbeat status", () => {
    * boot sequence re-runs (a full resync, an account switch, a step that failed and is retried)
    * with `me` cleared by `onSessionReset` while that connection is still up. A hard-coded Online
    * there announced the one status a Do-Not-Disturb user did not choose, and — since the server
-   * stopped inventing a status of its own — it was the client, not the hub, producing the flash.
+   * stopped inventing a status of its own — it was the client, not the server, producing the flash.
    */
   test("a heartbeat that beats the profile reports the persisted status, not Online", async () => {
     localStorage.setItem(PREFERRED_KEY, String(UserStatus.DoNotDisturb));

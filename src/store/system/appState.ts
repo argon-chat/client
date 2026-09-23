@@ -118,7 +118,7 @@ export const useAppState = defineStore("app", () => {
       // below would then repeat, identically, until it ran out of attempts.
       { label: "Preparing local cache...", run: () => ensureDbOpen() },
       // Restore the active instance (self-hosted / enterprise) and re-point endpoints BEFORE any
-      // RPC, SignalR or session restore touches the network. No-op when an account is active.
+      // RPC, the realtime stream or session restore touches the network. No-op when an account is active.
       { label: "Resolving instance...", run: () => { useInstance(); } },
       { label: "Initializing audio engine...", run: () => useTone().init() },
       { label: "Restoring session...", run: () => auth.restoreSession() },

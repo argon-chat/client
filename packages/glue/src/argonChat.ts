@@ -7,44 +7,41 @@
 //     Generator: IonPath Codegen
 // </auto-generated>
 //------------------------------------------------------------------------------
-import { 
-  CborReader, 
-  CborWriter, 
-  
-  DateOnly, 
-  IonDateTime, 
-  IonDecimal, 
-  Duration, 
-  TimeOnly, 
-  Guid, 
-  
+import {
+  CborReader,
+  CborWriter,
+  IonDateTime,
+  IonDecimal,
   IonFormatterStorage,
-
+  ServiceExecutor,
+  IonRequest,
+  IonWsClient
+} from "@argon-chat/ion.webcore";
+import type {
+  bytes,
+  DateOnly,
+  Duration,
+  TimeOnly,
+  Guid,
   IonArray,
-  IonMaybe,
-  IonPartial,
-
   IIonService,
   IIonUnion,
-  
-  ServiceExecutor,
   IonClientContext,
-  IonRequest,
-  IonWsClient,
-  IonInterceptor
+  IonInterceptor,
+  IonStreamOptions
 } from "@argon-chat/ion.webcore";
 
-type guid = Guid;
-type timeonly = TimeOnly;
-type duration = Duration;
+declare type guid = Guid;
+declare type timeonly = TimeOnly;
+declare type duration = Duration;
 // IonDateTime, never the deprecated `DateTimeOffset { date: Date; offsetMinutes }`
 // shape: `Date` is millisecond-resolution, so it cannot hold the 100ns ticks the
 // wire form carries, and the webcore "datetime" formatter now reads and writes
 // IonDateTime — leaving the old alias here would be a live type mismatch, not just
 // a lossy one.
-type datetime = IonDateTime;
-type decimal = IonDecimal;
-type dateonly = DateOnly;
+declare type datetime = IonDateTime;
+declare type decimal = IonDecimal;
+declare type dateonly = DateOnly;
 
 declare type bool = boolean;
 
@@ -549,6 +546,12 @@ export interface GlobalBadges {
   notifications: NotificationBadges;
   readStates: IonArray<ChannelReadState>;
   muteSettings: IonArray<MuteSettingsDto>;
+};
+
+
+export interface RealtimeCursor {
+  spaceId: guid;
+  entryId: string;
 };
 
 
@@ -1391,6 +1394,250 @@ export enum ChannelMemberState
   MUTED_HEADPHONES_BY_SERVER = 16,
   STREAMING = 32,
 }
+
+
+export interface CosmeticCatalogue {
+  enabledKinds: IonArray<string>;
+  items: IonArray<CatalogueCosmetic>;
+};
+
+
+export interface CatalogueCosmetic {
+  cosmeticId: guid;
+  kindKey: string;
+  slug: string;
+  nameKey: string;
+  descriptionKey: string | null;
+  rarity: string | null;
+  version: i4;
+  payload: ICosmeticPayload;
+  assets: IonArray<CosmeticAsset>;
+  availableUntil: datetime | null;
+  free: bool;
+  ultima: bool;
+  text: IonArray<CosmeticText>;
+};
+
+
+export interface CosmeticText {
+  locale: string;
+  name: string;
+  description: string | null;
+};
+
+
+export interface MyCosmetics {
+  owned: IonArray<OwnedCosmetic>;
+};
+
+
+export interface OwnedCosmetic {
+  cosmeticId: guid;
+  expiresAt: datetime | null;
+  viaSubscription: bool;
+};
+
+
+export interface CosmeticAsset {
+  slot: AssetSlot;
+  fileId: string;
+};
+
+
+export interface FrameSides {
+  top: u2;
+  right: u2;
+  bottom: u2;
+  left: u2;
+};
+
+
+export interface FrameMotion {
+  kind: string;
+  amount: i4;
+  periodMs: i4;
+  phaseMs: i4;
+};
+
+
+export interface FrameSprite {
+  frames: u2;
+  columns: u2;
+  fps: u2;
+  still: u2;
+};
+
+
+export enum CosmeticError
+{
+  NOT_FOUND = 0,
+  UNKNOWN_KIND = 1,
+  KIND_DISABLED = 2,
+  ITEM_UNAVAILABLE = 3,
+  NOT_OWNED = 4,
+  CHOICE_INVALID = 5,
+  VALUE_OUT_OF_RANGE = 6,
+}
+
+const declaredCosmeticError: ReadonlySet<unknown> = new Set<unknown>([CosmeticError.NOT_FOUND, CosmeticError.UNKNOWN_KIND, CosmeticError.KIND_DISABLED, CosmeticError.ITEM_UNAVAILABLE, CosmeticError.NOT_OWNED, CosmeticError.CHOICE_INVALID, CosmeticError.VALUE_OUT_OF_RANGE]);
+
+/**
+ * Open-enum helpers for {@link CosmeticError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CosmeticError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CosmeticError): boolean {
+    return declaredCosmeticError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CosmeticError): u4 | undefined {
+    return declaredCosmeticError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum NicknameGradientShape
+{
+  Linear = 0,
+  Radial = 1,
+  Conic = 2,
+}
+
+const declaredNicknameGradientShape: ReadonlySet<unknown> = new Set<unknown>([NicknameGradientShape.Linear, NicknameGradientShape.Radial, NicknameGradientShape.Conic]);
+
+/**
+ * Open-enum helpers for {@link NicknameGradientShape}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_NicknameGradientShape_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: NicknameGradientShape): boolean {
+    return declaredNicknameGradientShape.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: NicknameGradientShape): u4 | undefined {
+    return declaredNicknameGradientShape.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum AssetSlot
+{
+  Primary = 0,
+  Secondary = 1,
+  Tertiary = 2,
+  Quaternary = 3,
+}
+
+const declaredAssetSlot: ReadonlySet<unknown> = new Set<unknown>([AssetSlot.Primary, AssetSlot.Secondary, AssetSlot.Tertiary, AssetSlot.Quaternary]);
+
+/**
+ * Open-enum helpers for {@link AssetSlot}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AssetSlot_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AssetSlot): boolean {
+    return declaredAssetSlot.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AssetSlot): u4 | undefined {
+    return declaredAssetSlot.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum FrameRepeat
+{
+  Stretch = 0,
+  Repeat = 1,
+  Round = 2,
+  Space = 3,
+}
+
+const declaredFrameRepeat: ReadonlySet<unknown> = new Set<unknown>([FrameRepeat.Stretch, FrameRepeat.Repeat, FrameRepeat.Round, FrameRepeat.Space]);
+
+/**
+ * Open-enum helpers for {@link FrameRepeat}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_FrameRepeat_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: FrameRepeat): boolean {
+    return declaredFrameRepeat.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: FrameRepeat): u4 | undefined {
+    return declaredFrameRepeat.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum FrameAnchor
+{
+  TopLeft = 0,
+  Top = 1,
+  TopRight = 2,
+  Left = 3,
+  Center = 4,
+  Right = 5,
+  BottomLeft = 6,
+  Bottom = 7,
+  BottomRight = 8,
+}
+
+const declaredFrameAnchor: ReadonlySet<unknown> = new Set<unknown>([FrameAnchor.TopLeft, FrameAnchor.Top, FrameAnchor.TopRight, FrameAnchor.Left, FrameAnchor.Center, FrameAnchor.Right, FrameAnchor.BottomLeft, FrameAnchor.Bottom, FrameAnchor.BottomRight]);
+
+/**
+ * Open-enum helpers for {@link FrameAnchor}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_FrameAnchor_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: FrameAnchor): boolean {
+    return declaredFrameAnchor.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: FrameAnchor): u4 | undefined {
+    return declaredFrameAnchor.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
 
 
 export interface FeatureFlagData {
@@ -2594,6 +2841,7 @@ export interface ArgonUserProfile {
   primaryColor: i4 | null;
   accentColor: i4 | null;
   registeredAt: datetime | null;
+  cosmetics: IonArray<IWornCosmetic> | null;
 };
 
 
@@ -2760,6 +3008,8 @@ export interface ArgonIonTicket {
   sessionId: guid;
   machineId: string;
   region: string;
+  credentialSessionIds: IonArray<guid>;
+  issuedAt: datetime;
 };
 
 
@@ -8990,6 +9240,1058 @@ IonFormatterStorage.register("SubscribeToMySpaces", {
 
 
 
+export abstract class IRealtimeFrame implements IIonUnion<IRealtimeFrame>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isWelcome(): this is Welcome {
+    return this.UnionKey === "Welcome";
+  }
+  public isForSelf(): this is ForSelf {
+    return this.UnionKey === "ForSelf";
+  }
+  public isForSpace(): this is ForSpace {
+    return this.UnionKey === "ForSpace";
+  }
+  public isForChannel(): this is ForChannel {
+    return this.UnionKey === "ForChannel";
+  }
+  public isResumed(): this is Resumed {
+    return this.UnionKey === "Resumed";
+  }
+  public isSessionRevoked(): this is SessionRevoked {
+    return this.UnionKey === "SessionRevoked";
+  }
+
+}
+
+
+export class Welcome extends IRealtimeFrame
+{
+  constructor(public connectionId: string) { super(); }
+
+  UnionKey: string = "Welcome";
+  UnionIndex: number = 0;
+}
+
+export class ForSelf extends IRealtimeFrame
+{
+  constructor(public payload: bytes, public entryId: string) { super(); }
+
+  UnionKey: string = "ForSelf";
+  UnionIndex: number = 1;
+}
+
+export class ForSpace extends IRealtimeFrame
+{
+  constructor(public payload: bytes, public spaceId: guid, public entryId: string) { super(); }
+
+  UnionKey: string = "ForSpace";
+  UnionIndex: number = 2;
+}
+
+export class ForChannel extends IRealtimeFrame
+{
+  constructor(public payload: bytes, public channelId: guid) { super(); }
+
+  UnionKey: string = "ForChannel";
+  UnionIndex: number = 3;
+}
+
+export class Resumed extends IRealtimeFrame
+{
+  constructor(public needFullResync: bool) { super(); }
+
+  UnionKey: string = "Resumed";
+  UnionIndex: number = 4;
+}
+
+export class SessionRevoked extends IRealtimeFrame
+{
+  constructor(public reason: string) { super(); }
+
+  UnionKey: string = "SessionRevoked";
+  UnionIndex: number = 5;
+}
+
+
+
+IonFormatterStorage.register("IRealtimeFrame", {
+  read(reader: CborReader): IRealtimeFrame {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRealtimeFrame", 6);
+    let value: IRealtimeFrame = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<Welcome>("Welcome").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<ForSelf>("ForSelf").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<ForSpace>("ForSpace").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<ForChannel>("ForChannel").read(reader);
+    else if (unionIndex == 4)
+      value = IonFormatterStorage.get<Resumed>("Resumed").read(reader);
+    else if (unionIndex == 5)
+      value = IonFormatterStorage.get<SessionRevoked>("SessionRevoked").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IRealtimeFrame", unionIndex, 6);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IRealtimeFrame): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<Welcome>("Welcome").write(writer, value as Welcome);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<ForSelf>("ForSelf").write(writer, value as ForSelf);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<ForSpace>("ForSpace").write(writer, value as ForSpace);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<ForChannel>("ForChannel").write(writer, value as ForChannel);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<Resumed>("Resumed").write(writer, value as Resumed);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<SessionRevoked>("SessionRevoked").write(writer, value as SessionRevoked);
+    }
+  
+    else throw new Error(`Ion union 'IRealtimeFrame' has no case ${value.UnionIndex}; this revision declares 6 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("Welcome", {
+  read(reader: CborReader): Welcome {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "Welcome");
+    const connectionId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new Welcome(connectionId);
+  },
+  write(writer: CborWriter, value: Welcome): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.connectionId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ForSelf", {
+  read(reader: CborReader): ForSelf {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ForSelf");
+    const payload = IonFormatterStorage.get<bytes>('bytes').read(reader);
+    const entryId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ForSelf(payload, entryId);
+  },
+  write(writer: CborWriter, value: ForSelf): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, value.payload);
+    IonFormatterStorage.get<string>('string').write(writer, value.entryId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ForSpace", {
+  read(reader: CborReader): ForSpace {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ForSpace");
+    const payload = IonFormatterStorage.get<bytes>('bytes').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const entryId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ForSpace(payload, spaceId, entryId);
+  },
+  write(writer: CborWriter, value: ForSpace): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, value.payload);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.entryId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ForChannel", {
+  read(reader: CborReader): ForChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ForChannel");
+    const payload = IonFormatterStorage.get<bytes>('bytes').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ForChannel(payload, channelId);
+  },
+  write(writer: CborWriter, value: ForChannel): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, value.payload);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Resumed", {
+  read(reader: CborReader): Resumed {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "Resumed");
+    const needFullResync = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new Resumed(needFullResync);
+  },
+  write(writer: CborWriter, value: Resumed): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.needFullResync);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SessionRevoked", {
+  read(reader: CborReader): SessionRevoked {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SessionRevoked");
+    const reason = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SessionRevoked(reason);
+  },
+  write(writer: CborWriter, value: SessionRevoked): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.reason);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRealtimeCommand implements IIonUnion<IRealtimeCommand>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isResume(): this is Resume {
+    return this.UnionKey === "Resume";
+  }
+  public isHeartbeat(): this is Heartbeat {
+    return this.UnionKey === "Heartbeat";
+  }
+  public isGoOffline(): this is GoOffline {
+    return this.UnionKey === "GoOffline";
+  }
+  public isSubscribeToChannel(): this is SubscribeToChannel {
+    return this.UnionKey === "SubscribeToChannel";
+  }
+  public isUnsubscribeFromChannel(): this is UnsubscribeFromChannel {
+    return this.UnionKey === "UnsubscribeFromChannel";
+  }
+  public isTyping(): this is Typing {
+    return this.UnionKey === "Typing";
+  }
+  public isStopTyping(): this is StopTyping {
+    return this.UnionKey === "StopTyping";
+  }
+
+}
+
+
+export class Resume extends IRealtimeCommand
+{
+  constructor(public userCursor: string | null, public spaceCursors: IonArray<RealtimeCursor>) { super(); }
+
+  UnionKey: string = "Resume";
+  UnionIndex: number = 0;
+}
+
+export class Heartbeat extends IRealtimeCommand
+{
+  constructor(public status: UserStatus) { super(); }
+
+  UnionKey: string = "Heartbeat";
+  UnionIndex: number = 1;
+}
+
+export class GoOffline extends IRealtimeCommand
+{
+  constructor() { super(); }
+
+  UnionKey: string = "GoOffline";
+  UnionIndex: number = 2;
+}
+
+export class SubscribeToChannel extends IRealtimeCommand
+{
+  constructor(public channelId: guid) { super(); }
+
+  UnionKey: string = "SubscribeToChannel";
+  UnionIndex: number = 3;
+}
+
+export class UnsubscribeFromChannel extends IRealtimeCommand
+{
+  constructor(public channelId: guid) { super(); }
+
+  UnionKey: string = "UnsubscribeFromChannel";
+  UnionIndex: number = 4;
+}
+
+export class Typing extends IRealtimeCommand
+{
+  constructor(public spaceId: guid, public channelId: guid) { super(); }
+
+  UnionKey: string = "Typing";
+  UnionIndex: number = 5;
+}
+
+export class StopTyping extends IRealtimeCommand
+{
+  constructor(public spaceId: guid, public channelId: guid) { super(); }
+
+  UnionKey: string = "StopTyping";
+  UnionIndex: number = 6;
+}
+
+
+
+IonFormatterStorage.register("IRealtimeCommand", {
+  read(reader: CborReader): IRealtimeCommand {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRealtimeCommand", 7);
+    let value: IRealtimeCommand = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<Resume>("Resume").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<Heartbeat>("Heartbeat").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<GoOffline>("GoOffline").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<SubscribeToChannel>("SubscribeToChannel").read(reader);
+    else if (unionIndex == 4)
+      value = IonFormatterStorage.get<UnsubscribeFromChannel>("UnsubscribeFromChannel").read(reader);
+    else if (unionIndex == 5)
+      value = IonFormatterStorage.get<Typing>("Typing").read(reader);
+    else if (unionIndex == 6)
+      value = IonFormatterStorage.get<StopTyping>("StopTyping").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IRealtimeCommand", unionIndex, 7);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IRealtimeCommand): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<Resume>("Resume").write(writer, value as Resume);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<Heartbeat>("Heartbeat").write(writer, value as Heartbeat);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<GoOffline>("GoOffline").write(writer, value as GoOffline);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<SubscribeToChannel>("SubscribeToChannel").write(writer, value as SubscribeToChannel);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<UnsubscribeFromChannel>("UnsubscribeFromChannel").write(writer, value as UnsubscribeFromChannel);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<Typing>("Typing").write(writer, value as Typing);
+    }
+    else if (value.UnionIndex == 6) {
+        IonFormatterStorage.get<StopTyping>("StopTyping").write(writer, value as StopTyping);
+    }
+  
+    else throw new Error(`Ion union 'IRealtimeCommand' has no case ${value.UnionIndex}; this revision declares 7 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("Resume", {
+  read(reader: CborReader): Resume {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "Resume");
+    const userCursor = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const spaceCursors = IonFormatterStorage.readArray<RealtimeCursor>(reader, 'RealtimeCursor');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new Resume(userCursor, spaceCursors);
+  },
+  write(writer: CborWriter, value: Resume): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeNullable<string>(writer, value.userCursor, 'string');
+    IonFormatterStorage.writeArray<RealtimeCursor>(writer, value.spaceCursors, 'RealtimeCursor');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Heartbeat", {
+  read(reader: CborReader): Heartbeat {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "Heartbeat");
+    const status = IonFormatterStorage.get<UserStatus>('UserStatus').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new Heartbeat(status);
+  },
+  write(writer: CborWriter, value: Heartbeat): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UserStatus>('UserStatus').write(writer, value.status);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("GoOffline", {
+  read(reader: CborReader): GoOffline {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "GoOffline");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new GoOffline();
+  },
+  write(writer: CborWriter, value: GoOffline): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SubscribeToChannel", {
+  read(reader: CborReader): SubscribeToChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SubscribeToChannel");
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SubscribeToChannel(channelId);
+  },
+  write(writer: CborWriter, value: SubscribeToChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UnsubscribeFromChannel", {
+  read(reader: CborReader): UnsubscribeFromChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "UnsubscribeFromChannel");
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new UnsubscribeFromChannel(channelId);
+  },
+  write(writer: CborWriter, value: UnsubscribeFromChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("Typing", {
+  read(reader: CborReader): Typing {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "Typing");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new Typing(spaceId, channelId);
+  },
+  write(writer: CborWriter, value: Typing): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("StopTyping", {
+  read(reader: CborReader): StopTyping {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "StopTyping");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new StopTyping(spaceId, channelId);
+  },
+  write(writer: CborWriter, value: StopTyping): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IEquipResult implements IIonUnion<IEquipResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessEquip(): this is SuccessEquip {
+    return this.UnionKey === "SuccessEquip";
+  }
+  public isFailedEquip(): this is FailedEquip {
+    return this.UnionKey === "FailedEquip";
+  }
+
+}
+
+
+export class SuccessEquip extends IEquipResult
+{
+  constructor(public profile: ArgonUserProfile) { super(); }
+
+  UnionKey: string = "SuccessEquip";
+  UnionIndex: number = 0;
+}
+
+export class FailedEquip extends IEquipResult
+{
+  constructor(public error: CosmeticError) { super(); }
+
+  UnionKey: string = "FailedEquip";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IEquipResult", {
+  read(reader: CborReader): IEquipResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IEquipResult", 2);
+    let value: IEquipResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessEquip>("SuccessEquip").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedEquip>("FailedEquip").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IEquipResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IEquipResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessEquip>("SuccessEquip").write(writer, value as SuccessEquip);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedEquip>("FailedEquip").write(writer, value as FailedEquip);
+    }
+  
+    else throw new Error(`Ion union 'IEquipResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessEquip", {
+  read(reader: CborReader): SuccessEquip {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessEquip");
+    const profile = IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessEquip(profile);
+  },
+  write(writer: CborWriter, value: SuccessEquip): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonUserProfile>('ArgonUserProfile').write(writer, value.profile);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedEquip", {
+  read(reader: CborReader): FailedEquip {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedEquip");
+    const error = IonFormatterStorage.get<CosmeticError>('CosmeticError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedEquip(error);
+  },
+  write(writer: CborWriter, value: FailedEquip): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CosmeticError>('CosmeticError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IWornCosmetic implements IIonUnion<IWornCosmetic>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isWornItem(): this is WornItem {
+    return this.UnionKey === "WornItem";
+  }
+  public isWornNickname(): this is WornNickname {
+    return this.UnionKey === "WornNickname";
+  }
+
+}
+
+
+export class WornItem extends IWornCosmetic
+{
+  constructor(public itemId: guid) { super(); }
+
+  UnionKey: string = "WornItem";
+  UnionIndex: number = 0;
+}
+
+export class WornNickname extends IWornCosmetic
+{
+  constructor(public font: guid | null, public effect: guid | null, public colors: IonArray<i4> | null, public angle: u2 | null, public shape: NicknameGradientShape | null, public animate: bool | null, public weight: u2 | null, public letterSpacing: i4 | null) { super(); }
+
+  UnionKey: string = "WornNickname";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IWornCosmetic", {
+  read(reader: CborReader): IWornCosmetic {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IWornCosmetic", 2);
+    let value: IWornCosmetic = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<WornItem>("WornItem").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<WornNickname>("WornNickname").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IWornCosmetic", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IWornCosmetic): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<WornItem>("WornItem").write(writer, value as WornItem);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<WornNickname>("WornNickname").write(writer, value as WornNickname);
+    }
+  
+    else throw new Error(`Ion union 'IWornCosmetic' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("WornItem", {
+  read(reader: CborReader): WornItem {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "WornItem");
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new WornItem(itemId);
+  },
+  write(writer: CborWriter, value: WornItem): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("WornNickname", {
+  read(reader: CborReader): WornNickname {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "WornNickname");
+    const font = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const effect = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const colors = IonFormatterStorage.readNullableArray<i4>(reader, 'i4');
+    const angle = IonFormatterStorage.readNullable<u2>(reader, 'u2');
+    const shape = IonFormatterStorage.readNullable<NicknameGradientShape>(reader, 'NicknameGradientShape');
+    const animate = IonFormatterStorage.readNullable<bool>(reader, 'bool');
+    const weight = IonFormatterStorage.readNullable<u2>(reader, 'u2');
+    const letterSpacing = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return new WornNickname(font, effect, colors, angle, shape, animate, weight, letterSpacing);
+  },
+  write(writer: CborWriter, value: WornNickname): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.writeNullable<guid>(writer, value.font, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, value.effect, 'guid');
+    IonFormatterStorage.writeNullableArray<i4>(writer, value.colors, 'i4');
+    IonFormatterStorage.writeNullable<u2>(writer, value.angle, 'u2');
+    IonFormatterStorage.writeNullable<NicknameGradientShape>(writer, value.shape, 'NicknameGradientShape');
+    IonFormatterStorage.writeNullable<bool>(writer, value.animate, 'bool');
+    IonFormatterStorage.writeNullable<u2>(writer, value.weight, 'u2');
+    IonFormatterStorage.writeNullable<i4>(writer, value.letterSpacing, 'i4');
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICosmeticPayload implements IIonUnion<ICosmeticPayload>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isPayloadAvatarDecoration(): this is PayloadAvatarDecoration {
+    return this.UnionKey === "PayloadAvatarDecoration";
+  }
+  public isPayloadProfileFrame(): this is PayloadProfileFrame {
+    return this.UnionKey === "PayloadProfileFrame";
+  }
+  public isPayloadFont(): this is PayloadFont {
+    return this.UnionKey === "PayloadFont";
+  }
+  public isPayloadTextEffect(): this is PayloadTextEffect {
+    return this.UnionKey === "PayloadTextEffect";
+  }
+
+}
+
+
+export class PayloadAvatarDecoration extends ICosmeticPayload
+{
+  constructor(public insetPct: u2, public beneath: bool) { super(); }
+
+  UnionKey: string = "PayloadAvatarDecoration";
+  UnionIndex: number = 0;
+}
+
+export class PayloadProfileFrame extends ICosmeticPayload
+{
+  constructor(public parts: IonArray<IFramePart>) { super(); }
+
+  UnionKey: string = "PayloadProfileFrame";
+  UnionIndex: number = 1;
+}
+
+export class PayloadFont extends ICosmeticPayload
+{
+  constructor(public cssFamily: string) { super(); }
+
+  UnionKey: string = "PayloadFont";
+  UnionIndex: number = 2;
+}
+
+export class PayloadTextEffect extends ICosmeticPayload
+{
+  constructor() { super(); }
+
+  UnionKey: string = "PayloadTextEffect";
+  UnionIndex: number = 3;
+}
+
+
+
+IonFormatterStorage.register("ICosmeticPayload", {
+  read(reader: CborReader): ICosmeticPayload {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICosmeticPayload", 4);
+    let value: ICosmeticPayload = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<PayloadAvatarDecoration>("PayloadAvatarDecoration").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<PayloadProfileFrame>("PayloadProfileFrame").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<PayloadFont>("PayloadFont").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<PayloadTextEffect>("PayloadTextEffect").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICosmeticPayload", unionIndex, 4);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICosmeticPayload): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<PayloadAvatarDecoration>("PayloadAvatarDecoration").write(writer, value as PayloadAvatarDecoration);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<PayloadProfileFrame>("PayloadProfileFrame").write(writer, value as PayloadProfileFrame);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<PayloadFont>("PayloadFont").write(writer, value as PayloadFont);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<PayloadTextEffect>("PayloadTextEffect").write(writer, value as PayloadTextEffect);
+    }
+  
+    else throw new Error(`Ion union 'ICosmeticPayload' has no case ${value.UnionIndex}; this revision declares 4 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("PayloadAvatarDecoration", {
+  read(reader: CborReader): PayloadAvatarDecoration {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "PayloadAvatarDecoration");
+    const insetPct = IonFormatterStorage.get<u2>('u2').read(reader);
+    const beneath = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new PayloadAvatarDecoration(insetPct, beneath);
+  },
+  write(writer: CborWriter, value: PayloadAvatarDecoration): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.insetPct);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.beneath);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PayloadProfileFrame", {
+  read(reader: CborReader): PayloadProfileFrame {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "PayloadProfileFrame");
+    const parts = IonFormatterStorage.readArray<IFramePart>(reader, 'IFramePart');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new PayloadProfileFrame(parts);
+  },
+  write(writer: CborWriter, value: PayloadProfileFrame): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<IFramePart>(writer, value.parts, 'IFramePart');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PayloadFont", {
+  read(reader: CborReader): PayloadFont {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "PayloadFont");
+    const cssFamily = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new PayloadFont(cssFamily);
+  },
+  write(writer: CborWriter, value: PayloadFont): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.cssFamily);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PayloadTextEffect", {
+  read(reader: CborReader): PayloadTextEffect {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "PayloadTextEffect");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new PayloadTextEffect();
+  },
+  write(writer: CborWriter, value: PayloadTextEffect): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IFramePart implements IIonUnion<IFramePart>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+    abstract over: bool;
+  abstract opacityPct: u2;
+  abstract inset: FrameSides | null;
+  abstract motion: FrameMotion | null;
+
+  
+  
+  public isFrameSurround(): this is FrameSurround {
+    return this.UnionKey === "FrameSurround";
+  }
+  public isFrameProp(): this is FrameProp {
+    return this.UnionKey === "FrameProp";
+  }
+  public isFrameRing(): this is FrameRing {
+    return this.UnionKey === "FrameRing";
+  }
+
+}
+
+
+export class FrameSurround extends IFramePart
+{
+  constructor(public over: bool, public opacityPct: u2, public inset: FrameSides | null, public motion: FrameMotion | null, public slot: AssetSlot, public slice: FrameSides, public width: FrameSides, public outset: FrameSides | null, public repeat: FrameRepeat, public fill: bool) { super(); }
+
+  UnionKey: string = "FrameSurround";
+  UnionIndex: number = 0;
+}
+
+export class FrameProp extends IFramePart
+{
+  constructor(public over: bool, public opacityPct: u2, public inset: FrameSides | null, public motion: FrameMotion | null, public slot: AssetSlot, public anchor: FrameAnchor, public w: u2, public h: u2, public dx: i4, public dy: i4, public sprite: FrameSprite | null) { super(); }
+
+  UnionKey: string = "FrameProp";
+  UnionIndex: number = 1;
+}
+
+export class FrameRing extends IFramePart
+{
+  constructor(public over: bool, public opacityPct: u2, public inset: FrameSides | null, public motion: FrameMotion | null, public thickness: u2, public colors: IonArray<i4>, public angle: u2, public glowPct: u2) { super(); }
+
+  UnionKey: string = "FrameRing";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IFramePart", {
+  read(reader: CborReader): IFramePart {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IFramePart", 3);
+    let value: IFramePart = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<FrameSurround>("FrameSurround").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FrameProp>("FrameProp").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<FrameRing>("FrameRing").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IFramePart", unionIndex, 3);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IFramePart): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<FrameSurround>("FrameSurround").write(writer, value as FrameSurround);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FrameProp>("FrameProp").write(writer, value as FrameProp);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<FrameRing>("FrameRing").write(writer, value as FrameRing);
+    }
+  
+    else throw new Error(`Ion union 'IFramePart' has no case ${value.UnionIndex}; this revision declares 3 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("FrameSurround", {
+  read(reader: CborReader): FrameSurround {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "FrameSurround");
+    const over = IonFormatterStorage.get<bool>('bool').read(reader);
+    const opacityPct = IonFormatterStorage.get<u2>('u2').read(reader);
+    const inset = IonFormatterStorage.readNullable<FrameSides>(reader, 'FrameSides');
+    const motion = IonFormatterStorage.readNullable<FrameMotion>(reader, 'FrameMotion');
+    const slot = IonFormatterStorage.get<AssetSlot>('AssetSlot').read(reader);
+    const slice = IonFormatterStorage.get<FrameSides>('FrameSides').read(reader);
+    const width = IonFormatterStorage.get<FrameSides>('FrameSides').read(reader);
+    const outset = IonFormatterStorage.readNullable<FrameSides>(reader, 'FrameSides');
+    const repeat = IonFormatterStorage.get<FrameRepeat>('FrameRepeat').read(reader);
+    const fill = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return new FrameSurround(over, opacityPct, inset, motion, slot, slice, width, outset, repeat, fill);
+  },
+  write(writer: CborWriter, value: FrameSurround): void {
+    writer.writeStartArray(10);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.over);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.opacityPct);
+    IonFormatterStorage.writeNullable<FrameSides>(writer, value.inset, 'FrameSides');
+    IonFormatterStorage.writeNullable<FrameMotion>(writer, value.motion, 'FrameMotion');
+    IonFormatterStorage.get<AssetSlot>('AssetSlot').write(writer, value.slot);
+    IonFormatterStorage.get<FrameSides>('FrameSides').write(writer, value.slice);
+    IonFormatterStorage.get<FrameSides>('FrameSides').write(writer, value.width);
+    IonFormatterStorage.writeNullable<FrameSides>(writer, value.outset, 'FrameSides');
+    IonFormatterStorage.get<FrameRepeat>('FrameRepeat').write(writer, value.repeat);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.fill);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameProp", {
+  read(reader: CborReader): FrameProp {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "FrameProp");
+    const over = IonFormatterStorage.get<bool>('bool').read(reader);
+    const opacityPct = IonFormatterStorage.get<u2>('u2').read(reader);
+    const inset = IonFormatterStorage.readNullable<FrameSides>(reader, 'FrameSides');
+    const motion = IonFormatterStorage.readNullable<FrameMotion>(reader, 'FrameMotion');
+    const slot = IonFormatterStorage.get<AssetSlot>('AssetSlot').read(reader);
+    const anchor = IonFormatterStorage.get<FrameAnchor>('FrameAnchor').read(reader);
+    const w = IonFormatterStorage.get<u2>('u2').read(reader);
+    const h = IonFormatterStorage.get<u2>('u2').read(reader);
+    const dx = IonFormatterStorage.get<i4>('i4').read(reader);
+    const dy = IonFormatterStorage.get<i4>('i4').read(reader);
+    const sprite = IonFormatterStorage.readNullable<FrameSprite>(reader, 'FrameSprite');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return new FrameProp(over, opacityPct, inset, motion, slot, anchor, w, h, dx, dy, sprite);
+  },
+  write(writer: CborWriter, value: FrameProp): void {
+    writer.writeStartArray(11);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.over);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.opacityPct);
+    IonFormatterStorage.writeNullable<FrameSides>(writer, value.inset, 'FrameSides');
+    IonFormatterStorage.writeNullable<FrameMotion>(writer, value.motion, 'FrameMotion');
+    IonFormatterStorage.get<AssetSlot>('AssetSlot').write(writer, value.slot);
+    IonFormatterStorage.get<FrameAnchor>('FrameAnchor').write(writer, value.anchor);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.w);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.h);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.dx);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.dy);
+    IonFormatterStorage.writeNullable<FrameSprite>(writer, value.sprite, 'FrameSprite');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameRing", {
+  read(reader: CborReader): FrameRing {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "FrameRing");
+    const over = IonFormatterStorage.get<bool>('bool').read(reader);
+    const opacityPct = IonFormatterStorage.get<u2>('u2').read(reader);
+    const inset = IonFormatterStorage.readNullable<FrameSides>(reader, 'FrameSides');
+    const motion = IonFormatterStorage.readNullable<FrameMotion>(reader, 'FrameMotion');
+    const thickness = IonFormatterStorage.get<u2>('u2').read(reader);
+    const colors = IonFormatterStorage.readArray<i4>(reader, 'i4');
+    const angle = IonFormatterStorage.get<u2>('u2').read(reader);
+    const glowPct = IonFormatterStorage.get<u2>('u2').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return new FrameRing(over, opacityPct, inset, motion, thickness, colors, angle, glowPct);
+  },
+  write(writer: CborWriter, value: FrameRing): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.over);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.opacityPct);
+    IonFormatterStorage.writeNullable<FrameSides>(writer, value.inset, 'FrameSides');
+    IonFormatterStorage.writeNullable<FrameMotion>(writer, value.motion, 'FrameMotion');
+    IonFormatterStorage.get<u2>('u2').write(writer, value.thickness);
+    IonFormatterStorage.writeArray<i4>(writer, value.colors, 'i4');
+    IonFormatterStorage.get<u2>('u2').write(writer, value.angle);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.glowPct);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ISaveGifResult implements IIonUnion<ISaveGifResult>
 {
   abstract UnionKey: string;
@@ -14579,6 +15881,22 @@ IonFormatterStorage.register("GlobalBadges", {
   }
 });
 
+IonFormatterStorage.register("RealtimeCursor", {
+  read(reader: CborReader): RealtimeCursor {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RealtimeCursor");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const entryId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { spaceId, entryId };
+  },
+  write(writer: CborWriter, value: RealtimeCursor): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.entryId);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ActivityPresenceKind", {
   read(reader: CborReader): ActivityPresenceKind {
     return IonFormatterStorage.readOpenEnum<ActivityPresenceKind>(reader, 'u4');
@@ -14808,6 +16126,236 @@ IonFormatterStorage.register("MentionTargetType", {
   write(writer: CborWriter, value: MentionTargetType): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CosmeticCatalogue", {
+  read(reader: CborReader): CosmeticCatalogue {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CosmeticCatalogue");
+    const enabledKinds = IonFormatterStorage.readArray<string>(reader, 'string');
+    const items = IonFormatterStorage.readArray<CatalogueCosmetic>(reader, 'CatalogueCosmetic');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { enabledKinds, items };
+  },
+  write(writer: CborWriter, value: CosmeticCatalogue): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeArray<string>(writer, value.enabledKinds, 'string');
+    IonFormatterStorage.writeArray<CatalogueCosmetic>(writer, value.items, 'CatalogueCosmetic');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CatalogueCosmetic", {
+  read(reader: CborReader): CatalogueCosmetic {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "CatalogueCosmetic");
+    const cosmeticId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const kindKey = IonFormatterStorage.get<string>('string').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const nameKey = IonFormatterStorage.get<string>('string').read(reader);
+    const descriptionKey = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const rarity = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const payload = IonFormatterStorage.get<ICosmeticPayload>('ICosmeticPayload').read(reader);
+    const assets = IonFormatterStorage.readArray<CosmeticAsset>(reader, 'CosmeticAsset');
+    const availableUntil = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const free = IonFormatterStorage.get<bool>('bool').read(reader);
+    const ultima = IonFormatterStorage.get<bool>('bool').read(reader);
+    const text = IonFormatterStorage.readArray<CosmeticText>(reader, 'CosmeticText');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { cosmeticId, kindKey, slug, nameKey, descriptionKey, rarity, version, payload, assets, availableUntil, free, ultima, text };
+  },
+  write(writer: CborWriter, value: CatalogueCosmetic): void {
+    writer.writeStartArray(13);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.cosmeticId);
+    IonFormatterStorage.get<string>('string').write(writer, value.kindKey);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.get<string>('string').write(writer, value.nameKey);
+    IonFormatterStorage.writeNullable<string>(writer, value.descriptionKey, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.rarity, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<ICosmeticPayload>('ICosmeticPayload').write(writer, value.payload);
+    IonFormatterStorage.writeArray<CosmeticAsset>(writer, value.assets, 'CosmeticAsset');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.availableUntil, 'datetime');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.free);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.ultima);
+    IonFormatterStorage.writeArray<CosmeticText>(writer, value.text, 'CosmeticText');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticText", {
+  read(reader: CborReader): CosmeticText {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "CosmeticText");
+    const locale = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const description = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { locale, name, description };
+  },
+  write(writer: CborWriter, value: CosmeticText): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.locale);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.description, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MyCosmetics", {
+  read(reader: CborReader): MyCosmetics {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "MyCosmetics");
+    const owned = IonFormatterStorage.readArray<OwnedCosmetic>(reader, 'OwnedCosmetic');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return { owned };
+  },
+  write(writer: CborWriter, value: MyCosmetics): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<OwnedCosmetic>(writer, value.owned, 'OwnedCosmetic');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("OwnedCosmetic", {
+  read(reader: CborReader): OwnedCosmetic {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "OwnedCosmetic");
+    const cosmeticId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const expiresAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const viaSubscription = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { cosmeticId, expiresAt, viaSubscription };
+  },
+  write(writer: CborWriter, value: OwnedCosmetic): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.cosmeticId);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.expiresAt, 'datetime');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.viaSubscription);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AssetSlot", {
+  read(reader: CborReader): AssetSlot {
+    return IonFormatterStorage.readOpenEnum<AssetSlot>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: AssetSlot): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CosmeticAsset", {
+  read(reader: CborReader): CosmeticAsset {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "CosmeticAsset");
+    const slot = IonFormatterStorage.get<AssetSlot>('AssetSlot').read(reader);
+    const fileId = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { slot, fileId };
+  },
+  write(writer: CborWriter, value: CosmeticAsset): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<AssetSlot>('AssetSlot').write(writer, value.slot);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameSides", {
+  read(reader: CborReader): FrameSides {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FrameSides");
+    const top = IonFormatterStorage.get<u2>('u2').read(reader);
+    const right = IonFormatterStorage.get<u2>('u2').read(reader);
+    const bottom = IonFormatterStorage.get<u2>('u2').read(reader);
+    const left = IonFormatterStorage.get<u2>('u2').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { top, right, bottom, left };
+  },
+  write(writer: CborWriter, value: FrameSides): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.top);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.right);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.bottom);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.left);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameMotion", {
+  read(reader: CborReader): FrameMotion {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FrameMotion");
+    const kind = IonFormatterStorage.get<string>('string').read(reader);
+    const amount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const periodMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const phaseMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { kind, amount, periodMs, phaseMs };
+  },
+  write(writer: CborWriter, value: FrameMotion): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<string>('string').write(writer, value.kind);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.amount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.periodMs);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.phaseMs);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FrameSprite", {
+  read(reader: CborReader): FrameSprite {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "FrameSprite");
+    const frames = IonFormatterStorage.get<u2>('u2').read(reader);
+    const columns = IonFormatterStorage.get<u2>('u2').read(reader);
+    const fps = IonFormatterStorage.get<u2>('u2').read(reader);
+    const still = IonFormatterStorage.get<u2>('u2').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { frames, columns, fps, still };
+  },
+  write(writer: CborWriter, value: FrameSprite): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.frames);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.columns);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.fps);
+    IonFormatterStorage.get<u2>('u2').write(writer, value.still);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("CosmeticError", {
+  read(reader: CborReader): CosmeticError {
+    return IonFormatterStorage.readOpenEnum<CosmeticError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: CosmeticError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("NicknameGradientShape", {
+  read(reader: CborReader): NicknameGradientShape {
+    return IonFormatterStorage.readOpenEnum<NicknameGradientShape>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: NicknameGradientShape): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("FrameRepeat", {
+  read(reader: CborReader): FrameRepeat {
+    return IonFormatterStorage.readOpenEnum<FrameRepeat>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: FrameRepeat): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("FrameAnchor", {
+  read(reader: CborReader): FrameAnchor {
+    return IonFormatterStorage.readOpenEnum<FrameAnchor>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: FrameAnchor): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
 });
 
@@ -16006,7 +17554,7 @@ IonFormatterStorage.register("SpaceStats", {
 
 IonFormatterStorage.register("ArgonUserProfile", {
   read(reader: CborReader): ArgonUserProfile {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 15, "ArgonUserProfile");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 16, "ArgonUserProfile");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -16022,11 +17570,12 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const primaryColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const registeredAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
-    reader.readEndArrayAndSkip(arraySize - 15);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt };
+    const cosmetics = IonFormatterStorage.readNullableArray<IWornCosmetic>(reader, 'IWornCosmetic');
+    reader.readEndArrayAndSkip(arraySize - 16);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(15);
+    writer.writeStartArray(16);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
@@ -16042,6 +17591,7 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<i4>(writer, value.primaryColor, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
+    IonFormatterStorage.writeNullableArray<IWornCosmetic>(writer, value.cosmetics, 'IWornCosmetic');
     writer.writeEndArray();
   }
 });
@@ -16058,7 +17608,7 @@ IonFormatterStorage.register("SpaceDeletionError", {
 
 IonFormatterStorage.register("ArgonIonTicket", {
   read(reader: CborReader): ArgonIonTicket {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ArgonIonTicket");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonIonTicket");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const ip = IonFormatterStorage.get<string>('string').read(reader);
     const ray = IonFormatterStorage.get<string>('string').read(reader);
@@ -16068,11 +17618,13 @@ IonFormatterStorage.register("ArgonIonTicket", {
     const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const machineId = IonFormatterStorage.get<string>('string').read(reader);
     const region = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { userId, ip, ray, clientName, hostName, appId, sessionId, machineId, region };
+    const credentialSessionIds = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const issuedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { userId, ip, ray, clientName, hostName, appId, sessionId, machineId, region, credentialSessionIds, issuedAt };
   },
   write(writer: CborWriter, value: ArgonIonTicket): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(11);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<string>('string').write(writer, value.ip);
     IonFormatterStorage.get<string>('string').write(writer, value.ray);
@@ -16082,6 +17634,8 @@ IonFormatterStorage.register("ArgonIonTicket", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.sessionId);
     IonFormatterStorage.get<string>('string').write(writer, value.machineId);
     IonFormatterStorage.get<string>('string').write(writer, value.region);
+    IonFormatterStorage.writeArray<guid>(writer, value.credentialSessionIds, 'guid');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.issuedAt);
     writer.writeEndArray();
   }
 });
@@ -16915,6 +18469,18 @@ export interface IEventBus extends IIonService
   Dispatch(ev: IArgonClientEvent): Promise<void>;
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
+  Realtime(commands: AsyncIterable<IRealtimeCommand>): AsyncIterable<IRealtimeFrame>;
+}
+
+
+
+
+export interface ICosmeticsInteraction extends IIonService
+{
+  GetCatalogue(): Promise<CosmeticCatalogue>;
+  GetMyCosmetics(): Promise<MyCosmetics>;
+  Equip(cosmetic: IWornCosmetic): Promise<IEquipResult>;
+  Unequip(kindKey: string): Promise<IEquipResult>;
 }
 
 
@@ -17255,6 +18821,18 @@ export interface IEventBus extends IIonService
   Dispatch(ev: IArgonClientEvent): Promise<void>;
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
+  Realtime(commands: AsyncIterable<IRealtimeCommand>): AsyncIterable<IRealtimeFrame>;
+}
+
+
+
+
+export interface ICosmeticsInteraction extends IIonService
+{
+  GetCatalogue(): Promise<CosmeticCatalogue>;
+  GetMyCosmetics(): Promise<MyCosmetics>;
+  Equip(cosmetic: IWornCosmetic): Promise<IEquipResult>;
+  Unequip(kindKey: string): Promise<IEquipResult>;
 }
 
 
@@ -18357,10 +19935,86 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
           
     return await req.callAsyncT<string>("string", writer.data, this.signal);
   }
+  Realtime(inputStream: AsyncIterable<IRealtimeCommand>): AsyncIterable<IRealtimeFrame> {
+    const ws = new IonWsClient(this.ctx, "IEventBus", "Realtime");
+    
+    const writer = new CborWriter();
+    
+    writer.writeStartArray(0);
+    
+    
+    
+    writer.writeEndArray();
+    
+    return ws.callServerStreamingFullDuplex<IRealtimeFrame, IRealtimeCommand>("IRealtimeFrame", writer.data, inputStream, "IRealtimeCommand", this.signal);
+  }
 
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class CosmeticsInteraction_Executor extends ServiceExecutor<ICosmeticsInteraction> implements ICosmeticsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetCatalogue(): Promise<CosmeticCatalogue> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetCatalogue");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<CosmeticCatalogue>("CosmeticCatalogue", writer.data, this.signal);
+  }
+  async GetMyCosmetics(): Promise<MyCosmetics> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "GetMyCosmetics");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<MyCosmetics>("MyCosmetics", writer.data, this.signal);
+  }
+  async Equip(cosmetic: IWornCosmetic): Promise<IEquipResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "Equip");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<IWornCosmetic>('IWornCosmetic').write(writer, cosmetic);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEquipResult>("IEquipResult", writer.data, this.signal);
+  }
+  async Unequip(kindKey: string): Promise<IEquipResult> {
+    const req = new IonRequest(this.ctx, "ICosmeticsInteraction", "Unequip");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<string>('string').write(writer, kindKey);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEquipResult>("IEquipResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ICosmeticsInteraction>('CosmeticsInteraction', CosmeticsInteraction_Executor);
 
 export class FeatureFlagInteractions_Executor extends ServiceExecutor<IFeatureFlagInteractions> implements IFeatureFlagInteractions {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -20563,12 +22217,28 @@ export class CallInteraction_Executor extends ServiceExecutor<ICallInteraction> 
 IonFormatterStorage.registerClientExecutor<ICallInteraction>('CallInteraction', CallInteraction_Executor);
 
 
-export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
-  const ctx = {
+/**
+ * A client for every service in this module.
+ *
+ * `options.streamOptions` configures `stream` calls (transport order, heartbeat, reconnect);
+ * `options.sessionId` identifies this client instance to the server across calls (a fresh one
+ * by default); `options.signal` cancels every call made through the client.
+ */
+export function createClient(
+  endpoint: string,
+  interceptors: IonInterceptor[],
+  options?: { streamOptions?: IonStreamOptions; sessionId?: string; signal?: AbortSignal }
+) {
+  const ctx: IonClientContext = {
     baseUrl: endpoint,
-    interceptors: interceptors
-  } as IonClientContext;
+    interceptors: interceptors,
+    sessionId: options?.sessionId ?? crypto.randomUUID(),
+    streamOptions: options?.streamOptions
+  };
   const controller = new AbortController();
+  const outer = options?.signal;
+  if (outer?.aborted) controller.abort(outer.reason);
+  else outer?.addEventListener("abort", () => controller.abort(outer.reason), { once: true });
 
   return new Proxy(
     {},
@@ -20579,6 +22249,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
         if (propKey === "BotManagementInteraction") return IonFormatterStorage.createExecutor("BotManagementInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "CosmeticsInteraction") return IonFormatterStorage.createExecutor("CosmeticsInteraction", ctx, controller.signal);
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
         if (propKey === "UserChatInteractions") return IonFormatterStorage.createExecutor("UserChatInteractions", ctx, controller.signal);
@@ -20605,6 +22276,7 @@ export function createClient(endpoint: string, interceptors: IonInterceptor[]) {
     BotManagementInteraction: IBotManagementInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    CosmeticsInteraction: ICosmeticsInteraction;
     FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;
     UserChatInteractions: IUserChatInteractions;

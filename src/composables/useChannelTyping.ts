@@ -39,12 +39,12 @@ export function useChannelTyping(
 
   const onTyping = () => {
     if (!channelData.value) return;
-    bus.IAmTypingEvent(channelData.value.channelId);
+    bus.IAmTypingEvent(channelData.value.spaceId, channelData.value.channelId);
   };
 
   const onStopTyping = () => {
     if (!channelData.value) return;
-    bus.IAmStopTypingEvent(channelData.value.channelId);
+    bus.IAmStopTypingEvent(channelData.value.spaceId, channelData.value.channelId);
   };
 
   watch(selectedChannelId, () => {

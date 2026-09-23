@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@argon-chat/emojix": "workspace:*",
-    "@argon-chat/ion.webcore": "^1.3.0",
+    "@argon-chat/ion.webcore": "^2.0.0",
     "@argon/assets": "workspace:*",
     "@argon/audio": "workspace:*",
     "@argon/avatar": "workspace:*",
@@ -49,8 +49,6 @@
     "@argon/ui": "workspace:*",
     "@floating-ui/vue": "^1.1.11",
     "@internationalized/date": "^3.12.3",
-    "@microsoft/signalr": "^10.0.11",
-    "@microsoft/signalr-protocol-msgpack": "^10.0.11",
     "@phosphor-icons/vue": "^2.2.1",
     "@radix-icons/vue": "^1.0.0",
     "@sapphi-red/web-noise-suppressor": "^0.3.5",

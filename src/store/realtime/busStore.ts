@@ -5,7 +5,7 @@ import { useApi } from "@/store/system/apiStore";
 import { logger } from "@argon/core";
 import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
-import { CborReader, IonFormatterStorage, type Guid } from "@argon-chat/ion.webcore";
+import { CborReader, IonFormatterStorage, IonRequestException, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import { isSessionRejected } from "@/lib/net/authFailure";
@@ -22,10 +22,15 @@ export type EventWithServerId<T> = { spaceId: string } & T;
  * `toDate is not a function` at the first call site. Decoded on this side it is the same live shape
  * every API call returns.
  */
-function decodeEvent(data: string): IArgonEvent {
-  const binary = atob(data);
-  const reader = new CborReader(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
-  return IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(reader);
+function decodeEvent(data: ArrayBuffer): IArgonEvent {
+  return IonFormatterStorage.get<IArgonEvent>("IArgonEvent").read(new CborReader(new Uint8Array(data)));
+}
+
+/** What the worker needs to know about a failed ticket exchange: see its `ticketError`. */
+function describeTicketFailure(err: unknown): { status?: number; code?: string; message: string } {
+  if (err instanceof IonRequestException)
+    return { status: err.status, code: err.error?.code, message: err.error?.message ?? err.message };
+  return { message: err instanceof Error ? err.message : String(err) };
 }
 
 export const useBus = defineStore("bus", () => {
@@ -36,10 +41,13 @@ export const useBus = defineStore("bus", () => {
   // Used to resync state that may have drifted while events were missed.
   const reconnected = new Subject<void>();
   let everConnected = false;
+  // Fires when the connection came back on the same server-side session (the stream was resumed):
+  // nothing was missed, so there is nothing to resync — only the "reconnecting" state to clear.
+  const resumed = new Subject<void>();
   // Fires when the server's replay buffer couldn't guarantee continuity on Resume
   // (cursor trimmed / too far behind) — the client must rebuild state from scratch.
   const needFullResync = new Subject<void>();
-  const isSignalRReconnecting = ref(false);
+  const isReconnecting = ref(false);
   const nextReconnectAttempt = ref<number | null>(null);
   const reconnectAttemptCount = ref(0);
 
@@ -60,10 +68,13 @@ export const useBus = defineStore("bus", () => {
 
   function createWorker() {
     if (worker) return worker;
-    
-    worker = new RealtimeWorker();
 
-    worker.onmessage = async (e: MessageEvent) => {
+    // Held locally: an answer that arrives after `closeAllSubscribes` replaced the worker must not
+    // be posted to its successor.
+    const w: Worker = new RealtimeWorker();
+    worker = w;
+
+    w.onmessage = async (e: MessageEvent) => {
       const msg = e.data;
       switch (msg.type) {
         case "event":
@@ -81,13 +92,16 @@ export const useBus = defineStore("bus", () => {
           }
           break;
 
-        case "tokenRequest":
-          // Worker needs auth token — fetch from main thread API and respond
+        case "ticketRequest":
+          // The stream in the worker is about to connect and needs a ticket. The exchange runs here,
+          // through the API client's interceptors (credentials, device proof, locale, client
+          // descriptor, machine id), which reach stores the worker does not have.
           try {
-            const token = await api.eventBus.PickTicket();
-            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token });
+            const payload = await api.exchangeStreamTicket("IEventBus", "Realtime");
+            const buffer = payload.slice().buffer;
+            w.postMessage({ type: "ticketResponse", requestId: msg.requestId, payload: buffer }, [buffer]);
           } catch (err) {
-            logger.error("Failed to get token for worker", err);
+            logger.error("Failed to get a realtime ticket for the worker", err);
             metrics.count("realtime.ticket.failed", { error: errorKind(err) });
 
             // A refused ticket is the way a signed-out device finds out: the server ended this session
@@ -100,8 +114,13 @@ export const useBus = defineStore("bus", () => {
               fatal = (await handleSessionRejected("realtime ticket")) === "signed_out";
             }
 
-            // Always respond so worker doesn't hang
-            worker!.postMessage({ type: "tokenResponse", requestId: msg.requestId, token: "", error: true, fatal });
+            // Always respond so the worker doesn't wait out its timeout.
+            w.postMessage({
+              type: "ticketResponse",
+              requestId: msg.requestId,
+              error: describeTicketFailure(err),
+              fatal,
+            });
           }
           break;
 
@@ -126,7 +145,7 @@ export const useBus = defineStore("bus", () => {
             const { useMe } = await import("../auth/meStore");
             const me = useMe();
             const status = me.me?.currentStatus ?? me.preferredStatus ?? UserStatus.Online;
-            worker!.postMessage({ type: "heartbeatInvoke", status });
+            w.postMessage({ type: "heartbeatInvoke", status });
           } catch (err) {
             logger.error("Failed to send heartbeat status to worker", err);
           }
@@ -134,7 +153,7 @@ export const useBus = defineStore("bus", () => {
 
         case "state":
           if (msg.state === "reconnecting") {
-            isSignalRReconnecting.value = true;
+            isReconnecting.value = true;
             noteOutage();
           } else if (msg.state === "connected") {
             const isReconnection = everConnected;
@@ -148,12 +167,12 @@ export const useBus = defineStore("bus", () => {
             outageStartedAt = null;
             manualRetryInFlight = false;
             everConnected = true;
-            isSignalRReconnecting.value = false;
+            isReconnecting.value = false;
             nextReconnectAttempt.value = null;
             reconnectAttemptCount.value = 0;
-            // Re-establishment (not first connect): events may have been missed
-            // during the gap — notify listeners to resync.
-            if (isReconnection) reconnected.next();
+            // Re-establishment (not first connect): on a fresh server-side session events may have
+            // been missed during the gap — notify listeners to resync. A resumed one missed nothing.
+            if (isReconnection) (msg.resumed ? resumed : reconnected).next();
             // (Re)assert the channel-delivery subscription for the currently-open channel. Covers
             // the race where the channel was selected before the worker existed (postMessage no-op),
             // and any reconnect where server-side group membership was lost.
@@ -174,7 +193,7 @@ export const useBus = defineStore("bus", () => {
               metrics.count("realtime.disconnected", { intentional: true, ever_connected: everConnected });
               if (!manualRetryInFlight) outageStartedAt = null;
             } else {
-              isSignalRReconnecting.value = true;
+              isReconnecting.value = true;
               noteOutage();
             }
           }
@@ -198,33 +217,34 @@ export const useBus = defineStore("bus", () => {
       }
     };
 
-    worker.onerror = (err) => {
+    w.onerror = (err) => {
       logger.error("[RealtimeWorker] Worker error:", err);
       metrics.count("realtime.worker.error");
     };
 
-    return worker;
+    return w;
   }
 
-  async function doListenSignalR() {
+  async function connectRealtime() {
     const w = createWorker();
-    w.postMessage({ type: "connect", endpoint: api.apiEndpoint });
+    w.postMessage({
+      type: "connect",
+      endpoint: api.apiEndpoint,
+      sessionId: api.ionSessionId,
+      webTransport: api.webTransportEndpoint,
+    });
   }
 
   async function doListenMyEvents() {
-    await doListenSignalR();
+    await connectRealtime();
   }
 
-  async function sendEventAsync<T extends IArgonEvent>(t: T) {
-    worker?.postMessage({ type: "invoke", method: "SendEvent", args: [t] });
+  async function IAmTypingEvent(spaceId: Guid, channelId: Guid) {
+    worker?.postMessage({ type: "invoke", method: "Typing", args: [spaceId, channelId] });
   }
 
-  async function IAmTypingEvent(channelId: Guid) {
-    worker?.postMessage({ type: "invoke", method: "IAmTyping", args: [channelId] });
-  }
-
-  async function IAmStopTypingEvent(channelId: Guid) {
-    worker?.postMessage({ type: "invoke", method: "IAmStopTyping", args: [channelId] });
+  async function IAmStopTypingEvent(spaceId: Guid, channelId: Guid) {
+    worker?.postMessage({ type: "invoke", method: "StopTyping", args: [spaceId, channelId] });
   }
 
   /**
@@ -237,8 +257,8 @@ export const useBus = defineStore("bus", () => {
    * tick sends — the server treats a repeat of the current status as a no-op and rate-limits real
    * changes with its own token bucket — so an early one costs nothing and the tick stays as it is.
    *
-   * Best-effort by design: with no worker (not connected yet) or a hub that is down, the worker's
-   * `invoke` is a no-op and the next tick after the connection returns carries the status anyway.
+   * Best-effort by design: with no worker (not connected yet) it is a no-op, and while the stream is
+   * down the worker keeps only the latest status for when it is back.
    *
    * Defect C2, pinned by `test/store/busHeartbeatStatus.test.ts` "choosing a status pushes it
    * instead of waiting for the next tick".
@@ -252,16 +272,6 @@ export const useBus = defineStore("bus", () => {
   // connection is already gone the server-side grace covers it anyway.
   async function goOffline() {
     worker?.postMessage({ type: "invoke", method: "GoOffline", args: [] });
-  }
-
-  async function subscribeToSpace(spaceId: string) {
-    worker?.postMessage({ type: "invoke", method: "SubscribeToSpace", args: [spaceId] });
-    logger.log(`Subscribed to space ${spaceId}`);
-  }
-
-  async function unsubscribeFromSpace(spaceId: string) {
-    worker?.postMessage({ type: "invoke", method: "UnSubscribeToSpace", args: [spaceId] });
-    logger.log(`Unsubscribed from space ${spaceId}`);
   }
 
   // Channel-scoped delivery: the worker tracks these and re-joins them on every (re)connect, so
@@ -310,14 +320,14 @@ export const useBus = defineStore("bus", () => {
   }
 
   async function retryConnectionNow() {
-    if (isSignalRReconnecting.value) {
+    if (isReconnecting.value) {
       metrics.count("realtime.reconnect.manual", { attempts: reconnectAttemptCount.value });
       manualRetryInFlight = true;
       worker?.postMessage({ type: "disconnect" });
       nextReconnectAttempt.value = null;
       reconnectAttemptCount.value = 0;
-      isSignalRReconnecting.value = false;
-      await doListenSignalR();
+      isReconnecting.value = false;
+      await connectRealtime();
     }
   }
 
@@ -339,21 +349,19 @@ export const useBus = defineStore("bus", () => {
     onServerEvent,
     onUserEvent,
     doListenMyEvents,
-    sendEventAsync,
     goOffline,
     pushStatusNow,
-    subscribeToSpace,
-    unsubscribeFromSpace,
     subscribeToChannel,
     unsubscribeFromChannel,
     IAmTypingEvent,
     IAmStopTypingEvent,
-    isSignalRReconnecting,
+    isReconnecting,
     nextReconnectAttempt,
     reconnectAttemptCount,
     retryConnectionNow,
     wakeConnection,
     reconnected,
+    resumed,
     needFullResync
   };
 });

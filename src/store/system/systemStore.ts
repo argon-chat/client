@@ -2,7 +2,6 @@ import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useTone } from "@/store/media/toneStore";
 import { Subject } from "rxjs";
-import { IonWsClient } from "@argon-chat/ion.webcore";
 import { useBus } from "@/store/realtime/busStore";
 
 const LONG_RECONNECT_TIMEOUT = 5000;
@@ -21,7 +20,6 @@ export const useSystemStore = defineStore("system", () => {
 
   const muteEvent = new Subject<boolean>();
   const muteHeadphoneEvent = new Subject<boolean>();
-  const preferUseWs = ref(false);
 
   // network
 
@@ -54,8 +52,6 @@ export const useSystemStore = defineStore("system", () => {
   }
 
   const isRequestRetrying = computed(() => activeRetries.value.size > 0);
-
-  preferUseWs.value = true; // TODO
 
   /** Options for the mute setters. */
   interface MuteOptions {
@@ -108,10 +104,10 @@ export const useSystemStore = defineStore("system", () => {
 
   const bus = useBus();
   
-  watch(() => bus.isSignalRReconnecting, (isReconnecting) => {
+  watch(() => bus.isReconnecting, (isReconnecting) => {
     if (isReconnecting) {
-      if (!hasRequestRetry("signalr", "connection")) {
-        startRequestRetry("signalr", "connection");
+      if (!hasRequestRetry("realtime", "connection")) {
+        startRequestRetry("realtime", "connection");
       }
       
       if (!reconnectTimer) {
@@ -125,10 +121,15 @@ export const useSystemStore = defineStore("system", () => {
         reconnectTimer = null;
       }
 
-      if (hasRequestRetry("signalr", "connection")) {
-        stopRequestRetry("signalr", "connection");
+      if (hasRequestRetry("realtime", "connection")) {
+        stopRequestRetry("realtime", "connection");
       }
     }
+  });
+
+  // The stream came back on the same server-side session: nothing to reload, however long it took.
+  bus.resumed.subscribe(() => {
+    isLongReconnecting.value = false;
   });
 
   bus.reconnected.subscribe(() => {
@@ -171,52 +172,6 @@ export const useSystemStore = defineStore("system", () => {
     })();
   });
 
-  IonWsClient.on("reconnecting", (x, t) => {
-    if (!hasRequestRetry("ws", "ws")) {
-      startRequestRetry("ws", "ws");
-    }
-
-    // Start timer for long reconnect
-    if (!reconnectTimer) {
-      reconnectTimer = setTimeout(() => {
-        isLongReconnecting.value = true;
-      }, LONG_RECONNECT_TIMEOUT);
-    }
-  });
-
-  IonWsClient.on("reconnected", async () => {
-    // Clear timer
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-
-    if (hasRequestRetry("ws", "ws")) {
-      stopRequestRetry("ws", "ws");
-    }
-
-    // If it was a long reconnect, reload server data
-    if (isLongReconnecting.value) {
-      try {
-        // Jitter the fleet-wide heavy resync (Ion WS transport) to avoid a synchronized
-        // read-path storm after a shared outage.
-        await new Promise((r) => setTimeout(r, Math.random() * RESYNC_JITTER_MS));
-
-        const { usePoolStore } = await import("../");
-        const poolStore = usePoolStore();
-        await poolStore.loadServerDetails();
-
-        const { useNotificationStore } = await import("../data/notificationStore");
-        const notificationStore = useNotificationStore();
-        await notificationStore.initFromGlobalBadges();
-      } catch (e) {
-        console.error("Failed to reload server details after reconnect:", e);
-      } finally {
-        isLongReconnecting.value = false;
-      }
-    }
-  });
-
   return {
     microphoneMuted,
     headphoneMuted,
@@ -228,7 +183,6 @@ export const useSystemStore = defineStore("system", () => {
     muteEvent,
     muteHeadphoneEvent,
 
-    preferUseWs,
     activeRetries,
 
     isRequestRetrying,

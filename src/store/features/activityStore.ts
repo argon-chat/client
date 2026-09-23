@@ -234,8 +234,11 @@ export const useActivity = defineStore("activity", () => {
     // rather than at the top: the bus owns the realtime worker, and a store that publishes what the
     // desktop host is playing has no business pulling that in on the web build, where the guard
     // above returns before any of this.
+    // Resumed as well as reconnected: either way the network is back.
     const { useBus } = await import("@/store/realtime/busStore");
-    useBus().reconnected.subscribe(() => retryOwedRemoval());
+    const bus = useBus();
+    bus.reconnected.subscribe(() => retryOwedRemoval());
+    bus.resumed.subscribe(() => retryOwedRemoval());
   }
 
   function cleanup() {
