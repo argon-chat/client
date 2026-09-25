@@ -10,7 +10,7 @@
     <!-- Actual image -->
     <img
       v-if="imageSrc"
-      crossorigin="anonymous" :src="imageSrc"
+      :crossorigin="cdnCrossOrigin(imageSrc)" :src="imageSrc"
       :alt="fileName"
       class="actual-image"
       :class="{ visible: loaded }"
@@ -28,7 +28,7 @@
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { Loader2Icon } from "lucide-vue-next";
 import { thumbHashToRGBA } from "thumbhash";
-import { resolveAttachmentUrl } from "@/store/system/fileStorage";
+import { cdnCrossOrigin, resolveAttachmentUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   fileId: string;

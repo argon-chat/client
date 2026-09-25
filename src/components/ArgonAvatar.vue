@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback } from "@argon/ui/avatar";
 import { Skeleton } from "@argon/ui/skeleton";
 import { computed, ref, toRef, watch, type HTMLAttributes } from "vue";
-import { cdnUrl } from "@/store/system/fileStorage";
+import { cdnCrossOrigin, cdnUrl } from "@/store/system/fileStorage";
 import { useUserColors } from "@/store/chat/userColors";
 import { usePoolStore } from "@/store/data/poolStore";
 
@@ -109,7 +109,7 @@ const avatarRootStyle = computed(() => {
 <template>
   <keep-alive :max="10" :key="cacheKey">
     <Avatar :class="[props.class]" :key="cacheKey" :style="{ width: size, height: size, ...avatarRootStyle }">
-      <img v-if="avatarSrc && !imgFailed" crossorigin="anonymous" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
+      <img v-if="avatarSrc && !imgFailed" :crossorigin="cdnCrossOrigin(avatarSrc)" :src="avatarSrc" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" @load="loaded = true" @error="onImgError" />
       <AvatarFallback v-else>
         {{ fallbackLetter }}
       </AvatarFallback>

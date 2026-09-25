@@ -30,7 +30,7 @@ const isNative = typeof window !== "undefined" && "argonIpc" in window;
  * instances point at their own server automatically. `spaceId` is no longer needed (the server
  * resolves the S3 key from the fileId) — kept for call-site compatibility.
  *
- * **Render these with `crossorigin="anonymous"`.** An `<img>` without it makes a `no-cors` request,
+ * **Render these with `:crossorigin="cdnCrossOrigin(url)"`.** An `<img>` without it makes a `no-cors` request,
  * and the browser hands the service worker an *opaque* response — which `media-sw.js` refuses to
  * store, because an opaque response cannot be measured against the quota and a partial one would
  * later be served as though it were whole. So every such image is fetched again on every view, and
@@ -57,6 +57,15 @@ export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   if (isNative)
     return `app://cdn-proxy/${encodeURIComponent(full)}`;
   return full;
+}
+
+/**
+ * The `crossorigin` a `cdnUrl` image needs: `"anonymous"` for an https one (see `cdnUrl`), none for
+ * Electron's `app://` schemes. Their cache is Electron's own, not the service worker's, and shells
+ * built before the scheme allowed CORS refuse a CORS request to it outright — the image never loads.
+ */
+export function cdnCrossOrigin(url: string | null | undefined): "anonymous" | undefined {
+  return url?.startsWith("app://") ? undefined : "anonymous";
 }
 
 /**

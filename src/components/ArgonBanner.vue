@@ -1,7 +1,7 @@
 <template>
   <keep-alive :max="10" :key="props.fileId!">
     <div class="relative h-24 w-full rounded-t-2xl overflow-hidden">
-      <img v-if="props.fileId && loaded" crossorigin="anonymous" :src="blobSrc" class="w-full h-full object-cover"
+      <img v-if="props.fileId && loaded" :crossorigin="cdnCrossOrigin(blobSrc)" :src="blobSrc" class="w-full h-full object-cover"
         alt="banner" />
       <div v-else class="w-full h-full bg-gradient-to-r from-gray-900 via-gray-900 to-gray-900" />
     </div>
@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, type HTMLAttributes } from "vue";
-import { cdnUrl } from "@/store/system/fileStorage";
+import { cdnCrossOrigin, cdnUrl } from "@/store/system/fileStorage";
 const loaded = ref(false);
 const loading = ref(true);
 const blobSrc = ref("");

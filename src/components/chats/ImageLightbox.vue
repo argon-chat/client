@@ -15,7 +15,7 @@
         <!-- Main image -->
         <div class="lightbox-content" @click.stop>
           <img
-            crossorigin="anonymous" :src="currentSrc ?? ''"
+            :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
             :alt="currentImage?.fileName ?? ''"
             class="lightbox-image"
             :class="{ loaded: imageLoaded }"
@@ -56,7 +56,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityAttachment } from "@argon/glue";
-import { resolveAttachmentUrl } from "@/store/system/fileStorage";
+import { cdnCrossOrigin, cdnFetchUrl, resolveAttachmentUrl } from "@/store/system/fileStorage";
 
 const props = defineProps<{
   images: MessageEntityAttachment[];
@@ -148,7 +148,7 @@ async function download() {
   // it — that fires pagehide/beforeunload and LiveKit tears down the active voice
   // call ("Page leave detected, disconnecting"). A blob: URL never navigates.
   try {
-    const resp = await fetch(currentSrc.value);
+    const resp = await fetch(cdnFetchUrl(currentImage.value.fileId));
     if (!resp.ok) return;
     const blob = await resp.blob();
     const blobUrl = URL.createObjectURL(blob);
