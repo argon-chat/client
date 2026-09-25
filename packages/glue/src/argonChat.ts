@@ -2727,6 +2727,18 @@ export const Ion_DataExportError_OpenEnum = {
 } as const;
 
 
+export interface MemberEntitlements {
+  space: ArgonEntitlement;
+  channels: IonArray<ChannelEntitlements>;
+};
+
+
+export interface ChannelEntitlements {
+  channelId: guid;
+  entitlements: ArgonEntitlement;
+};
+
+
 export interface SpaceDeletionState {
   status: SpaceDeletionStatus;
   scheduledAt: datetime | null;
@@ -7145,6 +7157,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isVoiceMoveRequested(): this is VoiceMoveRequested {
     return this.UnionKey === "VoiceMoveRequested";
   }
+  public isEntitlementsChanged(): this is EntitlementsChanged {
+    return this.UnionKey === "EntitlementsChanged";
+  }
 
 }
 
@@ -7709,11 +7724,19 @@ export class VoiceMoveRequested extends IArgonEvent
   UnionIndex: number = 69;
 }
 
+export class EntitlementsChanged extends IArgonEvent
+{
+  constructor(public spaceId: guid, public userId: guid | null) { super(); }
+
+  UnionKey: string = "EntitlementsChanged";
+  UnionIndex: number = 70;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 70);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 71);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -7858,8 +7881,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<VoiceMemberStateChanged>("VoiceMemberStateChanged").read(reader);
     else if (unionIndex == 69)
       value = IonFormatterStorage.get<VoiceMoveRequested>("VoiceMoveRequested").read(reader);
+    else if (unionIndex == 70)
+      value = IonFormatterStorage.get<EntitlementsChanged>("EntitlementsChanged").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 70);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 71);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -8079,8 +8104,11 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 69) {
         IonFormatterStorage.get<VoiceMoveRequested>("VoiceMoveRequested").write(writer, value as VoiceMoveRequested);
     }
+    else if (value.UnionIndex == 70) {
+        IonFormatterStorage.get<EntitlementsChanged>("EntitlementsChanged").write(writer, value as EntitlementsChanged);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 70 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 71 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9282,6 +9310,22 @@ IonFormatterStorage.register("VoiceMoveRequested", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.fromChannelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.toChannelId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("EntitlementsChanged", {
+  read(reader: CborReader): EntitlementsChanged {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "EntitlementsChanged");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const userId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new EntitlementsChanged(spaceId, userId);
+  },
+  write(writer: CborWriter, value: EntitlementsChanged): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.userId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -17406,6 +17450,38 @@ IonFormatterStorage.register("DataExportError", {
   }
 });
 
+IonFormatterStorage.register("MemberEntitlements", {
+  read(reader: CborReader): MemberEntitlements {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "MemberEntitlements");
+    const space = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    const channels = IonFormatterStorage.readArray<ChannelEntitlements>(reader, 'ChannelEntitlements');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { space, channels };
+  },
+  write(writer: CborWriter, value: MemberEntitlements): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.space);
+    IonFormatterStorage.writeArray<ChannelEntitlements>(writer, value.channels, 'ChannelEntitlements');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelEntitlements", {
+  read(reader: CborReader): ChannelEntitlements {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ChannelEntitlements");
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const entitlements = IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { channelId, entitlements };
+  },
+  write(writer: CborWriter, value: ChannelEntitlements): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<ArgonEntitlement>('ArgonEntitlement').write(writer, value.entitlements);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("SpaceDeletionStatus", {
   read(reader: CborReader): SpaceDeletionStatus {
     return IonFormatterStorage.readOpenEnum<SpaceDeletionStatus>(reader, 'u2');
@@ -18876,6 +18952,7 @@ export interface IServerInteraction extends IIonService
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
   GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
   SetMemberVoiceModeration(spaceId: guid, memberId: guid, muted: bool | null, deafened: bool | null): Promise<IVoiceModerationResult>;
+  GetMyEntitlements(spaceId: guid): Promise<MemberEntitlements>;
 }
 
 
@@ -19222,6 +19299,7 @@ export interface IServerInteraction extends IIonService
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
   GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
   SetMemberVoiceModeration(spaceId: guid, memberId: guid, muted: bool | null, deafened: bool | null): Promise<IVoiceModerationResult>;
+  GetMyEntitlements(spaceId: guid): Promise<MemberEntitlements>;
 }
 
 
@@ -21751,6 +21829,19 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
     writer.writeEndArray();
           
     return await req.callAsyncT<IVoiceModerationResult>("IVoiceModerationResult", writer.data, this.signal);
+  }
+  async GetMyEntitlements(spaceId: guid): Promise<MemberEntitlements> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "GetMyEntitlements");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<MemberEntitlements>("MemberEntitlements", writer.data, this.signal);
   }
 
 }
