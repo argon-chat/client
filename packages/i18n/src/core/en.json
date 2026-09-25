@@ -833,6 +833,10 @@
         "name": "Mute Member",
         "description": "Allows muting a member's mic."
       },
+      "DeafenMember": {
+        "name": "Deafen Member",
+        "description": "Allows deafening a member in voice channels, so they hear nobody."
+      },
       "KickMember": {
         "name": "Kick Member",
         "description": "Allows kicking a member from the server."
@@ -1694,5 +1698,29 @@
   "bot_tag": "Bot",
   "system_tag": "System",
   "bot_account": "Bot account",
-  "system_account": "System account"
+  "system_account": "System account",
+  "voice_member_server_muted": "Muted by a moderator",
+  "voice_member_server_deafened": "Deafened by a moderator",
+  "voice_member_streaming": "Streaming",
+  "voice_you_were_server_muted": "A moderator muted you",
+  "voice_you_were_server_unmuted": "A moderator unmuted you",
+  "voice_you_were_server_deafened": "A moderator deafened you",
+  "voice_you_were_server_undeafened": "A moderator undeafened you",
+  "voice_you_were_moved": "You were moved to #{channel}",
+  "voice_join_error_insufficient_permissions": "You don't have permission to join this voice channel",
+  "voice_move_to": "Move to",
+  "voice_move_no_targets": "No other voice channels",
+  "voice_server_mute": "Server mute",
+  "voice_server_deafen": "Server deafen",
+  "voice_move_failed": "Could not move the member",
+  "voice_move_error_insufficient_permissions": "You don't have permission to move members there",
+  "voice_move_error_member_not_in_channel": "This member is no longer in the channel",
+  "voice_move_error_target_not_found": "That channel no longer exists",
+  "voice_move_error_target_is_not_voice": "That is not a voice channel",
+  "voice_move_error_same_channel": "The member is already in that channel",
+  "voice_move_error_member_cannot_join_target": "This member cannot join that channel",
+  "voice_moderation_failed": "Could not change the member's voice restriction",
+  "voice_moderation_error_insufficient_permissions": "You don't have permission to do that",
+  "voice_moderation_error_member_not_found": "This member is no longer in the space",
+  "voice_moderation_error_cannot_moderate_owner": "The space owner cannot be muted or deafened"
 }

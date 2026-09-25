@@ -608,9 +608,10 @@ export enum JoinToChannelError
 {
   NONE = 0,
   CHANNEL_IS_NOT_VOICE = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
 }
 
-const declaredJoinToChannelError: ReadonlySet<unknown> = new Set<unknown>([JoinToChannelError.NONE, JoinToChannelError.CHANNEL_IS_NOT_VOICE]);
+const declaredJoinToChannelError: ReadonlySet<unknown> = new Set<unknown>([JoinToChannelError.NONE, JoinToChannelError.CHANNEL_IS_NOT_VOICE, JoinToChannelError.INSUFFICIENT_PERMISSIONS]);
 
 /**
  * Open-enum helpers for {@link JoinToChannelError}.
@@ -683,6 +684,42 @@ export const Ion_EntityType_OpenEnum = {
    */
   unknownValue(value: EntityType): u2 | undefined {
     return declaredEntityType.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum MoveVoiceMemberError
+{
+  NONE = 0,
+  INSUFFICIENT_PERMISSIONS = 1,
+  MEMBER_NOT_IN_CHANNEL = 2,
+  TARGET_NOT_FOUND = 3,
+  TARGET_IS_NOT_VOICE = 4,
+  SAME_CHANNEL = 5,
+  MEMBER_CANNOT_JOIN_TARGET = 6,
+}
+
+const declaredMoveVoiceMemberError: ReadonlySet<unknown> = new Set<unknown>([MoveVoiceMemberError.NONE, MoveVoiceMemberError.INSUFFICIENT_PERMISSIONS, MoveVoiceMemberError.MEMBER_NOT_IN_CHANNEL, MoveVoiceMemberError.TARGET_NOT_FOUND, MoveVoiceMemberError.TARGET_IS_NOT_VOICE, MoveVoiceMemberError.SAME_CHANNEL, MoveVoiceMemberError.MEMBER_CANNOT_JOIN_TARGET]);
+
+/**
+ * Open-enum helpers for {@link MoveVoiceMemberError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_MoveVoiceMemberError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: MoveVoiceMemberError): boolean {
+    return declaredMoveVoiceMemberError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: MoveVoiceMemberError): u2 | undefined {
+    return declaredMoveVoiceMemberError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -2845,6 +2882,39 @@ export interface ArgonUserProfile {
 };
 
 
+export enum VoiceModerationError
+{
+  NONE = 0,
+  INSUFFICIENT_PERMISSIONS = 1,
+  MEMBER_NOT_FOUND = 2,
+  CANNOT_MODERATE_OWNER = 3,
+}
+
+const declaredVoiceModerationError: ReadonlySet<unknown> = new Set<unknown>([VoiceModerationError.NONE, VoiceModerationError.INSUFFICIENT_PERMISSIONS, VoiceModerationError.MEMBER_NOT_FOUND, VoiceModerationError.CANNOT_MODERATE_OWNER]);
+
+/**
+ * Open-enum helpers for {@link VoiceModerationError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_VoiceModerationError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: VoiceModerationError): boolean {
+    return declaredVoiceModerationError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: VoiceModerationError): u2 | undefined {
+    return declaredVoiceModerationError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
 export enum SpaceDeletionStatus
 {
   NONE = 0,
@@ -2976,6 +3046,7 @@ export enum ArgonEntitlement
   BanMember = 4398046511104n as any,
   MuteMember = 8796093022208n as any,
   KickMember = 17592186044416n as any,
+  DeafenMember = 35184372088832n as any,
   ManageChannels = 1125899906842624n as any,
   ManageArchetype = 2251799813685248n as any,
   ManageBots = 4503599627370496n as any,
@@ -3973,41 +4044,6 @@ export const Ion_CallFailedError_OpenEnum = {
    */
   unknownValue(value: CallFailedError): u4 | undefined {
     return declaredCallFailedError.has(value) ? undefined : (value as unknown as u4);
-  },
-} as const;
-
-
-export enum DialCheckFailReason
-{
-  COUNTRY_NOT_SUPPORT = 0,
-  INVALID_NUMBER_COUNTRY = 1,
-  INSUFFICIENT_BALANCE = 2,
-  NUMBER_NOT_AVAILABLE = 3,
-  INSUFFICIENT_POOL = 4,
-  UNKNOWN_ERROR = 5,
-}
-
-const declaredDialCheckFailReason: ReadonlySet<unknown> = new Set<unknown>([DialCheckFailReason.COUNTRY_NOT_SUPPORT, DialCheckFailReason.INVALID_NUMBER_COUNTRY, DialCheckFailReason.INSUFFICIENT_BALANCE, DialCheckFailReason.NUMBER_NOT_AVAILABLE, DialCheckFailReason.INSUFFICIENT_POOL, DialCheckFailReason.UNKNOWN_ERROR]);
-
-/**
- * Open-enum helpers for {@link DialCheckFailReason}.
- *
- * Adding a member to an Ion enum is a safe schema change, so a value this revision does
- * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
- * say whether that happened — a `switch` over the enum cannot, because an undeclared
- * value simply matches no case.
- */
-export const Ion_DialCheckFailReason_OpenEnum = {
-  /** Whether `value` is a member this schema revision declares. */
-  isKnown(value: DialCheckFailReason): boolean {
-    return declaredDialCheckFailReason.has(value);
-  },
-  /**
-   * The raw `u4` the peer sent when `value` names no declared member, or
-   * `undefined` when it does. This is the exact value that will be written back out.
-   */
-  unknownValue(value: DialCheckFailReason): u4 | undefined {
-    return declaredDialCheckFailReason.has(value) ? undefined : (value as unknown as u4);
   },
 } as const;
 
@@ -5463,6 +5499,107 @@ IonFormatterStorage.register("MessageEntityLinkPreview", {
     IonFormatterStorage.writeNullable<string>(writer, value.siteName, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.imageUrl, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.canonicalUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IMoveVoiceMemberResult implements IIonUnion<IMoveVoiceMemberResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessMoveVoiceMember(): this is SuccessMoveVoiceMember {
+    return this.UnionKey === "SuccessMoveVoiceMember";
+  }
+  public isFailedMoveVoiceMember(): this is FailedMoveVoiceMember {
+    return this.UnionKey === "FailedMoveVoiceMember";
+  }
+
+}
+
+
+export class SuccessMoveVoiceMember extends IMoveVoiceMemberResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessMoveVoiceMember";
+  UnionIndex: number = 0;
+}
+
+export class FailedMoveVoiceMember extends IMoveVoiceMemberResult
+{
+  constructor(public error: MoveVoiceMemberError) { super(); }
+
+  UnionKey: string = "FailedMoveVoiceMember";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IMoveVoiceMemberResult", {
+  read(reader: CborReader): IMoveVoiceMemberResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMoveVoiceMemberResult", 2);
+    let value: IMoveVoiceMemberResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessMoveVoiceMember>("SuccessMoveVoiceMember").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedMoveVoiceMember>("FailedMoveVoiceMember").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IMoveVoiceMemberResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IMoveVoiceMemberResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessMoveVoiceMember>("SuccessMoveVoiceMember").write(writer, value as SuccessMoveVoiceMember);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedMoveVoiceMember>("FailedMoveVoiceMember").write(writer, value as FailedMoveVoiceMember);
+    }
+  
+    else throw new Error(`Ion union 'IMoveVoiceMemberResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessMoveVoiceMember", {
+  read(reader: CborReader): SuccessMoveVoiceMember {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessMoveVoiceMember");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessMoveVoiceMember();
+  },
+  write(writer: CborWriter, value: SuccessMoveVoiceMember): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedMoveVoiceMember", {
+  read(reader: CborReader): FailedMoveVoiceMember {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedMoveVoiceMember");
+    const error = IonFormatterStorage.get<MoveVoiceMemberError>('MoveVoiceMemberError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedMoveVoiceMember(error);
+  },
+  write(writer: CborWriter, value: FailedMoveVoiceMember): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<MoveVoiceMemberError>('MoveVoiceMemberError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -7002,6 +7139,12 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChatDeletedEvent(): this is ChatDeletedEvent {
     return this.UnionKey === "ChatDeletedEvent";
   }
+  public isVoiceMemberStateChanged(): this is VoiceMemberStateChanged {
+    return this.UnionKey === "VoiceMemberStateChanged";
+  }
+  public isVoiceMoveRequested(): this is VoiceMoveRequested {
+    return this.UnionKey === "VoiceMoveRequested";
+  }
 
 }
 
@@ -7550,11 +7693,27 @@ export class ChatDeletedEvent extends IArgonEvent
   UnionIndex: number = 67;
 }
 
+export class VoiceMemberStateChanged extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public userId: guid, public state: ChannelMemberState) { super(); }
+
+  UnionKey: string = "VoiceMemberStateChanged";
+  UnionIndex: number = 68;
+}
+
+export class VoiceMoveRequested extends IArgonEvent
+{
+  constructor(public spaceId: guid, public fromChannelId: guid, public toChannelId: guid, public byUserId: guid) { super(); }
+
+  UnionKey: string = "VoiceMoveRequested";
+  UnionIndex: number = 69;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 68);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 70);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -7695,8 +7854,12 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<UserUnignoredEvent>("UserUnignoredEvent").read(reader);
     else if (unionIndex == 67)
       value = IonFormatterStorage.get<ChatDeletedEvent>("ChatDeletedEvent").read(reader);
+    else if (unionIndex == 68)
+      value = IonFormatterStorage.get<VoiceMemberStateChanged>("VoiceMemberStateChanged").read(reader);
+    else if (unionIndex == 69)
+      value = IonFormatterStorage.get<VoiceMoveRequested>("VoiceMoveRequested").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 68);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 70);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -7910,8 +8073,14 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 67) {
         IonFormatterStorage.get<ChatDeletedEvent>("ChatDeletedEvent").write(writer, value as ChatDeletedEvent);
     }
+    else if (value.UnionIndex == 68) {
+        IonFormatterStorage.get<VoiceMemberStateChanged>("VoiceMemberStateChanged").write(writer, value as VoiceMemberStateChanged);
+    }
+    else if (value.UnionIndex == 69) {
+        IonFormatterStorage.get<VoiceMoveRequested>("VoiceMoveRequested").write(writer, value as VoiceMoveRequested);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 68 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 70 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9073,6 +9242,46 @@ IonFormatterStorage.register("ChatDeletedEvent", {
   write(writer: CborWriter, value: ChatDeletedEvent): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<guid>('guid').write(writer, value.peerId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VoiceMemberStateChanged", {
+  read(reader: CborReader): VoiceMemberStateChanged {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "VoiceMemberStateChanged");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const state = IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new VoiceMemberStateChanged(spaceId, channelId, userId, state);
+  },
+  write(writer: CborWriter, value: VoiceMemberStateChanged): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').write(writer, value.state);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VoiceMoveRequested", {
+  read(reader: CborReader): VoiceMoveRequested {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "VoiceMoveRequested");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fromChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const toChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new VoiceMoveRequested(spaceId, fromChannelId, toChannelId, byUserId);
+  },
+  write(writer: CborWriter, value: VoiceMoveRequested): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fromChannelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.toChannelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
     writer.writeEndArray();
   }
 });
@@ -13048,6 +13257,109 @@ IonFormatterStorage.register("FailedRequestDataExport", {
 
 
 
+export abstract class IVoiceModerationResult implements IIonUnion<IVoiceModerationResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessVoiceModeration(): this is SuccessVoiceModeration {
+    return this.UnionKey === "SuccessVoiceModeration";
+  }
+  public isFailedVoiceModeration(): this is FailedVoiceModeration {
+    return this.UnionKey === "FailedVoiceModeration";
+  }
+
+}
+
+
+export class SuccessVoiceModeration extends IVoiceModerationResult
+{
+  constructor(public muted: bool, public deafened: bool) { super(); }
+
+  UnionKey: string = "SuccessVoiceModeration";
+  UnionIndex: number = 0;
+}
+
+export class FailedVoiceModeration extends IVoiceModerationResult
+{
+  constructor(public error: VoiceModerationError) { super(); }
+
+  UnionKey: string = "FailedVoiceModeration";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IVoiceModerationResult", {
+  read(reader: CborReader): IVoiceModerationResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IVoiceModerationResult", 2);
+    let value: IVoiceModerationResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessVoiceModeration>("SuccessVoiceModeration").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedVoiceModeration>("FailedVoiceModeration").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IVoiceModerationResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IVoiceModerationResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessVoiceModeration>("SuccessVoiceModeration").write(writer, value as SuccessVoiceModeration);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedVoiceModeration>("FailedVoiceModeration").write(writer, value as FailedVoiceModeration);
+    }
+  
+    else throw new Error(`Ion union 'IVoiceModerationResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessVoiceModeration", {
+  read(reader: CborReader): SuccessVoiceModeration {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessVoiceModeration");
+    const muted = IonFormatterStorage.get<bool>('bool').read(reader);
+    const deafened = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessVoiceModeration(muted, deafened);
+  },
+  write(writer: CborWriter, value: SuccessVoiceModeration): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.muted);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.deafened);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedVoiceModeration", {
+  read(reader: CborReader): FailedVoiceModeration {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedVoiceModeration");
+    const error = IonFormatterStorage.get<VoiceModerationError>('VoiceModerationError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedVoiceModeration(error);
+  },
+  write(writer: CborWriter, value: FailedVoiceModeration): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VoiceModerationError>('VoiceModerationError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IRequestDeleteSpaceResult implements IIonUnion<IRequestDeleteSpaceResult>
 {
   abstract UnionKey: string;
@@ -14898,113 +15210,6 @@ IonFormatterStorage.register("FailedPickUp", {
 
 
 
-export abstract class IDialCheckResult implements IIonUnion<IDialCheckResult>
-{
-  abstract UnionKey: string;
-  abstract UnionIndex: number;
-  
-  
-  
-  
-  public isSuccessDialCheck(): this is SuccessDialCheck {
-    return this.UnionKey === "SuccessDialCheck";
-  }
-  public isFailedDialCheck(): this is FailedDialCheck {
-    return this.UnionKey === "FailedDialCheck";
-  }
-
-}
-
-
-export class SuccessDialCheck extends IDialCheckResult
-{
-  constructor(public priceMin: i4, public corelId: guid, public corlId: guid) { super(); }
-
-  UnionKey: string = "SuccessDialCheck";
-  UnionIndex: number = 0;
-}
-
-export class FailedDialCheck extends IDialCheckResult
-{
-  constructor(public reason: DialCheckFailReason, public priceMin: i4) { super(); }
-
-  UnionKey: string = "FailedDialCheck";
-  UnionIndex: number = 1;
-}
-
-
-
-IonFormatterStorage.register("IDialCheckResult", {
-  read(reader: CborReader): IDialCheckResult {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IDialCheckResult", 2);
-    let value: IDialCheckResult = null as any;
-
-    if (false)
-    {}
-        else if (unionIndex == 0)
-      value = IonFormatterStorage.get<SuccessDialCheck>("SuccessDialCheck").read(reader);
-    else if (unionIndex == 1)
-      value = IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").read(reader);
-
-    else IonFormatterStorage.invalidUnionIndex("IDialCheckResult", unionIndex, 2);
-
-    IonFormatterStorage.readEndUnion(reader);
-    return value!;
-  },
-  write(writer: CborWriter, value: IDialCheckResult): void {
-    writer.writeStartArray(2);
-    writer.writeUInt32(value.UnionIndex);
-    if (false)
-    {}
-        else if (value.UnionIndex == 0) {
-        IonFormatterStorage.get<SuccessDialCheck>("SuccessDialCheck").write(writer, value as SuccessDialCheck);
-    }
-    else if (value.UnionIndex == 1) {
-        IonFormatterStorage.get<FailedDialCheck>("FailedDialCheck").write(writer, value as FailedDialCheck);
-    }
-  
-    else throw new Error(`Ion union 'IDialCheckResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
-    writer.writeEndArray();
-  }
-});
-
-
-IonFormatterStorage.register("SuccessDialCheck", {
-  read(reader: CborReader): SuccessDialCheck {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessDialCheck");
-    const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
-    const corelId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const corlId = IonFormatterStorage.get<guid>('guid').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return new SuccessDialCheck(priceMin, corelId, corlId);
-  },
-  write(writer: CborWriter, value: SuccessDialCheck): void {
-    writer.writeStartArray(3);
-    IonFormatterStorage.get<i4>('i4').write(writer, value.priceMin);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.corelId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.corlId);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("FailedDialCheck", {
-  read(reader: CborReader): FailedDialCheck {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FailedDialCheck");
-    const reason = IonFormatterStorage.get<DialCheckFailReason>('DialCheckFailReason').read(reader);
-    const priceMin = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 2);
-    return new FailedDialCheck(reason, priceMin);
-  },
-  write(writer: CborWriter, value: FailedDialCheck): void {
-    writer.writeStartArray(2);
-    IonFormatterStorage.get<DialCheckFailReason>('DialCheckFailReason').write(writer, value.reason);
-    IonFormatterStorage.get<i4>('i4').write(writer, value.priceMin);
-    writer.writeEndArray();
-  }
-});
-
-
-
 IonFormatterStorage.register("ArgonEntitlement", {
   read(reader: CborReader): ArgonEntitlement {
     const num = (IonFormatterStorage.get<u8>('u8').read(reader))
@@ -15964,6 +16169,16 @@ IonFormatterStorage.register("EntityType", {
     return IonFormatterStorage.readOpenEnum<EntityType>(reader, 'u2');
   },
   write(writer: CborWriter, value: EntityType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("MoveVoiceMemberError", {
+  read(reader: CborReader): MoveVoiceMemberError {
+    return IonFormatterStorage.readOpenEnum<MoveVoiceMemberError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: MoveVoiceMemberError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -17596,6 +17811,16 @@ IonFormatterStorage.register("ArgonUserProfile", {
   }
 });
 
+IonFormatterStorage.register("VoiceModerationError", {
+  read(reader: CborReader): VoiceModerationError {
+    return IonFormatterStorage.readOpenEnum<VoiceModerationError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: VoiceModerationError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("SpaceDeletionError", {
   read(reader: CborReader): SpaceDeletionError {
     return IonFormatterStorage.readOpenEnum<SpaceDeletionError>(reader, 'u2');
@@ -18382,16 +18607,6 @@ IonFormatterStorage.register("CallFailedError", {
   }
 });
 
-IonFormatterStorage.register("DialCheckFailReason", {
-  read(reader: CborReader): DialCheckFailReason {
-    return IonFormatterStorage.readOpenEnum<DialCheckFailReason>(reader, 'u4');
-  },
-  write(writer: CborWriter, value: DialCheckFailReason): void {
-    const casted: u4 = value;
-    IonFormatterStorage.get<u4>('u4').write(writer, casted);
-  }
-});
-
 
 
 
@@ -18449,6 +18664,8 @@ export interface IChannelInteraction extends IIonService
   StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
   StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
+  MoveVoiceMember(spaceId: guid, channelId: guid, memberId: guid, targetChannelId: guid): Promise<IMoveVoiceMemberResult>;
+  UpdateVoiceState(spaceId: guid, channelId: guid, state: ChannelMemberState): Promise<void>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
@@ -18658,6 +18875,7 @@ export interface IServerInteraction extends IIonService
   RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
   GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
+  SetMemberVoiceModeration(spaceId: guid, memberId: guid, muted: bool | null, deafened: bool | null): Promise<IVoiceModerationResult>;
 }
 
 
@@ -18726,13 +18944,6 @@ export interface IPreferenceInteraction extends IIonService
 
 
 
-export interface IVoiceInteraction extends IIonService
-{
-  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<bool>;
-  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<void>;
-}
-
-
 export interface ICallInteraction extends IIonService
 {
   DingDongCreep(creepId: guid): Promise<IBeginCallResult>;
@@ -18740,8 +18951,6 @@ export interface ICallInteraction extends IIonService
   RejectCall(callId: guid): Promise<void>;
   HangupCall(callId: guid): Promise<void>;
   UssdExecute(ussd: string, corlId: guid): Promise<ServiceUssdResult>;
-  BeginDialCheck(phoneId: guid): Promise<IDialCheckResult>;
-  DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult>;
 }
 
 
@@ -18801,6 +19010,8 @@ export interface IChannelInteraction extends IIonService
   StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
   StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
+  MoveVoiceMember(spaceId: guid, channelId: guid, memberId: guid, targetChannelId: guid): Promise<IMoveVoiceMemberResult>;
+  UpdateVoiceState(spaceId: guid, channelId: guid, state: ChannelMemberState): Promise<void>;
   BeginRecord(spaceId: guid, channelId: guid): Promise<bool>;
   StopRecord(spaceId: guid, channelId: guid): Promise<bool>;
   BeginUploadAttachment(spaceId: guid, channelId: guid): Promise<IUploadFileResult>;
@@ -19010,6 +19221,7 @@ export interface IServerInteraction extends IIonService
   RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
   GetSpaceDeletionState(spaceId: guid): Promise<SpaceDeletionState>;
+  SetMemberVoiceModeration(spaceId: guid, memberId: guid, muted: bool | null, deafened: bool | null): Promise<IVoiceModerationResult>;
 }
 
 
@@ -19078,13 +19290,6 @@ export interface IPreferenceInteraction extends IIonService
 
 
 
-export interface IVoiceInteraction extends IIonService
-{
-  DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<bool>;
-  KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<void>;
-}
-
-
 export interface ICallInteraction extends IIonService
 {
   DingDongCreep(creepId: guid): Promise<IBeginCallResult>;
@@ -19092,8 +19297,6 @@ export interface ICallInteraction extends IIonService
   RejectCall(callId: guid): Promise<void>;
   HangupCall(callId: guid): Promise<void>;
   UssdExecute(ussd: string, corlId: guid): Promise<ServiceUssdResult>;
-  BeginDialCheck(phoneId: guid): Promise<IDialCheckResult>;
-  DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult>;
 }
 
 
@@ -19702,6 +19905,37 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async MoveVoiceMember(spaceId: guid, channelId: guid, memberId: guid, targetChannelId: guid): Promise<IMoveVoiceMemberResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "MoveVoiceMember");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, memberId);
+    IonFormatterStorage.get<guid>('guid').write(writer, targetChannelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IMoveVoiceMemberResult>("IMoveVoiceMemberResult", writer.data, this.signal);
+  }
+  async UpdateVoiceState(spaceId: guid, channelId: guid, state: ChannelMemberState): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateVoiceState");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<ChannelMemberState>('ChannelMemberState').write(writer, state);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
   }
   async BeginRecord(spaceId: guid, channelId: guid): Promise<bool> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "BeginRecord");
@@ -21502,6 +21736,22 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<SpaceDeletionState>("SpaceDeletionState", writer.data, this.signal);
   }
+  async SetMemberVoiceModeration(spaceId: guid, memberId: guid, muted: bool | null, deafened: bool | null): Promise<IVoiceModerationResult> {
+    const req = new IonRequest(this.ctx, "IServerInteraction", "SetMemberVoiceModeration");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, memberId);
+    IonFormatterStorage.writeNullable<bool>(writer, muted, 'bool');
+    IonFormatterStorage.writeNullable<bool>(writer, deafened, 'bool');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVoiceModerationResult>("IVoiceModerationResult", writer.data, this.signal);
+  }
 
 }
 
@@ -22072,46 +22322,6 @@ export class PreferenceInteraction_Executor extends ServiceExecutor<IPreferenceI
 
 IonFormatterStorage.registerClientExecutor<IPreferenceInteraction>('PreferenceInteraction', PreferenceInteraction_Executor);
 
-export class VoiceInteraction_Executor extends ServiceExecutor<IVoiceInteraction> implements IVoiceInteraction {
-  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
-      super();
-  }
-
-  
-  async DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<bool> {
-    const req = new IonRequest(this.ctx, "IVoiceInteraction", "DisconnectFromVoiceChannel");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
-  }
-  async KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<void> {
-    const req = new IonRequest(this.ctx, "IVoiceInteraction", "KickMemberFromChannel");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(3);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.get<guid>('guid').write(writer, memberId);
-      
-    writer.writeEndArray();
-          
-    await req.callAsync(writer.data, this.signal);
-  }
-
-}
-
-IonFormatterStorage.registerClientExecutor<IVoiceInteraction>('VoiceInteraction', VoiceInteraction_Executor);
-
 export class CallInteraction_Executor extends ServiceExecutor<ICallInteraction> implements ICallInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -22184,33 +22394,6 @@ export class CallInteraction_Executor extends ServiceExecutor<ICallInteraction> 
           
     return await req.callAsyncT<ServiceUssdResult>("ServiceUssdResult", writer.data, this.signal);
   }
-  async BeginDialCheck(phoneId: guid): Promise<IDialCheckResult> {
-    const req = new IonRequest(this.ctx, "ICallInteraction", "BeginDialCheck");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(1);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, phoneId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IDialCheckResult>("IDialCheckResult", writer.data, this.signal);
-  }
-  async DialUp(phoneId: guid, corlId: guid): Promise<IBeginCallResult> {
-    const req = new IonRequest(this.ctx, "ICallInteraction", "DialUp");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, phoneId);
-    IonFormatterStorage.get<guid>('guid').write(writer, corlId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IBeginCallResult>("IBeginCallResult", writer.data, this.signal);
-  }
 
 }
 
@@ -22264,7 +22447,6 @@ export function createClient(
         if (propKey === "UltimaInteraction") return IonFormatterStorage.createExecutor("UltimaInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
-        if (propKey === "VoiceInteraction") return IonFormatterStorage.createExecutor("VoiceInteraction", ctx, controller.signal);
         if (propKey === "CallInteraction") return IonFormatterStorage.createExecutor("CallInteraction", ctx, controller.signal);
 
 
@@ -22291,7 +22473,6 @@ export function createClient(
     UltimaInteraction: IUltimaInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;
-    VoiceInteraction: IVoiceInteraction;
     CallInteraction: ICallInteraction;
 
   };

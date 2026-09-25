@@ -129,6 +129,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
           isSuccessJoinVoice: () => true, token: "t",
           rtc: { endpoint: "wss://sfu.test", ices: [] } as any,
         }),
+        UpdateVoiceState: vi.fn(async () => undefined),
       },
       serverInteraction: { PrefetchUser: async () => null },
     },
@@ -148,6 +149,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       microphoneMuted: false, headphoneMuted: false,
       muteEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
+      setServerVoiceRestriction: vi.fn(),
     },
     userVolume: { getUserVolume: () => 80, setUserVolume: vi.fn() },
     realtimeStore: {

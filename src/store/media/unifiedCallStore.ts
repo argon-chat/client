@@ -16,6 +16,7 @@ import { usePexStore } from "@/store/data/permissionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { metrics } from "@/lib/telemetry/metrics";
+import { logger } from "@argon/core";
 
 export type { ScreenShareOpts } from "@argon/calls";
 
@@ -57,6 +58,11 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       count: (name, attrs, value) => metrics.count(name, attrs, value),
       distribution: (name, value, unit, attrs) => metrics.distribution(name, value, unit, attrs),
     },
+    // Loaded on first use: toasts and locale have no business in this store's import graph.
+    notify: (notice) =>
+      void import("@/lib/voice/notices")
+        .then((m) => m.showCallNotice(notice))
+        .catch((e) => logger.warn("[CALL] failed to show a notice", e)),
 
     persistedValue,
     ensureMediaPermission,

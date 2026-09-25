@@ -10,9 +10,8 @@ import { computed, watch } from "vue";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import { useUserColors } from "@/store/chat/userColors";
-import { useSystemStore } from "@/store/system/systemStore";
-import { useMe } from "@/store/auth/meStore";
 import { cdnUrl } from "@/store/system/fileStorage";
+import { useVoiceIndicators } from "@/composables/useVoiceIndicators";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 export interface OverlayMember {
@@ -23,6 +22,9 @@ export interface OverlayMember {
   isSpeaking: boolean;
   isMuted: boolean;
   isDeafened: boolean;
+  /** Muted/deafened by a moderator: drawn in the stronger "server" style. */
+  isServerMuted: boolean;
+  isServerDeafened: boolean;
   isScreenShare: boolean;
 }
 
@@ -45,9 +47,8 @@ export function useOverlayPublisher(): void {
   const voice = useUnifiedCall();
   const realtimeStore = useRealtimeStore();
   const userColors = useUserColors();
-  const sys = useSystemStore();
-  const me = useMe();
   const featureFlags = useFeatureFlags();
+  const { indicatorsFor } = useVoiceIndicators();
 
   // Gated behind the `af.overlay.games.enabled` feature flag (default off). When
   // disabled, inVoice stays false so the native overlay never activates.
@@ -64,17 +65,7 @@ export function useOverlayPublisher(): void {
     if (!channel) return result;
 
     for (const [userId, user] of channel.Users) {
-      const isMe = userId === me.me?.userId;
-      let isMuted = false;
-      let isDeafened = false;
-      if (isMe) {
-        isMuted = sys.microphoneMuted;
-        isDeafened = sys.headphoneMuted;
-      } else {
-        const participant = voice.participants[userId];
-        isMuted = participant?.muted ?? false;
-        isDeafened = participant?.mutedAll ?? false;
-      }
+      const ind = indicatorsFor(userId, channelId, user.state);
 
       const fileId = user.User?.avatarFileId ?? null;
       result.push({
@@ -83,9 +74,11 @@ export function useOverlayPublisher(): void {
         avatarUrl: fileId ? overlayAvatarUrl(fileId) : null,
         avatarColor: userColors.getColorByUserId(userId),
         isSpeaking: voice.speaking.has(userId),
-        isMuted,
-        isDeafened,
-        isScreenShare: (user as { isScreenShare?: boolean }).isScreenShare ?? false,
+        isMuted: ind.micOff,
+        isDeafened: ind.headphonesOff,
+        isServerMuted: ind.micByServer,
+        isServerDeafened: ind.headphonesByServer,
+        isScreenShare: ind.streaming || ((user as { isScreenShare?: boolean }).isScreenShare ?? false),
       });
     }
     return result;

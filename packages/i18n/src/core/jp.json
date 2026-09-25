@@ -640,6 +640,10 @@
         "name": "ミュート",
         "description": "メンバーのマイクをミュートできます。"
       },
+      "DeafenMember": {
+        "name": "メンバーのスピーカーをオフ",
+        "description": "ボイスチャンネルでメンバーのスピーカーをオフにし、誰の声も聞こえないようにできます。"
+      },
       "KickMember": {
         "name": "キック",
         "description": "サーバーからメンバーをキックできます。"
@@ -1632,5 +1636,29 @@
   "taskbar.hang_up": "通話を終了",
   "taskbar.open": "Argon を開く",
   "taskbar.toggle_deafen": "スピーカーのミュートを切り替え",
-  "taskbar.toggle_mic": "マイクを切り替え"
+  "taskbar.toggle_mic": "マイクを切り替え",
+  "voice_member_server_muted": "モデレーターによりミュート中",
+  "voice_member_server_deafened": "モデレーターによりスピーカーオフ",
+  "voice_member_streaming": "画面共有中",
+  "voice_you_were_server_muted": "モデレーターがあなたをミュートしました",
+  "voice_you_were_server_unmuted": "モデレーターがあなたのミュートを解除しました",
+  "voice_you_were_server_deafened": "モデレーターがあなたのスピーカーをオフにしました",
+  "voice_you_were_server_undeafened": "モデレーターがあなたのスピーカーをオンにしました",
+  "voice_you_were_moved": "#{channel} に移動されました",
+  "voice_join_error_insufficient_permissions": "このボイスチャンネルに参加する権限がありません",
+  "voice_move_to": "移動先",
+  "voice_move_no_targets": "他のボイスチャンネルがありません",
+  "voice_server_mute": "サーバーミュート",
+  "voice_server_deafen": "サーバースピーカーオフ",
+  "voice_move_failed": "メンバーを移動できませんでした",
+  "voice_move_error_insufficient_permissions": "そこへメンバーを移動する権限がありません",
+  "voice_move_error_member_not_in_channel": "このメンバーはもうチャンネルにいません",
+  "voice_move_error_target_not_found": "そのチャンネルはもう存在しません",
+  "voice_move_error_target_is_not_voice": "ボイスチャンネルではありません",
+  "voice_move_error_same_channel": "このメンバーはすでにそのチャンネルにいます",
+  "voice_move_error_member_cannot_join_target": "このメンバーはそのチャンネルに参加できません",
+  "voice_moderation_failed": "メンバーの音声制限を変更できませんでした",
+  "voice_moderation_error_insufficient_permissions": "この操作を行う権限がありません",
+  "voice_moderation_error_member_not_found": "このメンバーはもうスペースにいません",
+  "voice_moderation_error_cannot_moderate_owner": "スペースのオーナーはミュートやスピーカーオフにできません"
 }

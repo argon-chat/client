@@ -67,8 +67,11 @@ export interface PickUpResult {
 
 export interface InterlinkResult {
   isSuccessJoinVoice(): boolean;
+  isFailedJoinVoice?(): boolean;
   token: string;
   rtc: RtcEndpoint;
+  /** JoinToChannelError, on a failed join. */
+  error?: number;
 }
 
 export interface ICallApiClient {
@@ -79,6 +82,8 @@ export interface ICallApiClient {
   };
   channelInteraction: {
     Interlink(spaceId: string, channelId: string): Promise<InterlinkResult | null>;
+    /** Our own MUTED / MUTED_HEADPHONES / STREAMING bits, so members outside the room see them. */
+    UpdateVoiceState(spaceId: string, channelId: string, state: number): Promise<unknown>;
   };
   serverInteraction: {
     PrefetchUser(spaceId: string, userId: string): Promise<unknown>;
@@ -124,7 +129,21 @@ export interface ICallSystemState {
   readonly headphoneMuted: boolean;
   muteEvent: { subscribe(next: (muted: boolean) => void): Subscription };
   muteHeadphoneEvent: { subscribe(next: (muted: boolean) => void): Subscription };
+  /**
+   * A moderator's mute/deafen on us in the space we are talking in. While it holds, the host
+   * keeps the microphone (and, when deafened, the headphones) muted and refuses to unmute.
+   */
+  setServerVoiceRestriction(restriction: { muted: boolean; deafened: boolean }): void;
 }
+
+/** Something the user should be told about; the host decides how (a toast, in the app). */
+export type CallNotice =
+  | { kind: "server-muted" }
+  | { kind: "server-unmuted" }
+  | { kind: "server-deafened" }
+  | { kind: "server-undeafened" }
+  | { kind: "moved"; spaceId: string; channelId: string }
+  | { kind: "join-refused"; reason: "insufficient_permissions" };
 
 export interface ICallUserVolumeStore {
   getUserVolume(userId: string): number;
@@ -178,6 +197,8 @@ export interface CallManagerConfig {
   drawing: ICallDrawingSession;
   /** Where call metrics go. Optional: without it the manager simply does not report. */
   telemetry?: ICallTelemetry;
+  /** Tells the user about moderation and moves. Optional: without it nothing is shown. */
+  notify?(notice: CallNotice): void;
 
   /**
    * Storage that survives a renderer reload; used to rejoin voice after a crash.

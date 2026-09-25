@@ -9,9 +9,16 @@
 
             <!-- Microphone + device switch -->
             <div class="ctrl-split ctrl-split--mic">
-                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.microphoneMuted }" @click="sys.toggleMicrophoneMute()">
+                <button
+                    class="ctrl-btn icon-motion icon-motion--lift"
+                    :class="{ 'ctrl-btn--active': sys.microphoneMuted, 'ctrl-btn--locked': sys.microphoneLocked }"
+                    :aria-disabled="sys.microphoneLocked || undefined"
+                    :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined"
+                    data-control="microphone"
+                    @click="toggleMic">
                     <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px] icon-appear" />
                     <Mic v-else class="w-[18px] h-[18px] icon-appear" />
+                    <ShieldIcon v-if="sys.microphoneLocked" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="mic.open">
                     <PopoverTrigger as-child>
@@ -39,9 +46,16 @@
 
             <!-- Headphones (deafen) + output device switch -->
             <div class="ctrl-split ctrl-split--speakers">
-                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': sys.headphoneMuted }" @click="sys.toggleHeadphoneMute()">
+                <button
+                    class="ctrl-btn icon-motion icon-motion--lift"
+                    :class="{ 'ctrl-btn--active': sys.headphoneMuted, 'ctrl-btn--locked': sys.headphonesLocked }"
+                    :aria-disabled="sys.headphonesLocked || undefined"
+                    :title="sys.headphonesLocked ? t('voice_member_server_deafened') : undefined"
+                    data-control="headphones"
+                    @click="toggleHeadphones">
                     <HeadphoneOff v-if="sys.headphoneMuted" class="w-[18px] h-[18px] icon-appear" />
                     <Headphones v-else class="w-[18px] h-[18px] icon-appear" />
+                    <ShieldIcon v-if="sys.headphonesLocked" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="speakers.open">
                     <PopoverTrigger as-child>
@@ -190,7 +204,7 @@ import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge,
+    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge, ShieldIcon,
 } from "lucide-vue-next";
 
 const voice = useUnifiedCall();
@@ -199,6 +213,17 @@ const activity = usePlayFrameActivity();
 const draw = useDrawingSession();
 const pref = usePreference();
 const { t } = useLocale();
+
+// Locked while a moderator holds the mute/deafen; the store would refuse the unmute anyway.
+const toggleMic = () => {
+    if (sys.microphoneLocked) return;
+    sys.toggleMicrophoneMute();
+};
+
+const toggleHeadphones = () => {
+    if (sys.headphonesLocked) return;
+    sys.toggleHeadphoneMute();
+};
 
 defineProps<{
     isConnected: boolean;
@@ -333,6 +358,26 @@ const activeCamId = computed(() => pref.defaultVideoDevice);
 .ctrl-btn:disabled {
     color: hsl(var(--muted-foreground) / 0.35);
     cursor: not-allowed;
+}
+
+/* Held by a moderator: red like a mute, but not the user's to change. */
+.ctrl-btn--locked,
+.ctrl-btn--locked:hover {
+    position: relative;
+    color: hsl(0 84% 55%);
+    background: hsl(0 84% 55% / 0.1);
+    cursor: not-allowed;
+}
+
+.ctrl-lock-badge {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    width: 11px;
+    height: 11px;
+    color: hsl(0 84% 55%);
+    fill: hsl(var(--card));
+    stroke-width: 3;
 }
 
 .ctrl-btn:disabled:hover {

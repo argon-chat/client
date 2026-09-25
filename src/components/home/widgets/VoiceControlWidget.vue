@@ -12,7 +12,10 @@
             <button 
                 @click="toggleMute"
                 class="icon-motion"
+                :aria-disabled="sys.microphoneLocked || undefined"
+                :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined"
                 :class="[
+                    sys.microphoneLocked && 'cursor-not-allowed',
                     'w-full flex items-center justify-between p-2 rounded-lg transition-all',
                     isMuted 
                         ? 'bg-red-500/10 border border-red-500/30 hover:bg-red-500/20' 
@@ -21,7 +24,8 @@
             >
                 <div class="flex items-center gap-2">
                     <div :class="['p-1.5 rounded-lg', isMuted ? 'bg-red-500/20' : 'bg-green-500/20']">
-                        <IconMicrophoneOff v-if="isMuted" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconShieldLock v-if="sys.microphoneLocked" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconMicrophoneOff v-else-if="isMuted" class="w-4 h-4 text-red-500 icon-appear" />
                         <IconMicrophone v-else class="w-4 h-4 text-green-500 icon-appear" />
                     </div>
                     <span class="text-xs font-medium">{{ isMuted ? t('unmute') : t('muted') }}</span>
@@ -35,7 +39,10 @@
             <button 
                 @click="toggleDeafen"
                 class="icon-motion"
+                :aria-disabled="sys.headphonesLocked || undefined"
+                :title="sys.headphonesLocked ? t('voice_member_server_deafened') : undefined"
                 :class="[
+                    sys.headphonesLocked && 'cursor-not-allowed',
                     'w-full flex items-center justify-between p-2 rounded-lg transition-all',
                     isDeafened 
                         ? 'bg-red-500/10 border border-red-500/30 hover:bg-red-500/20' 
@@ -44,7 +51,8 @@
             >
                 <div class="flex items-center gap-2">
                     <div :class="['p-1.5 rounded-lg', isDeafened ? 'bg-red-500/20' : 'bg-blue-500/20']">
-                        <IconHeadphonesOff v-if="isDeafened" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconShieldLock v-if="sys.headphonesLocked" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconHeadphonesOff v-else-if="isDeafened" class="w-4 h-4 text-red-500 icon-appear" />
                         <IconHeadphones v-else class="w-4 h-4 text-blue-500 icon-appear" />
                     </div>
                     <span class="text-xs font-medium">{{ isDeafened ? t('undeafen') : t('deafened') }}</span>
@@ -85,7 +93,7 @@
 
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
-import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff } from '@tabler/icons-vue';
+import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff, IconShieldLock } from '@tabler/icons-vue';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useSystemStore } from '@/store/system/systemStore';
 import { audio } from '@/lib/audio/AudioManager';
@@ -114,11 +122,14 @@ watch(() => sys.headphoneMuted, (val) => {
     isDeafened.value = val;
 });
 
+// Locked while a moderator holds the mute/deafen; the store would refuse anyway.
 async function toggleMute() {
+    if (sys.microphoneLocked) return;
     await sys.toggleMicrophoneMute();
 }
 
 async function toggleDeafen() {
+    if (sys.headphonesLocked) return;
     await sys.toggleHeadphoneMute();
 }
 

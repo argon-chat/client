@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { type Reactive, reactive, ref, shallowReactive } from "vue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { ArgonChannel, RealtimeChannelUser } from "@argon/glue";
+import { withServerVoiceState } from "@argon/calls/voice-state";
 import type { RealtimeUser } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 
@@ -35,9 +36,16 @@ export const useRealtimeStore = defineStore("realtime", () => {
     new Map<Guid, Reactive<IRealtimeChannel>>()
   );
 
+  // Voice flags (ChannelMemberState) that arrived before the member did. The server sends a
+  // joiner's restriction right after JoinedToChannelUser, and that handler still has a user to
+  // load before it can add the row, so the flags would otherwise land on nobody.
+  const pendingVoiceStates = new Map<string, number>();
+  const pendingKey = (channelId: Guid, userId: Guid) => `${channelId}:${userId}`;
+
   // Seamless account switch: clear all live voice-channel state.
   onSessionReset(() => {
     realtimeChannels.clear();
+    pendingVoiceStates.clear();
   });
 
   /**
@@ -45,9 +53,10 @@ export const useRealtimeStore = defineStore("realtime", () => {
    */
   const createRealtimeChannelUser = (
     userId: Guid,
-    user: RealtimeUser
+    user: RealtimeUser,
+    state = 0
   ): IRealtimeChannelUser => ({
-    state: 0,
+    state,
     userId,
     User: user,
     isSpeaking: false,
@@ -79,6 +88,9 @@ export const useRealtimeStore = defineStore("realtime", () => {
    */
   const removeRealtimeChannel = (channelId: Guid) => {
     realtimeChannels.delete(channelId);
+    for (const key of [...pendingVoiceStates.keys()]) {
+      if (key.startsWith(`${channelId}:`)) pendingVoiceStates.delete(key);
+    }
   };
 
   /**
@@ -89,12 +101,15 @@ export const useRealtimeStore = defineStore("realtime", () => {
   };
 
   /**
-   * Add user to realtime channel
+   * Add user to realtime channel. The voice flags come from `state` when given, else from an
+   * event that arrived first, else from the row being replaced — a re-add (a repeated join event,
+   * the LiveKit reconciliation) must not wipe a server mute.
    */
   const addUserToChannel = (
     channelId: Guid,
     userId: Guid,
-    user: RealtimeUser
+    user: RealtimeUser,
+    state?: number
   ) => {
     const channel = realtimeChannels.get(channelId);
     if (!channel) {
@@ -102,13 +117,19 @@ export const useRealtimeStore = defineStore("realtime", () => {
       return;
     }
 
-    channel.Users.set(userId, createRealtimeChannelUser(userId, user));
+    const key = pendingKey(channelId, userId);
+    const pending = pendingVoiceStates.get(key);
+    pendingVoiceStates.delete(key);
+    const resolved = state ?? pending ?? channel.Users.get(userId)?.state ?? 0;
+
+    channel.Users.set(userId, createRealtimeChannelUser(userId, user, resolved));
   };
 
   /**
    * Remove user from realtime channel
    */
   const removeUserFromChannel = (channelId: Guid, userId: Guid) => {
+    pendingVoiceStates.delete(pendingKey(channelId, userId));
     const channel = realtimeChannels.get(channelId);
     if (!channel) {
       logger.error("Realtime channel not found", channelId);
@@ -116,6 +137,36 @@ export const useRealtimeStore = defineStore("realtime", () => {
     }
 
     channel.Users.delete(userId);
+  };
+
+  /**
+   * A member's voice flags (VoiceMemberStateChanged). Kept for later when the member is not in
+   * the roster yet; see pendingVoiceStates.
+   */
+  const setUserVoiceState = (channelId: Guid, userId: Guid, state: number) => {
+    const existing = realtimeChannels.get(channelId)?.Users.get(userId);
+    if (existing) {
+      existing.state = state;
+      return;
+    }
+    pendingVoiceStates.set(pendingKey(channelId, userId), state);
+  };
+
+  /**
+   * Moderation bits for a member wherever they sit in the space, from a SetMemberVoiceModeration
+   * reply. The event that follows carries the same thing; this only saves the moderator the wait.
+   */
+  const setUserServerVoiceState = (
+    spaceId: Guid,
+    userId: Guid,
+    muted: boolean,
+    deafened: boolean
+  ) => {
+    for (const channel of realtimeChannels.values()) {
+      if (channel.Channel.spaceId !== spaceId) continue;
+      const existing = channel.Users.get(userId);
+      if (existing) existing.state = withServerVoiceState(existing.state, muted, deafened);
+    }
   };
 
   /**
@@ -273,6 +324,8 @@ export const useRealtimeStore = defineStore("realtime", () => {
     getRealtimeChannel,
     addUserToChannel,
     removeUserFromChannel,
+    setUserVoiceState,
+    setUserServerVoiceState,
     updateUserData,
     setUserProperty,
     setUserPropertyQuery,

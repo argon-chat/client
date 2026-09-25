@@ -1,14 +1,24 @@
 import { ref, computed, type Ref } from 'vue';
 import { usePexStore } from '@/store/data/permissionStore';
 import { useApi } from '@/store/system/apiStore';
+import { useVoiceModeration } from '@/composables/useVoiceModeration';
+import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import { logger } from '@argon/core';
 import type { Guid } from '@argon-chat/ion.webcore';
+import type { ChannelType } from '@argon/glue';
 
 export type DropPosition = 'before' | 'after';
 
+/** A channel row while a voice member is dragged: it takes the drop, or it is also under the cursor. */
+export type VoiceDropState = 'candidate' | 'over' | undefined;
+
 type Dragged =
   | { kind: 'channel'; channelId: Guid; groupId: Guid | null }
-  | { kind: 'group'; groupId: Guid };
+  | { kind: 'group'; groupId: Guid }
+  // A voice member, dragged from the channel they are in to another voice channel.
+  | { kind: 'user'; spaceId: Guid; channelId: Guid; userId: Guid };
+
+type DropChannel = { channelId: Guid; spaceId: Guid; type: ChannelType };
 
 export function useChannelDragDrop(
   selectedSpaceId: Ref<string>,
@@ -18,8 +28,12 @@ export function useChannelDragDrop(
 ) {
   const pex = usePexStore();
   const api = useApi();
+  const moderation = useVoiceModeration();
 
   const dragged = ref<Dragged | null>(null);
+
+  // Voice channel under a dragged member, when it would take the drop.
+  const voiceDropTarget = ref<Guid | null>(null);
 
   // Channel-level drop state
   const dragOverChannel = ref<Guid | null>(null);
@@ -45,6 +59,61 @@ export function useChannelDragDrop(
     dragOverChannel.value = null;
     dragOverGroupId.value = null;
     dragOverGroupReorder.value = null;
+    voiceDropTarget.value = null;
+  };
+
+  // ── Voice member drag (move to another voice channel) ─────────────
+
+  const isMemberDropTarget = (channel: DropChannel) => {
+    const d = dragged.value;
+    return d?.kind === 'user'
+      && isVoiceLikeChannel(channel.type)
+      && channel.spaceId === d.spaceId
+      && channel.channelId !== d.channelId;
+  };
+
+  const voiceDropStateOf = (channel: DropChannel): VoiceDropState => {
+    if (!isMemberDropTarget(channel)) return undefined;
+    return voiceDropTarget.value === channel.channelId ? 'over' : 'candidate';
+  };
+
+  const onMemberDragStart = (userId: Guid, channel: DropChannel, event: DragEvent) => {
+    if (!pex.has('MoveMember')) {
+      event.preventDefault();
+      return;
+    }
+    dragged.value = { kind: 'user', spaceId: channel.spaceId, channelId: channel.channelId, userId };
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', userId);
+    }
+  };
+
+  const onMemberDragOver = (channel: DropChannel, event: DragEvent) => {
+    if (!isMemberDropTarget(channel)) {
+      if (voiceDropTarget.value === channel.channelId) voiceDropTarget.value = null;
+      return;
+    }
+    event.preventDefault();
+    setMoveEffect(event);
+    voiceDropTarget.value = channel.channelId;
+  };
+
+  const onMemberDrop = async (channel: DropChannel, event: DragEvent) => {
+    const d = dragged.value;
+    const valid = isMemberDropTarget(channel);
+    dragged.value = null;
+    resetOver();
+    if (!valid || d?.kind !== 'user') return;
+    event.preventDefault();
+    await moderation.moveMember(d.spaceId, d.channelId, d.userId, channel.channelId);
+  };
+
+  const onDragLeave = (channel: DropChannel, event: DragEvent) => {
+    // Leaving for one of the row's own children is not leaving the row.
+    const next = event.relatedTarget as Node | null;
+    if (next && (event.currentTarget as HTMLElement | null)?.contains?.(next)) return;
+    if (voiceDropTarget.value === channel.channelId) voiceDropTarget.value = null;
   };
 
   // ── Channel drag ───────────────────────────────────────────────────
@@ -62,6 +131,10 @@ export function useChannelDragDrop(
   };
 
   const onDragOver = (channel: any, groupId: Guid | null, _index: number, event: DragEvent) => {
+    if (dragged.value?.kind === 'user') {
+      onMemberDragOver(channel, event);
+      return;
+    }
     if (dragged.value?.kind !== 'channel') return; // groups don't drop onto channels
     event.preventDefault();
     setMoveEffect(event);
@@ -78,6 +151,10 @@ export function useChannelDragDrop(
   };
 
   const onDrop = async (targetChannel: any, targetGroupId: Guid | null, _index: number, event: DragEvent) => {
+    if (dragged.value?.kind === 'user') {
+      await onMemberDrop(targetChannel, event);
+      return;
+    }
     event.preventDefault();
     const pos = dropPosition.value;
     resetOver();
@@ -161,7 +238,7 @@ export function useChannelDragDrop(
 
   // Unified group-header dragover/drop — routes by what's being dragged.
   const onHeaderDragOver = (groupId: Guid, event: DragEvent) => {
-    if (!dragged.value) return;
+    if (!dragged.value || dragged.value.kind === 'user') return;
     event.preventDefault();
     setMoveEffect(event);
 
@@ -195,7 +272,7 @@ export function useChannelDragDrop(
     const current = dragged.value;
     resetOver();
 
-    if (!current || !selectedSpaceId.value) return;
+    if (!current || current.kind === 'user' || !selectedSpaceId.value) return;
 
     if (current.kind === 'channel') {
       // Channel dropped onto group header → append into group.
@@ -259,8 +336,12 @@ export function useChannelDragDrop(
     dragOverGroupId,
     dragOverGroupReorder,
     groupDropPosition,
+    voiceDropTarget,
+    voiceDropStateOf,
     onDragStart,
+    onMemberDragStart,
     onDragOver,
+    onDragLeave,
     onDrop,
     onTailDrop,
     onGroupDragStart,

@@ -142,10 +142,18 @@ export function initDesktopTaskbar(): void {
       ]);
       // A newer state landed while we were rasterizing — let that run win.
       if (token !== thumbToken) return;
+      // While a moderator holds the mute the buttons still click (the store refuses), so the
+      // tooltip says why nothing happens.
+      const micTooltip = sys.microphoneLocked
+        ? t("voice_member_server_muted")
+        : micMuted ? t("unmute") : t("mute");
+      const deafenTooltip = sys.headphonesLocked
+        ? t("voice_member_server_deafened")
+        : deafened ? t("undeafen") : t("taskbar.deafen");
       // @ts-ignore — dynamic HostProc RPC method
       native?.hostProc.setThumbButtons([
-        { id: "toggle-mute", tooltip: micMuted ? t("unmute") : t("mute"), iconDataUrl: micIcon },
-        { id: "toggle-deafen", tooltip: deafened ? t("undeafen") : t("taskbar.deafen"), iconDataUrl: deafenIcon },
+        { id: "toggle-mute", tooltip: micTooltip, iconDataUrl: micIcon },
+        { id: "toggle-deafen", tooltip: deafenTooltip, iconDataUrl: deafenIcon },
         { id: "hangup", tooltip: t("taskbar.hang_up"), iconDataUrl: hangIcon },
       ]);
     } catch (e) {
@@ -154,7 +162,7 @@ export function initDesktopTaskbar(): void {
   }
 
   watch(
-    () => [call.isConnected, sys.microphoneMuted, sys.headphoneMuted, locale.currentLocale],
+    () => [call.isConnected, sys.microphoneMuted, sys.headphoneMuted, sys.microphoneLocked, sys.headphonesLocked, locale.currentLocale],
     () => void publishThumbButtons(),
     { immediate: true },
   );

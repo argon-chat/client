@@ -42,6 +42,9 @@ export interface VoiceMember {
   isSpeaking: boolean
   isMuted: boolean
   isDeafened: boolean
+  /** Muted/deafened by a moderator (drawn with the shielded icon). */
+  isServerMuted?: boolean
+  isServerDeafened?: boolean
   /** Member is currently sharing their screen (renders a badge). */
   isScreenShare?: boolean
 }

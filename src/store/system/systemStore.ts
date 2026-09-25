@@ -59,8 +59,16 @@ export const useSystemStore = defineStore("system", () => {
     silent?: boolean;
   }
 
+  // A moderator's mute/deafen in the space we are talking in (set by the call manager). While it
+  // holds, unmuting is refused — through the buttons, hotkeys, push-to-talk and the taskbar alike.
+  const serverMuted = ref(false);
+  const serverDeafened = ref(false);
+  const microphoneLocked = computed(() => serverMuted.value || serverDeafened.value);
+  const headphonesLocked = computed(() => serverDeafened.value);
+
   async function setMicrophoneMuted(muted: boolean, opts?: MuteOptions) {
     if (microphoneMuted.value === muted) return;
+    if (!muted && microphoneLocked.value) return;
 
     microphoneMuted.value = muted;
 
@@ -77,13 +85,14 @@ export const useSystemStore = defineStore("system", () => {
 
   async function setHeadphoneMuted(muted: boolean, opts?: MuteOptions) {
     if (headphoneMuted.value === muted) return;
+    if (!muted && headphonesLocked.value) return;
 
     if (!headphoneMuted.value) lastMicMuted = microphoneMuted.value;
 
     headphoneMuted.value = muted;
 
     if (muted) microphoneMuted.value = true;
-    else if (!lastMicMuted) microphoneMuted.value = false;
+    else if (!lastMicMuted && !microphoneLocked.value) microphoneMuted.value = false;
 
     if (!opts?.silent) {
       if (muted) tone.playMuteAllSound();
@@ -92,6 +101,18 @@ export const useSystemStore = defineStore("system", () => {
 
     muteHeadphoneEvent.next(headphoneMuted.value);
     muteEvent.next(microphoneMuted.value);
+  }
+
+  /**
+   * Set by the call manager. A new restriction mutes locally too, silently (the manager raises a
+   * toast instead); lifting one leaves the user muted, so nobody's microphone opens because a
+   * moderator changed a flag.
+   */
+  function setServerVoiceRestriction(restriction: { muted: boolean; deafened: boolean }) {
+    serverMuted.value = restriction.muted;
+    serverDeafened.value = restriction.deafened;
+    if (restriction.deafened && !headphoneMuted.value) void setHeadphoneMuted(true, { silent: true });
+    else if (restriction.muted && !microphoneMuted.value) void setMicrophoneMuted(true, { silent: true });
   }
 
   async function toggleMicrophoneMute() {
@@ -179,6 +200,12 @@ export const useSystemStore = defineStore("system", () => {
     toggleMicrophoneMute,
     setMicrophoneMuted,
     setHeadphoneMuted,
+
+    serverMuted,
+    serverDeafened,
+    microphoneLocked,
+    headphonesLocked,
+    setServerVoiceRestriction,
 
     muteEvent,
     muteHeadphoneEvent,

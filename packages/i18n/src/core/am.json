@@ -516,6 +516,10 @@
         "name": "Միկրոֆոնը անջատել",
         "description": "Թույլ է տալիս անջատել անդամի միկրոֆոնը:"
       },
+      "DeafenMember": {
+        "name": "Անդամին խլացնել",
+        "description": "Թույլ է տալիս խլացնել անդամին ձայնային ալիքներում, որպեսզի նա ոչ ոքի չլսի:"
+      },
       "KickMember": {
         "name": "Ձայնով անդամին հեռացնել",
         "description": "Թույլ է տալիս հեռացնել անդամին սերվերից:"
@@ -1632,5 +1636,29 @@
   "taskbar.hang_up": "Անջատել զանգը",
   "taskbar.open": "Բացել Argon-ը",
   "taskbar.toggle_deafen": "Փոխարկել ձայնի անջատումը",
-  "taskbar.toggle_mic": "Փոխարկել խոսափողը"
+  "taskbar.toggle_mic": "Փոխարկել խոսափողը",
+  "voice_member_server_muted": "Անջատված է մոդերատորի կողմից",
+  "voice_member_server_deafened": "Խլացված է մոդերատորի կողմից",
+  "voice_member_streaming": "Ցուցադրում է էկրանը",
+  "voice_you_were_server_muted": "Մոդերատորն անջատեց ձեր միկրոֆոնը",
+  "voice_you_were_server_unmuted": "Մոդերատորը միացրեց ձեր միկրոֆոնը",
+  "voice_you_were_server_deafened": "Մոդերատորը խլացրեց ձեզ",
+  "voice_you_were_server_undeafened": "Մոդերատորը վերադարձրեց ձեր ձայնը",
+  "voice_you_were_moved": "Ձեզ տեղափոխեցին #{channel}",
+  "voice_join_error_insufficient_permissions": "Դուք իրավունք չունեք միանալու այս ձայնային ալիքին",
+  "voice_move_to": "Տեղափոխել",
+  "voice_move_no_targets": "Այլ ձայնային ալիքներ չկան",
+  "voice_server_mute": "Անջատել միկրոֆոնը սերվերում",
+  "voice_server_deafen": "Խլացնել սերվերում",
+  "voice_move_failed": "Չհաջողվեց տեղափոխել անդամին",
+  "voice_move_error_insufficient_permissions": "Դուք իրավունք չունեք անդամներին այնտեղ տեղափոխելու",
+  "voice_move_error_member_not_in_channel": "Այս անդամն այլևս ալիքում չէ",
+  "voice_move_error_target_not_found": "Այդ ալիքն այլևս գոյություն չունի",
+  "voice_move_error_target_is_not_voice": "Դա ձայնային ալիք չէ",
+  "voice_move_error_same_channel": "Անդամն արդեն այդ ալիքում է",
+  "voice_move_error_member_cannot_join_target": "Այս անդամը չի կարող միանալ այդ ալիքին",
+  "voice_moderation_failed": "Չհաջողվեց փոխել անդամի ձայնային սահմանափակումը",
+  "voice_moderation_error_insufficient_permissions": "Դուք իրավունք չունեք դա անելու",
+  "voice_moderation_error_member_not_found": "Այս անդամն այլևս տարածքում չէ",
+  "voice_moderation_error_cannot_moderate_owner": "Տարածքի սեփականատիրոջը հնարավոր չէ լռեցնել կամ խլացնել"
 }

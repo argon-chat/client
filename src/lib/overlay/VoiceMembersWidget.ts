@@ -126,6 +126,9 @@ export class VoiceMembersWidget extends BaseWidget {
   // SVG Icons cache
   private mutedIconImage: HTMLImageElement | null = null;
   private deafenedIconImage: HTMLImageElement | null = null;
+  // Moderator-imposed variants: stronger red with a shield in the corner.
+  private serverMutedIconImage: HTMLImageElement | null = null;
+  private serverDeafenedIconImage: HTMLImageElement | null = null;
   private screenShareIconImage: HTMLImageElement | null = null;
   private iconsLoaded: boolean = false;
 
@@ -175,8 +178,13 @@ export class VoiceMembersWidget extends BaseWidget {
     const deafenedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M16.5 12.5V16a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2v-1"/><path d="M4.59 5.59A9.96 9.96 0 0 0 2 12v2a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H4.5"/><path d="M21.95 10.06A10 10 0 0 0 12 2c-1.36 0-2.66.27-3.84.77"/><path d="M12 2a10 10 0 0 1 10 10v2a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 1.72-1.98"/></svg>`;
     const screenSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
 
+    const shield = `<path d="M18 12.5l4.5 1.6v3.1c0 2.4-1.9 4.2-4.5 4.8-2.6-.6-4.5-2.4-4.5-4.8v-3.1z" fill="#dc2626" stroke="#111827" stroke-width="1.2"/>`;
+    const serverVariant = (svg: string) => svg.replace(/#f87171/g, "#ef4444").replace("</svg>", `${shield}</svg>`);
+
     this.mutedIconImage = await this.svgToImage(mutedSvg);
     this.deafenedIconImage = await this.svgToImage(deafenedSvg);
+    this.serverMutedIconImage = await this.svgToImage(serverVariant(mutedSvg));
+    this.serverDeafenedIconImage = await this.svgToImage(serverVariant(deafenedSvg));
     this.screenShareIconImage = await this.svgToImage(screenSvg);
     this.iconsLoaded = true;
     this.bgDirty = true;
@@ -714,12 +722,14 @@ export class VoiceMembersWidget extends BaseWidget {
         const iconSize = BASE.statusIconSize * s;
         let ix = it.iconRight - iconSize;
         const iy = (it.iconCY ?? 0) - iconSize / 2;
-        if (m.isDeafened) {
-          ctx.drawImage(this.deafenedIconImage!, ix, iy, iconSize, iconSize);
+        if (m.isDeafened || m.isServerDeafened) {
+          const icon = m.isServerDeafened ? this.serverDeafenedIconImage : this.deafenedIconImage;
+          ctx.drawImage(icon!, ix, iy, iconSize, iconSize);
           ix -= iconSize + BASE.statusIconMargin * s;
         }
-        if (m.isMuted) {
-          ctx.drawImage(this.mutedIconImage!, ix, iy, iconSize, iconSize);
+        if (m.isMuted || m.isServerMuted) {
+          const icon = m.isServerMuted ? this.serverMutedIconImage : this.mutedIconImage;
+          ctx.drawImage(icon!, ix, iy, iconSize, iconSize);
           ix -= iconSize + BASE.statusIconMargin * s;
         }
         if (m.isScreenShare) {

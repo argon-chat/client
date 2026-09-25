@@ -5,15 +5,26 @@
                 <PhoneOffIcon class="w-5 h-5" />
             </button>
 
-            <button @click="toggleMic" class="icon-motion icon-motion--lift" :class="{ active: isMicMuted }">
-                <MicOff v-if="isMicMuted" class="w-5 h-5 icon-appear" />
-                <Mic v-else class="w-5 h-5 icon-appear" />
+            <button @click="toggleMic" class="icon-motion icon-motion--lift"
+                :class="{ active: isMicMuted, locked: sys.microphoneLocked }"
+                :aria-disabled="sys.microphoneLocked || undefined"
+                :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined">
+                <span class="relative inline-flex">
+                    <MicOff v-if="isMicMuted" class="w-5 h-5 icon-appear" />
+                    <Mic v-else class="w-5 h-5 icon-appear" />
+                    <ShieldIcon v-if="sys.microphoneLocked" class="lock-badge" />
+                </span>
             </button>
 
-            <button @click="sys.toggleHeadphoneMute" class="icon-motion icon-motion--lift"
-                :class="{ active: sys.headphoneMuted }">
-                <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5 icon-appear" />
-                <Headphones v-else class="w-5 h-5 icon-appear" />
+            <button @click="toggleHeadphones" class="icon-motion icon-motion--lift"
+                :class="{ active: sys.headphoneMuted, locked: sys.headphonesLocked }"
+                :aria-disabled="sys.headphonesLocked || undefined"
+                :title="sys.headphonesLocked ? t('voice_member_server_deafened') : undefined">
+                <span class="relative inline-flex">
+                    <HeadphoneOff v-if="sys.headphoneMuted" class="w-5 h-5 icon-appear" />
+                    <Headphones v-else class="w-5 h-5 icon-appear" />
+                    <ShieldIcon v-if="sys.headphonesLocked" class="lock-badge" />
+                </span>
             </button>
 
             <button @click="toggleScreenCast" class="icon-motion icon-motion--lift"
@@ -61,6 +72,7 @@ import {
     CameraOff,
     OctagonMinusIcon,
     Gamepad2,
+    ShieldIcon,
 } from "lucide-vue-next";
 import { useMe } from "@/store/auth/meStore";
 import { useSystemStore } from "@/store/system/systemStore";
@@ -98,8 +110,15 @@ const isConnected = computed(() => voice.isConnected);
 
 const isMicMuted = computed(() => sys.microphoneMuted);
 
+// Locked while a moderator holds the mute/deafen; the store would refuse anyway.
 function toggleMic() {
+    if (sys.microphoneLocked) return;
     sys.toggleMicrophoneMute();
+}
+
+function toggleHeadphones() {
+    if (sys.headphonesLocked) return;
+    sys.toggleHeadphoneMute();
 }
 
 async function endActiveCall() {
@@ -181,5 +200,23 @@ async function goShare(opts: {
 .controls button:disabled {
     color: hsl(var(--muted-foreground) / 0.35);
     cursor: not-allowed;
+}
+
+/* Held by a moderator: still red, but visibly not the user's to change. */
+.controls button.locked,
+.controls button.locked:hover {
+    color: hsl(0 84% 55%);
+    cursor: not-allowed;
+}
+
+.lock-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: 11px;
+    height: 11px;
+    color: hsl(0 84% 55%);
+    fill: hsl(var(--card));
+    stroke-width: 3;
 }
 </style>

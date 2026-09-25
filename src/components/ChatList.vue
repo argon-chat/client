@@ -37,12 +37,16 @@
             :is-drag-over="dragOverChannel === channel.channelId"
             :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
             :voice-users="voiceChannelUsers.get(channel.channelId)"
+            :voice-channels="voiceChannels"
+            :voice-drop="voiceDropStateOf(channel)"
             @select="channelSelect"
             @switch-voice="switchVoiceChannel"
             @dragstart="onDragStart"
             @dragover="onDragOver"
+            @dragleave="onDragLeave"
             @drop="onDrop"
             @dragend="onDragEnd"
+            @member-dragstart="onMemberDragStart"
             @kick-member="kickMember"
           />
         </TransitionGroup>
@@ -102,13 +106,17 @@
                 :is-drag-over="dragOverChannel === channel.channelId"
                 :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
                 :voice-users="voiceChannelUsers.get(channel.channelId)"
+                :voice-channels="voiceChannels"
+                :voice-drop="voiceDropStateOf(channel)"
                 @select="channelSelect"
                 @open-split="openChannelInSplit"
                 @switch-voice="switchVoiceChannel"
                 @dragstart="onDragStart"
                 @dragover="onDragOver"
+                @dragleave="onDragLeave"
                 @drop="onDrop"
                 @dragend="onDragEnd"
+                @member-dragstart="onMemberDragStart"
                 @kick-member="kickMember"
               />
             </TransitionGroup>
@@ -163,6 +171,7 @@ import { useListLoading } from '@/composables/useListLoading';
 import { openInSplit } from '@/composables/useSplitView';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import { setLastChannel } from '@/lib/recentSpaces';
+import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
 
@@ -192,7 +201,7 @@ const channelsLoading = useListLoading(
 const voiceChannelUsers = computed(() => {
   const result = new Map<Guid, IRealtimeChannel>();
   for (const channel of channelLists.value) {
-    if (channel.type === ChannelType.Voice) {
+    if (isVoiceLikeChannel(channel.type)) {
       const realtimeChannel = pool.realtimeChannelUsers.get(channel.channelId);
       if (realtimeChannel && realtimeChannel.Users.size > 0) {
         result.set(channel.channelId, realtimeChannel);
@@ -214,6 +223,14 @@ const getGroupChannels = (groupId: Guid) => {
   return sortByFractionalIndex(channels);
 };
 
+// In sidebar order, for the "Move to" menu.
+const voiceChannels = computed(() =>
+  [
+    ...sortedUngroupedChannels.value,
+    ...sortedGroups.value.flatMap(g => getGroupChannels(g.groupId)),
+  ].filter(c => isVoiceLikeChannel(c.type)),
+);
+
 const {
   canDrag,
   draggedChannel,
@@ -222,8 +239,11 @@ const {
   dragOverGroupId,
   dragOverGroupReorder,
   groupDropPosition,
+  voiceDropStateOf,
   onDragStart,
+  onMemberDragStart,
   onDragOver,
+  onDragLeave,
   onDrop,
   onTailDrop,
   onGroupDragStart,
@@ -285,8 +305,8 @@ async function channelSelect(channelId: string) {
       pool.selectedTextChannel = channel.channelId;
       break;
 
-    case ChannelType.Voice:
-      if (!voice.isConnected) {
+    default:
+      if (isVoiceLikeChannel(channel.type) && !voice.isConnected) {
         await voice.joinVoiceChannel(channelId);
       }
       break;
@@ -297,8 +317,8 @@ async function channelSelect(channelId: string) {
 
 async function switchVoiceChannel(channelId: string) {
   const channel = await pool.getChannel(channelId);
-  
-  if (!channel || channel.type !== ChannelType.Voice) {
+
+  if (!channel || !isVoiceLikeChannel(channel.type)) {
     return;
   }
 

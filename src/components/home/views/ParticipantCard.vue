@@ -93,11 +93,23 @@
             <span v-if="isPlaying" class="status-icon status-icon--playing">
                 <Gamepad2Icon :width="iconSize" :height="iconSize" />
             </span>
-            <span v-if="isMuted" class="status-icon status-icon--muted">
+            <span
+                v-if="isMuted || isServerMuted"
+                data-indicator="mic"
+                :data-by-server="isServerMuted || undefined"
+                :class="['status-icon', isServerMuted ? 'status-icon--server' : 'status-icon--muted']"
+                :title="isServerMuted ? t('voice_member_server_muted') : t('muted')">
                 <MicOffIcon :width="iconSize" :height="iconSize" />
+                <ShieldIcon v-if="isServerMuted" class="status-icon__badge" />
             </span>
-            <span v-if="isHeadphoneMuted" class="status-icon status-icon--muted">
+            <span
+                v-if="isHeadphoneMuted || isServerDeafened"
+                data-indicator="headphones"
+                :data-by-server="isServerDeafened || undefined"
+                :class="['status-icon', isServerDeafened ? 'status-icon--server' : 'status-icon--muted']"
+                :title="isServerDeafened ? t('voice_member_server_deafened') : t('deafened')">
                 <HeadphoneOffIcon :width="iconSize" :height="iconSize" />
+                <ShieldIcon v-if="isServerDeafened" class="status-icon__badge" />
             </span>
         </div>
     </div>
@@ -171,7 +183,7 @@ import {
     MicOffIcon, HeadphoneOffIcon, Gamepad2 as Gamepad2Icon, ScreenShare as ScreenShareIcon,
     Pause as PauseIcon, Maximize as MaximizeIcon, PictureInPicture as PictureInPictureIcon,
     SignalLow as SignalLowIcon, TriangleAlert as TriangleAlertIcon, Pin as PinIcon,
-    EyeOff as EyeOffIcon, Gauge as GaugeIcon, Check as CheckIcon,
+    EyeOff as EyeOffIcon, Gauge as GaugeIcon, Check as CheckIcon, Shield as ShieldIcon,
 } from "lucide-vue-next";
 
 interface Props {
@@ -180,6 +192,9 @@ interface Props {
     isSpeaking?: boolean;
     isMuted?: boolean;
     isHeadphoneMuted?: boolean;
+    /** Muted by a moderator rather than by themselves. */
+    isServerMuted?: boolean;
+    isServerDeafened?: boolean;
     hasVideo?: boolean;
     isVideoPaused?: boolean;
     isVideoHidden?: boolean;
@@ -213,6 +228,8 @@ const props = withDefaults(defineProps<Props>(), {
     isSpeaking: false,
     isMuted: false,
     isHeadphoneMuted: false,
+    isServerMuted: false,
+    isServerDeafened: false,
     hasVideo: false,
     isVideoPaused: false,
     isVideoHidden: false,
@@ -542,6 +559,24 @@ const showDrawOverlay = computed(() =>
 
 .status-icon--muted {
     color: hsl(0 84% 60%);
+}
+
+/* A moderator's restriction: a red plate and a shield, never mistaken for a self-mute. */
+.status-icon--server {
+    position: relative;
+    color: hsl(0 0% 100%);
+    background: hsl(0 72% 45% / 0.9);
+}
+
+.status-icon__badge {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 11px;
+    height: 11px;
+    color: hsl(0 84% 60%);
+    fill: hsl(var(--card));
+    stroke-width: 3;
 }
 
 .status-icon--warning {

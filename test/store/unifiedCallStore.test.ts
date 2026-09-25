@@ -114,7 +114,7 @@ vi.mock("@/lib/audio/AudioManager", () => ({
 }));
 vi.mock("@/store/system/apiStore", () => ({
   useApi: () => ({
-    channelInteraction: { Interlink: async () => deps.interlink },
+    channelInteraction: { Interlink: async () => deps.interlink, UpdateVoiceState: async () => {} },
     callInteraction: {},
     serverInteraction: {},
   }),
@@ -149,6 +149,7 @@ vi.mock("@/store/system/systemStore", () => ({
     get headphoneMuted() { return deps.headphoneMuted; },
     muteEvent: { subscribe: () => ({ unsubscribe() {} }) },
     muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) },
+    setServerVoiceRestriction() {},
   }),
 }));
 vi.mock("@/store/data/permissionStore", () => ({ usePexStore: () => ({ has: () => true }) }));

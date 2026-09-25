@@ -45,6 +45,8 @@ const { audio, devicesByKind, sys, voice } = await vi.hoisted(async () => {
   const sys = reactive({
     microphoneMuted: false,
     headphoneMuted: false,
+    microphoneLocked: false,
+    headphonesLocked: false,
     toggleMicrophoneMute: vi.fn(),
     toggleHeadphoneMute: vi.fn(),
   });
@@ -161,6 +163,9 @@ beforeEach(() => {
   audio.setInputDevice.mockClear();
   audio.setOutputDevice.mockClear();
   sys.headphoneMuted = false;
+  sys.microphoneMuted = false;
+  sys.microphoneLocked = false;
+  sys.headphonesLocked = false;
   sys.toggleHeadphoneMute.mockClear();
   sys.toggleMicrophoneMute.mockClear();
 });
@@ -295,5 +300,49 @@ describe("the microphone chevron is unchanged by sharing the switcher", () => {
     await openMenu(w, "mic");
     expect(split(w, "mic").find(".stub-content").exists()).toBe(true);
     expect(split(w, "speakers").find(".stub-content").exists()).toBe(false);
+  });
+});
+
+// ── A moderator's mute and deafen ────────────────────────────────────────────
+
+describe("while a moderator holds the mute", () => {
+  const mic = (w: VueWrapper) => w.find('[data-control="microphone"]');
+  const headphones = (w: VueWrapper) => w.find('[data-control="headphones"]');
+
+  test("the microphone button is locked, says why, and does not toggle", async () => {
+    sys.microphoneMuted = true;
+    sys.microphoneLocked = true;
+    const w = render();
+
+    expect(mic(w).classes()).toContain("ctrl-btn--locked");
+    expect(mic(w).attributes("aria-disabled")).toBe("true");
+    expect(mic(w).attributes("title")).toBe("voice_member_server_muted");
+
+    await mic(w).trigger("click");
+    expect(sys.toggleMicrophoneMute).not.toHaveBeenCalled();
+    // A server mute is not a deafen: the headphones stay the user's.
+    expect(headphones(w).classes()).not.toContain("ctrl-btn--locked");
+  });
+
+  test("a server deafen locks the headphones too", async () => {
+    sys.microphoneLocked = true;
+    sys.headphonesLocked = true;
+    const w = render();
+
+    expect(headphones(w).attributes("title")).toBe("voice_member_server_deafened");
+    await headphones(w).trigger("click");
+    expect(sys.toggleHeadphoneMute).not.toHaveBeenCalled();
+  });
+
+  test("once lifted, the buttons are ordinary toggles again", async () => {
+    sys.microphoneLocked = true;
+    const w = render();
+    sys.microphoneLocked = false;
+    await nextTick();
+
+    expect(mic(w).classes()).not.toContain("ctrl-btn--locked");
+    expect(mic(w).attributes("title")).toBeUndefined();
+    await mic(w).trigger("click");
+    expect(sys.toggleMicrophoneMute).toHaveBeenCalledTimes(1);
   });
 });

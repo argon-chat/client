@@ -6,6 +6,8 @@ import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useMe } from "@/store/auth/meStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
+import { useVoiceIndicators } from "@/composables/useVoiceIndicators";
+import { resolveVoiceIndicators, type VoiceIndicators } from "@/lib/voice/indicators";
 
 export type VideoSource = "camera" | "screen_share";
 export type MediaLayoutMode = "channel" | "dm";
@@ -65,6 +67,7 @@ export function useMediaLayout(
   const me = useMe();
   const sys = useSystemStore();
   const activity = usePlayFrameActivity();
+  const { indicatorsFor } = useVoiceIndicators();
 
   const focusedUserId = ref<Guid | null>(null);
 
@@ -110,22 +113,37 @@ export function useMediaLayout(
 
   const hasActiveStream = computed(() => !!mainStreamer.value);
 
+  // Per tile: the roster flags (so a room we are only looking at shows its mutes too), with our
+  // own room's live state on top. A DM call has no roster, only the room.
   const muteStates = computed(() => {
-    const states = new Map<Guid, { muted: boolean; headphoneMuted: boolean }>();
-    const myId = me.me?.userId;
-    const sysMicMuted = sys.microphoneMuted;
-    const sysHeadMuted = sys.headphoneMuted;
+    const states = new Map<Guid, VoiceIndicators>();
 
-    if (myId) {
-      states.set(myId, { muted: sysMicMuted, headphoneMuted: sysHeadMuted });
+    if (mode === "dm") {
+      const myId = me.me?.userId;
+      if (myId) {
+        states.set(myId, resolveVoiceIndicators(0, {
+          self: true,
+          muted: sys.microphoneMuted,
+          deafened: sys.headphoneMuted,
+          streaming: voice.isSharing,
+        }));
+      }
+      for (const [uid, p] of Object.entries(voice.participants)) {
+        if (uid === myId) continue;
+        states.set(uid, resolveVoiceIndicators(0, {
+          self: false,
+          muted: p.muted,
+          deafened: p.mutedAll,
+          streaming: p.screencast,
+        }));
+      }
+      return states;
     }
 
-    for (const uid of Object.keys(voice.participants)) {
-      if (uid === myId) continue;
-      const participant = voice.participants[uid];
-      states.set(uid, { muted: participant.muted, headphoneMuted: participant.mutedAll });
+    const channelId = selectedChannelId();
+    for (const [uid, user] of users.value) {
+      states.set(uid, indicatorsFor(uid, channelId, (user as IRealtimeChannelUserWithData).state));
     }
-
     return states;
   });
 
@@ -236,6 +254,8 @@ export function useMediaLayout(
       connectionQuality: qualityOf(uid),
       subscriptionError: subscriptionErrorOf(uid),
       stats: videoStats(uid),
+      isServerMuted: isServerMuted(uid),
+      isServerDeafened: isServerDeafened(uid),
     };
   };
 
@@ -251,12 +271,17 @@ export function useMediaLayout(
     // Check remote screen share track
     if (hasScreenShareVideo(uid)) return true;
     const user = users.value.get(uid);
-    return user?.isScreenShare ?? false;
+    return (user?.isScreenShare ?? false) || (muteStates.value.get(uid)?.streaming ?? false);
   };
 
-  const isMuted = (uid: Guid) => muteStates.value.get(uid)?.muted ?? false;
+  const isMuted = (uid: Guid) => muteStates.value.get(uid)?.micOff ?? false;
 
-  const isHeadphoneMuted = (uid: Guid) => muteStates.value.get(uid)?.headphoneMuted ?? false;
+  const isHeadphoneMuted = (uid: Guid) => muteStates.value.get(uid)?.headphonesOff ?? false;
+
+  /** Muted (or deafened) by a moderator, as opposed to by themselves. */
+  const isServerMuted = (uid: Guid) => muteStates.value.get(uid)?.micByServer ?? false;
+
+  const isServerDeafened = (uid: Guid) => muteStates.value.get(uid)?.headphonesByServer ?? false;
 
   const isPlayingActivity = (uid: Guid) => {
     // Any channel activity that's actually in-play and counts `uid` as a player
@@ -321,6 +346,8 @@ export function useMediaLayout(
     isScreenSharing,
     isMuted,
     isHeadphoneMuted,
+    isServerMuted,
+    isServerDeafened,
     isPlayingActivity,
     toggleFocus,
     isPinned,

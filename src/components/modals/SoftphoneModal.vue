@@ -38,7 +38,7 @@
                     {{ dialError }}
                 </span>
             </div>
-            <SoftphoneKeyboard :dialState="dialState" :priceMin="dialPriceMin" @call="callOrUssd" @press="appendKey"
+            <SoftphoneKeyboard :dialState="dialState" @call="callOrUssd" @press="appendKey"
                 @backspace="backspace" @backspace-all="backspaceAll" />
         </DialogContent>
     </Dialog>
@@ -55,26 +55,14 @@ import { SoftphoneKeyboard } from "@argon/softphone";
 import { ussdClient } from "@/lib/ussd";
 import { useLocale } from "@/store/system/localeStore";
 import { delay } from "@argon/core";
-import { useApi } from "@/store/system/apiStore";
-import { DialCheckFailReason } from "@argon/glue";
 import { playBusyTone, playDTMF, dtmfPlayer } from "@/lib/audio/AudioManager";
-import { encodePhoneToGuid } from "@argon/softphone";
-import { Guid } from "@argon-chat/ion.webcore";
-import { logger } from "@argon/core";
 
 // Provide DTMF player to keyboard component
 provide('dtmfPlayer', dtmfPlayer);
 
-const api = useApi();
-
 const { t } = useLocale();
 
 const open = defineModel<boolean>("open", { default: false });
-
-const emit = defineEmits<{
-    (e: "call", number: string): void;
-    (e: "close"): void;
-}>();
 
 const number = ref("");
 const appendKey = (k: string) => (number.value += k);
@@ -103,14 +91,12 @@ const ussdResult = ref("" as string | null);
 type DialState =
     | "idle"
     | "checking"
-    | "ready"
     | "error"
     | "ussd-running";
 
+type DialError = "number_not_available" | "unknown";
 
 const dialState = ref<DialState>("idle");
-const dialPriceMin = ref<number | null>(null);
-const dialCorlId = ref<Guid | null>(null);
 const dialError = ref<string | null>(null);
 
 watch(number, (newVal, oldVal) => {
@@ -144,20 +130,12 @@ const callOrUssd = async () => {
         runUssd(num);
         return;
     }
-    if (dialState.value === "ready") {
-        emit("call", num);
-        emit("close");
-        resetDial();
-        return;
-    }
     dialState.value = "checking";
-    dialPriceMin.value = null;
-    dialCorlId.value = null;
 
     if (num == "000000") {
         await playNumberDTMF("#3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5#4 2  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5#4 2  5 5#6 5#4#3 5 5#6 5#4#3 5 5#6 5#4#3 3#4 5#6#7  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5  #4#4#7#6#5  #3#3#4#3#6#5  #3#3#4#3#7#6  #3#3#4#3#6#5#5  #4#4#7#6#5");
         await delay(1000);
-        showDialError(DialCheckFailReason.UNKNOWN_ERROR);
+        showDialError("unknown");
         return;
     }
 
@@ -165,57 +143,23 @@ const callOrUssd = async () => {
         await playNumberDTMF(num);
         await delay(1000);
         await playNumberDTMF(num.split('').reverse().join(''));
-        showDialError(DialCheckFailReason.NUMBER_NOT_AVAILABLE);
+        showDialError("number_not_available");
         return;
     }
 
+    // Outgoing SIP calls are gone: every other number ends here.
     await playNumberDTMF(num);
-
-    try {
-        const phoneId = encodePhoneToGuid(num);
-        const result = await api.callInteraction.BeginDialCheck(phoneId);
-
-        logger.warn(result);
-
-        if (result.isSuccessDialCheck()) {
-            dialPriceMin.value = result.priceMin;
-            dialCorlId.value = result.corlId;
-            dialState.value = "ready";
-        } else if (result.isFailedDialCheck()) {
-            showDialError(result.reason);
-        }
-    } catch {
-        showDialError("UNKNOWN");
-    }
+    await delay(600);
+    showDialError("number_not_available");
 };
 
-const showDialError = (reason: DialCheckFailReason | "UNKNOWN") => {
+const showDialError = (reason: DialError) => {
     dialState.value = "error";
-    switch (reason) {
-        case DialCheckFailReason.COUNTRY_NOT_SUPPORT:
-            dialError.value = "Country not supported";
-            break;
-        case DialCheckFailReason.INVALID_NUMBER_COUNTRY:
-            dialError.value = "Invalid country code";
-            break;
-        case DialCheckFailReason.INSUFFICIENT_BALANCE:
-            dialError.value = "Insufficient balance";
-            break;
-        case DialCheckFailReason.NUMBER_NOT_AVAILABLE:
-            dialError.value = "Number not available";
-            break;
-        case DialCheckFailReason.INSUFFICIENT_POOL:
-            dialError.value = "No free lines, try later";
-            break;
-        default:
-            dialError.value = "Unknown error";
-    }
+    dialError.value = reason === "number_not_available" ? "Number not available" : "Unknown error";
 };
 
 const resetDial = () => {
     dialState.value = "idle";
-    dialPriceMin.value = null;
-    dialCorlId.value = null;
     dialError.value = null;
 };
 

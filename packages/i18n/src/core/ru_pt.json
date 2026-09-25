@@ -594,6 +594,10 @@
         "name": "Засекретить микрофон",
         "description": "Позволяет выключить микрофон участника"
       },
+      "DeafenMember": {
+        "name": "Залить уши воском",
+        "description": "Позволяет залить матросу уши воском — он перестанет слышать голосовую палубу"
+      },
       "KickMember": {
         "name": "Кикнуть матроса",
         "description": "Позволяет вышвырнуть участника с корабля"
@@ -866,5 +870,29 @@
   "cdn_cache": "Доставка добра",
   "cdn_cache_toggle": "Держать картинки в трюме",
   "cdn_cache_desc": "Хранит личины, стяги и поклажу опосля первой загрузки. Выключи — и увидишь ровно то, что шлёт сервер.",
-  "cdn_cache_off_note": "Выключено — Argon ничего не держит; картинки тянем с сервера, хотя браузер могёт подсунуть своё из кэша."
+  "cdn_cache_off_note": "Выключено — Argon ничего не держит; картинки тянем с сервера, хотя браузер могёт подсунуть своё из кэша.",
+  "voice_member_server_muted": "Капитан заткнул рот",
+  "voice_member_server_deafened": "Капитан залил уши воском",
+  "voice_member_streaming": "Кажет экран всей команде",
+  "voice_you_were_server_muted": "Капитан велел тебе молчать",
+  "voice_you_were_server_unmuted": "Капитан снова разрешил тебе говорить",
+  "voice_you_were_server_deafened": "Капитан залил тебе уши воском",
+  "voice_you_were_server_undeafened": "Капитан прочистил тебе уши",
+  "voice_you_were_moved": "Тебя перетащили на палубу #{channel}",
+  "voice_join_error_insufficient_permissions": "Тебя не пускают на борт этого голосового канала",
+  "voice_move_to": "Перетащить на палубу",
+  "voice_move_no_targets": "Других голосовых палуб нет",
+  "voice_server_mute": "Заткнуть рот",
+  "voice_server_deafen": "Залить уши воском",
+  "voice_move_failed": "Не вышло перетащить матроса",
+  "voice_move_error_insufficient_permissions": "Не по чину тебе таскать туда матросов",
+  "voice_move_error_member_not_in_channel": "Матрос уже сошёл с этой палубы",
+  "voice_move_error_target_not_found": "Такой палубы больше нет",
+  "voice_move_error_target_is_not_voice": "Это не голосовая палуба",
+  "voice_move_error_same_channel": "Матрос и так на этой палубе",
+  "voice_move_error_member_cannot_join_target": "Матроса не пустят на ту палубу",
+  "voice_moderation_failed": "Не вышло утихомирить матроса",
+  "voice_moderation_error_insufficient_permissions": "Не по чину тебе это",
+  "voice_moderation_error_member_not_found": "Матрос уже сбежал с корабля",
+  "voice_moderation_error_cannot_moderate_owner": "Капитана не заткнёшь"
 }

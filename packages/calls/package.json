@@ -8,6 +8,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./voice-state": {
+      "import": "./src/voiceState.ts",
+      "types": "./src/voiceState.ts"
     }
   },
   "scripts": {

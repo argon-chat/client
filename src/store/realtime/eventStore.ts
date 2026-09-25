@@ -20,6 +20,7 @@ import {
   type JoinedToChannelUser,
   type JoinToServerUser,
   type LeavedFromChannelUser,
+  type VoiceMemberStateChanged,
   type MessageSent,
   type MessageUpdated,
   type OnUserPresenceActivityChanged,
@@ -210,6 +211,13 @@ export const useEventStore = defineStore("events", () => {
           logger.error("Error handling JoinedToChannelUser", error);
         }
       })();
+    });
+
+    // Synchronous on purpose: the joiner's flags follow JoinedToChannelUser immediately, and the
+    // store parks them until that handler has added the row.
+    bus.onServerEvent<VoiceMemberStateChanged>("VoiceMemberStateChanged", (x) => {
+      if (isGuestUser(x.userId)) return;
+      realtimeStore.setUserVoiceState(x.channelId, x.userId, Number(x.state));
     });
 
     bus.onServerEvent<LeavedFromChannelUser>(

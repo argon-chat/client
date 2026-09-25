@@ -30,6 +30,7 @@ export const ArgonEntitlementFlags = {
   BanMember: ArgonEntitlement.BanMember,
   MuteMember: ArgonEntitlement.MuteMember,
   KickMember: ArgonEntitlement.KickMember,
+  DeafenMember: ArgonEntitlement.DeafenMember,
 
   ManageChannels: ArgonEntitlement.ManageChannels,
   ManageArchetype: ArgonEntitlement.ManageArchetype,
@@ -179,6 +180,10 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
       {
         value: ArgonEntitlementFlags.MuteMember,
         i18nKey: "permissions.flags.MuteMember",
+      },
+      {
+        value: ArgonEntitlementFlags.DeafenMember,
+        i18nKey: "permissions.flags.DeafenMember",
       },
       {
         value: ArgonEntitlementFlags.KickMember,

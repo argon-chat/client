@@ -724,6 +724,10 @@
         "name": "Отключение микрофона",
         "description": "Позволяет отключить микрофон участника."
       },
+      "DeafenMember": {
+        "name": "Оглушение участника",
+        "description": "Позволяет оглушить участника в голосовых каналах — он перестаёт слышать остальных."
+      },
       "KickMember": {
         "name": "Кик участника",
         "description": "Позволяет кикнуть участника с сервера."
@@ -1694,5 +1698,29 @@
   "bot_tag": "Бот",
   "system_tag": "Система",
   "bot_account": "Аккаунт бота",
-  "system_account": "Системный аккаунт"
+  "system_account": "Системный аккаунт",
+  "voice_member_server_muted": "Микрофон отключён модератором",
+  "voice_member_server_deafened": "Звук отключён модератором",
+  "voice_member_streaming": "Демонстрация экрана",
+  "voice_you_were_server_muted": "Модератор отключил вам микрофон",
+  "voice_you_were_server_unmuted": "Модератор снова разрешил вам говорить",
+  "voice_you_were_server_deafened": "Модератор отключил вам звук",
+  "voice_you_were_server_undeafened": "Модератор вернул вам звук",
+  "voice_you_were_moved": "Вас переместили в #{channel}",
+  "voice_join_error_insufficient_permissions": "У вас нет прав для входа в этот голосовой канал",
+  "voice_move_to": "Переместить в",
+  "voice_move_no_targets": "Нет других голосовых каналов",
+  "voice_server_mute": "Заглушить на сервере",
+  "voice_server_deafen": "Оглушить на сервере",
+  "voice_move_failed": "Не удалось переместить участника",
+  "voice_move_error_insufficient_permissions": "У вас нет прав перемещать участников туда",
+  "voice_move_error_member_not_in_channel": "Участника уже нет в этом канале",
+  "voice_move_error_target_not_found": "Этого канала больше нет",
+  "voice_move_error_target_is_not_voice": "Это не голосовой канал",
+  "voice_move_error_same_channel": "Участник уже в этом канале",
+  "voice_move_error_member_cannot_join_target": "Участник не может войти в этот канал",
+  "voice_moderation_failed": "Не удалось изменить ограничения участника",
+  "voice_moderation_error_insufficient_permissions": "У вас нет прав на это действие",
+  "voice_moderation_error_member_not_found": "Участника больше нет в пространстве",
+  "voice_moderation_error_cannot_moderate_owner": "Владельца пространства нельзя заглушить или оглушить"
 }

@@ -3,6 +3,7 @@
     :data-active="isActive || undefined"
     :data-connected="isConnectedVoiceChannel || undefined"
     :data-drop-position="isDragOver ? dropPosition : undefined"
+    :data-voice-drop="voiceDrop"
     class="channel-item"
   >
     <ContextMenu>
@@ -12,6 +13,7 @@
           :draggable="canManageChannels"
           @dragstart="emit('dragstart', channel, groupId, $event)"
           @dragover="emit('dragover', channel, groupId, index, $event)"
+          @dragleave="emit('dragleave', channel, $event)"
           @drop="emit('drop', channel, groupId, index, $event)"
           @dragend="emit('dragend')"
         >
@@ -22,7 +24,7 @@
           >
             <div class="flex items-center space-x-2">
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0 icon-appear" />
-            <Volume2Icon class="icon-appear" v-else-if="channel.type === ChannelType.Voice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
+            <Volume2Icon class="icon-appear" v-else-if="isVoice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
             <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="channel?.name">{{ channel?.name }}</span>
             <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
@@ -86,22 +88,68 @@
 
     <!-- Voice channel users -->
     <TransitionGroup
-      v-if="channel.type === ChannelType.Voice && voiceUsers && voiceUsers.Users.size > 0"
+      v-if="isVoice && voiceUsers && voiceUsers.Users.size > 0"
       tag="ul"
       name="voice-user"
       class="voice-user-list"
     >
-      <li v-for="user in voiceUsers.Users.values()" :key="user.userId">
+      <li
+        v-for="user in voiceUsers.Users.values()"
+        :key="user.userId"
+        :draggable="canDragMember(user.userId)"
+        @dragstart="onMemberDragStart(user.userId, $event)"
+        @dragend="emit('dragend')"
+      >
         <ContextMenu>
-          <ContextMenuTrigger :disabled="!voice.isConnected">
-            <VoiceChannelUser :user="user" :connecting="isUserConnecting(user.userId)" />
+          <ContextMenuTrigger :disabled="!hasMemberMenu(user.userId)">
+            <VoiceChannelUser :user="user" :channel-id="channel.channelId" :connecting="isUserConnecting(user.userId)" />
           </ContextMenuTrigger>
           <ContextMenuContent class="w-64">
-            <ContextMenuLabel v-show="user.userId != me.me?.userId">
+            <ContextMenuLabel v-if="showsVolume(user.userId)">
               <VolumeSlider :user="user"/>
             </ContextMenuLabel>
-            <ContextMenuItem 
-              inset 
+
+            <template v-if="canModerateMember(user.userId)">
+              <ContextMenuSub v-if="canMoveMembers">
+                <ContextMenuSubTrigger inset>
+                  {{ t("voice_move_to") }}
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent class="w-56">
+                  <ContextMenuItem
+                    v-for="target in moveTargets"
+                    :key="target.channelId"
+                    @select="moveMember(user.userId, target.channelId)"
+                  >
+                    <Volume2Icon class="w-4 h-4 mr-2" />
+                    <span class="truncate">{{ target.name }}</span>
+                  </ContextMenuItem>
+                  <ContextMenuItem v-if="moveTargets.length === 0" disabled>
+                    {{ t("voice_move_no_targets") }}
+                  </ContextMenuItem>
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuItem
+                v-if="canMuteMembers"
+                inset
+                data-action="server-mute"
+                @select="toggleServerMute(user)"
+              >
+                {{ t("voice_server_mute") }}
+                <CheckIcon v-if="serverFlags(user).serverMuted" class="w-4 h-4 ml-auto" />
+              </ContextMenuItem>
+              <ContextMenuItem
+                v-if="canDeafenMembers"
+                inset
+                data-action="server-deafen"
+                @select="toggleServerDeafen(user)"
+              >
+                {{ t("voice_server_deafen") }}
+                <CheckIcon v-if="serverFlags(user).serverDeafened" class="w-4 h-4 ml-auto" />
+              </ContextMenuItem>
+            </template>
+
+            <ContextMenuItem
+              inset
               :disabled="!pex.has('KickMember')"
               @click="emit('kick-member', user.userId, channel.channelId, channel.spaceId)"
             >
@@ -119,7 +167,7 @@
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
 import {
   HashIcon, Volume2Icon, AntennaIcon, BellIcon, BellOffIcon, SettingsIcon, CopyIcon, CopyPlusIcon,
-  LinkIcon, Loader2,
+  LinkIcon, Loader2, CheckIcon,
 } from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
@@ -131,6 +179,9 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
   ContextMenuLabel,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from '@argon/ui/context-menu';
 import { useToast } from '@argon/ui/toast';
 import { logger } from '@argon/core';
@@ -146,10 +197,13 @@ import { useSpaceStore } from '@/store/data/serverStore';
 import { useWindow } from '@/store/ui/windowStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
-import type { DropPosition } from '@/composables/useChannelDragDrop';
+import { isVoiceLikeChannel } from '@/lib/voice/channels';
+import { useVoiceModeration } from '@/composables/useVoiceModeration';
+import { decodeVoiceState } from '@argon/calls/voice-state';
+import type { DropPosition, VoiceDropState } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
-import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
+import type { IRealtimeChannel, IRealtimeChannelUser } from '@/store/realtime/realtimeStore';
 
 const props = defineProps<{
   channel: ArgonChannel;
@@ -159,6 +213,10 @@ const props = defineProps<{
   isDragOver: boolean;
   dropPosition?: DropPosition;
   voiceUsers?: IRealtimeChannel;
+  /** The space's voice channels, for the "Move to" menu. */
+  voiceChannels?: ArgonChannel[];
+  /** While a member is dragged: whether this row takes the drop, and whether it is under the cursor. */
+  voiceDrop?: VoiceDropState;
 }>();
 
 const emit = defineEmits<{
@@ -167,8 +225,10 @@ const emit = defineEmits<{
   'switch-voice': [channelId: string];
   dragstart: [channel: ArgonChannel, groupId: Guid | null, event: DragEvent];
   dragover: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
+  dragleave: [channel: ArgonChannel, event: DragEvent];
   drop: [channel: ArgonChannel, groupId: Guid | null, index: number, event: DragEvent];
   dragend: [];
+  'member-dragstart': [userId: string, channel: ArgonChannel, event: DragEvent];
   'kick-member': [userId: string, channelId: string, spaceId: string];
 }>();
 
@@ -213,8 +273,9 @@ const channelMentions = computed(() => {
 const channelMuted = computed(() => ntf.isTargetMuted(props.channel.channelId) || ntf.isTargetMuted(props.channel.spaceId));
 
 const canManageChannels = computed(() => pex.has('ManageChannels'));
+const isVoice = computed(() => isVoiceLikeChannel(props.channel.type));
 const isConnectedVoiceChannel = computed(() =>
-  props.channel.type === ChannelType.Voice &&
+  isVoice.value &&
   voice.connectedVoiceChannelId === props.channel.channelId
 );
 
@@ -230,9 +291,58 @@ const isUserConnecting = (userId: string) => {
   return !voice.participants[userId];
 };
 
+// ── Voice member menu and drag ──
+
+const moderation = useVoiceModeration();
+
+const canMoveMembers = computed(() => pex.has('MoveMember'));
+const canMuteMembers = computed(() => pex.has('MuteMember'));
+const canDeafenMembers = computed(() => pex.has('DeafenMember'));
+
+// Guests exist only in the LiveKit room, not in the space: nothing to moderate server-side.
+const isGuest = (userId: string) => {
+  const id = userId.toLowerCase();
+  return id.startsWith('ccccfcfa') || id.startsWith('guest-');
+};
+
+const canModerateMember = (userId: string) =>
+  !isGuest(userId) && (canMoveMembers.value || canMuteMembers.value || canDeafenMembers.value);
+
+// Per-user volume only means something for the room we are hearing.
+const showsVolume = (userId: string) => isConnectedVoiceChannel.value && userId !== me.me?.userId;
+
+const hasMemberMenu = (userId: string) =>
+  showsVolume(userId) || canModerateMember(userId) || pex.has('KickMember');
+
+const canDragMember = (userId: string) => canMoveMembers.value && !isGuest(userId);
+
+const moveTargets = computed(() =>
+  (props.voiceChannels ?? []).filter(
+    (c) => c.channelId !== props.channel.channelId && isVoiceLikeChannel(c.type),
+  ),
+);
+
+const serverFlags = (user: IRealtimeChannelUser) => decodeVoiceState(user.state);
+
+function onMemberDragStart(userId: string, event: DragEvent) {
+  if (!canDragMember(userId)) return;
+  emit('member-dragstart', userId, props.channel, event);
+}
+
+function moveMember(userId: string, targetChannelId: string) {
+  void moderation.moveMember(props.channel.spaceId, props.channel.channelId, userId, targetChannelId);
+}
+
+function toggleServerMute(user: IRealtimeChannelUser) {
+  void moderation.setServerMuted(props.channel.spaceId, user.userId, !serverFlags(user).serverMuted);
+}
+
+function toggleServerDeafen(user: IRealtimeChannelUser) {
+  void moderation.setServerDeafened(props.channel.spaceId, user.userId, !serverFlags(user).serverDeafened);
+}
+
 // ── Context menu actions ──
 
-const isVoice = computed(() => props.channel.type === ChannelType.Voice);
 const canJoinVoice = computed(() => isVoice.value && !isConnectedVoiceChannel.value && pex.has('Connect'));
 
 // This channel's own mute, not the space's: the menu item toggles this channel only.
@@ -395,6 +505,26 @@ async function copyChannelId() {
 
 .channel-row[draggable="true"] {
   cursor: grab;
+}
+
+/* A voice member is being dragged: rows that take the drop are outlined, the one under the
+   cursor is filled. */
+.channel-item[data-voice-drop] .channel-inner {
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.35);
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.channel-item[data-voice-drop="over"] .channel-inner {
+  background-color: hsl(var(--primary) / 0.16);
+  box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.8);
+}
+
+.voice-user-list li[draggable="true"] {
+  cursor: grab;
+}
+
+.voice-user-list li[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .channel-row[draggable="true"]:active {

@@ -18,9 +18,29 @@
         <Loader2Icon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
       </span>
       <template v-else>
-        <MicOffIcon v-if="isMuted" class="w-4 h-4 text-destructive/70" />
-        <HeadphoneOffIcon v-if="isHeadphoneMuted" class="w-4 h-4 text-destructive/70" />
-        <ScreenShare v-if="user.isScreenShare" class="w-4 h-4 text-primary" />
+        <span
+          v-if="indicators.micOff"
+          data-indicator="mic"
+          :data-by-server="indicators.micByServer || undefined"
+          :class="['voice-flag', indicators.micByServer ? 'voice-flag--server' : 'voice-flag--self']"
+          :title="indicators.micByServer ? t('voice_member_server_muted') : t('muted')"
+        >
+          <MicOffIcon class="w-4 h-4" />
+          <ShieldIcon v-if="indicators.micByServer" class="voice-flag__badge" />
+        </span>
+        <span
+          v-if="indicators.headphonesOff"
+          data-indicator="headphones"
+          :data-by-server="indicators.headphonesByServer || undefined"
+          :class="['voice-flag', indicators.headphonesByServer ? 'voice-flag--server' : 'voice-flag--self']"
+          :title="indicators.headphonesByServer ? t('voice_member_server_deafened') : t('deafened')"
+        >
+          <HeadphoneOffIcon class="w-4 h-4" />
+          <ShieldIcon v-if="indicators.headphonesByServer" class="voice-flag__badge" />
+        </span>
+        <span v-if="indicators.streaming" data-indicator="streaming" class="voice-flag" :title="t('voice_member_streaming')">
+          <ScreenShare class="w-4 h-4 text-primary" />
+        </span>
         <RadiusIcon v-if="user.isRecording" class="w-4 h-4 text-destructive" />
       </template>
     </div>
@@ -29,23 +49,25 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon, Loader2 as Loader2Icon } from 'lucide-vue-next';
+import {
+  MicOffIcon, HeadphoneOffIcon, ScreenShare, RadiusIcon, Loader2 as Loader2Icon, ShieldIcon,
+} from 'lucide-vue-next';
 import ArgonAvatar from './../ArgonAvatar.vue';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
-import { useSystemStore } from '@/store/system/systemStore';
-import { useMe } from '@/store/auth/meStore';
 import { useLocale } from '@/store/system/localeStore';
+import { useVoiceIndicators } from '@/composables/useVoiceIndicators';
 import type { IRealtimeChannelUser } from '@/store/realtime/realtimeStore';
 
 const props = defineProps<{
   user: IRealtimeChannelUser;
+  /** The voice channel this row belongs to; decides whether live room state applies. */
+  channelId?: string | null;
   connecting?: boolean;
 }>();
 
 const voice = useUnifiedCall();
-const sys = useSystemStore();
-const me = useMe();
 const { t } = useLocale();
+const { indicatorsFor } = useVoiceIndicators();
 
 const isSpeaking = computed(() => {
   // Explicitly track speaking.size to ensure Vue detects changes in the Set
@@ -53,37 +75,33 @@ const isSpeaking = computed(() => {
   return voice.speaking.has(props.user.userId);
 });
 
-const isMuted = computed(() => {
-  const uid = props.user.userId;
-  const myId = me.me?.userId;
-  
-  // Explicitly read these reactive values to ensure Vue tracks them
-  const sysMicMuted = sys.microphoneMuted;
-  
-  // Check if this is the local user - use sys like in ChatPanel
-  if (myId && uid === myId) {
-    return sysMicMuted;
-  }
-  
-  // Check remote participant
-  const participant = voice.participants[uid];
-  return participant?.muted ?? false;
-});
-
-const isHeadphoneMuted = computed(() => {
-  const uid = props.user.userId;
-  const myId = me.me?.userId;
-  
-  // Explicitly read these reactive values to ensure Vue tracks them
-  const sysHeadMuted = sys.headphoneMuted;
-  
-  // Check if this is the local user - use sys like in ChatPanel
-  if (myId && uid === myId) {
-    return sysHeadMuted;
-  }
-  
-  // Check remote participant
-  const participant = voice.participants[uid];
-  return participant?.mutedAll ?? false;
-});
+const indicators = computed(() => indicatorsFor(props.user.userId, props.channelId, props.user.state));
 </script>
+
+<style scoped>
+.voice-flag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.voice-flag--self {
+  color: hsl(var(--destructive) / 0.7);
+}
+
+/* A moderator's restriction: full-strength red and a shield, so it never reads as a self-mute. */
+.voice-flag--server {
+  color: hsl(0 84% 55%);
+}
+
+.voice-flag__badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 9px;
+  height: 9px;
+  color: hsl(0 84% 55%);
+  fill: hsl(var(--background));
+  stroke-width: 3;
+}
+</style>

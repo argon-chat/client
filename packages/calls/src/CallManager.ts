@@ -24,16 +24,42 @@ import {
   isLocalParticipant,
   isRemoteTrack,
   VideoPresets,
+  PublishTrackError,
 } from "livekit-client";
 import { ref, reactive, computed, watch, toRaw } from "vue";
 import { Subscription } from "rxjs";
 import { logger, startTimer, DisposableBag } from "@argon/core";
-import type { CallIncoming, CallFinished, CallAccepted, RtcEndpoint } from "@argon/glue";
+import type {
+  CallIncoming,
+  CallFinished,
+  CallAccepted,
+  RtcEndpoint,
+  VoiceMemberStateChanged,
+  VoiceMoveRequested,
+} from "@argon/glue";
 
 import { parseRtcStats } from "./rtcStats";
-import type { CallManagerConfig, RemoteAudioGraph, ScreenShareOpts } from "./types";
+import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
+import type { CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts } from "./types";
 
 export type { ScreenShareOpts } from "./types";
+
+/** JoinToChannelError.INSUFFICIENT_PERMISSIONS in the contract. */
+const JOIN_ERROR_INSUFFICIENT_PERMISSIONS = 2;
+
+/** Own voice flags are reported at most this often; a mute toggle fires two events. */
+const VOICE_STATE_DEBOUNCE_MS = 150;
+
+/**
+ * Disconnects after which the room is gone for good because the server said so: a moderator's
+ * kick or move, the room closing, or the same identity joining from elsewhere.
+ */
+const SERVER_SIDE_REMOVALS: ReadonlySet<DisconnectReason> = new Set([
+  DisconnectReason.PARTICIPANT_REMOVED,
+  DisconnectReason.ROOM_DELETED,
+  DisconnectReason.ROOM_CLOSED,
+  DisconnectReason.DUPLICATE_IDENTITY,
+]);
 
 export function createCallManager(config: CallManagerConfig) {
   const {
@@ -61,6 +87,10 @@ export function createCallManager(config: CallManagerConfig) {
   // Product metrics. Every timestamp below is null while the thing it times is not happening,
   // and is cleared by whoever records the duration, so a call that ends by any route reports once.
   const telemetry = config.telemetry ?? { count() {}, distribution() {} };
+  const notify = (notice: CallNotice) => {
+    try { config.notify?.(notice); }
+    catch (e) { logger.warn("[CALL] notice failed", e); }
+  };
   let joinStartedAt: number | null = null;
   let connectedAt: number | null = null;
   let reconnectStartedAt: number | null = null;
@@ -98,6 +128,23 @@ export function createCallManager(config: CallManagerConfig) {
   const callId = ref<string | null>(null);
   const targetId = ref<string | null>(null);
   const connectedVoiceChannelId = ref<string | null>(null);
+  // Set from the start of a channel join, so moderation events that race the join still match.
+  const connectedVoiceSpaceId = ref<string | null>(null);
+
+  // A moderator's mute/deafen on us in that space. Space-wide on the server, so it is kept per
+  // connection rather than per channel.
+  const serverMuted = ref(false);
+  const serverDeafened = ref(false);
+
+  // The virtual input track for this call, and the LiveKit track currently published from it.
+  // They differ in lifetime: the SFU unpublishes the mic while we are server-muted, and a new
+  // LocalAudioTrack is published from a fresh clone once we may speak again.
+  let micSource: MediaStreamTrack | null = null;
+  let localMic: LocalAudioTrack | null = null;
+  let micPublishing = false;
+  let micBitrateKbps: number | null = null;
+
+  let voiceStateTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Persisted across renderer reloads (localStorage) so we can auto-rejoin the
   // channel after a renderer crash. Empty string = not in a voice channel;
@@ -419,6 +466,17 @@ export function createCallManager(config: CallManagerConfig) {
     callId.value = null;
     targetId.value = null;
     connectedVoiceChannelId.value = null;
+    connectedVoiceSpaceId.value = null;
+    if (voiceStateTimer) {
+      clearTimeout(voiceStateTimer);
+      voiceStateTimer = null;
+    }
+    micSource = null;
+    localMic = null;
+    micPublishing = false;
+    micBitrateKbps = null;
+    // The restriction belongs to the space we were talking in; outside a call nothing is locked.
+    applyServerRestriction(0, false);
     // Explicit leave → don't auto-rejoin if the renderer later crashes/reloads.
     lastVoiceServerId.value = "";
     lastVoiceChannelId.value = "";
@@ -559,10 +617,19 @@ export function createCallManager(config: CallManagerConfig) {
     incoming.value = null;
   }
 
-  async function joinVoiceChannel(channelId: string) {
+  /**
+   * Join a voice channel. `spaceId` defaults to the space on screen; a move names its own, since
+   * the user may be looking at a different space when a moderator moves them.
+   */
+  async function joinVoiceChannel(channelId: string, spaceId?: string) {
+    await joinChannel(channelId, spaceId, false);
+  }
+
+  /** `moved`: the server already checked we may join, and pex describes the space on screen. */
+  async function joinChannel(channelId: string, spaceId: string | undefined, moved: boolean) {
     logger.info("[CALL] joinVoiceChannel", channelId);
 
-    if (!pex.has("Connect")) {
+    if (!moved && !pex.has("Connect")) {
       logger.warn("[CALL] No Connect permission");
       telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_permission" });
       return;
@@ -572,7 +639,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     mode.value = "channel";
 
-    const selected = pool.selectedServer;
+    const selected = spaceId ?? pool.selectedServer;
     if (!selected) {
       logger.error("selectedServer = null");
       telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_space" });
@@ -580,12 +647,21 @@ export function createCallManager(config: CallManagerConfig) {
       return;
     }
 
+    // Before Interlink: the server reports an existing restriction right after the join, and that
+    // event can beat the Interlink reply. Starting from "none" drops one from a previous visit.
+    connectedVoiceSpaceId.value = String(selected);
+    applyServerRestriction(0, false);
+
     const join = await api.channelInteraction.Interlink(selected, channelId);
 
     if (!join || !join.isSuccessJoinVoice()) {
       logger.error("Interlink failed", join);
       telemetry.count("call.join", { mode: "channel", result: "failed", stage: "interlink" });
       mode.value = "none";
+      connectedVoiceSpaceId.value = null;
+      if (join?.isFailedJoinVoice?.() && join.error === JOIN_ERROR_INSUFFICIENT_PERMISSIONS) {
+        notify({ kind: "join-refused", reason: "insufficient_permissions" });
+      }
       return;
     }
 
@@ -610,6 +686,87 @@ export function createCallManager(config: CallManagerConfig) {
     });
 
     startTimersRTT();
+
+    if (isConnected.value && connectedVoiceChannelId.value === channelId) scheduleVoiceStateReport();
+  }
+
+  /** Report our own flags to the server, collapsed over a short window. */
+  function scheduleVoiceStateReport() {
+    if (mode.value !== "channel" || !connectedVoiceChannelId.value) return;
+    if (voiceStateTimer) clearTimeout(voiceStateTimer);
+    voiceStateTimer = setTimeout(() => {
+      voiceStateTimer = null;
+      void reportVoiceState();
+    }, VOICE_STATE_DEBOUNCE_MS);
+  }
+
+  async function reportVoiceState() {
+    const spaceId = connectedVoiceSpaceId.value;
+    const channelId = connectedVoiceChannelId.value;
+    if (mode.value !== "channel" || !spaceId || !channelId) return;
+    const state = encodeSelfVoiceState({
+      muted: sys.microphoneMuted,
+      deafened: sys.headphoneMuted,
+      streaming: isSharing.value,
+    });
+    try {
+      await api.channelInteraction.UpdateVoiceState(spaceId, channelId, state);
+    } catch (e) {
+      logger.warn("[CALL] UpdateVoiceState failed", e);
+    }
+  }
+
+  /**
+   * Take the moderation bits of our own state. `announce` is false for resets (join, leave),
+   * which the user did not experience as a moderator acting on them.
+   */
+  function applyServerRestriction(state: number, announce: boolean) {
+    const flags = decodeVoiceState(state);
+    const wasMuted = serverMuted.value;
+    const wasDeafened = serverDeafened.value;
+    serverMuted.value = flags.serverMuted;
+    serverDeafened.value = flags.serverDeafened;
+    sys.setServerVoiceRestriction({ muted: flags.serverMuted, deafened: flags.serverDeafened });
+
+    if (announce) {
+      if (wasDeafened !== flags.serverDeafened) notify({ kind: flags.serverDeafened ? "server-deafened" : "server-undeafened" });
+      if (wasMuted !== flags.serverMuted) notify({ kind: flags.serverMuted ? "server-muted" : "server-unmuted" });
+    }
+
+    if (!flags.serverMuted && !flags.serverDeafened) void ensureMicrophonePublished();
+  }
+
+  function onVoiceMemberStateChanged(ev: VoiceMemberStateChanged) {
+    if (ev.userId !== me.me?.userId) return;
+    if (mode.value !== "channel" || String(ev.spaceId) !== connectedVoiceSpaceId.value) return;
+    applyServerRestriction(Number(ev.state), true);
+  }
+
+  /**
+   * A moderator moved us. The server evicts us from the source room shortly if we stay, so we
+   * leave it ourselves and join the target in the same space.
+   */
+  async function onVoiceMoveRequested(ev: VoiceMoveRequested) {
+    const spaceId = String(ev.spaceId);
+    const toChannelId = String(ev.toChannelId);
+    if (
+      mode.value !== "channel" ||
+      connectedVoiceSpaceId.value !== spaceId ||
+      connectedVoiceChannelId.value !== String(ev.fromChannelId)
+    ) {
+      logger.info("[CALL] ignoring a move for a room we are not in", ev);
+      return;
+    }
+
+    logger.info("[CALL] moved by a moderator", { from: ev.fromChannelId, to: toChannelId });
+    // LIVEKIT-FORK: self-hosted LiveKit has no MoveParticipant, so the client reconnects itself.
+    // Replace with the SFU's native move once the fork has it.
+    await leave();
+    await joinChannel(toChannelId, spaceId, true);
+
+    if (connectedVoiceChannelId.value === toChannelId) {
+      notify({ kind: "moved", spaceId, channelId: toChannelId });
+    }
   }
 
   // After a renderer crash the Electron host reloads the page and flags the load
@@ -1182,6 +1339,25 @@ export function createCallManager(config: CallManagerConfig) {
         recordCallEnded(why);
       }
       reconnectStartedAt = null;
+
+      // Our own leave() and moves drop these listeners before disconnecting, so this is the server
+      // ending the call. Clean up as a leave would, or the app keeps showing a dead room.
+      if (toRaw(room.value) === r && reason !== undefined && SERVER_SIDE_REMOVALS.has(reason)) {
+        logger.warn(`[CALL] removed from the room by the server (${why})`);
+        void leave();
+      }
+    });
+
+    // The SFU unpublishes our mic when a moderator mutes us, and restores nothing when they lift
+    // it: that is on us, once the permissions allow the microphone again.
+    r.on(RoomEvent.LocalTrackUnpublished, (pub) => {
+      if (pub.source === Track.Source.Microphone && (!pub.track || toRaw(pub.track) === localMic)) {
+        logger.info("[CALL] microphone unpublished by the server");
+        localMic = null;
+      }
+    });
+    r.on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
+      if (participant && isLocalParticipant(participant)) void ensureMicrophonePublished();
     });
 
     r.localParticipant.on("localTrackCpuConstrained", () => {
@@ -1286,8 +1462,6 @@ export function createCallManager(config: CallManagerConfig) {
     }
 
     try {
-      const audioCtx = audio.getCurrentAudioContext();
-
       // Prompt for mic access before capturing (macOS native host only — elsewhere a no-op).
       await ensureMediaPermission("microphone");
 
@@ -1303,49 +1477,21 @@ export function createCallManager(config: CallManagerConfig) {
         throw new Error("No audio track in virtual input stream");
       }
 
-      // Clone the track for LiveKit - this way if LiveKit stops the track on disconnect,
-      // it won't affect our original virtual stream
-      const clonedTrackForLiveKit = virtualTrack.clone();
-
-      // Create LocalAudioTrack from cloned track
-      // userProvidedTrack=true tells LiveKit not to manage this track internally
-      const mic = new LocalAudioTrack(
-        clonedTrackForLiveKit,
-        undefined,
-        true,
-        audioCtx,
-      );
-      mic.source = Track.Source.Microphone;
-
-      const shouldMuteMic = sys.microphoneMuted;
+      micSource = virtualTrack;
+      micBitrateKbps = opts.audioBitrateKbps ?? null;
 
       logger.info(
-        `[CALL] Publishing virtual mic track with initial state: micMuted=${shouldMuteMic}, headphoneMuted=${sys.headphoneMuted}`,
+        `[CALL] Publishing virtual mic track with initial state: micMuted=${sys.microphoneMuted}, headphoneMuted=${sys.headphoneMuted}`,
       );
 
-      // simulcast/degradationPreference are video-only and were carried over from an
-      // older SDK; the SDK now also picks the right degradation preference per source.
-      // A channel bitrate replaces the preset's cap only; RED, stereo and mute handling stay as
-      // they are, so a low cap degrades quality rather than behaviour.
-      await r.localParticipant.publishTrack(mic, {
-        red: true,
-        stopMicTrackOnMute: false,
-        audioPreset: opts.audioBitrateKbps
-          ? { maxBitrate: opts.audioBitrateKbps * 1000 }
-          : AudioPresets.musicStereo,
-        forceStereo: true,
-      });
+      // Refused while a moderator has us muted (the token leaves the microphone out); the
+      // permissions event publishes it later.
+      await publishMicrophone(r);
 
       // Setup speaking detector using VU meter from AudioManager (runs in AudioWorklet thread)
       disposables.addSubscription(
         await setupLocalSpeakingDetector(opts.selfId),
       );
-
-      // Mute IMMEDIATELY after publishing if needed (before attributes)
-      if (shouldMuteMic) {
-        logger.info("[CALL] Muting mic AFTER publish");
-        await mic.mute();
-      }
 
       // Set initial attributes for local participant IMMEDIATELY after mute
       await r.localParticipant.setAttributes({
@@ -1354,12 +1500,15 @@ export function createCallManager(config: CallManagerConfig) {
       });
 
       logger.info(
-        `[CALL] Local participant published with muted=${mic.isMuted}, attributes set`,
+        `[CALL] Local participant joined with mic ${localMic ? `muted=${localMic.isMuted}` : "not published"}, attributes set`,
       );
 
       const mutedSub = sys.muteEvent.subscribe((x) => {
-        if (x) mic.mute();
-        else mic.unmute();
+        if (localMic) {
+          if (x) localMic.mute();
+          else localMic.unmute();
+        }
+        scheduleVoiceStateReport();
       });
 
       const mutedAllSub = sys.muteHeadphoneEvent.subscribe((x) => {
@@ -1369,6 +1518,7 @@ export function createCallManager(config: CallManagerConfig) {
         });
 
         applyMuteAllToExistingParticipants(x);
+        scheduleVoiceStateReport();
       });
 
       // No need to set processor - virtual stream already goes through AudioManager's processing chain
@@ -1540,6 +1690,75 @@ export function createCallManager(config: CallManagerConfig) {
         fail();
       }
     });
+  }
+
+  /** Whether the SFU would take a microphone track from us right now. */
+  function canPublishMicrophone(r: Room) {
+    const p = r.localParticipant.permissions;
+    // Nothing known yet: try, and let a refusal land in publishMicrophone's catch.
+    if (!p) return true;
+    if (!p.canPublish) return false;
+    const sources = p.canPublishSources ?? [];
+    return sources.length === 0 || sources.includes(Track.sourceToProto(Track.Source.Microphone));
+  }
+
+  /**
+   * Publish a microphone track cloned from the call's input. Returns false when the SFU does not
+   * allow the microphone (server mute/deafen, or no Speak): the caller carries on without it.
+   */
+  async function publishMicrophone(r: Room): Promise<boolean> {
+    if (localMic || micPublishing || !micSource) return !!localMic;
+    if (!canPublishMicrophone(r)) {
+      logger.info("[CALL] microphone not allowed right now, publishing it later");
+      return false;
+    }
+
+    micPublishing = true;
+    // A clone, so LiveKit stopping its track on unpublish or disconnect leaves the input alone.
+    // userProvidedTrack=true tells LiveKit not to manage this track internally.
+    const clone = micSource.clone();
+    const mic = new LocalAudioTrack(clone, undefined, true, audio.getCurrentAudioContext());
+    mic.source = Track.Source.Microphone;
+    try {
+      // simulcast/degradationPreference are video-only and were carried over from an
+      // older SDK; the SDK now also picks the right degradation preference per source.
+      // A channel bitrate replaces the preset's cap only; RED, stereo and mute handling stay as
+      // they are, so a low cap degrades quality rather than behaviour.
+      await r.localParticipant.publishTrack(mic, {
+        red: true,
+        stopMicTrackOnMute: false,
+        audioPreset: micBitrateKbps
+          ? { maxBitrate: micBitrateKbps * 1000 }
+          : AudioPresets.musicStereo,
+        forceStereo: true,
+      });
+    } catch (err) {
+      if (err instanceof PublishTrackError && err.status === 403) {
+        logger.info("[CALL] microphone refused by the SFU, publishing it later");
+        try { clone.stop?.(); } catch { /* already stopped */ }
+        return false;
+      }
+      throw err;
+    } finally {
+      micPublishing = false;
+    }
+
+    if (toRaw(room.value) !== r) return false;
+    localMic = mic;
+    // Mute IMMEDIATELY after publishing if needed
+    if (sys.microphoneMuted) await mic.mute();
+    return true;
+  }
+
+  /** Republish the microphone once the SFU allows it again. No-op when it is already up. */
+  async function ensureMicrophonePublished() {
+    const r = toRaw(room.value) as Room | null;
+    if (!r || !micSource || localMic || micPublishing || !canPublishMicrophone(r)) return;
+    try {
+      if (await publishMicrophone(r)) logger.info("[CALL] microphone republished");
+    } catch (err) {
+      logger.error("[CALL] microphone republish failed", err);
+    }
   }
 
   async function setupLocalSpeakingDetector(
@@ -2056,7 +2275,15 @@ export function createCallManager(config: CallManagerConfig) {
     bus.onServerEvent<CallAccepted>("CallAccepted", (ev) =>
       logger.info("[CALL] CallAccepted", ev),
     ),
+
+    bus.onServerEvent<VoiceMemberStateChanged>("VoiceMemberStateChanged", onVoiceMemberStateChanged),
+
+    bus.onServerEvent<VoiceMoveRequested>("VoiceMoveRequested", (ev) => {
+      void onVoiceMoveRequested(ev).catch((e) => logger.error("[CALL] move failed", e));
+    }),
   ];
+
+  const stopSharingWatch = watch(isSharing, () => scheduleVoiceStateReport());
 
   /**
    * Tear the manager down for good: end any call and stop listening to the bus. The app
@@ -2065,6 +2292,7 @@ export function createCallManager(config: CallManagerConfig) {
    */
   async function dispose() {
     await leave();
+    stopSharingWatch();
     for (const sub of busSubscriptions) sub.unsubscribe();
     busSubscriptions.length = 0;
   }
@@ -2076,6 +2304,9 @@ export function createCallManager(config: CallManagerConfig) {
     callId,
     targetId,
     connectedVoiceChannelId,
+    connectedVoiceSpaceId,
+    serverMuted,
+    serverDeafened,
     isConnected,
     isConnecting,
     isReconnecting,

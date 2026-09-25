@@ -79,7 +79,7 @@ The package exports all generated types from Ion schemas:
 - `ServerInteraction` - Server API methods
 - `ChannelInteraction` - Channel operations  
 - `UserInteraction` - User management
-- `VoiceInteraction` - Voice/video calls
+- `CallInteraction` - Direct voice/video calls
 - Event types: `CallIncoming`, `CallFinished`, `CallAccepted`, `MessageCreated`, etc.
 - Model types: `User`, `Channel`, `Server`, `Message`, etc.
 

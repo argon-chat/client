@@ -35,8 +35,10 @@ const voice = vi.hoisted(() => ({
 }));
 
 vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => voice }));
+const roster = vi.hoisted(() => new Map<string, { Users: Map<string, unknown> }>());
+
 vi.mock("@/store/data/poolStore", () => ({
-  usePoolStore: () => ({ realtimeChannelUsers: new Map() }),
+  usePoolStore: () => ({ realtimeChannelUsers: roster }),
 }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
 vi.mock("@/store/system/systemStore", () => ({
@@ -56,6 +58,7 @@ import { useMediaLayout } from "@/composables/useMediaLayout";
 const SIXTEEN_NINE = 16 / 9;
 
 beforeEach(() => {
+  roster.clear();
   voice.videoTracks = new Map();
   voice.diagnostics = new Map();
   voice.participantQuality = new Map();
@@ -157,6 +160,36 @@ describe("tileProps", () => {
       codec: "VP9",
       bitrateKbps: 900,
     });
+  });
+});
+
+describe("mute state on tiles", () => {
+  // A room we are only looking at: no LiveKit data, only the roster's flags.
+  const viewing = (users: Record<string, number>) => {
+    roster.set("c1", {
+      Users: new Map(Object.entries(users).map(([userId, state]) => [
+        userId,
+        { userId, state, User: { userId, displayName: userId }, isScreenShare: false },
+      ])),
+    });
+    return useMediaLayout(() => "c1");
+  };
+
+  test("comes from the roster flags for a room we are not in", () => {
+    const l = viewing({ u1: 2 /* MUTED */, u2: 8 /* MUTED_HEADPHONES */, u3: 32 /* STREAMING */ });
+    expect(l.isMuted("u1")).toBe(true);
+    expect(l.isHeadphoneMuted("u2")).toBe(true);
+    expect(l.isMuted("u2")).toBe(true);
+    expect(l.isScreenSharing("u3")).toBe(true);
+    expect(l.tileProps("u1").isServerMuted).toBe(false);
+  });
+
+  test("a moderator's mute and deafen reach the tile as such", () => {
+    const l = viewing({ u1: 4 /* MUTED_BY_SERVER */, u2: 16 /* MUTED_HEADPHONES_BY_SERVER */ });
+    expect(l.tileProps("u1").isServerMuted).toBe(true);
+    expect(l.tileProps("u1").isServerDeafened).toBe(false);
+    expect(l.tileProps("u2").isServerDeafened).toBe(true);
+    expect(l.isMuted("u2")).toBe(true);
   });
 });
 

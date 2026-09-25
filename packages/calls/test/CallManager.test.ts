@@ -103,6 +103,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
           token: "t",
           rtc: { endpoint: "wss://sfu.test", ices: [] } as any,
         }),
+        UpdateVoiceState: vi.fn(async () => undefined),
       },
       serverInteraction: { PrefetchUser: async () => null },
     },
@@ -123,6 +124,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       headphoneMuted: false,
       muteEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
+      setServerVoiceRestriction: vi.fn(),
     },
     userVolume: { getUserVolume: () => 100, setUserVolume() {} },
     realtimeStore: {
@@ -250,7 +252,8 @@ describe("call behaviour survived the move", () => {
     expect(unsubscribe).not.toHaveBeenCalled();
 
     await calls.dispose();
-    expect(unsubscribe).toHaveBeenCalledTimes(3);
+    // CallIncoming, CallFinished, CallAccepted, VoiceMemberStateChanged, VoiceMoveRequested.
+    expect(unsubscribe).toHaveBeenCalledTimes(5);
   });
 
   test("incoming-call subscriptions outlive a completed call", async () => {
