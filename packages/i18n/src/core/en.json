@@ -821,6 +821,10 @@
         "name": "Additional Streams",
         "description": "Allows using multiple video streams."
       },
+      "CanDrawOnStream": {
+        "name": "Draw on Streams",
+        "description": "Allows drawing on other members' screen shares."
+      },
       "DisconnectMember": {
         "name": "Disconnect Member",
         "description": "Allows forcibly disconnecting a member from voice."
@@ -844,6 +848,10 @@
       "BanMember": {
         "name": "Ban Member",
         "description": "Allows banning a member from the server."
+      },
+      "ManageMessages": {
+        "name": "Manage Messages",
+        "description": "Allows removing other members' messages and ignoring slow mode."
       },
       "ManageChannels": {
         "name": "Manage Channels",
@@ -1700,6 +1708,12 @@
   "bot_account": "Bot account",
   "system_account": "System account",
   "voice_member_server_muted": "Muted by a moderator",
+  "permission_denied_in_channel": "Not allowed in this channel",
+  "voice_channel_locked": "You don't have permission to connect to this channel",
+  "voice_no_speak_permission": "You don't have permission to speak in this channel",
+  "voice_no_video_permission": "You don't have permission to use your camera in this channel",
+  "voice_no_stream_permission": "You don't have permission to share your screen in this channel",
+  "composer_read_only": "You can't send messages in this channel",
   "voice_member_server_deafened": "Deafened by a moderator",
   "voice_member_streaming": "Streaming",
   "voice_you_were_server_muted": "A moderator muted you",

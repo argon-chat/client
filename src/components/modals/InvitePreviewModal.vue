@@ -217,22 +217,29 @@ async function doJoin() {
 }
 
 /**
- * Opens the space on the room, then connects.
+ * Opens the space, then the room, then connects.
  *
  * The connect cannot simply be called: CallManager reads `pool.selectedServer` and the caller's
- * `Connect` entitlement, and refuses — silently, by design — when either is not there yet. Both
- * arrive asynchronously after the space is selected (the permission set is a liveQuery bound to the
- * selection), so this waits for them rather than firing into a window where the answer is always no.
+ * `Connect` in that channel, and both arrive asynchronously after the space is selected (the grants
+ * are the server's answer for the new space). This waits for them rather than deciding on a guess.
+ * A room the user may not enter leaves them in the space, where the room shows as locked.
  */
 async function enterVoiceRoom(spaceId: string, channelId: string) {
   try {
-    await router.push({ name: "SpaceChannel", params: { id: spaceId, channelId } });
+    await router.push({ name: "SpaceShellView", params: { id: spaceId } });
 
-    const ready = await until(() => pool.selectedServer === spaceId && pex.has("Connect"), 8000);
+    const ready = await until(() => pool.selectedServer === spaceId && pex.ready(spaceId), 8000);
     if (!ready) {
       logger.warn("[invite] voice room join skipped: space or permissions never arrived");
       return;
     }
+
+    if (!pex.hasIn(channelId, "Connect", spaceId)) {
+      logger.info("[invite] voice room join skipped: no Connect in that channel");
+      return;
+    }
+
+    await router.push({ name: "SpaceChannel", params: { id: spaceId, channelId } });
 
     if (voice.connectedVoiceChannelId === channelId) return;
     if (voice.isConnected) await voice.leave();

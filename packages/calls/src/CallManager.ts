@@ -625,11 +625,25 @@ export function createCallManager(config: CallManagerConfig) {
     await joinChannel(channelId, spaceId, false);
   }
 
+  /** Whether we may do `permission` in a channel; space-level when the host cannot tell per channel. */
+  function canInChannel(channelId: string, permission: string, spaceId?: string | null) {
+    return pex.hasIn ? pex.hasIn(channelId, permission, spaceId) : pex.has(permission);
+  }
+
+  /** Whether the channel call we are in allows `permission` (always true outside one). */
+  function canInCurrentChannel(permission: string) {
+    const channelId = connectedVoiceChannelId.value;
+    if (mode.value !== "channel" || !channelId) return true;
+    return canInChannel(channelId, permission, connectedVoiceSpaceId.value);
+  }
+
   /** `moved`: the server already checked we may join, and pex describes the space on screen. */
   async function joinChannel(channelId: string, spaceId: string | undefined, moved: boolean) {
     logger.info("[CALL] joinVoiceChannel", channelId);
 
-    if (!moved && !pex.has("Connect")) {
+    const selected = spaceId ?? pool.selectedServer;
+
+    if (!moved && !canInChannel(channelId, "Connect", selected)) {
       logger.warn("[CALL] No Connect permission");
       telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_permission" });
       return;
@@ -639,7 +653,6 @@ export function createCallManager(config: CallManagerConfig) {
 
     mode.value = "channel";
 
-    const selected = spaceId ?? pool.selectedServer;
     if (!selected) {
       logger.error("selectedServer = null");
       telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_space" });
@@ -2004,6 +2017,10 @@ export function createCallManager(config: CallManagerConfig) {
 
   async function startScreenShare(opts: ScreenShareOpts) {
     if (!room.value) return;
+    if (!canInCurrentChannel("Stream")) {
+      logger.warn("[CALL] No Stream permission in this channel");
+      return;
+    }
 
     const fr = opts.frameRate ?? 30;
 
@@ -2145,6 +2162,10 @@ export function createCallManager(config: CallManagerConfig) {
   async function startCamera(deviceId?: string) {
     if (!room.value) return;
     if (isCameraOn.value) return;
+    if (!canInCurrentChannel("Video")) {
+      logger.warn("[CALL] No Video permission in this channel");
+      return;
+    }
 
     let cam: LocalVideoTrack | null = null;
     try {

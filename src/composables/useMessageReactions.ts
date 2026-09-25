@@ -58,7 +58,7 @@ export function useMessageReactions(
   const me = useMe();
   const pex = usePexStore();
 
-  const canReact = computed(() => pex.has("AddReactions"));
+  const canReact = computed(() => pex.hasIn(channelId(), "AddReactions", spaceId()));
 
   const subs: Subscription[] = [];
 

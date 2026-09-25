@@ -37,6 +37,7 @@
         :channel-name="channelData.name"
         :channel-type="isAnnouncement ? 'announcement' : undefined"
         :typing-users="typingUsers"
+        :can-reply="canInput"
         @select-reply="onSelectReply"
       />
     </div>
@@ -127,12 +128,24 @@
         <span>{{ t('follow_to_get_updates') }}</span>
       </div>
     </div>
+
+    <!-- ── No SendMessages here: say so instead of offering a box that cannot send ── -->
+    <div
+      v-else-if="channelData"
+      class="shrink-0 rounded-b-2xl px-5 py-3 border-t border-border/30"
+      data-testid="composer-read-only"
+    >
+      <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
+        <LockIcon class="h-4 w-4" />
+        <span>{{ t('composer_read_only') }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from "vue";
-import { BellIcon, PaperclipIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import { BellIcon, LockIcon, PaperclipIcon, XIcon, ReplyIcon } from "lucide-vue-next";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";
@@ -165,12 +178,18 @@ const pool = usePoolStore();
 const userColors = useUserColors();
 
 const isAnnouncement = computed(() => props.channelType === "announcement");
-const canInput = computed(() => !isAnnouncement.value || pex.has("ManageChannels"));
 
 // ── Models (two-way bound to parent) ──
 
 const selectedSpaceId = defineModel<string | null>("selectedSpace", { type: String, required: true });
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
+
+// Both per channel: an overwrite can make one channel read-only.
+const canSend = computed(() => pex.hasIn(selectedChannelId.value, "SendMessages", selectedSpaceId.value));
+const canInput = computed(() =>
+  canSend.value && (!isAnnouncement.value || pex.hasIn(selectedChannelId.value, "ManageChannels", selectedSpaceId.value)),
+);
+const canAttach = computed(() => canInput.value && pex.hasIn(selectedChannelId.value, "AttachFiles", selectedSpaceId.value));
 
 // ── Composables ──
 
@@ -185,6 +204,7 @@ const replySenderName = computed(() => replySender.value?.displayName || t("unkn
 const replyColor = computed(() => userColors.getColorByUserId(replyTo.value?.sender ?? ""));
 
 function onSelectReply(msg: ArgonMessage) {
+  if (!canInput.value) return;
   replyTo.value = msg;
   nextTick(() => enterTextRef.value?.focus());
 }
@@ -218,6 +238,7 @@ function onMarkFailed(randomId: bigint, error: string) {
 let _dragCounter = 0;
 
 function onDragOver() {
+  if (!canAttach.value) return;
   _dragCounter++;
   isDragging.value = true;
 }
@@ -233,6 +254,7 @@ function onDragLeave(e: DragEvent) {
 function onDrop(e: DragEvent) {
   _dragCounter = 0;
   isDragging.value = false;
+  if (!canAttach.value) return;
   if (e.dataTransfer?.files?.length && enterTextRef.value) {
     enterTextRef.value.handleExternalFiles(e.dataTransfer.files);
   }

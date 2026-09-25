@@ -52,7 +52,7 @@ function openConsole() {
     <DialogContent described
       :show-close-button="false"
       titlebar-safe
-      class="w-[520px] max-w-[520px]"
+      class="max-w-[520px]"
       @interact-outside.prevent
       @escape-key-down.prevent
       @pointer-down-outside.prevent

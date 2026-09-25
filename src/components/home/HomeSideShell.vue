@@ -424,7 +424,7 @@ const navItems = computed<NavItem[]>(() => [
 
         <!-- Second click for the actions that are not undone by a second click -->
         <Dialog :open="pendingConfirm !== null" @update:open="(open) => { if (!open) pendingConfirm = null; }">
-            <DialogContent>
+            <DialogContent described class="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{{ confirmText.title }}</DialogTitle>
                     <DialogDescription>{{ confirmText.body }}</DialogDescription>

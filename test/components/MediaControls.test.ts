@@ -18,7 +18,7 @@ import { nextTick } from "vue";
 
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
-const { audio, devicesByKind, sys, voice } = await vi.hoisted(async () => {
+const { audio, devicesByKind, sys, voice, callRights } = await vi.hoisted(async () => {
   const { ref, reactive } = await import("vue");
   const { vi } = await import("vitest");
 
@@ -65,12 +65,16 @@ const { audio, devicesByKind, sys, voice } = await vi.hoisted(async () => {
     switchScreenShare: vi.fn(async () => {}),
   });
 
-  return { audio, devicesByKind, sys, voice };
+  // What the channel we are in grants (useCallPermissions); all granted unless a test says not.
+  const callRights = { canSpeak: ref(true), canVideo: ref(true), canStream: ref(true) };
+
+  return { audio, devicesByKind, sys, voice, callRights };
 });
 
 vi.mock("@/lib/audio/AudioManager", () => ({ audio }));
 vi.mock("@/store/system/systemStore", () => ({ useSystemStore: () => sys }));
 vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => voice }));
+vi.mock("@/composables/useCallPermissions", () => ({ useCallPermissions: () => callRights }));
 vi.mock("@/store/features/playframeStore", () => ({
   usePlayFrameActivity: () => ({ isActive: false, openPicker() {} }),
 }));
@@ -168,6 +172,13 @@ beforeEach(() => {
   sys.headphonesLocked = false;
   sys.toggleHeadphoneMute.mockClear();
   sys.toggleMicrophoneMute.mockClear();
+  callRights.canSpeak.value = true;
+  callRights.canVideo.value = true;
+  callRights.canStream.value = true;
+  voice.isCameraOn = false;
+  voice.isSharing = false;
+  voice.toggleCamera.mockClear();
+  voice.stopScreenShare.mockClear();
 });
 
 afterEach(() => {
@@ -344,5 +355,70 @@ describe("while a moderator holds the mute", () => {
     expect(mic(w).attributes("title")).toBeUndefined();
     await mic(w).trigger("click");
     expect(sys.toggleMicrophoneMute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("when the channel does not grant it", () => {
+  const mic = (w: VueWrapper) => w.find('[data-control="microphone"]');
+  const camera = (w: VueWrapper) => w.find('[data-control="camera"]');
+  const share = (w: VueWrapper) => w.find('[data-control="screen-share"]');
+
+  test("without Speak the microphone is locked, says why, and does not toggle", async () => {
+    callRights.canSpeak.value = false;
+    const w = render();
+
+    expect(mic(w).classes()).toContain("ctrl-btn--forbidden");
+    expect(mic(w).classes()).not.toContain("ctrl-btn--locked");
+    expect(mic(w).attributes("aria-disabled")).toBe("true");
+    expect(mic(w).attributes("title")).toBe("voice_no_speak_permission");
+
+    await mic(w).trigger("click");
+    expect(sys.toggleMicrophoneMute).not.toHaveBeenCalled();
+  });
+
+  test("a moderator's mute is still what the microphone says first", () => {
+    callRights.canSpeak.value = false;
+    sys.microphoneLocked = true;
+    const w = render();
+
+    expect(mic(w).classes()).toContain("ctrl-btn--locked");
+    expect(mic(w).attributes("title")).toBe("voice_member_server_muted");
+  });
+
+  test("without Video the camera does not start, and says why", async () => {
+    callRights.canVideo.value = false;
+    const w = render();
+
+    expect(camera(w).attributes("aria-disabled")).toBe("true");
+    expect(camera(w).attributes("title")).toBe("voice_no_video_permission");
+    await camera(w).trigger("click");
+    expect(voice.toggleCamera).not.toHaveBeenCalled();
+  });
+
+  test("a camera left on when Video was taken away can still be turned off", async () => {
+    callRights.canVideo.value = false;
+    voice.isCameraOn = true;
+    const w = render();
+
+    await camera(w).trigger("click");
+    expect(voice.toggleCamera).toHaveBeenCalledTimes(1);
+  });
+
+  test("without Stream the screen share does not open the picker, and says why", async () => {
+    callRights.canStream.value = false;
+    const w = render();
+
+    expect(share(w).attributes("aria-disabled")).toBe("true");
+    expect(share(w).attributes("title")).toBe("voice_no_stream_permission");
+    await share(w).trigger("click");
+    expect(voice.stopScreenShare).not.toHaveBeenCalled();
+  });
+
+  test("with everything granted nothing is locked", () => {
+    const w = render();
+    for (const b of [mic(w), camera(w), share(w)]) {
+      expect(b.classes()).not.toContain("ctrl-btn--forbidden");
+      expect(b.attributes("aria-disabled")).toBeUndefined();
+    }
   });
 });

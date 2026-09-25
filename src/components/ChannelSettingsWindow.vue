@@ -18,7 +18,7 @@
             <div class="settings-layout justify-center flex flex-1 space-x-4">
                 <nav class="settings-nav flex-shrink-0 w-48 p-3 space-y-1 rounded-lg isolate">
                     <button
-                        v-for="tab in tabs"
+                        v-for="tab in visibleTabs"
                         :key="tab.id"
                         class="nav-item"
                         :class="{ 'nav-item--active': windows.channelSettingsTab === tab.id }"
@@ -67,21 +67,39 @@ import { ChannelType, type ArgonChannel } from "@argon/glue";
 import { db } from "@/store/db/dexie";
 import { useWindow, type ChannelSettingsTab } from "@/store/ui/windowStore";
 import { useLocale } from "@/store/system/localeStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import ChannelOverview from "@/components/settings/channels/ChannelOverview.vue";
 import ChannelPermissions from "@/components/settings/channels/ChannelPermissions.vue";
 
 const windows = useWindow();
 const { t } = useLocale();
+const pex = usePexStore();
 
 const tabs: { id: ChannelSettingsTab; label: string; icon: unknown; component: unknown }[] = [
     { id: "overview", label: "overview", icon: SlidersHorizontalIcon, component: ChannelOverview },
     { id: "permissions", label: "channel_permissions", icon: ShieldIcon, component: ChannelPermissions },
 ];
 
-const activeTab = computed(() => tabs.find((tab) => tab.id === windows.channelSettingsTab) ?? tabs[0]);
-
 const channel = ref<ArgonChannel | null>(null);
+
+// The overwrite editor is space-level on the server: ManageChannels and ManageArchetype both.
+const canEditOverwrites = computed(() => {
+    const spaceId = channel.value?.spaceId ?? windows.channelSettingsSpaceId;
+    return pex.hasInSpace(spaceId, "ManageChannels") && pex.hasInSpace(spaceId, "ManageArchetype");
+});
+
+const visibleTabs = computed(() => tabs.filter((tab) => tab.id !== "permissions" || canEditOverwrites.value));
+const activeTab = computed(() => visibleTabs.value.find((tab) => tab.id === windows.channelSettingsTab) ?? visibleTabs.value[0]);
+
+// Taken away while open (an overwrite, a role change): the sheet goes rather than failing on save.
+const canManageChannel = computed(() => {
+    const c = channel.value;
+    return !c || pex.hasIn(c.channelId, "ManageChannels", c.spaceId);
+});
+watch(canManageChannel, (ok) => {
+    if (!ok && windows.channelSettingsOpen) windows.closeChannelSettings();
+});
 let sub: Subscription | null = null;
 
 watch(

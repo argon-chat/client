@@ -64,7 +64,7 @@
 
       <div class="flex justify-end gap-2 pt-1">
         <Button variant="outline" :disabled="!dirty || saving" @click="resetForm">{{ t("reset") }}</Button>
-        <Button :disabled="!dirty || saving || !form.name.trim()" @click="save">
+        <Button :disabled="!dirty || saving || !form.name.trim() || !canManageChannels" @click="save">
           <Loader2 v-if="saving" class="w-4 h-4 mr-2 animate-spin" />
           {{ saving ? t("saving") : t("save_changes") }}
         </Button>
@@ -79,7 +79,7 @@
     </DangerZone>
 
     <Dialog v-model:open="showDeleteDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="sm:max-w-md" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2 text-red-500">
             <AlertTriangleIcon class="w-5 h-5" />
@@ -157,7 +157,8 @@ const windows = useWindow();
 
 const isVoice = computed(() => props.channel.type === ChannelType.Voice);
 const isText = computed(() => props.channel.type === ChannelType.Text);
-const canManageChannels = computed(() => pex.has("ManageChannels"));
+// Per channel, like the server's check: an overwrite can deny it here while the role grants it.
+const canManageChannels = computed(() => pex.hasIn(props.channel.channelId, "ManageChannels", props.channel.spaceId));
 
 const typeIcon = computed(() => {
   switch (props.channel.type) {
@@ -289,7 +290,7 @@ watch(showDeleteDialog, (open) => {
 });
 
 async function confirmDelete() {
-  if (deleting.value) return;
+  if (deleting.value || !canManageChannels.value) return;
   deleting.value = true;
   try {
     await servers.deleteChannel(props.channel.channelId, props.channel.spaceId);

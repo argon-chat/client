@@ -628,6 +628,10 @@
         "name": "追加ストリーム",
         "description": "複数の映像ストリームを使用できます。"
       },
+      "CanDrawOnStream": {
+        "name": "配信への描画",
+        "description": "他のメンバーの画面共有に描画できます。"
+      },
       "DisconnectMember": {
         "name": "メンバー切断",
         "description": "ボイスからメンバーを強制切断できます。"
@@ -651,6 +655,10 @@
       "BanMember": {
         "name": "バン",
         "description": "サーバーからメンバーを禁止できます。"
+      },
+      "ManageMessages": {
+        "name": "メッセージの管理",
+        "description": "他のメンバーのメッセージを削除し、低速モードを無視できます。"
       },
       "ManageChannels": {
         "name": "チャンネル管理",
@@ -1638,6 +1646,12 @@
   "taskbar.toggle_deafen": "スピーカーのミュートを切り替え",
   "taskbar.toggle_mic": "マイクを切り替え",
   "voice_member_server_muted": "モデレーターによりミュート中",
+  "permission_denied_in_channel": "このチャンネルでは許可されていません",
+  "voice_channel_locked": "このチャンネルに接続する権限がありません",
+  "voice_no_speak_permission": "このチャンネルで発言する権限がありません",
+  "voice_no_video_permission": "このチャンネルでカメラを使用する権限がありません",
+  "voice_no_stream_permission": "このチャンネルで画面を共有する権限がありません",
+  "composer_read_only": "このチャンネルではメッセージを送信できません",
   "voice_member_server_deafened": "モデレーターによりスピーカーオフ",
   "voice_member_streaming": "画面共有中",
   "voice_you_were_server_muted": "モデレーターがあなたをミュートしました",

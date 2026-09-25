@@ -31,7 +31,8 @@ const title = computed(() => (props.doc === "terms" ? t("terms") : t("privacy_po
   <Dialog v-model:open="open">
     <DialogContent described
       titlebar-safe
-      class="w-[680px] max-w-[680px] max-h-[80vh] flex flex-col gap-0 p-0 overflow-hidden"
+      max-height="80vh"
+      class="max-w-[680px] flex flex-col gap-0 p-0 overflow-hidden"
     >
       <DialogHeader class="px-6 pt-6 pb-3 border-b border-border/50 text-left">
         <DialogTitle>{{ title }}</DialogTitle>

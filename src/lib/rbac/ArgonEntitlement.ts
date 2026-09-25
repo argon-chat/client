@@ -22,6 +22,8 @@ export const ArgonEntitlementFlags = {
   Video: ArgonEntitlement.Video,
   Stream: ArgonEntitlement.Stream,
 
+  CanDrawOnStream: ArgonEntitlement.CanDrawOnStream,
+
   UseASIO: ArgonEntitlement.UseASIO,
   AdditionalStreams: ArgonEntitlement.AdditionalStreams,
 
@@ -37,10 +39,16 @@ export const ArgonEntitlementFlags = {
   ManageBots: ArgonEntitlement.ManageBots,
   ManageEvents: ArgonEntitlement.ManageEvents,
   ManageBehaviour: ArgonEntitlement.ManageBehaviour,
-  ManageServer: ArgonEntitlement.ManageServer
+  ManageServer: ArgonEntitlement.ManageServer,
+  ManageMessages: ArgonEntitlement.ManageMessages,
 } as const;
 
 export type ArgonEntitlementFlag = keyof typeof ArgonEntitlementFlags;
+
+/** The flag's bit as a bigint (the generated enum holds bigints typed as numbers). */
+export function entitlementBit(flag: ArgonEntitlementFlag): bigint {
+  return BigInt(ArgonEntitlementFlags[flag] as unknown as bigint);
+}
 
 export interface ArgonEntitlementFlagDefinition {
   value: any;
@@ -164,6 +172,10 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
         value: ArgonEntitlementFlags.AdditionalStreams,
         i18nKey: "permissions.flags.AdditionalStreams",
       },
+      {
+        value: ArgonEntitlementFlags.CanDrawOnStream,
+        i18nKey: "permissions.flags.CanDrawOnStream",
+      },
     ],
   },
   {
@@ -192,6 +204,10 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
       {
         value: ArgonEntitlementFlags.BanMember,
         i18nKey: "permissions.flags.BanMember",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageMessages,
+        i18nKey: "permissions.flags.ManageMessages",
       },
     ],
   },

@@ -53,8 +53,9 @@
             :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
             :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
             :can-react="canReact"
+            :can-reply="canReply"
             :toggle-reaction="toggleReaction"
-            @dblclick="() => emit('select-reply', messages[item.index])"
+            @dblclick="() => canReply && emit('select-reply', messages[item.index])"
             @reply="(msg) => emit('select-reply', msg)"
             @retry="(msg) => emit('retry', msg)"
             @open-lightbox="onOpenLightbox"
@@ -134,7 +135,7 @@ const { t } = useLocale();
 
 // ── Props / Emits ──
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** Stable getter for the messages shallowRef (keeps triggerRef reactivity). */
   source: () => ShallowRef<ChatMessage[]>;
   groupingMap: GroupMeta[];
@@ -146,8 +147,9 @@ const props = defineProps<{
   /** DMs render two-sided (own messages on the right); channels stay one-sided. */
   twoSided?: boolean;
   canReact?: boolean;
+  canReply?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
-}>();
+}>(), { canReply: true });
 
 const emit = defineEmits<{
   (e: "select-reply", message: ArgonMessage): void;

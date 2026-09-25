@@ -77,20 +77,19 @@
                 @drop="onHeaderDrop"
               />
             </ContextMenuTrigger>
-            <ContextMenuContent class="w-64">
-              <ContextMenuItem inset :disabled="!pex.has('ManageChannels')" @click="openAddChannelForGroup(group.groupId)">
+            <!-- Everything on a group is space-level ManageChannels: without it there is no menu. -->
+            <ContextMenuContent v-if="pex.has('ManageChannels')" class="w-64">
+              <ContextMenuItem inset @click="openAddChannelForGroup(group.groupId)">
                 {{ t("add_channel") }}
                 <ContextMenuShortcut>⌘+</ContextMenuShortcut>
               </ContextMenuItem>
-              <template v-if="pex.has('ManageChannels')">
-                <ContextMenuSeparator />
-                <ContextMenuItem inset class="text-red-400" @click="deleteGroup(group.groupId, false)">
-                  {{ t("delete_group") }}
-                </ContextMenuItem>
-                <ContextMenuItem inset class="text-red-500" @click="deleteGroup(group.groupId, true)">
-                  {{ t("delete_group_with_channels") }}
-                </ContextMenuItem>
-              </template>
+              <ContextMenuSeparator />
+              <ContextMenuItem inset class="text-red-400" @click="deleteGroup(group.groupId, false)">
+                {{ t("delete_group") }}
+              </ContextMenuItem>
+              <ContextMenuItem inset class="text-red-500" @click="deleteGroup(group.groupId, true)">
+                {{ t("delete_group_with_channels") }}
+              </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
           
@@ -290,6 +289,9 @@ async function channelSelect(channelId: string) {
     return;
   }
 
+  // The row refuses the click already; this keeps any other caller from asking the server anyway.
+  if (isVoiceLikeChannel(channel.type) && !pex.hasIn(channelId, 'Connect', channel.spaceId)) return;
+
   // Always update selected channel for view switching
   selectedChannelId.value = channelId;
 
@@ -322,6 +324,8 @@ async function switchVoiceChannel(channelId: string) {
     return;
   }
 
+  if (!pex.hasIn(channelId, 'Connect', channel.spaceId)) return;
+
   if (voice.connectedVoiceChannelId === channelId) {
     return;
   }
@@ -337,6 +341,7 @@ async function switchVoiceChannel(channelId: string) {
 }
 
 const kickMember = async (userId: string, channelId: string, spaceId: string) => {
+  if (!pex.hasIn(channelId, 'KickMember', spaceId)) return;
   await api.channelInteraction.KickMemberFromChannel(spaceId, channelId, userId);
 };
 </script>

@@ -11,14 +11,15 @@
             <div class="ctrl-split ctrl-split--mic">
                 <button
                     class="ctrl-btn icon-motion icon-motion--lift"
-                    :class="{ 'ctrl-btn--active': sys.microphoneMuted, 'ctrl-btn--locked': sys.microphoneLocked }"
-                    :aria-disabled="sys.microphoneLocked || undefined"
-                    :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined"
+                    :class="{ 'ctrl-btn--active': sys.microphoneMuted, 'ctrl-btn--locked': sys.microphoneLocked, 'ctrl-btn--forbidden': !sys.microphoneLocked && !canSpeak }"
+                    :aria-disabled="micLocked || undefined"
+                    :title="micLockReason"
                     data-control="microphone"
                     @click="toggleMic">
                     <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px] icon-appear" />
                     <Mic v-else class="w-[18px] h-[18px] icon-appear" />
                     <ShieldIcon v-if="sys.microphoneLocked" class="ctrl-lock-badge" />
+                    <LockIcon v-else-if="!canSpeak" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="mic.open">
                     <PopoverTrigger as-child>
@@ -85,9 +86,17 @@
 
             <!-- Screen share + options menu (system audio / source / quality) -->
             <div class="ctrl-split ctrl-split--share">
-                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isSharing }" @click="toggleScreenCast" :disabled="!isConnected">
+                <button
+                    class="ctrl-btn icon-motion icon-motion--lift"
+                    :class="{ 'ctrl-btn--active': voice.isSharing, 'ctrl-btn--forbidden': !canStream }"
+                    :aria-disabled="!canStream || undefined"
+                    :title="canStream ? undefined : t('voice_no_stream_permission')"
+                    data-control="screen-share"
+                    @click="toggleScreenCast"
+                    :disabled="!isConnected">
                     <ScreenShareOff v-if="voice.isSharing" class="w-[18px] h-[18px] icon-appear" />
                     <ScreenShare v-else class="w-[18px] h-[18px] icon-appear" />
+                    <LockIcon v-if="!canStream" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="shareMenuOpen">
                     <PopoverTrigger as-child>
@@ -145,9 +154,17 @@
 
             <!-- Camera + device switch -->
             <div class="ctrl-split ctrl-split--camera">
-                <button class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': voice.isCameraOn }" @click="voice.toggleCamera()" :disabled="!isConnected">
+                <button
+                    class="ctrl-btn icon-motion icon-motion--lift"
+                    :class="{ 'ctrl-btn--active': voice.isCameraOn, 'ctrl-btn--forbidden': !canVideo }"
+                    :aria-disabled="!canVideo || undefined"
+                    :title="canVideo ? undefined : t('voice_no_video_permission')"
+                    data-control="camera"
+                    @click="toggleCamera"
+                    :disabled="!isConnected">
                     <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px] icon-appear" />
                     <CameraIcon v-else class="w-[18px] h-[18px] icon-appear" />
+                    <LockIcon v-if="!canVideo" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="cam.open">
                     <PopoverTrigger as-child>
@@ -204,8 +221,9 @@ import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge, ShieldIcon,
+    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge, ShieldIcon, LockIcon,
 } from "lucide-vue-next";
+import { useCallPermissions } from "@/composables/useCallPermissions";
 
 const voice = useUnifiedCall();
 const sys = useSystemStore();
@@ -214,10 +232,25 @@ const draw = useDrawingSession();
 const pref = usePreference();
 const { t } = useLocale();
 
-// Locked while a moderator holds the mute/deafen; the store would refuse the unmute anyway.
+// Channel rights for the call we are in; a direct call has none to lack.
+const { canSpeak, canVideo, canStream } = useCallPermissions();
+
+// Locked while a moderator holds the mute/deafen, or when the channel does not let us speak.
+const micLocked = computed(() => sys.microphoneLocked || !canSpeak.value);
+const micLockReason = computed(() => {
+    if (sys.microphoneLocked) return t('voice_member_server_muted');
+    return canSpeak.value ? undefined : t('voice_no_speak_permission');
+});
+
 const toggleMic = () => {
-    if (sys.microphoneLocked) return;
+    if (micLocked.value) return;
     sys.toggleMicrophoneMute();
+};
+
+// Turning it off is always allowed: the right may have been taken away while it was on.
+const toggleCamera = () => {
+    if (!voice.isCameraOn && !canVideo.value) return;
+    voice.toggleCamera();
 };
 
 const toggleHeadphones = () => {
@@ -244,7 +277,7 @@ const openSharePicker = () => {
 const toggleScreenCast = () => {
     if (voice.isSharing) {
         voice.stopScreenShare();
-    } else {
+    } else if (canStream.value) {
         openSharePicker();
     }
 };
@@ -369,6 +402,15 @@ const activeCamId = computed(() => pref.defaultVideoDevice);
     cursor: not-allowed;
 }
 
+/* Not granted in this channel: greyed, with a lock badge, not the moderator red. */
+.ctrl-btn--forbidden,
+.ctrl-btn--forbidden:hover {
+    position: relative;
+    color: hsl(var(--muted-foreground) / 0.55);
+    background: transparent;
+    cursor: not-allowed;
+}
+
 .ctrl-lock-badge {
     position: absolute;
     right: 6px;
@@ -378,6 +420,10 @@ const activeCamId = computed(() => pref.defaultVideoDevice);
     color: hsl(0 84% 55%);
     fill: hsl(var(--card));
     stroke-width: 3;
+}
+
+.ctrl-btn--forbidden .ctrl-lock-badge {
+    color: hsl(var(--muted-foreground));
 }
 
 .ctrl-btn:disabled:hover {

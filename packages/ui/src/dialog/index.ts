@@ -7,3 +7,4 @@ export { default as DialogHeader } from "./DialogHeader.vue";
 export { default as DialogScrollContent } from "./DialogScrollContent.vue";
 export { default as DialogTitle } from "./DialogTitle.vue";
 export { default as DialogTrigger } from "./DialogTrigger.vue";
+export { DIALOG_CONTENT_BASE_CLASS, DIALOG_FRAME_CLASS, dialogContentClass, dialogGuardStyle, isStretchUtility } from "./constraints";

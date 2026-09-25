@@ -10,8 +10,8 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from "reka-ui"
-import { cn } from "@argon/core"
 import DialogOverlay from "./DialogOverlay.vue"
+import { DIALOG_CONTENT_BASE_CLASS, DIALOG_FRAME_CLASS, dialogContentClass, dialogGuardStyle } from "./constraints"
 
 defineOptions({
   inheritAttrs: false,
@@ -25,49 +25,53 @@ defineOptions({
  * give: a prompt with two buttons is its own explanation. For those the attribute is dropped, which
  * is what "no description" is supposed to look like to a screen reader, and the warning goes with
  * it. Dialogs that do render one set this, and keep the link.
+ *
+ * `maxHeight` lowers the height cap (e.g. "80vh"); `max-h-*` classes are ignored, see constraints.ts.
  */
-const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], showCloseButton?: boolean, titlebarSafe?: boolean, described?: boolean }>(), {
+const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], showCloseButton?: boolean, titlebarSafe?: boolean, described?: boolean, maxHeight?: string }>(), {
   showCloseButton: true,
   titlebarSafe: false,
   described: false,
 })
 const emits = defineEmits<DialogContentEmits>()
 
-// When titlebarSafe, keep the overlay + content below the OS titlebar so the window
+// When titlebarSafe, keep the overlay + frame below the OS titlebar so the window
 // controls stay visible and clickable. Driven by --app-titlebar-height (0 when there's
 // no titlebar), so this is inert unless a host titlebar is actually present.
-const delegatedProps = reactiveOmit(props, "class", "titlebarSafe", "described")
+const delegatedProps = reactiveOmit(props, "class", "titlebarSafe", "described", "showCloseButton", "maxHeight")
 
 // The key has to be present and undefined: Vue then renders no attribute at all, which is the
 // only form reka reads as "there is deliberately no description".
 const describedBy = computed(() => (props.described ? {} : { "aria-describedby": undefined }))
+
+const contentClass = computed(() => dialogContentClass(DIALOG_CONTENT_BASE_CLASS, props.class))
+const guardStyle = computed(() => dialogGuardStyle(props.maxHeight))
+const titlebarOffset = computed(() => (props.titlebarSafe ? { top: "var(--app-titlebar-height, 0px)" } : undefined))
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 
 <template>
   <DialogPortal>
-    <DialogOverlay :style="titlebarSafe ? { top: 'var(--app-titlebar-height, 0px)' } : undefined" />
-    <DialogContent
-      data-slot="dialog-content"
-      v-bind="{ ...$attrs, ...forwarded, ...describedBy }"
-      :style="titlebarSafe ? { top: 'calc(50% + var(--app-titlebar-height, 0px) / 2)' } : undefined"
-      :class="
-        cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:pointer-events-none fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200',
-          props.class,
-        )"
-    >
-      <slot />
-
-      <DialogClose
-        v-if="showCloseButton"
-        data-slot="dialog-close"
-        class="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+    <DialogOverlay :style="titlebarOffset" />
+    <div data-slot="dialog-frame" :class="DIALOG_FRAME_CLASS" :style="titlebarOffset">
+      <DialogContent
+        data-slot="dialog-content"
+        v-bind="{ ...$attrs, ...forwarded, ...describedBy }"
+        :class="contentClass"
+        :style="guardStyle"
       >
-        <X />
-        <span class="sr-only">Close</span>
-      </DialogClose>
-    </DialogContent>
+        <slot />
+
+        <DialogClose
+          v-if="showCloseButton"
+          data-slot="dialog-close"
+          class="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        >
+          <X />
+          <span class="sr-only">Close</span>
+        </DialogClose>
+      </DialogContent>
+    </div>
   </DialogPortal>
 </template>

@@ -186,6 +186,50 @@ describe("host integration points are honoured", () => {
     expect(calls.mode.value).toBe("none");
   });
 
+  test("Connect is asked of the channel when the host can tell: an overwrite there means no Interlink at all", async () => {
+    const interlink = vi.fn(makeConfig().api.channelInteraction.Interlink);
+    const hasIn = vi.fn((channelId: string, permission: string) => !(channelId === "chan-1" && permission === "Connect"));
+    const base = makeConfig();
+    const config = makeConfig({
+      // The space grants Connect; the channel takes it away.
+      pex: { has: () => true, hasIn },
+      api: { ...base.api, channelInteraction: { ...base.api.channelInteraction, Interlink: interlink } },
+    });
+    const calls = createCallManager(config);
+
+    await calls.joinVoiceChannel("chan-1");
+
+    expect(hasIn).toHaveBeenCalledWith("chan-1", "Connect", "space-1");
+    expect(interlink).not.toHaveBeenCalled();
+    expect(rooms.last).toBeNull();
+    expect(calls.mode.value).toBe("none");
+
+    await calls.joinVoiceChannel("chan-2");
+    expect(interlink).toHaveBeenCalledWith("space-1", "chan-2");
+  });
+
+  test("without Video or Stream in the channel, the camera and the screen share do not start", async () => {
+    const granted = new Set(["Connect", "Speak"]);
+    const ensureMediaPermission = vi.fn(async () => undefined);
+    const { calls, config } = await joined(makeConfig({
+      pex: { has: () => true, hasIn: (_c: string, p: string) => granted.has(p) },
+      ensureMediaPermission,
+    }));
+    const getDisplayMedia = vi.fn();
+    const getUserMedia = vi.fn();
+    (globalThis.navigator as any).mediaDevices = { getDisplayMedia, getUserMedia };
+
+    await calls.startCamera();
+    await calls.startScreenShare({ deviceId: "screen:1", systemAudio: "exclude" });
+
+    expect(ensureMediaPermission).not.toHaveBeenCalledWith("camera");
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(getDisplayMedia).not.toHaveBeenCalled();
+    expect(config.selectScreenSource).not.toHaveBeenCalled();
+    expect(calls.isCameraOn.value).toBe(false);
+    expect(calls.isSharing.value).toBe(false);
+  });
+
   test("screen source selection goes through the host bridge, not window", async () => {
     // The package used to reach for window.argonIpc directly, which tied it to Electron.
     const { calls, config } = await joined();

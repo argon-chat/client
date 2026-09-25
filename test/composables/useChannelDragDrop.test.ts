@@ -12,12 +12,17 @@ import { ref } from "vue";
 
 const h = vi.hoisted(() => ({
   permissions: new Set<string>(["MoveMember"]),
+  deniedIn: new Set<string>(),
   moveMember: vi.fn(async () => true),
   moveChannel: vi.fn(async () => {}),
 }));
 
 vi.mock("@/store/data/permissionStore", () => ({
-  usePexStore: () => ({ has: (p: string) => h.permissions.has(p) }),
+  usePexStore: () => ({
+    has: (p: string) => h.permissions.has(p),
+    // Channel-level: a channel listed in h.deniedIn has the permission taken away by an overwrite.
+    hasIn: (channelId: string, p: string) => h.permissions.has(p) && !h.deniedIn.has(channelId),
+  }),
 }));
 vi.mock("@/store/system/apiStore", () => ({
   useApi: () => ({ channelInteraction: { MoveChannel: h.moveChannel } }),
@@ -55,6 +60,7 @@ function setup() {
 
 beforeEach(() => {
   h.permissions = new Set(["MoveMember"]);
+  h.deniedIn = new Set();
   h.moveMember.mockClear();
   h.moveChannel.mockClear();
 });
@@ -133,5 +139,51 @@ describe("over and onto a channel", () => {
     dnd.onDragEnd();
 
     expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+  });
+});
+
+describe("per-channel MoveMember", () => {
+  test("a channel whose overwrite takes MoveMember away is not a target", async () => {
+    h.deniedIn = new Set(["v2"]);
+    const dnd = setup();
+    dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
+
+    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+    expect(dnd.voiceDropStateOf(voice("v3"))).toBe("candidate");
+
+    const over = dragEvent();
+    dnd.onDragOver(voice("v2"), null, 0, over);
+    expect(over.preventDefault).not.toHaveBeenCalled();
+    await dnd.onDrop(voice("v2"), null, 0, dragEvent());
+    expect(h.moveMember).not.toHaveBeenCalled();
+  });
+
+  test("a member cannot be picked up from a channel where the moderator may not move people", () => {
+    h.deniedIn = new Set(["v1"]);
+    const dnd = setup();
+    const ev = dragEvent();
+
+    dnd.onMemberDragStart("u1", voice("v1"), ev);
+
+    expect(ev.preventDefault).toHaveBeenCalled();
+    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+  });
+});
+
+describe("dragging a channel", () => {
+  test("needs ManageChannels on that channel, not just somewhere in the space", () => {
+    h.permissions = new Set(["ManageChannels"]);
+    h.deniedIn = new Set(["t1"]);
+    const dnd = setup();
+
+    const refused = dragEvent();
+    dnd.onDragStart(text("t1"), null, refused);
+    expect(refused.preventDefault).toHaveBeenCalled();
+    expect(dnd.draggedChannel.value).toBeNull();
+
+    const allowed = dragEvent();
+    dnd.onDragStart(text("t2"), null, allowed);
+    expect(allowed.preventDefault).not.toHaveBeenCalled();
+    expect(dnd.draggedChannel.value?.channelId).toBe("t2");
   });
 });

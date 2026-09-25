@@ -162,7 +162,7 @@
 
         <!-- Formatting Help Dialog -->
         <Dialog v-if="!captionMode" v-model:open="showFormatHelp" class="w-max">
-            <DialogContent described class="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogContent described class="max-w-3xl" max-height="80vh">
                 <DialogHeader>
                     <DialogTitle>{{ t('formatting_help') }}</DialogTitle>
                     <DialogDescription>
@@ -326,6 +326,7 @@ import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
 import type { MediaEditorFinalResult } from "@argon/media-editor";
 import { usePexStore } from "@/store/data/permissionStore";
+import type { ArgonEntitlementFlag } from "@/lib/rbac/ArgonEntitlement";
 import { useSlashCommands } from "@/composables/useSlashCommands";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 import type { SpaceCommand } from "@argon/glue";
@@ -344,7 +345,7 @@ const configStore = useConfigStore();
 // ── GIF tab (gated behind af.chat.gifs-selector) ──
 const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
 const gifContentTabs = computed<ContentTab[]>(() =>
-  gifsSelectorActive.value
+  gifsSelectorActive.value && canAttachFiles.value
     ? [{ id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' }]
     : [],
 );
@@ -354,7 +355,7 @@ const handlePickerTabChange = (tabId: string) => {
 };
 
 const handleGifSelect = (gif: GifItem) => {
-  if (!canSendMessages.value) return;
+  if (!canSendMessages.value || !canAttachFiles.value) return;
   const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) return;
 
@@ -407,7 +408,7 @@ const handleGifSelect = (gif: GifItem) => {
 };
 
 const handleSavedGifSelect = (gif: SavedGif) => {
-  if (!canSendMessages.value) return;
+  if (!canSendMessages.value || !canAttachFiles.value) return;
   const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) return;
 
@@ -582,8 +583,13 @@ const props = defineProps<{
 // previews, the character limit — is the same in both.
 const isDm = computed(() => !!props.receiverId);
 
-const canSendMessages = computed(() => isDm.value || pex.has("SendMessages"));
-const canAttachFiles = computed(() => isDm.value || pex.has("AttachFiles"));
+// Checked in the channel itself: overwrites can take any of these away in one channel only.
+const allowsHere = (flag: ArgonEntitlementFlag) =>
+  isDm.value || pex.hasIn(props.channelId ?? pool.selectedTextChannel ?? null, flag, props.spaceId);
+
+const canSendMessages = computed(() => allowsHere("SendMessages"));
+const canAttachFiles = computed(() => allowsHere("AttachFiles"));
+const canUseCommands = computed(() => !isDm.value && allowsHere("UseCommands"));
 
 /** The id the message is filed under: the channel, or the peer in a direct chat. */
 function resolveTargetId(): Guid | null {
@@ -636,7 +642,7 @@ const emit = defineEmits<{
 // ── Link preview of the draft ──
 // Off for captions (a picture already is the preview), for members without PostEmbeddedLinks (the
 // server would drop the stub anyway) and when the user turned it off in settings.
-const canEmbedLinks = computed(() => isDm.value || pex.has("PostEmbeddedLinks"));
+const canEmbedLinks = computed(() => allowsHere("PostEmbeddedLinks"));
 const linkPreview = useLinkPreviewDraft({
   text: () => messageText.value,
   enabled: () => !props.captionMode && canEmbedLinks.value && sendLinkPreviews.value,
@@ -793,8 +799,9 @@ function onEditorInput() {
 
   mention.show = false;
 
-  // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats)
-  if (!isDm.value && text.startsWith("/") && cursorPos > 0) {
+  // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats,
+  // and only for members with UseCommands there)
+  if (canUseCommands.value && text.startsWith("/") && cursorPos > 0) {
     const query = text.slice(1, cursorPos);
     if (/^[\w\d_-]{0,32}$/.test(query)) {
       const filtered = slashCommands.filterCommands(query);
@@ -936,6 +943,7 @@ function selectMention(user: MentionUser) {
 
 function selectSlashCommand(cmd: SpaceCommand) {
   slashCmd.show = false;
+  if (!canUseCommands.value) return;
   messageText.value = "";
 
   const spaceId = props.spaceId;
@@ -1007,12 +1015,13 @@ function parseMessageContent(): ParsedMessage {
 // --- Attachment handlers ---
 
 function openFilePicker() {
+  if (!canAttachFiles.value) return;
   fileInputRef.value?.click();
 }
 
 async function onFileInputChange(e: Event) {
   const input = e.target as HTMLInputElement;
-  if (input.files?.length) {
+  if (input.files?.length && canAttachFiles.value) {
     const errors = await attachments.addFiles(input.files);
     for (const err of errors) logger.warn(err);
     if (attachments.hasFiles.value) {
@@ -1023,7 +1032,7 @@ async function onFileInputChange(e: Event) {
 }
 
 function onDragOver() {
-  isDragging.value = true;
+  if (canAttachFiles.value) isDragging.value = true;
 }
 
 function onDragLeave() {
@@ -1032,7 +1041,7 @@ function onDragLeave() {
 
 async function onDrop(e: DragEvent) {
   isDragging.value = false;
-  if (e.dataTransfer?.files?.length) {
+  if (e.dataTransfer?.files?.length && canAttachFiles.value) {
     const errors = await attachments.addFiles(e.dataTransfer.files);
     for (const err of errors) logger.warn(err);
     if (attachments.hasFiles.value) {
@@ -1048,6 +1057,8 @@ async function onPaste(e: ClipboardEvent) {
   // let text win when the clipboard holds both (copies from Office and browsers often do).
   const types = e.clipboardData?.types ?? [];
   if (!types.includes("Files") || types.includes("text/plain")) return;
+  // Without AttachFiles a pasted image goes nowhere; let the paste fall through to the editor.
+  if (!canAttachFiles.value) return;
   const files = e.clipboardData?.files;
   if (files?.length) {
     e.preventDefault();
@@ -1282,6 +1293,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 };
 
 async function handleExternalFiles(files: FileList) {
+  if (!canAttachFiles.value) return;
   const errors = await attachments.addFiles(files);
   for (const err of errors) logger.warn(err);
   if (attachments.hasFiles.value) {

@@ -289,7 +289,7 @@
                   </PopoverContent>
                 </Popover>
                 <ActionBtn @click="copyText" :title="t('copy')"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
-                <ActionBtn @click="emit('reply', props.message)" :title="t('reply')"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
+                <ActionBtn v-if="canReply" @click="emit('reply', props.message)" :title="t('reply')"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
               </div>
             </Transition>
           </Teleport>
@@ -310,7 +310,7 @@
               {{ t('add_reaction') }}
             </ContextMenuItem>
             <ContextMenuSeparator v-if="canReact" />
-            <ContextMenuItem @select="emit('reply', props.message)">
+            <ContextMenuItem v-if="canReply" @select="emit('reply', props.message)">
               <ReplyIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('reply') }}
             </ContextMenuItem>
@@ -474,7 +474,7 @@ const pool = usePoolStore();
 const me = useMe();
 const userColors = useUserColors();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   message: ChatMessage;
   getMsgById: (replyId: bigint | null) => ArgonMessage;
   isGrouped?: boolean;
@@ -483,8 +483,10 @@ const props = defineProps<{
   /** DM two-sided layout: own messages render on the right. */
   twoSided?: boolean;
   canReact?: boolean;
+  /** False where the user cannot send (a reply would have nowhere to go). */
+  canReply?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
-}>();
+}>(), { canReply: true });
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;

@@ -10,8 +10,8 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from "reka-ui"
-import { cn } from "@argon/core"
 import DialogOverlay from "./DialogOverlay.vue"
+import { dialogContentClass, dialogGuardStyle } from "./constraints"
 
 defineOptions({
   inheritAttrs: false,
@@ -25,6 +25,9 @@ defineOptions({
  * give: a prompt with two buttons is its own explanation. For those the attribute is dropped, which
  * is what "no description" is supposed to look like to a screen reader, and the warning goes with
  * it. Dialogs that do render one set this, and keep the link.
+ *
+ * Unlike DialogContent, a tall dialog grows past the viewport and the overlay scrolls. Width follows
+ * the same rules (constraints.ts).
  */
 const props = withDefaults(defineProps<DialogContentProps & { class?: HTMLAttributes["class"], described?: boolean }>(), {
   described: false,
@@ -35,20 +38,22 @@ const delegatedProps = reactiveOmit(props, "class", "described")
 
 const describedBy = computed(() => (props.described ? {} : { "aria-describedby": undefined }))
 
+const contentClass = computed(() => dialogContentClass(
+  "m-auto grid w-full max-w-lg gap-4 border border-border bg-background p-6 shadow-lg duration-200 sm:rounded-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:pointer-events-none",
+  props.class,
+))
+const guardStyle = dialogGuardStyle(undefined, false)
+
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 
 <template>
   <DialogPortal>
-    <DialogOverlay class="grid place-items-center overflow-y-auto py-8">
+    <DialogOverlay class="flex overflow-y-auto p-4">
       <DialogContent
-        :class="
-          cn(
-            'relative z-50 grid w-full max-w-lg gap-4 border border-border bg-background p-6 shadow-lg duration-200 sm:rounded-lg md:w-full data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:pointer-events-none',
-            props.class,
-          )
-        "
         v-bind="{ ...$attrs, ...forwarded, ...describedBy }"
+        :class="contentClass"
+        :style="guardStyle"
         @pointer-down-outside="(event) => {
           const originalEvent = event.detail.originalEvent;
           const target = originalEvent.target as HTMLElement;

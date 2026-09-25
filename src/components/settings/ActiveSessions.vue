@@ -71,7 +71,7 @@
     </div>
 
     <Dialog v-model:open="showRevokeAllDialog">
-      <DialogContent class="w-[480px] max-w-[480px]" @interactOutside.prevent>
+      <DialogContent class="max-w-[480px]" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle>{{ t("sessions_signout_others_confirm") }}</DialogTitle>
         </DialogHeader>

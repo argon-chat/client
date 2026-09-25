@@ -4,6 +4,7 @@
     :data-connected="isConnectedVoiceChannel || undefined"
     :data-drop-position="isDragOver ? dropPosition : undefined"
     :data-voice-drop="voiceDrop"
+    :data-locked="voiceLocked || undefined"
     class="channel-item"
   >
     <ContextMenu>
@@ -19,6 +20,8 @@
         >
           <div
             class="channel-inner"
+            :aria-disabled="voiceLocked || undefined"
+            :title="voiceLocked ? t('voice_channel_locked') : undefined"
             @click="onClick"
             @auxclick="onAuxClick"
           >
@@ -26,14 +29,15 @@
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0 icon-appear" />
             <Volume2Icon class="icon-appear" v-else-if="isVoice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="channel?.name">{{ channel?.name }}</span>
+            <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="voiceLocked ? t('voice_channel_locked') : channel?.name">{{ channel?.name }}</span>
+            <LockIcon v-if="voiceLocked" data-testid="voice-lock" class="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground" aria-hidden="true" />
             <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
               {{ channelMentions }}
             </span>
             <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full unread-dot flex-shrink-0" />
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
             <button
-              v-if="canButton"
+              v-if="canButton && !voiceLocked"
               class="split-btn ml-auto icon-motion icon-motion--pop"
               @click.stop="emit('open-split', channel.channelId)"
               title="Open in split"
@@ -45,17 +49,31 @@
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent class="w-56">
-        <ContextMenuItem v-if="isVoice" :disabled="!canJoinVoice" @click="emit('switch-voice', channel.channelId)">
+        <GatedMenuItem
+          v-if="isVoice"
+          :gate="connectGate"
+          :disabled="isConnectedVoiceChannel"
+          :reason="t('voice_channel_locked')"
+          data-action="join-voice"
+          @click="emit('switch-voice', channel.channelId)"
+        >
           <Volume2Icon class="w-4 h-4 mr-2" />
           {{ t("join_channel") }}
-        </ContextMenuItem>
+        </GatedMenuItem>
         <!-- Sits next to Join, because it is the same act performed for somebody else: the server
              mints a room link only for a caller who could walk in themselves. -->
-        <ContextMenuItem v-if="isVoice" :disabled="creatingVoiceInvite || !pex.has('Connect')" @click="copyVoiceInvite">
+        <GatedMenuItem
+          v-if="isVoice"
+          :gate="connectGate"
+          :disabled="creatingVoiceInvite"
+          :reason="t('voice_channel_locked')"
+          data-action="voice-invite"
+          @click="copyVoiceInvite"
+        >
           <Loader2 v-if="creatingVoiceInvite" class="w-4 h-4 mr-2 animate-spin" />
           <LinkIcon v-else class="w-4 h-4 mr-2" />
           {{ t("invite_to_voice") }}
-        </ContextMenuItem>
+        </GatedMenuItem>
         <ContextMenuItem v-if="splitEnabled" @click="emit('open-split', channel.channelId)">
           <IconColumns class="w-4 h-4 mr-2" />
           {{ t("open_in_split") }}
@@ -66,16 +84,16 @@
           {{ channelMutedItself ? t("unmute_channel") : t("mute_channel") }}
         </ContextMenuItem>
 
-        <template v-if="canManageChannels">
+        <template v-if="manageGate !== 'hidden'">
           <ContextMenuSeparator />
-          <ContextMenuItem @click="windows.openChannelSettings(channel.spaceId, channel.channelId)">
+          <GatedMenuItem :gate="manageGate" data-action="edit-channel" @click="windows.openChannelSettings(channel.spaceId, channel.channelId)">
             <SettingsIcon class="w-4 h-4 mr-2" />
             {{ t("edit_channel") }}
-          </ContextMenuItem>
-          <ContextMenuItem :disabled="duplicating" @click="duplicateChannel">
+          </GatedMenuItem>
+          <GatedMenuItem :gate="manageGate" :disabled="duplicating" data-action="duplicate-channel" @click="duplicateChannel">
             <CopyPlusIcon class="w-4 h-4 mr-2" />
             {{ t("duplicate_channel") }}
-          </ContextMenuItem>
+          </GatedMenuItem>
         </template>
 
         <ContextMenuSeparator />
@@ -109,53 +127,59 @@
               <VolumeSlider :user="user"/>
             </ContextMenuLabel>
 
-            <template v-if="canModerateMember(user.userId)">
-              <ContextMenuSub v-if="canMoveMembers">
-                <ContextMenuSubTrigger inset>
+            <template v-if="!isGuest(user.userId)">
+              <ContextMenuSub v-if="moveGate === 'allowed'">
+                <ContextMenuSubTrigger inset data-action="move-to">
                   {{ t("voice_move_to") }}
                 </ContextMenuSubTrigger>
                 <ContextMenuSubContent class="w-56">
-                  <ContextMenuItem
+                  <GatedMenuItem
                     v-for="target in moveTargets"
                     :key="target.channelId"
+                    :gate="moveTargetGate(target)"
+                    :data-move-target="target.channelId"
                     @select="moveMember(user.userId, target.channelId)"
                   >
                     <Volume2Icon class="w-4 h-4 mr-2" />
                     <span class="truncate">{{ target.name }}</span>
-                  </ContextMenuItem>
+                  </GatedMenuItem>
                   <ContextMenuItem v-if="moveTargets.length === 0" disabled>
                     {{ t("voice_move_no_targets") }}
                   </ContextMenuItem>
                 </ContextMenuSubContent>
               </ContextMenuSub>
-              <ContextMenuItem
-                v-if="canMuteMembers"
+              <GatedMenuItem v-else-if="moveGate === 'denied'" gate="denied" inset data-action="move-to">
+                {{ t("voice_move_to") }}
+              </GatedMenuItem>
+              <GatedMenuItem
+                :gate="muteGate"
                 inset
                 data-action="server-mute"
                 @select="toggleServerMute(user)"
               >
                 {{ t("voice_server_mute") }}
                 <CheckIcon v-if="serverFlags(user).serverMuted" class="w-4 h-4 ml-auto" />
-              </ContextMenuItem>
-              <ContextMenuItem
-                v-if="canDeafenMembers"
+              </GatedMenuItem>
+              <GatedMenuItem
+                :gate="deafenGate"
                 inset
                 data-action="server-deafen"
                 @select="toggleServerDeafen(user)"
               >
                 {{ t("voice_server_deafen") }}
                 <CheckIcon v-if="serverFlags(user).serverDeafened" class="w-4 h-4 ml-auto" />
-              </ContextMenuItem>
+              </GatedMenuItem>
             </template>
 
-            <ContextMenuItem
+            <GatedMenuItem
+              :gate="kickGate"
               inset
-              :disabled="!pex.has('KickMember')"
+              data-action="kick"
               @click="emit('kick-member', user.userId, channel.channelId, channel.spaceId)"
             >
               {{ t("kick") }}
-              <ContextMenuShortcut>⌘]</ContextMenuShortcut>
-            </ContextMenuItem>
+              <ContextMenuShortcut v-if="kickGate === 'allowed'">⌘]</ContextMenuShortcut>
+            </GatedMenuItem>
           </ContextMenuContent>
         </ContextMenu>
       </li>
@@ -167,7 +191,7 @@
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
 import {
   HashIcon, Volume2Icon, AntennaIcon, BellIcon, BellOffIcon, SettingsIcon, CopyIcon, CopyPlusIcon,
-  LinkIcon, Loader2, CheckIcon,
+  LinkIcon, Loader2, CheckIcon, LockIcon,
 } from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
@@ -188,7 +212,8 @@ import { logger } from '@argon/core';
 import { ChannelType, MuteLevelType, MuteTargetKind, VoiceInviteError } from '@argon/glue';
 import { enumName } from '@/lib/telemetry/metrics';
 import { useApi } from '@/store/system/apiStore';
-import { usePexStore } from '@/store/data/permissionStore';
+import { usePexStore, type PermissionGate } from '@/store/data/permissionStore';
+import type { ArgonEntitlementFlag } from '@/lib/rbac/ArgonEntitlement';
 import { useLocale } from '@/store/system/localeStore';
 import { useMe } from '@/store/auth/meStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
@@ -197,6 +222,7 @@ import { useSpaceStore } from '@/store/data/serverStore';
 import { useWindow } from '@/store/ui/windowStore';
 import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
+import GatedMenuItem from './shared/GatedMenuItem.vue';
 import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import { useVoiceModeration } from '@/composables/useVoiceModeration';
 import { decodeVoiceState } from '@argon/calls/voice-state';
@@ -233,7 +259,9 @@ const emit = defineEmits<{
 }>();
 
 // Left-click selects; Ctrl/Cmd-click or middle-click opens in split (when enabled).
+// A voice channel the user may not connect to does nothing: the row already says why.
 function onClick(e: MouseEvent) {
+  if (voiceLocked.value) return;
   if (canCtrlClick.value && (e.ctrlKey || e.metaKey)) {
     emit('open-split', props.channel.channelId);
     return;
@@ -241,6 +269,7 @@ function onClick(e: MouseEvent) {
   emit('select', props.channel.channelId);
 }
 function onAuxClick(e: MouseEvent) {
+  if (voiceLocked.value) return;
   if (canCtrlClick.value && e.button === 1) {
     e.preventDefault();
     emit('open-split', props.channel.channelId);
@@ -272,12 +301,21 @@ const channelMentions = computed(() => {
 
 const channelMuted = computed(() => ntf.isTargetMuted(props.channel.channelId) || ntf.isTargetMuted(props.channel.spaceId));
 
-const canManageChannels = computed(() => pex.has('ManageChannels'));
+// Everything here is decided per channel: an overwrite can take a right away in one channel only.
+const gateOf = (flag: ArgonEntitlementFlag) => pex.gate(props.channel.channelId, flag, props.channel.spaceId);
+
+const manageGate = computed(() => gateOf('ManageChannels'));
+const canManageChannels = computed(() => manageGate.value === 'allowed');
 const isVoice = computed(() => isVoiceLikeChannel(props.channel.type));
 const isConnectedVoiceChannel = computed(() =>
   isVoice.value &&
   voice.connectedVoiceChannelId === props.channel.channelId
 );
+
+const canConnect = computed(() => pex.hasIn(props.channel.channelId, 'Connect', props.channel.spaceId));
+// Join is never hidden on a voice channel: not being allowed in is exactly what the user needs to see.
+const connectGate = computed<PermissionGate>(() => (canConnect.value ? 'allowed' : 'denied'));
+const voiceLocked = computed(() => isVoice.value && !canConnect.value && !isConnectedVoiceChannel.value);
 
 // A user shows in the presence list as soon as they join, but their actual voice
 // (LiveKit media) connects a moment later. Show a "connecting" indicator during that
@@ -295,9 +333,14 @@ const isUserConnecting = (userId: string) => {
 
 const moderation = useVoiceModeration();
 
-const canMoveMembers = computed(() => pex.has('MoveMember'));
-const canMuteMembers = computed(() => pex.has('MuteMember'));
-const canDeafenMembers = computed(() => pex.has('DeafenMember'));
+// Move and kick act in the member's channel, so the server checks them there.
+const moveGate = computed(() => gateOf('MoveMember'));
+const kickGate = computed(() => gateOf('KickMember'));
+// Server mute and deafen restrict the member across the whole space, so the server checks them space-wide.
+const spaceGateOf = (flag: ArgonEntitlementFlag): PermissionGate =>
+  pex.hasInSpace(props.channel.spaceId, flag) ? 'allowed' : 'hidden';
+const muteGate = computed(() => spaceGateOf('MuteMember'));
+const deafenGate = computed(() => spaceGateOf('DeafenMember'));
 
 // Guests exist only in the LiveKit room, not in the space: nothing to moderate server-side.
 const isGuest = (userId: string) => {
@@ -306,21 +349,25 @@ const isGuest = (userId: string) => {
 };
 
 const canModerateMember = (userId: string) =>
-  !isGuest(userId) && (canMoveMembers.value || canMuteMembers.value || canDeafenMembers.value);
+  !isGuest(userId) && [moveGate.value, muteGate.value, deafenGate.value].some((g) => g !== 'hidden');
 
 // Per-user volume only means something for the room we are hearing.
 const showsVolume = (userId: string) => isConnectedVoiceChannel.value && userId !== me.me?.userId;
 
 const hasMemberMenu = (userId: string) =>
-  showsVolume(userId) || canModerateMember(userId) || pex.has('KickMember');
+  showsVolume(userId) || canModerateMember(userId) || kickGate.value !== 'hidden';
 
-const canDragMember = (userId: string) => canMoveMembers.value && !isGuest(userId);
+const canDragMember = (userId: string) => moveGate.value === 'allowed' && !isGuest(userId);
 
 const moveTargets = computed(() =>
   (props.voiceChannels ?? []).filter(
     (c) => c.channelId !== props.channel.channelId && isVoiceLikeChannel(c.type),
   ),
 );
+
+// The server also wants MoveMember on the target. Whether the member may join it is theirs to know.
+const moveTargetGate = (target: ArgonChannel): PermissionGate =>
+  pex.hasIn(target.channelId, 'MoveMember', target.spaceId) ? 'allowed' : 'denied';
 
 const serverFlags = (user: IRealtimeChannelUser) => decodeVoiceState(user.state);
 
@@ -343,8 +390,6 @@ function toggleServerDeafen(user: IRealtimeChannelUser) {
 
 // ── Context menu actions ──
 
-const canJoinVoice = computed(() => isVoice.value && !isConnectedVoiceChannel.value && pex.has('Connect'));
-
 // This channel's own mute, not the space's: the menu item toggles this channel only.
 const channelMutedItself = computed(() => ntf.isTargetMuted(props.channel.channelId));
 
@@ -359,7 +404,7 @@ function toggleMute() {
 const duplicating = vueRef(false);
 
 async function duplicateChannel() {
-  if (duplicating.value) return;
+  if (duplicating.value || !canManageChannels.value) return;
   duplicating.value = true;
   try {
     const copy = await servers.duplicateChannel(props.channel.spaceId, props.channel.channelId);
@@ -387,7 +432,7 @@ const creatingVoiceInvite = vueRef(false);
  * argon.gl would be handing out invitations to somebody else's server.
  */
 async function copyVoiceInvite() {
-  if (creatingVoiceInvite.value) return;
+  if (creatingVoiceInvite.value || !canConnect.value) return;
   creatingVoiceInvite.value = true;
   try {
     const result = await api.channelInteraction.CreateVoiceInviteCode(
@@ -436,6 +481,16 @@ async function copyChannelId() {
 
 .channel-inner:hover {
   background-color: hsl(var(--foreground) / 0.06);
+}
+
+/* A voice channel the user may not connect to: visible, plainly not enterable. */
+.channel-item[data-locked] .channel-inner {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.channel-item[data-locked] .channel-inner:hover {
+  background-color: transparent;
 }
 
 /* "Open in split" button — revealed on row hover. */

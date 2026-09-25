@@ -78,6 +78,7 @@
       :is-scrolled-up="isScrolledUp"
       :new-messages-count="newMessagesCount"
       :can-react="canReact"
+      :can-reply="canReply"
       :toggle-reaction="toggleReaction"
       @select-reply="(m) => emit('select-reply', m)"
       @retry="retryMessage"
@@ -110,13 +111,15 @@ const ntf = useNotificationStore();
 
 // ── Props / Emits ──
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   channelId: Guid;
   spaceId?: Guid;
   channelName?: string;
   channelType?: "text" | "announcement";
   typingUsers?: { displayName: string }[];
-}>();
+  /** False in a channel the user cannot send in: reply actions are hidden. */
+  canReply?: boolean;
+}>(), { canReply: true });
 
 const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
 

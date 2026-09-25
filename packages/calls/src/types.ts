@@ -152,6 +152,11 @@ export interface ICallUserVolumeStore {
 
 export interface ICallPermissions {
   has(permission: string): boolean;
+  /**
+   * The permission in one channel, after its overwrites. Optional: without it the manager falls
+   * back to `has`, which knows only the space.
+   */
+  hasIn?(channelId: string, permission: string, spaceId?: string | null): boolean;
 }
 
 export interface ICallCurrentUser {

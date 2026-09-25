@@ -12,10 +12,10 @@
             <button 
                 @click="toggleMute"
                 class="icon-motion"
-                :aria-disabled="sys.microphoneLocked || undefined"
-                :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined"
+                :aria-disabled="micLocked || undefined"
+                :title="micLockReason"
                 :class="[
-                    sys.microphoneLocked && 'cursor-not-allowed',
+                    micLocked && 'cursor-not-allowed',
                     'w-full flex items-center justify-between p-2 rounded-lg transition-all',
                     isMuted 
                         ? 'bg-red-500/10 border border-red-500/30 hover:bg-red-500/20' 
@@ -24,7 +24,7 @@
             >
                 <div class="flex items-center gap-2">
                     <div :class="['p-1.5 rounded-lg', isMuted ? 'bg-red-500/20' : 'bg-green-500/20']">
-                        <IconShieldLock v-if="sys.microphoneLocked" class="w-4 h-4 text-red-500 icon-appear" />
+                        <IconShieldLock v-if="micLocked" class="w-4 h-4 text-red-500 icon-appear" />
                         <IconMicrophoneOff v-else-if="isMuted" class="w-4 h-4 text-red-500 icon-appear" />
                         <IconMicrophone v-else class="w-4 h-4 text-green-500 icon-appear" />
                     </div>
@@ -94,7 +94,8 @@
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
 import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff, IconShieldLock } from '@tabler/icons-vue';
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useCallPermissions } from '@/composables/useCallPermissions';
 import { useSystemStore } from '@/store/system/systemStore';
 import { audio } from '@/lib/audio/AudioManager';
 import { logger } from '@argon/core';
@@ -122,9 +123,16 @@ watch(() => sys.headphoneMuted, (val) => {
     isDeafened.value = val;
 });
 
-// Locked while a moderator holds the mute/deafen; the store would refuse anyway.
+// Locked while a moderator holds the mute/deafen, or when the channel does not let us speak.
+const { canSpeak } = useCallPermissions();
+const micLocked = computed(() => sys.microphoneLocked || !canSpeak.value);
+const micLockReason = computed(() => {
+    if (sys.microphoneLocked) return t('voice_member_server_muted');
+    return canSpeak.value ? undefined : t('voice_no_speak_permission');
+});
+
 async function toggleMute() {
-    if (sys.microphoneLocked) return;
+    if (micLocked.value) return;
     await sys.toggleMicrophoneMute();
 }
 

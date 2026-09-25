@@ -6,13 +6,14 @@
             </button>
 
             <button @click="toggleMic" class="icon-motion icon-motion--lift"
-                :class="{ active: isMicMuted, locked: sys.microphoneLocked }"
-                :aria-disabled="sys.microphoneLocked || undefined"
-                :title="sys.microphoneLocked ? t('voice_member_server_muted') : undefined">
+                :class="{ active: isMicMuted, locked: sys.microphoneLocked, forbidden: !sys.microphoneLocked && !canSpeak }"
+                :aria-disabled="micLocked || undefined"
+                :title="micLockReason">
                 <span class="relative inline-flex">
                     <MicOff v-if="isMicMuted" class="w-5 h-5 icon-appear" />
                     <Mic v-else class="w-5 h-5 icon-appear" />
                     <ShieldIcon v-if="sys.microphoneLocked" class="lock-badge" />
+                    <LockIcon v-else-if="!canSpeak" class="lock-badge lock-badge--muted" />
                 </span>
             </button>
 
@@ -28,17 +29,27 @@
             </button>
 
             <button @click="toggleScreenCast" class="icon-motion icon-motion--lift"
-                :class="{ active: voice.isSharing }" :disabled="!isConnected">
-                <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5 icon-appear" />
-                <ScreenShare v-else class="w-5 h-5 icon-appear" />
+                :class="{ active: voice.isSharing, forbidden: !canStream }" :disabled="!isConnected"
+                :aria-disabled="!canStream || undefined"
+                :title="canStream ? undefined : t('voice_no_stream_permission')">
+                <span class="relative inline-flex">
+                    <ScreenShareOff v-if="voice.isSharing" class="w-5 h-5 icon-appear" />
+                    <ScreenShare v-else class="w-5 h-5 icon-appear" />
+                    <LockIcon v-if="!canStream" class="lock-badge lock-badge--muted" />
+                </span>
             </button>
 
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
-                <button @click="voice.toggleCamera()" class="icon-motion icon-motion--lift"
-                    :class="{ active: voice.isCameraOn }" :disabled="!isConnected">
-                    <CameraOff v-if="voice.isCameraOn" class="w-5 h-5 icon-appear" />
-                    <CameraIcon v-else class="w-5 h-5 icon-appear" />
+                <button @click="toggleCamera" class="icon-motion icon-motion--lift"
+                    :class="{ active: voice.isCameraOn, forbidden: !canVideo }" :disabled="!isConnected"
+                    :aria-disabled="!canVideo || undefined"
+                    :title="canVideo ? undefined : t('voice_no_video_permission')">
+                    <span class="relative inline-flex">
+                        <CameraOff v-if="voice.isCameraOn" class="w-5 h-5 icon-appear" />
+                        <CameraIcon v-else class="w-5 h-5 icon-appear" />
+                        <LockIcon v-if="!canVideo" class="lock-badge lock-badge--muted" />
+                    </span>
                 </button>
 
                 <button v-if="playframeActive"
@@ -73,7 +84,9 @@ import {
     OctagonMinusIcon,
     Gamepad2,
     ShieldIcon,
+    LockIcon,
 } from "lucide-vue-next";
+import { useCallPermissions } from "@/composables/useCallPermissions";
 import { useMe } from "@/store/auth/meStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { computed, ref, watch } from "vue";
@@ -110,10 +123,24 @@ const isConnected = computed(() => voice.isConnected);
 
 const isMicMuted = computed(() => sys.microphoneMuted);
 
-// Locked while a moderator holds the mute/deafen; the store would refuse anyway.
+const { canSpeak, canVideo, canStream } = useCallPermissions();
+
+// Locked while a moderator holds the mute/deafen, or when the channel does not let us speak.
+const micLocked = computed(() => sys.microphoneLocked || !canSpeak.value);
+const micLockReason = computed(() => {
+    if (sys.microphoneLocked) return t('voice_member_server_muted');
+    return canSpeak.value ? undefined : t('voice_no_speak_permission');
+});
+
 function toggleMic() {
-    if (sys.microphoneLocked) return;
+    if (micLocked.value) return;
     sys.toggleMicrophoneMute();
+}
+
+// Turning it off is always allowed: the right may have been taken away while it was on.
+function toggleCamera() {
+    if (!voice.isCameraOn && !canVideo.value) return;
+    voice.toggleCamera();
 }
 
 function toggleHeadphones() {
@@ -137,7 +164,7 @@ const toggleScreenCast = () => {
 
     if (voice.isSharing) {
         voice.stopScreenShare();
-    } else if (sharePicker.value) {
+    } else if (sharePicker.value && canStream.value) {
         sharePicker.value.open = true;
     }
 };
@@ -209,6 +236,13 @@ async function goShare(opts: {
     cursor: not-allowed;
 }
 
+/* Not granted in this channel: greyed rather than red. */
+.controls button.forbidden,
+.controls button.forbidden:hover {
+    color: hsl(var(--muted-foreground) / 0.55);
+    cursor: not-allowed;
+}
+
 .lock-badge {
     position: absolute;
     right: -4px;
@@ -218,5 +252,9 @@ async function goShare(opts: {
     color: hsl(0 84% 55%);
     fill: hsl(var(--card));
     stroke-width: 3;
+}
+
+.lock-badge--muted {
+    color: hsl(var(--muted-foreground));
 }
 </style>

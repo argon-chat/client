@@ -64,12 +64,14 @@ export function useChannelDragDrop(
 
   // ── Voice member drag (move to another voice channel) ─────────────
 
+  // The server wants MoveMember on the target as well as on the channel the member leaves.
   const isMemberDropTarget = (channel: DropChannel) => {
     const d = dragged.value;
     return d?.kind === 'user'
       && isVoiceLikeChannel(channel.type)
       && channel.spaceId === d.spaceId
-      && channel.channelId !== d.channelId;
+      && channel.channelId !== d.channelId
+      && pex.hasIn(channel.channelId, 'MoveMember', channel.spaceId);
   };
 
   const voiceDropStateOf = (channel: DropChannel): VoiceDropState => {
@@ -78,7 +80,7 @@ export function useChannelDragDrop(
   };
 
   const onMemberDragStart = (userId: Guid, channel: DropChannel, event: DragEvent) => {
-    if (!pex.has('MoveMember')) {
+    if (!pex.hasIn(channel.channelId, 'MoveMember', channel.spaceId)) {
       event.preventDefault();
       return;
     }
@@ -118,8 +120,9 @@ export function useChannelDragDrop(
 
   // ── Channel drag ───────────────────────────────────────────────────
 
+  // Moving a channel is checked on that channel; groups are space-level.
   const onDragStart = (channel: any, groupId: Guid | null, event: DragEvent) => {
-    if (!canDrag()) {
+    if (!pex.hasIn(channel.channelId, 'ManageChannels', channel.spaceId)) {
       event.preventDefault();
       return;
     }

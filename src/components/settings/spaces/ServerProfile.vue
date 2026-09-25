@@ -151,7 +151,7 @@
 
     <!-- Delete confirmation -->
     <Dialog v-model:open="showDeleteServerDialog">
-      <DialogContent @interactOutside.prevent>
+      <DialogContent class="sm:max-w-md" @interactOutside.prevent>
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2 text-red-500">
             <AlertTriangleIcon class="w-5 h-5" />
