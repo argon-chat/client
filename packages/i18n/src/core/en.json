@@ -1742,7 +1742,6 @@
   "pin": "Pin",
   "players": "players",
   "reply": "Reply",
-  "reset_success": "Overwrite removed",
   "select_game_description": "Pick something to play together in this channel.",
   "select_option": "Select…",
   "select_role_to_configure": "Select a role to configure overwrites",

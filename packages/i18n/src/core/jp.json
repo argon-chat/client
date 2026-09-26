@@ -1445,7 +1445,6 @@
   "report_success_title": "報告を送信しました",
   "report_user_profile": "プロフィールを報告",
   "reset_email_hint": "アカウントに登録しているメールアドレスを入力してください",
-  "reset_success": "上書き設定を解除しました",
   "roles": "アーキタイプ",
   "saving": "保存中...",
   "select_bot_role": "ボットのアーキタイプを選択",

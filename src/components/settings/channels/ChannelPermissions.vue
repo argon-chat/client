@@ -15,6 +15,7 @@
           <button
             v-for="arch in archetypes"
             :key="arch.id"
+            data-testid="overwrite-role"
             class="w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
             :class="selectedArchetypeId === arch.id ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-muted/50'"
             @click="selectArchetype(arch.id)"
@@ -31,14 +32,19 @@
         <TabTransition variant="rise">
           <div v-if="selectedArchetypeId" :key="selectedArchetypeId" class="space-y-3 pr-2">
             <div class="flex items-center justify-between mb-2">
-              <div class="text-sm font-medium">
+              <div class="flex items-center gap-2 text-sm font-medium">
                 {{ selectedArchetypeName }}
+                <span v-if="saving" class="flex items-center gap-1 text-xs font-normal text-muted-foreground" data-testid="overwrite-saving">
+                  <Loader2 class="w-3 h-3 animate-spin" />
+                  {{ t("saving") }}
+                </span>
               </div>
               <Button
-                v-if="hasOverwrite(selectedArchetypeId)"
+                v-if="hasOverwrite(selectedArchetypeId) || localAllow !== 0n || localDeny !== 0n"
                 variant="ghost"
                 size="sm"
                 class="text-red-400 hover:text-red-300 text-xs"
+                data-testid="overwrite-reset"
                 @click="resetOverwrite"
               >
                 <Trash2Icon class="w-3.5 h-3.5 mr-1" />
@@ -53,6 +59,7 @@
                   <li
                     v-for="flag in group.flags"
                     :key="flag.value.toString()"
+                    data-testid="overwrite-flag"
                     class="flex items-center justify-between text-sm py-1"
                   >
                     <div class="flex-1 mr-3">
@@ -62,6 +69,7 @@
                       <button
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'inherit' ? 'active-inherit' : ''"
+                        data-testid="overwrite-inherit"
                         @click="setOverwriteState(flag.value, 'inherit')"
                         :title="t('inherit')"
                       >
@@ -70,6 +78,7 @@
                       <button
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'allow' ? 'active-allow' : ''"
+                        data-testid="overwrite-allow"
                         @click="setOverwriteState(flag.value, 'allow')"
                         :title="t('allow')"
                       >
@@ -78,6 +87,7 @@
                       <button
                         class="overwrite-btn"
                         :class="getOverwriteState(flag.value) === 'deny' ? 'active-deny' : ''"
+                        data-testid="overwrite-deny"
                         @click="setOverwriteState(flag.value, 'deny')"
                         :title="t('deny')"
                       >
@@ -88,12 +98,6 @@
                 </ul>
               </CardContent>
             </Card>
-
-            <div class="flex justify-end pt-2 pb-1">
-              <Button :disabled="saving" @click="saveOverwrite">
-                {{ saving ? t("saving") : t("save_changes") }}
-              </Button>
-            </div>
           </div>
           <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
             {{ t("select_role_to_configure") }}
@@ -107,14 +111,16 @@
 <script setup lang="ts">
 /**
  * The "Permissions" tab of the channel settings: per-role allow/deny overwrites for this channel.
- * Used to be a dialog off the channel's context menu; the editing logic is unchanged.
+ *
+ * Saves as you click, there is no save button. Clicks close together go out as one save; switching
+ * roles or closing the sheet sends what is waiting at once, so nothing is dropped on the way out.
  */
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { Card, CardContent } from "@argon/ui/card";
 import { ScrollArea } from "@argon/ui/scroll-area";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import { Button } from "@argon/ui/button";
-import { Trash2Icon } from "lucide-vue-next";
+import { Loader2, Trash2Icon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useToast } from "@argon/ui/toast";
@@ -128,6 +134,9 @@ const props = defineProps<{
   channel: ArgonChannel;
 }>();
 
+/** Each save re-evaluates the whole space's permissions, so a burst of clicks becomes one. */
+const SAVE_DELAY_MS = 500;
+
 const api = useApi();
 const { t } = useLocale();
 const { toast } = useToast();
@@ -135,7 +144,6 @@ const { toast } = useToast();
 const archetypes = ref<Archetype[]>([]);
 const overwrites = ref<ChannelEntitlementOverwrite[]>([]);
 const selectedArchetypeId = ref<Guid | null>(null);
-const saving = ref(false);
 
 // Local editing state for the currently selected archetype
 const localAllow = ref<bigint>(0n);
@@ -182,88 +190,119 @@ function setOverwriteState(flagValue: any, state: "inherit" | "allow" | "deny") 
   } else if (state === "deny") {
     localDeny.value = localDeny.value | flag;
   }
+  scheduleSave();
+}
+
+function showSaved(archetypeId: Guid) {
+  const existing = overwrites.value.find((o) => o.archetypeId === archetypeId);
+  localAllow.value = existing ? BigInt(existing.allow) : 0n;
+  localDeny.value = existing ? BigInt(existing.deny) : 0n;
 }
 
 function selectArchetype(id: Guid) {
+  void flushSave();
   selectedArchetypeId.value = id;
-  const existing = overwrites.value.find((o) => o.archetypeId === id);
-  if (existing) {
-    localAllow.value = BigInt(existing.allow);
-    localDeny.value = BigInt(existing.deny);
-  } else {
-    localAllow.value = 0n;
-    localDeny.value = 0n;
-  }
+  showSaved(id);
 }
 
-async function saveOverwrite() {
-  if (!selectedArchetypeId.value) return;
-  saving.value = true;
-  try {
-    const result = await api.archetypeInteraction.UpsertArchetypeEntitlementForChannel(
-      props.channel.spaceId,
-      props.channel.channelId,
-      selectedArchetypeId.value,
-      localDeny.value as unknown as ArgonEntitlement,
-      localAllow.value as unknown as ArgonEntitlement,
-    );
-    if (result) {
-      // Update local overwrites list
-      const idx = overwrites.value.findIndex((o) => o.archetypeId === selectedArchetypeId.value);
-      if (idx >= 0) {
-        overwrites.value[idx] = result;
-      } else {
-        overwrites.value.push(result);
+// ── Saving ──
+
+type PendingSave = { spaceId: Guid; channelId: Guid; archetypeId: Guid; allow: bigint; deny: bigint };
+
+let pending: PendingSave | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
+// One save at a time, so a delete always sees the row an earlier save created.
+let queue: Promise<void> = Promise.resolve();
+const inFlight = ref(0);
+const saving = computed(() => inFlight.value > 0);
+
+function scheduleSave() {
+  const archetypeId = selectedArchetypeId.value;
+  if (!archetypeId) return;
+  pending = {
+    spaceId: props.channel.spaceId,
+    channelId: props.channel.channelId,
+    archetypeId,
+    allow: localAllow.value,
+    deny: localDeny.value,
+  };
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => void flushSave(), SAVE_DELAY_MS);
+}
+
+function flushSave(): Promise<void> {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  const next = pending;
+  pending = null;
+  if (next) {
+    inFlight.value++;
+    queue = queue.then(async () => {
+      try {
+        await persist(next);
+      } finally {
+        inFlight.value--;
       }
+    });
+  }
+  return queue;
+}
+
+async function persist(save: PendingSave) {
+  const { spaceId, channelId, archetypeId, allow, deny } = save;
+  let ok: boolean;
+  try {
+    const existing = overwrites.value.find((o) => o.archetypeId === archetypeId);
+    // Everything back on inherit is no overwrite at all, not an empty row.
+    if (allow === 0n && deny === 0n) {
+      ok = !existing || (await api.archetypeInteraction.DeleteEntitlementForChannel(spaceId, channelId, existing.id));
+      if (ok) overwrites.value = overwrites.value.filter((o) => o.archetypeId !== archetypeId);
+    } else {
+      const result = await api.archetypeInteraction.UpsertArchetypeEntitlementForChannel(
+        spaceId,
+        channelId,
+        archetypeId,
+        deny as unknown as ArgonEntitlement,
+        allow as unknown as ArgonEntitlement,
+      );
+      ok = result !== null;
+      if (result) overwrites.value = [...overwrites.value.filter((o) => o.archetypeId !== archetypeId), result];
     }
-    toast({ title: t("saved") });
   } catch (e) {
     logger.error("Failed to save channel overwrite", e);
-    toast({ title: t("fail_save"), variant: "destructive" });
-  } finally {
-    saving.value = false;
+    ok = false;
   }
+
+  if (ok) return;
+  toast({ title: t("fail_save"), variant: "destructive" });
+  // Back to what the server holds, unless newer clicks for this role are already waiting.
+  if (selectedArchetypeId.value === archetypeId && pending?.archetypeId !== archetypeId) showSaved(archetypeId);
 }
 
-async function resetOverwrite() {
-  if (!selectedArchetypeId.value) return;
-  const existing = overwrites.value.find((o) => o.archetypeId === selectedArchetypeId.value);
-  if (!existing) return;
-
-  saving.value = true;
-  try {
-    await api.archetypeInteraction.DeleteEntitlementForChannel(
-      props.channel.spaceId,
-      props.channel.channelId,
-      existing.id,
-    );
-    overwrites.value = overwrites.value.filter((o) => o.archetypeId !== selectedArchetypeId.value);
-    localAllow.value = 0n;
-    localDeny.value = 0n;
-    toast({ title: t("reset_success") });
-  } catch (e) {
-    logger.error("Failed to delete channel overwrite", e);
-    toast({ title: t("fail_save"), variant: "destructive" });
-  } finally {
-    saving.value = false;
-  }
+function resetOverwrite() {
+  localAllow.value = 0n;
+  localDeny.value = 0n;
+  scheduleSave();
+  void flushSave();
 }
+
+onBeforeUnmount(() => void flushSave());
 
 async function loadData() {
   try {
-    // Load archetypes from local DB
-    archetypes.value = await db.archetypes
-      .where("spaceId")
-      .equals(props.channel.spaceId)
-      .filter((a) => !a.isHidden)
-      .toArray();
-
-    // Load existing overwrites from API
-    const result = await api.archetypeInteraction.GetChannelEntitlementOverwrites(
-      props.channel.spaceId,
-      props.channel.channelId,
-    );
+    await queue;
+    // Both before either is shown: a role picked before its overwrite arrived would look empty,
+    // and the first click would save over it.
+    const [spaceArchetypes, result] = await Promise.all([
+      db.archetypes
+        .where("spaceId")
+        .equals(props.channel.spaceId)
+        .filter((a) => !a.isHidden)
+        .toArray(),
+      api.archetypeInteraction.GetChannelEntitlementOverwrites(props.channel.spaceId, props.channel.channelId),
+    ]);
     overwrites.value = [...result];
+    archetypes.value = spaceArchetypes;
   } catch (e) {
     logger.error("Failed to load channel permissions", e);
   }
@@ -274,6 +313,7 @@ async function loadData() {
 watch(
   () => props.channel.channelId,
   () => {
+    void flushSave();
     selectedArchetypeId.value = null;
     localAllow.value = 0n;
     localDeny.value = 0n;
