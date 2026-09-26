@@ -27,6 +27,7 @@ import { Slider } from "@argon/ui/slider";
 import Kbd from "@/components/kbd/Kbd.vue";
 import KbdGroup from "@/components/kbd/KbdGroup.vue";
 import DesktopOnlyNotice from "@/components/shared/DesktopOnlyNotice.vue";
+import WarningBanner from "@/components/shared/WarningBanner.vue";
 import {
   InfoIcon,
   MicIcon,
@@ -162,21 +163,16 @@ const releaseDelay = computed<number[]>({
 
     <template v-else>
       <!-- macOS: the hook needs Accessibility -->
-      <div v-if="needsAccessibility" class="banner banner-warn">
-        <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-yellow-200">{{ t("hotkeys_accessibility_required") }}</p>
-          <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("hotkeys_accessibility_description") }}</p>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0"
-          @click="requestAccessibility"
-        >
-          {{ t("hotkeys_grant_access") }}
-        </Button>
-      </div>
+      <WarningBanner
+        v-if="needsAccessibility"
+        :title="t('hotkeys_accessibility_required')"
+        :description="t('hotkeys_accessibility_description')"
+      >
+        <template #icon><ShieldAlertIcon /></template>
+        <template #action>
+          <Button size="sm" variant="outline" @click="requestAccessibility">{{ t("hotkeys_grant_access") }}</Button>
+        </template>
+      </WarningBanner>
 
       <!-- The hook is not installed for another reason -->
       <div v-else-if="hostDown" class="banner banner-error">
@@ -317,10 +313,6 @@ const releaseDelay = computed<number[]>({
 
 .banner {
   @apply rounded-xl border px-5 py-4 flex items-center gap-3;
-}
-
-.banner-warn {
-  @apply border-yellow-400/20 bg-yellow-400/5;
 }
 
 .banner-error {

@@ -17,22 +17,21 @@
       </div>
 
       <template v-if="enabled && settings">
-        <div v-if="warning.open.value" class="banner banner-warn" data-testid="broadcast-open-warning">
-          <TriangleAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-yellow-200">{{ t("broadcast_open_warning") }}</p>
-            <p class="text-xs text-yellow-200/60 mt-0.5">{{ t("broadcast_open_warning_desc") }}</p>
-          </div>
-          <Button
-            v-if="canEditOverwrites"
-            size="sm"
-            variant="outline"
-            class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0"
-            data-testid="broadcast-open-permissions"
-            @click="windows.channelSettingsTab = 'permissions'">
-            {{ t("broadcast_open_warning_action") }}
-          </Button>
-        </div>
+        <WarningBanner
+          v-if="warning.open.value"
+          :title="t('broadcast_open_warning')"
+          :description="t('broadcast_open_warning_desc')"
+          data-testid="broadcast-open-warning">
+          <template v-if="canEditOverwrites" #action>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="broadcast-open-permissions"
+              @click="windows.channelSettingsTab = 'permissions'">
+              {{ t("broadcast_open_warning_action") }}
+            </Button>
+          </template>
+        </WarningBanner>
 
         <!-- Targets -->
         <div class="space-y-2">
@@ -173,7 +172,8 @@ import { Checkbox } from "@argon/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
-import { Loader2, PlayIcon, RadioTowerIcon, TriangleAlertIcon, Volume2Icon } from "lucide-vue-next";
+import { Loader2, PlayIcon, RadioTowerIcon, Volume2Icon } from "lucide-vue-next";
+import WarningBanner from "@/components/shared/WarningBanner.vue";
 import { BroadcastOverlap, ChannelType, SetBroadcastSettingsError, type ArgonChannel, type BroadcastSettings } from "@argon/glue";
 import { audio } from "@/lib/audio/AudioManager";
 import { useApi } from "@/store/system/apiStore";
@@ -425,20 +425,6 @@ async function save() {
   background-color: hsl(var(--card) / var(--card-alpha));
   padding: 1.5rem;
   overflow: hidden;
-}
-
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid;
-  padding: 0.875rem 1.25rem;
-}
-
-.banner-warn {
-  border-color: rgb(250 204 21 / 0.2);
-  background-color: rgb(250 204 21 / 0.05);
 }
 
 .target-list {

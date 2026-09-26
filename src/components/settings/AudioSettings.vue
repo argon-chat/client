@@ -48,20 +48,18 @@
             </div>
 
             <!-- Microphone Permission Banner (macOS) -->
-            <div v-if="needsMicPermission" class="permission-banner mb-4">
-                <div class="flex items-center gap-3">
-                    <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-yellow-200">{{ t("mic_permission_required") }}</p>
-                        <p class="text-xs text-yellow-200/60 mt-0.5">
-                            {{ micPermissionBlocked ? t("mic_permission_blocked_description") : t("mic_permission_description") }}
-                        </p>
-                    </div>
-                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0" @click="grantMicPermission">
+            <WarningBanner
+                v-if="needsMicPermission"
+                class="mb-4"
+                :title="t('mic_permission_required')"
+                :description="micPermissionBlocked ? t('mic_permission_blocked_description') : t('mic_permission_description')">
+                <template #icon><ShieldAlertIcon /></template>
+                <template #action>
+                    <Button size="sm" variant="outline" @click="grantMicPermission">
                         {{ micPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
                     </Button>
-                </div>
-            </div>
+                </template>
+            </WarningBanner>
 
             <Select v-model="selectedMicrophone">
                 <SelectTrigger class="w-full">
@@ -279,20 +277,18 @@
             </div>
 
             <!-- Camera Permission Banner (macOS) -->
-            <div v-if="needsCameraPermission" class="permission-banner mb-4">
-                <div class="flex items-center gap-3">
-                    <ShieldAlertIcon class="w-5 h-5 text-yellow-400 flex-shrink-0" />
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-yellow-200">{{ t("camera_permission_required") }}</p>
-                        <p class="text-xs text-yellow-200/60 mt-0.5">
-                            {{ cameraPermissionBlocked ? t("camera_permission_blocked_description") : t("camera_permission_description") }}
-                        </p>
-                    </div>
-                    <Button size="sm" variant="outline" class="border-yellow-400/30 text-yellow-200 hover:bg-yellow-400/10 shrink-0" @click="grantCameraPermission">
+            <WarningBanner
+                v-if="needsCameraPermission"
+                class="mb-4"
+                :title="t('camera_permission_required')"
+                :description="cameraPermissionBlocked ? t('camera_permission_blocked_description') : t('camera_permission_description')">
+                <template #icon><ShieldAlertIcon /></template>
+                <template #action>
+                    <Button size="sm" variant="outline" @click="grantCameraPermission">
                         {{ cameraPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
                     </Button>
-                </div>
-            </div>
+                </template>
+            </WarningBanner>
 
             <Select
                 v-model="selectedCamera"
@@ -372,6 +368,7 @@
 
 <script setup lang="ts">
 import { Button } from "@argon/ui/button";
+import WarningBanner from "@/components/shared/WarningBanner.vue";
 import { Slider } from "@argon/ui/slider";
 import { Switch } from "@argon/ui/switch";
 import {
@@ -916,10 +913,6 @@ onUnmounted(() => {
 
 .setting-card {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md;
-}
-
-.permission-banner {
-    @apply rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-5 py-4;
 }
 
 .setting-item {
