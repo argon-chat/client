@@ -4,7 +4,7 @@ import MasterView from "../views/MasterView.vue";
 import AppShell from "@/views/AppShell.vue";
 import { useAppState } from "@/store/system/appState";
 import LockdownView from "@/views/LockdownView.vue";
-import { useAuthStore } from "@/store";
+import { useAuthStore } from "@/store/auth/authStore";
 const routes = [
   {
     path: "/",

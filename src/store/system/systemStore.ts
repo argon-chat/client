@@ -161,7 +161,7 @@ export const useSystemStore = defineStore("system", () => {
         if (wasLong) {
           await new Promise((r) => setTimeout(r, Math.random() * RESYNC_JITTER_MS));
 
-          const { usePoolStore } = await import("../");
+          const { usePoolStore } = await import("../data/poolStore");
           await usePoolStore().loadServerDetails();
 
           const { useNotificationStore } = await import("../data/notificationStore");
@@ -182,7 +182,7 @@ export const useSystemStore = defineStore("system", () => {
       try {
         await new Promise((r) => setTimeout(r, Math.random() * RESYNC_JITTER_MS));
 
-        const { usePoolStore } = await import("../");
+        const { usePoolStore } = await import("../data/poolStore");
         await usePoolStore().loadServerDetails();
 
         const { useNotificationStore } = await import("../data/notificationStore");
