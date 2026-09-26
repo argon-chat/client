@@ -49,17 +49,13 @@ import type { Guid } from "@argon-chat/ion.webcore";
 import ChatMessageList from "@/components/chats/ChatMessageList.vue";
 
 import { useLocale } from "@/store/system/localeStore";
-import { useNotificationStore } from "@/store/data/notificationStore";
 import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useDirectMessages } from "@/composables/useDirectMessages";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
-import { useApi } from "@/store/system/apiStore";
 
 // ── Stores ──
 
 const { t } = useLocale();
-const ntf = useNotificationStore();
-const api = useApi();
 const recentChats = useRecentChatsStore();
 
 // ── Props / Emits ──
@@ -115,32 +111,18 @@ function onNearTop() {
   }
 }
 
-const markedReadForPeer = ref<string | null>(null);
-
-function markDmAsRead() {
-  if (markedReadForPeer.value === props.peerId) return;
-  markedReadForPeer.value = props.peerId;
-
-  const chat = recentChats.recent.find((x) => x.peerId === props.peerId);
-  const unread = chat?.unreadCount ?? 0;
-
-  recentChats.markRead(props.peerId);
-  if (unread > 0) {
-    ntf.unreadDmCount = Math.max(0, ntf.unreadDmCount - unread);
-  }
-
-  // Notify the server so it persists across sessions
-  api.userChatInteractions.MarkChatRead(props.peerId as Guid).catch(() => {});
-}
-
+// At the bottom the chat is read, and so is whatever arrives while it stays there.
 function onScrollState(distanceFromBottom: number) {
   const was = isScrolledUp.value;
   isScrolledUp.value = distanceFromBottom > 100;
   if (was && !isScrolledUp.value) newMessagesCount.value = 0;
 
-  if (distanceFromBottom <= 100) {
-    markDmAsRead();
-  }
+  if (distanceFromBottom <= 100) recentChats.setViewing(props.peerId);
+  else stopViewing(props.peerId);
+}
+
+function stopViewing(peerId: string) {
+  if (recentChats.viewingPeer === peerId) recentChats.setViewing(null);
 }
 
 function onResetUnread() {
@@ -156,8 +138,8 @@ defineExpose({ addOptimisticMessage, resolveOptimisticMessage, markOptimisticFai
 
 watch(
   () => props.peerId,
-  async (newId) => {
-    markedReadForPeer.value = null;
+  async (newId, oldId) => {
+    if (oldId) stopViewing(oldId);
     listRef.value?.resetScroller();
     subscribeToNewMessages(newId, () => listRef.value?.scrollToBottomImmediate());
     await loadInitialMessages(() => listRef.value?.scrollToBottomImmediate());
@@ -166,6 +148,7 @@ watch(
 );
 
 onUnmounted(() => {
+  stopViewing(props.peerId);
   cleanupMessages();
 });
 </script>

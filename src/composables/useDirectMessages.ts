@@ -19,8 +19,6 @@ import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useTone } from "@/store/media/toneStore";
-import { useNotificationStore } from "@/store/data/notificationStore";
-import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useBus } from "@/store/realtime/busStore";
 import { logger } from "@argon/core";
 import type { Subscription } from "rxjs";
@@ -59,8 +57,6 @@ export function useDirectMessages(peerId: () => Guid) {
   const pool = usePoolStore();
   const me = useMe();
   const tone = useTone();
-  const ntf = useNotificationStore();
-  const recentChats = useRecentChatsStore();
   const bus = useBus();
 
   const messages = shallowRef<ChatMessage[]>([]);
@@ -290,12 +286,7 @@ export function useDirectMessages(peerId: () => Guid) {
         tone.playNotificationSound();
       }
 
-      // Mark read when at bottom
-      if (!isScrolledUp.value) {
-        recentChats.markRead(targetPeerId);
-        ntf.decrementDmUnread();
-      }
-
+      // Read or not is useRecentChatsStore's call: it knows whether this chat is on screen at the bottom.
       queueIncomingMessage(msg, onNewMessage);
     });
   };

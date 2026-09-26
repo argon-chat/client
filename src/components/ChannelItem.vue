@@ -314,7 +314,7 @@ const announcementUnread = computed(() => isAnnouncementUnread(props.channel, nt
 const channelMentions = computed(() => {
   const mute = ntf.effectiveMuteLevel(props.channel.channelId, props.channel.spaceId);
   if (mute === MuteLevelType.All) return 0;
-  return ntf.channelMentionCount(props.channel.channelId);
+  return ntf.channelMentionCount(props.channel.channelId, props.channel.lastMessageId);
 });
 
 const channelMuted = computed(() => ntf.isTargetMuted(props.channel.channelId) || ntf.isTargetMuted(props.channel.spaceId));

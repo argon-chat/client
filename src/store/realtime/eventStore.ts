@@ -203,6 +203,7 @@ export const useEventStore = defineStore("events", () => {
           if (voice.connectedVoiceChannelId === x.channelId) await voice.leave();
           realtimeStore.removeRealtimeChannel(x.channelId);
           await channelStore.removeChannel(x.channelId);
+          notificationStore.forgetChannel(x.channelId);
         } catch (error) {
           logger.error("Error handling ChannelRemoved", error);
         }

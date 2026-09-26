@@ -250,8 +250,11 @@ const {
 // Announcement channels: posts render as cards, and reactions may be turned off.
 const { card: announcementCard, reactionsOff } = useAnnouncementChannel(() => props.channelId, () => props.spaceId);
 
+// Where the unread line goes: the cursor as it was when the channel opened. Reading moves the cursor
+// at once, and the line stays put until the channel is left.
+const unreadFrom = ref<bigint | undefined>();
 const { groupingMap } = useMessageGrouping(messages, {
-  lastReadId: () => ntf.readStates?.get(props.channelId)?.lastReadMessageId,
+  lastReadId: () => unreadFrom.value,
 });
 
 // Stable getter — passes the real shallowRef into the list (keeps triggerRef reactivity).
@@ -289,11 +292,17 @@ async function onJumpRequest(messageId: bigint) {
 function onScrollState(distanceFromBottom: number) {
   nav.onScrollState(distanceFromBottom);
 
-  // ACK when at bottom
-  if (distanceFromBottom <= 100 && messages.value.length) {
-    const last = messages.value[messages.value.length - 1];
-    if (last && !last._optimistic) ntf.scheduleAck(props.channelId, last.messageId, props.spaceId);
+  if (distanceFromBottom <= 100) readToBottom();
+  else ntf.stopViewing(props.channelId);
+}
+
+/** Read up to the newest message on screen, and to the channel's mark when that is its newest. */
+function readToBottom() {
+  let last = 0n;
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (!messages.value[i]._optimistic) { last = messages.value[i].messageId; break; }
   }
+  ntf.readOnScreen(props.channelId, last, props.spaceId ?? null, hasReachedLatest.value);
 }
 
 function onResetUnread() {
@@ -376,6 +385,8 @@ defineExpose({
 watch(
   () => props.channelId,
   async (newId, oldId) => {
+    if (oldId) ntf.stopViewing(oldId);
+    unreadFrom.value = ntf.readStates.get(newId)?.lastReadMessageId;
     if (oldId) ntf.flushAcksImmediate();
 
     listRef.value?.resetScroller();
@@ -389,16 +400,14 @@ watch(
     }
 
     nextTick(() => {
-      if (messages.value.length && !isScrolledUp.value) {
-        const last = messages.value[messages.value.length - 1];
-        if (last && !last._optimistic) ntf.scheduleAck(props.channelId, last.messageId, props.spaceId);
-      }
+      if (!isScrolledUp.value) readToBottom();
     });
   },
   { immediate: true },
 );
 
 onUnmounted(() => {
+  ntf.stopViewing(props.channelId);
   ntf.flushAcksImmediate();
   unsubReactions();
   cleanupMessages();

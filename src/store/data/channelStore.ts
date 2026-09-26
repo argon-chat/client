@@ -140,10 +140,17 @@ export const useChannelStore = defineStore("channel", () => {
   }
 
   /**
-   * Add/update channel in DB
+   * Add/update channel in DB. The newest message id only moves up here: a channel re-read after a
+   * rename carries the stored mark, which can be a flush behind what live messages already set.
    */
   const trackChannel = async (channel: ArgonChannel) => {
-    await db.channels.put(channel, channel.channelId);
+    await db.transaction("rw", db.channels, async () => {
+      const current = await db.channels.get(channel.channelId);
+      const row = current && current.lastMessageId > channel.lastMessageId
+        ? { ...channel, lastMessageId: current.lastMessageId }
+        : channel;
+      await db.channels.put(row, channel.channelId);
+    });
   };
 
   /**

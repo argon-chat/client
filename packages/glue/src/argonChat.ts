@@ -9026,6 +9026,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isScheduledPostUpdated(): this is ScheduledPostUpdated {
     return this.UnionKey === "ScheduledPostUpdated";
   }
+  public isChannelMarkRetracted(): this is ChannelMarkRetracted {
+    return this.UnionKey === "ChannelMarkRetracted";
+  }
 
 }
 
@@ -9644,11 +9647,19 @@ export class ScheduledPostUpdated extends IArgonEvent
   UnionIndex: number = 75;
 }
 
+export class ChannelMarkRetracted extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public lastMessageId: i8) { super(); }
+
+  UnionKey: string = "ChannelMarkRetracted";
+  UnionIndex: number = 76;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 76);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 77);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -9805,8 +9816,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<MessagePublished>("MessagePublished").read(reader);
     else if (unionIndex == 75)
       value = IonFormatterStorage.get<ScheduledPostUpdated>("ScheduledPostUpdated").read(reader);
+    else if (unionIndex == 76)
+      value = IonFormatterStorage.get<ChannelMarkRetracted>("ChannelMarkRetracted").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 76);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 77);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -10044,8 +10057,11 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 75) {
         IonFormatterStorage.get<ScheduledPostUpdated>("ScheduledPostUpdated").write(writer, value as ScheduledPostUpdated);
     }
+    else if (value.UnionIndex == 76) {
+        IonFormatterStorage.get<ChannelMarkRetracted>("ChannelMarkRetracted").write(writer, value as ChannelMarkRetracted);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 76 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 77 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11359,6 +11375,26 @@ IonFormatterStorage.register("ScheduledPostUpdated", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<ScheduledPost>('ScheduledPost').write(writer, value.post);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelMarkRetracted", {
+  read(reader: CborReader): ChannelMarkRetracted {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ChannelMarkRetracted");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const lastMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new ChannelMarkRetracted(spaceId, channelId, messageId, lastMessageId);
+  },
+  write(writer: CborWriter, value: ChannelMarkRetracted): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.lastMessageId);
     writer.writeEndArray();
   }
 });

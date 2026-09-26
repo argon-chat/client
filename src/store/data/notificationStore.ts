@@ -9,24 +9,30 @@ import { useMe } from "@/store/auth/meStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useFriendsStore } from "@/store/data/friendsStore";
 import { usePoolStore } from "@/store/data/poolStore";
+import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useTone } from "@/store/media/toneStore";
 import { useLocale } from "@/store/system/localeStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
+import { db } from "@/store/db/dexie";
 import { toast } from "@argon/ui/toast";
 import {
+  type ArgonMessage,
   type ChannelReadState,
   type MuteSettingsDto,
   type SpaceBadge,
   type NotificationBadges,
   type SystemNotificationDto,
+  type MessageEntityMention,
+  type MessageEntityMentionRole,
+  EntityType,
   MuteLevelType,
   MuteTargetKind,
   type ReadStateUpdated,
   type SystemNotificationReceived,
   type MuteSettingsChanged,
-  type BatchMentionOccurred,
   type DirectMessageSent,
   type MessageSent,
+  type ChannelMarkRetracted,
   type FriendRequestReceivedEvent,
   type FriendRequestCanceledEvent,
 } from "@argon/glue";
@@ -38,11 +44,23 @@ const NOTIFICATION_TYPES: Record<string, keyof NotificationBadges> = {
   system_announcement: "system",
 };
 
+const isVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+/**
+ * Unread state, one rule everywhere: a channel is unread while its newest message id is above the
+ * user's read cursor. The channel list, the space icon, the titlebar and the taskbar all read it
+ * through {@link channelBadge}, so they cannot disagree.
+ *
+ * The cursor comes from the server (GetGlobalBadges, ReadStateUpdated) and moves locally when the
+ * user reads, sends, or has the channel open at its newest message. The newest id per channel is
+ * mirrored in memory from the channels table and moved by MessageSent and ChannelMarkRetracted.
+ */
 export const useNotificationStore = defineStore("notifications", () => {
   const api = useApi();
   const bus = useBus();
   const me = useMe();
   const channelStore = useChannelStore();
+  const recentChats = useRecentChatsStore();
   const tone = useTone();
 
   // ── State ──────────────────────────────────────────────
@@ -50,15 +68,25 @@ export const useNotificationStore = defineStore("notifications", () => {
   const readStates = shallowRef(new Map<Guid, ChannelReadState>());
   const muteSettings = shallowRef(new Map<Guid, MuteSettingsDto>());
   const spaceBadges = shallowRef(new Map<Guid, SpaceBadge>());
-  const unreadDmCount = ref(0);
+  const serverDmCount = ref(0);
   const notifications = ref<NotificationBadges>({ friendRequests: 0, inventory: 0, system: 0 });
   const notificationFeed = shallowRef<SystemNotificationDto[]>([]);
   const MAX_NOTIFICATION_FEED = 200;
   const feedHasMore = ref(true);
   const initialized = ref(false);
 
+  /** Each visible channel's newest message id and space. */
+  const channels = new Map<Guid, { spaceId: Guid; lastMessageId: bigint }>();
+  const spaceChannels = new Map<Guid, Set<Guid>>();
+
+  /** The newest id the server has been told each channel is read up to. */
+  const acked = new Map<Guid, bigint>();
+
+  /** The channel on screen with its newest message in view: what arrives there is read on arrival. */
+  let viewing: { channelId: Guid; spaceId: Guid | null } | null = null;
+
   // ACK debounce
-  const pendingAck = new Map<Guid, { messageId: bigint; spaceId: Guid | null }>();
+  const pendingAck = new Map<Guid, bigint>();
   let ackTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Seamless account switch: flush any pending read-acks for the OLD account, then clear all badges
@@ -68,9 +96,13 @@ export const useNotificationStore = defineStore("notifications", () => {
     readStates.value = new Map();
     muteSettings.value = new Map();
     spaceBadges.value = new Map();
-    unreadDmCount.value = 0;
+    serverDmCount.value = 0;
     notifications.value = { friendRequests: 0, inventory: 0, system: 0 };
     notificationFeed.value = [];
+    channels.clear();
+    spaceChannels.clear();
+    acked.clear();
+    viewing = null;
     pendingAck.clear();
     if (ackTimer) { clearTimeout(ackTimer); ackTimer = null; }
     initialized.value = false;
@@ -82,11 +114,18 @@ export const useNotificationStore = defineStore("notifications", () => {
     () => notifications.value.friendRequests + notifications.value.inventory + notifications.value.system,
   );
 
+  // Conversations with something unread. The list is the one source once it has loaded; the
+  // server's count only stands in until then.
+  const unreadDmCount = computed(() => (recentChats.loaded ? recentChats.unreadConversations : serverDmCount.value));
+
+  // What the home button stands for: direct messages and the notification feed. Spaces have their
+  // own icons, so an unread channel lights its space, not home.
+  const hasHomeUnread = computed(() => totalSystemBadge.value > 0 || unreadDmCount.value > 0);
+
   // Single "the user has something unread right now" signal — system notifications,
   // unread DMs, or any unread channel / mention across spaces.
   const hasAnyUnread = computed(() => {
-    if (totalSystemBadge.value > 0) return true;
-    if (unreadDmCount.value > 0) return true;
+    if (hasHomeUnread.value) return true;
     for (const sb of spaceBadges.value.values()) {
       if (sb.unreadChannelCount > 0 || sb.totalMentions > 0) return true;
     }
@@ -146,8 +185,15 @@ export const useNotificationStore = defineStore("notifications", () => {
     return lastMessageId > rs.lastReadMessageId;
   }
 
-  function channelMentionCount(channelId: Guid): number {
-    return readStates.value.get(channelId)?.mentionCount ?? 0;
+  /**
+   * Mentions waiting in a channel. Given the channel's newest id, a read channel shows none: a count
+   * left there came from deleted messages and would otherwise resurface with the next message.
+   */
+  function channelMentionCount(channelId: Guid, lastMessageId?: bigint): number {
+    const rs = readStates.value.get(channelId);
+    if (!rs) return 0;
+    if (lastMessageId !== undefined && lastMessageId <= rs.lastReadMessageId) return 0;
+    return rs.mentionCount;
   }
 
   function effectiveMuteLevel(channelId: Guid, spaceId: Guid): MuteLevelType {
@@ -182,8 +228,157 @@ export const useNotificationStore = defineStore("notifications", () => {
     return spaceMute?.suppressEveryone ?? false;
   }
 
+  /** What one channel contributes to its space: the same answer the channel list shows. */
+  function channelBadge(channelId: Guid, spaceId: Guid, lastMessageId: bigint): { unread: boolean; mentions: number } {
+    const mute = effectiveMuteLevel(channelId, spaceId);
+    if (mute === MuteLevelType.All) return { unread: false, mentions: 0 };
+    const unread = isChannelUnread(channelId, lastMessageId);
+    return {
+      unread: unread && mute === MuteLevelType.None,
+      mentions: unread ? readStates.value.get(channelId)?.mentionCount ?? 0 : 0,
+    };
+  }
+
   function getSpaceBadge(spaceId: Guid): SpaceBadge | undefined {
     return spaceBadges.value.get(spaceId);
+  }
+
+  // ── Channel marks ──────────────────────────────────────
+
+  function noteChannel(channelId: Guid, spaceId: Guid, lastMessageId: bigint) {
+    channels.set(channelId, { spaceId, lastMessageId });
+    let set = spaceChannels.get(spaceId);
+    if (!set) spaceChannels.set(spaceId, (set = new Set()));
+    set.add(channelId);
+  }
+
+  /** The channel went away: it no longer counts toward its space. */
+  function forgetChannel(channelId: Guid) {
+    const ch = channels.get(channelId);
+    if (!ch) return;
+    channels.delete(channelId);
+    spaceChannels.get(ch.spaceId)?.delete(channelId);
+    recalcSpaceBadge(ch.spaceId);
+  }
+
+  async function loadChannelMarks() {
+    const rows = await db.channels.toArray();
+    channels.clear();
+    spaceChannels.clear();
+    for (const c of rows) noteChannel(c.channelId, c.spaceId, c.lastMessageId ?? 0n);
+  }
+
+  function computeSpaceBadge(spaceId: Guid): SpaceBadge {
+    let unreadChannelCount = 0;
+    let totalMentions = 0;
+    for (const channelId of spaceChannels.get(spaceId) ?? []) {
+      const ch = channels.get(channelId);
+      if (!ch) continue;
+      const b = channelBadge(channelId, spaceId, ch.lastMessageId);
+      if (b.unread) unreadChannelCount++;
+      totalMentions += b.mentions;
+    }
+    return { spaceId, unreadChannelCount, totalMentions };
+  }
+
+  function recalcSpaceBadge(spaceId: Guid) {
+    // A space whose channels are not here yet keeps what the server said about it.
+    if (!spaceChannels.has(spaceId)) return;
+    spaceBadges.value.set(spaceId, computeSpaceBadge(spaceId));
+    triggerRef(spaceBadges);
+  }
+
+  function recalcKnownSpaces() {
+    const next = new Map(spaceBadges.value);
+    for (const spaceId of spaceChannels.keys()) next.set(spaceId, computeSpaceBadge(spaceId));
+    spaceBadges.value = next;
+  }
+
+  /**
+   * Every space's badge from the channels on this device. The server's per-space counts are only
+   * the fallback for a space whose channels have not loaded: it counts channels the user cannot see.
+   */
+  async function recalcAllSpaceBadges(serverBadges: Iterable<SpaceBadge> = spaceBadges.value.values()) {
+    const fallback = [...serverBadges];
+    try {
+      await loadChannelMarks();
+    } catch (error) {
+      logger.error("[NotificationStore] Failed to read channel marks:", error);
+    }
+    const next = new Map<Guid, SpaceBadge>();
+    for (const sb of fallback) if (!spaceChannels.has(sb.spaceId)) next.set(sb.spaceId, sb);
+    for (const spaceId of spaceChannels.keys()) next.set(spaceId, computeSpaceBadge(spaceId));
+    spaceBadges.value = next;
+  }
+
+  /** Moves a channel's newest id up, here and in the channels table the list renders from. */
+  function raiseMark(channelId: Guid, spaceId: Guid, messageId: bigint) {
+    const ch = channels.get(channelId);
+    if (ch && ch.lastMessageId < messageId) ch.lastMessageId = messageId;
+
+    void (async () => {
+      try {
+        await db.channels.where("channelId").equals(channelId).modify((c) => {
+          if ((c.lastMessageId ?? 0n) < messageId) c.lastMessageId = messageId;
+        });
+        // Created after the last full read: counted from its first message on.
+        if (!ch) {
+          const row = await db.channels.get(channelId);
+          if (row) {
+            noteChannel(channelId, row.spaceId, row.lastMessageId ?? messageId);
+            recalcSpaceBadge(row.spaceId);
+          }
+        }
+      } catch (error) {
+        logger.error("[NotificationStore] Failed to store a channel's newest message:", error);
+      }
+    })();
+
+    return !!ch;
+  }
+
+  // ── Read cursor ────────────────────────────────────────
+
+  /** Read up to messageId on screen; the mentions went with it. False when it was already. */
+  function markReadLocally(channelId: Guid, spaceId: Guid | null, messageId: bigint): boolean {
+    const rs = readStates.value.get(channelId);
+    if (rs && rs.lastReadMessageId >= messageId) return false;
+    const sid = rs?.spaceId ?? spaceId ?? channels.get(channelId)?.spaceId ?? null;
+    readStates.value.set(channelId, { channelId, spaceId: sid, lastReadMessageId: messageId, mentionCount: 0 });
+    triggerRef(readStates);
+    if (sid) recalcSpaceBadge(sid);
+    return true;
+  }
+
+  function noteAcked(channelId: Guid, messageId: bigint) {
+    if ((acked.get(channelId) ?? 0n) < messageId) acked.set(channelId, messageId);
+  }
+
+  function isViewing(channelId: Guid) {
+    return viewing?.channelId === channelId && isVisible();
+  }
+
+  /**
+   * The channel on screen with its newest message in view, or null when none is. New messages
+   * there are read on arrival instead of lighting the channel for the length of the ack delay.
+   */
+  function setViewing(channelId: Guid | null, spaceId: Guid | null = null) {
+    viewing = channelId ? { channelId, spaceId } : null;
+  }
+
+  /** Only this channel's view lets go: a second view (split) may hold it by now. */
+  function stopViewing(channelId: Guid) {
+    if (viewing?.channelId === channelId) viewing = null;
+  }
+
+  /**
+   * The chat view is at the bottom of what it shows, up to messageId. atLatest: that is the channel's
+   * newest message, so the channel is read to its mark and whatever arrives next is read on arrival.
+   * A minimised window reads nothing; coming back reads it then.
+   */
+  function readOnScreen(channelId: Guid, messageId: bigint, spaceId: Guid | null, atLatest: boolean) {
+    setViewing(atLatest ? channelId : null, spaceId);
+    if (isVisible()) scheduleAck(channelId, messageId, spaceId, atLatest);
   }
 
   // ── Init ───────────────────────────────────────────────
@@ -192,58 +387,58 @@ export const useNotificationStore = defineStore("notifications", () => {
     try {
       const badges = await api.userInteraction.GetGlobalBadges();
 
-      const rs = new Map<Guid, ChannelReadState>();
-      for (const r of badges.readStates) rs.set(r.channelId, r);
+      // A cursor this device already moved further — a read or a send still on its way — is not
+      // taken back by an answer from before it.
+      const rs = new Map<Guid, ChannelReadState>(readStates.value);
+      for (const r of badges.readStates) {
+        const local = readStates.value.get(r.channelId);
+        rs.set(r.channelId, local && local.lastReadMessageId > r.lastReadMessageId ? local : r);
+      }
       readStates.value = rs;
+
+      for (const r of badges.readStates) noteAcked(r.channelId, r.lastReadMessageId);
 
       const ms = new Map<Guid, MuteSettingsDto>();
       for (const m of badges.muteSettings) ms.set(m.targetId, m);
       muteSettings.value = ms;
 
-      const sb = new Map<Guid, SpaceBadge>();
-      for (const s of badges.spaces) sb.set(s.spaceId, s);
-      spaceBadges.value = sb;
-
-      unreadDmCount.value = badges.unreadDmCount;
+      serverDmCount.value = badges.unreadDmCount;
       notifications.value = badges.notifications;
+
+      await recalcAllSpaceBadges(badges.spaces);
       initialized.value = true;
 
       logger.info("[NotificationStore] Initialized from GlobalBadges", {
         readStates: rs.size,
         muteSettings: ms.size,
-        spaces: sb.size,
+        spaces: spaceBadges.value.size,
         unreadDmCount: badges.unreadDmCount,
       });
-
-      // Recalculate space badges client-side from readStates
-      // (server may return empty spaces[] if feature is partial)
-      const spaceIds = new Set<Guid>();
-      for (const r of rs.values()) {
-        if (r.spaceId) spaceIds.add(r.spaceId);
-      }
-      for (const spaceId of spaceIds) {
-        await recalcSpaceBadge(spaceId);
-      }
     } catch (error) {
       logger.error("[NotificationStore] Failed to load GlobalBadges:", error);
     }
+
+    // The per-conversation counts behind the DM badge.
+    recentChats.load().catch((error) => logger.error("[NotificationStore] Failed to load recent chats:", error));
   }
 
   // ── Event handlers ─────────────────────────────────────
 
+  // Another window or device read the channel.
   function handleReadStateUpdated(e: ReadStateUpdated) {
+    if (e.userId !== me.me?.userId) return;
+    noteAcked(e.channelId, e.lastReadMessageId);
+    const rs = readStates.value.get(e.channelId);
+    if (rs && rs.lastReadMessageId > e.lastReadMessageId) return;
+    const spaceId = e.spaceId ?? rs?.spaceId ?? null;
     readStates.value.set(e.channelId, {
       channelId: e.channelId,
-      spaceId: e.spaceId,
+      spaceId,
       lastReadMessageId: e.lastReadMessageId,
       mentionCount: e.mentionCount,
     });
     triggerRef(readStates);
-
-    // Recalculate space badge if spaceId is known
-    if (e.spaceId) {
-      recalcSpaceBadge(e.spaceId);
-    }
+    if (spaceId) recalcSpaceBadge(spaceId);
   }
 
   function handleSystemNotificationReceived(e: SystemNotificationReceived) {
@@ -263,22 +458,22 @@ export const useNotificationStore = defineStore("notifications", () => {
   }
 
   function handleMuteSettingsChanged(e: MuteSettingsChanged) {
-    const existing = muteSettings.value.get(e.targetId);
     if (e.muteLevel === MuteLevelType.None) {
       muteSettings.value.delete(e.targetId);
-    } else if (existing) {
-      existing.muteLevel = e.muteLevel;
-      muteSettings.value.set(e.targetId, { ...existing });
+    } else {
+      const existing = muteSettings.value.get(e.targetId);
+      muteSettings.value.set(e.targetId, existing
+        ? { ...existing, muteLevel: e.muteLevel }
+        : {
+            targetId: e.targetId,
+            targetType: spaceChannels.has(e.targetId) ? MuteTargetKind.Space : MuteTargetKind.Channel,
+            muteLevel: e.muteLevel,
+            suppressEveryone: false,
+            expiresAt: null,
+          });
     }
     triggerRef(muteSettings);
-  }
-
-  function handleBatchMentionOccurred(e: BatchMentionOccurred) {
-    const mute = effectiveMuteLevel(e.channelId, e.spaceId);
-    if (mute !== MuteLevelType.All) {
-      tone.playNotificationSound();
-      flashForAttention();
-    }
+    recalcKnownSpaces();
   }
 
   // The server files no system notification for a friend request — the event is all there is —
@@ -301,66 +496,135 @@ export const useNotificationStore = defineStore("notifications", () => {
     }
   }
 
+  // The count itself lives with the conversation list (useRecentChatsStore).
   function handleDirectMessageSent(e: DirectMessageSent) {
-    if (e.receiverId === me.me?.userId) {
-      // Matches the server, which does not count an ignored sender's messages as unread.
-      if (useFriendsStore().isIgnored(e.senderId)) return;
-      unreadDmCount.value++;
+    if (e.receiverId !== me.me?.userId) return;
+    if (useFriendsStore().isIgnored(e.senderId)) return;
+    if (recentChats.viewingPeer === e.senderId && isVisible()) return;
+    flashForAttention();
+  }
+
+  /** Whether a message pings this user: by name, @everyone, a role they hold, or a reply to them. */
+  async function mentionsMe(msg: ArgonMessage, spaceId: Guid): Promise<boolean> {
+    const myId = me.me?.userId;
+    if (!myId) return false;
+
+    const roles: Guid[] = [];
+    for (const e of msg.entities ?? []) {
+      if (e.type === EntityType.Mention && (e as MessageEntityMention).userId === myId) return true;
+      if (e.type === EntityType.MentionEveryone && !suppressesEveryone(msg.channelId, spaceId)) return true;
+      if (e.type === EntityType.MentionRole) roles.push((e as MessageEntityMentionRole).archetypeId);
+    }
+
+    if (roles.length > 0) {
+      const member = await db.members.where("[userId+spaceId]").equals([myId, spaceId]).first();
+      if (member?.archetypes?.some((a) => roles.includes(a.archetypeId))) return true;
+    }
+
+    if (msg.replyId != null) {
+      const replied = await db.messages.get(Number(msg.replyId));
+      if (replied?.messageId === msg.replyId && replied.sender === myId && !replied.crosspost) return true;
+    }
+
+    return false;
+  }
+
+  async function countMention(msg: ArgonMessage, spaceId: Guid) {
+    try {
+      if (!(await mentionsMe(msg, spaceId))) return;
+      if (effectiveMuteLevel(msg.channelId, spaceId) === MuteLevelType.All) return;
+
+      const rs = readStates.value.get(msg.channelId);
+      // Read while this was being worked out.
+      if (rs && rs.lastReadMessageId >= msg.messageId) return;
+
+      readStates.value.set(msg.channelId, {
+        channelId: msg.channelId,
+        spaceId: rs?.spaceId ?? spaceId,
+        lastReadMessageId: rs?.lastReadMessageId ?? 0n,
+        mentionCount: (rs?.mentionCount ?? 0) + 1,
+      });
+      triggerRef(readStates);
+      recalcSpaceBadge(spaceId);
+
+      // The open channel plays its own sound (useChatMessages).
+      if (channelStore.selectedTextChannel !== msg.channelId) tone.playNotificationSound();
       flashForAttention();
+    } catch (error) {
+      logger.error("[NotificationStore] Failed to count a mention:", error);
     }
   }
 
   function handleMessageSent(e: MessageSent) {
     const msg = e.message;
+    const spaceId = e.spaceId;
 
-    // Own message — auto-advance readState so channel doesn't flash as unread
+    const known = raiseMark(msg.channelId, spaceId, msg.messageId);
+
     if (msg.sender === me.me?.userId) {
-      // Update channel's lastMessageId + readState atomically
-      void (async () => {
-        const ch = await channelStore.getChannel(msg.channelId);
-        if (ch) {
-          ch.lastMessageId = msg.messageId;
-          await channelStore.trackChannel(ch);
-        }
-      })();
-
-      const rs = readStates.value.get(msg.channelId);
-      if (rs) {
-        readStates.value.set(msg.channelId, {
-          ...rs,
-          lastReadMessageId: msg.messageId,
-        });
-        triggerRef(readStates);
-      }
+      // What you wrote is read. The server moves your cursor the same way on its own.
+      noteAcked(msg.channelId, msg.messageId);
+      markReadLocally(msg.channelId, spaceId, msg.messageId);
       return;
     }
 
-    // Other user's message — update lastMessageId, then recalc badge
-    void (async () => {
-      const ch = await channelStore.getChannel(msg.channelId);
-      if (ch) {
-        ch.lastMessageId = msg.messageId;
-        await channelStore.trackChannel(ch);
-      }
+    // Not a channel on this device (yet): raiseMark picks it up if it turns out to be one.
+    if (!known) return;
 
-      const spaceId = readStates.value.get(msg.channelId)?.spaceId ?? e.spaceId;
-      if (spaceId) {
-        await recalcSpaceBadge(spaceId);
-      }
-    })();
+    if (isViewing(msg.channelId)) {
+      scheduleAck(msg.channelId, msg.messageId, spaceId);
+      return;
+    }
+
+    recalcSpaceBadge(spaceId);
+    void countMention(msg, spaceId);
+  }
+
+  /**
+   * The newest message of a channel was deleted and its mark went back. Lowered only while the mark
+   * here still points at or below the deleted one — a newer message may have overtaken this event.
+   */
+  function handleChannelMarkRetracted(e: ChannelMarkRetracted) {
+    const ch = channels.get(e.channelId);
+    if (ch && ch.lastMessageId <= e.messageId) ch.lastMessageId = e.lastMessageId;
+
+    void db.channels.where("channelId").equals(e.channelId).modify((c) => {
+      if ((c.lastMessageId ?? 0n) <= e.messageId) c.lastMessageId = e.lastMessageId;
+    }).catch((error) => logger.error("[NotificationStore] Failed to retract a channel mark:", error));
+
+    // Caught up now: any mention left came from what was deleted (the server clears it the same way).
+    const rs = readStates.value.get(e.channelId);
+    if (rs && rs.mentionCount > 0 && rs.lastReadMessageId >= e.lastMessageId) {
+      readStates.value.set(e.channelId, { ...rs, mentionCount: 0 });
+      triggerRef(readStates);
+    }
+
+    recalcSpaceBadge(e.spaceId);
   }
 
   // ── ACK ────────────────────────────────────────────────
 
-  function scheduleAck(channelId: Guid, messageId: bigint, spaceId?: Guid | null) {
+  /**
+   * The user has read the channel up to messageId. With toLatest the view is at the channel's newest
+   * message, so everything up to the channel's mark is read — including a deleted tail no message
+   * on screen stands for, which would otherwise keep the channel unread for good.
+   */
+  function scheduleAck(channelId: Guid, messageId: bigint, spaceId?: Guid | null, toLatest = false) {
+    let target = messageId;
+    if (toLatest) {
+      const mark = channels.get(channelId)?.lastMessageId ?? 0n;
+      if (mark > target) target = mark;
+    }
+    if (target <= 0n) return;
+
+    // On screen at once; the server hears about it after the debounce.
+    markReadLocally(channelId, spaceId ?? null, target);
+
     // The scroller reports "at bottom" on every render pass, not only on user scrolls; without this
-    // check the same message was re-acked (server call + badge recalculation) every 1.5 s for as
-    // long as the user sat at the bottom of a chat.
-    const current = readStates.value.get(channelId);
-    if (current && current.lastReadMessageId >= messageId) return;
-    const queued = pendingAck.get(channelId);
-    if (queued && queued.messageId >= messageId) return;
-    pendingAck.set(channelId, { messageId, spaceId: spaceId ?? null });
+    // check the same message was re-acked every 1.5 s for as long as the user sat at the bottom.
+    if ((acked.get(channelId) ?? 0n) >= target) return;
+    if ((pendingAck.get(channelId) ?? 0n) >= target) return;
+    pendingAck.set(channelId, target);
     if (!ackTimer) {
       ackTimer = setTimeout(flushAcks, 1500);
     }
@@ -368,31 +632,16 @@ export const useNotificationStore = defineStore("notifications", () => {
 
   function flushAcks() {
     ackTimer = null;
-    for (const [channelId, { messageId, spaceId: ackSpaceId }] of pendingAck) {
-      // Optimistic update
-      const rs = readStates.value.get(channelId);
-      const oldReadState = rs ? { ...rs } : null;
-      const resolvedSpaceId = rs?.spaceId ?? ackSpaceId;
-
-      readStates.value.set(channelId, {
-        channelId,
-        spaceId: resolvedSpaceId,
-        lastReadMessageId: messageId,
-        mentionCount: 0,
-      });
-      triggerRef(readStates);
-
-      if (resolvedSpaceId) {
-        recalcSpaceBadge(resolvedSpaceId);
-      }
+    for (const [channelId, messageId] of pendingAck) {
+      const previous = acked.get(channelId);
+      acked.set(channelId, messageId);
 
       api.userInteraction.AckChannel(channelId, messageId).catch((error) => {
-        logger.error("[NotificationStore] AckChannel failed, rolling back:", error);
-        if (oldReadState) {
-          readStates.value.set(channelId, oldReadState);
-          triggerRef(readStates);
-          if (oldReadState.spaceId) recalcSpaceBadge(oldReadState.spaceId);
-        }
+        // Not rolled back on screen — the user did read it. The next pass at the bottom asks again.
+        logger.error("[NotificationStore] AckChannel failed:", error);
+        if (acked.get(channelId) !== messageId) return;
+        if (previous === undefined) acked.delete(channelId);
+        else acked.set(channelId, previous);
       });
     }
     pendingAck.clear();
@@ -421,6 +670,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     const dto: MuteSettingsDto = { targetId, targetType, muteLevel, suppressEveryone, expiresAt };
     muteSettings.value.set(targetId, dto);
     triggerRef(muteSettings);
+    recalcKnownSpaces();
 
     try {
       await api.userInteraction.MuteTarget(targetId, targetType, muteLevel, suppressEveryone, expiresAt);
@@ -429,6 +679,7 @@ export const useNotificationStore = defineStore("notifications", () => {
       if (old) muteSettings.value.set(targetId, old);
       else muteSettings.value.delete(targetId);
       triggerRef(muteSettings);
+      recalcKnownSpaces();
     }
   }
 
@@ -436,6 +687,7 @@ export const useNotificationStore = defineStore("notifications", () => {
     const old = muteSettings.value.get(targetId);
     muteSettings.value.delete(targetId);
     triggerRef(muteSettings);
+    recalcKnownSpaces();
 
     try {
       await api.userInteraction.UnmuteTarget(targetId);
@@ -444,6 +696,7 @@ export const useNotificationStore = defineStore("notifications", () => {
       if (old) {
         muteSettings.value.set(targetId, old);
         triggerRef(muteSettings);
+        recalcKnownSpaces();
       }
     }
   }
@@ -522,53 +775,29 @@ export const useNotificationStore = defineStore("notifications", () => {
     }
   }
 
-  // ── Helpers ────────────────────────────────────────────
-
-  async function recalcSpaceBadge(spaceId: Guid) {
-    // Recalculate from readStates + channel lastMessageIds
-    let unreadCount = 0;
-    let totalMentions = 0;
-
-    for (const [channelId, rs] of readStates.value) {
-      if (rs.spaceId !== spaceId) continue;
-
-      const mute = effectiveMuteLevel(channelId, spaceId);
-
-      const ch = await channelStore.getChannel(channelId);
-      const lastMsgId = ch?.lastMessageId ?? BigInt(0);
-
-      if (mute === MuteLevelType.All) continue;
-
-      if (lastMsgId > rs.lastReadMessageId) {
-        if (mute === MuteLevelType.None) unreadCount++;
-      }
-
-      if (mute === MuteLevelType.None || mute === MuteLevelType.OnlyMentions) {
-        totalMentions += rs.mentionCount;
-      }
-    }
-
-    spaceBadges.value.set(spaceId, { spaceId, unreadChannelCount: unreadCount, totalMentions });
-    triggerRef(spaceBadges);
-  }
-
-  function decrementDmUnread() {
-    if (unreadDmCount.value > 0) {
-      unreadDmCount.value--;
-    }
-  }
-
   // ── Subscribe ──────────────────────────────────────────
 
+  let subscribed = false;
+
   function subscribeToEvents() {
+    if (subscribed) return;
+    subscribed = true;
     bus.onServerEvent<ReadStateUpdated>("ReadStateUpdated", handleReadStateUpdated);
     bus.onServerEvent<SystemNotificationReceived>("SystemNotificationReceived", handleSystemNotificationReceived);
     bus.onServerEvent<MuteSettingsChanged>("MuteSettingsChanged", handleMuteSettingsChanged);
-    bus.onServerEvent<BatchMentionOccurred>("BatchMentionOccurred", handleBatchMentionOccurred);
     bus.onServerEvent<DirectMessageSent>("DirectMessageSent", handleDirectMessageSent);
     bus.onServerEvent<MessageSent>("MessageSent", handleMessageSent);
+    bus.onServerEvent<ChannelMarkRetracted>("ChannelMarkRetracted", handleChannelMarkRetracted);
     bus.onServerEvent<FriendRequestReceivedEvent>("FriendRequestReceivedEvent", handleFriendRequestReceived);
     bus.onServerEvent<FriendRequestCanceledEvent>("FriendRequestCanceledEvent", handleFriendRequestCanceled);
+    recentChats.listen();
+
+    // Back from a minimised window: the channel on screen is read now, not when its messages arrived.
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (isVisible() && viewing) scheduleAck(viewing.channelId, 0n, viewing.spaceId, true);
+      });
+    }
   }
 
   return {
@@ -585,8 +814,11 @@ export const useNotificationStore = defineStore("notifications", () => {
     // Getters
     totalSystemBadge,
     hasAnyUnread,
+    hasHomeUnread,
+    pingCount,
     isChannelUnread,
     channelMentionCount,
+    channelBadge,
     effectiveMuteLevel,
     isTargetMuted,
     suppressesEveryone,
@@ -594,7 +826,11 @@ export const useNotificationStore = defineStore("notifications", () => {
 
     // Actions
     initFromGlobalBadges,
+    recalcAllSpaceBadges,
+    forgetChannel,
     subscribeToEvents,
+    stopViewing,
+    readOnScreen,
     scheduleAck,
     flushAcksImmediate,
     muteTarget,
@@ -602,6 +838,5 @@ export const useNotificationStore = defineStore("notifications", () => {
     loadNotificationFeed,
     markNotificationRead,
     markAllNotificationsRead,
-    decrementDmUnread,
   };
 });

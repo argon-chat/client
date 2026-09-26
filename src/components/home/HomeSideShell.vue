@@ -27,17 +27,9 @@ import { useRecentChatsStore } from '@/store/chat/useRecentChatsStore';
 import { useFriendsStore } from '@/store/data/friendsStore';
 import { useCallManager } from '@/store/media/callManagerStore';
 import { useApi } from "@/store/system/apiStore";
-import type {
-    RecentChatUpdatedEvent,
-    ChatPinnedEvent,
-    ChatUnpinnedEvent,
-    ChatReadEvent,
-    ChatDeletedEvent,
-    DirectMessageSent,
-} from "@argon/glue";
+import type { ChatDeletedEvent } from "@argon/glue";
 import { useBus } from '@/store/realtime/busStore';
 import { DisposableBag, logger } from '@argon/core';
-import { useMe } from '@/store/auth/meStore';
 import SoftphoneModal from '../modals/SoftphoneModal.vue';
 import { useNotificationStore } from '@/store/data/notificationStore';
 import { useFeatureFlags } from '@/store/features/featureFlagsStore';
@@ -60,7 +52,6 @@ const calls = useCallManager();
 const api = useApi();
 const client = api.userChatInteractions;
 const bus = useBus();
-const me = useMe();
 const ntf = useNotificationStore();
 const { toast } = useToast();
 const softphoneOpened = ref(false);
@@ -99,8 +90,7 @@ const inventoryBadge = computed(() => ntf.notifications.inventory || 0);
 const chatsLoading = ref(true);
 async function loadChats() {
     try {
-        const res = await client.GetRecentChats(50, 0);
-        recentStore.setChats(res);
+        await recentStore.load();
     } finally {
         chatsLoading.value = false;
     }
@@ -135,18 +125,6 @@ const confirmText = computed(() => {
     }
 });
 
-/**
- * Mark read from the list: the row, the badge in the rail and then the server, so the list reacts
- * at once and a failed call only costs the server its copy of the count. The same steps the open
- * chat takes when it scrolls to the bottom.
- */
-async function markChatRead(peerId: string) {
-    const unread = recentStore.recent.find((c) => c.peerId === peerId)?.unreadCount ?? 0;
-    recentStore.markRead(peerId);
-    if (unread > 0) ntf.unreadDmCount = Math.max(0, ntf.unreadDmCount - unread);
-    await client.MarkChatRead(peerId);
-}
-
 /** The chat is gone from this account's list: drop the row and leave it if it is open. */
 function onChatGone(peerId: string) {
     recentStore.removeChat(peerId);
@@ -167,7 +145,7 @@ async function onChatAction(action: RecentChatAction, peerId: string) {
                 await client.UnpinChat(peerId);
                 break;
             case "mark-read":
-                await markChatRead(peerId);
+                recentStore.readChat(peerId);
                 break;
             case "call":
                 await calls.startOutgoingCall(peerId);
@@ -230,50 +208,12 @@ async function runConfirmed() {
 // --- EventBus ---
 const subs = new DisposableBag();
 
+// The list itself follows the chat events in useRecentChatsStore, whichever view is open; this only
+// leaves a chat that was deleted in another window.
 function subscribeEvents() {
-    subs.addSubscription(
-        bus.onServerEvent<RecentChatUpdatedEvent>("RecentChatUpdatedEvent", (e) => {
-            recentStore.upsert({
-                peerId: e.peerId,
-                lastMsg: e.lastMessage,
-                lastMessageAt: e.lastMessageAt,
-                isPinned: recentStore.recent.find(x => x.peerId === e.peerId)?.isPinned ?? false,
-                pinnedAt: recentStore.recent.find(x => x.peerId === e.peerId)?.pinnedAt ?? null,
-                // The event carries no count of its own; the store keeps whatever the committed row
-                // already had, which is what stopped every new message wiping the unread badge.
-                unreadCount: 0,
-                userId: me.me!.userId
-            });
-        })
-    );
-    // Who spoke, which RecentChatUpdatedEvent does not say. Without this a message from someone
-    // you have no conversation open with arrived silently in the sidebar.
-    subs.addSubscription(
-        bus.onServerEvent<DirectMessageSent>("DirectMessageSent", (e) => {
-            if (e.receiverId !== me.me?.userId) return;
-            const isOpen = route.name === "HomeChat" && route.params.userId === e.senderId;
-            // An ignored sender's message arrives but does not count, matching the server's count.
-            if (!isOpen && !friendsStore.isIgnored(e.senderId)) recentStore.bumpUnread(e.senderId);
-        })
-    );
     subs.addSubscription(
         bus.onServerEvent<ChatDeletedEvent>("ChatDeletedEvent", (e) => {
             onChatGone(e.peerId);
-        })
-    );
-    subs.addSubscription(
-        bus.onServerEvent<ChatPinnedEvent>("ChatPinnedEvent", (e) => {
-            recentStore.markPinned(e.peerId, true, e.pinnedAt);
-        })
-    );
-    subs.addSubscription(
-        bus.onServerEvent<ChatUnpinnedEvent>("ChatUnpinnedEvent", (e) => {
-            recentStore.markPinned(e.peerId, false, null);
-        })
-    );
-    subs.addSubscription(
-        bus.onServerEvent<ChatReadEvent>("ChatReadEvent", (e) => {
-            recentStore.markRead(e.peerId);
         })
     );
 }

@@ -85,9 +85,12 @@ export const useSpaceStore = defineStore("spaces", () => {
     });
 
     if (r.isSuccessJoin()) {
+      // The new space's read states first — history from before the join arrives already read — so
+      // its channels never render as unread in between.
+      const ntf = useNotificationStore();
+      await ntf.initFromGlobalBadges();
       await pool.loadServerDetails();
-      // The new space's read states: history from before the join arrives already read.
-      await useNotificationStore().initFromGlobalBadges();
+      await ntf.recalcAllSpaceBadges();
       return '';
     } else if (r.isFailedJoin()) {
       switch (r.error) {
