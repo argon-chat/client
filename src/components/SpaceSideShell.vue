@@ -3,6 +3,7 @@ import ChatList from './ChatList.vue';
 import ControlBar from './ControlBar.vue';
 import SidebarHeader from './SidebarHeader.vue';
 import UserBar from './UserBar.vue';
+import AnnouncementBanner from './space/AnnouncementBanner.vue';
 
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
@@ -19,6 +20,7 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
         <!-- Unified panel: header + channel list, flush (no gap / inner rounding) -->
         <div class="channel-panel flex flex-col flex-1 min-h-0">
             <SidebarHeader v-model:selected-space="selectedSpaceId" />
+            <AnnouncementBanner :space-id="selectedSpaceId" :open-channel-id="selectedChannelId" @open="selectedChannelId = $event" />
             <ChatList class="flex-1 min-h-0" v-model:selected-space="selectedSpaceId" v-model:selected-channel-id="selectedChannelId"/>
         </div>
         <ControlBar />

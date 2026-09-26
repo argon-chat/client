@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { createAudioAtlas, type AudioAtlas } from "@argon/soundfx";
 import normalizedAtlas from "@argon/assets/sounds/normalized_atlas.wav";
 import { audio } from "@/lib/audio/AudioManager";
-import { playRadioChirp as chirp, playUiBeep } from "@/lib/audio/uiBeep";
+import { playMovedSound as moved, playRadioChirp as chirp, playUiBeep } from "@/lib/audio/uiBeep";
 import { logger } from "@argon/core";
 
 // Sprite definitions: [startMs, durationMs]
@@ -130,10 +130,18 @@ export const useTone = defineStore("tone", () => {
   const playRadioError = () => playUiBeep("capture-fail");
   const playRadioChirp = () => chirp(volume.value);
 
+  // Being moved is a kind of entering, so it follows the enter-tone preference — but it must
+  // not sound like one: a synthesized glide at the sound level the atlas uses.
+  const playMovedSound = () => {
+    if (!isEnable_playSoftEnterSound.value) return;
+    moved(volume.value);
+  };
+
   return {
     init,
     playSoftEnterSound,
     playSoftLeaveSound,
+    playMovedSound,
     playReconnectSound,
     playMuteAllSound,
     playUnmuteAllSound,

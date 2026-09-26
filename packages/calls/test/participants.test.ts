@@ -147,7 +147,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
     tone: {
       playRingSound: vi.fn(), stopPlayRingSound: vi.fn(),
       playSoftEnterSound: vi.fn(), playSoftLeaveSound: vi.fn(),
-      playRadioError: vi.fn(), playRadioChirp: vi.fn(),
+      playMovedSound: vi.fn(), playRadioError: vi.fn(), playRadioChirp: vi.fn(),
     },
     me: { me: { userId: "me" } },
     bus: { onServerEvent: () => ({ unsubscribe() {} }) },

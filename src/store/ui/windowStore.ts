@@ -53,4 +53,4 @@ export const useWindow = defineStore("window", () => {
   };
 });
 
-export type ChannelSettingsTab = "overview" | "permissions" | "broadcast";
+export type ChannelSettingsTab = "overview" | "permissions" | "broadcast" | "announcement" | "follows" | "integrations";

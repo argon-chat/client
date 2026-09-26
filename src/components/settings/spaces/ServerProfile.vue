@@ -111,6 +111,11 @@
         </div>
       </div>
 
+      <!-- Main announcement channel -->
+      <div v-if="canManageServer" class="setting-card">
+        <MainAnnouncementPicker :space-id="currentSpace.spaceId" :current="currentSpace.mainAnnouncementChannelId ?? null" />
+      </div>
+
       <!-- Server info card -->
       <div class="setting-card space-y-4">
         <div class="flex items-center gap-2">
@@ -206,6 +211,7 @@ import type { IonDateTime } from "@argon-chat/ion.webcore";
 import { SpaceDeletionStatus, type SpaceStats } from "@argon/glue";
 import ServerAvatarUploader from "./ServerAvatarUploader.vue";
 import ServerHeaderUploader from "./ServerHeaderUploader.vue";
+import MainAnnouncementPicker from "./MainAnnouncementPicker.vue";
 import DangerZone from "@/components/shared/DangerZone.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useSpaceStore } from "@/store/data/serverStore";

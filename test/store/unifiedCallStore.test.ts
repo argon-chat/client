@@ -131,7 +131,7 @@ vi.mock("@/store/data/poolStore", () => ({
 }));
 vi.mock("@/store/media/toneStore", () => ({
   useTone: () => ({
-    playSoftEnterSound() {}, playSoftLeaveSound() {},
+    playSoftEnterSound() {}, playSoftLeaveSound() {}, playMovedSound() {},
     playRingSound() {}, stopPlayRingSound() {},
   }),
 }));

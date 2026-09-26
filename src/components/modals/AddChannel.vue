@@ -85,6 +85,28 @@
         <p v-if="channelType === 'Announcement'" class="mt-3 text-xs text-muted-foreground leading-relaxed">
           {{ t("channel_type_announcement_hint") }}
         </p>
+        <div
+          v-if="channelType === 'Announcement' && canPickPublishers && publisherCandidates.length"
+          class="mt-3 space-y-2"
+          data-testid="publisher-roles"
+        >
+          <Label class="text-sm font-medium">{{ t("announcement_publisher_roles") }}</Label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="role in publisherCandidates"
+              :key="role.id"
+              type="button"
+              class="px-2.5 py-1 rounded-full border text-xs transition-colors"
+              :class="publisherRoleIds.has(role.id)
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/50'"
+              :aria-pressed="publisherRoleIds.has(role.id)"
+              @click="togglePublisher(role.id)"
+            >
+              {{ role.name }}
+            </button>
+          </div>
+        </div>
       </div>
       
       <div class="relative pt-2">
@@ -108,13 +130,16 @@ import { Dialog, DialogContent, DialogTitle } from "@argon/ui/dialog";
 import { useLocale } from "@/store/system/localeStore";
 import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
-import { computed, shallowRef, watch } from "vue";
+import { computed, reactive, ref, shallowRef, watch } from "vue";
 import { logger } from "@argon/core";
 import { useToast } from "@argon/ui/toast";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { broadcastErrorKey } from "@/composables/useBroadcastSettings";
-import { ChannelType } from "@argon/glue";
+import { ArgonEntitlement, ChannelType, type Archetype } from "@argon/glue";
+import { db } from "@/store/db/dexie";
+import { useApi } from "@/store/system/apiStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import { Label } from "@argon/ui/label";
 import { Hash, Megaphone, Mic, RadioTower } from "lucide-vue-next";
 
@@ -122,6 +147,8 @@ const { t } = useLocale();
 const { toast } = useToast();
 const servers = useSpaceStore();
 const windows = useWindow();
+const api = useApi();
+const pex = usePexStore();
 
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
 const channelType = shallowRef("Text");
@@ -146,8 +173,43 @@ watch(open, (isOpen) => {
     channelType.value = "Text";
     addChannelError.value = "";
     isLoading.value = false;
+    publisherRoleIds.clear();
+    publisherCandidates.value = [];
   }
 });
+
+// ── Who else posts in a new announcement channel ──
+// The server denies SendMessages to everyone there; each picked role gets an Allow on the channel,
+// written the way the permissions tab writes it — which needs ManageArchetype as well.
+
+const publisherCandidates = ref<Archetype[]>([]);
+const publisherRoleIds = reactive(new Set<string>());
+const canPickPublishers = computed(() => pex.hasInSpace(selectedSpaceId.value, "ManageArchetype"));
+
+watch([open, channelType], async ([isOpen, type]) => {
+  if (!isOpen || type !== "Announcement" || publisherCandidates.value.length) return;
+  publisherCandidates.value = await db.archetypes
+    .where("spaceId")
+    .equals(selectedSpaceId.value)
+    .filter((a) => !a.isHidden && !a.isDefault)
+    .toArray();
+});
+
+function togglePublisher(id: string) {
+  if (publisherRoleIds.has(id)) publisherRoleIds.delete(id);
+  else publisherRoleIds.add(id);
+}
+
+async function allowPublishers(spaceId: string, channelId: string, roleIds: string[]) {
+  const results = await Promise.allSettled(
+    roleIds.map((id) =>
+      api.archetypeInteraction.UpsertArchetypeEntitlementForChannel(spaceId, channelId, id, ArgonEntitlement.None, ArgonEntitlement.SendMessages),
+    ),
+  );
+  if (results.some((r) => r.status === "rejected" || !r.value)) {
+    toast({ title: t("announcement_publishers_failed"), variant: "destructive" });
+  }
+}
 
 // Broadcast is a mode on a voice channel, not a type of its own: it is created as Voice and the
 // mode is switched on right after (see addChannel).
@@ -214,14 +276,17 @@ const addChannel = async (close: () => void) => {
       return;
     }
 
-    await servers.addChannelToServer(
-      selectedSpaceId.value,
+    const spaceId = selectedSpaceId.value;
+    const publishers = resolvedType === ChannelType.Announcement && canPickPublishers.value ? [...publisherRoleIds] : [];
+    const channelId = await servers.addChannelToServer(
+      spaceId,
       channelName.value,
       resolvedType,
       groupId.value
     );
 
     close();
+    if (publishers.length) await allowPublishers(spaceId, channelId, publishers);
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
     addChannelError.value = String(error);

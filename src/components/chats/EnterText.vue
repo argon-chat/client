@@ -33,6 +33,8 @@
                 {{ t('announcement_everyone_limit') }}
             </p>
 
+            <ComposerPreview v-if="previewVisible" :content="previewContent" />
+
             <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
                 <button v-if="!captionMode && canAttachFiles && !editing" class="icon-motion icon-motion--lift flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
@@ -62,6 +64,18 @@
                     @paste="onPaste"
                 />
 
+                <!-- Preview of the message as it will be sent -->
+                <button
+                  v-if="!captionMode"
+                  :class="['icon-motion icon-motion--pop flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring', showPreview ? 'text-primary' : 'text-muted-foreground']"
+                  :title="t('composer_preview_toggle')"
+                  :aria-pressed="showPreview"
+                  data-testid="composer-preview-toggle"
+                  @click="showPreview = !showPreview"
+                >
+                    <EyeIcon class="w-5 h-5" />
+                </button>
+
                 <!-- Emoji picker -->
                 <Popover>
                     <PopoverTrigger>
@@ -85,6 +99,8 @@
                         </EmojixPicker>
                     </PopoverContent>
                 </Popover>
+
+                <ScheduleSendButton v-if="canSchedule" @schedule="handleSchedule" />
 
                 <!-- Send button -->
                 <Transition
@@ -319,7 +335,7 @@ import CapitalizedSegment from "./CapitalizedSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
-import { SendHorizonalIcon, SmileIcon, PaperclipIcon, UsersIcon } from "lucide-vue-next";
+import { SendHorizonalIcon, SmileIcon, PaperclipIcon, UsersIcon, EyeIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
@@ -347,6 +363,11 @@ import { parseMessageContent as parseMessage, serializeMessageContent, type Pars
 import { useToast } from "@argon/ui/toast";
 import { EditMessageError } from "@argon/glue";
 import { sendLinkPreviews } from "@/lib/linkPreview/settings";
+import { composerLimits } from "@/lib/chat/announcement";
+import ComposerPreview from "./ComposerPreview.vue";
+import ScheduleSendButton from "./ScheduleSendButton.vue";
+import { useChannelDraft } from "@/composables/useChannelDraft";
+import { useScheduledPosts } from "@/composables/useScheduledPosts";
 const { t } = useLocale();
 
 const configStore = useConfigStore();
@@ -396,6 +417,9 @@ const handleGifSelect = (gif: GifItem) => {
     reactions: [],
     controls: [],
     editedAt: null,
+    crosspost: null,
+    publishedAt: null,
+    webhook: null,
   } as ArgonMessage;
 
   emit("add-optimistic", optimisticMsg, randomId);
@@ -444,6 +468,9 @@ const handleSavedGifSelect = (gif: SavedGif) => {
     reactions: [],
     controls: [],
     editedAt: null,
+    crosspost: null,
+    publishedAt: null,
+    webhook: null,
   } as ArgonMessage;
 
   emit("add-optimistic", optimisticMsg, randomId);
@@ -483,10 +510,12 @@ function countGraphemes(text: string): number {
  * NOT a computed — avoids redundant re-iteration of the segmenter.
  */
 const graphemeCount = ref(0);
-const charLimit = computed(() => me.isPremium ? 4000 : 2000);
-const charWarnThreshold = computed(() => me.isPremium ? 3000 : 1500);
-const charDangerThreshold = computed(() => me.isPremium ? 3800 : 1900);
-const showCharCounter = computed(() => graphemeCount.value > (me.isPremium ? 2000 : 1000));
+// Announcement channels take long posts (the server's MaxAnnouncementTextLength).
+const limits = computed(() => composerLimits(me.isPremium, !!props.announcement));
+const charLimit = computed(() => limits.value.limit);
+const charWarnThreshold = computed(() => limits.value.warn);
+const charDangerThreshold = computed(() => limits.value.danger);
+const showCharCounter = computed(() => graphemeCount.value > limits.value.counterFrom);
 const isOverLimit = computed(() => graphemeCount.value > charLimit.value);
 const charCounterColor = computed(() => {
   if (graphemeCount.value >= charLimit.value) return "text-red-500";
@@ -1041,6 +1070,51 @@ function parseMessageContent(): ParsedMessage {
   return parseMessage(messageText.value, mentionRegistry, { everyone: canMentionEveryone.value });
 }
 
+// ── Author tools: preview, scheduled send, the server-side draft ──
+
+const showPreview = ref(false);
+const previewVisible = computed(() => showPreview.value && !props.captionMode && messageText.value.trim().length > 0);
+const previewContent = computed(() => parseMessageContent());
+
+/** Drafts and scheduled posts belong to a channel composer: not a direct chat, not a caption. */
+const channelTarget = () =>
+  !isDm.value && !props.captionMode && props.spaceId && props.channelId
+    ? { spaceId: props.spaceId, channelId: props.channelId }
+    : null;
+
+const scheduling = useScheduledPosts(channelTarget, { load: false });
+// A scheduled post carries text and entities only: no reply, and files are sent, not scheduled.
+const canSchedule = computed(
+  () => !!channelTarget() && canSendMessages.value && !props.editing && !props.replyTo
+    && !attachments.hasFiles.value && messageText.value.trim().length > 0,
+);
+
+const draft = useChannelDraft({
+  target: channelTarget,
+  text: () => messageText.value,
+  parse: parseMessageContent,
+  restore: (d) => {
+    const { raw, mentions } = serializeMessageContent(d.text, d.entities ?? []);
+    mentionRegistry.clear();
+    for (const [text, userId] of mentions) mentionRegistry.set(text, userId);
+    messageText.value = raw;
+    graphemeCount.value = countGraphemes(raw);
+  },
+  editing: () => !!props.editing,
+});
+
+async function handleSchedule(at: Date) {
+  const content = parseMessageContent();
+  const stub = linkPreview.takeStub(content.text);
+  if (stub) content.entities.push(stub);
+  if (!(await scheduling.schedule(content, at))) return;
+  emit("stop_typing");
+  void draft.clear();
+  messageText.value = "";
+  editorRef.value?.clear();
+  mentionRegistry.clear();
+}
+
 // ── @everyone ──
 
 const EVERYONE_ID = "@everyone";
@@ -1070,7 +1144,10 @@ watch(
   () => props.editing,
   (message, previous) => {
     if (message) {
-      if (!previous) draftBeforeEdit = { text: messageText.value, mentions: new Map(mentionRegistry) };
+      if (!previous) {
+        void draft.flush();
+        draftBeforeEdit = { text: messageText.value, mentions: new Map(mentionRegistry) };
+      }
       const { raw, mentions } = serializeMessageContent(message.text, message.entities ?? []);
       mentionRegistry.clear();
       for (const [text, userId] of mentions) mentionRegistry.set(text, userId);
@@ -1117,13 +1194,16 @@ async function submitEdit(message: ArgonMessage) {
   try {
     const result = await api.channelInteraction.EditMessage(message.spaceId, message.channelId, message.messageId, text, entities);
     if (result.isSuccessEditMessage()) {
+      metrics.count("message.edited", { result: "ok" });
       emit("edited", result.message);
       emit("cancel-edit");
       return;
     }
     const error = result.isFailedEditMessage() ? result.error : EditMessageError.NONE;
+    metrics.count("message.edited", { result: "failed", error: metrics.enumName(EditMessageError, error) });
     toast({ title: t("edit_failed"), description: t(EDIT_ERROR_KEYS[error] ?? "edit_error_unknown"), variant: "destructive" });
   } catch (e) {
+    metrics.count("message.edited", { result: "failed", error: errorKind(e) });
     logger.error("Failed to edit message:", e);
     toast({ title: t("edit_failed"), description: t("edit_error_unknown"), variant: "destructive" });
   }
@@ -1360,6 +1440,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   emit("add-optimistic", optimisticMsg, randomId);
 
   // Clear UI immediately
+  void draft.clear();
   emit("stop_typing");
   if (props.replyTo) {
     emit("clear-reply");

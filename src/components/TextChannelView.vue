@@ -57,6 +57,13 @@
       </div>
     </div>
 
+    <!-- ── Scheduled posts of this channel ── -->
+    <ScheduledPostsChip
+      v-if="channelData && selectedChannelId && selectedSpaceId"
+      :space-id="selectedSpaceId"
+      :channel-id="selectedChannelId"
+    />
+
     <!-- ── Bottom input area ── -->
     <div
       v-if="channelData && canInput"
@@ -128,8 +135,10 @@
 
       <!-- Input -->
       <div class="px-5 py-4">
+        <!-- Keyed by channel: what is typed stays with its channel (and its draft). -->
         <EnterText
           ref="enterTextRef"
+          :key="selectedChannelId!"
           :reply-to="replyTo"
           :space-id="selectedSpaceId!"
           :channel-id="selectedChannelId!"
@@ -187,6 +196,7 @@ import { ArgonMessage } from "@argon/glue";
 
 import ChatView from "./ChatView.vue";
 import EnterText from "./chats/EnterText.vue";
+import ScheduledPostsChip from "./chats/ScheduledPostsChip.vue";
 
 // ── Refs ──
 

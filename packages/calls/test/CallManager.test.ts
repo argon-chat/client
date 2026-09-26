@@ -121,7 +121,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
     tone: {
       playRingSound() {}, stopPlayRingSound() {},
       playSoftEnterSound() {}, playSoftLeaveSound() {},
-      playRadioError() {}, playRadioChirp() {},
+      playMovedSound() {}, playRadioError() {}, playRadioChirp() {},
     },
     me: { me: { userId: "me" } },
     bus: { onServerEvent: () => ({ unsubscribe() {} }) },

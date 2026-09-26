@@ -848,7 +848,7 @@ export function createCallManager(config: CallManagerConfig) {
     void applyChannelBitrate(target.channelId);
     scheduleVoiceStateReport();
 
-    tone.playSoftEnterSound();
+    tone.playMovedSound();
     telemetry.count("call.moved", { result: "ok" });
     notify({ kind: "moved", spaceId: target.spaceId, channelId: target.channelId });
   }

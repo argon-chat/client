@@ -47,6 +47,9 @@ function dmToChatMessage(dm: DirectMessage, peerId: Guid): ChatMessage {
     version: 1,
     controls: [],
     editedAt: null,
+    crosspost: null,
+    publishedAt: null,
+    webhook: null,
     reactions: []
   } as ChatMessage;
 }

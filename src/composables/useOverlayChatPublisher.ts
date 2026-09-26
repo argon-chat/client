@@ -31,11 +31,13 @@ export function useOverlayChatPublisher(): void {
     const text = (msg.text ?? "").trim();
     if (!text) return; // skip empty/attachment-only for the peek
 
-    let author = "Unknown";
-    try {
-      const user = await pool.getUser(msg.sender);
-      if (user?.displayName) author = user.displayName;
-    } catch { /* ignore */ }
+    let author = msg.webhook?.name ?? "Unknown";
+    if (!msg.webhook) {
+      try {
+        const user = await pool.getUser(msg.sender);
+        if (user?.displayName) author = user.displayName;
+      } catch { /* ignore */ }
+    }
 
     buffer.push({
       id: String(msg.messageId ?? buffer.length),

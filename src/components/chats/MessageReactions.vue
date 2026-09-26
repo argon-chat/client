@@ -6,9 +6,9 @@
       class="reaction-pill"
       :class="{
         'reaction-pill--mine': isMine(r),
-        'reaction-pill--disabled': !canReact,
+        'reaction-pill--disabled': !canToggle(r),
       }"
-      :disabled="!canReact"
+      :disabled="!canToggle(r)"
       @click="$emit('toggle', r.emoji)"
     >
       <span class="reaction-pill__emoji">
@@ -34,6 +34,8 @@ const props = defineProps<{
   reactions: ReactionInfo[];
   currentUserId: string;
   canReact: boolean;
+  /** Reactions are off here: only taking back your own still works. */
+  removeOnly?: boolean;
 }>();
 
 defineEmits<{
@@ -42,6 +44,10 @@ defineEmits<{
 
 function isMine(r: ReactionInfo): boolean {
   return r.userIds?.includes(props.currentUserId) ?? false;
+}
+
+function canToggle(r: ReactionInfo): boolean {
+  return props.canReact || (!!props.removeOnly && isMine(r));
 }
 
 function resolveEmoji(text: string): EmojiEntry | undefined {

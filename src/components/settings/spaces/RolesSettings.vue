@@ -512,14 +512,16 @@ const stopTrackingDebouncer = () => {
 };
 
 const startTrackingDebouncer = () => {
+  // Separate sources, not one getter returning a fresh array: that fired on every write to the
+  // archetypes table and saved a role nobody had touched.
   debouncerHandle.value = watchDebounced(
-    () => [
-      selectedArchetype.value?.name,
-      selectedArchetype.value?.description,
-      selectedArchetype.value?.colour,
-      selectedArchetype.value?.entitlement,
-      selectedArchetype.value?.isGroup,
-      selectedArchetype.value?.isMentionable,
+    [
+      () => selectedArchetype.value?.name,
+      () => selectedArchetype.value?.description,
+      () => selectedArchetype.value?.colour,
+      () => selectedArchetype.value?.entitlement,
+      () => selectedArchetype.value?.isGroup,
+      () => selectedArchetype.value?.isMentionable,
     ],
     async () => await updateArchetypeLocal(),
     { debounce: 1300, immediate: false },
@@ -554,24 +556,24 @@ async function addArchetype() {
 const deletingArchetype = ref(false);
 
 async function confirmDeleteArchetype() {
-  if (!selectedArchetype.value || !selectedServer.value) return;
-  if (isLockedArchetype(selectedArchetype.value)) return;
-  if (selectedArchetype.value.isDefault) return;
+  const target = selectedArchetype.value;
+  if (!target || !selectedServer.value) return;
+  if (isLockedArchetype(target)) return;
+  if (target.isDefault) return;
 
-  const name = selectedArchetype.value.name;
-  if (!window.confirm(`Are you sure you want to delete the role "${name}"? This will remove it from all members.`)) return;
+  if (!window.confirm(`Are you sure you want to delete the role "${target.name}"? This will remove it from all members.`)) return;
 
+  // Set before the request so a debounced save that is already due is dropped, not sent for a
+  // role the server is deleting.
   deletingArchetype.value = true;
   try {
-    const result = await api.archetypeInteraction.DeleteArchetype(
-      selectedArchetype.value.spaceId,
-      selectedArchetype.value.id,
-    );
+    const result = await api.archetypeInteraction.DeleteArchetype(target.spaceId, target.id);
 
     if (result.isSuccessDeleteArchetype()) {
       // Dropped locally as well as on the bus: the deleter should not have to wait for their own
-      // event to come back before the row leaves the list.
-      await pool.untrackArchetype(selectedArchetype.value.id);
+      // event to come back before the row leaves the list. `target`, not selectedArchetype: when the
+      // bus event lands first the selection is already gone.
+      await pool.untrackArchetype(target.id);
       selectedArchetypeId.value = null;
       toast.toast({ title: t("saved"), duration: 1000 });
     } else {
@@ -585,21 +587,19 @@ async function confirmDeleteArchetype() {
   }
 }
 
-function updateArchetypeLocal() {
+async function updateArchetypeLocal() {
   logger.info("called update archetype", selectedArchetype.value);
-  if (!selectedArchetype.value) return;
-  if (isLockedArchetype(selectedArchetype.value)) return;
+  const target = selectedArchetype.value;
+  if (!target || deletingArchetype.value) return;
+  if (isLockedArchetype(target)) return;
   try {
-    const result = api.archetypeInteraction.UpdateArchetype(
-      selectedArchetype.value.spaceId,
-      selectedArchetype.value,
-    );
+    await api.archetypeInteraction.UpdateArchetype(target.spaceId, target);
     toast.toast({
       title: t("saved"),
       duration: 1000,
     });
-    // TODO
   } catch (e) {
+    logger.error("failed to update archetype", e);
     toast.toast({
       title: t("fail_save"),
       variant: "destructive",

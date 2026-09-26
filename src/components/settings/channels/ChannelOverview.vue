@@ -11,6 +11,26 @@
         <Input id="channel-settings-name" v-model="form.name" maxlength="128" :placeholder="t('channel_name')" />
       </div>
 
+      <div v-if="canConvert" class="space-y-2" data-testid="channel-kind">
+        <Label>{{ t("channel_type") }}</Label>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            v-for="kind in convertibleKinds"
+            :key="kind.type"
+            type="button"
+            class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-60"
+            :class="channel.type === kind.type ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/50'"
+            :aria-pressed="channel.type === kind.type"
+            :disabled="converting"
+            @click="askConvert(kind.type)"
+          >
+            <component :is="kind.icon" class="w-4 h-4" />
+            {{ kind.label }}
+          </button>
+        </div>
+        <p class="text-xs text-muted-foreground">{{ t("channel_type_convert_desc") }}</p>
+      </div>
+
       <template v-if="isVoice">
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-4">
@@ -78,6 +98,24 @@
       </button>
     </DangerZone>
 
+    <Dialog :open="convertTo !== null" @update:open="(open) => { if (!open) convertTo = null; }">
+      <DialogContent described class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{{ convertTo === ChannelType.Announcement ? t("convert_to_announcement") : t("convert_to_text") }}</DialogTitle>
+          <DialogDescription>
+            {{ convertTo === ChannelType.Announcement ? t("convert_to_announcement_desc") : t("convert_to_text_desc") }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="convertTo = null">{{ t("cancel") }}</Button>
+          <Button :disabled="converting" data-testid="confirm-convert" @click="convert">
+            <Loader2 v-if="converting" class="w-4 h-4 mr-2 animate-spin" />
+            {{ t("convert_confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog v-model:open="showDeleteDialog">
       <DialogContent class="sm:max-w-md" @interactOutside.prevent>
         <DialogHeader>
@@ -123,7 +161,7 @@ import { Label } from "@argon/ui/label";
 import { Button } from "@argon/ui/button";
 import { Slider } from "@argon/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@argon/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@argon/ui/dialog";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { AlertTriangleIcon, TrashIcon, HashIcon, Volume2Icon, AntennaIcon, Loader2 } from "lucide-vue-next";
@@ -159,6 +197,7 @@ const isVoice = computed(() => props.channel.type === ChannelType.Voice);
 const isText = computed(() => props.channel.type === ChannelType.Text);
 // Per channel, like the server's check: an overwrite can deny it here while the role grants it.
 const canManageChannels = computed(() => pex.hasIn(props.channel.channelId, "ManageChannels", props.channel.spaceId));
+const isAnnouncement = computed(() => props.channel.type === ChannelType.Announcement);
 
 const typeIcon = computed(() => {
   switch (props.channel.type) {
@@ -266,8 +305,50 @@ async function save() {
   }
 }
 
+// ── Text ↔ announcement ──
+// Converting rewrites who may post, so it asks what editing the channel's overwrites asks.
+
+const canConvert = computed(
+  () => (isText.value || isAnnouncement.value) && canManageChannels.value && pex.hasInSpace(props.channel.spaceId, "ManageArchetype"),
+);
+const convertibleKinds = computed(() => [
+  { type: ChannelType.Text, label: t("channel_type_text"), icon: HashIcon },
+  { type: ChannelType.Announcement, label: t("channel_type_announcement"), icon: AntennaIcon },
+]);
+const convertTo = ref<ChannelType | null>(null);
+const converting = ref(false);
+
+function askConvert(type: ChannelType) {
+  if (type !== props.channel.type) convertTo.value = type;
+}
+
+async function convert() {
+  if (convertTo.value === null || converting.value) return;
+  converting.value = true;
+  try {
+    const result = await api.channelInteraction.SetChannelType(props.channel.spaceId, props.channel.channelId, convertTo.value);
+    if (result.isSuccessUpdateChannel()) {
+      await channelStore.trackChannel(result.channel);
+      toast({ title: t("channel_saved") });
+    } else {
+      const error = result.isFailedUpdateChannel() ? result.error : UpdateChannelError.NONE;
+      toast({ title: t("channel_save_failed"), description: errorText(error), variant: "destructive" });
+    }
+  } catch (e) {
+    logger.error("[ChannelOverview] convert failed", e);
+    toast({ title: t("channel_save_failed"), variant: "destructive" });
+  } finally {
+    converting.value = false;
+    convertTo.value = null;
+  }
+}
+
 function errorText(error: UpdateChannelError): string {
   switch (error) {
+    case UpdateChannelError.INSUFFICIENT_PERMISSIONS:
+      return t("channel_error_no_permission");
+    case UpdateChannelError.TYPE_NOT_CONVERTIBLE:
+      return t("channel_error_type_not_convertible");
     case UpdateChannelError.NAME_EMPTY:
       return t("channel_error_name_empty");
     case UpdateChannelError.NAME_TOO_LONG:

@@ -119,6 +119,12 @@ const METRICS = {
   "attachment.upload.duration": MS,
   "attachment.bytes": BYTES,
   "reaction.toggle": C,
+  "message.edited": C,
+  "message.deleted": C,
+  "message.pinned": C,
+  "message.scheduled": C,
+  "announcement.followed": C,
+  "announcement.published": C,
   // spaces
   "space.created": C,
   "space.joined": C,
@@ -309,6 +315,13 @@ const PRODUCT: WidgetDraft[] = [
   bars("Status changes", M("user.status.changed"), "status", "sum", { w: 2 }),
   bars("Locale switches", M("locale.changed"), "locale", "sum", { w: 2 }),
   series("Feedback / legal accepted", [["feedback", M("feedback.sent")], ["legal accepted", M("legal.accepted")]], { w: 2 }),
+  series("Edits / deletes", [["edited", M("message.edited", "result:ok")], ["deleted", M("message.deleted", "result:ok")]], { w: 3 }),
+  bars("Deletes by scope", M("message.deleted", "result:ok"), "scope", "sum", { w: 3 }),
+  series("Pins", [["pinned", M("message.pinned", "action:pin result:ok")], ["unpinned", M("message.pinned", "action:unpin result:ok")]], { w: 2 }),
+  bars("Scheduled posts by action", M("message.scheduled", "result:ok"), "action", "sum", { w: 2 }),
+  series("Announcements", [["published", M("announcement.published", "result:ok")], ["follows", M("announcement.followed", "result:ok")]], { w: 2 }),
+  bars("Publish reach (following channels)", M("announcement.published", "result:ok"), "reach", "sum", { w: 3 }),
+  bars("Follows by scope", M("announcement.followed", "result:ok"), "scope", "sum", { w: 3 }),
 ];
 
 const CALLS: WidgetDraft[] = [
@@ -378,6 +391,9 @@ const RELIABILITY: WidgetDraft[] = [
   by("Token refresh by result", M("auth.token.refresh"), "result", { w: 3 }),
   bars("Message send failures by error", M("message.sent", "result:failed"), "error", "sum", { w: 3 }),
   percentiles("Message send duration (ms)", M("message.send.duration", "result:ok"), { w: 3 }),
+  bars("Message edit failures by error", M("message.edited", "result:failed"), "error", "sum", { w: 3 }),
+  bars("Publish failures by error", M("announcement.published", "result:failed"), "error", "sum", { w: 3 }),
+  bars("Scheduling failures by error", M("message.scheduled", "result:failed"), "error", "sum", { w: 3 }),
   line("Attachment upload p95 by kind (ms)", [q(M("attachment.upload.duration"), ["p95"], { columns: ["kind"] })], { w: 3 }),
   bars("Attachment size p50 by kind (MB)", M("attachment.bytes"), "kind", `equation|${F(M("attachment.bytes"), "p50")} / 1048576`, { w: 3 }),
   series("Background failures", [

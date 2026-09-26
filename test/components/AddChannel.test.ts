@@ -3,6 +3,7 @@
  * as soon as the first returns, so a refused second call must not look like a failed creation:
  * the dialog closes, the refusal is a toast, and the settings open on the Broadcast tab where the
  * switch can be tried again. An ordinary channel takes the old single call and opens nothing.
+ * An announcement channel can name the roles that post in it, which become Allow overwrites.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -17,6 +18,9 @@ const h = await vi.hoisted(async () => {
     openSettings: vi.fn(),
     toast: vi.fn(),
     close: vi.fn(),
+    upsert: vi.fn(async () => ({ id: "ow" }) as unknown),
+    granted: new Set<string>(["ManageArchetype"]),
+    roles: [] as { id: string; name: string; isHidden: boolean; isDefault: boolean }[],
   };
 });
 
@@ -24,6 +28,23 @@ vi.mock("@/store/data/serverStore", () => ({
   useSpaceStore: () => ({ addBroadcastChannel: h.addBroadcast, addChannelToServer: h.addChannel }),
 }));
 vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => ({ openChannelSettings: h.openSettings }) }));
+vi.mock("@/store/system/apiStore", () => ({
+  useApi: () => ({ archetypeInteraction: { UpsertArchetypeEntitlementForChannel: h.upsert } }),
+}));
+vi.mock("@/store/data/permissionStore", () => ({
+  usePexStore: () => ({ hasInSpace: (_spaceId: string, flag: string) => h.granted.has(flag) }),
+}));
+vi.mock("@/store/db/dexie", () => ({
+  db: {
+    archetypes: {
+      where: () => ({
+        equals: () => ({
+          filter: (keep: (a: unknown) => boolean) => ({ toArray: async () => h.roles.filter(keep) }),
+        }),
+      }),
+    },
+  },
+}));
 vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 // `cn` is what the real @argon/ui Label and Button want from here.
@@ -64,7 +85,7 @@ vi.mock("@/components/shared/InputWithError.vue", async () => {
   };
 });
 
-import { ChannelType, SetBroadcastSettingsError } from "@argon/glue";
+import { ArgonEntitlement, ChannelType, SetBroadcastSettingsError } from "@argon/glue";
 import AddChannel from "@/components/modals/AddChannel.vue";
 
 const flush = async () => {
@@ -92,6 +113,14 @@ beforeEach(() => {
   h.openSettings.mockClear();
   h.toast.mockClear();
   h.close.mockClear();
+  h.upsert.mockReset();
+  h.upsert.mockImplementation(async () => ({ id: "ow" }));
+  h.granted = new Set(["ManageArchetype"]);
+  h.roles = [
+    { id: "heralds", name: "Heralds", isHidden: false, isDefault: false },
+    { id: "everyone", name: "everyone", isHidden: false, isDefault: true },
+    { id: "owner", name: "owner", isHidden: true, isDefault: false },
+  ];
 });
 
 describe("a broadcast channel", () => {
@@ -165,5 +194,58 @@ describe("an ordinary channel", () => {
 
     expect(h.addBroadcast).not.toHaveBeenCalled();
     expect(w.find("[data-error]").text()).toBe("channel_name_required");
+  });
+});
+
+describe("an announcement channel", () => {
+  const roleChip = (w: ReturnType<typeof render>, name: string) =>
+    w.find('[data-testid="publisher-roles"]').findAll("button").find((b) => b.text() === name);
+
+  test("offers the space's own roles as publishers, not everyone and not hidden ones", async () => {
+    const w = render();
+    await fillAndPick(w, "News", "channel_type_announcement");
+    await flush();
+
+    const chips = w.find('[data-testid="publisher-roles"]').findAll("button").map((b) => b.text());
+    expect(chips).toEqual(["Heralds"]);
+  });
+
+  test("each picked role is allowed to post once the channel exists", async () => {
+    const w = render();
+    await fillAndPick(w, "News", "channel_type_announcement");
+    await flush();
+    await roleChip(w, "Heralds")!.trigger("click");
+    await submit(w).trigger("click");
+    await flush();
+
+    expect(h.addChannel).toHaveBeenCalledWith("s1", "News", ChannelType.Announcement, null);
+    expect(h.upsert).toHaveBeenCalledWith("s1", "new", "heralds", ArgonEntitlement.None, ArgonEntitlement.SendMessages);
+    expect(h.toast).not.toHaveBeenCalled();
+  });
+
+  test("a role the server would not allow is a toast; the channel stays", async () => {
+    h.upsert.mockResolvedValue(null);
+    const w = render();
+    await fillAndPick(w, "News", "channel_type_announcement");
+    await flush();
+    await roleChip(w, "Heralds")!.trigger("click");
+    await submit(w).trigger("click");
+    await flush();
+
+    expect(h.close).toHaveBeenCalledTimes(1);
+    expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "announcement_publishers_failed", variant: "destructive" }));
+  });
+
+  test("without ManageArchetype there is no picker and no overwrite", async () => {
+    h.granted = new Set();
+    const w = render();
+    await fillAndPick(w, "News", "channel_type_announcement");
+    await flush();
+
+    expect(w.find('[data-testid="publisher-roles"]').exists()).toBe(false);
+    await submit(w).trigger("click");
+    await flush();
+    expect(h.addChannel).toHaveBeenCalledTimes(1);
+    expect(h.upsert).not.toHaveBeenCalled();
   });
 });

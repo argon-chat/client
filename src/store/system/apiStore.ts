@@ -261,6 +261,7 @@ export const useApi = defineStore("api", () => {
     () => rpcClient.value.ArchetypeInteraction
   );
   const channelInteraction = computed(() => rpcClient.value.ChannelInteraction);
+  const channelFollowInteraction = computed(() => rpcClient.value.ChannelFollowInteraction);
   const eventBus = computed(() => rpcClient.value.EventBus);
   const featureFlagInteraction = computed(() => rpcClient.value.FeatureFlagInteractions);
   const privacyInteraction = computed(() => rpcClient.value.PrivacyInteraction);
@@ -269,6 +270,11 @@ export const useApi = defineStore("api", () => {
   const reportInteraction = computed(() => rpcClient.value.ReportInteraction);
   const gifInteraction = computed(() => rpcClient.value.GifInteraction);
   const linkPreviewInteraction = computed(() => rpcClient.value.LinkPreviewInteraction);
+  const spaceAnnouncementInteraction = computed(() => rpcClient.value.SpaceAnnouncementInteraction);
+  const channelPinsInteraction = computed(() => rpcClient.value.ChannelPinsInteraction);
+  const channelWebhookInteraction = computed(() => rpcClient.value.ChannelWebhookInteraction);
+  const channelInsightsInteraction = computed(() => rpcClient.value.ChannelInsightsInteraction);
+  const channelComposerInteraction = computed(() => rpcClient.value.ChannelComposerInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -284,6 +290,7 @@ export const useApi = defineStore("api", () => {
     securityInteraction,
     serverInteraction,
     channelInteraction,
+    channelFollowInteraction,
     archetypeInteraction,
     inventoryInteraction,
     identityInteraction,
@@ -298,6 +305,11 @@ export const useApi = defineStore("api", () => {
     ultimaInteraction,
     reportInteraction,
     gifInteraction,
-    linkPreviewInteraction
+    linkPreviewInteraction,
+    spaceAnnouncementInteraction,
+    channelPinsInteraction,
+    channelWebhookInteraction,
+    channelInsightsInteraction,
+    channelComposerInteraction
   };
 });

@@ -30,6 +30,7 @@ vi.mock("@/store/data/permissionStore", () => ({
   usePexStore: () => ({
     has: (p: string) => h2.permissions.has(p),
     hasIn: (_c: string, p: string) => h2.permissions.has(p),
+    hasInSpace: (_s: string, p: string) => h2.permissions.has(p),
   }),
 }));
 vi.mock("@/store/data/channelStore", () => ({ useChannelStore: () => ({ trackChannel: async () => {} }) }));
@@ -169,7 +170,8 @@ describe("the delete-channel confirmation", () => {
     const el = contentEl();
     expect(el).not.toBeNull();
     expect(el.textContent).toContain("delete_channel_confirmation");
-    expect(frameEl().contains(el)).toBe(true);
+    // The sheet has more than one dialog; each closed one leaves an empty, click-through frame.
+    expect(el.closest('[data-slot="dialog-frame"]')).not.toBeNull();
     const classes = classesOf(el);
     expect(classes).toContain("w-full");
     expect(classes.some((c) => /^(sm:)?max-w-(lg|md)$/.test(c))).toBe(true);

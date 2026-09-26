@@ -15,6 +15,25 @@
           </h2>
         </div>
 
+        <!-- Follow: announcement channels only; ml-auto keeps it beside the bell -->
+        <button
+          v-if="channelType === 'announcement' && spaceId"
+          class="icon-motion icon-motion--pop ml-auto flex items-center gap-1.5 h-8 px-2.5 bg-transparent border-none rounded-lg text-[13px] font-medium text-muted-foreground cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
+          :title="t('follow_channel_hint')"
+          data-testid="follow-channel"
+          @click="followOpen = true"
+        >
+          <RssIcon class="w-4 h-4" />
+          {{ t('follow_channel') }}
+        </button>
+        <PinnedMessagesButton
+          class="-mr-2"
+          :class="{ 'ml-auto': channelType !== 'announcement' || !spaceId }"
+          :channel-id="channelId"
+          :space-id="spaceId"
+          :jump-to="jumpToPinned"
+        />
+
         <!-- Mute bell -->
         <Popover>
           <PopoverTrigger as-child>
@@ -77,34 +96,82 @@
       :is-loading-older="isLoadingOlder"
       :is-scrolled-up="isScrolledUp"
       :new-messages-count="newMessagesCount"
-      :can-react="canReact"
+      :can-react="canReact && !reactionsOff"
       :can-reply="canReply"
       :can-edit="canEdit"
+      :can-delete-own="true"
+      :can-delete-any="canDeleteAny"
+      :can-pin="canPin"
+      :announcement="announcementCard"
+      :channel-type="channelType"
+      :can-publish-any="canPublishAny"
+      :read-counts="channelType === 'announcement' && spaceId ? { spaceId, channelId } : null"
       :toggle-reaction="toggleReaction"
       @select-reply="(m) => emit('select-reply', m)"
       @select-edit="(m) => emit('select-edit', m)"
+      @delete-message="onDeleteMessage"
+      @publish="publishMessage"
       @retry="retryMessage"
       @near-top="onNearTop"
       @scroll-state="onScrollState"
       @reset-unread="onResetUnread"
+    />
+
+    <!-- One confirmation for the whole list; shift-clicking the bin skips it -->
+    <Dialog :open="!!pendingDelete" @update:open="(open) => { if (!open) pendingDelete = null; }">
+      <DialogContent described class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{{ t('delete_message') }}</DialogTitle>
+          <DialogDescription>{{ t('delete_message_confirm') }}</DialogDescription>
+        </DialogHeader>
+        <p v-if="pendingDelete?.text" class="text-sm rounded-md bg-muted px-3 py-2 line-clamp-3 break-words">
+          {{ pendingDelete.text }}
+        </p>
+        <p class="text-xs text-muted-foreground">{{ t('delete_message_shift_hint') }}</p>
+        <DialogFooter>
+          <Button variant="outline" @click="pendingDelete = null">{{ t('cancel') }}</Button>
+          <Button variant="destructive" data-testid="confirm-delete-message" @click="pendingDelete && deleteNow(pendingDelete)">
+            {{ t('delete') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <FollowChannelDialog
+      v-if="channelType === 'announcement' && spaceId"
+      v-model:open="followOpen"
+      :space-id="spaceId"
+      :channel-id="channelId"
+      :channel-name="channelName ?? ''"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick } from "vue";
-import { AntennaIcon, BellIcon, HashIcon } from "lucide-vue-next";
-import { type ArgonMessage, MuteLevelType, MuteTargetKind } from "@argon/glue";
+import { AntennaIcon, BellIcon, HashIcon, RssIcon } from "lucide-vue-next";
+import { type ArgonMessage, DeleteMessageError, MuteLevelType, MuteTargetKind } from "@argon/glue";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@argon/ui/dialog";
+import { Button } from "@argon/ui/button";
+import { useToast } from "@argon/ui/toast";
+import { logger } from "@argon/core";
+import { useApi } from "@/store/system/apiStore";
+import { usePexStore } from "@/store/data/permissionStore";
+import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import type { Guid } from "@argon-chat/ion.webcore";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 
 import ChatMessageList from "@/components/chats/ChatMessageList.vue";
+import PinnedMessagesButton from "@/components/chats/PinnedMessagesButton.vue";
+import FollowChannelDialog from "@/components/channels/FollowChannelDialog.vue";
+import { usePublishToFollowers } from "@/composables/useChannelFollow";
 
 import { useLocale } from "@/store/system/localeStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useChatMessages } from "@/composables/useChatMessages";
 import { useMessageReactions } from "@/composables/useMessageReactions";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
+import { useAnnouncementChannel } from "@/composables/useAnnouncementChannel";
 import { useMe } from "@/store/auth/meStore";
 
 // ── Stores ──
@@ -166,7 +233,7 @@ const {
   newMessagesCount, isScrolledUp,
   loadOlderMessages, loadInitialMessages, subscribeToNewMessages,
   getMessageById, addOptimisticMessage, resolveOptimisticMessage,
-  markOptimisticFailed, retryMessage, applyServerMessage,
+  markOptimisticFailed, retryMessage, applyServerMessage, removeMessage, markPublished,
   cleanup: cleanupMessages,
 } = useChatMessages(() => props.channelId, () => props.spaceId);
 
@@ -174,6 +241,9 @@ const {
   canReact, toggleReaction, batchLoadReactions,
   subscribe: subReactions, unsubscribe: unsubReactions,
 } = useMessageReactions(messages, () => props.channelId, () => props.spaceId);
+
+// Announcement channels: posts render as cards, and reactions may be turned off.
+const { card: announcementCard, reactionsOff } = useAnnouncementChannel(() => props.channelId, () => props.spaceId);
 
 const { groupingMap } = useMessageGrouping(messages, {
   lastReadId: () => ntf.readStates?.get(props.channelId)?.lastReadMessageId,
@@ -187,6 +257,12 @@ const getMessages = () => messages;
 const listRef = ref<InstanceType<typeof ChatMessageList> | null>(null);
 function scrollToBottomImmediate() {
   listRef.value?.scrollToBottomImmediate();
+}
+
+function jumpToPinned(messageId: bigint): boolean {
+  if (!messages.value.some((m) => m.messageId === messageId)) return false;
+  listRef.value?.scrollToMessage(messageId);
+  return true;
 }
 
 // ── Scroll callbacks ──
@@ -216,12 +292,61 @@ function onResetUnread() {
 
 // ── Expose for parent ──
 
+// ── Deleting ──
+
+const api = useApi();
+const pex = usePexStore();
+const { toast } = useToast();
+
+// Your own messages always; anyone's with ManageMessages here. Neither needs SendMessages.
+const canDeleteAny = computed(() => pex.hasIn(props.channelId, "ManageMessages", props.spaceId));
+const canPin = canDeleteAny;
+const pendingDelete = ref<ArgonMessage | null>(null);
+
+function onDeleteMessage(message: ArgonMessage, skipConfirm: boolean) {
+  if (skipConfirm) void deleteNow(message);
+  else pendingDelete.value = message;
+}
+
+async function deleteNow(message: ArgonMessage) {
+  pendingDelete.value = null;
+  if (!props.spaceId) return;
+  try {
+    const result = await api.channelInteraction.DeleteMessage(props.spaceId, props.channelId, message.messageId);
+    const error = result.isFailedDeleteMessage() ? result.error : DeleteMessageError.NONE;
+    const scope = message.sender === me.me?.userId ? "own" : "moderation";
+    // Gone already counts: somebody else took it down first.
+    if (result.isSuccessDeleteMessage() || error === DeleteMessageError.MESSAGE_NOT_FOUND) {
+      metrics.count("message.deleted", { scope, result: "ok" });
+      await removeMessage(message.messageId);
+      return;
+    }
+    metrics.count("message.deleted", { scope, result: "failed", error: metrics.enumName(DeleteMessageError, error) });
+    toast({ title: t("delete_message_failed"), description: t("delete_message_no_permission"), variant: "destructive" });
+  } catch (e) {
+    metrics.count("message.deleted", { result: "failed", error: errorKind(e) });
+    logger.error("Failed to delete message:", e);
+    toast({ title: t("delete_message_failed"), description: t("edit_error_unknown"), variant: "destructive" });
+  }
+}
+
+// ── Following ──
+
+const followOpen = ref(false);
+const canPublishAny = computed(
+  () => props.channelType === "announcement" && pex.hasIn(props.channelId, "ManageMessages", props.spaceId),
+);
+const { publishMessage } = usePublishToFollowers(
+  () => ({ spaceId: props.spaceId, channelId: props.channelId }),
+  markPublished,
+);
+
 /** The newest message the user sent that is on the server, for "arrow up edits the last one". */
 function lastOwnMessage(): ArgonMessage | null {
   const myId = me.me?.userId;
   for (let i = messages.value.length - 1; i >= 0; i--) {
     const m = messages.value[i];
-    if (m.sender === myId && !m._optimistic && !m._failed) return m;
+    if (m.sender === myId && !m._optimistic && !m._failed && !m.crosspost) return m;
   }
   return null;
 }

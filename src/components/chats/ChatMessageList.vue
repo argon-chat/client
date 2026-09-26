@@ -33,10 +33,14 @@
             messages[item.index]?.entities?.length,
             messages[item.index]?.reactions?.length,
             messages[item.index]?.controls?.length,
+            canPublishAny,
             groupingMap[item.index]?.isFirstInGroup,
             groupingMap[item.index]?.isLastInGroup,
             groupingMap[item.index]?.showDate,
             groupingMap[item.index]?.showUnread,
+            canPin,
+            announcement,
+            canReact,
           ]"
         >
           <DateSeparator
@@ -55,14 +59,23 @@
             :can-react="canReact"
             :can-reply="canReply"
             :can-edit="canEdit"
+            :can-delete-own="canDeleteOwn"
+            :can-delete-any="canDeleteAny"
+            :can-pin="canPin"
+            :announcement="announcement"
+            :channel-type="channelType"
+            :can-publish-any="canPublishAny"
             :toggle-reaction="toggleReaction"
             @dblclick="() => canReply && emit('select-reply', messages[item.index])"
             @reply="(msg) => emit('select-reply', msg)"
             @edit="(msg) => emit('select-edit', msg)"
+            @delete="(msg, skip) => emit('delete-message', msg, skip)"
+            @publish="(msg) => emit('publish', msg)"
             @retry="(msg) => emit('retry', msg)"
             @open-lightbox="onOpenLightbox"
             @scroll-to-message="scrollToMessage"
           />
+          <MessageReadCount v-if="readCounts" :message="messages[item.index]" :context="readCounts" />
         </div>
       </div>
 
@@ -123,6 +136,7 @@ import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
 import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
 
 import MessageItem from "@/components/MessageItem.vue";
+import MessageReadCount from "@/components/chats/MessageReadCount.vue";
 import ImageLightbox from "@/components/chats/ImageLightbox.vue";
 import DateSeparator from "@/components/chats/DateSeparator.vue";
 import UnreadSeparator from "@/components/chats/UnreadSeparator.vue";
@@ -132,6 +146,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useChatScroll } from "@/composables/useChatScroll";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import type { GroupMeta } from "@/composables/useMessageGrouping";
+import type { AnnouncementCardContext } from "@/composables/useAnnouncementChannel";
 
 const { t } = useLocale();
 
@@ -151,12 +166,24 @@ const props = withDefaults(defineProps<{
   canReact?: boolean;
   canReply?: boolean;
   canEdit?: boolean;
+  canDeleteOwn?: boolean;
+  canDeleteAny?: boolean;
+  /** ManageMessages here: messages may be pinned and unpinned. */
+  canPin?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
-}>(), { canReply: true, canEdit: false });
+  /** Announcement channels: messages render as cards. */
+  announcement?: AnnouncementCardContext | null;
+  channelType?: "text" | "announcement";
+  canPublishAny?: boolean;
+  /** Announcement channels: a "read by N" line under the posts the user may see it for. */
+  readCounts?: { spaceId: string; channelId: string } | null;
+}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, canPublishAny: false, readCounts: null });
 
 const emit = defineEmits<{
   (e: "select-reply", message: ArgonMessage): void;
   (e: "select-edit", message: ArgonMessage): void;
+  (e: "delete-message", message: ArgonMessage, skipConfirm: boolean): void;
+  (e: "publish", message: ArgonMessage): void;
   (e: "retry", message: ChatMessage): void;
   (e: "near-top"): void;
   (e: "scroll-state", distanceFromBottom: number): void;

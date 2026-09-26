@@ -149,6 +149,8 @@ export interface ICallTonePlayer {
   stopPlayRingSound(): void;
   playSoftEnterSound(): void;
   playSoftLeaveSound(): void;
+  /** A moderator moved us to another channel: audibly not a join. */
+  playMovedSound(): void;
   /** The radio key was refused (not connected, or someone else is on air). */
   playRadioError(): void;
   /** A transmission just started in a channel with the chirp on. */

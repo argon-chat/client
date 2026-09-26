@@ -10,7 +10,7 @@ import {
   type MessageEntitySystemUserJoined,
 } from "@argon/glue";
 
-const SYSTEM_USER_ID = "11111111-2222-1111-2222-111111111111";
+export const SYSTEM_USER_ID = "11111111-2222-1111-2222-111111111111";
 
 export interface IFrag {
   entity?: IMessageEntity;
@@ -20,7 +20,8 @@ export interface IFrag {
 export function useMessageContent(message: () => ArgonMessage) {
   const pool = usePoolStore();
 
-  const isSystemMessage = computed(() => message().sender === SYSTEM_USER_ID);
+  // A webhook post is sent as the system user too, but it is an ordinary message with an author.
+  const isSystemMessage = computed(() => message().sender === SYSTEM_USER_ID && !message().webhook);
 
   const systemMessageText = computed(() => {
     const msg = message();

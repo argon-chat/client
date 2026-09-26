@@ -56,6 +56,8 @@ export function useChatMessages(
   const isScrolledUp = ref(false);
   const subs = ref<Subscription | null>(null);
   const updateSubs = ref<Subscription | null>(null);
+  const deleteSubs = ref<Subscription | null>(null);
+  const publishSubs = ref<Subscription | null>(null);
 
   // Maps randomId → optimistic message's randomId (used as messageId in the optimistic msg)
   const optimisticRandomIds = new Set<bigint>();
@@ -268,6 +270,8 @@ export function useChatMessages(
   ) => {
     subs.value?.unsubscribe();
     updateSubs.value?.unsubscribe();
+    deleteSubs.value?.unsubscribe();
+    publishSubs.value?.unsubscribe();
     pendingIncoming = [];
     batchFlushScheduled = false;
 
@@ -276,6 +280,16 @@ export function useChatMessages(
     updateSubs.value = pool.onMessageUpdated.subscribe(async (e) => {
       if (chId !== e.channelId) return;
       await applyServerMessage(e);
+    });
+
+    deleteSubs.value = pool.onMessageDeleted.subscribe(async (e) => {
+      if (chId !== e.channelId) return;
+      await removeMessage(e.messageId);
+    });
+
+    publishSubs.value = pool.onMessagePublished.subscribe(async (e) => {
+      if (chId !== e.channelId) return;
+      await markPublished(e.messageId, e.publishedAt);
     });
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
@@ -498,6 +512,8 @@ export function useChatMessages(
   const cleanup = () => {
     subs.value?.unsubscribe();
     updateSubs.value?.unsubscribe();
+    deleteSubs.value?.unsubscribe();
+    publishSubs.value?.unsubscribe();
     // Step 5: Cleanup all optimistic timers
     for (const timer of optimisticTimers.values()) {
       clearTimeout(timer);
@@ -519,6 +535,33 @@ export function useChatMessages(
     await pool.cacheMessage(e);
   }
 
+  /** Takes a message out of the list and the local cache (MessageDeleted, or the user's own delete). */
+  async function removeMessage(messageId: bigint) {
+    const idx = messages.value.findIndex((m) => m.messageId === messageId);
+    if (idx !== -1) {
+      messages.value.splice(idx, 1);
+      messageIdSet.delete(messageId);
+      triggerRef(messages);
+    }
+    await pool.removeCachedMessage(messageId);
+  }
+
+  /** Stamps an announcement as sent to its followers (MessagePublished, or the user's own publish). */
+  async function markPublished(messageId: bigint, publishedAt: IonDateTime) {
+    const idx = messages.value.findIndex((m) => m.messageId === messageId);
+    if (idx !== -1) {
+      const prev = messages.value[idx];
+      if (prev.publishedAt) return;
+      const { _rev, ...rest } = prev;
+      messages.value[idx] = { ...rest, publishedAt, _rev: (_rev ?? 0) + 1 };
+      triggerRef(messages);
+      await pool.cacheMessage({ ...rest, publishedAt });
+      return;
+    }
+    const cached = await pool.getMessageById(messageId);
+    if (cached && cached.channelId === channelId() && !cached.publishedAt) await pool.cacheMessage({ ...cached, publishedAt });
+  }
+
   return {
     messages,
     hasReachedEnd,
@@ -536,6 +579,8 @@ export function useChatMessages(
     markOptimisticFailed,
     retryMessage,
     applyServerMessage,
+    removeMessage,
+    markPublished,
     cleanup,
   };
 }

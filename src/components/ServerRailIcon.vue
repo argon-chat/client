@@ -14,7 +14,7 @@
           @dragend="emit('dragend')"
           @contextmenu.prevent="emit('contextmenu', $event)"
         >
-          <span class="rail-avatar">
+          <span class="rail-avatar" :data-announcement="hasUnreadAnnouncement || undefined">
             <ArgonAvatar
               class="w-full h-full"
               :file-id="server.avatarFieldId"
@@ -43,6 +43,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip";
 import { IconPinFilled } from "@tabler/icons-vue";
 import type { ArgonSpaceBase } from "@argon/glue";
 import { useNotificationStore } from "@/store/data/notificationStore";
+import { useAnnouncementStore } from "@/store/data/announcementStore";
 
 const props = defineProps<{
   server: ArgonSpaceBase;
@@ -65,6 +66,9 @@ const muted = computed(() => ntf.isTargetMuted(props.server.spaceId));
 const mentions = computed(() =>
   muted.value ? 0 : (ntf.getSpaceBadge(props.server.spaceId)?.totalMentions ?? 0),
 );
+// Accent ring: an announcement channel here is unread. Mentions keep their badge on top of it.
+const announcements = useAnnouncementStore();
+const hasUnreadAnnouncement = computed(() => !muted.value && announcements.hasUnreadIn(props.server.spaceId));
 const hasUnread = computed(() =>
   !muted.value && (ntf.getSpaceBadge(props.server.spaceId)?.unreadChannelCount ?? 0) > 0,
 );
@@ -144,6 +148,11 @@ const initials = (name: string) =>
 
 .rail-btn:active .rail-avatar {
   transform: scale(0.92);
+}
+
+/* Unread announcement: an accent ring, clear of the avatar by a card-coloured gap. */
+.rail-avatar[data-announcement] {
+  box-shadow: 0 0 0 2px hsl(var(--card)), 0 0 0 4px hsl(var(--primary));
 }
 
 .rail-pin {

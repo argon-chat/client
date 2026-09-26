@@ -18,6 +18,7 @@ const h = await vi.hoisted(async () => {
     granted: new Set<string>(),
     channelData: ref<Record<string, unknown> | null>({ channelId: "c1", name: "general" }),
     handleExternalFiles: vi.fn(),
+    composerMounts: 0,
   };
 });
 
@@ -49,9 +50,21 @@ vi.mock("@/components/chats/EnterText.vue", async () => {
     default: {
       name: "EnterText",
       setup: (_: unknown, { expose }: any) => {
+        h.composerMounts++;
         expose({ handleExternalFiles: h.handleExternalFiles, focus() {} });
         return () => hh("div", { class: "stub-enter-text" });
       },
+    },
+  };
+});
+
+vi.mock("@/components/chats/ScheduledPostsChip.vue", async () => {
+  const { h: hh } = await import("vue");
+  return {
+    default: {
+      name: "ScheduledPostsChip",
+      props: ["spaceId", "channelId"],
+      setup: (props: { channelId: string }) => () => hh("div", { class: "stub-scheduled-chip" }, props.channelId),
     },
   };
 });
@@ -185,5 +198,26 @@ describe("editing a sent message", () => {
     await w.vm.$nextTick();
 
     expect(w.find('[data-testid="composer-editing"]').exists()).toBe(false);
+  });
+});
+
+describe("author tools", () => {
+  test("each channel gets a composer of its own, so text never follows the user to another channel", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages"]);
+    h.composerMounts = 0;
+    const w = render();
+    expect(h.composerMounts).toBe(1);
+
+    await w.setProps({ selectedChannelId: "c2" });
+    expect(h.composerMounts).toBe(2);
+  });
+
+  test("the scheduled chip follows the open channel, composer or not", async () => {
+    h.granted = new Set(["ViewChannel", "ReadHistory"]);
+    const w = render("announcement");
+
+    expect(w.find(".stub-scheduled-chip").text()).toBe("c1");
+    await w.setProps({ selectedChannelId: "c2" });
+    expect(w.find(".stub-scheduled-chip").text()).toBe("c2");
   });
 });

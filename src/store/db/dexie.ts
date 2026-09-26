@@ -132,6 +132,8 @@ export class PoolDatabase extends Dexie {
     // version is discarded without a warning.
     this.messages.hook("reading", onRow((row) => {
       row.timeSent = liveDateTime(row.timeSent);
+      row.publishedAt = liveDateTime(row.publishedAt);
+      row.editedAt = liveDateTime(row.editedAt);
     }));
     this.members.hook("reading", onRow((row) => {
       row.joinedAt = liveDateTime(row.joinedAt);

@@ -60,7 +60,7 @@ import {
     DrawerDescription,
 } from "@argon/ui/drawer";
 import {
-    CircleXIcon, SlidersHorizontalIcon, ShieldIcon, HashIcon, Volume2Icon, AntennaIcon, RadioTowerIcon,
+    CircleXIcon, SlidersHorizontalIcon, ShieldIcon, HashIcon, Volume2Icon, AntennaIcon, RadioTowerIcon, RssIcon, WebhookIcon,
 } from "lucide-vue-next";
 import { logger } from "@argon/core";
 import { ChannelType, type ArgonChannel } from "@argon/glue";
@@ -72,6 +72,9 @@ import TabTransition from "@/components/shared/TabTransition.vue";
 import ChannelOverview from "@/components/settings/channels/ChannelOverview.vue";
 import ChannelPermissions from "@/components/settings/channels/ChannelPermissions.vue";
 import ChannelBroadcast from "@/components/settings/channels/ChannelBroadcast.vue";
+import ChannelAnnouncement from "@/components/settings/channels/ChannelAnnouncement.vue";
+import ChannelFollows from "@/components/settings/channels/ChannelFollows.vue";
+import ChannelIntegrations from "@/components/settings/channels/ChannelIntegrations.vue";
 
 const windows = useWindow();
 const { t } = useLocale();
@@ -80,7 +83,10 @@ const pex = usePexStore();
 const tabs: { id: ChannelSettingsTab; label: string; icon: unknown; component: unknown }[] = [
     { id: "overview", label: "overview", icon: SlidersHorizontalIcon, component: ChannelOverview },
     { id: "broadcast", label: "broadcast_settings", icon: RadioTowerIcon, component: ChannelBroadcast },
+    { id: "announcement", label: "announcement_settings", icon: AntennaIcon, component: ChannelAnnouncement },
+    { id: "follows", label: "channel_follows", icon: RssIcon, component: ChannelFollows },
     { id: "permissions", label: "channel_permissions", icon: ShieldIcon, component: ChannelPermissions },
+    { id: "integrations", label: "channel_integrations", icon: WebhookIcon, component: ChannelIntegrations },
 ];
 
 const channel = ref<ArgonChannel | null>(null);
@@ -98,6 +104,9 @@ const visibleTabs = computed(() =>
     tabs.filter((tab) => {
         if (tab.id === "permissions") return canEditOverwrites.value;
         if (tab.id === "broadcast") return isVoice.value;
+        if (tab.id === "announcement") return channel.value?.type === ChannelType.Announcement;
+        if (tab.id === "follows") return !isVoice.value;
+        if (tab.id === "integrations") return !isVoice.value;
         return true;
     }),
 );

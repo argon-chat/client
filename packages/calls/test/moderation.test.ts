@@ -144,7 +144,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
     },
     tone: {
       playRingSound() {}, stopPlayRingSound() {},
-      playSoftEnterSound() {}, playSoftLeaveSound() {},
+      playSoftEnterSound() {}, playSoftLeaveSound() {}, playMovedSound() {},
       playRadioError() {}, playRadioChirp() {},
     },
     me: { me: { userId: "me" } },
@@ -212,7 +212,7 @@ const audioTrack = () => ({
 
 const spiedTone = () => ({
   playRingSound() {}, stopPlayRingSound() {},
-  playSoftEnterSound: vi.fn(), playSoftLeaveSound: vi.fn(),
+  playSoftEnterSound: vi.fn(), playSoftLeaveSound: vi.fn(), playMovedSound: vi.fn(),
   playRadioError() {}, playRadioChirp() {},
 });
 
@@ -312,12 +312,15 @@ describe("being moved by a moderator", () => {
     expect(telemetry.count).toHaveBeenCalledWith("call.moved", { result: "ok" });
   });
 
-  test("the old room's participants go, the new room's come, and nobody 'left'", async () => {
+  test("the old room's participants go, the new room's come, and the move has its own sound", async () => {
     const graph = { setVolume: vi.fn(), dispose: vi.fn() };
     const tone = spiedTone();
     const setup = makeConfig({ tone });
     setup.config.audio.createRemoteAudioGraph = () => graph;
     const { calls, room } = await joined(setup);
+    // A join is still a join.
+    expect(tone.playSoftEnterSound).toHaveBeenCalledTimes(1);
+    expect(tone.playMovedSound).not.toHaveBeenCalled();
     const u1 = await withParticipant(calls, room, "u1");
     room.emit("trackSubscribed", audioTrack(), { isMuted: false, source: Track.Source.Microphone }, u1);
     await vi.waitFor(() => expect(calls.participants.u1.audioGraph).not.toBeNull());
@@ -336,7 +339,8 @@ describe("being moved by a moderator", () => {
     expect(calls.activeSpeakerId.value).toBeNull();
     await vi.waitFor(() => expect(calls.participants.u2).toBeDefined());
     expect(tone.playSoftLeaveSound).not.toHaveBeenCalled();
-    expect(tone.playSoftEnterSound).toHaveBeenCalledTimes(1);
+    expect(tone.playSoftEnterSound).not.toHaveBeenCalled();
+    expect(tone.playMovedSound).toHaveBeenCalledTimes(1);
   });
 
   test("outside a move, someone leaving still plays the leave tone", async () => {

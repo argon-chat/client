@@ -77,6 +77,37 @@ export function playUiBeep(kind: UiBeep): void {
 }
 
 /**
+ * Being moved to another channel: one sine held at 440 Hz, then sliding up a fifth to 660 Hz
+ * and dying away, ~180 ms in all. A glide, so it is nothing like the sampled enter/leave tones
+ * or the chirp's two fixed notes; `volume` scales it like the other tones (0–1).
+ */
+export function playMovedSound(volume = 1): void {
+  try {
+    const ctx = audio.getCurrentAudioContext();
+    const now = ctx.currentTime;
+    const level = Math.max(0, Math.min(volume, 1)) * 0.06;
+    if (level <= 0) return;
+    const duration = 0.18;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(440, now + 0.06);
+    osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(level, now + 0.01);
+    gain.gain.setValueAtTime(level, now + 0.11);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain);
+    gain.connect(audio.getOutputDestination());
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  } catch {
+    // A cue that cannot play is not worth reporting.
+  }
+}
+
+/**
  * The radio chirp: two rising tones that tell listeners a transmission is starting. Played on
  * the master, past the ducked voice bus; `volume` scales it like the other tones (0–1).
  */

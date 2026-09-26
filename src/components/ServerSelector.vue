@@ -31,6 +31,7 @@
             <div class="rail-slot group">
               <button
                 class="rail-icon-btn rail-folder"
+                :data-announcement="folderHasAnnouncement(folder) || undefined"
                 @click="toggleFolderPopup(folder.id, $event)"
                 @dragover.prevent="onDragOverFolder($event, folder.id)"
                 @drop="onDropToFolder($event, folder.id)"
@@ -169,6 +170,7 @@ import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
 import ReportDialog from "./modals/ReportDialog.vue"
 import { useNotificationStore } from "@/store/data/notificationStore"
+import { useAnnouncementStore } from "@/store/data/announcementStore"
 
 const { t } = useLocale();
 const ntf = useNotificationStore();
@@ -242,6 +244,10 @@ const folderHasUnread = (folder: any) =>
         if (ntf.isTargetMuted(s.spaceId)) return false;
         return (ntf.getSpaceBadge(s.spaceId)?.unreadChannelCount ?? 0) > 0;
     });
+
+const announcements = useAnnouncementStore();
+const folderHasAnnouncement = (folder: any) =>
+    getFolderServers(folder).some(s => !ntf.isTargetMuted(s.spaceId) && announcements.hasUnreadIn(s.spaceId));
 
 const folderServers = computed(() => {
     if (!folderPopup.value.folderId) return [];
@@ -423,6 +429,7 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 .rail-home:hover { background: hsl(var(--primary) / 0.85); color: #fff; }
 .rail-home.is-active { background: hsl(var(--primary)); color: #fff; }
 .rail-folder:hover { background: hsl(var(--accent)); }
+.rail-folder[data-announcement] { box-shadow: 0 0 0 2px hsl(var(--card)), 0 0 0 4px hsl(var(--primary)); }
 .rail-add { color: #22c55e; }
 .rail-add:hover { background: #22c55e; color: #fff; }
 

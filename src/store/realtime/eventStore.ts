@@ -26,6 +26,8 @@ import {
   type VoiceMemberStateChanged,
   type MessageSent,
   type MessageUpdated,
+  type MessageDeleted,
+  type MessagePublished,
   type OnUserPresenceActivityChanged,
   type OnUserPresenceActivityRemoved,
   type RecordEnded,
@@ -57,6 +59,7 @@ import {
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useBotInteraction } from "@/composables/useBotInteraction";
+import { useScheduledPostsStore } from "@/store/data/scheduledPostsStore";
 
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();
@@ -72,6 +75,10 @@ export const useEventStore = defineStore("events", () => {
   // The server replaced a message whole after MessageSent — a link preview the crawler finished
   // late. Consumers swap the message in place; there is no diff to apply.
   const onMessageUpdated = new Subject<ArgonMessage>();
+  // A message was taken down — by its author or by a moderator. Consumers drop it from view and cache.
+  const onMessageDeleted = new Subject<MessageDeleted>();
+  // An announcement went out to the channels following this one.
+  const onMessagePublished = new Subject<MessagePublished>();
   const onReactionAdded = new Subject<ReactionAdded & { spaceId: string }>();
   const onReactionRemoved = new Subject<ReactionRemoved & { spaceId: string }>();
 
@@ -164,6 +171,9 @@ export const useEventStore = defineStore("events", () => {
 
     const botInteraction = useBotInteraction();
     botInteraction.subscribe();
+
+    // The author hears when a scheduled post goes out or fails, whichever channel is open.
+    useScheduledPostsStore().listen();
 
     bus.onServerEvent<ChannelCreated>("ChannelCreated", (x) => {
       void (async () => {
@@ -369,6 +379,14 @@ export const useEventStore = defineStore("events", () => {
       onMessageUpdated.next(x.message);
     });
 
+    bus.onServerEvent<MessageDeleted>("MessageDeleted", (x) => {
+      onMessageDeleted.next(x);
+    });
+
+    bus.onServerEvent<MessagePublished>("MessagePublished", (x) => {
+      onMessagePublished.next(x);
+    });
+
     bus.onServerEvent<ArchetypeCreated>("ArchetypeCreated", (x) => {
       void archetypeStore.trackArchetype(x.data);
     });
@@ -503,6 +521,8 @@ export const useEventStore = defineStore("events", () => {
   return {
     onNewMessageReceived,
     onMessageUpdated,
+    onMessageDeleted,
+    onMessagePublished,
     onReactionAdded,
     onReactionRemoved,
     subscribeToEvents,

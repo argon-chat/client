@@ -76,6 +76,14 @@ export const useMessageStore = defineStore("message", () => {
     }
   };
 
+  const removeCachedMessage = async (messageId: bigint): Promise<void> => {
+    try {
+      await db.messages.delete(Number(messageId));
+    } catch (error) {
+      logger.error("Failed to remove cached message:", error);
+    }
+  };
+
   const getMessageById = async (messageId: bigint): Promise<ArgonMessage | undefined> => {
     try {
       return await db.messages.get(Number(messageId));
@@ -141,6 +149,7 @@ export const useMessageStore = defineStore("message", () => {
     loadOlderCachedMessages,
     cacheMessages,
     cacheMessage,
+    removeCachedMessage,
     getMessageById,
     clearChannelMessages,
     getChannelMessageCount,

@@ -23,6 +23,19 @@ export interface MessageGroupingOptions {
   lastReadId?: () => bigint | null | undefined;
 }
 
+/**
+ * Who a message is from, for grouping. Webhook posts all come from the system user, so each
+ * webhook (and each name it posts under) is its own author. Crossposts group by the channel they
+ * came from, never with their author's own messages.
+ */
+export function messageAuthorKey(
+  msg: Pick<ChatMessage, "sender" | "webhook" | "crosspost"> | null | undefined,
+): string | null {
+  if (!msg?.sender) return null;
+  if (msg.crosspost) return `crosspost:${msg.crosspost.sourceChannelId}`;
+  return msg.webhook ? `webhook:${msg.webhook.webhookId}:${msg.webhook.name}` : msg.sender;
+}
+
 function isSameDay(a?: Date, b?: Date): boolean {
   if (!a || !b) return false;
   return (
@@ -74,9 +87,11 @@ export function useMessageGrouping(
 
       const next = i < len - 1 ? msgs[i + 1] : null;
 
+      const author = messageAuthorKey(msg);
+
       const samePrev =
         !!prev?.sender &&
-        prev.sender === msg.sender &&
+        messageAuthorKey(prev) === author &&
         !prev._optimistic &&
         !!msg.timeSent &&
         !!prev.timeSent &&
@@ -86,7 +101,7 @@ export function useMessageGrouping(
 
       const sameNext =
         !!next?.sender &&
-        next.sender === msg.sender &&
+        messageAuthorKey(next) === author &&
         !msg._optimistic &&
         !!msg.timeSent &&
         !!next.timeSent &&

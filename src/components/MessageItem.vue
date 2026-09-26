@@ -16,21 +16,23 @@
     </div>
   </div>
 
-  <!-- ── Regular message ── -->
+  <!-- ── Regular message (a crosspost's author is usually not known here) ── -->
   <div
-    v-else-if="user"
+    v-else-if="user || message.crosspost || webhook"
     class="group/msg flex items-start gap-[var(--chat-row-gap,0.5rem)]"
     :class="[
       isRight ? 'flex-row-reverse' : '',
-      isFirstInGroup ? 'pt-[var(--chat-group-gap,0.75rem)]' : 'pt-[var(--chat-stack-gap,0.125rem)]',
+      isFirstInGroup || card ? 'pt-[var(--chat-group-gap,0.75rem)]' : 'pt-[var(--chat-stack-gap,0.125rem)]',
       isOptimistic && !isFailed ? 'opacity-50' : '',
     ]"
     style="contain: layout style"
   >
     <!-- Avatar -->
-    <div class="w-9 shrink-0">
+    <div v-if="!card" class="w-9 shrink-0">
       <template v-if="isFirstInGroup">
-        <Popover v-model:open="profileOpen">
+        <CrosspostAvatar v-if="message.crosspost" :crosspost="message.crosspost" />
+        <MessageWebhookAuthor v-else-if="webhook" :webhook="webhook" part="avatar" />
+        <Popover v-else-if="user" v-model:open="profileOpen">
           <PopoverTrigger>
             <ArgonAvatar
               :file-id="user.avatarFileId"
@@ -58,22 +60,26 @@
     </div>
 
     <!-- Content -->
-    <div class="flex flex-col min-w-0 max-w-[85%]" :class="isRight ? 'items-end' : 'items-start'">
+    <div class="flex flex-col min-w-0" :class="[isRight ? 'items-end' : 'items-start', card ? 'flex-1 max-w-[680px]' : 'max-w-[85%]']">
 
       <!-- Meta row: name + time + status badges -->
       <div
-        v-if="isFirstInGroup"
+        v-if="isFirstInGroup && (!card || isFailed)"
         class="flex items-center gap-1.5 mb-0.5"
         :class="isRight ? 'flex-row-reverse' : ''"
       >
-        <span
-          class="text-[13px] font-semibold leading-none"
-          :style="{ color: userColor }"
-        >
-          {{ user.displayName || t('unknown_display_name') }}
-        </span>
+        <CrosspostHeader v-if="message.crosspost" :message="message" :author="user" />
+        <MessageWebhookAuthor v-else-if="webhook" :webhook="webhook" part="name" />
+        <template v-else-if="user">
+          <span
+            class="text-[13px] font-semibold leading-none"
+            :style="{ color: userColor }"
+          >
+            {{ user.displayName || t('unknown_display_name') }}
+          </span>
 
-        <BotTag :flags="user?.flags" />
+          <BotTag :flags="user?.flags" />
+        </template>
 
         <TooltipProvider>
           <Tooltip>
@@ -122,13 +128,29 @@
           <ContextMenuTrigger>
             <div
               class="msg-bubble-wrap relative inline-flex flex-col"
-              :class="isRight ? 'items-end' : 'items-start'"
+              :class="[isRight ? 'items-end' : 'items-start', card ? 'w-full' : '']"
               @mouseenter="onMouseEnter"
               @mouseleave="onMouseLeave"
             >
 
+              <!-- ── Announcement channel: the post as a card ── -->
+              <AnnouncementCard
+                v-if="card"
+                :message="props.message"
+                :context="card"
+                :author="user!"
+                :author-color="userColor"
+                @open-lightbox="(images, index, time) => emit('open-lightbox', images, index, time)"
+                @unsupported="isUnsupported = true"
+                @report-profile="onReportProfile"
+              >
+                <template #reply>
+                  <ReplyPreview v-if="replyMessage" :reply-message="replyMessage" :reply-user="replyUser" @click="emit('scroll-to-message', replyMessage!.messageId)" />
+                </template>
+              </AnnouncementCard>
+
               <!-- ── Emoji-only message ── -->
-              <div v-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
+              <div v-else-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
                 <ReplyPreview
                   v-if="replyMessage"
                   :reply-message="replyMessage"
@@ -144,6 +166,7 @@
                     @unsupported="isUnsupported = true"
                   />
                   <EditedMark v-if="isEdited" :title="formattedEditedTime" />
+                  <PublishedMark v-if="message.publishedAt" :at="message.publishedAt" />
                 </div>
               </div>
 
@@ -201,6 +224,7 @@
                       @unsupported="isUnsupported = true"
                     />
                     <EditedMark v-if="isEdited" :title="formattedEditedTime" />
+                    <PublishedMark v-if="message.publishedAt" :at="message.publishedAt" />
                     <span
                       v-if="isGrouped"
                       class="float-right text-[11px] text-muted-foreground/50 ml-2 mt-1 leading-none select-none tabular-nums"
@@ -244,6 +268,12 @@
                   {{ formattedTime }}
                 </span>
               </div>
+
+              <MessagePinMarker
+                class="absolute -top-1.5 -right-1.5 z-[1]"
+                :channel-id="props.message.channelId"
+                :message-id="props.message.messageId"
+              />
 
               <!-- Failed state border -->
               <div
@@ -293,6 +323,13 @@
                 <ActionBtn @click="copyText" :title="t('copy')"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
                 <ActionBtn v-if="canReply" @click="emit('reply', props.message)" :title="t('reply')"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
                 <ActionBtn v-if="canEditThis" @click="emit('edit', props.message)" :title="t('edit_message')"><PencilIcon class="w-3.5 h-3.5" /></ActionBtn>
+                <ActionBtn v-if="canPublishThis" @click="emit('publish', props.message)" :title="t('publish_to_followers')"><MegaphoneIcon class="w-3.5 h-3.5" /></ActionBtn>
+                <ActionBtn
+                  v-if="canDeleteThis"
+                  class="hover:!text-destructive"
+                  :title="t('delete_message_action_hint')"
+                  @click="(e: MouseEvent) => emit('delete', props.message, e.shiftKey)"
+                ><Trash2Icon class="w-3.5 h-3.5" /></ActionBtn>
               </div>
             </Transition>
           </Teleport>
@@ -303,6 +340,7 @@
             :reactions="props.message.reactions"
             :current-user-id="me.me?.userId ?? ''"
             :can-react="canReact ?? false"
+            :remove-only="announcement?.settings.reactions === false"
             @toggle="onToggleReaction"
           />
 
@@ -321,13 +359,22 @@
               <PencilIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('edit_message') }}
             </ContextMenuItem>
+            <ContextMenuItem v-if="canPublishThis" @select="emit('publish', props.message)">
+              <MegaphoneIcon class="w-4 h-4 mr-2 opacity-60" />
+              {{ t('publish_to_followers') }}
+            </ContextMenuItem>
             <ContextMenuItem @select="copyText">
               <CopyIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('copy') }}
             </ContextMenuItem>
-            <template v-if="!isOwnMessage">
+            <MessagePinMenuItem v-if="canPin && !isOptimistic" :message="props.message" />
+            <template v-if="!isOwnMessage || canDeleteThis">
               <ContextMenuSeparator />
-              <ContextMenuItem class="text-destructive focus:text-destructive" @select="onReportMessage">
+              <ContextMenuItem v-if="canDeleteThis" class="text-destructive focus:text-destructive" @select="emit('delete', props.message, false)">
+                <Trash2Icon class="w-4 h-4 mr-2 opacity-60" />
+                {{ t('delete_message') }}
+              </ContextMenuItem>
+              <ContextMenuItem v-if="!isOwnMessage" class="text-destructive focus:text-destructive" @select="onReportMessage">
                 <FlagIcon class="w-4 h-4 mr-2 opacity-60" />
                 {{ t('report_message') }}
               </ContextMenuItem>
@@ -411,6 +458,7 @@ import { isEmojiOnly } from "@argon-chat/emojix";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import BotTag from "@/components/shared/BotTag.vue";
+import MessageWebhookAuthor from "./chats/MessageWebhookAuthor.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ChatSegment from "./chats/ChatSegment.vue";
 import AttachmentImageGrid from "./chats/AttachmentImageGrid.vue";
@@ -420,6 +468,14 @@ import MessageReactions from "./chats/MessageReactions.vue";
 import MessageControls from "./chats/MessageControls.vue";
 import ReactionPicker from "./chats/ReactionPicker.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
+import MessagePinMarker from "./chats/MessagePinMarker.vue";
+import MessagePinMenuItem from "./chats/MessagePinMenuItem.vue";
+import AnnouncementCard from "./chats/AnnouncementCard.vue";
+import type { AnnouncementCardContext } from "@/composables/useAnnouncementChannel";
+import CrosspostAvatar from "./chats/CrosspostAvatar.vue";
+import CrosspostHeader from "./chats/CrosspostHeader.vue";
+import PublishedMark from "./chats/PublishedMark.vue";
+import { canPublishMessage } from "@/composables/useChannelFollow";
 
 import {
   Popover, PopoverTrigger, PopoverContent,
@@ -433,7 +489,7 @@ import {
 } from "@argon/ui/context-menu";
 import {
   CopyIcon, ReplyIcon, AlertCircleIcon,
-  Loader2Icon, SmilePlusIcon, FlagIcon, PencilIcon,
+  Loader2Icon, SmilePlusIcon, FlagIcon, PencilIcon, Trash2Icon, MegaphoneIcon,
 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 
@@ -462,7 +518,7 @@ const ReplyPreview = defineComponent({
             h(
               "span",
               { class: "font-semibold text-xs leading-tight", style: { color: color.value } },
-              props.replyUser?.displayName || t("unknown_display_name"),
+              props.replyUser?.displayName || props.replyMessage?.crosspost?.sourceSpaceName || t("unknown_display_name"),
             ),
             h(
               "span",
@@ -511,11 +567,24 @@ const props = withDefaults(defineProps<{
   toggleReaction?: (messageId: bigint, emoji: string) => void;
   /** Channels only: the author may edit their own message. */
   canEdit?: boolean;
-}>(), { canReply: true, canEdit: false });
+  /** Channels only: the author may delete their own message. */
+  canDeleteOwn?: boolean;
+  /** ManageMessages here: anyone's message may be deleted. */
+  canDeleteAny?: boolean;
+  /** ManageMessages in a channel: the message may be pinned and unpinned. */
+  canPin?: boolean;
+  /** Announcement channels: render the post as a card with these settings. */
+  announcement?: AnnouncementCardContext | null;
+  channelType?: "text" | "announcement";
+  /** Announcement channel with ManageMessages: anyone's message may be published to followers. */
+  canPublishAny?: boolean;
+}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, canPublishAny: false });
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
   (e: "edit", message: ArgonMessage): void;
+  (e: "delete", message: ArgonMessage, skipConfirm: boolean): void;
+  (e: "publish", message: ArgonMessage): void;
   (e: "retry", message: ArgonMessage): void;
   (e: "scroll-to-message", messageId: bigint): void;
   (e: "open-lightbox", images: MessageEntityAttachment[], index: number, timeSent: Date | null): void;
@@ -562,7 +631,9 @@ const actionBarStyle = computed(() => {
 function recalcPos() {
   if (!_hoveredEl) return;
   const rect = _hoveredEl.getBoundingClientRect();
-  actionBarPos.value = isRight.value
+  // A card spans the column: the bar sits inside its top-right corner rather than past its edge.
+  if (card.value) actionBarPos.value = { top: rect.top + 8, x: rect.right - 8, place: 'left' };
+  else actionBarPos.value = isRight.value
     ? { top: rect.top, x: rect.left - 8, place: 'left' }
     : { top: rect.top, x: rect.right + 8, place: 'right' };
 }
@@ -623,6 +694,7 @@ function openReactionFromMenu() {
   nextTick(() => { reactionPickerOpen.value = true; });
 }
 
+const webhook = computed(() => props.message.webhook ?? null);
 const userIdRef = computed(() => props.message.sender);
 const user = pool.getUserReactive(userIdRef);
 const userColor = computed(() => userColors.getColorByUserId(props.message.sender ?? ""));
@@ -716,7 +788,22 @@ const failedError = computed(() => props.message._error);
 const hasControls = computed(() => (props.message.controls ?? []).length > 0);
 const hasReactions = computed(() => (props.message.reactions ?? []).length > 0);
 const isEdited = computed(() => !!props.message.editedAt);
-const canEditThis = computed(() => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value);
+// Native posts of an announcement channel render as cards; crossposts and webhook posts keep their own header.
+const card = computed(() => (props.announcement && !props.message.crosspost && !props.message.webhook ? props.announcement : null));
+// A crosspost is a copy: an edit here would never reach the original.
+const canEditThis = computed(() => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value && !props.message.crosspost);
+// A crosspost belongs to this channel, not to its author: only ManageMessages takes it down.
+const canDeleteThis = computed(
+  () => !isOptimistic.value && ((props.canDeleteOwn && isOwnMessage.value && !props.message.crosspost) || props.canDeleteAny),
+);
+const canPublishThis = computed(() =>
+  canPublishMessage({
+    channelType: props.channelType,
+    message: props.message,
+    myUserId: me.me?.userId,
+    canManageMessages: props.canPublishAny,
+  }),
+);
 
 // ── Bubble look (tail bubbles) ──
 // Soft corners away from the avatar; a small "tail" corner on the avatar side.

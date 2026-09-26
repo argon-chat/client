@@ -64,6 +64,13 @@ declare type f2 = number;
 declare type f4 = number;
 declare type f8 = number;
 
+export interface AnnouncementSettings {
+  reactions: bool;
+  postAsSpace: bool;
+  showAuthor: bool;
+};
+
+
 export interface ChannelEntitlementOverwrite {
   channelId: guid;
   archetypeId: guid | null;
@@ -324,6 +331,305 @@ export const Ion_CommandOptionType_OpenEnum = {
 } as const;
 
 
+export interface ScheduledPost {
+  postId: guid;
+  spaceId: guid;
+  channelId: guid;
+  authorId: guid;
+  text: string;
+  entities: IonArray<IMessageEntity>;
+  publishAt: datetime;
+  createdAt: datetime;
+  status: ScheduledPostStatus;
+  failure: ScheduledPostFailure;
+  messageId: i8 | null;
+};
+
+
+export interface MessageDraft {
+  channelId: guid;
+  text: string;
+  entities: IonArray<IMessageEntity>;
+  updatedAt: datetime;
+};
+
+
+export enum ScheduledPostStatus
+{
+  PENDING = 0,
+  PUBLISHED = 1,
+  FAILED = 2,
+  CANCELLED = 3,
+}
+
+const declaredScheduledPostStatus: ReadonlySet<unknown> = new Set<unknown>([ScheduledPostStatus.PENDING, ScheduledPostStatus.PUBLISHED, ScheduledPostStatus.FAILED, ScheduledPostStatus.CANCELLED]);
+
+/**
+ * Open-enum helpers for {@link ScheduledPostStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ScheduledPostStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ScheduledPostStatus): boolean {
+    return declaredScheduledPostStatus.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ScheduledPostStatus): u2 | undefined {
+    return declaredScheduledPostStatus.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ScheduledPostFailure
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  SLOW_MODE = 3,
+  SEND_FAILED = 4,
+}
+
+const declaredScheduledPostFailure: ReadonlySet<unknown> = new Set<unknown>([ScheduledPostFailure.NONE, ScheduledPostFailure.CHANNEL_NOT_FOUND, ScheduledPostFailure.INSUFFICIENT_PERMISSIONS, ScheduledPostFailure.SLOW_MODE, ScheduledPostFailure.SEND_FAILED]);
+
+/**
+ * Open-enum helpers for {@link ScheduledPostFailure}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ScheduledPostFailure_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ScheduledPostFailure): boolean {
+    return declaredScheduledPostFailure.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ScheduledPostFailure): u2 | undefined {
+    return declaredScheduledPostFailure.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum SchedulePostError
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  NOT_A_TEXT_CHANNEL = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  EMPTY_MESSAGE = 4,
+  MESSAGE_TOO_LONG = 5,
+  TOO_MANY_ATTACHMENTS = 6,
+  PUBLISH_TOO_SOON = 7,
+  PUBLISH_TOO_LATE = 8,
+  TOO_MANY_SCHEDULED = 9,
+  POST_NOT_FOUND = 10,
+  NOT_AUTHOR = 11,
+  NOT_PENDING = 12,
+}
+
+const declaredSchedulePostError: ReadonlySet<unknown> = new Set<unknown>([SchedulePostError.NONE, SchedulePostError.CHANNEL_NOT_FOUND, SchedulePostError.NOT_A_TEXT_CHANNEL, SchedulePostError.INSUFFICIENT_PERMISSIONS, SchedulePostError.EMPTY_MESSAGE, SchedulePostError.MESSAGE_TOO_LONG, SchedulePostError.TOO_MANY_ATTACHMENTS, SchedulePostError.PUBLISH_TOO_SOON, SchedulePostError.PUBLISH_TOO_LATE, SchedulePostError.TOO_MANY_SCHEDULED, SchedulePostError.POST_NOT_FOUND, SchedulePostError.NOT_AUTHOR, SchedulePostError.NOT_PENDING]);
+
+/**
+ * Open-enum helpers for {@link SchedulePostError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SchedulePostError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SchedulePostError): boolean {
+    return declaredSchedulePostError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SchedulePostError): u2 | undefined {
+    return declaredSchedulePostError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export interface CrosspostInfo {
+  sourceSpaceId: guid;
+  sourceChannelId: guid;
+  sourceMessageId: i8;
+  sourceSpaceName: string;
+  sourceChannelName: string;
+  sourceSpaceAvatarFileId: string | null;
+};
+
+
+export interface ChannelFollowLink {
+  followId: guid;
+  sourceSpaceId: guid;
+  sourceChannelId: guid;
+  sourceSpaceName: string;
+  sourceChannelName: string;
+  targetSpaceId: guid;
+  targetChannelId: guid;
+  targetSpaceName: string;
+  targetChannelName: string;
+  createdAt: datetime;
+  creatorId: guid;
+  sourceSpaceAvatarFileId: string | null;
+  targetSpaceAvatarFileId: string | null;
+};
+
+
+export enum FollowChannelError
+{
+  NONE = 0,
+  SOURCE_NOT_FOUND = 1,
+  NOT_AN_ANNOUNCEMENT_CHANNEL = 2,
+  NO_ACCESS_TO_SOURCE = 3,
+  TARGET_NOT_FOUND = 4,
+  TARGET_NOT_TEXT = 5,
+  INSUFFICIENT_PERMISSIONS = 6,
+  SAME_CHANNEL = 7,
+  ALREADY_FOLLOWING = 8,
+  TOO_MANY_FOLLOWS = 9,
+}
+
+const declaredFollowChannelError: ReadonlySet<unknown> = new Set<unknown>([FollowChannelError.NONE, FollowChannelError.SOURCE_NOT_FOUND, FollowChannelError.NOT_AN_ANNOUNCEMENT_CHANNEL, FollowChannelError.NO_ACCESS_TO_SOURCE, FollowChannelError.TARGET_NOT_FOUND, FollowChannelError.TARGET_NOT_TEXT, FollowChannelError.INSUFFICIENT_PERMISSIONS, FollowChannelError.SAME_CHANNEL, FollowChannelError.ALREADY_FOLLOWING, FollowChannelError.TOO_MANY_FOLLOWS]);
+
+/**
+ * Open-enum helpers for {@link FollowChannelError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_FollowChannelError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: FollowChannelError): boolean {
+    return declaredFollowChannelError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: FollowChannelError): u2 | undefined {
+    return declaredFollowChannelError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum RemoveFollowError
+{
+  NONE = 0,
+  FOLLOW_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+}
+
+const declaredRemoveFollowError: ReadonlySet<unknown> = new Set<unknown>([RemoveFollowError.NONE, RemoveFollowError.FOLLOW_NOT_FOUND, RemoveFollowError.INSUFFICIENT_PERMISSIONS]);
+
+/**
+ * Open-enum helpers for {@link RemoveFollowError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_RemoveFollowError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: RemoveFollowError): boolean {
+    return declaredRemoveFollowError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: RemoveFollowError): u2 | undefined {
+    return declaredRemoveFollowError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum PublishMessageError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  NOT_AN_ANNOUNCEMENT_CHANNEL = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  ALREADY_PUBLISHED = 4,
+  PUBLISH_RATE_LIMITED = 5,
+  NOT_PUBLISHABLE = 6,
+}
+
+const declaredPublishMessageError: ReadonlySet<unknown> = new Set<unknown>([PublishMessageError.NONE, PublishMessageError.MESSAGE_NOT_FOUND, PublishMessageError.NOT_AN_ANNOUNCEMENT_CHANNEL, PublishMessageError.INSUFFICIENT_PERMISSIONS, PublishMessageError.ALREADY_PUBLISHED, PublishMessageError.PUBLISH_RATE_LIMITED, PublishMessageError.NOT_PUBLISHABLE]);
+
+/**
+ * Open-enum helpers for {@link PublishMessageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PublishMessageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PublishMessageError): boolean {
+    return declaredPublishMessageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PublishMessageError): u2 | undefined {
+    return declaredPublishMessageError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ReadCountError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  NOT_AN_ANNOUNCEMENT_CHANNEL = 3,
+}
+
+const declaredReadCountError: ReadonlySet<unknown> = new Set<unknown>([ReadCountError.NONE, ReadCountError.MESSAGE_NOT_FOUND, ReadCountError.INSUFFICIENT_PERMISSIONS, ReadCountError.NOT_AN_ANNOUNCEMENT_CHANNEL]);
+
+/**
+ * Open-enum helpers for {@link ReadCountError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ReadCountError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ReadCountError): boolean {
+    return declaredReadCountError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ReadCountError): u2 | undefined {
+    return declaredReadCountError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
 export interface CreateChannelRequest {
   spaceId: guid;
   name: string;
@@ -351,6 +657,7 @@ export interface ArgonChannel {
   slowModeSeconds: i4 | null;
   bitrate: i4 | null;
   broadcast: BroadcastSettings | null;
+  announcement: AnnouncementSettings | null;
 };
 
 
@@ -374,6 +681,9 @@ export interface ArgonMessage {
   reactions: IonArray<ReactionInfo>;
   controls: IonArray<ControlRow> | null;
   editedAt: datetime | null;
+  crosspost: CrosspostInfo | null;
+  publishedAt: datetime | null;
+  webhook: WebhookAuthor | null;
 };
 
 
@@ -849,9 +1159,11 @@ export enum UpdateChannelError
   NOT_A_TEXT_CHANNEL = 7,
   BITRATE_OUT_OF_RANGE = 8,
   NOT_A_VOICE_CHANNEL = 9,
+  TYPE_NOT_CONVERTIBLE = 10,
+  NOT_AN_ANNOUNCEMENT_CHANNEL = 11,
 }
 
-const declaredUpdateChannelError: ReadonlySet<unknown> = new Set<unknown>([UpdateChannelError.NONE, UpdateChannelError.CHANNEL_NOT_FOUND, UpdateChannelError.INSUFFICIENT_PERMISSIONS, UpdateChannelError.NAME_EMPTY, UpdateChannelError.NAME_TOO_LONG, UpdateChannelError.DESCRIPTION_TOO_LONG, UpdateChannelError.SLOW_MODE_NOT_ALLOWED, UpdateChannelError.NOT_A_TEXT_CHANNEL, UpdateChannelError.BITRATE_OUT_OF_RANGE, UpdateChannelError.NOT_A_VOICE_CHANNEL]);
+const declaredUpdateChannelError: ReadonlySet<unknown> = new Set<unknown>([UpdateChannelError.NONE, UpdateChannelError.CHANNEL_NOT_FOUND, UpdateChannelError.INSUFFICIENT_PERMISSIONS, UpdateChannelError.NAME_EMPTY, UpdateChannelError.NAME_TOO_LONG, UpdateChannelError.DESCRIPTION_TOO_LONG, UpdateChannelError.SLOW_MODE_NOT_ALLOWED, UpdateChannelError.NOT_A_TEXT_CHANNEL, UpdateChannelError.BITRATE_OUT_OF_RANGE, UpdateChannelError.NOT_A_VOICE_CHANNEL, UpdateChannelError.TYPE_NOT_CONVERTIBLE, UpdateChannelError.NOT_AN_ANNOUNCEMENT_CHANNEL]);
 
 /**
  * Open-enum helpers for {@link UpdateChannelError}.
@@ -1186,9 +1498,10 @@ export enum AddReactionError
   REACTION_LIMIT_REACHED = 2,
   ALREADY_REACTED = 3,
   INSUFFICIENT_PERMISSIONS = 4,
+  REACTIONS_DISABLED = 5,
 }
 
-const declaredAddReactionError: ReadonlySet<unknown> = new Set<unknown>([AddReactionError.NONE, AddReactionError.MESSAGE_NOT_FOUND, AddReactionError.REACTION_LIMIT_REACHED, AddReactionError.ALREADY_REACTED, AddReactionError.INSUFFICIENT_PERMISSIONS]);
+const declaredAddReactionError: ReadonlySet<unknown> = new Set<unknown>([AddReactionError.NONE, AddReactionError.MESSAGE_NOT_FOUND, AddReactionError.REACTION_LIMIT_REACHED, AddReactionError.ALREADY_REACTED, AddReactionError.INSUFFICIENT_PERMISSIONS, AddReactionError.REACTIONS_DISABLED]);
 
 /**
  * Open-enum helpers for {@link AddReactionError}.
@@ -1578,6 +1891,103 @@ export enum ChannelMemberState
   MUTED_HEADPHONES_BY_SERVER = 16,
   STREAMING = 32,
 }
+
+
+export interface PinnedMessage {
+  message: ArgonMessage;
+  pinnedBy: guid;
+  pinnedAt: datetime;
+};
+
+
+export enum PinMessageError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  PIN_LIMIT_REACHED = 3,
+  NOT_A_TEXT_CHANNEL = 4,
+}
+
+const declaredPinMessageError: ReadonlySet<unknown> = new Set<unknown>([PinMessageError.NONE, PinMessageError.MESSAGE_NOT_FOUND, PinMessageError.INSUFFICIENT_PERMISSIONS, PinMessageError.PIN_LIMIT_REACHED, PinMessageError.NOT_A_TEXT_CHANNEL]);
+
+/**
+ * Open-enum helpers for {@link PinMessageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PinMessageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PinMessageError): boolean {
+    return declaredPinMessageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PinMessageError): u2 | undefined {
+    return declaredPinMessageError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export interface ChannelWebhook {
+  webhookId: guid;
+  spaceId: guid;
+  channelId: guid;
+  name: string;
+  avatarFileId: string | null;
+  creatorId: guid;
+  createdAt: datetime;
+  lastUsedAt: datetime | null;
+};
+
+
+export interface WebhookAuthor {
+  webhookId: guid;
+  name: string;
+  avatarFileId: string | null;
+};
+
+
+export enum ChannelWebhookError
+{
+  NONE = 0,
+  CHANNEL_NOT_FOUND = 1,
+  INSUFFICIENT_PERMISSIONS = 2,
+  NOT_A_TEXT_CHANNEL = 3,
+  NAME_EMPTY = 4,
+  NAME_TOO_LONG = 5,
+  LIMIT_REACHED = 6,
+  WEBHOOK_NOT_FOUND = 7,
+}
+
+const declaredChannelWebhookError: ReadonlySet<unknown> = new Set<unknown>([ChannelWebhookError.NONE, ChannelWebhookError.CHANNEL_NOT_FOUND, ChannelWebhookError.INSUFFICIENT_PERMISSIONS, ChannelWebhookError.NOT_A_TEXT_CHANNEL, ChannelWebhookError.NAME_EMPTY, ChannelWebhookError.NAME_TOO_LONG, ChannelWebhookError.LIMIT_REACHED, ChannelWebhookError.WEBHOOK_NOT_FOUND]);
+
+/**
+ * Open-enum helpers for {@link ChannelWebhookError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ChannelWebhookError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ChannelWebhookError): boolean {
+    return declaredChannelWebhookError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ChannelWebhookError): u2 | undefined {
+    return declaredChannelWebhookError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
 
 
 export interface CosmeticCatalogue {
@@ -2907,6 +3317,7 @@ export interface ArgonSpaceBase {
   hideBoostStrip: bool;
   inviteImageFileId: string | null;
   isCommunity: bool | null;
+  mainAnnouncementChannelId: guid | null;
 };
 
 
@@ -2924,6 +3335,7 @@ export interface ArgonSpace {
   hideBoostStrip: bool;
   inviteImageFileId: string | null;
   isCommunity: bool | null;
+  mainAnnouncementChannelId: guid | null;
 };
 
 
@@ -3341,6 +3753,39 @@ export const Ion_ClientPlatform_OpenEnum = {
    */
   unknownValue(value: ClientPlatform): u4 | undefined {
     return declaredClientPlatform.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum SetMainAnnouncementChannelError
+{
+  NONE = 0,
+  NO_PERMISSION = 1,
+  CHANNEL_NOT_FOUND = 2,
+  NOT_ANNOUNCEMENT_CHANNEL = 3,
+}
+
+const declaredSetMainAnnouncementChannelError: ReadonlySet<unknown> = new Set<unknown>([SetMainAnnouncementChannelError.NONE, SetMainAnnouncementChannelError.NO_PERMISSION, SetMainAnnouncementChannelError.CHANNEL_NOT_FOUND, SetMainAnnouncementChannelError.NOT_ANNOUNCEMENT_CHANNEL]);
+
+/**
+ * Open-enum helpers for {@link SetMainAnnouncementChannelError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SetMainAnnouncementChannelError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SetMainAnnouncementChannelError): boolean {
+    return declaredSetMainAnnouncementChannelError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SetMainAnnouncementChannelError): u2 | undefined {
+    return declaredSetMainAnnouncementChannelError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -4708,6 +5153,517 @@ IonFormatterStorage.register("FailedApproval", {
   write(writer: CborWriter, value: FailedApproval): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<ApproveBotEntitlementsError>('ApproveBotEntitlementsError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISchedulePostResult implements IIonUnion<ISchedulePostResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSchedulePost(): this is SuccessSchedulePost {
+    return this.UnionKey === "SuccessSchedulePost";
+  }
+  public isFailedSchedulePost(): this is FailedSchedulePost {
+    return this.UnionKey === "FailedSchedulePost";
+  }
+
+}
+
+
+export class SuccessSchedulePost extends ISchedulePostResult
+{
+  constructor(public post: ScheduledPost) { super(); }
+
+  UnionKey: string = "SuccessSchedulePost";
+  UnionIndex: number = 0;
+}
+
+export class FailedSchedulePost extends ISchedulePostResult
+{
+  constructor(public error: SchedulePostError) { super(); }
+
+  UnionKey: string = "FailedSchedulePost";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISchedulePostResult", {
+  read(reader: CborReader): ISchedulePostResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISchedulePostResult", 2);
+    let value: ISchedulePostResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSchedulePost>("SuccessSchedulePost").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSchedulePost>("FailedSchedulePost").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISchedulePostResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISchedulePostResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSchedulePost>("SuccessSchedulePost").write(writer, value as SuccessSchedulePost);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSchedulePost>("FailedSchedulePost").write(writer, value as FailedSchedulePost);
+    }
+  
+    else throw new Error(`Ion union 'ISchedulePostResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSchedulePost", {
+  read(reader: CborReader): SuccessSchedulePost {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSchedulePost");
+    const post = IonFormatterStorage.get<ScheduledPost>('ScheduledPost').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSchedulePost(post);
+  },
+  write(writer: CborWriter, value: SuccessSchedulePost): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ScheduledPost>('ScheduledPost').write(writer, value.post);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSchedulePost", {
+  read(reader: CborReader): FailedSchedulePost {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSchedulePost");
+    const error = IonFormatterStorage.get<SchedulePostError>('SchedulePostError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSchedulePost(error);
+  },
+  write(writer: CborWriter, value: FailedSchedulePost): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SchedulePostError>('SchedulePostError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IFollowChannelResult implements IIonUnion<IFollowChannelResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessFollowChannel(): this is SuccessFollowChannel {
+    return this.UnionKey === "SuccessFollowChannel";
+  }
+  public isFailedFollowChannel(): this is FailedFollowChannel {
+    return this.UnionKey === "FailedFollowChannel";
+  }
+
+}
+
+
+export class SuccessFollowChannel extends IFollowChannelResult
+{
+  constructor(public link: ChannelFollowLink) { super(); }
+
+  UnionKey: string = "SuccessFollowChannel";
+  UnionIndex: number = 0;
+}
+
+export class FailedFollowChannel extends IFollowChannelResult
+{
+  constructor(public error: FollowChannelError) { super(); }
+
+  UnionKey: string = "FailedFollowChannel";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IFollowChannelResult", {
+  read(reader: CborReader): IFollowChannelResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IFollowChannelResult", 2);
+    let value: IFollowChannelResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessFollowChannel>("SuccessFollowChannel").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedFollowChannel>("FailedFollowChannel").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IFollowChannelResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IFollowChannelResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessFollowChannel>("SuccessFollowChannel").write(writer, value as SuccessFollowChannel);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedFollowChannel>("FailedFollowChannel").write(writer, value as FailedFollowChannel);
+    }
+  
+    else throw new Error(`Ion union 'IFollowChannelResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessFollowChannel", {
+  read(reader: CborReader): SuccessFollowChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessFollowChannel");
+    const link = IonFormatterStorage.get<ChannelFollowLink>('ChannelFollowLink').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessFollowChannel(link);
+  },
+  write(writer: CborWriter, value: SuccessFollowChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ChannelFollowLink>('ChannelFollowLink').write(writer, value.link);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedFollowChannel", {
+  read(reader: CborReader): FailedFollowChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedFollowChannel");
+    const error = IonFormatterStorage.get<FollowChannelError>('FollowChannelError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedFollowChannel(error);
+  },
+  write(writer: CborWriter, value: FailedFollowChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<FollowChannelError>('FollowChannelError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRemoveFollowResult implements IIonUnion<IRemoveFollowResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRemoveFollow(): this is SuccessRemoveFollow {
+    return this.UnionKey === "SuccessRemoveFollow";
+  }
+  public isFailedRemoveFollow(): this is FailedRemoveFollow {
+    return this.UnionKey === "FailedRemoveFollow";
+  }
+
+}
+
+
+export class SuccessRemoveFollow extends IRemoveFollowResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessRemoveFollow";
+  UnionIndex: number = 0;
+}
+
+export class FailedRemoveFollow extends IRemoveFollowResult
+{
+  constructor(public error: RemoveFollowError) { super(); }
+
+  UnionKey: string = "FailedRemoveFollow";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRemoveFollowResult", {
+  read(reader: CborReader): IRemoveFollowResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRemoveFollowResult", 2);
+    let value: IRemoveFollowResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRemoveFollow>("SuccessRemoveFollow").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRemoveFollow>("FailedRemoveFollow").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IRemoveFollowResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IRemoveFollowResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRemoveFollow>("SuccessRemoveFollow").write(writer, value as SuccessRemoveFollow);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRemoveFollow>("FailedRemoveFollow").write(writer, value as FailedRemoveFollow);
+    }
+  
+    else throw new Error(`Ion union 'IRemoveFollowResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRemoveFollow", {
+  read(reader: CborReader): SuccessRemoveFollow {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRemoveFollow");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessRemoveFollow();
+  },
+  write(writer: CborWriter, value: SuccessRemoveFollow): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRemoveFollow", {
+  read(reader: CborReader): FailedRemoveFollow {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRemoveFollow");
+    const error = IonFormatterStorage.get<RemoveFollowError>('RemoveFollowError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRemoveFollow(error);
+  },
+  write(writer: CborWriter, value: FailedRemoveFollow): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<RemoveFollowError>('RemoveFollowError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IPublishMessageResult implements IIonUnion<IPublishMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPublishMessage(): this is SuccessPublishMessage {
+    return this.UnionKey === "SuccessPublishMessage";
+  }
+  public isFailedPublishMessage(): this is FailedPublishMessage {
+    return this.UnionKey === "FailedPublishMessage";
+  }
+
+}
+
+
+export class SuccessPublishMessage extends IPublishMessageResult
+{
+  constructor(public publishedAt: datetime, public deliveredCount: i4, public targetCount: i4) { super(); }
+
+  UnionKey: string = "SuccessPublishMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedPublishMessage extends IPublishMessageResult
+{
+  constructor(public error: PublishMessageError) { super(); }
+
+  UnionKey: string = "FailedPublishMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPublishMessageResult", {
+  read(reader: CborReader): IPublishMessageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPublishMessageResult", 2);
+    let value: IPublishMessageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPublishMessage>("SuccessPublishMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPublishMessage>("FailedPublishMessage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IPublishMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IPublishMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPublishMessage>("SuccessPublishMessage").write(writer, value as SuccessPublishMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPublishMessage>("FailedPublishMessage").write(writer, value as FailedPublishMessage);
+    }
+  
+    else throw new Error(`Ion union 'IPublishMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPublishMessage", {
+  read(reader: CborReader): SuccessPublishMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessPublishMessage");
+    const publishedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const deliveredCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const targetCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessPublishMessage(publishedAt, deliveredCount, targetCount);
+  },
+  write(writer: CborWriter, value: SuccessPublishMessage): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.publishedAt);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.deliveredCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.targetCount);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPublishMessage", {
+  read(reader: CborReader): FailedPublishMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPublishMessage");
+    const error = IonFormatterStorage.get<PublishMessageError>('PublishMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPublishMessage(error);
+  },
+  write(writer: CborWriter, value: FailedPublishMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PublishMessageError>('PublishMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IReadCountResult implements IIonUnion<IReadCountResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessReadCount(): this is SuccessReadCount {
+    return this.UnionKey === "SuccessReadCount";
+  }
+  public isFailedReadCount(): this is FailedReadCount {
+    return this.UnionKey === "FailedReadCount";
+  }
+
+}
+
+
+export class SuccessReadCount extends IReadCountResult
+{
+  constructor(public readers: i4, public members: i4) { super(); }
+
+  UnionKey: string = "SuccessReadCount";
+  UnionIndex: number = 0;
+}
+
+export class FailedReadCount extends IReadCountResult
+{
+  constructor(public error: ReadCountError) { super(); }
+
+  UnionKey: string = "FailedReadCount";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IReadCountResult", {
+  read(reader: CborReader): IReadCountResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IReadCountResult", 2);
+    let value: IReadCountResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessReadCount>("SuccessReadCount").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedReadCount>("FailedReadCount").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IReadCountResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IReadCountResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessReadCount>("SuccessReadCount").write(writer, value as SuccessReadCount);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedReadCount>("FailedReadCount").write(writer, value as FailedReadCount);
+    }
+  
+    else throw new Error(`Ion union 'IReadCountResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessReadCount", {
+  read(reader: CborReader): SuccessReadCount {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessReadCount");
+    const readers = IonFormatterStorage.get<i4>('i4').read(reader);
+    const members = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessReadCount(readers, members);
+  },
+  write(writer: CborWriter, value: SuccessReadCount): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.readers);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.members);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedReadCount", {
+  read(reader: CborReader): FailedReadCount {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedReadCount");
+    const error = IonFormatterStorage.get<ReadCountError>('ReadCountError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedReadCount(error);
+  },
+  write(writer: CborWriter, value: FailedReadCount): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ReadCountError>('ReadCountError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -7723,6 +8679,18 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChannelModifiedV2(): this is ChannelModifiedV2 {
     return this.UnionKey === "ChannelModifiedV2";
   }
+  public isMessagePinned(): this is MessagePinned {
+    return this.UnionKey === "MessagePinned";
+  }
+  public isMessageUnpinned(): this is MessageUnpinned {
+    return this.UnionKey === "MessageUnpinned";
+  }
+  public isMessagePublished(): this is MessagePublished {
+    return this.UnionKey === "MessagePublished";
+  }
+  public isScheduledPostUpdated(): this is ScheduledPostUpdated {
+    return this.UnionKey === "ScheduledPostUpdated";
+  }
 
 }
 
@@ -8309,11 +9277,43 @@ export class ChannelModifiedV2 extends IArgonEvent
   UnionIndex: number = 71;
 }
 
+export class MessagePinned extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public byUserId: guid) { super(); }
+
+  UnionKey: string = "MessagePinned";
+  UnionIndex: number = 72;
+}
+
+export class MessageUnpinned extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public byUserId: guid) { super(); }
+
+  UnionKey: string = "MessageUnpinned";
+  UnionIndex: number = 73;
+}
+
+export class MessagePublished extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public publishedAt: datetime) { super(); }
+
+  UnionKey: string = "MessagePublished";
+  UnionIndex: number = 74;
+}
+
+export class ScheduledPostUpdated extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public post: ScheduledPost) { super(); }
+
+  UnionKey: string = "ScheduledPostUpdated";
+  UnionIndex: number = 75;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 72);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 76);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -8462,8 +9462,16 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<EntitlementsChanged>("EntitlementsChanged").read(reader);
     else if (unionIndex == 71)
       value = IonFormatterStorage.get<ChannelModifiedV2>("ChannelModifiedV2").read(reader);
+    else if (unionIndex == 72)
+      value = IonFormatterStorage.get<MessagePinned>("MessagePinned").read(reader);
+    else if (unionIndex == 73)
+      value = IonFormatterStorage.get<MessageUnpinned>("MessageUnpinned").read(reader);
+    else if (unionIndex == 74)
+      value = IonFormatterStorage.get<MessagePublished>("MessagePublished").read(reader);
+    else if (unionIndex == 75)
+      value = IonFormatterStorage.get<ScheduledPostUpdated>("ScheduledPostUpdated").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 72);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 76);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -8689,8 +9697,20 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 71) {
         IonFormatterStorage.get<ChannelModifiedV2>("ChannelModifiedV2").write(writer, value as ChannelModifiedV2);
     }
+    else if (value.UnionIndex == 72) {
+        IonFormatterStorage.get<MessagePinned>("MessagePinned").write(writer, value as MessagePinned);
+    }
+    else if (value.UnionIndex == 73) {
+        IonFormatterStorage.get<MessageUnpinned>("MessageUnpinned").write(writer, value as MessageUnpinned);
+    }
+    else if (value.UnionIndex == 74) {
+        IonFormatterStorage.get<MessagePublished>("MessagePublished").write(writer, value as MessagePublished);
+    }
+    else if (value.UnionIndex == 75) {
+        IonFormatterStorage.get<ScheduledPostUpdated>("ScheduledPostUpdated").write(writer, value as ScheduledPostUpdated);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 72 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 76 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9930,6 +10950,84 @@ IonFormatterStorage.register("ChannelModifiedV2", {
   }
 });
 
+IonFormatterStorage.register("MessagePinned", {
+  read(reader: CborReader): MessagePinned {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessagePinned");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessagePinned(spaceId, channelId, messageId, byUserId);
+  },
+  write(writer: CborWriter, value: MessagePinned): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageUnpinned", {
+  read(reader: CborReader): MessageUnpinned {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageUnpinned");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const byUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessageUnpinned(spaceId, channelId, messageId, byUserId);
+  },
+  write(writer: CborWriter, value: MessageUnpinned): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.byUserId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessagePublished", {
+  read(reader: CborReader): MessagePublished {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessagePublished");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const publishedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new MessagePublished(spaceId, channelId, messageId, publishedAt);
+  },
+  write(writer: CborWriter, value: MessagePublished): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.publishedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ScheduledPostUpdated", {
+  read(reader: CborReader): ScheduledPostUpdated {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ScheduledPostUpdated");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const post = IonFormatterStorage.get<ScheduledPost>('ScheduledPost').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ScheduledPostUpdated(spaceId, channelId, post);
+  },
+  write(writer: CborWriter, value: ScheduledPostUpdated): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<ScheduledPost>('ScheduledPost').write(writer, value.post);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
@@ -10573,6 +11671,414 @@ IonFormatterStorage.register("StopTyping", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IPinMessageResult implements IIonUnion<IPinMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPinMessage(): this is SuccessPinMessage {
+    return this.UnionKey === "SuccessPinMessage";
+  }
+  public isFailedPinMessage(): this is FailedPinMessage {
+    return this.UnionKey === "FailedPinMessage";
+  }
+
+}
+
+
+export class SuccessPinMessage extends IPinMessageResult
+{
+  constructor(public pin: PinnedMessage) { super(); }
+
+  UnionKey: string = "SuccessPinMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedPinMessage extends IPinMessageResult
+{
+  constructor(public error: PinMessageError) { super(); }
+
+  UnionKey: string = "FailedPinMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPinMessageResult", {
+  read(reader: CborReader): IPinMessageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPinMessageResult", 2);
+    let value: IPinMessageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPinMessage>("SuccessPinMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPinMessage>("FailedPinMessage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IPinMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IPinMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPinMessage>("SuccessPinMessage").write(writer, value as SuccessPinMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPinMessage>("FailedPinMessage").write(writer, value as FailedPinMessage);
+    }
+  
+    else throw new Error(`Ion union 'IPinMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPinMessage", {
+  read(reader: CborReader): SuccessPinMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessPinMessage");
+    const pin = IonFormatterStorage.get<PinnedMessage>('PinnedMessage').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessPinMessage(pin);
+  },
+  write(writer: CborWriter, value: SuccessPinMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PinnedMessage>('PinnedMessage').write(writer, value.pin);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPinMessage", {
+  read(reader: CborReader): FailedPinMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPinMessage");
+    const error = IonFormatterStorage.get<PinMessageError>('PinMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPinMessage(error);
+  },
+  write(writer: CborWriter, value: FailedPinMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PinMessageError>('PinMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUnpinMessageResult implements IIonUnion<IUnpinMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUnpinMessage(): this is SuccessUnpinMessage {
+    return this.UnionKey === "SuccessUnpinMessage";
+  }
+  public isFailedUnpinMessage(): this is FailedUnpinMessage {
+    return this.UnionKey === "FailedUnpinMessage";
+  }
+
+}
+
+
+export class SuccessUnpinMessage extends IUnpinMessageResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessUnpinMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedUnpinMessage extends IUnpinMessageResult
+{
+  constructor(public error: PinMessageError) { super(); }
+
+  UnionKey: string = "FailedUnpinMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUnpinMessageResult", {
+  read(reader: CborReader): IUnpinMessageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUnpinMessageResult", 2);
+    let value: IUnpinMessageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUnpinMessage>("SuccessUnpinMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUnpinMessage>("FailedUnpinMessage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IUnpinMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IUnpinMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUnpinMessage>("SuccessUnpinMessage").write(writer, value as SuccessUnpinMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUnpinMessage>("FailedUnpinMessage").write(writer, value as FailedUnpinMessage);
+    }
+  
+    else throw new Error(`Ion union 'IUnpinMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUnpinMessage", {
+  read(reader: CborReader): SuccessUnpinMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessUnpinMessage");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessUnpinMessage();
+  },
+  write(writer: CborWriter, value: SuccessUnpinMessage): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUnpinMessage", {
+  read(reader: CborReader): FailedUnpinMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUnpinMessage");
+    const error = IonFormatterStorage.get<PinMessageError>('PinMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUnpinMessage(error);
+  },
+  write(writer: CborWriter, value: FailedUnpinMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PinMessageError>('PinMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICreateWebhookResult implements IIonUnion<ICreateWebhookResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateWebhook(): this is SuccessCreateWebhook {
+    return this.UnionKey === "SuccessCreateWebhook";
+  }
+  public isFailedCreateWebhook(): this is FailedCreateWebhook {
+    return this.UnionKey === "FailedCreateWebhook";
+  }
+
+}
+
+
+export class SuccessCreateWebhook extends ICreateWebhookResult
+{
+  constructor(public webhook: ChannelWebhook, public token: string, public url: string) { super(); }
+
+  UnionKey: string = "SuccessCreateWebhook";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateWebhook extends ICreateWebhookResult
+{
+  constructor(public error: ChannelWebhookError) { super(); }
+
+  UnionKey: string = "FailedCreateWebhook";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateWebhookResult", {
+  read(reader: CborReader): ICreateWebhookResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateWebhookResult", 2);
+    let value: ICreateWebhookResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateWebhook>("SuccessCreateWebhook").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateWebhook>("FailedCreateWebhook").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICreateWebhookResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateWebhookResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateWebhook>("SuccessCreateWebhook").write(writer, value as SuccessCreateWebhook);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateWebhook>("FailedCreateWebhook").write(writer, value as FailedCreateWebhook);
+    }
+  
+    else throw new Error(`Ion union 'ICreateWebhookResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateWebhook", {
+  read(reader: CborReader): SuccessCreateWebhook {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessCreateWebhook");
+    const webhook = IonFormatterStorage.get<ChannelWebhook>('ChannelWebhook').read(reader);
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessCreateWebhook(webhook, token, url);
+  },
+  write(writer: CborWriter, value: SuccessCreateWebhook): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<ChannelWebhook>('ChannelWebhook').write(writer, value.webhook);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateWebhook", {
+  read(reader: CborReader): FailedCreateWebhook {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateWebhook");
+    const error = IonFormatterStorage.get<ChannelWebhookError>('ChannelWebhookError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateWebhook(error);
+  },
+  write(writer: CborWriter, value: FailedCreateWebhook): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ChannelWebhookError>('ChannelWebhookError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUpdateWebhookResult implements IIonUnion<IUpdateWebhookResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUpdateWebhook(): this is SuccessUpdateWebhook {
+    return this.UnionKey === "SuccessUpdateWebhook";
+  }
+  public isFailedUpdateWebhook(): this is FailedUpdateWebhook {
+    return this.UnionKey === "FailedUpdateWebhook";
+  }
+
+}
+
+
+export class SuccessUpdateWebhook extends IUpdateWebhookResult
+{
+  constructor(public webhook: ChannelWebhook) { super(); }
+
+  UnionKey: string = "SuccessUpdateWebhook";
+  UnionIndex: number = 0;
+}
+
+export class FailedUpdateWebhook extends IUpdateWebhookResult
+{
+  constructor(public error: ChannelWebhookError) { super(); }
+
+  UnionKey: string = "FailedUpdateWebhook";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUpdateWebhookResult", {
+  read(reader: CborReader): IUpdateWebhookResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUpdateWebhookResult", 2);
+    let value: IUpdateWebhookResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUpdateWebhook>("SuccessUpdateWebhook").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUpdateWebhook>("FailedUpdateWebhook").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IUpdateWebhookResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IUpdateWebhookResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUpdateWebhook>("SuccessUpdateWebhook").write(writer, value as SuccessUpdateWebhook);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUpdateWebhook>("FailedUpdateWebhook").write(writer, value as FailedUpdateWebhook);
+    }
+  
+    else throw new Error(`Ion union 'IUpdateWebhookResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUpdateWebhook", {
+  read(reader: CborReader): SuccessUpdateWebhook {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessUpdateWebhook");
+    const webhook = IonFormatterStorage.get<ChannelWebhook>('ChannelWebhook').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessUpdateWebhook(webhook);
+  },
+  write(writer: CborWriter, value: SuccessUpdateWebhook): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ChannelWebhook>('ChannelWebhook').write(writer, value.webhook);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUpdateWebhook", {
+  read(reader: CborReader): FailedUpdateWebhook {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUpdateWebhook");
+    const error = IonFormatterStorage.get<ChannelWebhookError>('ChannelWebhookError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUpdateWebhook(error);
+  },
+  write(writer: CborWriter, value: FailedUpdateWebhook): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ChannelWebhookError>('ChannelWebhookError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -14206,6 +15712,107 @@ IonFormatterStorage.register("FailedCancelDeleteSpace", {
 
 
 
+export abstract class ISetMainAnnouncementChannelResult implements IIonUnion<ISetMainAnnouncementChannelResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSetMainAnnouncementChannel(): this is SuccessSetMainAnnouncementChannel {
+    return this.UnionKey === "SuccessSetMainAnnouncementChannel";
+  }
+  public isFailedSetMainAnnouncementChannel(): this is FailedSetMainAnnouncementChannel {
+    return this.UnionKey === "FailedSetMainAnnouncementChannel";
+  }
+
+}
+
+
+export class SuccessSetMainAnnouncementChannel extends ISetMainAnnouncementChannelResult
+{
+  constructor(public channelId: guid | null) { super(); }
+
+  UnionKey: string = "SuccessSetMainAnnouncementChannel";
+  UnionIndex: number = 0;
+}
+
+export class FailedSetMainAnnouncementChannel extends ISetMainAnnouncementChannelResult
+{
+  constructor(public error: SetMainAnnouncementChannelError) { super(); }
+
+  UnionKey: string = "FailedSetMainAnnouncementChannel";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISetMainAnnouncementChannelResult", {
+  read(reader: CborReader): ISetMainAnnouncementChannelResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISetMainAnnouncementChannelResult", 2);
+    let value: ISetMainAnnouncementChannelResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSetMainAnnouncementChannel>("SuccessSetMainAnnouncementChannel").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSetMainAnnouncementChannel>("FailedSetMainAnnouncementChannel").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISetMainAnnouncementChannelResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISetMainAnnouncementChannelResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSetMainAnnouncementChannel>("SuccessSetMainAnnouncementChannel").write(writer, value as SuccessSetMainAnnouncementChannel);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSetMainAnnouncementChannel>("FailedSetMainAnnouncementChannel").write(writer, value as FailedSetMainAnnouncementChannel);
+    }
+  
+    else throw new Error(`Ion union 'ISetMainAnnouncementChannelResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSetMainAnnouncementChannel", {
+  read(reader: CborReader): SuccessSetMainAnnouncementChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSetMainAnnouncementChannel");
+    const channelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSetMainAnnouncementChannel(channelId);
+  },
+  write(writer: CborWriter, value: SuccessSetMainAnnouncementChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeNullable<guid>(writer, value.channelId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSetMainAnnouncementChannel", {
+  read(reader: CborReader): FailedSetMainAnnouncementChannel {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSetMainAnnouncementChannel");
+    const error = IonFormatterStorage.get<SetMainAnnouncementChannelError>('SetMainAnnouncementChannelError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSetMainAnnouncementChannel(error);
+  },
+  write(writer: CborWriter, value: FailedSetMainAnnouncementChannel): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SetMainAnnouncementChannelError>('SetMainAnnouncementChannelError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ICheckoutResult implements IIonUnion<ICheckoutResult>
 {
   abstract UnionKey: string;
@@ -15854,6 +17461,24 @@ IonFormatterStorage.register("FailedPickUp", {
 
 
 
+IonFormatterStorage.register("AnnouncementSettings", {
+  read(reader: CborReader): AnnouncementSettings {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "AnnouncementSettings");
+    const reactions = IonFormatterStorage.get<bool>('bool').read(reader);
+    const postAsSpace = IonFormatterStorage.get<bool>('bool').read(reader);
+    const showAuthor = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { reactions, postAsSpace, showAuthor };
+  },
+  write(writer: CborWriter, value: AnnouncementSettings): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.reactions);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.postAsSpace);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.showAuthor);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("ArgonEntitlement", {
   read(reader: CborReader): ArgonEntitlement {
     const num = (IonFormatterStorage.get<u8>('u8').read(reader))
@@ -16113,6 +17738,192 @@ IonFormatterStorage.register("ApproveBotEntitlementsError", {
   }
 });
 
+IonFormatterStorage.register("ScheduledPostStatus", {
+  read(reader: CborReader): ScheduledPostStatus {
+    return IonFormatterStorage.readOpenEnum<ScheduledPostStatus>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ScheduledPostStatus): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ScheduledPostFailure", {
+  read(reader: CborReader): ScheduledPostFailure {
+    return IonFormatterStorage.readOpenEnum<ScheduledPostFailure>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ScheduledPostFailure): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ScheduledPost", {
+  read(reader: CborReader): ScheduledPost {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ScheduledPost");
+    const postId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const authorId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const text = IonFormatterStorage.get<string>('string').read(reader);
+    const entities = IonFormatterStorage.readArray<IMessageEntity>(reader, 'IMessageEntity');
+    const publishAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const status = IonFormatterStorage.get<ScheduledPostStatus>('ScheduledPostStatus').read(reader);
+    const failure = IonFormatterStorage.get<ScheduledPostFailure>('ScheduledPostFailure').read(reader);
+    const messageId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { postId, spaceId, channelId, authorId, text, entities, publishAt, createdAt, status, failure, messageId };
+  },
+  write(writer: CborWriter, value: ScheduledPost): void {
+    writer.writeStartArray(11);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.postId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.authorId);
+    IonFormatterStorage.get<string>('string').write(writer, value.text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, value.entities, 'IMessageEntity');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.publishAt);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.get<ScheduledPostStatus>('ScheduledPostStatus').write(writer, value.status);
+    IonFormatterStorage.get<ScheduledPostFailure>('ScheduledPostFailure').write(writer, value.failure);
+    IonFormatterStorage.writeNullable<i8>(writer, value.messageId, 'i8');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageDraft", {
+  read(reader: CborReader): MessageDraft {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageDraft");
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const text = IonFormatterStorage.get<string>('string').read(reader);
+    const entities = IonFormatterStorage.readArray<IMessageEntity>(reader, 'IMessageEntity');
+    const updatedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { channelId, text, entities, updatedAt };
+  },
+  write(writer: CborWriter, value: MessageDraft): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, value.entities, 'IMessageEntity');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.updatedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SchedulePostError", {
+  read(reader: CborReader): SchedulePostError {
+    return IonFormatterStorage.readOpenEnum<SchedulePostError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: SchedulePostError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("CrosspostInfo", {
+  read(reader: CborReader): CrosspostInfo {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "CrosspostInfo");
+    const sourceSpaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const sourceSpaceName = IonFormatterStorage.get<string>('string').read(reader);
+    const sourceChannelName = IonFormatterStorage.get<string>('string').read(reader);
+    const sourceSpaceAvatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { sourceSpaceId, sourceChannelId, sourceMessageId, sourceSpaceName, sourceChannelName, sourceSpaceAvatarFileId };
+  },
+  write(writer: CborWriter, value: CrosspostInfo): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sourceSpaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sourceChannelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.sourceMessageId);
+    IonFormatterStorage.get<string>('string').write(writer, value.sourceSpaceName);
+    IonFormatterStorage.get<string>('string').write(writer, value.sourceChannelName);
+    IonFormatterStorage.writeNullable<string>(writer, value.sourceSpaceAvatarFileId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelFollowLink", {
+  read(reader: CborReader): ChannelFollowLink {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "ChannelFollowLink");
+    const followId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceSpaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceSpaceName = IonFormatterStorage.get<string>('string').read(reader);
+    const sourceChannelName = IonFormatterStorage.get<string>('string').read(reader);
+    const targetSpaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const targetChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const targetSpaceName = IonFormatterStorage.get<string>('string').read(reader);
+    const targetChannelName = IonFormatterStorage.get<string>('string').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const creatorId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const sourceSpaceAvatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const targetSpaceAvatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { followId, sourceSpaceId, sourceChannelId, sourceSpaceName, sourceChannelName, targetSpaceId, targetChannelId, targetSpaceName, targetChannelName, createdAt, creatorId, sourceSpaceAvatarFileId, targetSpaceAvatarFileId };
+  },
+  write(writer: CborWriter, value: ChannelFollowLink): void {
+    writer.writeStartArray(13);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.followId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sourceSpaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.sourceChannelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.sourceSpaceName);
+    IonFormatterStorage.get<string>('string').write(writer, value.sourceChannelName);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetSpaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.targetChannelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.targetSpaceName);
+    IonFormatterStorage.get<string>('string').write(writer, value.targetChannelName);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.creatorId);
+    IonFormatterStorage.writeNullable<string>(writer, value.sourceSpaceAvatarFileId, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.targetSpaceAvatarFileId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FollowChannelError", {
+  read(reader: CborReader): FollowChannelError {
+    return IonFormatterStorage.readOpenEnum<FollowChannelError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: FollowChannelError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("RemoveFollowError", {
+  read(reader: CborReader): RemoveFollowError {
+    return IonFormatterStorage.readOpenEnum<RemoveFollowError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: RemoveFollowError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PublishMessageError", {
+  read(reader: CborReader): PublishMessageError {
+    return IonFormatterStorage.readOpenEnum<PublishMessageError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: PublishMessageError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ReadCountError", {
+  read(reader: CborReader): ReadCountError {
+    return IonFormatterStorage.readOpenEnum<ReadCountError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ReadCountError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ChannelType", {
   read(reader: CborReader): ChannelType {
     return IonFormatterStorage.readOpenEnum<ChannelType>(reader, 'u2');
@@ -16147,7 +17958,7 @@ IonFormatterStorage.register("CreateChannelRequest", {
 
 IonFormatterStorage.register("ArgonChannel", {
   read(reader: CborReader): ArgonChannel {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonChannel");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "ArgonChannel");
     const type = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -16159,11 +17970,12 @@ IonFormatterStorage.register("ArgonChannel", {
     const slowModeSeconds = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const bitrate = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const broadcast = IonFormatterStorage.readNullable<BroadcastSettings>(reader, 'BroadcastSettings');
-    reader.readEndArrayAndSkip(arraySize - 11);
-    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds, bitrate, broadcast };
+    const announcement = IonFormatterStorage.readNullable<AnnouncementSettings>(reader, 'AnnouncementSettings');
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds, bitrate, broadcast, announcement };
   },
   write(writer: CborWriter, value: ArgonChannel): void {
-    writer.writeStartArray(11);
+    writer.writeStartArray(12);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -16175,6 +17987,7 @@ IonFormatterStorage.register("ArgonChannel", {
     IonFormatterStorage.writeNullable<i4>(writer, value.slowModeSeconds, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.bitrate, 'i4');
     IonFormatterStorage.writeNullable<BroadcastSettings>(writer, value.broadcast, 'BroadcastSettings');
+    IonFormatterStorage.writeNullable<AnnouncementSettings>(writer, value.announcement, 'AnnouncementSettings');
     writer.writeEndArray();
   }
 });
@@ -16217,7 +18030,7 @@ IonFormatterStorage.register("ReactionInfo", {
 
 IonFormatterStorage.register("ArgonMessage", {
   read(reader: CborReader): ArgonMessage {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonMessage");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "ArgonMessage");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const replyId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -16229,11 +18042,14 @@ IonFormatterStorage.register("ArgonMessage", {
     const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
     const controls = IonFormatterStorage.readNullableArray<ControlRow>(reader, 'ControlRow');
     const editedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
-    reader.readEndArrayAndSkip(arraySize - 11);
-    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions, controls, editedAt };
+    const crosspost = IonFormatterStorage.readNullable<CrosspostInfo>(reader, 'CrosspostInfo');
+    const publishedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    const webhook = IonFormatterStorage.readNullable<WebhookAuthor>(reader, 'WebhookAuthor');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions, controls, editedAt, crosspost, publishedAt, webhook };
   },
   write(writer: CborWriter, value: ArgonMessage): void {
-    writer.writeStartArray(11);
+    writer.writeStartArray(14);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.writeNullable<i8>(writer, value.replyId, 'i8');
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -16245,6 +18061,9 @@ IonFormatterStorage.register("ArgonMessage", {
     IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
     IonFormatterStorage.writeNullableArray<ControlRow>(writer, value.controls, 'ControlRow');
     IonFormatterStorage.writeNullable<datetime>(writer, value.editedAt, 'datetime');
+    IonFormatterStorage.writeNullable<CrosspostInfo>(writer, value.crosspost, 'CrosspostInfo');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.publishedAt, 'datetime');
+    IonFormatterStorage.writeNullable<WebhookAuthor>(writer, value.webhook, 'WebhookAuthor');
     writer.writeEndArray();
   }
 });
@@ -17049,6 +18868,90 @@ IonFormatterStorage.register("MentionTargetType", {
     return IonFormatterStorage.readOpenEnum<MentionTargetType>(reader, 'u2');
   },
   write(writer: CborWriter, value: MentionTargetType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PinnedMessage", {
+  read(reader: CborReader): PinnedMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "PinnedMessage");
+    const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
+    const pinnedBy = IonFormatterStorage.get<guid>('guid').read(reader);
+    const pinnedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { message, pinnedBy, pinnedAt };
+  },
+  write(writer: CborWriter, value: PinnedMessage): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.pinnedBy);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.pinnedAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PinMessageError", {
+  read(reader: CborReader): PinMessageError {
+    return IonFormatterStorage.readOpenEnum<PinMessageError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: PinMessageError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ChannelWebhook", {
+  read(reader: CborReader): ChannelWebhook {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 8, "ChannelWebhook");
+    const webhookId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const creatorId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const createdAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const lastUsedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 8);
+    return { webhookId, spaceId, channelId, name, avatarFileId, creatorId, createdAt, lastUsedAt };
+  },
+  write(writer: CborWriter, value: ChannelWebhook): void {
+    writer.writeStartArray(8);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.webhookId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    IonFormatterStorage.get<guid>('guid').write(writer, value.creatorId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.createdAt);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.lastUsedAt, 'datetime');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("WebhookAuthor", {
+  read(reader: CborReader): WebhookAuthor {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "WebhookAuthor");
+    const webhookId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const avatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { webhookId, name, avatarFileId };
+  },
+  write(writer: CborWriter, value: WebhookAuthor): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.webhookId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarFileId, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelWebhookError", {
+  read(reader: CborReader): ChannelWebhookError {
+    return IonFormatterStorage.readOpenEnum<ChannelWebhookError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ChannelWebhookError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -18180,7 +20083,7 @@ IonFormatterStorage.register("SpaceDeletionState", {
 
 IonFormatterStorage.register("ArgonSpaceBase", {
   read(reader: CborReader): ArgonSpaceBase {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "ArgonSpaceBase");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "ArgonSpaceBase");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -18193,11 +20096,12 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
     const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const isCommunity = IonFormatterStorage.readNullable<bool>(reader, 'bool');
-    reader.readEndArrayAndSkip(arraySize - 12);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity };
+    const mainAnnouncementChannelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 13);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, boostCount, boostLevel, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity, mainAnnouncementChannelId };
   },
   write(writer: CborWriter, value: ArgonSpaceBase): void {
-    writer.writeStartArray(12);
+    writer.writeStartArray(13);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -18210,13 +20114,14 @@ IonFormatterStorage.register("ArgonSpaceBase", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
     IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
     IonFormatterStorage.writeNullable<bool>(writer, value.isCommunity, 'bool');
+    IonFormatterStorage.writeNullable<guid>(writer, value.mainAnnouncementChannelId, 'guid');
     writer.writeEndArray();
   }
 });
 
 IonFormatterStorage.register("ArgonSpace", {
   read(reader: CborReader): ArgonSpace {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 13, "ArgonSpace");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "ArgonSpace");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const name = IonFormatterStorage.get<string>('string').read(reader);
     const description = IonFormatterStorage.get<string>('string').read(reader);
@@ -18230,11 +20135,12 @@ IonFormatterStorage.register("ArgonSpace", {
     const hideBoostStrip = IonFormatterStorage.get<bool>('bool').read(reader);
     const inviteImageFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
     const isCommunity = IonFormatterStorage.readNullable<bool>(reader, 'bool');
-    reader.readEndArrayAndSkip(arraySize - 13);
-    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity };
+    const mainAnnouncementChannelId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { spaceId, name, description, avatarFieldId, topBannerFileId, channels, members, archetypes, isVerified, isOfficial, hideBoostStrip, inviteImageFileId, isCommunity, mainAnnouncementChannelId };
   },
   write(writer: CborWriter, value: ArgonSpace): void {
-    writer.writeStartArray(13);
+    writer.writeStartArray(14);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<string>('string').write(writer, value.description);
@@ -18248,6 +20154,7 @@ IonFormatterStorage.register("ArgonSpace", {
     IonFormatterStorage.get<bool>('bool').write(writer, value.hideBoostStrip);
     IonFormatterStorage.writeNullable<string>(writer, value.inviteImageFileId, 'string');
     IonFormatterStorage.writeNullable<bool>(writer, value.isCommunity, 'bool');
+    IonFormatterStorage.writeNullable<guid>(writer, value.mainAnnouncementChannelId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -18624,6 +20531,16 @@ IonFormatterStorage.register("OtpMethod", {
   write(writer: CborWriter, value: OtpMethod): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SetMainAnnouncementChannelError", {
+  read(reader: CborReader): SetMainAnnouncementChannelError {
+    return IonFormatterStorage.readOpenEnum<SetMainAnnouncementChannelError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: SetMainAnnouncementChannelError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
 });
 
@@ -19362,6 +21279,7 @@ IonFormatterStorage.registerPartial<ArgonChannel>("IonPartial<ArgonChannel>", [
   { name: "slowModeSeconds", type: "i4", kind: "nullable" },
   { name: "bitrate", type: "i4", kind: "nullable" },
   { name: "broadcast", type: "BroadcastSettings", kind: "nullable" },
+  { name: "announcement", type: "AnnouncementSettings", kind: "nullable" },
 ]);
 
 IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSettings>", [
@@ -19371,6 +21289,8 @@ IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSett
   { name: "maxTransmitSeconds", type: "i4", kind: "nullable" },
   { name: "chirp", type: "bool" },
 ]);
+
+
 
 
 
@@ -19405,6 +21325,39 @@ export interface IBotManagementInteraction extends IIonService
 
 
 
+export interface IChannelComposerInteraction extends IIonService
+{
+  SchedulePost(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, publishAt: datetime): Promise<ISchedulePostResult>;
+  ReschedulePost(spaceId: guid, channelId: guid, postId: guid, publishAt: datetime): Promise<ISchedulePostResult>;
+  CancelScheduledPost(spaceId: guid, channelId: guid, postId: guid): Promise<bool>;
+  GetScheduledPosts(spaceId: guid, channelId: guid): Promise<IonArray<ScheduledPost>>;
+  SaveDraft(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>): Promise<void>;
+  GetDraft(spaceId: guid, channelId: guid): Promise<MessageDraft | null>;
+}
+
+
+
+
+export interface IChannelFollowInteraction extends IIonService
+{
+  FollowChannel(spaceId: guid, channelId: guid, targetSpaceId: guid, targetChannelId: guid): Promise<IFollowChannelResult>;
+  GetFollowers(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>>;
+  GetFollowedSources(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>>;
+  RemoveFollow(spaceId: guid, channelId: guid, followId: guid): Promise<IRemoveFollowResult>;
+  PublishMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPublishMessageResult>;
+}
+
+
+
+
+export interface IChannelInsightsInteraction extends IIonService
+{
+  GetReadCount(spaceId: guid, channelId: guid, messageId: i8): Promise<IReadCountResult>;
+}
+
+
+
+
 export interface IChannelInteraction extends IIonService
 {
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
@@ -19416,6 +21369,7 @@ export interface IChannelInteraction extends IIonService
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
+  SetChannelType(spaceId: guid, channelId: guid, type: ChannelType): Promise<IUpdateChannelResult>;
   DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
@@ -19446,6 +21400,7 @@ export interface IChannelInteraction extends IIonService
   PatchBroadcastSettings(spaceId: guid, channelId: guid, patch: IonPartial<BroadcastSettings>): Promise<ISetBroadcastSettingsResult>;
   GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
+  SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
 }
 
 
@@ -19456,6 +21411,28 @@ export interface IEventBus extends IIonService
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
   Realtime(commands: AsyncIterable<IRealtimeCommand>): AsyncIterable<IRealtimeFrame>;
+}
+
+
+
+
+export interface IChannelPinsInteraction extends IIonService
+{
+  PinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPinMessageResult>;
+  UnpinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IUnpinMessageResult>;
+  GetPinnedMessages(spaceId: guid, channelId: guid): Promise<IonArray<PinnedMessage>>;
+}
+
+
+
+
+export interface IChannelWebhookInteraction extends IIonService
+{
+  CreateWebhook(spaceId: guid, channelId: guid, name: string): Promise<ICreateWebhookResult>;
+  GetWebhooks(spaceId: guid, channelId: guid): Promise<IonArray<ChannelWebhook>>;
+  RenameWebhook(spaceId: guid, channelId: guid, webhookId: guid, name: string): Promise<IUpdateWebhookResult>;
+  RegenerateWebhookToken(spaceId: guid, channelId: guid, webhookId: guid): Promise<ICreateWebhookResult>;
+  DeleteWebhook(spaceId: guid, channelId: guid, webhookId: guid): Promise<bool>;
 }
 
 
@@ -19649,6 +21626,14 @@ export interface IServerInteraction extends IIonService
 }
 
 
+
+
+
+
+export interface ISpaceAnnouncementInteraction extends IIonService
+{
+  SetMainAnnouncementChannel(spaceId: guid, channelId: guid | null): Promise<ISetMainAnnouncementChannelResult>;
+}
 
 
 
@@ -19726,6 +21711,8 @@ export interface ICallInteraction extends IIonService
 
 
 
+
+
 export interface IArchetypeInteraction extends IIonService
 {
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
@@ -19757,6 +21744,39 @@ export interface IBotManagementInteraction extends IIonService
 
 
 
+export interface IChannelComposerInteraction extends IIonService
+{
+  SchedulePost(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, publishAt: datetime): Promise<ISchedulePostResult>;
+  ReschedulePost(spaceId: guid, channelId: guid, postId: guid, publishAt: datetime): Promise<ISchedulePostResult>;
+  CancelScheduledPost(spaceId: guid, channelId: guid, postId: guid): Promise<bool>;
+  GetScheduledPosts(spaceId: guid, channelId: guid): Promise<IonArray<ScheduledPost>>;
+  SaveDraft(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>): Promise<void>;
+  GetDraft(spaceId: guid, channelId: guid): Promise<MessageDraft | null>;
+}
+
+
+
+
+export interface IChannelFollowInteraction extends IIonService
+{
+  FollowChannel(spaceId: guid, channelId: guid, targetSpaceId: guid, targetChannelId: guid): Promise<IFollowChannelResult>;
+  GetFollowers(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>>;
+  GetFollowedSources(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>>;
+  RemoveFollow(spaceId: guid, channelId: guid, followId: guid): Promise<IRemoveFollowResult>;
+  PublishMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPublishMessageResult>;
+}
+
+
+
+
+export interface IChannelInsightsInteraction extends IIonService
+{
+  GetReadCount(spaceId: guid, channelId: guid, messageId: i8): Promise<IReadCountResult>;
+}
+
+
+
+
 export interface IChannelInteraction extends IIonService
 {
   CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
@@ -19768,6 +21788,7 @@ export interface IChannelInteraction extends IIonService
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
   UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
   UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
+  SetChannelType(spaceId: guid, channelId: guid, type: ChannelType): Promise<IUpdateChannelResult>;
   DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
@@ -19798,6 +21819,7 @@ export interface IChannelInteraction extends IIonService
   PatchBroadcastSettings(spaceId: guid, channelId: guid, patch: IonPartial<BroadcastSettings>): Promise<ISetBroadcastSettingsResult>;
   GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
+  SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
 }
 
 
@@ -19808,6 +21830,28 @@ export interface IEventBus extends IIonService
   Pipe(ev: AsyncIterable<IArgonClientEvent>): AsyncIterable<IArgonEvent>;
   PickTicket(): Promise<string>;
   Realtime(commands: AsyncIterable<IRealtimeCommand>): AsyncIterable<IRealtimeFrame>;
+}
+
+
+
+
+export interface IChannelPinsInteraction extends IIonService
+{
+  PinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPinMessageResult>;
+  UnpinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IUnpinMessageResult>;
+  GetPinnedMessages(spaceId: guid, channelId: guid): Promise<IonArray<PinnedMessage>>;
+}
+
+
+
+
+export interface IChannelWebhookInteraction extends IIonService
+{
+  CreateWebhook(spaceId: guid, channelId: guid, name: string): Promise<ICreateWebhookResult>;
+  GetWebhooks(spaceId: guid, channelId: guid): Promise<IonArray<ChannelWebhook>>;
+  RenameWebhook(spaceId: guid, channelId: guid, webhookId: guid, name: string): Promise<IUpdateWebhookResult>;
+  RegenerateWebhookToken(spaceId: guid, channelId: guid, webhookId: guid): Promise<ICreateWebhookResult>;
+  DeleteWebhook(spaceId: guid, channelId: guid, webhookId: guid): Promise<bool>;
 }
 
 
@@ -20001,6 +22045,14 @@ export interface IServerInteraction extends IIonService
 }
 
 
+
+
+
+
+export interface ISpaceAnnouncementInteraction extends IIonService
+{
+  SetMainAnnouncementChannel(spaceId: guid, channelId: guid | null): Promise<ISetMainAnnouncementChannelResult>;
+}
 
 
 
@@ -20349,6 +22401,220 @@ export class BotManagementInteraction_Executor extends ServiceExecutor<IBotManag
 
 IonFormatterStorage.registerClientExecutor<IBotManagementInteraction>('BotManagementInteraction', BotManagementInteraction_Executor);
 
+export class ChannelComposerInteraction_Executor extends ServiceExecutor<IChannelComposerInteraction> implements IChannelComposerInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async SchedulePost(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, publishAt: datetime): Promise<ISchedulePostResult> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "SchedulePost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, publishAt);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISchedulePostResult>("ISchedulePostResult", writer.data, this.signal);
+  }
+  async ReschedulePost(spaceId: guid, channelId: guid, postId: guid, publishAt: datetime): Promise<ISchedulePostResult> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "ReschedulePost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, postId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, publishAt);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISchedulePostResult>("ISchedulePostResult", writer.data, this.signal);
+  }
+  async CancelScheduledPost(spaceId: guid, channelId: guid, postId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "CancelScheduledPost");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, postId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async GetScheduledPosts(spaceId: guid, channelId: guid): Promise<IonArray<ScheduledPost>> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "GetScheduledPosts");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ScheduledPost>>("IonArray<ScheduledPost>", writer.data, this.signal);
+  }
+  async SaveDraft(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "SaveDraft");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetDraft(spaceId: guid, channelId: guid): Promise<MessageDraft | null> {
+    const req = new IonRequest(this.ctx, "IChannelComposerInteraction", "GetDraft");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncNullableT<MessageDraft>("MessageDraft", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IChannelComposerInteraction>('ChannelComposerInteraction', ChannelComposerInteraction_Executor);
+
+export class ChannelFollowInteraction_Executor extends ServiceExecutor<IChannelFollowInteraction> implements IChannelFollowInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async FollowChannel(spaceId: guid, channelId: guid, targetSpaceId: guid, targetChannelId: guid): Promise<IFollowChannelResult> {
+    const req = new IonRequest(this.ctx, "IChannelFollowInteraction", "FollowChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, targetSpaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, targetChannelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IFollowChannelResult>("IFollowChannelResult", writer.data, this.signal);
+  }
+  async GetFollowers(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>> {
+    const req = new IonRequest(this.ctx, "IChannelFollowInteraction", "GetFollowers");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ChannelFollowLink>>("IonArray<ChannelFollowLink>", writer.data, this.signal);
+  }
+  async GetFollowedSources(spaceId: guid, channelId: guid): Promise<IonArray<ChannelFollowLink>> {
+    const req = new IonRequest(this.ctx, "IChannelFollowInteraction", "GetFollowedSources");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ChannelFollowLink>>("IonArray<ChannelFollowLink>", writer.data, this.signal);
+  }
+  async RemoveFollow(spaceId: guid, channelId: guid, followId: guid): Promise<IRemoveFollowResult> {
+    const req = new IonRequest(this.ctx, "IChannelFollowInteraction", "RemoveFollow");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, followId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRemoveFollowResult>("IRemoveFollowResult", writer.data, this.signal);
+  }
+  async PublishMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPublishMessageResult> {
+    const req = new IonRequest(this.ctx, "IChannelFollowInteraction", "PublishMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPublishMessageResult>("IPublishMessageResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IChannelFollowInteraction>('ChannelFollowInteraction', ChannelFollowInteraction_Executor);
+
+export class ChannelInsightsInteraction_Executor extends ServiceExecutor<IChannelInsightsInteraction> implements IChannelInsightsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetReadCount(spaceId: guid, channelId: guid, messageId: i8): Promise<IReadCountResult> {
+    const req = new IonRequest(this.ctx, "IChannelInsightsInteraction", "GetReadCount");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IReadCountResult>("IReadCountResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IChannelInsightsInteraction>('ChannelInsightsInteraction', ChannelInsightsInteraction_Executor);
+
 export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInteraction> implements IChannelInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -20493,6 +22759,21 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     IonFormatterStorage.writeNullable<string>(writer, description, 'string');
     IonFormatterStorage.writeNullable<i4>(writer, slowModeSeconds, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, bitrate, 'i4');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUpdateChannelResult>("IUpdateChannelResult", writer.data, this.signal);
+  }
+  async SetChannelType(spaceId: guid, channelId: guid, type: ChannelType): Promise<IUpdateChannelResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "SetChannelType");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, type);
       
     writer.writeEndArray();
           
@@ -20957,6 +23238,23 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IConfirmBroadcastLinksResult>("IConfirmBroadcastLinksResult", writer.data, this.signal);
   }
+  async SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "SetAnnouncementSettings");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<bool>('bool').write(writer, reactions);
+    IonFormatterStorage.get<bool>('bool').write(writer, postAsSpace);
+    IonFormatterStorage.get<bool>('bool').write(writer, showAuthor);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUpdateChannelResult>("IUpdateChannelResult", writer.data, this.signal);
+  }
 
 }
 
@@ -21037,6 +23335,147 @@ export class EventBus_Executor extends ServiceExecutor<IEventBus> implements IEv
 }
 
 IonFormatterStorage.registerClientExecutor<IEventBus>('EventBus', EventBus_Executor);
+
+export class ChannelPinsInteraction_Executor extends ServiceExecutor<IChannelPinsInteraction> implements IChannelPinsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async PinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IPinMessageResult> {
+    const req = new IonRequest(this.ctx, "IChannelPinsInteraction", "PinMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPinMessageResult>("IPinMessageResult", writer.data, this.signal);
+  }
+  async UnpinMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IUnpinMessageResult> {
+    const req = new IonRequest(this.ctx, "IChannelPinsInteraction", "UnpinMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUnpinMessageResult>("IUnpinMessageResult", writer.data, this.signal);
+  }
+  async GetPinnedMessages(spaceId: guid, channelId: guid): Promise<IonArray<PinnedMessage>> {
+    const req = new IonRequest(this.ctx, "IChannelPinsInteraction", "GetPinnedMessages");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<PinnedMessage>>("IonArray<PinnedMessage>", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IChannelPinsInteraction>('ChannelPinsInteraction', ChannelPinsInteraction_Executor);
+
+export class ChannelWebhookInteraction_Executor extends ServiceExecutor<IChannelWebhookInteraction> implements IChannelWebhookInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async CreateWebhook(spaceId: guid, channelId: guid, name: string): Promise<ICreateWebhookResult> {
+    const req = new IonRequest(this.ctx, "IChannelWebhookInteraction", "CreateWebhook");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<string>('string').write(writer, name);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreateWebhookResult>("ICreateWebhookResult", writer.data, this.signal);
+  }
+  async GetWebhooks(spaceId: guid, channelId: guid): Promise<IonArray<ChannelWebhook>> {
+    const req = new IonRequest(this.ctx, "IChannelWebhookInteraction", "GetWebhooks");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ChannelWebhook>>("IonArray<ChannelWebhook>", writer.data, this.signal);
+  }
+  async RenameWebhook(spaceId: guid, channelId: guid, webhookId: guid, name: string): Promise<IUpdateWebhookResult> {
+    const req = new IonRequest(this.ctx, "IChannelWebhookInteraction", "RenameWebhook");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, webhookId);
+    IonFormatterStorage.get<string>('string').write(writer, name);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUpdateWebhookResult>("IUpdateWebhookResult", writer.data, this.signal);
+  }
+  async RegenerateWebhookToken(spaceId: guid, channelId: guid, webhookId: guid): Promise<ICreateWebhookResult> {
+    const req = new IonRequest(this.ctx, "IChannelWebhookInteraction", "RegenerateWebhookToken");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, webhookId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICreateWebhookResult>("ICreateWebhookResult", writer.data, this.signal);
+  }
+  async DeleteWebhook(spaceId: guid, channelId: guid, webhookId: guid): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IChannelWebhookInteraction", "DeleteWebhook");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, webhookId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IChannelWebhookInteraction>('ChannelWebhookInteraction', ChannelWebhookInteraction_Executor);
 
 export class CosmeticsInteraction_Executor extends ServiceExecutor<ICosmeticsInteraction> implements ICosmeticsInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -22621,6 +25060,31 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
 
 IonFormatterStorage.registerClientExecutor<IServerInteraction>('ServerInteraction', ServerInteraction_Executor);
 
+export class SpaceAnnouncementInteraction_Executor extends ServiceExecutor<ISpaceAnnouncementInteraction> implements ISpaceAnnouncementInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async SetMainAnnouncementChannel(spaceId: guid, channelId: guid | null): Promise<ISetMainAnnouncementChannelResult> {
+    const req = new IonRequest(this.ctx, "ISpaceAnnouncementInteraction", "SetMainAnnouncementChannel");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.writeNullable<guid>(writer, channelId, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISetMainAnnouncementChannelResult>("ISetMainAnnouncementChannelResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ISpaceAnnouncementInteraction>('SpaceAnnouncementInteraction', SpaceAnnouncementInteraction_Executor);
+
 export class UltimaInteraction_Executor extends ServiceExecutor<IUltimaInteraction> implements IUltimaInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -23294,8 +25758,13 @@ export function createClient(
         if (typeof propKey !== "string") return undefined;
         if (propKey === "ArchetypeInteraction") return IonFormatterStorage.createExecutor("ArchetypeInteraction", ctx, controller.signal);
         if (propKey === "BotManagementInteraction") return IonFormatterStorage.createExecutor("BotManagementInteraction", ctx, controller.signal);
+        if (propKey === "ChannelComposerInteraction") return IonFormatterStorage.createExecutor("ChannelComposerInteraction", ctx, controller.signal);
+        if (propKey === "ChannelFollowInteraction") return IonFormatterStorage.createExecutor("ChannelFollowInteraction", ctx, controller.signal);
+        if (propKey === "ChannelInsightsInteraction") return IonFormatterStorage.createExecutor("ChannelInsightsInteraction", ctx, controller.signal);
         if (propKey === "ChannelInteraction") return IonFormatterStorage.createExecutor("ChannelInteraction", ctx, controller.signal);
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
+        if (propKey === "ChannelPinsInteraction") return IonFormatterStorage.createExecutor("ChannelPinsInteraction", ctx, controller.signal);
+        if (propKey === "ChannelWebhookInteraction") return IonFormatterStorage.createExecutor("ChannelWebhookInteraction", ctx, controller.signal);
         if (propKey === "CosmeticsInteraction") return IonFormatterStorage.createExecutor("CosmeticsInteraction", ctx, controller.signal);
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
@@ -23308,6 +25777,7 @@ export function createClient(
         if (propKey === "ReportInteraction") return IonFormatterStorage.createExecutor("ReportInteraction", ctx, controller.signal);
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
+        if (propKey === "SpaceAnnouncementInteraction") return IonFormatterStorage.createExecutor("SpaceAnnouncementInteraction", ctx, controller.signal);
         if (propKey === "UltimaInteraction") return IonFormatterStorage.createExecutor("UltimaInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
@@ -23320,8 +25790,13 @@ export function createClient(
   ) as {
     ArchetypeInteraction: IArchetypeInteraction;
     BotManagementInteraction: IBotManagementInteraction;
+    ChannelComposerInteraction: IChannelComposerInteraction;
+    ChannelFollowInteraction: IChannelFollowInteraction;
+    ChannelInsightsInteraction: IChannelInsightsInteraction;
     ChannelInteraction: IChannelInteraction;
     EventBus: IEventBus;
+    ChannelPinsInteraction: IChannelPinsInteraction;
+    ChannelWebhookInteraction: IChannelWebhookInteraction;
     CosmeticsInteraction: ICosmeticsInteraction;
     FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;
@@ -23334,6 +25809,7 @@ export function createClient(
     ReportInteraction: IReportInteraction;
     SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
+    SpaceAnnouncementInteraction: ISpaceAnnouncementInteraction;
     UltimaInteraction: IUltimaInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;

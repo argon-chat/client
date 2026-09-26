@@ -5,8 +5,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, watch, type Component, computed } from "vue";
+import { ref, shallowRef, watch, type Component, computed, onUnmounted } from "vue";
+import { liveQuery, type Subscription } from "dexie";
 import { usePoolStore } from "@/store/data/poolStore";
+import { db } from "@/store/db/dexie";
 import TextChannelView from "./TextChannelView.vue";
 import MediaChannelView from "./MediaChannelView.vue";
 import { ArgonChannel, ChannelType } from "@argon/glue";
@@ -49,13 +51,35 @@ watch(selectedChannelId, async (id) => {
     return;
   }
 
-  channelType.value = channelData.value.type === ChannelType.Announcement ? 'announcement' : 'text';
-  const newComponent = channelViewMap[channelData.value.type] ?? TextChannelView;
+  applyType(channelData.value);
+}, { immediate: true });
+
+function applyType(channel: ArgonChannel) {
+  channelType.value = channel.type === ChannelType.Announcement ? 'announcement' : 'text';
+  const newComponent = channelViewMap[channel.type] ?? TextChannelView;
   if (channelComponent.value !== newComponent) {
     channelComponent.value = newComponent;
     channelComponentKey.value++;
   }
+}
+
+// Text and announcement channels convert into each other: follow the stored row so the open view does too.
+let typeSub: Subscription | null = null;
+
+watch(selectedChannelId, (id) => {
+  typeSub?.unsubscribe();
+  typeSub = null;
+  if (!id) return;
+  typeSub = liveQuery(() => db.channels.get(id)).subscribe({
+    next: (channel) => {
+      if (!channel || channel.channelId !== selectedChannelId.value || channel.type === channelData.value?.type) return;
+      channelData.value = channel;
+      applyType(channel);
+    },
+  });
 }, { immediate: true });
+
+onUnmounted(() => typeSub?.unsubscribe());
 </script>
 
 <style scoped>

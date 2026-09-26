@@ -32,8 +32,8 @@
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0 icon-appear" />
             <RadioTowerIcon v-else-if="isBroadcast" data-testid="broadcast-icon" class="icon-appear" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" :title="t('broadcast_channel')" />
             <Volume2Icon class="icon-appear" v-else-if="isVoice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
-            <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="voiceLocked ? t('voice_channel_locked') : channel?.name">{{ channel?.name }}</span>
+            <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" :class="['w-5 h-5 flex-shrink-0', announcementUnread ? 'announcement-accent' : 'text-muted-foreground']" />
+            <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold', announcementUnread && 'announcement-accent']" :title="voiceLocked ? t('voice_channel_locked') : channel?.name">{{ channel?.name }}</span>
             <!-- A target: this channel hears the radio of the broadcast channel(s) that list it. -->
             <RadioIcon
               v-if="hearsRadioOf.length > 0"
@@ -46,6 +46,7 @@
             <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
               {{ channelMentions }}
             </span>
+            <span v-else-if="announcementUnread" data-testid="announcement-new" class="ml-auto new-pill flex-shrink-0">{{ t('announcement_new') }}</span>
             <span v-else-if="channelUnread" class="ml-auto w-2 h-2 rounded-full unread-dot flex-shrink-0" />
             <span v-if="isConnectedVoiceChannel" class="text-xs text-green-400 ml-auto">●</span>
             <button
@@ -236,6 +237,7 @@ import VoiceChannelUser from './channels/VoiceChannelUser.vue';
 import VolumeSlider from './audio/VolumeSlider.vue';
 import GatedMenuItem from './shared/GatedMenuItem.vue';
 import { isVoiceLikeChannel } from '@/lib/voice/channels';
+import { isAnnouncementUnread } from '@/lib/announcements/spaceAnnouncements';
 import { useVoiceModeration } from '@/composables/useVoiceModeration';
 import { decodeVoiceState } from '@argon/calls/voice-state';
 import type { DropPosition, VoiceDropState } from '@/composables/useChannelDragDrop';
@@ -304,6 +306,9 @@ const channelUnread = computed(() => {
   if (mute === MuteLevelType.OnlyMentions) return false;
   return ntf.isChannelUnread(props.channel.channelId, props.channel.lastMessageId);
 });
+
+// An unread announcement channel gets the accent name and a NEW pill instead of the plain dot.
+const announcementUnread = computed(() => isAnnouncementUnread(props.channel, ntf));
 
 const channelMentions = computed(() => {
   const mute = ntf.effectiveMuteLevel(props.channel.channelId, props.channel.spaceId);
@@ -571,6 +576,22 @@ async function copyChannelId() {
   color: hsl(0 84% 60%);
   background-color: hsl(0 84% 60% / 0.14);
   border: 1px solid hsl(0 84% 60% / 0.35);
+}
+
+/* Unread announcement channel: accent name and icon, NEW pill in place of the dot. */
+.announcement-accent {
+  color: hsl(var(--primary));
+}
+
+.new-pill {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  color: hsl(var(--primary-foreground));
+  background-color: hsl(var(--primary));
 }
 
 /* Drop indicators */
