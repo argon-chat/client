@@ -59,17 +59,25 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** The count shows as an eye and a number; the words are the label and the tooltip. */
+function expectThree(w: ReturnType<typeof mount>) {
+  const el = w.get("[data-testid=read-count]");
+  expect(el.text()).toBe("3");
+  expect(el.attributes("aria-label")).toBe('read_by:{"count":3}');
+}
+
 describe("MessageReadCount", () => {
   test("the author sees it once it is on screen", async () => {
     const wrapper = mount(MessageReadCount, { props: { message: post("me"), context } });
-    expect(wrapper.get("[data-testid=read-count]").text()).toContain("read_by_loading");
+    expect(wrapper.get("[data-testid=read-count]").text()).toBe("");
+    expect(wrapper.get("[data-testid=read-count]").attributes("title")).toBe("read_by_loading");
     expect(h.getMany).not.toHaveBeenCalled();
 
     h.onVisible.at(-1)!([{ isIntersecting: true }]);
     await batch();
 
     expect(h.getMany).toHaveBeenCalledWith("s1", "c1", [1n]);
-    expect(wrapper.text()).toContain('read_by:{"count":3}');
+    expectThree(wrapper);
     expect(wrapper.get("[data-testid=read-count]").attributes("title")).toBe('read_by_of:{"count":3,"members":12}');
   });
 
@@ -80,7 +88,7 @@ describe("MessageReadCount", () => {
 
     expect(h.getMany).toHaveBeenCalledTimes(1);
     expect(h.getMany).toHaveBeenCalledWith("s1", "c1", [1n, 2n, 3n]);
-    for (const row of rows) expect(row.text()).toContain('read_by:{"count":3}');
+    for (const row of rows) expectThree(row);
   });
 
   test("a post the server has no count for (too few members, …) shows no line", async () => {
@@ -114,7 +122,7 @@ describe("MessageReadCount", () => {
     await batch();
 
     expect(h.getMany).toHaveBeenCalledWith("s1", "c1", [2n]);
-    expect(wrapper.text()).toContain('read_by:{"count":3}');
+    expectThree(wrapper);
   });
 
   test("a second row for the same post is filled from the cache", async () => {
@@ -123,7 +131,7 @@ describe("MessageReadCount", () => {
     await batch();
 
     const second = mount(MessageReadCount, { props: { message: post("me", 5n), context } });
-    expect(second.text()).toContain('read_by:{"count":3}');
+    expectThree(second);
 
     await second.get("[data-testid=read-count]").trigger("mouseenter");
     await batch();

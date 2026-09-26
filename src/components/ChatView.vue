@@ -356,9 +356,13 @@ function lastOwnMessage(): ArgonMessage | null {
   return null;
 }
 
+function openFollow() {
+  followOpen.value = true;
+}
+
 defineExpose({
   addOptimisticMessage, resolveOptimisticMessage, markOptimisticFailed, scrollToBottomImmediate,
-  applyServerMessage, lastOwnMessage,
+  applyServerMessage, lastOwnMessage, openFollow,
 });
 
 // ── Channel lifecycle ──

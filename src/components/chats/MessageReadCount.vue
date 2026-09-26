@@ -3,19 +3,19 @@
     v-if="visible"
     ref="el"
     class="read-count"
-    :title="count ? t('read_by_of', { count: count.readers, members: count.members }) : undefined"
+    :title="count ? t('read_by_of', { count: count.readers, members: count.members }) : t('read_by_loading')"
+    :aria-label="count ? t('read_by', { count: count.readers }) : t('read_by_loading')"
     data-testid="read-count"
     @mouseenter="load"
   >
     <EyeIcon class="w-3 h-3 shrink-0" />
-    <span v-if="count">{{ t("read_by", { count: count.readers }) }}</span>
-    <span v-else>{{ t("read_by_loading") }}</span>
+    <span v-if="count" class="tabular-nums">{{ count.readers }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * "Read by N" under an announcement, for its author and for moderators. Asks only once the line is
+ * An eye and the number of readers beside an announcement, for its author and for moderators. Asks only once the line is
  * on screen or hovered, together with the other posts on screen; the answer is cached briefly (see
  * useReadCount). A post the server gives no count for (too few members to count without singling
  * anyone out, among others) shows no line at all.
@@ -74,16 +74,13 @@ watch(
 
 <style scoped>
 .read-count {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   height: 16px;
-  margin-top: 2px;
-  /* Under the bubble, past the avatar column and the row gap. */
-  padding-left: calc(2.25rem + var(--chat-row-gap, 0.5rem));
   font-size: 11px;
   line-height: 1;
-  color: hsl(var(--muted-foreground) / 0.7);
+  color: hsl(var(--muted-foreground) / 0.6);
   user-select: none;
 }
 </style>

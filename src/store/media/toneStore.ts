@@ -131,7 +131,7 @@ export const useTone = defineStore("tone", () => {
   const playRadioChirp = () => chirp(volume.value);
 
   // Being moved is a kind of entering, so it follows the enter-tone preference — but it must
-  // not sound like one: a synthesized glide at the sound level the atlas uses.
+  // not sound like one: three synthesized beats at the sound level the atlas uses.
   const playMovedSound = () => {
     if (!isEnable_playSoftEnterSound.value) return;
     moved(volume.value);

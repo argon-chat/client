@@ -1,15 +1,12 @@
 /**
- * Announcement channels: how a post is presented (card, cover, "Read more", post as space) and how
- * long it may be. Pure functions, so the decisions are testable without mounting a message.
+ * Announcement channels: who a post is shown under (post as space), how long it may be and who may
+ * publish. Pure functions, so the decisions are testable without mounting a message.
  */
 
 import {
   ArgonEntitlement,
-  EntityType,
   type AnnouncementSettings,
   type ChannelEntitlementOverwrite,
-  type IMessageEntity,
-  type MessageEntityAttachment,
 } from "@argon/glue";
 
 /** What an announcement channel without stored settings behaves like; the server's defaults. */
@@ -18,10 +15,6 @@ export const DEFAULT_ANNOUNCEMENT_SETTINGS: Readonly<AnnouncementSettings> = Obj
   postAsSpace: false,
   showAuthor: true,
 });
-
-/** A post longer than this, in characters or in lines, starts collapsed behind "Read more". */
-export const COLLAPSE_CHARS = 800;
-export const COLLAPSE_LINES = 12;
 
 export interface ComposerLimits {
   limit: number;
@@ -43,45 +36,6 @@ export function announcementSettingsOf(announcement: AnnouncementSettings | null
   return announcement ?? { ...DEFAULT_ANNOUNCEMENT_SETTINGS };
 }
 
-export function shouldCollapse(text: string | null | undefined): boolean {
-  if (!text) return false;
-  if (text.length > COLLAPSE_CHARS) return true;
-  let lines = 1;
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) === 10 && ++lines > COLLAPSE_LINES) return true;
-  }
-  return false;
-}
-
-const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
-
-export function isImageAttachment(a: MessageEntityAttachment): boolean {
-  if (a.contentType?.startsWith("image/")) return true;
-  const ext = a.fileName?.split(".").pop()?.toLowerCase();
-  return !!ext && IMAGE_EXTENSIONS.includes(ext);
-}
-
-export interface CardMedia {
-  /** The first image, shown full width above the text. */
-  cover: MessageEntityAttachment | null;
-  /** The other images, rendered as a grid the way chat messages render them. */
-  images: MessageEntityAttachment[];
-  files: MessageEntityAttachment[];
-}
-
-/** Splits a post's attachments into the cover, the remaining images and the files, keeping their order. */
-export function cardMedia(entities: readonly IMessageEntity[] | null | undefined): CardMedia {
-  const attachments = (entities ?? []).filter(
-    (e): e is MessageEntityAttachment => e.type === EntityType.Attachment,
-  );
-  const images = attachments.filter(isImageAttachment);
-  return {
-    cover: images[0] ?? null,
-    images: images.slice(1),
-    files: attachments.filter((a) => !isImageAttachment(a)),
-  };
-}
-
 export interface CardIdentity {
   name: string;
   avatarFileId: string | null;
@@ -97,8 +51,8 @@ export interface CardHeader {
 }
 
 /**
- * Who a post is shown under. With post as space the space's name and avatar head the card, and the
- * author only appears as a byline when show author is on; the message itself keeps its real sender.
+ * Who a post is shown under. With post as space the space's name and avatar head it, and the author
+ * only appears as a byline when show author is on; the message itself keeps its real sender.
  */
 export function cardHeader(settings: AnnouncementSettings, author: CardIdentity, space: CardIdentity | null): CardHeader {
   if (settings.postAsSpace && space) {
@@ -110,15 +64,6 @@ export function cardHeader(settings: AnnouncementSettings, author: CardIdentity,
     };
   }
   return { asSpace: false, title: author.name, avatarFileId: author.avatarFileId, byline: null };
-}
-
-/** The card's date line: the day in words and the time on the viewer's 12h/24h preference. */
-export function formatCardDate(date: Date, hour12: boolean, locale?: string): string {
-  const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date);
-  const h = date.getHours();
-  const m = date.getMinutes().toString().padStart(2, "0");
-  const time = hour12 ? `${h % 12 || 12}:${m} ${h >= 12 ? "PM" : "AM"}` : `${h.toString().padStart(2, "0")}:${m}`;
-  return `${day} · ${time}`;
 }
 
 // ── Publishers: roles with an Allow SendMessages overwrite on the channel ──

@@ -68,6 +68,7 @@
             :can-delete-any="canDeleteAny"
             :can-pin="canPin"
             :announcement="announcement"
+            :read-counts="readCounts"
             :channel-type="channelType"
             :can-publish-any="canPublishAny"
             :toggle-reaction="toggleReaction"
@@ -80,7 +81,6 @@
             @open-lightbox="onOpenLightbox"
             @scroll-to-message="scrollToMessage"
           />
-          <MessageReadCount v-if="readCounts" :message="messages[item.index]" :context="readCounts" />
         </div>
       </div>
 
@@ -141,7 +141,6 @@ import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
 import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
 
 import MessageItem from "@/components/MessageItem.vue";
-import MessageReadCount from "@/components/chats/MessageReadCount.vue";
 import ImageLightbox from "@/components/chats/ImageLightbox.vue";
 import DateSeparator from "@/components/chats/DateSeparator.vue";
 import UnreadSeparator from "@/components/chats/UnreadSeparator.vue";

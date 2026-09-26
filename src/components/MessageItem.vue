@@ -22,16 +22,23 @@
     class="group/msg flex items-start gap-[var(--chat-row-gap,0.5rem)]"
     :class="[
       isRight ? 'flex-row-reverse' : '',
-      isFirstInGroup || card ? 'pt-[var(--chat-group-gap,0.75rem)]' : 'pt-[var(--chat-stack-gap,0.125rem)]',
+      isFirstInGroup ? 'pt-[var(--chat-group-gap,0.75rem)]' : 'pt-[var(--chat-stack-gap,0.125rem)]',
       isOptimistic && !isFailed ? 'opacity-50' : '',
     ]"
     style="contain: layout style"
   >
     <!-- Avatar -->
-    <div v-if="!card" class="w-9 shrink-0">
+    <div class="w-9 shrink-0">
       <template v-if="isFirstInGroup">
         <CrosspostAvatar v-if="message.crosspost" :crosspost="message.crosspost" />
         <MessageWebhookAuthor v-else-if="webhook" :webhook="webhook" part="avatar" />
+        <ArgonAvatar
+          v-else-if="spaceHeader"
+          :file-id="spaceHeader.avatarFileId"
+          :fallback="spaceHeader.title"
+          :overrided-size="36"
+          class="w-9 h-9 rounded-xl"
+        />
         <Popover v-else-if="user" v-model:open="profileOpen">
           <PopoverTrigger>
             <ArgonAvatar
@@ -60,16 +67,22 @@
     </div>
 
     <!-- Content -->
-    <div class="flex flex-col min-w-0" :class="[isRight ? 'items-end' : 'items-start', card ? 'flex-1 max-w-[680px]' : 'max-w-[85%]']">
+    <div class="flex flex-col min-w-0 max-w-[85%]" :class="isRight ? 'items-end' : 'items-start'">
 
       <!-- Meta row: name + time + status badges -->
       <div
-        v-if="isFirstInGroup && (!card || isFailed)"
+        v-if="isFirstInGroup"
         class="flex items-center gap-1.5 mb-0.5"
         :class="isRight ? 'flex-row-reverse' : ''"
       >
         <CrosspostHeader v-if="message.crosspost" :message="message" :author="user" />
         <MessageWebhookAuthor v-else-if="webhook" :webhook="webhook" part="name" />
+        <template v-else-if="spaceHeader">
+          <span class="text-[13px] font-semibold leading-none text-foreground">{{ spaceHeader.title }}</span>
+          <span v-if="spaceHeader.byline" class="text-[11px] leading-none text-muted-foreground/70">
+            {{ t('announcement_by_author', { name: spaceHeader.byline }) }}
+          </span>
+        </template>
         <template v-else-if="user">
           <span
             class="text-[13px] font-semibold leading-none"
@@ -126,31 +139,17 @@
       <template v-else>
         <ContextMenu>
           <ContextMenuTrigger>
+            <!-- Announcements: who has read it sits beside the bubble -->
+            <div class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''">
             <div
               class="msg-bubble-wrap relative inline-flex flex-col"
-              :class="[isRight ? 'items-end' : 'items-start', card ? 'w-full' : '']"
+              :class="isRight ? 'items-end' : 'items-start'"
               @mouseenter="onMouseEnter"
               @mouseleave="onMouseLeave"
             >
 
-              <!-- ── Announcement channel: the post as a card ── -->
-              <AnnouncementCard
-                v-if="card"
-                :message="props.message"
-                :context="card"
-                :author="user!"
-                :author-color="userColor"
-                @open-lightbox="(images, index, time) => emit('open-lightbox', images, index, time)"
-                @unsupported="isUnsupported = true"
-                @report-profile="onReportProfile"
-              >
-                <template #reply>
-                  <ReplyPreview v-if="replyMessage" :reply-message="replyMessage" :reply-user="replyUser" @click="emit('scroll-to-message', replyMessage!.messageId)" />
-                </template>
-              </AnnouncementCard>
-
               <!-- ── Emoji-only message ── -->
-              <div v-else-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
+              <div v-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
                 <ReplyPreview
                   v-if="replyMessage"
                   :reply-message="replyMessage"
@@ -290,6 +289,8 @@
                 :space-id="props.message.spaceId"
                 :channel-id="props.message.channelId"
               />
+            </div>
+            <MessageReadCount v-if="readCounts" class="mb-0.5 shrink-0" :message="props.message" :context="readCounts" />
             </div>
           </ContextMenuTrigger>
 
@@ -470,8 +471,9 @@ import ReactionPicker from "./chats/ReactionPicker.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
 import MessagePinMarker from "./chats/MessagePinMarker.vue";
 import MessagePinMenuItem from "./chats/MessagePinMenuItem.vue";
-import AnnouncementCard from "./chats/AnnouncementCard.vue";
+import MessageReadCount from "./chats/MessageReadCount.vue";
 import type { AnnouncementCardContext } from "@/composables/useAnnouncementChannel";
+import { cardHeader } from "@/lib/chat/announcement";
 import CrosspostAvatar from "./chats/CrosspostAvatar.vue";
 import CrosspostHeader from "./chats/CrosspostHeader.vue";
 import PublishedMark from "./chats/PublishedMark.vue";
@@ -573,12 +575,14 @@ const props = withDefaults(defineProps<{
   canDeleteAny?: boolean;
   /** ManageMessages in a channel: the message may be pinned and unpinned. */
   canPin?: boolean;
-  /** Announcement channels: render the post as a card with these settings. */
+  /** Announcement channels: the channel's settings ("post as space" heads the post with the space). */
   announcement?: AnnouncementCardContext | null;
+  /** Announcement channels: where to ask how many have read a post. */
+  readCounts?: { spaceId: string; channelId: string } | null;
   channelType?: "text" | "announcement";
   /** Announcement channel with ManageMessages: anyone's message may be published to followers. */
   canPublishAny?: boolean;
-}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, canPublishAny: false });
+}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, readCounts: null, canPublishAny: false });
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
@@ -631,9 +635,7 @@ const actionBarStyle = computed(() => {
 function recalcPos() {
   if (!_hoveredEl) return;
   const rect = _hoveredEl.getBoundingClientRect();
-  // A card spans the column: the bar sits inside its top-right corner rather than past its edge.
-  if (card.value) actionBarPos.value = { top: rect.top + 8, x: rect.right - 8, place: 'left' };
-  else actionBarPos.value = isRight.value
+  actionBarPos.value = isRight.value
     ? { top: rect.top, x: rect.left - 8, place: 'left' }
     : { top: rect.top, x: rect.right + 8, place: 'right' };
 }
@@ -788,8 +790,13 @@ const failedError = computed(() => props.message._error);
 const hasControls = computed(() => (props.message.controls ?? []).length > 0);
 const hasReactions = computed(() => (props.message.reactions ?? []).length > 0);
 const isEdited = computed(() => !!props.message.editedAt);
-// Native posts of an announcement channel render as cards; crossposts and webhook posts keep their own header.
-const card = computed(() => (props.announcement && !props.message.crosspost && !props.message.webhook ? props.announcement : null));
+// "Post as space": the space heads a native post instead of its author, who stays the real sender.
+const spaceHeader = computed(() => {
+  const a = props.announcement;
+  if (!a || props.message.crosspost || props.message.webhook) return null;
+  const header = cardHeader(a.settings, { name: user.value?.displayName || t("unknown_display_name"), avatarFileId: user.value?.avatarFileId ?? null }, a.space);
+  return header.asSpace ? header : null;
+});
 // A crosspost is a copy: an edit here would never reach the original.
 const canEditThis = computed(() => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value && !props.message.crosspost);
 // A crosspost belongs to this channel, not to its author: only ManageMessages takes it down.

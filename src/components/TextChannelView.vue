@@ -157,14 +157,19 @@
       </div>
     </div>
 
-    <!-- ── Announcement read-only footer ── -->
+    <!-- ── Announcement channel the user can't post in: offer to follow it where the composer would be ── -->
     <div
       v-else-if="channelData && isAnnouncement"
-      class="shrink-0 rounded-b-2xl px-5 py-3 border-t border-border/30"
+      class="shrink-0 rounded-b-2xl px-5 py-4"
+      data-testid="announcement-follow-bar"
     >
-      <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
-        <AntennaIcon class="h-4 w-4" />
-        <span>{{ t('announcement_read_only') }}</span>
+      <div class="flex items-center gap-3 pl-4 pr-1.5 py-1.5 border border-border rounded-lg bg-background">
+        <AntennaIcon class="h-4 w-4 shrink-0 text-muted-foreground/70" />
+        <span class="flex-1 min-w-0 truncate text-sm text-muted-foreground">{{ t('follow_to_get_updates') }}</span>
+        <Button class="shrink-0 gap-1.5 px-5 font-semibold" data-testid="announcement-follow" @click="chatViewRef?.openFollow()">
+          <RssIcon class="h-4 w-4" />
+          {{ t('follow_channel') }}
+        </Button>
       </div>
     </div>
 
@@ -184,7 +189,8 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from "vue";
-import { AntennaIcon, LockIcon, PaperclipIcon, PencilIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import { AntennaIcon, LockIcon, PaperclipIcon, PencilIcon, RssIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import { Button } from "@argon/ui/button";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";

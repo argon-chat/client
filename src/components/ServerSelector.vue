@@ -429,7 +429,15 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
 .rail-home:hover { background: hsl(var(--primary) / 0.85); color: #fff; }
 .rail-home.is-active { background: hsl(var(--primary)); color: #fff; }
 .rail-folder:hover { background: hsl(var(--accent)); }
-.rail-folder[data-announcement] { box-shadow: 0 0 0 2px hsl(var(--card)), 0 0 0 4px hsl(var(--primary)); }
+/* Inside the button's box, like ServerRailIcon's ring: the scrolling rail clips anything outside it. */
+.rail-folder[data-announcement]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 2px hsl(var(--primary)), inset 0 0 0 4px hsl(var(--card));
+    pointer-events: none;
+}
 .rail-add { color: #22c55e; }
 .rail-add:hover { background: #22c55e; color: #fff; }
 

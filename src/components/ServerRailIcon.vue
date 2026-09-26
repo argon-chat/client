@@ -130,6 +130,7 @@ const initials = (name: string) =>
 
 /* Avatar clip — morphs from circle to squircle on hover/active. */
 .rail-avatar {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -150,9 +151,15 @@ const initials = (name: string) =>
   transform: scale(0.92);
 }
 
-/* Unread announcement: an accent ring, clear of the avatar by a card-coloured gap. */
-.rail-avatar[data-announcement] {
-  box-shadow: 0 0 0 2px hsl(var(--card)), 0 0 0 4px hsl(var(--primary));
+/* Unread announcement: an accent ring with a card-coloured gap, drawn inside the icon's own box
+   (the rail scrolls, so anything outside it is clipped) and following its circle-to-squircle morph. */
+.rail-avatar[data-announcement]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px hsl(var(--primary)), inset 0 0 0 4px hsl(var(--card));
+  pointer-events: none;
 }
 
 .rail-pin {

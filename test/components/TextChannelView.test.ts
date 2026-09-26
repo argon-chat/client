@@ -18,6 +18,7 @@ const h = await vi.hoisted(async () => {
     granted: new Set<string>(),
     channelData: ref<Record<string, unknown> | null>({ channelId: "c1", name: "general" }),
     handleExternalFiles: vi.fn(),
+    openFollow: vi.fn(),
     composerMounts: 0,
   };
 });
@@ -46,7 +47,7 @@ vi.mock("@/components/ChatView.vue", async () => {
     default: {
       name: "ChatView",
       setup: (_: unknown, { expose }: any) => {
-        expose({ scrollToBottomImmediate() {} });
+        expose({ scrollToBottomImmediate() {}, openFollow: h.openFollow });
         return () => hh("div", { class: "stub-chat-view" });
       },
     },
@@ -150,13 +151,23 @@ describe("with SendMessages", () => {
 describe("an announcement channel", () => {
   // The server denies SendMessages to everyone there on creation and the owner allows it per role,
   // so the channel-level SendMessages is the whole answer; ManageChannels has nothing to do with it.
-  test("a reader gets the announcement notice, not the composer", () => {
+  test("a reader is offered to follow the channel where the composer would be", () => {
     h.granted = new Set(["ViewChannel", "ReadHistory", "AddReactions"]);
     const w = render("announcement");
 
-    expect(w.text()).toContain("announcement_read_only");
+    expect(w.find('[data-testid="announcement-follow-bar"]').text()).toContain("follow_to_get_updates");
+    expect(w.find('[data-testid="announcement-follow"]').exists()).toBe(true);
+    expect(w.find('[data-testid="composer-read-only"]').exists()).toBe(false);
     expect(w.find('[data-testid="composer-read-only"]').exists()).toBe(false);
     expect(w.find(".stub-enter-text").exists()).toBe(false);
+  });
+
+  test("the follow button opens the follow dialog", async () => {
+    h.granted = new Set(["ViewChannel", "ReadHistory"]);
+    const w = render("announcement");
+
+    await w.get('[data-testid="announcement-follow"]').trigger("click");
+    expect(h.openFollow).toHaveBeenCalledTimes(1);
   });
 
   test("a role allowed to post there gets the composer without ManageChannels", () => {
@@ -164,7 +175,7 @@ describe("an announcement channel", () => {
     const w = render("announcement");
 
     expect(w.find(".stub-enter-text").exists()).toBe(true);
-    expect(w.text()).not.toContain("announcement_read_only");
+    expect(w.find('[data-testid="announcement-follow-bar"]').exists()).toBe(false);
   });
 });
 

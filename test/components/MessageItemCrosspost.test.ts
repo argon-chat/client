@@ -51,6 +51,7 @@ vi.mock("@/components/chats/ReactionPicker.vue", () => h.stub("ReactionPicker"))
 vi.mock("@/components/modals/ReportDialog.vue", () => h.stub("ReportDialog"));
 // Other features that sit in MessageItem; not under test here.
 vi.mock("@/components/chats/MessagePinMarker.vue", () => h.stub("MessagePinMarker"));
+vi.mock("@/components/chats/MessageReadCount.vue", () => h.stub("MessageReadCount"));
 vi.mock("@/components/chats/MessagePinMenuItem.vue", () => h.stub("MessagePinMenuItem"));
 vi.mock("@/components/chats/AnnouncementCard.vue", () => h.stub("AnnouncementCard"));
 vi.mock("@/components/chats/MessageWebhookAuthor.vue", () => h.stub("MessageWebhookAuthor"));
@@ -208,8 +209,38 @@ describe("publishing", () => {
   test("once published, it carries the mark and is not offered again", async () => {
     h.users.me = { userId: "me", displayName: "Me" };
     const w = await render(message({ sender: "me", publishedAt: IonDateTime.now() }), { channelType: "announcement" });
-    expect(w.find('[data-testid="published-mark"]').text()).toContain("message_published");
+    expect(w.find('[data-testid="published-mark"]').attributes("aria-label")).toBe("message_published");
     await hover(w);
     expect(publishButton()).toBeNull();
+  });
+});
+
+describe("a native post in an announcement channel", () => {
+  const settings = { reactions: true, postAsSpace: false, showAuthor: true };
+  const space = { name: "Argon HQ", avatarFileId: null };
+
+  test("renders like any message, with the read count beside it", async () => {
+    h.users.me = { userId: "me", displayName: "Kuku" };
+    const w = await render(message({ sender: "me" }), {
+      channelType: "announcement",
+      announcement: { settings, space },
+      readCounts: { spaceId: "s1", channelId: "c1" },
+    });
+
+    expect(w.find(".msg-bubble-wrap").text()).toContain("Release notes");
+    expect(w.text()).toContain("Kuku");
+    expect(w.findComponent({ name: "MessageReadCount" }).exists()).toBe(true);
+  });
+
+  test("with post as space, the space heads it and the author is a byline", async () => {
+    h.users.me = { userId: "me", displayName: "Kuku" };
+    const w = await render(message({ sender: "me" }), {
+      channelType: "announcement",
+      announcement: { settings: { ...settings, postAsSpace: true }, space },
+    });
+
+    expect(w.text()).toContain("Argon HQ");
+    expect(w.text()).toContain('announcement_by_author:{"name":"Kuku"}');
+    expect(w.findComponent({ name: "MessageReadCount" }).exists()).toBe(false);
   });
 });

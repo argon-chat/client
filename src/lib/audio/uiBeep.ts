@@ -85,23 +85,29 @@ export function playMovedSound(volume = 1): void {
   try {
     const ctx = audio.getCurrentAudioContext();
     const now = ctx.currentTime;
-    const level = Math.max(0, Math.min(volume, 1)) * 0.06;
+    const level = Math.max(0, Math.min(volume, 1)) * 0.14;
     if (level <= 0) return;
-    const duration = 0.18;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.setValueAtTime(440, now + 0.06);
-    osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(level, now + 0.01);
-    gain.gain.setValueAtTime(level, now + 0.11);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    osc.connect(gain);
-    gain.connect(audio.getOutputDestination());
-    osc.start(now);
-    osc.stop(now + duration + 0.02);
+    // Three clear beats, a rising major triad with the last note held: unmistakably a cue,
+    // not the single enter tone and not the two-note radio chirp.
+    const notes = [
+      { freq: 523.25, start: 0, duration: 0.14, gain: 0.85 },
+      { freq: 659.25, start: 0.17, duration: 0.14, gain: 0.9 },
+      { freq: 783.99, start: 0.34, duration: 0.26, gain: 1 },
+    ];
+    for (const { freq, start, duration, gain: accent } of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now + start);
+      gain.gain.setValueAtTime(0.0001, now + start);
+      gain.gain.exponentialRampToValueAtTime(level * accent, now + start + 0.012);
+      gain.gain.setValueAtTime(level * accent, now + start + duration * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+      osc.connect(gain);
+      gain.connect(audio.getOutputDestination());
+      osc.start(now + start);
+      osc.stop(now + start + duration + 0.02);
+    }
   } catch {
     // A cue that cannot play is not worth reporting.
   }
