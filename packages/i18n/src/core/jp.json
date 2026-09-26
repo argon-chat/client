@@ -1806,7 +1806,7 @@
   "follow_error_same_channel": "チャンネルは自分自身をフォローできません。",
   "follow_error_already_following": "そのチャンネルはすでにこのチャンネルをフォローしています。",
   "follow_error_too_many": "そのチャンネルはすでに上限の20チャンネルをフォローしています。",
-  "follow_error_source_private": "このチャンネルは非公開です。フォローできるのは管理できる人だけです。",
+  "follow_error_source_private": "フォローできるのは公開チャンネルだけです。このチャンネルは非公開です。",
   "follow_error_source_full": "このチャンネルのフォロワーはすでに上限の5000件です。",
   "follow_remove_failed": "フォローを解除できませんでした",
   "follow_remove_error_not_found": "このフォローはもう存在しません。",

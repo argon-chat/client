@@ -1873,7 +1873,7 @@
   "follow_error_same_channel": "Канал не может подписаться сам на себя.",
   "follow_error_already_following": "Выбранный канал уже подписан на этот.",
   "follow_error_too_many": "Выбранный канал уже подписан на 20 каналов — больше нельзя.",
-  "follow_error_source_private": "Это закрытый канал: подписать на него может только тот, кто им управляет.",
+  "follow_error_source_private": "Подписаться можно только на публичный канал, а этот — закрытый.",
   "follow_error_source_full": "У этого канала уже 5000 подписчиков — больше нельзя.",
   "follow_remove_failed": "Не удалось убрать подписку",
   "follow_remove_error_not_found": "Этой подписки больше нет.",

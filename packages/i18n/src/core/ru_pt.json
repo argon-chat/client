@@ -1040,7 +1040,7 @@
   "follow_error_same_channel": "Канал не зацепится сам за себя.",
   "follow_error_already_following": "Тот канал уже держится за этот крюком.",
   "follow_error_too_many": "Тот канал уже держит 20 крюков — больше не выдержит.",
-  "follow_error_source_private": "Это закрытая гавань: пришвартоваться к ней может лишь тот, кто ею командует.",
+  "follow_error_source_private": "Швартоваться можно лишь к открытой гавани, а эта — закрыта.",
   "follow_error_source_full": "За этим каналом уже идут 5000 кораблей — больше не выдержит.",
   "follow_remove_failed": "Крюк отцепить не вышло",
   "follow_remove_error_not_found": "Этого крюка уже нет.",

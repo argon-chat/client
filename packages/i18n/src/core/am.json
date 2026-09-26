@@ -1806,7 +1806,7 @@
   "follow_error_same_channel": "Ալիքը չի կարող հետևել ինքն իրեն։",
   "follow_error_already_following": "Այդ ալիքն արդեն հետևում է այս մեկին։",
   "follow_error_too_many": "Այդ ալիքն արդեն հետևում է 20 ալիքի, ավելին հնարավոր չէ։",
-  "follow_error_source_private": "Այս ալիքը փակ է․ դրան կարող է հետևել միայն նա, ով կառավարում է այն։",
+  "follow_error_source_private": "Կարելի է հետևել միայն հանրային ալիքներին, իսկ այս մեկը փակ է։",
   "follow_error_source_full": "Այս ալիքն արդեն ունի 5000 հետևորդ, ավելին հնարավոր չէ։",
   "follow_remove_failed": "Չհաջողվեց հեռացնել հետևումը",
   "follow_remove_error_not_found": "Այս հետևումն այլևս գոյություն չունի։",

@@ -1873,7 +1873,7 @@
   "follow_error_same_channel": "A channel can't follow itself.",
   "follow_error_already_following": "That channel already follows this one.",
   "follow_error_too_many": "That channel already follows 20 channels, the most it can.",
-  "follow_error_source_private": "This channel is private: only someone who manages it can follow it.",
+  "follow_error_source_private": "Only public channels can be followed, and this one is private.",
   "follow_error_source_full": "This channel already has 5,000 followers, the most it can.",
   "follow_remove_failed": "Couldn't remove the follow",
   "follow_remove_error_not_found": "This follow no longer exists.",
