@@ -220,7 +220,8 @@ export function useChannelDraft(options: ChannelDraftOptions) {
     stopReset();
   });
 
-  void load();
+  /** Settles once the channel's draft is in the composer, or there was none to put there. */
+  const ready = load();
 
-  return { flush, blurred, clear, load };
+  return { flush, blurred, clear, load, ready };
 }

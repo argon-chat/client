@@ -4,7 +4,7 @@
     :data-active="isActive || undefined"
     :data-connected="isConnectedVoiceChannel || undefined"
     :data-drop-position="isDragOver ? dropPosition : undefined"
-    :data-voice-drop="voiceDrop"
+    :data-member-drop="memberDrop"
     :data-locked="voiceLocked || undefined"
     :data-broadcast="isBroadcast || undefined"
     :data-live="isLive || undefined"
@@ -128,6 +128,7 @@
         v-for="user in voiceUsers.Users.values()"
         :key="user.userId"
         :draggable="canDragMember(user.userId)"
+        :data-movable="moveGate === 'allowed' || undefined"
         @dragstart="onMemberDragStart(user.userId, $event)"
         @dragend="emit('dragend')"
       >
@@ -240,7 +241,7 @@ import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import { isAnnouncementUnread } from '@/lib/announcements/spaceAnnouncements';
 import { useVoiceModeration } from '@/composables/useVoiceModeration';
 import { decodeVoiceState } from '@argon/calls/voice-state';
-import type { DropPosition, VoiceDropState } from '@/composables/useChannelDragDrop';
+import type { DropPosition, MemberDropState } from '@/composables/useChannelDragDrop';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { ArgonChannel } from '@argon/glue';
 import type { IRealtimeChannel, IRealtimeChannelUser } from '@/store/realtime/realtimeStore';
@@ -256,7 +257,7 @@ const props = defineProps<{
   /** The space's voice channels, for the "Move to" menu. */
   voiceChannels?: ArgonChannel[];
   /** While a member is dragged: whether this row takes the drop, and whether it is under the cursor. */
-  voiceDrop?: VoiceDropState;
+  memberDrop?: MemberDropState;
 }>();
 
 const emit = defineEmits<{
@@ -395,7 +396,8 @@ const showsVolume = (userId: string) => isConnectedVoiceChannel.value && userId 
 const hasMemberMenu = (userId: string) =>
   showsVolume(userId) || canModerateMember(userId) || kickGate.value !== 'hidden';
 
-const canDragMember = (userId: string) => moveGate.value === 'allowed' && !isGuest(userId);
+// Anyone may pick a member up: dropped on a text channel it becomes a mention there.
+const canDragMember = (userId: string) => !isGuest(userId);
 
 const moveTargets = computed(() =>
   (props.voiceChannels ?? []).filter(
@@ -631,21 +633,21 @@ async function copyChannelId() {
 
 /* A voice member is being dragged: rows that take the drop are outlined, the one under the
    cursor is filled. */
-.channel-item[data-voice-drop] .channel-inner {
+.channel-item[data-member-drop] .channel-inner {
   box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.35);
   transition: background-color 120ms ease, box-shadow 120ms ease;
 }
 
-.channel-item[data-voice-drop="over"] .channel-inner {
+.channel-item[data-member-drop="over"] .channel-inner {
   background-color: hsl(var(--primary) / 0.16);
   box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.8);
 }
 
-.voice-user-list li[draggable="true"] {
+.voice-user-list li[data-movable] {
   cursor: grab;
 }
 
-.voice-user-list li[draggable="true"]:active {
+.voice-user-list li[data-movable]:active {
   cursor: grabbing;
 }
 

@@ -317,6 +317,7 @@ const statusText = computed(() => {
   switch (user.value.status) {
     case UserStatus.Online: return t("status_online");
     case UserStatus.Away: return t("status_away");
+    case UserStatus.Snooze: return t("status_snooze");
     case UserStatus.DoNotDisturb: return t("status_dnd");
     case UserStatus.TouchGrass: return t("status_touch_grass");
     case UserStatus.Offline: return t("status_offline");
@@ -329,6 +330,7 @@ const presenceClass = computed(() => {
   switch (user.value.status) {
     case UserStatus.Online: return "presence-online";
     case UserStatus.Away: return "presence-away";
+    case UserStatus.Snooze: return "presence-snooze";
     case UserStatus.DoNotDisturb: return "presence-dnd";
     case UserStatus.Offline: return "presence-offline";
     default: return "presence-online";
@@ -759,6 +761,7 @@ function onCopyUserId() {
 }
 .presence-online { color: #4ade80; }
 .presence-away { color: #fbbf24; }
+.presence-snooze { color: #ca8a04; }
 .presence-dnd { color: #f87171; }
 .presence-offline { color: #9ca3af; }
 

@@ -1,21 +1,24 @@
 /**
- * Dragging a voice member onto another voice channel.
+ * Dragging a voice member onto another voice channel, or onto a text channel.
  *
- * The sidebar's drag and drop used to know two things, channels and groups. A member is a third,
- * and it must only ever land on a voice channel of the same space other than the one it came from;
- * everything else (text channels, group headers, the source itself) has to refuse the drop, which
- * in HTML5 terms means not calling preventDefault on dragover. A move the server refuses is a toast.
+ * The sidebar's drag and drop used to know two things, channels and groups. A member is a third.
+ * With MoveMember it moves to a voice channel of the same space other than the one it came from;
+ * anyone may drop it on a text channel they can write in, which puts the member's mention in that
+ * channel's composer. Everything else (group headers, the source itself) has to refuse the drop,
+ * which in HTML5 terms means not calling preventDefault on dragover. A move the server refuses is a
+ * toast.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { ref } from "vue";
 
 const h = vi.hoisted(() => ({
-  permissions: new Set<string>(["MoveMember"]),
+  permissions: new Set<string>(["MoveMember", "SendMessages"]),
   deniedIn: new Set<string>(),
   moveMember: vi.fn(async () => true),
   moveChannel: vi.fn(async (..._args: unknown[]): Promise<unknown> => undefined),
   toast: vi.fn(),
+  mentionIn: vi.fn(),
 }));
 
 vi.mock("@/store/data/permissionStore", () => ({
@@ -39,7 +42,7 @@ import { ChannelLayoutError, ChannelType, FailedChannelLayout, SuccessChannelLay
 import { useChannelDragDrop } from "@/composables/useChannelDragDrop";
 
 const voice = (channelId: string, spaceId = "space-1") => ({ channelId, spaceId, type: ChannelType.Voice, groupId: null });
-const text = (channelId: string) => ({ channelId, spaceId: "space-1", type: ChannelType.Text, groupId: null });
+const text = (channelId: string, spaceId = "space-1") => ({ channelId, spaceId, type: ChannelType.Text, groupId: null });
 
 function dragEvent() {
   const data = new Map<string, string>();
@@ -58,38 +61,39 @@ function dragEvent() {
 }
 
 function setup() {
-  return useChannelDragDrop(ref("space-1"), ref([]), () => [], ref([]));
+  return useChannelDragDrop(ref("space-1"), ref([]), () => [], ref([]), h.mentionIn);
 }
 
 beforeEach(() => {
-  h.permissions = new Set(["MoveMember"]);
+  h.permissions = new Set(["MoveMember", "SendMessages"]);
   h.deniedIn = new Set();
   h.moveMember.mockClear();
   h.moveChannel.mockReset();
   h.moveChannel.mockResolvedValue(new SuccessChannelLayout());
   h.toast.mockClear();
+  h.mentionIn.mockClear();
 });
 
 describe("starting a member drag", () => {
-  test("needs MoveMember", () => {
-    h.permissions.clear();
+  test("without MoveMember the member is picked up, but no voice channel takes them", () => {
+    h.permissions = new Set(["SendMessages"]);
     const dnd = setup();
     const ev = dragEvent();
 
     dnd.onMemberDragStart("u1", voice("v1"), ev);
 
-    expect(ev.preventDefault).toHaveBeenCalled();
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+    expect(ev.preventDefault).not.toHaveBeenCalled();
+    expect(dnd.memberDropStateOf(voice("v2"))).toBeUndefined();
   });
 
-  test("marks the channels that would take the drop", () => {
+  test("marks the voice channels that would take the drop, and not the text ones", () => {
     const dnd = setup();
     dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
 
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBe("candidate");
-    expect(dnd.voiceDropStateOf(voice("v1"))).toBeUndefined();
-    expect(dnd.voiceDropStateOf(text("t1") as any)).toBeUndefined();
-    expect(dnd.voiceDropStateOf(voice("v9", "space-2"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(voice("v2"))).toBe("candidate");
+    expect(dnd.memberDropStateOf(voice("v1"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(text("t1"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(voice("v9", "space-2"))).toBeUndefined();
   });
 });
 
@@ -101,25 +105,25 @@ describe("over and onto a channel", () => {
     const over = dragEvent();
     dnd.onDragOver(voice("v2"), null, 0, over);
     expect(over.preventDefault).toHaveBeenCalled();
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBe("over");
+    expect(dnd.memberDropStateOf(voice("v2"))).toBe("over");
 
     await dnd.onDrop(voice("v2"), null, 0, dragEvent());
 
     expect(h.moveMember).toHaveBeenCalledWith("space-1", "v1", "u1", "v2");
     expect(h.moveChannel).not.toHaveBeenCalled();
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+    expect(h.mentionIn).not.toHaveBeenCalled();
+    expect(dnd.memberDropStateOf(voice("v2"))).toBeUndefined();
   });
 
-  test("a text channel, and the source itself, refuse", async () => {
+  test("the source itself refuses", async () => {
     const dnd = setup();
     dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
 
-    for (const target of [text("t1"), voice("v1")]) {
-      const over = dragEvent();
-      dnd.onDragOver(target, null, 0, over);
-      expect(over.preventDefault).not.toHaveBeenCalled();
-      await dnd.onDrop(target, null, 0, dragEvent());
-    }
+    const over = dragEvent();
+    dnd.onDragOver(voice("v1"), null, 0, over);
+    expect(over.preventDefault).not.toHaveBeenCalled();
+    await dnd.onDrop(voice("v1"), null, 0, dragEvent());
+
     expect(h.moveMember).not.toHaveBeenCalled();
   });
 
@@ -143,7 +147,51 @@ describe("over and onto a channel", () => {
 
     dnd.onDragEnd();
 
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(voice("v2"))).toBeUndefined();
+  });
+});
+
+describe("onto a text channel", () => {
+  test("lights up under the cursor and the drop mentions the member there", async () => {
+    const dnd = setup();
+    dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
+
+    const over = dragEvent();
+    dnd.onDragOver(text("t1"), null, 0, over);
+    expect(over.preventDefault).toHaveBeenCalled();
+    expect(over.dataTransfer?.dropEffect).toBe("copy");
+    expect(dnd.memberDropStateOf(text("t1"))).toBe("over");
+
+    await dnd.onDrop(text("t1"), null, 0, dragEvent());
+
+    expect(h.mentionIn).toHaveBeenCalledWith("t1", "u1");
+    expect(h.moveMember).not.toHaveBeenCalled();
+    expect(h.moveChannel).not.toHaveBeenCalled();
+  });
+
+  test("needs no MoveMember", async () => {
+    h.permissions = new Set(["SendMessages"]);
+    const dnd = setup();
+    dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
+
+    await dnd.onDrop(text("t1"), null, 0, dragEvent());
+
+    expect(h.mentionIn).toHaveBeenCalledWith("t1", "u1");
+  });
+
+  test("a channel the user cannot write in, or another space's, refuses", async () => {
+    h.deniedIn = new Set(["t1"]);
+    h.permissions = new Set(["SendMessages"]);
+    const dnd = setup();
+    dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
+
+    for (const target of [text("t1"), text("t2", "space-2")]) {
+      const over = dragEvent();
+      dnd.onDragOver(target, null, 0, over);
+      expect(over.preventDefault).not.toHaveBeenCalled();
+      await dnd.onDrop(target, null, 0, dragEvent());
+    }
+    expect(h.mentionIn).not.toHaveBeenCalled();
   });
 });
 
@@ -153,8 +201,8 @@ describe("per-channel MoveMember", () => {
     const dnd = setup();
     dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
 
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
-    expect(dnd.voiceDropStateOf(voice("v3"))).toBe("candidate");
+    expect(dnd.memberDropStateOf(voice("v2"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(voice("v3"))).toBe("candidate");
 
     const over = dragEvent();
     dnd.onDragOver(voice("v2"), null, 0, over);
@@ -163,15 +211,14 @@ describe("per-channel MoveMember", () => {
     expect(h.moveMember).not.toHaveBeenCalled();
   });
 
-  test("a member cannot be picked up from a channel where the moderator may not move people", () => {
+  test("a member picked up where the moderator may not move people goes to no voice channel", async () => {
     h.deniedIn = new Set(["v1"]);
     const dnd = setup();
-    const ev = dragEvent();
+    dnd.onMemberDragStart("u1", voice("v1"), dragEvent());
 
-    dnd.onMemberDragStart("u1", voice("v1"), ev);
-
-    expect(ev.preventDefault).toHaveBeenCalled();
-    expect(dnd.voiceDropStateOf(voice("v2"))).toBeUndefined();
+    expect(dnd.memberDropStateOf(voice("v2"))).toBeUndefined();
+    await dnd.onDrop(voice("v2"), null, 0, dragEvent());
+    expect(h.moveMember).not.toHaveBeenCalled();
   });
 });
 

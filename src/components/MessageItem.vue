@@ -8,7 +8,7 @@
   -->
 
   <!-- ── System message (call started/ended, user joined) ── -->
-  <div v-if="isSystemMessage" class="flex justify-center py-3 w-full">
+  <div v-if="isSystemMessage" data-row-body class="flex justify-center py-3 w-full">
     <div
       class="px-3 py-1.5 rounded-lg bg-muted/50 text-muted-foreground text-xs text-center max-w-[80%] select-text"
     >
@@ -140,7 +140,7 @@
         <ContextMenu>
           <ContextMenuTrigger>
             <!-- Announcements: who has read it sits beside the bubble -->
-            <div class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''">
+            <div data-row-body class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''">
             <div
               class="msg-bubble-wrap relative inline-flex flex-col"
               :class="isRight ? 'items-end' : 'items-start'"

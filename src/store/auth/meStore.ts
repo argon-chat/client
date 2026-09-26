@@ -316,6 +316,7 @@ export const useMe = defineStore("me", () => {
       return {
         "bg-green-500": status === UserStatus.Online,
         "bg-yellow-500": status === UserStatus.Away,
+        "bg-yellow-700": status === UserStatus.Snooze,
         "bg-gray-500": status === UserStatus.Offline,
         "bg-red-500": status === UserStatus.DoNotDisturb,
       };
@@ -323,6 +324,7 @@ export const useMe = defineStore("me", () => {
     return {
       "text-green-500": status === UserStatus.Online,
       "text-yellow-500": status === UserStatus.Away,
+      "text-yellow-600": status === UserStatus.Snooze,
       "text-gray-500": status === UserStatus.Offline,
       "text-red-500": status === UserStatus.DoNotDisturb,
     };

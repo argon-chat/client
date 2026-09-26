@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
+import tailwind from "tailwindcss";
+import autoprefixer from "autoprefixer";
 import path from "node:path";
 
 /**
@@ -59,6 +61,8 @@ export default defineConfig({
         resolve: {
           alias: { "@": path.resolve(__dirname, "./src") },
         },
+        // The app's stylesheet, so what is laid out is what the app lays out.
+        css: { postcss: { plugins: [tailwind(), autoprefixer()] } },
         test: {
           name: "browser",
           include: ["test/browser/**/*.test.ts"],

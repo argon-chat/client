@@ -248,6 +248,11 @@ export function useChatScroll(
     nearBottomThreshold: SCROLL_NEAR_BOTTOM_THRESHOLD,
     nearTopThreshold: SCROLL_NEAR_TOP_THRESHOLD,
     followBottom: () => followBottom.value,
+    // A message's content starts below its date line, unread line and author header.
+    leadOf: (el) => {
+      const body = el.querySelector("[data-row-body]");
+      return body ? body.getBoundingClientRect().top - el.getBoundingClientRect().top : 0;
+    },
     onNearBottom: () => {
       if (!isAnimating.value && onScrollCallback) {
         const container = parentRef.value;

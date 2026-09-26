@@ -1,5 +1,6 @@
 /**
- * The idle detector's authority: it may take you Away, and it may bring you back — nothing else.
+ * The idle detector's authority: it may take you Away (and, an hour later, to Snooze), and it may
+ * bring you back — nothing else.
  *
  * Auto-Away is the only place in the client where the app changes your presence without being
  * asked, so its boundaries are the whole feature. It may act only on a user who is plainly Online
@@ -45,7 +46,7 @@ vi.mock("@argon/glue/native", () => ({
 vi.mock("@/store/auth/meStore", () => ({
   useMe: () => ({
     get me() {
-      return { currentStatus: h.current };
+      return { currentStatus: h.current, userId: ME };
     },
     setTemporaryStatus(status: UserStatus) {
       // The real store is a no-op when nothing changes; mirroring that keeps the call log honest.
@@ -56,10 +57,21 @@ vi.mock("@/store/auth/meStore", () => ({
   }),
 }));
 
-import { useIdleStore } from "@/store/ui/idleStore";
+vi.mock("@/store/media/unifiedCallStore", async () => {
+  const { reactive } = await import("vue");
+  const speaking = reactive(new Set<string>());
+  return { useUnifiedCall: () => ({ speaking }) };
+});
 
+import { useIdleStore } from "@/store/ui/idleStore";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+
+const ME = "me";
 const TICK_MS = 15_000;
 const IDLE_LIMIT = 180;
+const SNOOZE_LIMIT = 60 * 60;
+/** Who the call hears speaking; the local VU meter puts us here while we talk. */
+const speaking = useUnifiedCall().speaking as Set<string>;
 
 /** Let the detector observe `seconds` of inactivity for one tick. */
 async function tick(seconds: number) {
@@ -74,6 +86,7 @@ describe("idle auto-away", () => {
     h.current = UserStatus.Online;
     h.temporary = [];
     h.failNextIdleRead = false;
+    speaking.clear();
     // The store branches on the host bridge; the desktop build is the one that has an idle timer.
     vi.stubGlobal("argon", { isArgonHost: true });
     vi.stubGlobal("console", { ...console, log() {}, warn() {} });
@@ -217,6 +230,101 @@ describe("idle auto-away", () => {
     h.failNextIdleRead = true;
     await tick(5);
 
+    await tick(IDLE_LIMIT);
+
+    expect(h.temporary).toEqual([UserStatus.Away]);
+  });
+
+  test("an hour of idleness deepens the detector's Away into Snooze", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    await tick(IDLE_LIMIT);
+    await tick(SNOOZE_LIMIT - 1);
+    expect(h.current).toBe(UserStatus.Away);
+
+    await tick(SNOOZE_LIMIT);
+    await tick(SNOOZE_LIMIT * 2);
+
+    expect(h.temporary).toEqual([UserStatus.Away, UserStatus.Snooze]);
+  });
+
+  test("an Online user first seen after an hour of idleness goes straight to Snooze", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    await tick(SNOOZE_LIMIT);
+
+    expect(h.temporary).toEqual([UserStatus.Snooze]);
+  });
+
+  test("coming back from Snooze restores Online", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    await tick(IDLE_LIMIT);
+    await tick(SNOOZE_LIMIT);
+    await tick(0);
+
+    expect(h.temporary).toEqual([UserStatus.Away, UserStatus.Snooze, UserStatus.Online]);
+  });
+
+  test("an Away the user chose is never deepened into Snooze", async () => {
+    h.current = UserStatus.Away;
+    const idle = useIdleStore();
+    await idle.init();
+
+    await tick(SNOOZE_LIMIT * 2);
+
+    expect(h.temporary).toEqual([]);
+    expect(h.current).toBe(UserStatus.Away);
+  });
+
+  test("talking in a call is activity: the user stays Online however long the input is idle", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    speaking.add(ME);
+    await tick(IDLE_LIMIT * 10);
+    await tick(SNOOZE_LIMIT);
+
+    expect(h.temporary).toEqual([]);
+    expect(h.current).toBe(UserStatus.Online);
+  });
+
+  test("the idle clock starts when the user stops talking, not at the last input", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    speaking.add(ME);
+    await tick(IDLE_LIMIT * 10);
+    speaking.delete(ME);
+
+    // Input has been idle for an hour, but the user spoke a moment ago.
+    await tick(3600);
+    expect(h.current).toBe(UserStatus.Online);
+
+    // Twelve 15 s ticks in all: three minutes since they last spoke.
+    for (let i = 0; i < 11; i++) await tick(3600);
+    expect(h.temporary).toEqual([UserStatus.Away]);
+  });
+
+  test("speaking while auto-away brings the user back", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    await tick(IDLE_LIMIT);
+    speaking.add(ME);
+    await tick(IDLE_LIMIT * 2);
+
+    expect(h.temporary).toEqual([UserStatus.Away, UserStatus.Online]);
+  });
+
+  test("someone else talking is not the user's activity", async () => {
+    const idle = useIdleStore();
+    await idle.init();
+
+    speaking.add("someone-else");
     await tick(IDLE_LIMIT);
 
     expect(h.temporary).toEqual([UserStatus.Away]);

@@ -39,7 +39,7 @@
             :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
             :voice-users="voiceChannelUsers.get(channel.channelId)"
             :voice-channels="voiceChannels"
-            :voice-drop="voiceDropStateOf(channel)"
+            :member-drop="memberDropStateOf(channel)"
             @select="channelSelect"
             @switch-voice="switchVoiceChannel"
             @dragstart="onDragStart"
@@ -107,7 +107,7 @@
                 :drop-position="dragOverChannel === channel.channelId ? dropPosition : undefined"
                 :voice-users="voiceChannelUsers.get(channel.channelId)"
                 :voice-channels="voiceChannels"
-                :voice-drop="voiceDropStateOf(channel)"
+                :member-drop="memberDropStateOf(channel)"
                 @select="channelSelect"
                 @open-split="openChannelInSplit"
                 @switch-voice="switchVoiceChannel"
@@ -172,6 +172,7 @@ import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useListLoading } from '@/composables/useListLoading';
 import { openInSplit } from '@/composables/useSplitView';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
+import { requestMention } from '@/lib/chat/composerMention';
 import { setLastChannel } from '@/lib/recentSpaces';
 import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import { channelLayoutErrorKey, channelLayoutRefusal } from '@/lib/refusals';
@@ -258,7 +259,7 @@ const {
   dragOverGroupId,
   dragOverGroupReorder,
   groupDropPosition,
-  voiceDropStateOf,
+  memberDropStateOf,
   onDragStart,
   onMemberDragStart,
   onDragOver,
@@ -274,8 +275,15 @@ const {
   selectedSpaceId,
   sortedUngroupedChannels,
   getGroupChannels,
-  sortedGroups
+  sortedGroups,
+  mentionInChannel,
 );
+
+// A voice member dropped on a text channel: open it, with their mention in the composer.
+function mentionInChannel(channelId: Guid, userId: Guid) {
+  requestMention(channelId, userId);
+  if (selectedChannelId.value !== channelId) void channelSelect(channelId);
+}
 
 function openChannelInSplit(channelId: string) {
   openInSplit(channelId, selectedSpaceId.value ?? null);

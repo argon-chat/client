@@ -370,6 +370,7 @@ import { editErrorKey } from "@/lib/chat/editErrors";
 import ComposerPreview from "./ComposerPreview.vue";
 import ScheduleSendButton from "./ScheduleSendButton.vue";
 import { useChannelDraft } from "@/composables/useChannelDraft";
+import { useDroppedMentions } from "@/lib/chat/composerMention";
 import { useScheduledPosts } from "@/composables/useScheduledPosts";
 const { t } = useLocale();
 
@@ -1127,6 +1128,30 @@ const draft = useChannelDraft({
   },
   editing: () => !!props.editing,
 });
+
+// ── A voice member dropped on this channel: their mention goes in at the end ──
+
+async function appendMention(userId: string) {
+  const user = await pool.getUser(userId);
+  if (!user || !editorRef.value) return;
+
+  const mentionText = `@${user.displayName}`;
+  mentionRegistry.set(mentionText, user.userId);
+  const text = messageText.value;
+  const next = `${text}${text && !/\s$/.test(text) ? " " : ""}${mentionText} `;
+  messageText.value = next;
+  graphemeCount.value = countGraphemes(next);
+  nextTick(() => {
+    editorRef.value?.focus();
+    editorRef.value?.setCursorOffset(next.length);
+  });
+}
+
+useDroppedMentions(
+  () => (props.captionMode || props.editing || !canSendMessages.value || !editorRef.value ? null : props.channelId ?? null),
+  draft.ready,
+  (userId) => void appendMention(userId),
+);
 
 async function handleSchedule(at: Date) {
   const content = parseMessageContent();

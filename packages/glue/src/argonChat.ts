@@ -3659,9 +3659,10 @@ export enum UserStatus
   Listen = 4,
   TouchGrass = 5,
   DoNotDisturb = 6,
+  Snooze = 7,
 }
 
-const declaredUserStatus: ReadonlySet<unknown> = new Set<unknown>([UserStatus.Offline, UserStatus.Online, UserStatus.Away, UserStatus.InGame, UserStatus.Listen, UserStatus.TouchGrass, UserStatus.DoNotDisturb]);
+const declaredUserStatus: ReadonlySet<unknown> = new Set<unknown>([UserStatus.Offline, UserStatus.Online, UserStatus.Away, UserStatus.InGame, UserStatus.Listen, UserStatus.TouchGrass, UserStatus.DoNotDisturb, UserStatus.Snooze]);
 
 /**
  * Open-enum helpers for {@link UserStatus}.

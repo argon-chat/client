@@ -5,7 +5,8 @@
  * box that looked broken. A channel the user cannot write in now shows a short read-only notice in
  * the composer's place, decided per channel (an overwrite can make one channel read-only). Files
  * dragged onto a channel without AttachFiles are not taken either. An announcement channel follows
- * the same rule, with its own notice; editing a sent message borrows the composer.
+ * the same rule, with its own notice; editing a sent message borrows the composer. A voice member
+ * dragged in from the sidebar is not a file: it asks for their mention in the composer.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -79,6 +80,7 @@ vi.mock("@/components/chats/ScheduledPostsChip.vue", async () => {
 });
 
 import TextChannelView from "@/components/TextChannelView.vue";
+import { MEMBER_DRAG_TYPE, pendingMention } from "@/lib/chat/composerMention";
 
 function render(channelType: "text" | "announcement" = "text") {
   return mount(TextChannelView, {
@@ -87,12 +89,18 @@ function render(channelType: "text" | "announcement" = "text") {
 }
 
 function fileDrop() {
-  return { dataTransfer: { files: [new File(["x"], "a.png")] } };
+  return { dataTransfer: { files: [new File(["x"], "a.png")], types: ["Files"], getData: () => "" } };
+}
+
+function memberDrop(userId: string) {
+  const data: Record<string, string> = { "text/plain": userId, [MEMBER_DRAG_TYPE]: userId };
+  return { dataTransfer: { files: [], types: Object.keys(data), getData: (k: string) => data[k] ?? "" } };
 }
 
 beforeEach(() => {
   h.granted = new Set();
   h.handleExternalFiles.mockClear();
+  pendingMention.value = null;
 });
 
 describe("without SendMessages in the channel", () => {
@@ -110,11 +118,20 @@ describe("without SendMessages in the channel", () => {
     h.granted = new Set(["ViewChannel", "AttachFiles"]);
     const w = render();
 
-    await w.trigger("dragover");
+    await w.trigger("dragover", fileDrop());
     await w.trigger("drop", fileDrop());
 
     expect(w.text()).not.toContain("drop_files_here");
     expect(h.handleExternalFiles).not.toHaveBeenCalled();
+  });
+
+  test("a dropped voice member is not mentioned", async () => {
+    h.granted = new Set(["ViewChannel"]);
+    const w = render();
+
+    await w.trigger("drop", memberDrop("u1"));
+
+    expect(pendingMention.value).toBeNull();
   });
 });
 
@@ -131,7 +148,7 @@ describe("with SendMessages", () => {
     h.granted = new Set(["ViewChannel", "SendMessages"]);
     const w = render();
 
-    await w.trigger("dragover");
+    await w.trigger("dragover", fileDrop());
     expect(w.text()).not.toContain("drop_files_here");
     await w.trigger("drop", fileDrop());
     expect(h.handleExternalFiles).not.toHaveBeenCalled();
@@ -141,10 +158,22 @@ describe("with SendMessages", () => {
     h.granted = new Set(["ViewChannel", "SendMessages", "AttachFiles"]);
     const w = render();
 
-    await w.trigger("dragover");
+    await w.trigger("dragover", fileDrop());
     expect(w.text()).toContain("drop_files_here");
     await w.trigger("drop", fileDrop());
     expect(h.handleExternalFiles).toHaveBeenCalledTimes(1);
+  });
+
+  test("a voice member dragged in is no file drop: it asks for their mention in this channel", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages", "AttachFiles"]);
+    const w = render();
+
+    await w.trigger("dragover", memberDrop("u1"));
+    expect(w.text()).not.toContain("drop_files_here");
+    await w.trigger("drop", memberDrop("u1"));
+
+    expect(pendingMention.value).toMatchObject({ channelId: "c1", userId: "u1" });
+    expect(h.handleExternalFiles).not.toHaveBeenCalled();
   });
 });
 

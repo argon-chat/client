@@ -2,7 +2,8 @@ import { defineStore } from "pinia";
 import { useIdle, useTimestamp } from "@vueuse/core";
 import { interval, switchMap, retry, type Subscription } from "rxjs";
 import { useMe } from "@/store/auth/meStore";
-import { ref } from "vue";
+import { useUnifiedCall } from "@/store/media/unifiedCallStore";
+import { ref, watch, type WatchStopHandle } from "vue";
 import { UserStatus } from "@argon/glue";
 import { native } from "@argon/glue/native";
 
@@ -16,13 +17,37 @@ export const useIdleStore = defineStore("idle", () => {
     now: useTimestamp({ interval: 1000 }),
   });
   let webTrackers: ReturnType<typeof createWebTrackers> | null = null;
-  const isAutoAway = ref(false); // Track if Away was set automatically
+  // The status the detector set (Away or Snooze), or null when the current one is not its own.
+  const autoStatus = ref<UserStatus | null>(null);
   const idleSeconds = ref(0);
 
   const IDLE_TIME_SECONDS = 60 * 3; // 3 minutes
+  const SNOOZE_TIME_SECONDS = 60 * 60; // 1 hour
   // Each tick is an IPC round trip to the host (or a timestamp read on the web); the verdict only
   // needs minute-level accuracy, so 15 s is plenty and 43k round trips a day become ~6k.
   const CHECK_INTERVAL_MS = 15_000;
+
+  // Talking in a call is activity that neither the OS idle timer nor the tab's input events see.
+  let speaking = () => false;
+  let lastSpokeAt = 0;
+  let stopVoiceWatch: WatchStopHandle | null = null;
+
+  function trackVoice() {
+    if (stopVoiceWatch) return;
+    const me = useMe();
+    const voice = useUnifiedCall();
+    speaking = () => {
+      const id = me.me?.userId;
+      return !!id && voice.speaking.has(id);
+    };
+    stopVoiceWatch = watch(speaking, () => { lastSpokeAt = Date.now(); });
+  }
+
+  function withVoice(inactiveSeconds: number) {
+    if (speaking()) return 0;
+    if (!lastSpokeAt) return inactiveSeconds;
+    return Math.min(inactiveSeconds, Math.floor((Date.now() - lastSpokeAt) / 1000));
+  }
 
   function handleStatusChange(inactiveSeconds: number) {
     const me = useMe();
@@ -35,23 +60,30 @@ export const useIdleStore = defineStore("idle", () => {
       return;
     }
 
-    // Reset auto-away flag if user manually changed status while auto-away was active
-    if (isAutoAway.value && currentStatus !== UserStatus.Away) {
-      isAutoAway.value = false;
+    // The user changed status while the detector held it: theirs now.
+    if (autoStatus.value !== null && currentStatus !== autoStatus.value) {
+      autoStatus.value = null;
       return;
     }
-    // Only go Away from Online
-    const shouldGoAway = inactiveSeconds >= IDLE_TIME_SECONDS && currentStatus === UserStatus.Online;
-    // Only come back if it was auto-away
-    const shouldComeBack = isAutoAway.value && currentStatus === UserStatus.Away && inactiveSeconds < IDLE_TIME_SECONDS;
 
-    if (shouldGoAway) {
-      isAutoAway.value = true;
-      me.setTemporaryStatus(UserStatus.Away);
-    } else if (shouldComeBack) {
-      isAutoAway.value = false;
-      me.setTemporaryStatus(UserStatus.Online);
-    }
+    const idleFor = inactiveSeconds >= SNOOZE_TIME_SECONDS
+      ? UserStatus.Snooze
+      : inactiveSeconds >= IDLE_TIME_SECONDS ? UserStatus.Away : null;
+
+    // Only go Away (or straight to Snooze) from Online, and only deepen an Away of our own.
+    const next = currentStatus === UserStatus.Online
+      ? idleFor
+      : autoStatus.value !== null ? idleFor ?? UserStatus.Online : null;
+
+    if (next === null || next === currentStatus) return;
+    autoStatus.value = next === UserStatus.Online ? null : next;
+    me.setTemporaryStatus(next);
+  }
+
+  function tick(inactiveSeconds: number) {
+    const effective = withVoice(inactiveSeconds);
+    idleSeconds.value = effective;
+    handleStatusChange(effective);
   }
 
   async function init() {
@@ -60,6 +92,7 @@ export const useIdleStore = defineStore("idle", () => {
     if (subscription.value) {
       subscription.value.unsubscribe();
     }
+    trackVoice();
 
     if (argon.isArgonHost) {
       subscription.value = interval(CHECK_INTERVAL_MS)
@@ -68,8 +101,7 @@ export const useIdleStore = defineStore("idle", () => {
             try {
               // @ts-ignore
               const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
-              idleSeconds.value = inactiveSeconds;
-              handleStatusChange(inactiveSeconds);
+              tick(inactiveSeconds);
             } catch (e) {
               // A transient IPC failure (e.g. host not ready right after launch)
               // must not tear down the stream — otherwise idle tracking dies for
@@ -92,11 +124,7 @@ export const useIdleStore = defineStore("idle", () => {
         .pipe(
           switchMap(async () => {
             try {
-              const inactiveSeconds = Math.floor(
-                (now.value - lastActive.value) / 1000,
-              );
-              idleSeconds.value = inactiveSeconds;
-              handleStatusChange(inactiveSeconds);
+              tick(Math.floor((now.value - lastActive.value) / 1000));
             } catch (e) {
               console.warn("[IdleStore] idle tick failed", e);
             }

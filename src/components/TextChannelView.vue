@@ -199,6 +199,7 @@ import { useUserColors } from "@/store/chat/userColors";
 import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
 import { replyAuthorName } from "@/composables/useChannelFollow";
+import { MEMBER_DRAG_TYPE, requestMention } from "@/lib/chat/composerMention";
 import { ArgonMessage } from "@argon/glue";
 
 import ChatView from "./ChatView.vue";
@@ -317,8 +318,8 @@ function onMarkFailed(randomId: bigint, error: string) {
 
 let _dragCounter = 0;
 
-function onDragOver() {
-  if (!canAttach.value) return;
+function onDragOver(e: DragEvent) {
+  if (!canAttach.value || !e.dataTransfer?.types.includes("Files")) return;
   _dragCounter++;
   isDragging.value = true;
 }
@@ -334,6 +335,12 @@ function onDragLeave(e: DragEvent) {
 function onDrop(e: DragEvent) {
   _dragCounter = 0;
   isDragging.value = false;
+  // A voice member dragged in from the sidebar: their mention goes into the composer.
+  const member = e.dataTransfer?.getData(MEMBER_DRAG_TYPE);
+  if (member) {
+    if (canSend.value && selectedChannelId.value) requestMention(selectedChannelId.value, member);
+    return;
+  }
   if (!canAttach.value) return;
   if (e.dataTransfer?.files?.length && enterTextRef.value) {
     enterTextRef.value.handleExternalFiles(e.dataTransfer.files);

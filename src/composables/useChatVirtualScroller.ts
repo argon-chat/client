@@ -38,6 +38,12 @@ export interface ChatVirtualScrollerOptions<T> {
    * the list shows a stretch of history paged in below the reader, who stays where they read.
    */
   followBottom?: () => boolean;
+  /**
+   * How far down its row an item's content starts (below a date line, an author header). What
+   * stays put under the reader is that content: when something above it inside the row comes or
+   * goes, the row's top moves and the content does not.
+   */
+  leadOf?: (el: HTMLElement) => number;
 }
 
 /**
@@ -63,6 +69,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     onNearBottom,
     onNearTop,
     followBottom = () => true,
+    leadOf = () => 0,
   } = opts;
 
   const OVERSCAN = 0.4; // fraction of viewport rendered beyond each edge
@@ -83,6 +90,10 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     h: number;
     y: number;
     index: number;
+    /** `h` came from the page, not the estimate. */
+    measured?: boolean;
+    /** Where the content starts inside the item (see `leadOf`). */
+    lead?: number;
   }
   const meta = new Map<string | number, Entry>();
   let order: Entry[] = [];
@@ -114,6 +125,11 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
   // Programmatic-scroll guard: the scrollTop value we last wrote ourselves.
   let lastProgrammaticTop = -1;
+  // Where the last scroll event found the list, to tell which way the user went.
+  let lastSeenTop = 0;
+
+  /** Where an item's content sits in the list: what anchoring keeps in place. */
+  const pointOf = (e: Entry) => e.y + (e.lead ?? 0);
 
   const elToKey = new WeakMap<Element, string | number>();
   const tracked = new Set<Element>();
@@ -189,6 +205,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
   function setScrollTopSilently(box: HTMLElement, value: number) {
     box.scrollTop = value;
     lastProgrammaticTop = box.scrollTop; // read back the clamped value
+    lastSeenTop = lastProgrammaticTop;
   }
 
   function updateScrollState(box: HTMLElement) {
@@ -240,8 +257,8 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       if (!pinnedToBottom && anchors.length) {
         const anchor = anchors.find((a) => meta.has(a.key));
         const ae = anchor && meta.get(anchor.key);
-        if (anchor && ae && ae.y !== anchor.y) {
-          const delta = ae.y - anchor.y;
+        if (anchor && ae && pointOf(ae) !== anchor.y) {
+          const delta = pointOf(ae) - anchor.y;
           if (Math.abs(delta) < contentH) {
             top += delta;
             setScrollTopSilently(box, top);
@@ -315,14 +332,15 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       });
     }
 
-    // 5) Save the anchors for the next pass: the first item that starts inside the viewport, then
-    // the ones after it. An item cut by the top edge is still being measured as it comes into
-    // view (media loading, its real height replacing the estimate), and anchoring on it would let
-    // its growth push everything under the reader down. Only when none starts inside (one item
-    // taller than the viewport) is the one cut by the edge used.
-    let firstVisible = out.findIndex((v) => v.offset >= top);
+    // 5) Save the anchors for the next pass: the first item inside the viewport whose height has
+    // been measured, then the ones after it. Items that have just come into view are still at
+    // their estimate and about to be measured; so may be one cut by the top edge (media loading).
+    // Anchoring on any of them would let its correction push what the reader is looking at. Only
+    // failing that, the first item starting inside, then the one cut by the edge.
+    let firstVisible = out.findIndex((v) => v.offset >= top && v.offset < top + viewH && meta.get(v.key)?.measured);
+    if (firstVisible < 0) firstVisible = out.findIndex((v) => v.offset >= top);
     if (firstVisible < 0) firstVisible = Math.max(0, out.findIndex((v) => v.offset + v.height > top));
-    anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: v.offset }));
+    anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: v.offset + (meta.get(v.key)?.lead ?? 0) }));
 
     // 6) When following new content, re-snap to the true bottom after the DOM
     // updates. This is what makes the list follow async media (GIFs/images)
@@ -342,6 +360,45 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     if (onNearTop && top <= nearTopThreshold) onNearTop();
   }
 
+  /**
+   * Rows on the page changed height (media loaded, reactions, an edit, a separator, or a row's real
+   * height replacing its estimate as it mounted). Called before the frame is painted: the scroll
+   * position moves now, so the reader never sees a frame with the new heights and the old position.
+   * Pinned to the bottom, the bottom stays the bottom; otherwise the anchor stays where it was.
+   */
+  function settleHeights() {
+    const box = scrollContainer.value;
+    if (!box || dead || paused || !order.length) return;
+    ensureLayout();
+
+    if (pinnedToBottom && followBottom()) {
+      setScrollTopSilently(box, box.scrollHeight);
+      updateScrollState(box);
+    } else if (!pinnedToBottom && anchors.length) {
+      const anchor = anchors.find((a) => meta.has(a.key));
+      const ae = anchor && meta.get(anchor.key);
+      if (anchor && ae && pointOf(ae) !== anchor.y) {
+        setScrollTopSilently(box, box.scrollTop + (pointOf(ae) - anchor.y));
+        // Saved against the old offsets: brought up to date, or the next pass would move it again.
+        for (const a of anchors) {
+          const e = meta.get(a.key);
+          if (e) a.y = pointOf(e);
+        }
+      }
+    }
+    enqueue();
+  }
+
+  let settleQueued = false;
+  function queueSettle() {
+    if (settleQueued) return;
+    settleQueued = true;
+    queueMicrotask(() => {
+      settleQueued = false;
+      settleHeights();
+    });
+  }
+
   // ── Scheduling ──
 
   function enqueue() {
@@ -358,9 +415,16 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     const box = scrollContainer.value;
     if (!box) return;
     // Ignore our own programmatic writes.
-    if (Math.abs(box.scrollTop - lastProgrammaticTop) <= 2) return;
+    if (Math.abs(box.scrollTop - lastProgrammaticTop) <= 2) {
+      lastSeenTop = box.scrollTop;
+      return;
+    }
     const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
-    pinnedToBottom = dist <= pinThreshold;
+    // Scrolling up leaves the bottom at once: within the threshold, the next height change would
+    // otherwise pull the reader straight back down. Coming down, near enough is the bottom.
+    const up = box.scrollTop < lastSeenTop;
+    lastSeenTop = box.scrollTop;
+    pinnedToBottom = up ? dist <= 1 : dist <= pinThreshold;
     distanceFromBottom.value = Math.max(0, dist);
     atBottom.value = pinnedToBottom;
     enqueue();
@@ -383,17 +447,19 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       if (!m) continue;
       const h = e.borderBoxSize?.[0]?.blockSize
         ?? (e.target as HTMLElement).getBoundingClientRect().height;
+      if (h > 0) m.measured = true;
       if (h > 0 && Math.abs(h - m.h) > 0.5) {
         m.h = h;
         if (m.index < firstDirty) firstDirty = m.index;
         changed = true;
       }
+      const lead = leadOf(e.target as HTMLElement);
+      if (Math.abs(lead - (m.lead ?? 0)) > 0.5) {
+        m.lead = lead;
+        changed = true;
+      }
     }
-    if (changed) {
-      // Heights grew/shrank while at the bottom (e.g. media loaded) → keep following.
-      if (pinnedToBottom && followBottom()) snapRequested = true;
-      enqueue();
-    }
+    if (changed) settleHeights();
   }
 
   /** Called from the template :ref — registers an element for measurement. */
@@ -418,12 +484,17 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     const m = meta.get(key);
     if (m) {
       const h = el.getBoundingClientRect().height;
-      if (h > 0 && Math.abs(h - m.h) > 0.5) {
+      if (h > 0) m.measured = true;
+      const lead = leadOf(el);
+      const leadMoved = Math.abs(lead - (m.lead ?? 0)) > 0.5;
+      const resized = h > 0 && Math.abs(h - m.h) > 0.5;
+      m.lead = lead;
+      if (resized) {
         m.h = h;
         if (m.index < firstDirty) firstDirty = m.index;
-        if (pinnedToBottom && followBottom()) snapRequested = true;
-        enqueue();
       }
+      // Once for every row this patch mounted, still before the paint.
+      if (resized || leadMoved) queueSettle();
     }
 
     ro?.observe(el); // the RO delivers later height changes (media load, reactions…)
@@ -541,9 +612,12 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     const box = scrollContainer.value;
     if (box) {
       box.addEventListener("scroll", onScroll, { passive: true });
-      // Viewport resize (e.g. reply bar opens): stay at the bottom if pinned.
+      // Viewport resize (e.g. reply bar opens): stay at the bottom if pinned, in this frame.
       const cro = new ResizeObserver(() => {
-        if (pinnedToBottom && followBottom()) snapRequested = true;
+        if (pinnedToBottom && followBottom() && !dead) {
+          setScrollTopSilently(box, box.scrollHeight);
+          updateScrollState(box);
+        }
         enqueue();
       });
       cro.observe(box);

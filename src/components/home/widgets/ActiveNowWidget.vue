@@ -148,6 +148,8 @@ function getStatusText(user: RealtimeUser): string {
             return t('online');
         case UserStatus.Away:
             return t('away');
+        case UserStatus.Snooze:
+            return t('status_snooze');
         case UserStatus.DoNotDisturb:
             return t('do_not_disturb');
         case UserStatus.InGame:
