@@ -10,8 +10,9 @@ import { entitlementBit } from "@/lib/rbac/ArgonEntitlement";
  * Whether turning on broadcast mode lets everyone who can join the channel transmit.
  *
  * When the mode goes on, the server writes a visible Broadcast=Allow overwrite for the space's
- * default ("everyone") archetype. So unless that archetype is denied Broadcast on this channel,
- * anyone it lets in and speak can hold the key. The settings tab says so, with a way to narrow it.
+ * default ("everyone") archetype. While that archetype ends up with Connect, Speak and Broadcast
+ * on this channel, anyone it lets in can hold the key. The settings tab says so, with a way to
+ * narrow it.
  */
 
 const asBits = (value: unknown): bigint => BigInt(value as bigint | number | string);
@@ -23,15 +24,19 @@ export function effectiveEntitlement(archetype: Pick<Archetype, "entitlement">, 
   return (base & ~asBits(overwrite.deny)) | asBits(overwrite.allow);
 }
 
+/**
+ * True when the default archetype, after this channel's overwrite, may connect, speak and
+ * broadcast here. All three are read off the effective bits: a deny takes Broadcast away, and so
+ * does a missing Allow (removed by an admin, or never written).
+ */
 export function isBroadcastOpenToEveryone(
   defaultArchetype: Pick<Archetype, "entitlement"> | null | undefined,
   overwrite?: Pick<ChannelEntitlementOverwrite, "allow" | "deny"> | null,
 ): boolean {
   if (!defaultArchetype) return false;
   const effective = effectiveEntitlement(defaultArchetype, overwrite);
-  const has = (flag: "Connect" | "Speak") => (effective & entitlementBit(flag)) !== 0n;
-  const broadcastDenied = overwrite ? (asBits(overwrite.deny) & entitlementBit("Broadcast")) !== 0n : false;
-  return has("Connect") && has("Speak") && !broadcastDenied;
+  const has = (flag: "Connect" | "Speak" | "Broadcast") => (effective & entitlementBit(flag)) !== 0n;
+  return has("Connect") && has("Speak") && has("Broadcast");
 }
 
 /**

@@ -17,6 +17,8 @@ export interface ConnectRoomOptions {
   connect?: RoomConnectOptions;
   /** Called once the TURN servers were probed, when there were any to probe. */
   onTurnProbed?(summary: TurnProbeSummary): void;
+  /** Log prefix: "[CALL]" for the call room, "[RADIO]" for the radio. */
+  tag?: string;
 }
 
 function isStun(url: string) {
@@ -32,6 +34,7 @@ function normalizeUrls(urls: string | string[]) {
 }
 
 export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, opts: ConnectRoomOptions = {}) {
+  const tag = opts.tag ?? "[CALL]";
   const stunServers: RTCIceServer[] = rts.ices.flatMap((x) =>
     normalizeUrls(x.endpoint)
       .filter(isStun)
@@ -43,7 +46,7 @@ export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, o
   const turnConfigs = rts.ices.filter((x) => normalizeUrls(x.endpoint).some(isTurn));
 
   if (turnConfigs.length > 0) {
-    logger.info(`[CALL] Testing ${turnConfigs.length} TURN servers...`);
+    logger.info(`${tag} Testing ${turnConfigs.length} TURN servers...`);
 
     const probePromises = turnConfigs.flatMap((turnConfig) => {
       const turnUrls = normalizeUrls(turnConfig.endpoint).filter(isTurn);
@@ -58,14 +61,14 @@ export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, o
         );
 
         if (isAlive) {
-          logger.info(`[CALL] ✓ TURN OK: ${turnUrl}`);
+          logger.info(`${tag} ✓ TURN OK: ${turnUrl}`);
           return {
             urls: turnUrl,
             username: turnConfig.username,
             credential: turnConfig.password,
           };
         } else {
-          logger.warn(`[CALL] ✗ TURN DEAD: ${turnUrl}`);
+          logger.warn(`${tag} ✗ TURN DEAD: ${turnUrl}`);
           return null;
         }
       });
@@ -78,13 +81,13 @@ export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, o
       }
     });
 
-    logger.info(`[CALL] TURN results: ${turnServers.length}/${turnConfigs.length} alive`);
+    logger.info(`${tag} TURN results: ${turnServers.length}/${turnConfigs.length} alive`);
     opts.onTurnProbed?.({ total: turnConfigs.length, alive: turnServers.length });
   }
 
   const allIceServers = [...stunServers, ...turnServers];
 
-  logger.warn("LiveKit connecting...", rts.endpoint, {
+  logger.warn(`${tag} LiveKit connecting...`, rts.endpoint, {
     stun: stunServers.length,
     turn: turnServers.length,
   });

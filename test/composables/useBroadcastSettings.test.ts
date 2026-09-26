@@ -8,6 +8,7 @@
 import { describe, test, expect } from "vitest";
 import { BroadcastOverlap, SetBroadcastSettingsError, type BroadcastSettings } from "@argon/glue";
 import {
+  applyRemoteSettings,
   buildBroadcastPatch,
   broadcastErrorKey,
   clampTransmitSeconds,
@@ -15,6 +16,7 @@ import {
   isBroadcastFormDirty,
   limitOf,
   DEFAULT_MAX_TRANSMIT_SECONDS,
+  type BroadcastField,
 } from "@/composables/useBroadcastSettings";
 
 const current: BroadcastSettings = {
@@ -90,6 +92,68 @@ describe("buildBroadcastPatch", () => {
     expect(clampTransmitSeconds(Number.NaN)).toBe(DEFAULT_MAX_TRANSMIT_SECONDS);
     expect(limitOf({ limitOn: true, maxTransmitSeconds: Number.NaN })).toBe(DEFAULT_MAX_TRANSMIT_SECONDS);
     expect(limitOf({ limitOn: false, maxTransmitSeconds: 42 })).toBeNull();
+  });
+});
+
+describe("per-field dirtiness", () => {
+  const touched = (...fields: BroadcastField[]) => new Set<BroadcastField>(fields);
+
+  test("a remote change to an untouched field is not sent back", () => {
+    // The user flipped chirp; meanwhile somebody else changed the ducking, and the form still
+    // holds the old value for it.
+    const form = formFromSettings(current);
+    form.chirp = true;
+    const remote: BroadcastSettings = { ...current, duckingDb: -20 };
+    expect(buildBroadcastPatch(remote, form, touched("chirp"))).toEqual({ chirp: true });
+    expect(isBroadcastFormDirty(remote, form, touched("chirp"))).toBe(true);
+  });
+
+  test("an untouched field that only looks different is not dirty", () => {
+    const form = formFromSettings(current);
+    const remote: BroadcastSettings = { ...current, targets: ["c"] };
+    expect(buildBroadcastPatch(remote, form, touched())).toEqual({});
+    expect(isBroadcastFormDirty(remote, form, touched())).toBe(false);
+  });
+
+  test("applyRemoteSettings writes the untouched fields and leaves the edited ones", () => {
+    const form = formFromSettings(current);
+    form.chirp = true;
+    form.maxTransmitSeconds = 300;
+    const remote: BroadcastSettings = { ...current, duckingDb: -20, chirp: true, maxTransmitSeconds: 60, targets: ["z"] };
+
+    applyRemoteSettings(form, remote, touched("chirp", "limit"));
+
+    expect(form.duckingDb).toBe(-20);
+    expect(form.targets).toEqual(["z"]);
+    expect(form.chirp).toBe(true);
+    expect(form.maxTransmitSeconds).toBe(300);
+    expect(form.limitOn).toBe(true);
+    // After the merge the only difference left is the user's own limit.
+    expect(buildBroadcastPatch(remote, form, touched("chirp", "limit"))).toEqual({ maxTransmitSeconds: 300 });
+  });
+
+  test("the limit switch and its number are one field", () => {
+    const form = formFromSettings(current);
+    const remote: BroadcastSettings = { ...current, maxTransmitSeconds: null };
+    applyRemoteSettings(form, remote, touched());
+    expect(form.limitOn).toBe(false);
+    expect(form.maxTransmitSeconds).toBe(DEFAULT_MAX_TRANSMIT_SECONDS);
+
+    form.limitOn = true;
+    form.maxTransmitSeconds = 45;
+    applyRemoteSettings(form, { ...current, maxTransmitSeconds: 90 }, touched("limit"));
+    expect(form.limitOn).toBe(true);
+    expect(form.maxTransmitSeconds).toBe(45);
+  });
+
+  test("without a touched set, everything is compared and everything is taken", () => {
+    const form = formFromSettings(current);
+    form.chirp = true;
+    const remote: BroadcastSettings = { ...current, duckingDb: -20 };
+    expect(buildBroadcastPatch(remote, form)).toEqual({ chirp: true, duckingDb: -8 });
+    applyRemoteSettings(form, remote);
+    expect(form.chirp).toBe(false);
+    expect(form.duckingDb).toBe(-20);
   });
 });
 

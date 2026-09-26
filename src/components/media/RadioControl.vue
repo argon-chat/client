@@ -111,7 +111,12 @@ let held = false;
 function onDown(e: PointerEvent) {
   if (e.button !== 0 || !radio.value.available || held) return;
   e.preventDefault();
-  (e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+  try {
+    (e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+  } catch {
+    // No active pointer of that id (a synthetic event, a pointer already gone): the hold still
+    // ends on pointerup/leave/blur without the capture.
+  }
   held = true;
   voice.radioKeyDown();
 }

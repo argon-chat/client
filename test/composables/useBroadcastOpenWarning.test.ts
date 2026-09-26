@@ -1,8 +1,9 @@
 /**
  * "Anyone who can join this channel can transmit" is shown when the space's default archetype,
- * after this channel's overwrite, has Connect and Speak and is not denied Broadcast. The server
- * writes an everyone-Allow for Broadcast when the mode goes on, so "not denied" is the test:
- * only an explicit deny on this channel narrows the radio.
+ * after this channel's overwrite, ends up with Connect, Speak and Broadcast. The server writes an
+ * everyone-Allow for Broadcast when the mode goes on; a deny takes it away again, and so does that
+ * Allow being removed (or never having landed) — in both cases nobody transmits, and the banner
+ * must not say otherwise.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -71,8 +72,8 @@ describe("effectiveEntitlement", () => {
 });
 
 describe("isBroadcastOpenToEveryone", () => {
-  test("open when everyone may connect and speak and Broadcast is not denied", () => {
-    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK))).toBe(true);
+  test("open when everyone ends up with Connect, Speak and Broadcast here", () => {
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK | BROADCAST))).toBe(true);
     expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK), overwrite(BROADCAST, 0n))).toBe(true);
   });
 
@@ -80,14 +81,21 @@ describe("isBroadcastOpenToEveryone", () => {
     expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK | BROADCAST), overwrite(0n, BROADCAST))).toBe(false);
   });
 
+  test("closed when the everyone-Allow for Broadcast is gone or never landed", () => {
+    // The role itself does not broadcast; only the server's Allow overwrite would let it.
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK))).toBe(false);
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK), overwrite(0n, 0n))).toBe(false);
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK), overwrite(VIEW, 0n))).toBe(false);
+  });
+
   test("closed when everyone cannot connect or speak here, even if the role could elsewhere", () => {
-    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK), overwrite(0n, CONNECT))).toBe(false);
-    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK), overwrite(0n, SPEAK))).toBe(false);
-    expect(isBroadcastOpenToEveryone(archetype(VIEW))).toBe(false);
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK | BROADCAST), overwrite(0n, CONNECT))).toBe(false);
+    expect(isBroadcastOpenToEveryone(archetype(CONNECT | SPEAK | BROADCAST), overwrite(0n, SPEAK))).toBe(false);
+    expect(isBroadcastOpenToEveryone(archetype(VIEW | BROADCAST))).toBe(false);
   });
 
   test("open when the overwrite grants what the role lacks", () => {
-    expect(isBroadcastOpenToEveryone(archetype(VIEW), overwrite(CONNECT | SPEAK, 0n))).toBe(true);
+    expect(isBroadcastOpenToEveryone(archetype(VIEW), overwrite(CONNECT | SPEAK | BROADCAST, 0n))).toBe(true);
   });
 
   test("nothing to warn about without a default archetype", () => {
@@ -123,7 +131,7 @@ describe("useBroadcastOpenWarning", () => {
   });
 
   test("a deny on this channel for everyone silences it; another role's deny does not", async () => {
-    h.archetypes = [archetype(CONNECT | SPEAK)];
+    h.archetypes = [archetype(CONNECT | SPEAK | BROADCAST)];
     h.overwrites = [overwrite(0n, BROADCAST, "mods")];
     const { open, refresh } = useBroadcastOpenWarning(channel(), ref(true));
     await flush();
@@ -135,8 +143,21 @@ describe("useBroadcastOpenWarning", () => {
     expect(open.value).toBe(false);
   });
 
-  test("silent while the mode is off, and re-read when it goes on", async () => {
+  test("the everyone-Allow being removed silences it too", async () => {
     h.archetypes = [archetype(CONNECT | SPEAK)];
+    h.overwrites = [overwrite(BROADCAST, 0n)];
+    const { open, refresh } = useBroadcastOpenWarning(channel(), ref(true));
+    await flush();
+    expect(open.value).toBe(true);
+
+    h.overwrites = [];
+    await refresh();
+    await flush();
+    expect(open.value).toBe(false);
+  });
+
+  test("silent while the mode is off, and re-read when it goes on", async () => {
+    h.archetypes = [archetype(CONNECT | SPEAK | BROADCAST)];
     const enabled = ref(false);
     const { open } = useBroadcastOpenWarning(channel(), enabled);
     await flush();
@@ -155,14 +176,14 @@ describe("useBroadcastOpenWarning", () => {
     await flush();
     expect(open.value).toBe(false);
 
-    h.archetypes = [archetype(VIEW | CONNECT | SPEAK)];
+    h.archetypes = [archetype(VIEW | CONNECT | SPEAK | BROADCAST)];
     for (const push of h.subscribers) push();
     await flush();
     expect(open.value).toBe(true);
   });
 
   test("a failed overwrite fetch leaves the archetype's own answer", async () => {
-    h.archetypes = [archetype(CONNECT | SPEAK)];
+    h.archetypes = [archetype(CONNECT | SPEAK | BROADCAST)];
     h.getOverwrites.mockRejectedValue(new Error("offline"));
     const { open } = useBroadcastOpenWarning(channel(), ref(true));
     await flush();

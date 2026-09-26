@@ -7,6 +7,11 @@ import type { IonPartial } from "@argon-chat/ion.webcore";
  * `PatchBroadcastSettings` takes only the keys that changed: a key it does not see is left alone,
  * and `maxTransmitSeconds: null` clears the limit. The form keeps the last limit the user typed
  * while the switch is off, so turning it back on does not start from scratch.
+ *
+ * Dirtiness is per field. The caller records which fields the user touched; a change that
+ * arrives from elsewhere is written into the others (`applyRemoteSettings`), and the patch only
+ * ever carries touched fields — so an edit here never sends back a stale value for a field
+ * somebody else just changed.
  */
 
 /** Mirrors the server defaults (voice-broadcast.md, "Model"). */
@@ -24,6 +29,9 @@ export interface BroadcastForm {
   maxTransmitSeconds: number;
   chirp: boolean;
 }
+
+/** A field the user can touch; the limit switch and its number are one field. */
+export type BroadcastField = "targets" | "overlap" | "duckingDb" | "limit" | "chirp";
 
 export function clampTransmitSeconds(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_MAX_TRANSMIT_SECONDS;
@@ -58,21 +66,54 @@ export function limitOf(form: Pick<BroadcastForm, "limitOn" | "maxTransmitSecond
   return form.limitOn ? clampTransmitSeconds(form.maxTransmitSeconds) : null;
 }
 
-/** Only the keys whose value differs from `current`; an empty object when nothing changed. */
-export function buildBroadcastPatch(current: BroadcastSettings, form: BroadcastForm): IonPartial<BroadcastSettings> {
+/**
+ * Writes `settings` into the fields the user has not touched; their own edits stay.
+ * Without `touched`, every field is taken.
+ */
+export function applyRemoteSettings(form: BroadcastForm, settings: BroadcastSettings, touched?: ReadonlySet<BroadcastField>): void {
+  const fresh = formFromSettings(settings);
+  const keep = (field: BroadcastField) => touched?.has(field) ?? false;
+  if (!keep("targets")) form.targets = fresh.targets;
+  if (!keep("overlap")) form.overlap = fresh.overlap;
+  if (!keep("duckingDb")) form.duckingDb = fresh.duckingDb;
+  if (!keep("limit")) {
+    form.limitOn = fresh.limitOn;
+    form.maxTransmitSeconds = fresh.maxTransmitSeconds;
+  }
+  if (!keep("chirp")) form.chirp = fresh.chirp;
+}
+
+/**
+ * Only the keys whose value differs from `current`, among the fields the user touched (every
+ * field when `touched` is not given); an empty object when nothing changed.
+ */
+export function buildBroadcastPatch(
+  current: BroadcastSettings,
+  form: BroadcastForm,
+  touched?: ReadonlySet<BroadcastField>,
+): IonPartial<BroadcastSettings> {
+  const consider = (field: BroadcastField) => touched === undefined || touched.has(field);
   const patch: IonPartial<BroadcastSettings> = {};
-  if (!sameTargets(current.targets, form.targets)) patch.targets = [...form.targets];
-  if (form.overlap !== current.overlap) patch.overlap = form.overlap;
-  const ducking = clampDuckingDb(form.duckingDb);
-  if (ducking !== current.duckingDb) patch.duckingDb = ducking;
-  const limit = limitOf(form);
-  if (limit !== current.maxTransmitSeconds) patch.maxTransmitSeconds = limit;
-  if (form.chirp !== current.chirp) patch.chirp = form.chirp;
+  if (consider("targets") && !sameTargets(current.targets, form.targets)) patch.targets = [...form.targets];
+  if (consider("overlap") && form.overlap !== current.overlap) patch.overlap = form.overlap;
+  if (consider("duckingDb")) {
+    const ducking = clampDuckingDb(form.duckingDb);
+    if (ducking !== current.duckingDb) patch.duckingDb = ducking;
+  }
+  if (consider("limit")) {
+    const limit = limitOf(form);
+    if (limit !== current.maxTransmitSeconds) patch.maxTransmitSeconds = limit;
+  }
+  if (consider("chirp") && form.chirp !== current.chirp) patch.chirp = form.chirp;
   return patch;
 }
 
-export function isBroadcastFormDirty(current: BroadcastSettings, form: BroadcastForm): boolean {
-  return Object.keys(buildBroadcastPatch(current, form)).length > 0;
+export function isBroadcastFormDirty(
+  current: BroadcastSettings,
+  form: BroadcastForm,
+  touched?: ReadonlySet<BroadcastField>,
+): boolean {
+  return Object.keys(buildBroadcastPatch(current, form, touched)).length > 0;
 }
 
 const ERROR_KEYS: Record<SetBroadcastSettingsError, string> = {

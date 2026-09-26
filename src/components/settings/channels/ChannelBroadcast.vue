@@ -114,7 +114,7 @@
               <Label>{{ t("broadcast_limit") }}</Label>
               <p class="text-xs text-muted-foreground">{{ t("broadcast_limit_desc") }}</p>
             </div>
-            <Switch data-testid="broadcast-limit" :checked="form.limitOn" @update:checked="(v: boolean) => (form.limitOn = v)" />
+            <Switch data-testid="broadcast-limit" :checked="form.limitOn" @update:checked="setLimitOn" />
           </div>
           <div v-if="form.limitOn" class="flex items-center gap-2">
             <Input
@@ -137,7 +137,7 @@
             <Label>{{ t("broadcast_chirp") }}</Label>
             <p class="text-xs text-muted-foreground">{{ t("broadcast_chirp_desc") }}</p>
           </div>
-          <Switch data-testid="broadcast-chirp" :checked="form.chirp" @update:checked="(v: boolean) => (form.chirp = v)" />
+          <Switch data-testid="broadcast-chirp" :checked="form.chirp" @update:checked="setChirp" />
         </div>
 
         <div class="flex justify-end gap-2 pt-1">
@@ -159,8 +159,9 @@
  * the listeners' channel is turned down, the stuck-key limit and the chirp.
  *
  * The switch talks to the server at once; everything else is a form saved with one sparse patch
- * (only the keys that changed). A change made elsewhere replaces the form only while nothing here
- * is being edited, as in the Overview tab.
+ * (only the keys that changed). Dirtiness is per field: a change made elsewhere lands in the
+ * fields the user has not touched, and only the touched ones are sent, so nobody's edit is
+ * silently reverted by a save from here.
  */
 import { computed, reactive, ref, toRef, watch } from "vue";
 import { Label } from "@argon/ui/label";
@@ -191,12 +192,14 @@ import {
   MIN_MAX_TRANSMIT_SECONDS,
   MAX_MAX_TRANSMIT_SECONDS,
   DEFAULT_MAX_TRANSMIT_SECONDS,
+  applyRemoteSettings,
   broadcastErrorKey,
   buildBroadcastPatch,
   clampDuckingDb,
   clampTransmitSeconds,
   formFromSettings,
   isBroadcastFormDirty,
+  type BroadcastField,
   type BroadcastForm,
 } from "@/composables/useBroadcastSettings";
 
@@ -255,24 +258,32 @@ const EMPTY: BroadcastSettings = {
 };
 
 const form = reactive<BroadcastForm>(formFromSettings(settings.value ?? EMPTY));
+// The fields the user edited since the last save or reset: a remote change lands in the others,
+// and only these go into the patch.
+const touched = reactive(new Set<BroadcastField>());
+const touch = (field: BroadcastField) => touched.add(field);
 
 function resetForm() {
+  touched.clear();
   Object.assign(form, formFromSettings(settings.value ?? EMPTY));
 }
 
-const dirty = computed(() => settings.value !== null && isBroadcastFormDirty(settings.value, form));
+const dirty = computed(() => settings.value !== null && isBroadcastFormDirty(settings.value, form, touched));
 
 watch(
   settings,
   (next, prev) => {
     if (!next) return;
-    // Just switched on, or nothing being edited: take what the server has.
-    if (!prev || !dirty.value) resetForm();
+    // Just switched on: take what the server has. Otherwise a change from elsewhere goes into
+    // the fields not being edited here.
+    if (!prev) resetForm();
+    else applyRemoteSettings(form, next, touched);
   },
   { deep: true },
 );
 
 function setTarget(channelId: string, on: boolean) {
+  touch("targets");
   const has = form.targets.includes(channelId);
   if (on && !has) form.targets = [...form.targets, channelId];
   else if (!on && has) form.targets = form.targets.filter((id) => id !== channelId);
@@ -282,6 +293,7 @@ function setTarget(channelId: string, on: boolean) {
 const overlapValue = computed({
   get: () => String(form.overlap),
   set: (value: string) => {
+    touch("overlap");
     form.overlap = Number(value) as BroadcastOverlap;
   },
 });
@@ -289,16 +301,30 @@ const overlapOption = computed(() => OVERLAP_OPTIONS.find((o) => o.value === for
 
 function onDuckingInput(value: number[] | undefined) {
   const db = value?.[0];
-  if (db !== undefined) form.duckingDb = clampDuckingDb(db);
+  if (db === undefined) return;
+  touch("duckingDb");
+  form.duckingDb = clampDuckingDb(db);
+}
+
+function setLimitOn(on: boolean) {
+  touch("limit");
+  form.limitOn = on;
 }
 
 const limitValue = computed({
   get: () => String(form.maxTransmitSeconds),
   set: (value: string | number) => {
     const n = Number(value);
-    if (Number.isFinite(n)) form.maxTransmitSeconds = n;
+    if (!Number.isFinite(n)) return;
+    touch("limit");
+    form.maxTransmitSeconds = n;
   },
 });
+
+function setChirp(on: boolean) {
+  touch("chirp");
+  form.chirp = on;
+}
 
 // ── Targets: the space's voice channels, grouped as the sidebar shows them ──
 
@@ -394,7 +420,7 @@ const saving = ref(false);
 async function save() {
   const current = settings.value;
   if (!current || saving.value || !dirty.value) return;
-  const patch = buildBroadcastPatch(current, form);
+  const patch = buildBroadcastPatch(current, form, touched);
   if (Object.keys(patch).length === 0) return;
 
   saving.value = true;
@@ -403,6 +429,7 @@ async function save() {
     if (result.isSuccessSetBroadcastSettings()) {
       await channelStore.trackChannel(result.channel);
       // What the server kept (a clamped limit, a dropped target) is what the form shows now.
+      touched.clear();
       if (result.channel.broadcast) Object.assign(form, formFromSettings(result.channel.broadcast));
       toast({ title: t("broadcast_saved") });
     } else {

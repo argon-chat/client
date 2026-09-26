@@ -2,7 +2,7 @@
 
 export { createCallManager, type CallManager } from "./CallManager";
 export { parseRtcStats, type ParsedRtcStats } from "./rtcStats";
-export { createMicHold, type MicHold } from "./micHold";
+export { createMicHold, type MicHold, type MicHoldOptions } from "./micHold";
 export { connectRoom, probeTurn, type ConnectRoomOptions, type TurnProbeSummary } from "./connectRoom";
 export { RadioSession, type RadioSessionDeps } from "./radio/RadioSession";
 // Also reachable as "@argon/calls/voice-state", without loading LiveKit.

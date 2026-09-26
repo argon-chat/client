@@ -63,7 +63,8 @@ export function initHotkeyActions(): void {
         pttReleaseTimer = null;
       }
       if (hotkeys.options.pttRadioBeeps) playUiBeep("ptt-on");
-      return call.micHold.acquire("ptt");
+      // Muted afterwards, whatever it was before: a push-to-talk key never leaves the mic open.
+      return call.micHold.acquire("ptt", { restoreTo: "muted" });
     }
     if (hotkeys.options.pttRadioBeeps) playUiBeep("ptt-off");
     const close = () => {

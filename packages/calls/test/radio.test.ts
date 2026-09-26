@@ -24,7 +24,7 @@ vi.mock("livekit-client", async (importOriginal) => {
 });
 
 import { DisconnectReason, RoomEvent, Track } from "livekit-client";
-import { createCallManager, VoiceStateBits, RADIO_ATTR, type CallManagerConfig } from "../src";
+import { createCallManager, createMicHold, VoiceStateBits, RADIO_ATTR, type CallManagerConfig } from "../src";
 
 // ── Fakes ───────────────────────────────────────────────────────────
 
@@ -134,6 +134,7 @@ type Handler = (ev: any) => void;
 function makeBus() {
   const handlers = new Map<string, Handler[]>();
   const reconnected: Array<() => void> = [];
+  const fullResync: Array<() => void> = [];
   return {
     onServerEvent: (event: string, handler: Handler) => {
       handlers.set(event, [...(handlers.get(event) ?? []), handler]);
@@ -143,10 +144,15 @@ function makeBus() {
       reconnected.push(handler);
       return { unsubscribe() {} };
     },
+    onFullResync: (handler: () => void) => {
+      fullResync.push(handler);
+      return { unsubscribe() {} };
+    },
     fire: (event: string, payload: unknown) => {
       for (const h of handlers.get(event) ?? []) h(payload);
     },
     reconnect: () => { for (const h of reconnected) h(); },
+    resync: () => { for (const h of fullResync) h(); },
   };
 }
 
@@ -261,6 +267,8 @@ const tone = (s: Setup) => s.config.tone as unknown as Record<string, ReturnType
 const audioOf = (s: Setup) => s.config.audio as unknown as { setVoiceBusGain: ReturnType<typeof vi.fn> };
 const radioTrack = () => rooms.radio!.published[0];
 const settle = () => new Promise((r) => setTimeout(r, 0));
+/** `settle` for tests on fake timers, where a real setTimeout never fires. */
+const flush = () => vi.advanceTimersByTimeAsync(0);
 
 async function joined(setup = makeSetup(), channelId = "hq") {
   const calls = createCallManager(setup.config);
@@ -378,11 +386,40 @@ describe("the radio links", () => {
     await vi.waitFor(() => expect(s.calls.radio.value.available).toBe(true));
   });
 
-  test("a realtime reconnect only re-confirms a working radio", async () => {
+  test("a realtime reconnect only re-confirms a working radio, once for both signals", async () => {
+    vi.useFakeTimers();
     const s = await onAir();
     s.bus.reconnect();
+    s.bus.resync();
+    await vi.advanceTimersByTimeAsync(300);
     await vi.waitFor(() => expect(confirm(s as Setup)).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(confirm(s as Setup)).toHaveBeenCalledTimes(2);
     expect(links(s as Setup)).toHaveBeenCalledTimes(1);
+  });
+
+  test("a resync while the links are being fetched does not restart the connect", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    let finish: (v: unknown) => void = () => {};
+    confirm(setup).mockImplementationOnce(() => new Promise((r) => { finish = r; }));
+    const { calls, bus } = await joined(setup);
+    await vi.waitFor(() => expect(confirm(setup)).toHaveBeenCalledTimes(1));
+
+    bus.resync();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(links(setup)).toHaveBeenCalledTimes(1);
+
+    finish(confirmOk());
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+    expect(rooms.radios).toHaveLength(1);
+  });
+
+  test("a change to another channel is not ours", async () => {
+    const s = await onAir();
+    s.bus.fire("ChannelModifiedV2", { spaceId: "space-1", channelId: "party", patch: { broadcast: null } });
+    expect(s.calls.radio.value.available).toBe(true);
+    expect(rooms.radio!.disconnected).toBe(false);
   });
 
   test("the channel's broadcast settings changing under us", async () => {
@@ -483,6 +520,25 @@ describe("the radio key", () => {
     expect(s.calls.radio.value.transmitting).toBe(true);
   });
 
+  test("a press inside the release delay is never a bounce, and the later key-up still counts", async () => {
+    const setup = makeSetup({ delayMs: 500 });
+    const s = await onAir(setup);
+    vi.useFakeTimers();
+
+    s.calls.radioKeyDown();
+    s.calls.radioKeyUp();
+    await vi.advanceTimersByTimeAsync(100);
+    s.calls.radioKeyDown();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(s.calls.radio.value.transmitting).toBe(true);
+    expect(radioTrack().isMuted).toBe(false);
+
+    s.calls.radioKeyUp();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(s.calls.radio.value.transmitting).toBe(false);
+    expect(radioTrack().isMuted).toBe(true);
+  });
+
   test("the stuck-key guard releases at the channel's limit", async () => {
     const setup = makeSetup();
     links(setup).mockResolvedValue(linksOk(broadcastSettings({ maxTransmitSeconds: 2 })));
@@ -531,6 +587,37 @@ describe("the radio key", () => {
 
     expect(tone(setup).playRadioError).toHaveBeenCalledTimes(1);
     expect(config.notify).not.toHaveBeenCalled();
+  });
+
+  test("in an ordinary voice channel the key only beeps", async () => {
+    const setup = makeSetup({ broadcast: null });
+    const { calls, config } = await joined(setup);
+    await settle();
+
+    calls.radioKeyDown();
+
+    expect(tone(setup).playRadioError).toHaveBeenCalledTimes(1);
+    expect(config.notify).not.toHaveBeenCalled();
+    expect(links(setup)).not.toHaveBeenCalled();
+  });
+
+  test("on a radio that gave up, the press asks for the links again", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    links(setup).mockRejectedValue(new Error("offline"));
+    const { calls, config } = await joined(setup);
+    await vi.advanceTimersByTimeAsync(1000 + 2000 + 5000 + 100);
+    await vi.waitFor(() => expect(calls.radio.value.unavailableReason).toBe("error"));
+    expect(links(setup)).toHaveBeenCalledTimes(4);
+    links(setup).mockResolvedValue(linksOk());
+
+    calls.radioKeyDown();
+
+    expect(tone(setup).playRadioError).toHaveBeenCalledTimes(1);
+    expect(config.notify).toHaveBeenCalledWith({ kind: "radio_connecting" });
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+    expect(links(setup)).toHaveBeenCalledTimes(5);
+    expect(calls.radio.value.transmitting).toBe(false);
   });
 
   test("a single-talker channel refuses the key while someone else is on air", async () => {
@@ -602,6 +689,31 @@ describe("the radio closes", () => {
     await vi.waitFor(() => expect(links(s as Setup)).toHaveBeenCalledTimes(2));
   });
 
+  test("a close mid-transmission takes the on-air flag off the HQ participant", async () => {
+    const s = await onAir();
+    s.calls.radioKeyDown();
+    await vi.waitFor(() => expect(rooms.call!.localParticipant.attributes[RADIO_ATTR.onAir]).toBe("on"));
+
+    s.bus.fire("VoiceMemberStateChanged", selfState(VoiceStateBits.MUTED_BY_SERVER));
+
+    await vi.waitFor(() => expect(rooms.call!.localParticipant.attributes[RADIO_ATTR.onAir]).toBe("off"));
+    expect(s.telemetry.distribution).toHaveBeenCalledWith("call.radio.transmit_ms", expect.any(Number), "millisecond");
+  });
+
+  test("a leave mid-transmission ends it without writing to a room that is going", async () => {
+    const s = await onAir();
+    s.sys.microphoneMuted = true;
+    s.calls.radioKeyDown();
+    const setAttributes = rooms.call!.localParticipant.setAttributes as ReturnType<typeof vi.fn>;
+    await vi.waitFor(() => expect(setAttributes).toHaveBeenCalledWith({ [RADIO_ATTR.onAir]: "on" }));
+
+    await s.calls.leave();
+
+    expect(radioTrack().isMuted).toBe(true);
+    expect(s.sys.setMicrophoneMuted).toHaveBeenLastCalledWith(true, { silent: true });
+    expect(setAttributes).not.toHaveBeenCalledWith({ [RADIO_ATTR.onAir]: "off" });
+  });
+
   test("on leave, together with the listener side", async () => {
     const s = await onAir();
     s.calls.radioKeyDown();
@@ -625,6 +737,165 @@ describe("the radio closes", () => {
     expect(first.disconnected).toBe(true);
     expect(rooms.radios).toHaveLength(2);
     expect(s.calls.radio.value.available).toBe(true);
+  });
+});
+
+// ── Transient failures ──────────────────────────────────────────────
+
+describe("transient failures", () => {
+  test("a failed connect is retried with backoff, not left for dead", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    const original = setup.config.createRoom!;
+    let failFirst = true;
+    setup.config.createRoom = (options, purpose) => {
+      const room = original(options, purpose) as unknown as FakeRoom;
+      if (purpose === "radio" && failFirst) {
+        failFirst = false;
+        room.connect = async () => { throw new Error("ConnectionError"); };
+      }
+      return room as any;
+    };
+    const { calls, telemetry } = await joined(setup);
+
+    await vi.waitFor(() => expect(rooms.radios).toHaveLength(1));
+    await flush();
+    expect(calls.radio.value).toMatchObject({ available: false, connecting: true, unavailableReason: "connecting" });
+    expect(telemetry.count).toHaveBeenCalledWith("call.radio.links", { result: "failed", error: "Error" });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+    expect(rooms.radios).toHaveLength(2);
+  });
+
+  test("an unavailable SFU is asked again", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    links(setup).mockResolvedValueOnce(linksFailed(5));
+    const { calls } = await joined(setup);
+
+    await vi.waitFor(() => expect(links(setup)).toHaveBeenCalledTimes(1));
+    expect(calls.radio.value.connecting).toBe(true);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+  });
+
+  test("after 1, 2 and 5 seconds the radio gives up with an error", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    links(setup).mockRejectedValue(new Error("offline"));
+    const { calls } = await joined(setup);
+
+    await vi.waitFor(() => expect(links(setup)).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(links(setup)).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.waitFor(() => expect(links(setup)).toHaveBeenCalledTimes(3));
+    await vi.advanceTimersByTimeAsync(5000);
+    await vi.waitFor(() => expect(links(setup)).toHaveBeenCalledTimes(4));
+    await flush();
+
+    expect(calls.radio.value).toMatchObject({ available: false, connecting: false, unavailableReason: "error" });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(links(setup)).toHaveBeenCalledTimes(4);
+  });
+
+  test("a removal by the server is final until the next trigger", async () => {
+    vi.useFakeTimers();
+    const s = await onAir();
+
+    rooms.radio!.emit(RoomEvent.Disconnected, DisconnectReason.PARTICIPANT_REMOVED);
+    expect(s.calls.radio.value).toMatchObject({ available: false, connecting: false, unavailableReason: "error" });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(links(s as Setup)).toHaveBeenCalledTimes(1);
+
+    s.calls.radioKeyDown();
+    await vi.waitFor(() => expect(links(s as Setup)).toHaveBeenCalledTimes(2));
+  });
+
+  test("not in the channel twice: HQ is joined again, once", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup();
+    const interlink = setup.config.api.channelInteraction.Interlink as ReturnType<typeof vi.fn>;
+    confirm(setup).mockResolvedValueOnce(confirmFailed(1)).mockResolvedValueOnce(confirmFailed(1));
+    const { calls, config } = await joined(setup);
+    const firstRoom = rooms.call!;
+
+    await vi.waitFor(() => expect(confirm(setup)).toHaveBeenCalledTimes(1));
+    expect(interlink).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // The second refusal: HQ is left and joined again, and the join brings the radio up.
+    await vi.waitFor(() => expect(interlink).toHaveBeenCalledTimes(2));
+    expect(firstRoom.disconnected).toBe(true);
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+    expect(confirm(setup)).toHaveBeenCalledTimes(3);
+    expect(calls.connectedVoiceChannelId.value).toBe("hq");
+    expect(rooms.call).not.toBe(firstRoom);
+
+    // The same again after the rejoin: no second rejoin, the key beeps without a toast.
+    confirm(setup).mockResolvedValueOnce(confirmFailed(1)).mockResolvedValueOnce(confirmFailed(1));
+    await calls.refetchRadioLinks();
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(calls.radio.value.unavailableReason).toBe("not_in_channel"));
+    expect(interlink).toHaveBeenCalledTimes(2);
+    expect(calls.radio.value.connecting).toBe(false);
+
+    calls.radioKeyDown();
+    expect(tone(setup).playRadioError).toHaveBeenCalledTimes(1);
+    expect(config.notify).not.toHaveBeenCalledWith({ kind: "radio_connecting" });
+
+    // A fresh join of our own starts the count over.
+    await calls.leave();
+    confirm(setup).mockResolvedValueOnce(confirmFailed(1)).mockResolvedValueOnce(confirmFailed(1));
+    await calls.joinVoiceChannel("hq");
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(interlink).toHaveBeenCalledTimes(4));
+  });
+});
+
+// ── Entitlements ────────────────────────────────────────────────────
+
+describe("entitlement changes", () => {
+  const mine = { spaceId: "space-1", userId: "me" };
+
+  test("a revoke closes the radio with the server's reason", async () => {
+    vi.useFakeTimers();
+    const s = await onAir();
+    links(s as Setup).mockResolvedValueOnce(linksFailed(3));
+
+    s.bus.fire("EntitlementsChanged", mine);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await vi.waitFor(() => expect(s.calls.radio.value.unavailableReason).toBe("insufficient_permissions"));
+    expect(s.calls.radio.value.available).toBe(false);
+    expect(rooms.radios[0].disconnected).toBe(true);
+  });
+
+  test("a grant asks the server even while the local copy still says no", async () => {
+    vi.useFakeTimers();
+    const setup = makeSetup({ grants: ["Connect", "Speak"] });
+    const { calls, bus } = await joined(setup);
+    await flush();
+    expect(links(setup)).not.toHaveBeenCalled();
+
+    bus.fire("EntitlementsChanged", { spaceId: "space-1", userId: null });
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await vi.waitFor(() => expect(calls.radio.value.available).toBe(true));
+    expect(links(setup)).toHaveBeenCalledTimes(1);
+  });
+
+  test("someone else's roles and other spaces are not about us", async () => {
+    vi.useFakeTimers();
+    const s = await onAir();
+
+    s.bus.fire("EntitlementsChanged", { spaceId: "space-1", userId: "someone" });
+    s.bus.fire("EntitlementsChanged", { spaceId: "space-2", userId: "me" });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(links(s as Setup)).toHaveBeenCalledTimes(1);
+    expect(rooms.radios).toHaveLength(1);
   });
 });
 
@@ -687,13 +958,49 @@ describe("hearing the radio in a target", () => {
     expect(tone(setup).playRadioChirp).toHaveBeenCalledTimes(1);
   });
 
-  test("without HQ's settings the default ducking applies", async () => {
+  test("without HQ anywhere the default ducking applies", async () => {
     const setup = makeSetup();
     delete setup.channels.hq;
     const s = await listening(setup);
+    await settle();
 
     s.graphs[0].opts.onSpeakingChange(true);
     expect(audioOf(setup).setVoiceBusGain).toHaveBeenLastCalledWith(Math.pow(10, -8 / 20));
+  });
+
+  test("HQ's settings are fetched from the pool when the broadcaster appears, and follow its changes", async () => {
+    const setup = makeSetup();
+    const hq = setup.channels.hq;
+    delete setup.channels.hq;
+    (setup.config.pool as any).getChannel = vi.fn(async (id: string) =>
+      id === "hq" ? { ...hq.Channel, broadcast: broadcastSettings({ duckingDb: -12, chirp: false }) } : null);
+    const s = await listening(setup);
+    await settle();
+    expect((setup.config.pool as any).getChannel).toHaveBeenCalledWith("hq");
+
+    const speak = s.graphs[0].opts.onSpeakingChange as (on: boolean) => void;
+    speak(true);
+    expect(audioOf(setup).setVoiceBusGain).toHaveBeenLastCalledWith(Math.pow(10, -12 / 20));
+    expect(tone(setup).playRadioChirp).not.toHaveBeenCalled();
+    speak(false);
+    await new Promise((r) => setTimeout(r, 450));
+
+    s.bus.fire("ChannelModifiedV2", { spaceId: "space-1", channelId: "hq", patch: { broadcast: broadcastSettings({ duckingDb: -3, chirp: true }) } });
+    speak(true);
+    expect(tone(setup).playRadioChirp).toHaveBeenCalledTimes(1);
+    expect(audioOf(setup).setVoiceBusGain).toHaveBeenLastCalledWith(Math.pow(10, -3 / 20));
+  });
+
+  test("an unsubscribed radio track takes its graph and its speaker away", async () => {
+    const s = await listening();
+    s.graphs[0].opts.onSpeakingChange(true);
+    expect(s.calls.radio.value.onAir).toHaveLength(1);
+
+    rooms.call!.emit("trackUnsubscribed", audioTrack(), { isMuted: false }, s.p);
+
+    expect(s.graphs[0].dispose).toHaveBeenCalledTimes(1);
+    expect(s.calls.radio.value.onAir).toEqual([]);
+    expect(audioOf(s as Setup).setVoiceBusGain).toHaveBeenLastCalledWith(1);
   });
 
   test("deafening silences the radio graph too, and undeafening brings it back", async () => {
@@ -754,7 +1061,7 @@ describe("the microphone hold", () => {
     const s = await onAir();
     s.sys.microphoneMuted = true;
 
-    await s.calls.micHold.acquire("ptt");
+    await s.calls.micHold.acquire("ptt", { restoreTo: "muted" });
     expect(s.sys.setMicrophoneMuted).toHaveBeenCalledTimes(1);
     expect(s.sys.microphoneMuted).toBe(false);
 
@@ -769,7 +1076,7 @@ describe("the microphone hold", () => {
     expect(s.sys.setMicrophoneMuted).toHaveBeenLastCalledWith(true, { silent: true });
   });
 
-  test("a microphone that was open stays open after the hold", async () => {
+  test("a microphone that was open stays open after the radio", async () => {
     const s = await onAir();
     s.sys.microphoneMuted = false;
 
@@ -778,5 +1085,80 @@ describe("the microphone hold", () => {
 
     expect(s.sys.microphoneMuted).toBe(false);
     expect(s.sys.setMicrophoneMuted).toHaveBeenLastCalledWith(false, { silent: true });
+  });
+
+  /** A stand-in for the app's system store: `locked` is a moderator's mute. */
+  function fakeSys(muted: boolean, locked = false) {
+    const sys = {
+      microphoneMuted: muted,
+      setMicrophoneMuted: vi.fn(async (m: boolean) => {
+        if (!m && locked) return;
+        sys.microphoneMuted = m;
+      }),
+    };
+    return sys;
+  }
+
+  test("a push-to-talk tap in voice-activity mode ends muted, as it always did", async () => {
+    const sys = fakeSys(false);
+    const hold = createMicHold(sys);
+
+    await hold.acquire("ptt", { restoreTo: "muted" });
+    await hold.release("ptt");
+
+    expect(sys.microphoneMuted).toBe(true);
+  });
+
+  test("the radio puts back what it found", async () => {
+    const sys = fakeSys(false);
+    const hold = createMicHold(sys);
+    await hold.acquire("radio");
+    await hold.release("radio");
+    expect(sys.microphoneMuted).toBe(false);
+
+    sys.microphoneMuted = true;
+    await hold.acquire("radio");
+    expect(sys.microphoneMuted).toBe(false);
+    await hold.release("radio");
+    expect(sys.microphoneMuted).toBe(true);
+  });
+
+  test("one push-to-talk anywhere in the overlap means muted afterwards", async () => {
+    const sys = fakeSys(false);
+    const hold = createMicHold(sys);
+
+    await hold.acquire("radio");
+    await hold.acquire("ptt", { restoreTo: "muted" });
+    await hold.release("ptt");
+    expect(sys.microphoneMuted).toBe(false);
+    await hold.release("radio");
+    expect(sys.microphoneMuted).toBe(true);
+  });
+
+  test("a mic the user closed during the hold stays closed", async () => {
+    const sys = fakeSys(true);
+    const hold = createMicHold(sys);
+
+    await hold.acquire("radio");
+    expect(sys.microphoneMuted).toBe(false);
+    sys.microphoneMuted = true;
+    sys.setMicrophoneMuted.mockClear();
+
+    await hold.release("radio");
+    expect(sys.setMicrophoneMuted).not.toHaveBeenCalled();
+    expect(sys.microphoneMuted).toBe(true);
+  });
+
+  test("under a moderator's lock the hold opens nothing and releases nothing", async () => {
+    const sys = fakeSys(true, true);
+    const hold = createMicHold(sys);
+
+    await hold.acquire("ptt", { restoreTo: "muted" });
+    expect(sys.microphoneMuted).toBe(true);
+    sys.setMicrophoneMuted.mockClear();
+    await hold.release("ptt");
+
+    expect(sys.setMicrophoneMuted).not.toHaveBeenCalled();
+    expect(hold.held).toBe(false);
   });
 });

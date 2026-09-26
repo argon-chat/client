@@ -29,17 +29,23 @@ const channels = pool.useActiveServerChannels(spaceId);
 
 const names = reactive(new Map<string, string>());
 
+// A speaker's name is looked up once, when they come on air; the rows below only read.
+watch(
+  () => voice.radio.onAir.map((s) => s.userId),
+  (userIds) => {
+    for (const userId of new Set(userIds)) {
+      if (names.has(userId)) continue;
+      void pool.getUser(userId).then((user) => {
+        if (user?.displayName) names.set(userId, user.displayName);
+      });
+    }
+  },
+  { immediate: true },
+);
+
 function speakerName(userId: string, hqChannelId: string | null): string {
-  if (hqChannelId) {
-    const live = pool.realtimeChannelUsers.get(hqChannelId)?.Users.get(userId)?.User.displayName;
-    if (live) return live;
-  }
-  const known = names.get(userId);
-  if (known) return known;
-  void pool.getUser(userId).then((user) => {
-    if (user?.displayName) names.set(userId, user.displayName);
-  });
-  return "…";
+  const live = hqChannelId ? pool.realtimeChannelUsers.get(hqChannelId)?.Users.get(userId)?.User.displayName : undefined;
+  return live || names.get(userId) || "…";
 }
 
 const rows = computed(() =>

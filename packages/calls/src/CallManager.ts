@@ -57,6 +57,7 @@ const JOIN_ERROR_INSUFFICIENT_PERMISSIONS = 2;
 
 /** BroadcastLinksError in the contract, by value, and what each means to the user. */
 const RADIO_LINKS_ERROR_NOT_IN_CHANNEL = 1;
+const RADIO_LINKS_ERROR_SFU_UNAVAILABLE = 5;
 const RADIO_LINKS_ERRORS: Record<number, RadioUnavailableReason> = {
   1: "not_in_channel",
   2: "not_a_broadcast_channel",
@@ -64,12 +65,15 @@ const RADIO_LINKS_ERRORS: Record<number, RadioUnavailableReason> = {
   4: "server_restricted",
   5: "sfu_unavailable",
 };
-/** Reasons the next trigger will not change on its own: the key just beeps, no "connecting" toast. */
+/** Reasons a key press cannot change: it just beeps, no "connecting" toast, no refetch. */
 const RADIO_TERMINAL_REASONS: ReadonlySet<RadioUnavailableReason> = new Set<RadioUnavailableReason>([
   "not_a_broadcast_channel",
   "insufficient_permissions",
   "server_restricted",
+  "not_in_channel",
 ]);
+/** `reconnected` and `needFullResync` can both fire for one outage: one resync covers them. */
+const RADIO_RESYNC_COALESCE_MS = 250;
 /** BroadcastOverlap.LOCK in the contract. */
 const RADIO_OVERLAP_LOCK = 1;
 /** A key-down this soon after a key-up is a bounce, not a new press. */
@@ -1287,8 +1291,11 @@ export function createCallManager(config: CallManagerConfig) {
     r.on("participantConnected", async (p: RemoteParticipant) => {
       logger.info(`[CALL] participantConnected event:`, p.identity);
       // A radio participant is not a person in this room: no tile, no lookup, no tone. Its audio
-      // is wired when its track arrives.
-      if (isRadioIdentity(p.identity)) return;
+      // is wired when its track arrives; its HQ's settings are fetched now, ahead of it.
+      if (isRadioIdentity(p.identity)) {
+        prefetchHqSettings(p.attributes?.[RADIO_ATTR.broadcast] || null);
+        return;
+      }
       await addParticipant(p);
       recomputeRadioBusy();
     });
@@ -2179,7 +2186,11 @@ export function createCallManager(config: CallManagerConfig) {
   let radioRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let radioBackoffStep = 0;
   let radioConfirmRetried = false;
+  // The channel we already re-Interlinked for after the roster lost us; once per join.
+  let radioRejoinedFor: string | null = null;
+  let radioRejoining = false;
   let radioEntitlementTimer: ReturnType<typeof setTimeout> | null = null;
+  let radioResyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   // The key, as the user holds it, versus the transmission, which outlives it by the release
   // delay and dies early on the max-transmit guard.
@@ -2207,8 +2218,12 @@ export function createCallManager(config: CallManagerConfig) {
     }
   }
 
-  /** Stop transmitting now: the key release, the guard, and every close come through here. */
-  function stopRadioTransmission() {
+  /**
+   * Stop transmitting now: the key release, the guard, and every close come through here.
+   * `roomGoing`: the call room is about to disconnect, so the on-air attribute dies with it and
+   * writing it would only wait out LiveKit's timeout.
+   */
+  function stopRadioTransmission(opts: { roomGoing?: boolean } = {}) {
     if (radioReleaseTimer) {
       clearTimeout(radioReleaseTimer);
       radioReleaseTimer = null;
@@ -2223,7 +2238,7 @@ export function createCallManager(config: CallManagerConfig) {
       radioSession.setTransmitting(false).catch((e) => logger.warn("[RADIO] mute failed", e));
     }
     void micHold.release("radio");
-    void setRadioOnAir(false);
+    if (!opts.roomGoing) void setRadioOnAir(false);
     if (radioTransmitStartedAt !== null) {
       telemetry.distribution("call.radio.transmit_ms", performance.now() - radioTransmitStartedAt, "millisecond");
       radioTransmitStartedAt = null;
@@ -2231,10 +2246,10 @@ export function createCallManager(config: CallManagerConfig) {
   }
 
   /** Mute, disconnect, forget the links; `reason` is what the UI shows in place of the key. */
-  function closeRadio(reason: RadioUnavailableReason | null) {
+  function closeRadio(reason: RadioUnavailableReason | null, opts: { roomGoing?: boolean } = {}) {
     radioFetchSeq++;
     clearRadioRetry();
-    stopRadioTransmission();
+    stopRadioTransmission(opts);
     radioKeyHeld = false;
     const session = radioSession;
     radioSession = null;
@@ -2248,13 +2263,19 @@ export function createCallManager(config: CallManagerConfig) {
 
   /** Everything radio, both sides, on leave(). */
   function resetRadio() {
-    closeRadio(null);
+    closeRadio(null, { roomGoing: true });
     if (radioEntitlementTimer) {
       clearTimeout(radioEntitlementTimer);
       radioEntitlementTimer = null;
     }
+    if (radioResyncTimer) {
+      clearTimeout(radioResyncTimer);
+      radioResyncTimer = null;
+    }
     radioBackoffStep = 0;
     radioConfirmRetried = false;
+    // A leave of our own making (the rejoin below) keeps the once-per-join guard.
+    if (!radioRejoining) radioRejoinedFor = null;
     for (const identity of [...radioGraphs.keys()]) releaseRadioGraph(identity);
     radioHqSettings.clear();
     radioHqLookups.clear();
@@ -2280,16 +2301,82 @@ export function createCallManager(config: CallManagerConfig) {
     return channel?.broadcast ?? null;
   }
 
+  /** The server said no for a reason no retry will change. */
   function radioLinksFailed(reason: RadioUnavailableReason, error: string) {
     telemetry.count("call.radio.links", { result: "failed", error });
     closeRadio(reason);
   }
 
+  /** Put the radio into "connecting" and fetch again after `delay`. */
+  function scheduleRadioFetch(delay: number, opts: FetchRadioOptions = {}) {
+    closeRadio("connecting");
+    radio.value.connecting = true;
+    radioRetryTimer = setTimeout(() => {
+      radioRetryTimer = null;
+      void fetchRadioLinks(opts);
+    }, delay);
+  }
+
   /**
-   * Ask for the links and connect. `broadcast` overrides what the host knows when the trigger
-   * itself carried the new settings (a ChannelModifiedV2 the host may not have applied yet).
+   * A transient failure — the SFU, the transport, a thrown call: try again after a growing
+   * delay, then give up with "error" until the next trigger or key press.
    */
-  async function fetchRadioLinks(broadcast?: BroadcastSettings | null) {
+  function radioRetryLater(error: string) {
+    telemetry.count("call.radio.links", { result: "failed", error });
+    const delay = RADIO_RECONNECT_BACKOFF_MS[radioBackoffStep];
+    if (delay === undefined) {
+      logger.warn("[RADIO] giving up until the next trigger");
+      closeRadio("error");
+      return;
+    }
+    radioBackoffStep++;
+    scheduleRadioFetch(delay);
+  }
+
+  /**
+   * The server does not see us in the channel: once a short wait (the roster is catching up),
+   * then one re-Interlink of HQ (a silo restart wiped the roster), then it stays that way.
+   */
+  function onRadioNotInChannel(spaceId: string, channelId: string) {
+    telemetry.count("call.radio.links", { result: "failed", error: "not_in_channel" });
+    if (!radioConfirmRetried) {
+      radioConfirmRetried = true;
+      scheduleRadioFetch(RADIO_CONFIRM_RETRY_MS);
+      return;
+    }
+    if (radioRejoinedFor !== channelId) {
+      radioRejoinedFor = channelId;
+      closeRadio("connecting");
+      radio.value.connecting = true;
+      void rejoinForRadio(spaceId, channelId);
+      return;
+    }
+    closeRadio("not_in_channel");
+  }
+
+  /** Leave and join HQ again; the join asks for the links on its own. */
+  async function rejoinForRadio(spaceId: string, channelId: string) {
+    logger.warn("[RADIO] not in the channel twice, rejoining HQ");
+    radioRejoining = true;
+    try {
+      await leave();
+      await joinChannel(channelId, spaceId, false);
+    } catch (e) {
+      logger.error("[RADIO] rejoin failed", e);
+    } finally {
+      radioRejoining = false;
+    }
+  }
+
+  interface FetchRadioOptions {
+    /** The channel's settings as the trigger carried them (a ChannelModifiedV2 the host may not have applied yet). */
+    broadcast?: BroadcastSettings | null;
+    /** Skip the local permission check and let the server decide (after an entitlement change the host's copy may lag). */
+    trustServer?: boolean;
+  }
+
+  /** Ask for the links and connect. */
+  async function fetchRadioLinks(opts: FetchRadioOptions = {}) {
     clearRadioRetry();
     const channelId = connectedVoiceChannelId.value;
     const spaceId = connectedVoiceSpaceId.value;
@@ -2302,13 +2389,13 @@ export function createCallManager(config: CallManagerConfig) {
       return;
     }
     const seq = ++radioFetchSeq;
-    const settings = broadcast === undefined ? await currentBroadcast(channelId) : broadcast;
+    const settings = opts.broadcast === undefined ? await currentBroadcast(channelId) : opts.broadcast;
     if (seq !== radioFetchSeq) return;
     if (!settings) {
       closeRadio(null);
       return;
     }
-    if (!canInChannel(channelId, "Broadcast", spaceId)) {
+    if (!opts.trustServer && !canInChannel(channelId, "Broadcast", spaceId)) {
       closeRadio("insufficient_permissions");
       return;
     }
@@ -2324,7 +2411,7 @@ export function createCallManager(config: CallManagerConfig) {
     } catch (e) {
       if (mySeq !== radioFetchSeq) return;
       logger.error("[RADIO] GetBroadcastLinks failed", e);
-      radioLinksFailed("error", errorName(e));
+      radioRetryLater(errorName(e));
       return;
     }
     if (mySeq !== radioFetchSeq) return;
@@ -2332,7 +2419,9 @@ export function createCallManager(config: CallManagerConfig) {
       const code = links.isFailedBroadcastLinks() ? Number(links.error) : -1;
       const reason = RADIO_LINKS_ERRORS[code] ?? "error";
       logger.warn("[RADIO] links refused", reason);
-      radioLinksFailed(reason, reason);
+      if (code === RADIO_LINKS_ERROR_NOT_IN_CHANNEL) onRadioNotInChannel(spaceId, channelId);
+      else if (code === RADIO_LINKS_ERROR_SFU_UNAVAILABLE) radioRetryLater(reason);
+      else radioLinksFailed(reason, reason);
       return;
     }
 
@@ -2340,7 +2429,7 @@ export function createCallManager(config: CallManagerConfig) {
     const session = new RadioSession(
       {
         createRoom: (options) => createRoom(options, "radio"),
-        connect: (r, rtc, token) => connectRoom(r, rtc, token, { connect: { autoSubscribe: false } }),
+        connect: (r, rtc, token) => connectRoom(r, rtc, token, { connect: { autoSubscribe: false }, tag: "[RADIO]" }),
         audioContext: () => audio.getCurrentAudioContext(),
         micSource: () => micSource,
         onReconnected: () => {
@@ -2358,8 +2447,9 @@ export function createCallManager(config: CallManagerConfig) {
       if (!connected || mySeq !== radioFetchSeq) return;
     } catch (e) {
       if (mySeq !== radioFetchSeq) return;
+      // A failed first connect never raises Disconnected, so the backoff has to start here.
       logger.error("[RADIO] connect failed", e);
-      radioLinksFailed("error", errorName(e));
+      radioRetryLater(errorName(e));
       return;
     }
     await confirmRadioLinks(mySeq, spaceId, channelId);
@@ -2373,7 +2463,7 @@ export function createCallManager(config: CallManagerConfig) {
     } catch (e) {
       if (seq !== radioFetchSeq) return;
       logger.error("[RADIO] ConfirmBroadcastLinks failed", e);
-      radioLinksFailed("error", errorName(e));
+      radioRetryLater(errorName(e));
       return;
     }
     if (seq !== radioFetchSeq) return;
@@ -2390,46 +2480,36 @@ export function createCallManager(config: CallManagerConfig) {
     }
     const code = res.isFailedConfirmBroadcastLinks() ? Number(res.error) : -1;
     const reason = RADIO_LINKS_ERRORS[code] ?? "error";
-    telemetry.count("call.radio.links", { result: "failed", error: reason });
-    // The roster lost us (a silo restart): one more try once the server has caught up.
-    if (code === RADIO_LINKS_ERROR_NOT_IN_CHANNEL && !radioConfirmRetried) {
-      radioConfirmRetried = true;
-      closeRadio(reason);
-      radio.value.connecting = true;
-      radioRetryTimer = setTimeout(() => {
-        radioRetryTimer = null;
-        void fetchRadioLinks();
-      }, RADIO_CONFIRM_RETRY_MS);
-      return;
-    }
-    closeRadio(reason);
+    if (code === RADIO_LINKS_ERROR_NOT_IN_CHANNEL) onRadioNotInChannel(spaceId, channelId);
+    else if (code === RADIO_LINKS_ERROR_SFU_UNAVAILABLE) radioRetryLater(reason);
+    else radioLinksFailed(reason, reason);
   }
 
-  /** The radio room dropped for good while we are still in HQ: reconnect with a short backoff. */
+  /**
+   * The radio room dropped while we are still in HQ. A removal by the server (the links revoked,
+   * the room gone, this identity joined elsewhere) is final until the next trigger; anything
+   * else is reconnected with a short backoff.
+   */
   function onRadioDisconnected(reason: DisconnectReason | undefined) {
     const why = reason === undefined ? "unknown" : (DisconnectReason[reason] ?? String(reason));
     logger.warn(`[RADIO] disconnected (${why})`);
-    const delay = RADIO_RECONNECT_BACKOFF_MS[radioBackoffStep];
-    closeRadio(delay === undefined ? "error" : "connecting");
-    if (delay === undefined) return;
-    radioBackoffStep++;
-    radio.value.connecting = true;
-    radioRetryTimer = setTimeout(() => {
-      radioRetryTimer = null;
-      void fetchRadioLinks();
-    }, delay);
+    if (reason !== undefined && SERVER_SIDE_REMOVALS.has(reason)) {
+      closeRadio("error");
+      return;
+    }
+    radioRetryLater(why);
   }
 
   /** A fresh attempt from a trigger: earlier retries are forgotten. */
-  async function refetchRadioLinks() {
+  async function refetchRadioLinks(opts: FetchRadioOptions = {}) {
     radioBackoffStep = 0;
     radioConfirmRetried = false;
-    await fetchRadioLinks();
+    await fetchRadioLinks(opts);
   }
 
   /** After a realtime resync: a working radio only needs its forward re-confirmed. */
   function resyncRadio() {
-    if (mode.value !== "channel") return;
+    if (mode.value !== "channel" || radio.value.connecting) return;
     const channelId = connectedVoiceChannelId.value;
     const spaceId = connectedVoiceSpaceId.value;
     if (radio.value.available && radioSession && channelId && spaceId) {
@@ -2437,6 +2517,14 @@ export function createCallManager(config: CallManagerConfig) {
       return;
     }
     void refetchRadioLinks();
+  }
+
+  function scheduleRadioResync() {
+    if (radioResyncTimer) return;
+    radioResyncTimer = setTimeout(() => {
+      radioResyncTimer = null;
+      resyncRadio();
+    }, RADIO_RESYNC_COALESCE_MS);
   }
 
   /** The channel's broadcast settings changed under us. */
@@ -2451,22 +2539,19 @@ export function createCallManager(config: CallManagerConfig) {
     }
     radioBackoffStep = 0;
     radioConfirmRetried = false;
-    void fetchRadioLinks(broadcast);
+    void fetchRadioLinks({ broadcast });
   }
 
-  /** My entitlements changed: the host refetches them first; then ask again or stand down. */
+  /**
+   * My entitlements changed. The host refetches its copy with a debounce and the answer can be
+   * slow, so the local check is not trusted here: the server is asked and refuses if it must.
+   */
   function onRadioEntitlementsChanged() {
     if (radioEntitlementTimer) clearTimeout(radioEntitlementTimer);
     radioEntitlementTimer = setTimeout(() => {
       radioEntitlementTimer = null;
       if (mode.value !== "channel") return;
-      const channelId = connectedVoiceChannelId.value;
-      const allowed = channelId ? canInChannel(channelId, "Broadcast", connectedVoiceSpaceId.value) : false;
-      if (!allowed) {
-        if (radio.value.available || radio.value.connecting) closeRadio("insufficient_permissions");
-        return;
-      }
-      if (!radio.value.available) void refetchRadioLinks();
+      void refetchRadioLinks({ trustServer: true });
     }, RADIO_ENTITLEMENT_SETTLE_MS);
   }
 
@@ -2488,18 +2573,26 @@ export function createCallManager(config: CallManagerConfig) {
   function radioKeyDown() {
     if (radioKeyHeld) return;
     if (mode.value !== "channel" || !isConnected.value) return;
-    if (Date.now() - radioLastKeyUpAt < RADIO_KEY_DEBOUNCE_MS) return;
-    // Pressed again inside the release delay: the transmission simply goes on.
+    // Pressed again inside the release delay: the transmission simply goes on. Never a bounce.
     if (radioReleaseTimer && radio.value.transmitting) {
       clearTimeout(radioReleaseTimer);
       radioReleaseTimer = null;
       radioKeyHeld = true;
       return;
     }
+    if (Date.now() - radioLastKeyUpAt < RADIO_KEY_DEBOUNCE_MS) return;
     const s = radio.value;
     if (!s.available || !radioSession) {
       tone.playRadioError();
-      if (!s.unavailableReason || !RADIO_TERMINAL_REASONS.has(s.unavailableReason)) notify({ kind: "radio_connecting" });
+      if (s.connecting) {
+        notify({ kind: "radio_connecting" });
+        return;
+      }
+      // Nothing to connect (a plain channel), or a reason no retry changes: the beep is all.
+      if (s.unavailableReason === null || RADIO_TERMINAL_REASONS.has(s.unavailableReason)) return;
+      // A radio that gave up (backoff exhausted, revoked): the press is the next trigger.
+      notify({ kind: "radio_connecting" });
+      void refetchRadioLinks();
       return;
     }
     if (Number(s.settings?.overlap) === RADIO_OVERLAP_LOCK && s.busyBy) {
@@ -2547,23 +2640,41 @@ export function createCallManager(config: CallManagerConfig) {
 
   // ── Radio, listener side ──
 
-  /** What we know of an HQ channel's settings; kicks off a lookup when nothing is known yet. */
+  /**
+   * Fetch an HQ channel's settings from the pool when the realtime store has no copy. Started
+   * as soon as a broadcaster appears, so they are in by the first transmission.
+   */
+  function prefetchHqSettings(hqChannelId: string | null) {
+    if (!hqChannelId || !pool.getChannel) return;
+    if (realtimeStore.getRealtimeChannel(hqChannelId)) return;
+    if (radioHqSettings.has(hqChannelId) || radioHqLookups.has(hqChannelId)) return;
+    radioHqLookups.add(hqChannelId);
+    pool.getChannel(hqChannelId)
+      .then((channel) => {
+        if (!radioHqSettings.has(hqChannelId)) radioHqSettings.set(hqChannelId, channel?.broadcast ?? null);
+        updateRadioDucking();
+      })
+      .catch(() => radioHqSettings.set(hqChannelId, null))
+      .finally(() => radioHqLookups.delete(hqChannelId));
+  }
+
+  /** What we know of an HQ channel's settings; undefined while the lookup is still out. */
   function knownHqSettings(hqChannelId: string | null): BroadcastSettings | null | undefined {
     if (!hqChannelId) return null;
     const rt = realtimeStore.getRealtimeChannel(hqChannelId);
     if (rt) return rt.Channel.broadcast ?? null;
     if (radioHqSettings.has(hqChannelId)) return radioHqSettings.get(hqChannelId);
-    if (!radioHqLookups.has(hqChannelId) && pool.getChannel) {
-      radioHqLookups.add(hqChannelId);
-      pool.getChannel(hqChannelId)
-        .then((channel) => {
-          radioHqSettings.set(hqChannelId, channel?.broadcast ?? null);
-          updateRadioDucking();
-        })
-        .catch(() => radioHqSettings.set(hqChannelId, null))
-        .finally(() => radioHqLookups.delete(hqChannelId));
-    }
+    prefetchHqSettings(hqChannelId);
     return undefined;
+  }
+
+  /** An HQ channel we listen to changed: drop the cached copy, take the patch when it has one. */
+  function onHqChannelModified(channelId: string, patch: { broadcast?: BroadcastSettings | null } | null | undefined) {
+    if (!radioHqSettings.has(channelId) && !radioHqLookups.has(channelId)) return;
+    radioHqSettings.delete(channelId);
+    if (patch && "broadcast" in patch && patch.broadcast !== undefined) radioHqSettings.set(channelId, patch.broadcast);
+    else prefetchHqSettings(channelId);
+    updateRadioDucking();
   }
 
   /** Duck the voice bus under whoever is on air; the deepest setting wins when there are several. */
@@ -2615,6 +2726,7 @@ export function createCallManager(config: CallManagerConfig) {
   /** A forwarded broadcaster's audio: on the master, so the ducking never touches it. */
   function setupRadioGraph(identity: string, track: RemoteTrack, participant: RemoteParticipant) {
     if (radioGraphs.has(identity)) return;
+    prefetchHqSettings(participant.attributes?.[RADIO_ATTR.broadcast] || null);
     const deafened = sys.headphoneMuted;
     const graph = audio.createRemoteAudioGraph({
       track: (track as any).mediaStreamTrack,
@@ -2679,14 +2791,18 @@ export function createCallManager(config: CallManagerConfig) {
     }),
 
     bus.onServerEvent<ChannelModifiedV2>("ChannelModifiedV2", (ev) => {
-      if (mode.value !== "channel" || String(ev.channelId) !== connectedVoiceChannelId.value) return;
+      if (mode.value !== "channel") return;
+      const channelId = String(ev.channelId);
       const patch = ev.patch as { broadcast?: BroadcastSettings | null } | null | undefined;
+      // An HQ we listen to (listener side), or our own channel (broadcaster side).
+      onHqChannelModified(channelId, patch);
+      if (channelId !== connectedVoiceChannelId.value) return;
       if (!patch || !("broadcast" in patch) || patch.broadcast === undefined) return;
       onRadioBroadcastChanged(patch.broadcast);
     }),
 
-    bus.onReconnected?.(() => resyncRadio()) ?? { unsubscribe() {} },
-    bus.onFullResync?.(() => resyncRadio()) ?? { unsubscribe() {} },
+    bus.onReconnected?.(() => scheduleRadioResync()) ?? { unsubscribe() {} },
+    bus.onFullResync?.(() => scheduleRadioResync()) ?? { unsubscribe() {} },
   ];
 
   const stopSharingWatch = watch(isSharing, () => scheduleVoiceStateReport());

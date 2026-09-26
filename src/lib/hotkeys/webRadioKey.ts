@@ -32,13 +32,14 @@ export function initWebRadioKey(): () => void {
 
   const hotkeys = useHotkeys();
   const call = useUnifiedCall();
-  let down = false;
+  // The code that went down, so a key rebound while held still releases on that key's key-up.
+  let heldCode: string | null = null;
 
   const keyOf = () => hotkeys.options.radioWebKey || "Backquote";
 
   const release = () => {
-    if (!down) return;
-    down = false;
+    if (heldCode === null) return;
+    heldCode = null;
     call.radioKeyUp();
   };
 
@@ -47,14 +48,14 @@ export function initWebRadioKey(): () => void {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (isTypingTarget(e.target)) return;
     e.preventDefault();
-    if (down) return;
-    down = true;
+    if (heldCode !== null) return;
+    heldCode = e.code;
     call.radioKeyDown();
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
-    if (e.code !== keyOf()) return;
-    if (down) e.preventDefault();
+    if (e.code !== (heldCode ?? keyOf())) return;
+    if (heldCode !== null) e.preventDefault();
     release();
   };
 

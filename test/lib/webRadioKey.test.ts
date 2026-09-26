@@ -92,6 +92,24 @@ describe("the web radio key", () => {
     expect(deps.call.radioKeyDown).toHaveBeenCalledTimes(1);
   });
 
+  test("a key rebound while held still releases on the old key's key-up, or on blur", () => {
+    uninstall = initWebRadioKey();
+
+    key("keydown", "Backquote");
+    deps.radioWebKey = "KeyV";
+    key("keyup", "KeyV");
+    expect(deps.call.radioKeyUp).not.toHaveBeenCalled();
+    key("keyup", "Backquote");
+    expect(deps.call.radioKeyUp).toHaveBeenCalledTimes(1);
+
+    deps.radioWebKey = "Backquote";
+    key("keydown", "Backquote");
+    deps.radioWebKey = "KeyV";
+    window.dispatchEvent(new Event("blur"));
+    expect(deps.call.radioKeyUp).toHaveBeenCalledTimes(2);
+    expect(deps.call.radioKeyDown).toHaveBeenCalledTimes(2);
+  });
+
   test("the desktop build, with global hotkeys, installs nothing", () => {
     deps.globalHotkeys = true;
     uninstall = initWebRadioKey();
