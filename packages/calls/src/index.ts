@@ -1,6 +1,7 @@
 // @argon/calls - WebRTC call management with LiveKit
 
 export { createCallManager, type CallManager } from "./CallManager";
+export { parseVoiceRoomName, type VoiceRoomName } from "./roomName";
 export { parseRtcStats, type ParsedRtcStats } from "./rtcStats";
 export { createMicHold, type MicHold, type MicHoldOptions } from "./micHold";
 export { connectRoom, probeTurn, type ConnectRoomOptions, type TurnProbeSummary } from "./connectRoom";

@@ -13,6 +13,7 @@ const MOVE_ERROR_KEYS: Record<MoveVoiceMemberError, string> = {
   [MoveVoiceMemberError.TARGET_IS_NOT_VOICE]: "voice_move_error_target_is_not_voice",
   [MoveVoiceMemberError.SAME_CHANNEL]: "voice_move_error_same_channel",
   [MoveVoiceMemberError.MEMBER_CANNOT_JOIN_TARGET]: "voice_move_error_member_cannot_join_target",
+  [MoveVoiceMemberError.SFU_UNAVAILABLE]: "voice_move_error_sfu_unavailable",
 };
 
 const MODERATION_ERROR_KEYS: Record<VoiceModerationError, string> = {

@@ -79,8 +79,10 @@
       :new-messages-count="newMessagesCount"
       :can-react="canReact"
       :can-reply="canReply"
+      :can-edit="canEdit"
       :toggle-reaction="toggleReaction"
       @select-reply="(m) => emit('select-reply', m)"
+      @select-edit="(m) => emit('select-edit', m)"
       @retry="retryMessage"
       @near-top="onNearTop"
       @scroll-state="onScrollState"
@@ -103,6 +105,7 @@ import { useNotificationStore } from "@/store/data/notificationStore";
 import { useChatMessages } from "@/composables/useChatMessages";
 import { useMessageReactions } from "@/composables/useMessageReactions";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
+import { useMe } from "@/store/auth/meStore";
 
 // ── Stores ──
 
@@ -119,9 +122,16 @@ const props = withDefaults(defineProps<{
   typingUsers?: { displayName: string }[];
   /** False in a channel the user cannot send in: reply actions are hidden. */
   canReply?: boolean;
-}>(), { canReply: true });
+  /** Own messages can be edited (the composer does the editing). */
+  canEdit?: boolean;
+}>(), { canReply: true, canEdit: false });
 
-const emit = defineEmits<(e: "select-reply", message: ArgonMessage) => void>();
+const emit = defineEmits<{
+  (e: "select-reply", message: ArgonMessage): void;
+  (e: "select-edit", message: ArgonMessage): void;
+}>();
+
+const me = useMe();
 
 // ── Mute UI ──
 
@@ -156,7 +166,7 @@ const {
   newMessagesCount, isScrolledUp,
   loadOlderMessages, loadInitialMessages, subscribeToNewMessages,
   getMessageById, addOptimisticMessage, resolveOptimisticMessage,
-  markOptimisticFailed, retryMessage,
+  markOptimisticFailed, retryMessage, applyServerMessage,
   cleanup: cleanupMessages,
 } = useChatMessages(() => props.channelId, () => props.spaceId);
 
@@ -206,7 +216,20 @@ function onResetUnread() {
 
 // ── Expose for parent ──
 
-defineExpose({ addOptimisticMessage, resolveOptimisticMessage, markOptimisticFailed, scrollToBottomImmediate });
+/** The newest message the user sent that is on the server, for "arrow up edits the last one". */
+function lastOwnMessage(): ArgonMessage | null {
+  const myId = me.me?.userId;
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const m = messages.value[i];
+    if (m.sender === myId && !m._optimistic && !m._failed) return m;
+  }
+  return null;
+}
+
+defineExpose({
+  addOptimisticMessage, resolveOptimisticMessage, markOptimisticFailed, scrollToBottomImmediate,
+  applyServerMessage, lastOwnMessage,
+});
 
 // ── Channel lifecycle ──
 

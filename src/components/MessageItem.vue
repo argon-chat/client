@@ -143,6 +143,7 @@
                     :text="seg.text"
                     @unsupported="isUnsupported = true"
                   />
+                  <EditedMark v-if="isEdited" :title="formattedEditedTime" />
                 </div>
               </div>
 
@@ -199,6 +200,7 @@
                       :text="seg.text"
                       @unsupported="isUnsupported = true"
                     />
+                    <EditedMark v-if="isEdited" :title="formattedEditedTime" />
                     <span
                       v-if="isGrouped"
                       class="float-right text-[11px] text-muted-foreground/50 ml-2 mt-1 leading-none select-none tabular-nums"
@@ -290,6 +292,7 @@
                 </Popover>
                 <ActionBtn @click="copyText" :title="t('copy')"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
                 <ActionBtn v-if="canReply" @click="emit('reply', props.message)" :title="t('reply')"><ReplyIcon class="w-3.5 h-3.5" /></ActionBtn>
+                <ActionBtn v-if="canEditThis" @click="emit('edit', props.message)" :title="t('edit_message')"><PencilIcon class="w-3.5 h-3.5" /></ActionBtn>
               </div>
             </Transition>
           </Teleport>
@@ -313,6 +316,10 @@
             <ContextMenuItem v-if="canReply" @select="emit('reply', props.message)">
               <ReplyIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('reply') }}
+            </ContextMenuItem>
+            <ContextMenuItem v-if="canEditThis" @select="emit('edit', props.message)">
+              <PencilIcon class="w-4 h-4 mr-2 opacity-60" />
+              {{ t('edit_message') }}
             </ContextMenuItem>
             <ContextMenuItem @select="copyText">
               <CopyIcon class="w-4 h-4 mr-2 opacity-60" />
@@ -364,6 +371,7 @@ const ActionBtn = defineComponent({
 });
 
 export { ActionBtn };
+
 
 // ── Shared singleton: timestamp format preference ──
 // Lives in this plain <script> block on purpose: module scope, one observer for every message.
@@ -425,7 +433,7 @@ import {
 } from "@argon/ui/context-menu";
 import {
   CopyIcon, ReplyIcon, AlertCircleIcon,
-  Loader2Icon, SmilePlusIcon, FlagIcon,
+  Loader2Icon, SmilePlusIcon, FlagIcon, PencilIcon,
 } from "lucide-vue-next";
 import { useDateFormat } from "@vueuse/core";
 
@@ -467,6 +475,21 @@ const ReplyPreview = defineComponent({
   },
 });
 
+/** "(edited)" after the text; the title says when. */
+const EditedMark = defineComponent({
+  name: "EditedMark",
+  props: { title: { type: String, default: "" } },
+  setup(props) {
+    const { t } = useLocale();
+    return () =>
+      h(
+        "span",
+        { class: "ml-1 text-[11px] text-muted-foreground/60 select-none whitespace-nowrap", title: props.title },
+        t("message_edited"),
+      );
+  },
+});
+
 // ── Props / Emits ──
 
 const { t } = useLocale();
@@ -486,10 +509,13 @@ const props = withDefaults(defineProps<{
   /** False where the user cannot send (a reply would have nowhere to go). */
   canReply?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
-}>(), { canReply: true });
+  /** Channels only: the author may edit their own message. */
+  canEdit?: boolean;
+}>(), { canReply: true, canEdit: false });
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
+  (e: "edit", message: ArgonMessage): void;
   (e: "retry", message: ArgonMessage): void;
   (e: "scroll-to-message", messageId: bigint): void;
   (e: "open-lightbox", images: MessageEntityAttachment[], index: number, timeSent: Date | null): void;
@@ -689,6 +715,8 @@ const isFailed = computed(() => props.message._failed === true);
 const failedError = computed(() => props.message._error);
 const hasControls = computed(() => (props.message.controls ?? []).length > 0);
 const hasReactions = computed(() => (props.message.reactions ?? []).length > 0);
+const isEdited = computed(() => !!props.message.editedAt);
+const canEditThis = computed(() => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value);
 
 // ── Bubble look (tail bubbles) ──
 // Soft corners away from the avatar; a small "tail" corner on the avatar side.
@@ -746,6 +774,10 @@ const formattedTime = computed(() => {
 });
 
 const formattedFullTime = useDateFormat(props.message.timeSent.toDate(), "YYYY-MM-DD HH:mm:ss");
+const formattedEditedTime = computed(() => {
+  const at = props.message.editedAt?.toDate();
+  return at ? `${t("message_edited_at")} ${at.toLocaleString()}` : "";
+});
 
 // ── Actions ──
 

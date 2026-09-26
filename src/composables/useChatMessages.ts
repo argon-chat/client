@@ -275,13 +275,7 @@ export function useChatMessages(
     // send): replace it whole, as the event carries it whole.
     updateSubs.value = pool.onMessageUpdated.subscribe(async (e) => {
       if (chId !== e.channelId) return;
-      const idx = messages.value.findIndex((m) => m.messageId === e.messageId);
-      if (idx !== -1) {
-        const prev = messages.value[idx];
-        messages.value[idx] = { ...e, _rev: (prev._rev ?? 0) + 1 };
-        triggerRef(messages);
-      }
-      await pool.cacheMessage(e);
+      await applyServerMessage(e);
     });
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
@@ -514,6 +508,17 @@ export function useChatMessages(
     messageIdSet.clear();
   };
 
+  /** Swaps in the server's copy of a message already in the list (MessageUpdated, or an edit's answer). */
+  async function applyServerMessage(e: ArgonMessage) {
+    const idx = messages.value.findIndex((m) => m.messageId === e.messageId);
+    if (idx !== -1) {
+      const prev = messages.value[idx];
+      messages.value[idx] = { ...e, _rev: (prev._rev ?? 0) + 1 };
+      triggerRef(messages);
+    }
+    await pool.cacheMessage(e);
+  }
+
   return {
     messages,
     hasReachedEnd,
@@ -530,6 +535,7 @@ export function useChatMessages(
     removeOptimisticMessage,
     markOptimisticFailed,
     retryMessage,
+    applyServerMessage,
     cleanup,
   };
 }

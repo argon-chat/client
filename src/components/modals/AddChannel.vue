@@ -82,6 +82,9 @@
             </div>
           </button>
         </div>
+        <p v-if="channelType === 'Announcement'" class="mt-3 text-xs text-muted-foreground leading-relaxed">
+          {{ t("channel_type_announcement_hint") }}
+        </p>
       </div>
       
       <div class="relative pt-2">

@@ -29,9 +29,13 @@
               @dismiss="linkPreview.dismiss"
             />
 
+            <p v-if="massMentionHint" class="px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground" data-testid="mass-mention-hint">
+                {{ t('announcement_everyone_limit') }}
+            </p>
+
             <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
                 <!-- Attach file button -->
-                <button v-if="!captionMode && canAttachFiles" class="icon-motion icon-motion--lift flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
+                <button v-if="!captionMode && canAttachFiles && !editing" class="icon-motion icon-motion--lift flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
                 </button>
                 <input
@@ -93,7 +97,7 @@
                       v-if="hasContent"
                       class="icon-motion icon-motion--nudge flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       @click="captionMode ? $emit('submit') : handleSend()"
-                      :title="t('send')"
+                      :title="editing ? t('save') : t('send')"
                     >
                         <SendHorizonalIcon class="w-5 h-5" />
                     </button>
@@ -123,16 +127,19 @@
           enter-from-class="opacity-0 translate-y-1.5"
           leave-to-class="opacity-0 translate-y-1.5"
         >
-        <ul v-if="mention.show && mention.candidates.length"
+        <ul v-if="mention.show && mentionItems.length"
             class="absolute bottom-full left-0 right-0 max-w-[min(100%,340px)] max-h-[200px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 list-none p-1 m-0">
-            <li v-for="(user, i) in mention.candidates" :key="user.id"
+            <li v-for="(user, i) in mentionItems" :key="user.id"
                 :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === mention.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
                 @mousedown.prevent="selectMention(user)"
                 @mouseenter="mention.index = i">
-                <ArgonAvatar :user-id="user.id" :overrided-size="28" class="shrink-0 rounded-full" />
+                <div v-if="user.id === EVERYONE_ID" class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-muted text-primary">
+                    <UsersIcon class="w-4 h-4" />
+                </div>
+                <ArgonAvatar v-else :user-id="user.id" :overrided-size="28" class="shrink-0 rounded-full" />
                 <div class="flex items-baseline gap-1.5 min-w-0 overflow-hidden">
                     <span class="font-medium text-[13px] truncate">{{ user.displayName }}</span>
-                    <span :class="['text-xs truncate', i === mention.index ? 'text-primary-foreground/70' : 'text-muted-foreground']">@{{ user.username }}</span>
+                    <span :class="['text-xs truncate', i === mention.index ? 'text-primary-foreground/70' : 'text-muted-foreground']">{{ user.id === EVERYONE_ID ? t('mention_everyone_hint') : '@' + user.username }}</span>
                 </div>
             </li>
         </ul>
@@ -312,7 +319,7 @@ import CapitalizedSegment from "./CapitalizedSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import UnderlineSegment from "./UnderlineSegment.vue";
-import { SendHorizonalIcon, SmileIcon, PaperclipIcon } from "lucide-vue-next";
+import { SendHorizonalIcon, SmileIcon, PaperclipIcon, UsersIcon } from "lucide-vue-next";
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
@@ -336,7 +343,9 @@ import { storeToRefs } from "pinia";
 import GifPicker from "./GifPicker.vue";
 import LinkPreviewBar from "./LinkPreviewBar.vue";
 import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
-import { parseMessageContent as parseMessage, type ParsedMessage } from "@/lib/chat/parseMessageContent";
+import { parseMessageContent as parseMessage, serializeMessageContent, type ParsedMessage } from "@/lib/chat/parseMessageContent";
+import { useToast } from "@argon/ui/toast";
+import { EditMessageError } from "@argon/glue";
 import { sendLinkPreviews } from "@/lib/linkPreview/settings";
 const { t } = useLocale();
 
@@ -386,6 +395,7 @@ const handleGifSelect = (gif: GifItem) => {
     sender: me.me!.userId,
     reactions: [],
     controls: [],
+    editedAt: null,
   } as ArgonMessage;
 
   emit("add-optimistic", optimisticMsg, randomId);
@@ -433,6 +443,7 @@ const handleSavedGifSelect = (gif: SavedGif) => {
     sender: me.me!.userId,
     reactions: [],
     controls: [],
+    editedAt: null,
   } as ArgonMessage;
 
   emit("add-optimistic", optimisticMsg, randomId);
@@ -574,6 +585,10 @@ const props = defineProps<{
   /** Set for a direct chat: the message goes to this person instead of a channel. */
   receiverId?: Guid;
   captionMode?: boolean;
+  /** A sent message of the user's own being edited in this composer, or null. Channels only. */
+  editing?: ArgonMessage | null;
+  /** An announcement channel: say what @everyone costs here. */
+  announcement?: boolean;
 }>();
 
 // ── Where the message goes ──
@@ -590,6 +605,7 @@ const allowsHere = (flag: ArgonEntitlementFlag) =>
 const canSendMessages = computed(() => allowsHere("SendMessages"));
 const canAttachFiles = computed(() => allowsHere("AttachFiles"));
 const canUseCommands = computed(() => !isDm.value && allowsHere("UseCommands"));
+const canMentionEveryone = computed(() => !isDm.value && allowsHere("MentionEveryone"));
 
 /** The id the message is filed under: the channel, or the peer in a direct chat. */
 function resolveTargetId(): Guid | null {
@@ -637,6 +653,9 @@ const emit = defineEmits<{
   (e: "resolve-optimistic", randomId: bigint, readback: { messageId: bigint; channelId: Guid; spaceId: Guid }): void;
   (e: "mark-optimistic-failed", randomId: bigint, error: string): void;
   (e: "submit"): void;
+  (e: "cancel-edit"): void;
+  (e: "edit-last"): void;
+  (e: "edited", message: ArgonMessage): void;
 }>();
 
 // ── Link preview of the draft ──
@@ -645,11 +664,13 @@ const emit = defineEmits<{
 const canEmbedLinks = computed(() => allowsHere("PostEmbeddedLinks"));
 const linkPreview = useLinkPreviewDraft({
   text: () => messageText.value,
-  enabled: () => !props.captionMode && canEmbedLinks.value && sendLinkPreviews.value,
+  enabled: () => !props.captionMode && !props.editing && canEmbedLinks.value && sendLinkPreviews.value,
 });
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === "Escape" && props.replyTo) {
+  if (e.key === "Escape" && props.editing) {
+    emit("cancel-edit");
+  } else if (e.key === "Escape" && props.replyTo) {
     emit("clear-reply");
   }
 };
@@ -729,7 +750,7 @@ function onModelValueUpdate(val: string) {
 function onEditorInput() {
   const now = Date.now();
 
-  if (now - lastTypingSent > 3000) {
+  if (!props.editing && now - lastTypingSent > 3000) {
     emit("typing");
     lastTypingSent = now;
   }
@@ -867,7 +888,15 @@ async function onEditorKeydown(e: KeyboardEvent) {
     lastReplacement = null;
   }
 
+  // Nothing to pick from: the keys belong to the composer.
+  if (mention.show && !mentionItems.value.length) mention.show = false;
+
   if (!mention.show && !slashCmd.show) {
+    if (e.key === "ArrowUp" && !messageText.value && !props.editing && !props.captionMode && !isDm.value) {
+      e.preventDefault();
+      emit("edit-last");
+      return;
+    }
     if (e.shiftKey || e.altKey || e.ctrlKey) return;
     if (e.altKey) return;
     if (e.key !== "Enter") return;
@@ -897,17 +926,16 @@ async function onEditorKeydown(e: KeyboardEvent) {
     return;
   }
 
+  const items = mentionItems.value;
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    mention.index = (mention.index + 1) % mention.candidates.length;
+    mention.index = (mention.index + 1) % items.length;
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
-    mention.index =
-      (mention.index - 1 + mention.candidates.length) %
-      mention.candidates.length;
+    mention.index = (mention.index - 1 + items.length) % items.length;
   } else if (e.key === "Enter") {
     e.preventDefault();
-    selectMention(mention.candidates[mention.index]);
+    selectMention(items[mention.index]);
   } else if (e.key === "Escape") {
     mention.show = false;
   }
@@ -919,15 +947,16 @@ function selectMention(user: MentionUser) {
   const cursorPos = editorRef.value.getCursorOffset();
   const text = messageText.value;
   
-  // Replace @query with @displayName
-  const mentionText = `@${user.displayName}`;
+  // Replace @query with @displayName; @everyone is found by the parser, not the registry.
+  const isEveryone = user.id === EVERYONE_ID;
+  const mentionText = isEveryone ? "@everyone" : `@${user.displayName}`;
   const beforeMention = text.slice(0, mention.startOffset);
   const afterCursor = text.slice(cursorPos);
   
   messageText.value = beforeMention + mentionText + " " + afterCursor;
   
   // Register mention for post-parsing
-  mentionRegistry.set(mentionText, user.id);
+  if (!isEveryone) mentionRegistry.set(mentionText, user.id);
 
   // Set cursor position after mention
   nextTick(() => {
@@ -1009,7 +1038,95 @@ const onEmojixSelect = (selection: EmojiSelection) => {
 
 /** What the composer would send right now: the typed text, markers turned into entities. */
 function parseMessageContent(): ParsedMessage {
-  return parseMessage(messageText.value, mentionRegistry);
+  return parseMessage(messageText.value, mentionRegistry, { everyone: canMentionEveryone.value });
+}
+
+// ── @everyone ──
+
+const EVERYONE_ID = "@everyone";
+
+/** The people found for the typed @query, with @everyone first for those who may ping it. */
+const mentionItems = computed<MentionUser[]>(() => {
+  const offerEveryone = canMentionEveryone.value && "everyone".startsWith(mention.query.toLowerCase());
+  return offerEveryone
+    ? [{ id: EVERYONE_ID, displayName: "@everyone", username: "everyone" }, ...mention.candidates]
+    : mention.candidates;
+});
+
+const massMentionHint = computed(
+  () => !!props.announcement && canMentionEveryone.value && /(?<![\w@])@everyone(?!\w)/.test(messageText.value),
+);
+
+// ── Editing a sent message ──
+// The composer holds the message as it was typed: markers and mentions go back in, and the same
+// parser that sends turns it into text and entities again. Files and link cards stay as they are.
+
+const { toast } = useToast();
+let editBaseline = "";
+/** What the user was typing before the edit took the composer; it comes back afterwards. */
+let draftBeforeEdit: { text: string; mentions: Map<string, string> } | null = null;
+
+watch(
+  () => props.editing,
+  (message, previous) => {
+    if (message) {
+      if (!previous) draftBeforeEdit = { text: messageText.value, mentions: new Map(mentionRegistry) };
+      const { raw, mentions } = serializeMessageContent(message.text, message.entities ?? []);
+      mentionRegistry.clear();
+      for (const [text, userId] of mentions) mentionRegistry.set(text, userId);
+      editBaseline = raw;
+      messageText.value = raw;
+      graphemeCount.value = countGraphemes(raw);
+      nextTick(() => {
+        editorRef.value?.focus();
+        editorRef.value?.setCursorOffset(raw.length);
+      });
+    } else if (previous) {
+      const draft = draftBeforeEdit;
+      draftBeforeEdit = null;
+      editBaseline = "";
+      editorRef.value?.clear();
+      mentionRegistry.clear();
+      for (const [text, userId] of draft?.mentions ?? []) mentionRegistry.set(text, userId);
+      messageText.value = draft?.text ?? "";
+      graphemeCount.value = countGraphemes(messageText.value);
+    }
+  },
+);
+
+const EDIT_ERROR_KEYS: Partial<Record<EditMessageError, string>> = {
+  [EditMessageError.MESSAGE_NOT_FOUND]: "edit_error_not_found",
+  [EditMessageError.NOT_AUTHOR]: "edit_error_not_author",
+  [EditMessageError.EMPTY_MESSAGE]: "edit_error_empty",
+  [EditMessageError.MESSAGE_TOO_LONG]: "edit_error_too_long",
+};
+
+async function submitEdit(message: ArgonMessage) {
+  if (messageText.value === editBaseline) {
+    emit("cancel-edit");
+    return;
+  }
+
+  const { text, entities } = parseMessageContent();
+  const hasFiles = (message.entities ?? []).some((e) => e.type === EntityType.Attachment || e.type === EntityType.Gif);
+  if (!text && !hasFiles) {
+    triggerShake();
+    return;
+  }
+
+  try {
+    const result = await api.channelInteraction.EditMessage(message.spaceId, message.channelId, message.messageId, text, entities);
+    if (result.isSuccessEditMessage()) {
+      emit("edited", result.message);
+      emit("cancel-edit");
+      return;
+    }
+    const error = result.isFailedEditMessage() ? result.error : EditMessageError.NONE;
+    toast({ title: t("edit_failed"), description: t(EDIT_ERROR_KEYS[error] ?? "edit_error_unknown"), variant: "destructive" });
+  } catch (e) {
+    logger.error("Failed to edit message:", e);
+    toast({ title: t("edit_failed"), description: t("edit_error_unknown"), variant: "destructive" });
+  }
 }
 
 // --- Attachment handlers ---
@@ -1032,7 +1149,7 @@ async function onFileInputChange(e: Event) {
 }
 
 function onDragOver() {
-  if (canAttachFiles.value) isDragging.value = true;
+  if (canAttachFiles.value && !props.editing) isDragging.value = true;
 }
 
 function onDragLeave() {
@@ -1041,7 +1158,7 @@ function onDragLeave() {
 
 async function onDrop(e: DragEvent) {
   isDragging.value = false;
-  if (e.dataTransfer?.files?.length && canAttachFiles.value) {
+  if (e.dataTransfer?.files?.length && canAttachFiles.value && !props.editing) {
     const errors = await attachments.addFiles(e.dataTransfer.files);
     for (const err of errors) logger.warn(err);
     if (attachments.hasFiles.value) {
@@ -1058,7 +1175,7 @@ async function onPaste(e: ClipboardEvent) {
   const types = e.clipboardData?.types ?? [];
   if (!types.includes("Files") || types.includes("text/plain")) return;
   // Without AttachFiles a pasted image goes nowhere; let the paste fall through to the editor.
-  if (!canAttachFiles.value) return;
+  if (!canAttachFiles.value || props.editing) return;
   const files = e.clipboardData?.files;
   if (files?.length) {
     e.preventDefault();
@@ -1154,6 +1271,10 @@ async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
 // --- Send handler ---
 
 const handleSend = async (captionContent?: { text: string; entities: IMessageEntity[] }) => {
+  if (props.editing && !captionContent) {
+    await submitEdit(props.editing);
+    return;
+  }
   if (!canSendMessages.value) return;
   const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) {
@@ -1293,7 +1414,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 };
 
 async function handleExternalFiles(files: FileList) {
-  if (!canAttachFiles.value) return;
+  if (!canAttachFiles.value || props.editing) return;
   const errors = await attachments.addFiles(files);
   for (const err of errors) logger.warn(err);
   if (attachments.hasFiles.value) {

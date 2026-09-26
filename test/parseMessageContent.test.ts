@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EntityType } from "@argon/glue";
-import { parseMessageContent } from "@/lib/chat/parseMessageContent";
+import { parseMessageContent, serializeMessageContent } from "@/lib/chat/parseMessageContent";
 
 /** Compact view of an entity list: [type, offset, length]. */
 const shape = (text: string) =>
@@ -79,5 +79,69 @@ describe("parseMessageContent", () => {
     const parsed = parseMessageContent("hey @yuuki look", new Map([["@yuuki", "u-1"]]));
     expect(parsed.entities).toHaveLength(1);
     expect(parsed.entities[0]).toMatchObject({ type: EntityType.Mention, offset: 4, length: 6, userId: "u-1" });
+  });
+});
+
+describe("@everyone", () => {
+  const types = (raw: string, everyone: boolean) =>
+    parseMessageContent(raw, new Map(), { everyone }).entities.map((e) => [e.type, e.offset, e.length] as const);
+
+  it("is a mention of everyone only for a sender who may use it", () => {
+    expect(types("@everyone raid at 20:00", true)).toEqual([[EntityType.MentionEveryone, 0, 9]]);
+    expect(types("@everyone raid at 20:00", false)).toEqual([]);
+  });
+
+  it("is not found inside a word or an address", () => {
+    expect(types("mail me@everyone.org or @everyones", true)).toEqual([]);
+  });
+});
+
+describe("serializeMessageContent", () => {
+  const roundTrip = (raw: string, mentions: Map<string, string> = new Map()) => {
+    const first = parseMessageContent(raw, mentions, { everyone: true });
+    const back = serializeMessageContent(first.text, first.entities);
+    const second = parseMessageContent(back.raw, back.mentions, { everyone: true });
+    return { first, second, back };
+  };
+
+  it.each([
+    "say **hi** to #argon",
+    "__lean__ ~~old~~ ||secret|| `code` ^^caps^^ 1^st 3/4",
+    "**see https://argon.gl now**",
+    "__https://argon.gl now__",
+    "**see https://argon.gl**",
+    "@everyone raid at **20:00**",
+  ])("gives back text that parses to the same message: %s", (raw) => {
+    const { first, second } = roundTrip(raw);
+    expect(second.text).toBe(first.text);
+    expect(second.entities).toEqual(first.entities);
+  });
+
+  it("hands the mentions back for the composer's registry", () => {
+    const userId = "0b8a3c1e-5a36-4d6f-9d43-1f1c2a3b4c5d";
+    const { second, back } = roundTrip("ping @Alice now", new Map([["@Alice", userId]]));
+    expect(back.mentions.get("@Alice")).toBe(userId);
+    expect(second.entities).toEqual([expect.objectContaining({ type: EntityType.Mention, offset: 5, length: 6, userId })]);
+  });
+
+  it("puts a coloured underline back by its palette key", () => {
+    const previous = (globalThis as any).tailwindColorMap;
+    (globalThis as any).tailwindColorMap = { "red-500": "#ef4444" };
+    try {
+      const { first, second, back } = roundTrip("a <red-500:warning> here");
+      expect(back.raw).toBe("a <red-500:warning> here");
+      expect(second.entities).toEqual(first.entities);
+    } finally {
+      (globalThis as any).tailwindColorMap = previous;
+    }
+  });
+
+  it("leaves attachments and link cards out of the text", () => {
+    const { first } = roundTrip("look");
+    const back = serializeMessageContent(first.text, [
+      ...first.entities,
+      { type: EntityType.Attachment, offset: 0, length: 0, version: 1 } as any,
+    ]);
+    expect(back.raw).toBe("look");
   });
 });

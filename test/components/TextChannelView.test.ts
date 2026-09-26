@@ -4,7 +4,8 @@
  * It used to render anyway — an input that let the user type and then failed on send, or a disabled
  * box that looked broken. A channel the user cannot write in now shows a short read-only notice in
  * the composer's place, decided per channel (an overwrite can make one channel read-only). Files
- * dragged onto a channel without AttachFiles are not taken either.
+ * dragged onto a channel without AttachFiles are not taken either. An announcement channel follows
+ * the same rule, with its own notice; editing a sent message borrows the composer.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -126,12 +127,63 @@ describe("with SendMessages", () => {
 });
 
 describe("an announcement channel", () => {
-  test("a member who may not post there gets the follow notice, not the read-only one", () => {
+  // The server denies SendMessages to everyone there on creation and the owner allows it per role,
+  // so the channel-level SendMessages is the whole answer; ManageChannels has nothing to do with it.
+  test("a reader gets the announcement notice, not the composer", () => {
+    h.granted = new Set(["ViewChannel", "ReadHistory", "AddReactions"]);
+    const w = render("announcement");
+
+    expect(w.text()).toContain("announcement_read_only");
+    expect(w.find('[data-testid="composer-read-only"]').exists()).toBe(false);
+    expect(w.find(".stub-enter-text").exists()).toBe(false);
+  });
+
+  test("a role allowed to post there gets the composer without ManageChannels", () => {
     h.granted = new Set(["ViewChannel", "SendMessages"]);
     const w = render("announcement");
 
-    expect(w.text()).toContain("follow_to_get_updates");
-    expect(w.find('[data-testid="composer-read-only"]').exists()).toBe(false);
-    expect(w.find(".stub-enter-text").exists()).toBe(false);
+    expect(w.find(".stub-enter-text").exists()).toBe(true);
+    expect(w.text()).not.toContain("announcement_read_only");
+  });
+});
+
+describe("editing a sent message", () => {
+  const sent = { messageId: 7n, channelId: "c1", spaceId: "s1", text: "Raid at 20:00", entities: [] };
+
+  test("picking Edit on a message puts it in the composer and cancelling takes it out", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages"]);
+    const w = render("announcement");
+
+    w.findComponent({ name: "ChatView" }).vm.$emit("select-edit", sent);
+    await w.vm.$nextTick();
+
+    expect(w.find('[data-testid="composer-editing"]').exists()).toBe(true);
+    expect(w.findComponent({ name: "EnterText" }).vm.$attrs.editing).toEqual(sent);
+
+    w.findComponent({ name: "EnterText" }).vm.$emit("cancel-edit");
+    await w.vm.$nextTick();
+
+    expect(w.find('[data-testid="composer-editing"]').exists()).toBe(false);
+  });
+
+  test("switching channels drops the edit", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages"]);
+    const w = render();
+
+    w.findComponent({ name: "ChatView" }).vm.$emit("select-edit", sent);
+    await w.vm.$nextTick();
+    await w.setProps({ selectedChannelId: "c2" });
+
+    expect(w.find('[data-testid="composer-editing"]').exists()).toBe(false);
+  });
+
+  test("without SendMessages there is nothing to edit with", async () => {
+    h.granted = new Set(["ViewChannel"]);
+    const w = render();
+
+    w.findComponent({ name: "ChatView" }).vm.$emit("select-edit", sent);
+    await w.vm.$nextTick();
+
+    expect(w.find('[data-testid="composer-editing"]').exists()).toBe(false);
   });
 });

@@ -303,9 +303,9 @@ describe("call behaviour survived the move", () => {
     expect(unsubscribe).not.toHaveBeenCalled();
 
     await calls.dispose();
-    // CallIncoming, CallFinished, CallAccepted, VoiceMemberStateChanged, VoiceMoveRequested,
-    // EntitlementsChanged, ChannelModifiedV2.
-    expect(unsubscribe).toHaveBeenCalledTimes(7);
+    // CallIncoming, CallFinished, CallAccepted, VoiceMemberStateChanged, EntitlementsChanged,
+    // ChannelModifiedV2.
+    expect(unsubscribe).toHaveBeenCalledTimes(6);
   });
 
   test("incoming-call subscriptions outlive a completed call", async () => {

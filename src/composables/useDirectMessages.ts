@@ -46,6 +46,7 @@ function dmToChatMessage(dm: DirectMessage, peerId: Guid): ChatMessage {
     entities: dm.entities,
     version: 1,
     controls: [],
+    editedAt: null,
     reactions: []
   } as ChatMessage;
 }

@@ -9,6 +9,7 @@
  * - `` `text` `` monospace, `^^text^^` capitalized, `^text` ordinal (superscript)
  * - `1/2` fraction, `#hashtag`, `<tailwind-colour:text>` coloured underline
  * - `@mention`, from the registry the composer fills as the user picks people
+ * - `@everyone`, only when the caller says the sender may use it (`everyone` option)
  * - links, as written (see detectLinks)
  *
  * Overlaps: matches are sorted by start (longer first on a tie) and the first one wins, so a
@@ -30,6 +31,7 @@ import {
   MessageEntityHashTag,
   MessageEntityItalic,
   MessageEntityMention,
+  MessageEntityMentionEveryone,
   MessageEntityMonospace,
   MessageEntityOrdinal,
   MessageEntitySpoiler,
@@ -43,6 +45,13 @@ export interface ParsedMessage {
   text: string;
   entities: IMessageEntity[];
 }
+
+export interface ParseOptions {
+  /** Turn `@everyone` into a mention of everyone. Off unless the sender holds MentionEveryone. */
+  everyone?: boolean;
+}
+
+const EVERYONE = "@everyone";
 
 interface FormatMatch {
   /** Raw range, markers included. */
@@ -109,7 +118,11 @@ const SPLIT_AROUND_LINK = new Set<EntityType>([
 
 const overlaps = (a: FormatMatch, b: FormatMatch) => !(a.end <= b.start || a.start >= b.end);
 
-export function parseMessageContent(raw: string, mentions: ReadonlyMap<string, string> = new Map()): ParsedMessage {
+export function parseMessageContent(
+  raw: string,
+  mentions: ReadonlyMap<string, string> = new Map(),
+  options: ParseOptions = {},
+): ParsedMessage {
   const rawText = raw.trim();
   const formatMatches: FormatMatch[] = [];
 
@@ -147,6 +160,22 @@ export function parseMessageContent(raw: string, mentions: ReadonlyMap<string, s
         extra: { userId },
       });
       searchPos = idx + mentionText.length;
+    }
+  }
+
+  if (options.everyone) {
+    const everyone = /(?<![\w@])@everyone(?!\w)/g;
+    let match: RegExpMatchArray | null;
+    while ((match = everyone.exec(rawText)) !== null) {
+      const start = match.index!;
+      formatMatches.push({
+        start,
+        end: start + EVERYONE.length,
+        contentStart: start,
+        contentEnd: start + EVERYONE.length,
+        content: EVERYONE,
+        type: EntityType.MentionEveryone,
+      });
     }
   }
 
@@ -251,6 +280,8 @@ function toEntity(fm: FormatMatch, offset: number, length: number): IMessageEnti
   switch (fm.type) {
     case EntityType.Mention:
       return new MessageEntityMention(EntityType.Mention, offset, length, version, fm.extra!.userId);
+    case EntityType.MentionEveryone:
+      return new MessageEntityMentionEveryone(EntityType.MentionEveryone, offset, length, version);
     case EntityType.Hashtag:
       return new MessageEntityHashTag(EntityType.Hashtag, offset, length, version, fm.content.slice(1));
     case EntityType.Underline:
@@ -276,4 +307,103 @@ function toEntity(fm: FormatMatch, offset: number, length: number): IMessageEnti
     default:
       throw new Error(`parseMessageContent: no entity for type ${fm.type}`);
   }
+}
+
+export interface SerializedMessage {
+  /** The text with markers back in, as the composer holds it. */
+  raw: string;
+  /** Mention text to user id, for the composer's mention registry. */
+  mentions: Map<string, string>;
+}
+
+const WRAP: Partial<Record<EntityType, [string, string]>> = {
+  [EntityType.Bold]: ["**", "**"],
+  [EntityType.Italic]: ["__", "__"],
+  [EntityType.Strikethrough]: ["~~", "~~"],
+  [EntityType.Spoiler]: ["||", "||"],
+  [EntityType.Monospace]: ["`", "`"],
+  [EntityType.Capitalized]: ["^^", "^^"],
+  [EntityType.Ordinal]: ["^", ""],
+};
+
+/**
+ * The reverse of {@link parseMessageContent}, for editing a sent message: puts the markers back so
+ * that parsing the result gives the same text and entities. Links, hashtags, fractions and
+ * `@everyone` are found again by the parser and stay as written. Attachments, GIFs and link cards
+ * are not text and are left out; the server keeps them through an edit.
+ */
+export function serializeMessageContent(text: string, entities: readonly IMessageEntity[]): SerializedMessage {
+  const mentions = new Map<string, string>();
+  const spans: IMessageEntity[] = [];
+  for (const entity of [...entities].sort((a, b) => a.offset - b.offset || b.length - a.length)) {
+    if (entity.length <= 0 || entity.offset < 0 || end(entity) > text.length) continue;
+    if (spans.length && entity.offset < end(spans[spans.length - 1])) continue;
+    spans.push(entity);
+  }
+
+  let raw = "";
+  let cursor = 0;
+
+  for (let i = 0; i < spans.length; i++) {
+    const entity = spans[i];
+    raw += text.slice(cursor, entity.offset);
+
+    // The parser cuts a style around a link inside it. Put the span back together, or the closing
+    // marker right after the link would be read as part of the address.
+    const next = spans[i + 1];
+    const style = SPLIT_AROUND_LINK.has(entity.type)
+      ? entity
+      : entity.type === EntityType.Url && next && SPLIT_AROUND_LINK.has(next.type) && next.offset === end(entity)
+        ? next
+        : null;
+
+    if (style) {
+      let last = i;
+      while (
+        last + 1 < spans.length &&
+        spans[last + 1].offset === end(spans[last]) &&
+        (spans[last + 1].type === EntityType.Url || sameStyle(spans[last + 1], style))
+      ) last++;
+
+      const content = text.slice(entity.offset, end(spans[last]));
+      const markers = markersFor(style);
+      raw += markers ? markers[0] + content + markers[1] : content;
+      cursor = end(spans[last]);
+      i = last;
+      continue;
+    }
+
+    const content = text.slice(entity.offset, end(entity));
+    const markers = markersFor(entity);
+    if (entity.type === EntityType.Mention) mentions.set(content, (entity as MessageEntityMention).userId);
+    raw += markers ? markers[0] + content + markers[1] : content;
+    cursor = end(entity);
+  }
+
+  raw += text.slice(cursor);
+  return { raw, mentions };
+}
+
+const end = (e: IMessageEntity) => e.offset + e.length;
+
+const sameStyle = (a: IMessageEntity, b: IMessageEntity) =>
+  a.type === b.type &&
+  (a.type !== EntityType.Underline || (a as MessageEntityUnderline).colour === (b as MessageEntityUnderline).colour);
+
+function markersFor(entity: IMessageEntity): [string, string] | null {
+  const wrap = WRAP[entity.type];
+  if (wrap) return wrap;
+  if (entity.type !== EntityType.Underline) return null;
+  const key = colourKey((entity as MessageEntityUnderline).colour);
+  return key ? [`<${key}:`, ">"] : null;
+}
+
+function colourKey(colour: number): string | null {
+  const map = (globalThis as any).tailwindColorMap as Record<string, string> | undefined;
+  if (!map) return null;
+  const hex = colour.toString(16).padStart(6, "0");
+  for (const [key, value] of Object.entries(map)) {
+    if (/^[a-z]+-\d{3}$/.test(key) && value.replace(/^#/, "").toLowerCase() === hex) return key;
+  }
+  return null;
 }

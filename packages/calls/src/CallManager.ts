@@ -38,7 +38,6 @@ import type {
   EntitlementsChanged,
   RtcEndpoint,
   VoiceMemberStateChanged,
-  VoiceMoveRequested,
 } from "@argon/glue";
 
 import { parseRtcStats } from "./rtcStats";
@@ -49,6 +48,7 @@ import type { CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts }
 import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
 import { isRadioIdentity, radioUserId, RADIO_ATTR, RADIO_ON_AIR } from "./radio/identity";
 import { RadioSession } from "./radio/RadioSession";
+import { parseVoiceRoomName } from "./roomName";
 
 export type { ScreenShareOpts } from "./types";
 
@@ -94,7 +94,7 @@ const VOICE_STATE_DEBOUNCE_MS = 150;
 
 /**
  * Disconnects after which the room is gone for good because the server said so: a moderator's
- * kick or move, the room closing, or the same identity joining from elsewhere.
+ * kick, the room closing, or the same identity joining from elsewhere.
  */
 const SERVER_SIDE_REMOVALS: ReadonlySet<DisconnectReason> = new Set([
   DisconnectReason.PARTICIPANT_REMOVED,
@@ -189,6 +189,8 @@ export function createCallManager(config: CallManagerConfig) {
   let localMic: LocalAudioTrack | null = null;
   let micPublishing = false;
   let micBitrateKbps: number | null = null;
+  // The room's name as the SDK reports it (`{spaceId}/{channelId}`); a move changes it in place.
+  let joinedRoomName: string | null = null;
 
   let voiceStateTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -524,6 +526,7 @@ export function createCallManager(config: CallManagerConfig) {
     localMic = null;
     micPublishing = false;
     micBitrateKbps = null;
+    joinedRoomName = null;
     // The restriction belongs to the space we were talking in; outside a call nothing is locked.
     applyServerRestriction(0, false);
     // Explicit leave → don't auto-rejoin if the renderer later crashes/reloads.
@@ -667,11 +670,11 @@ export function createCallManager(config: CallManagerConfig) {
   }
 
   /**
-   * Join a voice channel. `spaceId` defaults to the space on screen; a move names its own, since
-   * the user may be looking at a different space when a moderator moves them.
+   * Join a voice channel. `spaceId` defaults to the space on screen; a rejoin names its own, since
+   * the user may be looking at a different space by then.
    */
   async function joinVoiceChannel(channelId: string, spaceId?: string) {
-    await joinChannel(channelId, spaceId, false);
+    await joinChannel(channelId, spaceId);
   }
 
   /** Whether we may do `permission` in a channel; space-level when the host cannot tell per channel. */
@@ -686,13 +689,12 @@ export function createCallManager(config: CallManagerConfig) {
     return canInChannel(channelId, permission, connectedVoiceSpaceId.value);
   }
 
-  /** `moved`: the server already checked we may join, and pex describes the space on screen. */
-  async function joinChannel(channelId: string, spaceId: string | undefined, moved: boolean) {
+  async function joinChannel(channelId: string, spaceId: string | undefined) {
     logger.info("[CALL] joinVoiceChannel", channelId);
 
     const selected = spaceId ?? pool.selectedServer;
 
-    if (!moved && !canInChannel(channelId, "Connect", selected)) {
+    if (!canInChannel(channelId, "Connect", selected)) {
       logger.warn("[CALL] No Connect permission");
       telemetry.count("call.join", { mode: "channel", result: "refused", reason: "no_permission" });
       return;
@@ -734,10 +736,8 @@ export function createCallManager(config: CallManagerConfig) {
     lastVoiceServerId.value = String(selected);
     lastVoiceChannelId.value = channelId;
 
-    // The room's own bitrate, when a moderator set one; null keeps the SDK preset. Read here, at
-    // join, because that is when the microphone track is published with it.
-    const channel = await pool.getChannel?.(channelId).catch(() => null);
-    const audioBitrateKbps = channel?.bitrate ?? null;
+    // Read here, at join, because that is when the microphone track is published with it.
+    const audioBitrateKbps = await channelBitrate(channelId);
 
     await joinLiveKit({
       token: join.token,
@@ -813,29 +813,73 @@ export function createCallManager(config: CallManagerConfig) {
   }
 
   /**
-   * A moderator moved us. The server evicts us from the source room shortly if we stay, so we
-   * leave it ourselves and join the target in the same space.
+   * The SFU moved us to another room: a moderator's move, done server-side. The connection and
+   * our published tracks carry over; the SDK has already disconnected the old room's participants
+   * and announces the new ones right after this. Ours to move: which channel we are in, and
+   * everything that hangs off it.
    */
-  async function onVoiceMoveRequested(ev: VoiceMoveRequested) {
-    const spaceId = String(ev.spaceId);
-    const toChannelId = String(ev.toChannelId);
-    if (
-      mode.value !== "channel" ||
-      connectedVoiceSpaceId.value !== spaceId ||
-      connectedVoiceChannelId.value !== String(ev.fromChannelId)
-    ) {
-      logger.info("[CALL] ignoring a move for a room we are not in", ev);
+  function onRoomMoved(name: string) {
+    const target = parseVoiceRoomName(name);
+    if (mode.value !== "channel" || !target) {
+      logger.error("[CALL] moved to a room we cannot place", { name, mode: mode.value });
+      telemetry.count("call.moved", { result: "failed", error: target ? "not_a_channel_call" : "bad_room_name" });
+      void leave();
       return;
     }
 
-    logger.info("[CALL] moved by a moderator", { from: ev.fromChannelId, to: toChannelId });
-    // LIVEKIT-FORK: self-hosted LiveKit has no MoveParticipant, so the client reconnects itself.
-    // Replace with the SFU's native move once the fork has it.
-    await leave();
-    await joinChannel(toChannelId, spaceId, true);
+    logger.info("[CALL] moved by the server", { from: connectedVoiceChannelId.value, to: target.channelId });
+    joinedRoomName = name;
+    connectedVoiceSpaceId.value = target.spaceId;
+    connectedVoiceChannelId.value = target.channelId;
+    callId.value = `channel-${target.channelId}`;
+    targetId.value = target.channelId;
+    lastVoiceServerId.value = target.spaceId;
+    lastVoiceChannelId.value = target.channelId;
 
-    if (connectedVoiceChannelId.value === toChannelId) {
-      notify({ kind: "moved", spaceId, channelId: toChannelId });
+    // Already gone through participantDisconnected; whatever is still here missed its event.
+    for (const uid of Object.keys(participants)) forgetParticipant(uid);
+    activeSpeakerId.value = null;
+
+    // The radio was the old channel's: its graphs, ducking and links go, and the new channel's
+    // are asked for. The room stays, so a transmission in flight clears its on-air flag.
+    resetRadio({ roomGoing: false });
+    void refetchRadioLinks();
+    // The microphone cap is per room; the destination's publish rights come from the server.
+    void applyChannelBitrate(target.channelId);
+    scheduleVoiceStateReport();
+
+    tone.playSoftEnterSound();
+    telemetry.count("call.moved", { result: "ok" });
+    notify({ kind: "moved", spaceId: target.spaceId, channelId: target.channelId });
+  }
+
+  /** The SDK renames the room before it disconnects the old room's participants on a move. */
+  function roomIsMoving(r: Room) {
+    return joinedRoomName !== null && !!r.name && r.name !== joinedRoomName;
+  }
+
+  /** The channel's own microphone cap, when a moderator set one; null keeps the SDK preset. */
+  async function channelBitrate(channelId: string): Promise<number | null> {
+    const channel = await pool.getChannel?.(channelId).catch(() => null);
+    return channel?.bitrate ?? null;
+  }
+
+  /** Re-tune a published microphone to a channel's cap; the next publish picks it up as well. */
+  async function applyChannelBitrate(channelId: string) {
+    const kbps = await channelBitrate(channelId);
+    if (connectedVoiceChannelId.value !== channelId) return;
+    micBitrateKbps = kbps;
+    const sender = localMic?.sender;
+    if (!sender) return;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings?.length) return;
+      for (const encoding of params.encodings) {
+        encoding.maxBitrate = kbps ? kbps * 1000 : AudioPresets.musicStereo.maxBitrate;
+      }
+      await sender.setParameters(params);
+    } catch (e) {
+      logger.warn("[CALL] microphone bitrate update failed", e);
     }
   }
 
@@ -1080,6 +1124,27 @@ export function createCallManager(config: CallManagerConfig) {
     });
   }
 
+  /** Drop everything held for a remote participant: the record, its graphs, its tiles, its stats. */
+  function forgetParticipant(uid: string) {
+    // Normally already released by the trackUnsubscribed events the SDK fires first; the
+    // graphs just must not depend on that ordering.
+    releaseAudioGraph(uid, "mic");
+    releaseAudioGraph(uid, "screen");
+    delete participants[uid];
+    speaking.delete(uid);
+    deleteVideoTracksForUser(uid);
+    diagnostics.delete(uid);
+    participantQuality.delete(uid);
+    subscriptionErrors.delete(uid);
+
+    // Remove guest user from realtime channel
+    const isGuest = uid.toLowerCase().startsWith("fafccccc");
+    if (isGuest && mode.value === "channel" && connectedVoiceChannelId.value) {
+      pool._realtimeStore.removeUserFromChannel(connectedVoiceChannelId.value, uid);
+      logger.info(`[CALL] Removed guest ${uid} from realtime channel`);
+    }
+  }
+
   /**
    * Reconcile the realtime channel member list against LiveKit's participant list.
    *
@@ -1307,32 +1372,10 @@ export function createCallManager(config: CallManagerConfig) {
         return;
       }
       recomputeRadioBusy();
-      // Normally already released by the trackUnsubscribed events the SDK fires first; the
-      // graphs just must not depend on that ordering.
-      releaseAudioGraph(uid, "mic");
-      releaseAudioGraph(uid, "screen");
-      delete participants[uid];
-      speaking.delete(uid);
-      deleteVideoTracksForUser(uid);
-      diagnostics.delete(uid);
-      participantQuality.delete(uid);
-      subscriptionErrors.delete(uid);
-
-      // Remove guest user from realtime channel
-      const isGuest = uid.toLowerCase().startsWith("fafccccc");
-      if (
-        isGuest &&
-        mode.value === "channel" &&
-        connectedVoiceChannelId.value
-      ) {
-        pool._realtimeStore.removeUserFromChannel(
-          connectedVoiceChannelId.value,
-          uid,
-        );
-        logger.info(`[CALL] Removed guest ${uid} from realtime channel`);
-      }
-
-      tone.playSoftLeaveSound();
+      forgetParticipant(uid);
+      // On a move the SDK renames the room, then drops the old room's participants: they did
+      // not leave, we did, and the move plays its own tone.
+      if (!roomIsMoving(r)) tone.playSoftLeaveSound();
     });
     r.on("participantActive", (p) => {
       if (isRadioIdentity(p.identity)) return;
@@ -1349,6 +1392,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     r.on("connectionStateChanged", (st) => {
       isConnected.value = st === "connected";
+    });
+
+    r.on(RoomEvent.Moved, (name) => {
+      if (toRaw(room.value) === r) onRoomMoved(name);
     });
 
     r.on(RoomEvent.TrackStreamStateChanged, (pub, state, participant) => {
@@ -1481,6 +1528,7 @@ export function createCallManager(config: CallManagerConfig) {
       connectError.value = { message: formatConnectError(err) };
       return;
     }
+    joinedRoomName = r.name || null;
 
     try {
       // Prompt for mic access before capturing (macOS native host only — elsewhere a no-op).
@@ -2261,9 +2309,9 @@ export function createCallManager(config: CallManagerConfig) {
     s.unavailableReason = reason;
   }
 
-  /** Everything radio, both sides, on leave(). */
-  function resetRadio() {
-    closeRadio(null, { roomGoing: true });
+  /** Everything radio, both sides: on leave(), and on a move, where the room stays. */
+  function resetRadio(opts: { roomGoing: boolean } = { roomGoing: true }) {
+    closeRadio(null, opts);
     if (radioEntitlementTimer) {
       clearTimeout(radioEntitlementTimer);
       radioEntitlementTimer = null;
@@ -2360,7 +2408,7 @@ export function createCallManager(config: CallManagerConfig) {
     radioRejoining = true;
     try {
       await leave();
-      await joinChannel(channelId, spaceId, false);
+      await joinChannel(channelId, spaceId);
     } catch (e) {
       logger.error("[RADIO] rejoin failed", e);
     } finally {
@@ -2778,10 +2826,6 @@ export function createCallManager(config: CallManagerConfig) {
     ),
 
     bus.onServerEvent<VoiceMemberStateChanged>("VoiceMemberStateChanged", onVoiceMemberStateChanged),
-
-    bus.onServerEvent<VoiceMoveRequested>("VoiceMoveRequested", (ev) => {
-      void onVoiceMoveRequested(ev).catch((e) => logger.error("[CALL] move failed", e));
-    }),
 
     // Radio triggers. A null userId is a role change that touches everyone, us included.
     bus.onServerEvent<EntitlementsChanged>("EntitlementsChanged", (ev) => {

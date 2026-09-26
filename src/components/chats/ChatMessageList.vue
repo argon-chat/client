@@ -54,9 +54,11 @@
             :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
             :can-react="canReact"
             :can-reply="canReply"
+            :can-edit="canEdit"
             :toggle-reaction="toggleReaction"
             @dblclick="() => canReply && emit('select-reply', messages[item.index])"
             @reply="(msg) => emit('select-reply', msg)"
+            @edit="(msg) => emit('select-edit', msg)"
             @retry="(msg) => emit('retry', msg)"
             @open-lightbox="onOpenLightbox"
             @scroll-to-message="scrollToMessage"
@@ -148,11 +150,13 @@ const props = withDefaults(defineProps<{
   twoSided?: boolean;
   canReact?: boolean;
   canReply?: boolean;
+  canEdit?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
-}>(), { canReply: true });
+}>(), { canReply: true, canEdit: false });
 
 const emit = defineEmits<{
   (e: "select-reply", message: ArgonMessage): void;
+  (e: "select-edit", message: ArgonMessage): void;
   (e: "retry", message: ChatMessage): void;
   (e: "near-top"): void;
   (e: "scroll-state", distanceFromBottom: number): void;

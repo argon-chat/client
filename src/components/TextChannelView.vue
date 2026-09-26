@@ -38,7 +38,9 @@
         :channel-type="isAnnouncement ? 'announcement' : undefined"
         :typing-users="typingUsers"
         :can-reply="canInput"
+        :can-edit="canInput"
         @select-reply="onSelectReply"
+        @select-edit="onSelectEdit"
       />
     </div>
 
@@ -60,6 +62,29 @@
       v-if="channelData && canInput"
       class="shrink-0 flex flex-col bg-card rounded-b-2xl border-t border-border/30"
     >
+      <!-- Editing bar: the composer holds a sent message until saved or cancelled -->
+      <div
+        v-if="editing"
+        class="flex items-center gap-3 px-5 pt-3 pb-0 overflow-hidden"
+        data-testid="composer-editing"
+      >
+        <div class="w-[3px] self-stretch rounded-full shrink-0 bg-primary" />
+        <div class="flex flex-col gap-0.5 min-w-0 flex-1 overflow-hidden">
+          <div class="flex items-center gap-1.5">
+            <PencilIcon class="w-3 h-3 text-primary shrink-0" />
+            <span class="text-xs font-semibold leading-none text-primary">{{ t('editing_message') }}</span>
+          </div>
+          <span class="text-xs text-muted-foreground/70 truncate leading-snug">{{ t('editing_message_hint') }}</span>
+        </div>
+        <button
+          class="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 icon-motion icon-motion--pop"
+          :title="t('cancel')"
+          @click="cancelEdit"
+        >
+          <XIcon class="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       <!-- Reply preview bar (slides in above input) -->
       <Transition
         enter-active-class="transition-all duration-150 ease-out"
@@ -108,7 +133,12 @@
           :reply-to="replyTo"
           :space-id="selectedSpaceId!"
           :channel-id="selectedChannelId!"
+          :editing="editing"
+          :announcement="isAnnouncement"
           @clear-reply="clearReply"
+          @cancel-edit="cancelEdit"
+          @edit-last="editLast"
+          @edited="onEdited"
           @typing="onTyping"
           @stop_typing="onStopTyping"
           @add-optimistic="onAddOptimistic"
@@ -124,8 +154,8 @@
       class="shrink-0 rounded-b-2xl px-5 py-3 border-t border-border/30"
     >
       <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
-        <BellIcon class="h-4 w-4" />
-        <span>{{ t('follow_to_get_updates') }}</span>
+        <AntennaIcon class="h-4 w-4" />
+        <span>{{ t('announcement_read_only') }}</span>
       </div>
     </div>
 
@@ -145,7 +175,7 @@
 
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from "vue";
-import { BellIcon, LockIcon, PaperclipIcon, XIcon, ReplyIcon } from "lucide-vue-next";
+import { AntennaIcon, LockIcon, PaperclipIcon, PencilIcon, XIcon, ReplyIcon } from "lucide-vue-next";
 import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { usePexStore } from "@/store/data/permissionStore";
@@ -164,6 +194,7 @@ const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null);
 const enterTextRef = ref<InstanceType<typeof EnterText> | null>(null);
 const isDragging = ref(false);
 const replyTo = ref<ArgonMessage | null>(null);
+const editing = ref<ArgonMessage | null>(null);
 
 // ── Props ──
 
@@ -184,11 +215,10 @@ const isAnnouncement = computed(() => props.channelType === "announcement");
 const selectedSpaceId = defineModel<string | null>("selectedSpace", { type: String, required: true });
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
-// Both per channel: an overwrite can make one channel read-only.
+// Per channel: an overwrite can make one channel read-only. An announcement channel is one of
+// those — the server denies SendMessages to everyone there and the owner allows it per role.
 const canSend = computed(() => pex.hasIn(selectedChannelId.value, "SendMessages", selectedSpaceId.value));
-const canInput = computed(() =>
-  canSend.value && (!isAnnouncement.value || pex.hasIn(selectedChannelId.value, "ManageChannels", selectedSpaceId.value)),
-);
+const canInput = canSend;
 const canAttach = computed(() => canInput.value && pex.hasIn(selectedChannelId.value, "AttachFiles", selectedSpaceId.value));
 
 // ── Composables ──
@@ -205,6 +235,7 @@ const replyColor = computed(() => userColors.getColorByUserId(replyTo.value?.sen
 
 function onSelectReply(msg: ArgonMessage) {
   if (!canInput.value) return;
+  editing.value = null;
   replyTo.value = msg;
   nextTick(() => enterTextRef.value?.focus());
 }
@@ -212,6 +243,31 @@ function onSelectReply(msg: ArgonMessage) {
 function clearReply() {
   replyTo.value = null;
 }
+
+// ── Edit state ──
+
+function onSelectEdit(msg: ArgonMessage) {
+  if (!canInput.value) return;
+  replyTo.value = null;
+  editing.value = msg;
+}
+
+function editLast() {
+  const msg = chatViewRef.value?.lastOwnMessage();
+  if (msg) onSelectEdit(msg);
+}
+
+function cancelEdit() {
+  editing.value = null;
+}
+
+function onEdited(msg: ArgonMessage) {
+  chatViewRef.value?.applyServerMessage(msg);
+}
+
+watch(selectedChannelId, () => {
+  editing.value = null;
+});
 
 // Keep last messages visible when reply bar resizes the chat area
 watch(replyTo, (val) => {

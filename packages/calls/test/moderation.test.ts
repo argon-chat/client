@@ -8,7 +8,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 
 const rooms = vi.hoisted(() => ({
   last: null as any,
@@ -16,6 +16,8 @@ const rooms = vi.hoisted(() => ({
   permissions: undefined as any,
   /** Thrown by the next publishTrack, then cleared. */
   rejectNextPublish: null as Error | null,
+  /** The RTCRtpSender behind every microphone track published from now on. */
+  sender: undefined as any,
 }));
 
 vi.mock("livekit-client", async (importOriginal) => {
@@ -24,6 +26,7 @@ vi.mock("livekit-client", async (importOriginal) => {
   class FakeRoom {
     handlers = new Map<string, Function[]>();
     remoteParticipants = new Map<string, any>();
+    name = "space-1/chan-1";
     canPlaybackAudio = true;
     canPlaybackVideo = true;
     engine = { client: { rtt: 8 } };
@@ -60,6 +63,7 @@ vi.mock("livekit-client", async (importOriginal) => {
   class FakeLocalAudioTrack {
     source: unknown;
     isMuted = false;
+    sender = rooms.sender;
     constructor(public mediaStreamTrack: unknown) {}
     async mute() { this.isMuted = true; }
     async unmute() { this.isMuted = false; }
@@ -68,7 +72,7 @@ vi.mock("livekit-client", async (importOriginal) => {
   return { ...actual, Room: FakeRoom, LocalAudioTrack: FakeLocalAudioTrack };
 });
 
-import { DisconnectReason, RoomEvent, Track } from "livekit-client";
+import { ConnectionQuality, DisconnectReason, RoomEvent, SubscriptionError, Track } from "livekit-client";
 import { ChannelMemberState, JoinToChannelError } from "@argon/glue";
 import {
   createCallManager,
@@ -184,11 +188,66 @@ const micPublishes = (room: any) =>
 const selfState = (state: number, spaceId = "space-1", channelId = "chan-1") =>
   ({ spaceId, channelId, userId: "me", state });
 
+function fakeParticipant(identity: string) {
+  return {
+    identity,
+    isLocal: false,
+    name: identity,
+    metadata: "",
+    attributes: {} as Record<string, string>,
+    trackPublications: new Map(),
+    getTrackPublications: () => [],
+    on: vi.fn(),
+    setAudioContext: vi.fn(),
+  };
+}
+
+const audioTrack = () => ({
+  kind: Track.Kind.Audio,
+  source: Track.Source.Microphone,
+  mediaStreamTrack: {},
+  attach: vi.fn(),
+  detach: vi.fn(),
+});
+
+const spiedTone = () => ({
+  playRingSound() {}, stopPlayRingSound() {},
+  playSoftEnterSound: vi.fn(), playSoftLeaveSound: vi.fn(),
+  playRadioError() {}, playRadioChirp() {},
+});
+
+async function withParticipant(calls: ReturnType<typeof createCallManager>, room: any, identity: string) {
+  const p = fakeParticipant(identity);
+  room.remoteParticipants.set(identity, p);
+  room.emit("participantConnected", p);
+  await vi.waitFor(() => expect(calls.participants[identity]).toBeDefined());
+  return p;
+}
+
+/**
+ * What livekit-client does on a RoomMovedResponse (Room.ts, EngineEvent.RoomMoved): renames the
+ * room, disconnects the old room's participants, emits Moved with the new name, then announces
+ * the new room's participants. Our own tracks stay published.
+ */
+function moveRoom(room: any, name: string, newcomers: ReturnType<typeof fakeParticipant>[] = []) {
+  room.name = name;
+  for (const [identity, p] of [...room.remoteParticipants]) {
+    room.remoteParticipants.delete(identity);
+    room.emit("participantDisconnected", p);
+  }
+  room.emit(RoomEvent.Moved, name);
+  for (const p of newcomers) {
+    room.remoteParticipants.set(p.identity, p);
+    room.emit("participantConnected", p);
+  }
+}
+
 beforeEach(() => {
   rooms.last = null;
   rooms.all = [];
   rooms.permissions = undefined;
   rooms.rejectNextPublish = null;
+  rooms.sender = undefined;
 });
 
 afterEach(() => {
@@ -223,70 +282,126 @@ describe("voice state bits", () => {
 });
 
 describe("being moved by a moderator", () => {
-  test("leaves the source room and joins the target in the event's space", async () => {
-    const { calls, room, bus, interlink, config } = await joined();
+  test("switches to the new channel on the same connection", async () => {
+    const persisted = new Map<string, Ref<string>>();
+    const telemetry = { count: vi.fn(), distribution: vi.fn() };
+    const setup = makeConfig({
+      telemetry,
+      persistedValue: (key, initial) => {
+        const value = ref(initial);
+        persisted.set(key, value);
+        return value;
+      },
+    });
+    const { calls, room, interlink, config } = await joined(setup);
 
-    bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await vi.waitFor(() => expect(calls.connectedVoiceChannelId.value).toBe("chan-2"));
+    moveRoom(room, "space-1/chan-2");
 
-    expect(room.disconnected).toBe(true);
-    expect(rooms.last).not.toBe(room);
-    expect(interlink).toHaveBeenLastCalledWith("space-1", "chan-2");
-    expect(calls.mode.value).toBe("channel");
-    expect(config.notify).toHaveBeenCalledWith({ kind: "moved", spaceId: "space-1", channelId: "chan-2" });
-  });
-
-  test("follows the move even while another space is on screen", async () => {
-    const has = vi.fn(() => true);
-    const setup = makeConfig({ pex: { has } });
-    const pool = setup.config.pool as { selectedServer: string | null };
-    const calls = createCallManager(setup.config);
-    await calls.joinVoiceChannel("chan-1");
-    // The user wandered off to another space; Connect there says nothing about this one.
-    pool.selectedServer = "space-other";
-    has.mockReturnValue(false);
-
-    setup.bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await vi.waitFor(() => expect(calls.connectedVoiceChannelId.value).toBe("chan-2"));
-
-    expect(setup.interlink).toHaveBeenLastCalledWith("space-1", "chan-2");
+    expect(calls.connectedVoiceChannelId.value).toBe("chan-2");
     expect(calls.connectedVoiceSpaceId.value).toBe("space-1");
-  });
-
-  test("is ignored for a room we are not in", async () => {
-    const { calls, room, bus, interlink, config } = await joined();
-
-    bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-9", toChannelId: "chan-2", byUserId: "mod" });
-    bus.fire("VoiceMoveRequested", { spaceId: "space-2", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await Promise.resolve();
-
+    expect(calls.callId.value).toBe("channel-chan-2");
+    expect(calls.targetId.value).toBe("chan-2");
+    expect(calls.mode.value).toBe("channel");
+    expect(calls.isConnected.value).toBe(true);
     expect(room.disconnected).toBe(false);
-    expect(calls.connectedVoiceChannelId.value).toBe("chan-1");
+    expect(rooms.all).toHaveLength(1);
     expect(interlink).toHaveBeenCalledTimes(1);
-    expect(config.notify).not.toHaveBeenCalled();
+    expect(persisted.get("argon:lastVoiceServerId")!.value).toBe("space-1");
+    expect(persisted.get("argon:lastVoiceChannelId")!.value).toBe("chan-2");
+    expect(config.notify).toHaveBeenCalledWith({ kind: "moved", spaceId: "space-1", channelId: "chan-2" });
+    expect(telemetry.count).toHaveBeenCalledWith("call.moved", { result: "ok" });
   });
 
-  test("is ignored outside a call", async () => {
+  test("the old room's participants go, the new room's come, and nobody 'left'", async () => {
+    const graph = { setVolume: vi.fn(), dispose: vi.fn() };
+    const tone = spiedTone();
+    const setup = makeConfig({ tone });
+    setup.config.audio.createRemoteAudioGraph = () => graph;
+    const { calls, room } = await joined(setup);
+    const u1 = await withParticipant(calls, room, "u1");
+    room.emit("trackSubscribed", audioTrack(), { isMuted: false, source: Track.Source.Microphone }, u1);
+    await vi.waitFor(() => expect(calls.participants.u1.audioGraph).not.toBeNull());
+    room.emit(RoomEvent.ConnectionQualityChanged, ConnectionQuality.Poor, u1);
+    room.emit(RoomEvent.TrackSubscriptionFailed, "TR_1", u1, SubscriptionError.PermissionDenied);
+    room.emit(RoomEvent.ActiveSpeakersChanged, [u1]);
+    expect(calls.activeSpeakerId.value).toBe("u1");
+    tone.playSoftEnterSound.mockClear();
+
+    moveRoom(room, "space-1/chan-2", [fakeParticipant("u2")]);
+
+    expect(calls.participants.u1).toBeUndefined();
+    expect(graph.dispose).toHaveBeenCalledTimes(1);
+    expect(calls.participantQuality.has("u1")).toBe(false);
+    expect(calls.subscriptionErrors.has("u1")).toBe(false);
+    expect(calls.activeSpeakerId.value).toBeNull();
+    await vi.waitFor(() => expect(calls.participants.u2).toBeDefined());
+    expect(tone.playSoftLeaveSound).not.toHaveBeenCalled();
+    expect(tone.playSoftEnterSound).toHaveBeenCalledTimes(1);
+  });
+
+  test("outside a move, someone leaving still plays the leave tone", async () => {
+    const tone = spiedTone();
+    const { calls, room } = await joined(makeConfig({ tone }));
+    const u1 = await withParticipant(calls, room, "u1");
+
+    room.remoteParticipants.delete("u1");
+    room.emit("participantDisconnected", u1);
+
+    expect(calls.participants.u1).toBeUndefined();
+    expect(tone.playSoftLeaveSound).toHaveBeenCalledTimes(1);
+  });
+
+  test("closes the radio and asks for the new channel's links", async () => {
     const setup = makeConfig();
-    const calls = createCallManager(setup.config);
+    setup.config.pool.getChannel = async (id) => ({ broadcast: id === "chan-2" ? ({} as any) : null });
+    const setVoiceBusGain = vi.fn();
+    setup.config.audio.setVoiceBusGain = setVoiceBusGain;
+    const links = setup.config.api.channelInteraction.GetBroadcastLinks as ReturnType<typeof vi.fn>;
+    const { room } = await joined(setup);
+    expect(links).not.toHaveBeenCalled();
 
-    setup.bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await Promise.resolve();
+    moveRoom(room, "space-1/chan-2");
 
-    expect(setup.interlink).not.toHaveBeenCalled();
-    expect(calls.mode.value).toBe("none");
+    expect(setVoiceBusGain).toHaveBeenLastCalledWith(1);
+    await vi.waitFor(() => expect(links).toHaveBeenCalledWith("space-1", "chan-2"));
   });
 
-  test("no 'moved' notice when the target cannot be joined", async () => {
-    const { calls, bus, interlink, config } = await joined();
-    interlink.mockResolvedValueOnce({ isSuccessJoinVoice: () => false, isFailedJoinVoice: () => true, error: 0 });
+  test("re-tunes the microphone to the new channel's bitrate", async () => {
+    rooms.sender = { getParameters: () => ({ encodings: [{}] }), setParameters: vi.fn(async () => {}) };
+    const setup = makeConfig();
+    setup.config.pool.getChannel = async (id) => ({ bitrate: id === "chan-2" ? 32 : null });
+    const { room } = await joined(setup);
 
-    bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await vi.waitFor(() => expect(interlink).toHaveBeenCalledTimes(2));
-    await Promise.resolve();
+    moveRoom(room, "space-1/chan-2");
+
+    await vi.waitFor(() =>
+      expect(rooms.sender.setParameters).toHaveBeenCalledWith({ encodings: [{ maxBitrate: 32_000 }] }));
+  });
+
+  test("reports our flags to the new channel", async () => {
+    vi.useFakeTimers();
+    const setup = makeConfig();
+    const { room } = await joined(setup);
+    await vi.advanceTimersByTimeAsync(200);
+    const update = setup.config.api.channelInteraction.UpdateVoiceState as ReturnType<typeof vi.fn>;
+    update.mockClear();
+
+    moveRoom(room, "space-1/chan-2");
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(update).toHaveBeenCalledWith("space-1", "chan-2", 0);
+  });
+
+  test("a room we cannot place ends the call", async () => {
+    const telemetry = { count: vi.fn(), distribution: vi.fn() };
+    const { calls, room } = await joined(makeConfig({ telemetry }));
+
+    moveRoom(room, "radio/space-1/chan-2");
+    await vi.waitFor(() => expect(calls.room.value).toBeNull());
 
     expect(calls.mode.value).toBe("none");
-    expect(config.notify).not.toHaveBeenCalledWith(expect.objectContaining({ kind: "moved" }));
+    expect(room.disconnected).toBe(true);
+    expect(telemetry.count).toHaveBeenCalledWith("call.moved", { result: "failed", error: "bad_room_name" });
   });
 });
 
@@ -320,11 +435,12 @@ describe("the server ending the call", () => {
   });
 
   test("a disconnect from a room we already replaced does not end the new call", async () => {
-    const { calls, room, bus } = await joined();
+    const { calls, room } = await joined();
     // leave() drops the old room's listeners; keep its handler to deliver a late event anyway.
     const [lateDisconnect] = room.handlers.get("disconnected");
-    bus.fire("VoiceMoveRequested", { spaceId: "space-1", fromChannelId: "chan-1", toChannelId: "chan-2", byUserId: "mod" });
-    await vi.waitFor(() => expect(calls.connectedVoiceChannelId.value).toBe("chan-2"));
+    await calls.leave();
+    await calls.joinVoiceChannel("chan-2");
+    expect(calls.connectedVoiceChannelId.value).toBe("chan-2");
 
     lateDisconnect(DisconnectReason.PARTICIPANT_REMOVED);
     await Promise.resolve();

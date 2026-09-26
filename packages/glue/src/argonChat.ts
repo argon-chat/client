@@ -373,6 +373,7 @@ export interface ArgonMessage {
   sender: guid;
   reactions: IonArray<ReactionInfo>;
   controls: IonArray<ControlRow> | null;
+  editedAt: datetime | null;
 };
 
 
@@ -708,9 +709,10 @@ export enum MoveVoiceMemberError
   TARGET_IS_NOT_VOICE = 4,
   SAME_CHANNEL = 5,
   MEMBER_CANNOT_JOIN_TARGET = 6,
+  SFU_UNAVAILABLE = 7,
 }
 
-const declaredMoveVoiceMemberError: ReadonlySet<unknown> = new Set<unknown>([MoveVoiceMemberError.NONE, MoveVoiceMemberError.INSUFFICIENT_PERMISSIONS, MoveVoiceMemberError.MEMBER_NOT_IN_CHANNEL, MoveVoiceMemberError.TARGET_NOT_FOUND, MoveVoiceMemberError.TARGET_IS_NOT_VOICE, MoveVoiceMemberError.SAME_CHANNEL, MoveVoiceMemberError.MEMBER_CANNOT_JOIN_TARGET]);
+const declaredMoveVoiceMemberError: ReadonlySet<unknown> = new Set<unknown>([MoveVoiceMemberError.NONE, MoveVoiceMemberError.INSUFFICIENT_PERMISSIONS, MoveVoiceMemberError.MEMBER_NOT_IN_CHANNEL, MoveVoiceMemberError.TARGET_NOT_FOUND, MoveVoiceMemberError.TARGET_IS_NOT_VOICE, MoveVoiceMemberError.SAME_CHANNEL, MoveVoiceMemberError.MEMBER_CANNOT_JOIN_TARGET, MoveVoiceMemberError.SFU_UNAVAILABLE]);
 
 /**
  * Open-enum helpers for {@link MoveVoiceMemberError}.
@@ -937,6 +939,40 @@ export const Ion_VoiceInviteError_OpenEnum = {
    */
   unknownValue(value: VoiceInviteError): u2 | undefined {
     return declaredVoiceInviteError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum EditMessageError
+{
+  NONE = 0,
+  MESSAGE_NOT_FOUND = 1,
+  NOT_AUTHOR = 2,
+  EMPTY_MESSAGE = 3,
+  MESSAGE_TOO_LONG = 4,
+}
+
+const declaredEditMessageError: ReadonlySet<unknown> = new Set<unknown>([EditMessageError.NONE, EditMessageError.MESSAGE_NOT_FOUND, EditMessageError.NOT_AUTHOR, EditMessageError.EMPTY_MESSAGE, EditMessageError.MESSAGE_TOO_LONG]);
+
+/**
+ * Open-enum helpers for {@link EditMessageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_EditMessageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: EditMessageError): boolean {
+    return declaredEditMessageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: EditMessageError): u2 | undefined {
+    return declaredEditMessageError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -6346,6 +6382,107 @@ IonFormatterStorage.register("FailedCreateVoiceInvite", {
 
 
 
+export abstract class IEditMessageResult implements IIonUnion<IEditMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessEditMessage(): this is SuccessEditMessage {
+    return this.UnionKey === "SuccessEditMessage";
+  }
+  public isFailedEditMessage(): this is FailedEditMessage {
+    return this.UnionKey === "FailedEditMessage";
+  }
+
+}
+
+
+export class SuccessEditMessage extends IEditMessageResult
+{
+  constructor(public message: ArgonMessage) { super(); }
+
+  UnionKey: string = "SuccessEditMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedEditMessage extends IEditMessageResult
+{
+  constructor(public error: EditMessageError) { super(); }
+
+  UnionKey: string = "FailedEditMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IEditMessageResult", {
+  read(reader: CborReader): IEditMessageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IEditMessageResult", 2);
+    let value: IEditMessageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessEditMessage>("SuccessEditMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedEditMessage>("FailedEditMessage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IEditMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IEditMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessEditMessage>("SuccessEditMessage").write(writer, value as SuccessEditMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedEditMessage>("FailedEditMessage").write(writer, value as FailedEditMessage);
+    }
+  
+    else throw new Error(`Ion union 'IEditMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessEditMessage", {
+  read(reader: CborReader): SuccessEditMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessEditMessage");
+    const message = IonFormatterStorage.get<ArgonMessage>('ArgonMessage').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessEditMessage(message);
+  },
+  write(writer: CborWriter, value: SuccessEditMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonMessage>('ArgonMessage').write(writer, value.message);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedEditMessage", {
+  read(reader: CborReader): FailedEditMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedEditMessage");
+    const error = IonFormatterStorage.get<EditMessageError>('EditMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedEditMessage(error);
+  },
+  write(writer: CborWriter, value: FailedEditMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<EditMessageError>('EditMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IDeleteMessageResult implements IIonUnion<IDeleteMessageResult>
 {
   abstract UnionKey: string;
@@ -8145,6 +8282,9 @@ export class VoiceMemberStateChanged extends IArgonEvent
   UnionIndex: number = 68;
 }
 
+/**
+ * @deprecated
+ */
 export class VoiceMoveRequested extends IArgonEvent
 {
   constructor(public spaceId: guid, public fromChannelId: guid, public toChannelId: guid, public byUserId: guid) { super(); }
@@ -16077,7 +16217,7 @@ IonFormatterStorage.register("ReactionInfo", {
 
 IonFormatterStorage.register("ArgonMessage", {
   read(reader: CborReader): ArgonMessage {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "ArgonMessage");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonMessage");
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const replyId = IonFormatterStorage.readNullable<i8>(reader, 'i8');
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -16088,11 +16228,12 @@ IonFormatterStorage.register("ArgonMessage", {
     const sender = IonFormatterStorage.get<guid>('guid').read(reader);
     const reactions = IonFormatterStorage.readArray<ReactionInfo>(reader, 'ReactionInfo');
     const controls = IonFormatterStorage.readNullableArray<ControlRow>(reader, 'ControlRow');
-    reader.readEndArrayAndSkip(arraySize - 10);
-    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions, controls };
+    const editedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { messageId, replyId, channelId, spaceId, text, entities, timeSent, sender, reactions, controls, editedAt };
   },
   write(writer: CborWriter, value: ArgonMessage): void {
-    writer.writeStartArray(10);
+    writer.writeStartArray(11);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.writeNullable<i8>(writer, value.replyId, 'i8');
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -16103,6 +16244,7 @@ IonFormatterStorage.register("ArgonMessage", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.sender);
     IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
     IonFormatterStorage.writeNullableArray<ControlRow>(writer, value.controls, 'ControlRow');
+    IonFormatterStorage.writeNullable<datetime>(writer, value.editedAt, 'datetime');
     writer.writeEndArray();
   }
 });
@@ -16767,6 +16909,16 @@ IonFormatterStorage.register("VoiceInviteError", {
     return IonFormatterStorage.readOpenEnum<VoiceInviteError>(reader, 'u2');
   },
   write(writer: CborWriter, value: VoiceInviteError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("EditMessageError", {
+  read(reader: CborReader): EditMessageError {
+    return IonFormatterStorage.readOpenEnum<EditMessageError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: EditMessageError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -19270,6 +19422,7 @@ export interface IChannelInteraction extends IIonService
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
   DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
+  EditMessage(spaceId: guid, channelId: guid, messageId: i8, text: string, entities: IonArray<IMessageEntity>): Promise<IEditMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -19621,6 +19774,7 @@ export interface IChannelInteraction extends IIonService
   SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
   DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
+  EditMessage(spaceId: guid, channelId: guid, messageId: i8, text: string, entities: IonArray<IMessageEntity>): Promise<IEditMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
@@ -20440,6 +20594,23 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IDeleteMessageResult>("IDeleteMessageResult", writer.data, this.signal);
+  }
+  async EditMessage(spaceId: guid, channelId: guid, messageId: i8, text: string, entities: IonArray<IMessageEntity>): Promise<IEditMessageResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "EditMessage");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<string>('string').write(writer, text);
+    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IEditMessageResult>("IEditMessageResult", writer.data, this.signal);
   }
   async DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DisconnectFromVoiceChannel");

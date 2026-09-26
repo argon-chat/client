@@ -1,5 +1,6 @@
 <template>
     <MentionSegment v-if="props.entity && isMentionEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <MassMentionSegment v-else-if="props.entity && isMassMentionEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <BoldSegment v-else-if="props.entity && isBoldEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <HashTagSegment v-else-if="props.entity && isHashtagEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <UnderlineSegment v-else-if="props.entity && isUnderlineEntity(props.entity)" :entity="props.entity" :text="props.text" />
@@ -22,6 +23,7 @@ import FractionSegment from "./FractionSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
 import ItalicSegment from "./ItalicSegment.vue";
 import MentionSegment from "./MentionSegment.vue";
+import MassMentionSegment from "./MassMentionSegment.vue";
 import MonospaceSegment from "./MonospaceSegment.vue";
 import OrdinalSegment from "./OrdinalSegment.vue";
 import SpoilerSegment from "./SpoilerSegment.vue";
@@ -47,6 +49,9 @@ function isMentionEntity(
   entity: IMessageEntity,
 ): entity is MessageEntityMention {
   return entity.type === EntityType.Mention;
+}
+function isMassMentionEntity(entity: IMessageEntity): entity is IMessageEntity {
+  return entity.type === EntityType.MentionEveryone || entity.type === EntityType.MentionRole;
 }
 function isBoldEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.Bold;
