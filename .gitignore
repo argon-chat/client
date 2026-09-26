@@ -48,3 +48,6 @@ build/obj/
 public/games/*/index.html
 public/games/*/bundle.js
 public/games/*/bundle.js.map
+
+test/browser/__screenshots__/
+.vitest-attachments/

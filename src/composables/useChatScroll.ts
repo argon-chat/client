@@ -235,6 +235,7 @@ export function useChatScroll(
   let onScrollCallback: ScrollStateCallback | null = null;
 
   const { isAnimating } = useHeavyAnimationCheck();
+  const followBottom = ref(true);
 
   // ── Virtual scroller ──
 
@@ -246,6 +247,7 @@ export function useChatScroll(
     pinThreshold: SCROLL_PIN_THRESHOLD,
     nearBottomThreshold: SCROLL_NEAR_BOTTOM_THRESHOLD,
     nearTopThreshold: SCROLL_NEAR_TOP_THRESHOLD,
+    followBottom: () => followBottom.value,
     onNearBottom: () => {
       if (!isAnimating.value && onScrollCallback) {
         const container = parentRef.value;
@@ -312,8 +314,13 @@ export function useChatScroll(
     scroller.renderAtBottom();
   };
 
-  const scrollToIndex = (index: number) => {
-    scroller.scrollToIndex(index, "start");
+  const scrollToIndex = (index: number, align: "start" | "center" | "end" = "start") => {
+    scroller.scrollToIndex(index, align);
+  };
+
+  /** Off while the list shows history paged in below the reader: they stay where they read. */
+  const setFollowBottom = (follow: boolean) => {
+    followBottom.value = follow;
   };
 
   const onScrollNearTop = (callback: () => void) => {
@@ -370,6 +377,7 @@ export function useChatScroll(
     createScrollSaver,
     /** Reset scroller state (on channel switch) */
     resetScroller: scroller.resetState,
+    setFollowBottom,
     /** Force schedule an update */
     scheduleUpdate: scroller.scheduleUpdate,
     /** Heavy animation state */

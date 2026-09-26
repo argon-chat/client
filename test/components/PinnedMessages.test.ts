@@ -162,7 +162,7 @@ describe("the panel", () => {
 });
 
 describe("the header button", () => {
-  async function button(jumpTo: (id: bigint) => boolean = () => true) {
+  async function button(jumpTo: (id: bigint) => boolean | Promise<boolean> = () => true) {
     const w = mount(PinnedMessagesButton, { props: { channelId: "c1", spaceId: "s1", jumpTo } });
     await flushPromises();
     return w;
@@ -183,19 +183,21 @@ describe("the header button", () => {
     expect(w.find('[data-testid="pinned-messages-count"]').exists()).toBe(false);
   });
 
-  test("Jump scrolls to a loaded message and explains a message that is not loaded", async () => {
-    h.getPinned.mockResolvedValueOnce([pinned(2n, "loaded"), pinned(1n, "old")]);
-    const jumpTo = vi.fn((id: bigint) => id === 2n);
+  test("Jump goes to the message, loading it if need be, and says so when it is gone", async () => {
+    h.getPinned.mockResolvedValueOnce([pinned(2n, "still here"), pinned(1n, "deleted since")]);
+    const jumpTo = vi.fn(async (id: bigint) => id === 2n);
     const w = await button(jumpTo);
 
     const jumps = w.findAll('[data-testid="pinned-jump"]');
     await jumps[0].trigger("click");
+    await flushPromises();
     expect(jumpTo).toHaveBeenLastCalledWith(2n);
     expect(h.toast).not.toHaveBeenCalled();
 
     await jumps[1].trigger("click");
+    await flushPromises();
     expect(jumpTo).toHaveBeenLastCalledWith(1n);
-    expect(h.toast).toHaveBeenCalledWith({ title: "pins_not_loaded" });
+    expect(h.toast).toHaveBeenCalledWith({ title: "message_jump_gone" });
   });
 
   test("Unpin from the panel removes the pin", async () => {

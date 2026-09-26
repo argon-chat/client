@@ -77,43 +77,6 @@ export function playUiBeep(kind: UiBeep): void {
 }
 
 /**
- * Being moved to another channel: one sine held at 440 Hz, then sliding up a fifth to 660 Hz
- * and dying away, ~180 ms in all. A glide, so it is nothing like the sampled enter/leave tones
- * or the chirp's two fixed notes; `volume` scales it like the other tones (0–1).
- */
-export function playMovedSound(volume = 1): void {
-  try {
-    const ctx = audio.getCurrentAudioContext();
-    const now = ctx.currentTime;
-    const level = Math.max(0, Math.min(volume, 1)) * 0.14;
-    if (level <= 0) return;
-    // Three clear beats, a rising major triad with the last note held: unmistakably a cue,
-    // not the single enter tone and not the two-note radio chirp.
-    const notes = [
-      { freq: 523.25, start: 0, duration: 0.14, gain: 0.85 },
-      { freq: 659.25, start: 0.17, duration: 0.14, gain: 0.9 },
-      { freq: 783.99, start: 0.34, duration: 0.26, gain: 1 },
-    ];
-    for (const { freq, start, duration, gain: accent } of notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, now + start);
-      gain.gain.setValueAtTime(0.0001, now + start);
-      gain.gain.exponentialRampToValueAtTime(level * accent, now + start + 0.012);
-      gain.gain.setValueAtTime(level * accent, now + start + duration * 0.6);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
-      osc.connect(gain);
-      gain.connect(audio.getOutputDestination());
-      osc.start(now + start);
-      osc.stop(now + start + duration + 0.02);
-    }
-  } catch {
-    // A cue that cannot play is not worth reporting.
-  }
-}
-
-/**
  * The radio chirp: two rising tones that tell listeners a transmission is starting. Played on
  * the master, past the ducked voice bus; `volume` scales it like the other tones (0–1).
  */

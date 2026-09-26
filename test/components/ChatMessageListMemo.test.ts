@@ -114,3 +114,27 @@ describe("a row of the chat list", () => {
     w.unmount();
   });
 });
+
+describe("jumping", () => {
+  test("away in older history, the list offers the way back instead of the scroll button", async () => {
+    const w = await list({ detached: true, isScrolledUp: true, newMessagesCount: 3 });
+
+    const bar = w.find('[data-testid="older-history-bar"]');
+    expect(bar.text()).toContain("viewing_older_messages");
+    expect(bar.text()).toContain("3");
+    await w.get('[data-testid="jump-to-present"]').trigger("click");
+    expect(w.emitted("jump-to-present")).toHaveLength(1);
+    w.unmount();
+  });
+
+  test("a reply whose original is not loaded asks the parent to open it; a loaded one does not", async () => {
+    const w = await list();
+    const row = w.findComponent({ name: "MessageItem" });
+
+    row.vm.$emit("scroll-to-message", 99n);
+    row.vm.$emit("scroll-to-message", 1n);
+
+    expect(w.emitted("jump-to-message")).toEqual([[99n]]);
+    w.unmount();
+  });
+});

@@ -151,3 +151,10 @@ None - this is a static assets package.
 ## License
 
 MIT
+
+### Sound licences
+
+- `sounds/normalized_atlas.wav`, sprite `moved` (offset 13351 ms, 951 ms): "navigation_forward-selection" from the
+  [Google Material Design sound resources](https://m2.material.io/design/sound/sound-resources.html),
+  licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Converted to 44.1 kHz and
+  loudness-matched to the `enter` sprite; no other changes.

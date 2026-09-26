@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
+import { playwright } from "@vitest/browser-playwright";
 import path from "node:path";
 
 /**
@@ -46,8 +47,29 @@ export default defineConfig({
           name: "app",
           environment: "happy-dom",
           include: ["test/**/*.test.ts"],
+          exclude: ["test/browser/**"],
           globals: false,
           restoreMocks: true,
+        },
+      },
+      // What only a real browser answers honestly: layout, scrolling, ResizeObserver. happy-dom
+      // computes none of it, and a faked geometry can hide a bug as easily as invent one.
+      {
+        plugins: [vue()],
+        resolve: {
+          alias: { "@": path.resolve(__dirname, "./src") },
+        },
+        test: {
+          name: "browser",
+          include: ["test/browser/**/*.test.ts"],
+          globals: false,
+          restoreMocks: true,
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: "chromium" }],
+          },
         },
       },
       "packages/*/vitest.config.ts",

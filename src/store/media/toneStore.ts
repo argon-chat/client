@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { createAudioAtlas, type AudioAtlas } from "@argon/soundfx";
 import normalizedAtlas from "@argon/assets/sounds/normalized_atlas.wav";
 import { audio } from "@/lib/audio/AudioManager";
-import { playMovedSound as moved, playRadioChirp as chirp, playUiBeep } from "@/lib/audio/uiBeep";
+import { playRadioChirp as chirp, playUiBeep } from "@/lib/audio/uiBeep";
 import { logger } from "@argon/core";
 
 // Sprite definitions: [startMs, durationMs]
@@ -16,6 +16,9 @@ const SPRITES = {
   notification: [4083, 1252],
   ring: [5335, 3330],
   reconnect: [9879, 2167],
+  // Google Material Design sound resources, navigation_forward-selection (CC BY 4.0), loudness-matched
+  // to `enter`; see packages/assets/README.md.
+  moved: [13351, 951],
 } as const satisfies Record<string, [number, number]>;
 
 type SpriteId = keyof typeof SPRITES;
@@ -43,6 +46,7 @@ export const useTone = defineStore("tone", () => {
     notification: isEnable_playNotificationSound,
     ring: isEnable_playRingSound,
     reconnect: isEnable_playReconnectSound,
+    moved: isEnable_playSoftEnterSound,
   };
 
   let atlas: AudioAtlas | null = null;
@@ -130,12 +134,8 @@ export const useTone = defineStore("tone", () => {
   const playRadioError = () => playUiBeep("capture-fail");
   const playRadioChirp = () => chirp(volume.value);
 
-  // Being moved is a kind of entering, so it follows the enter-tone preference — but it must
-  // not sound like one: three synthesized beats at the sound level the atlas uses.
-  const playMovedSound = () => {
-    if (!isEnable_playSoftEnterSound.value) return;
-    moved(volume.value);
-  };
+  // Being moved is a kind of entering, so it follows the enter-tone preference, with its own sprite.
+  const playMovedSound = () => play("moved");
 
   return {
     init,

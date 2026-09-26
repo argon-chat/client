@@ -907,6 +907,14 @@ export interface ChannelGroup {
 };
 
 
+export interface MessageWindow {
+  messages: IonArray<ArgonMessage>;
+  hasOlder: bool;
+  hasNewer: bool;
+  containsAnchor: bool;
+};
+
+
 export enum ChannelType
 {
   Text = 0,
@@ -19504,6 +19512,26 @@ IonFormatterStorage.register("ChannelGroup", {
   }
 });
 
+IonFormatterStorage.register("MessageWindow", {
+  read(reader: CborReader): MessageWindow {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "MessageWindow");
+    const messages = IonFormatterStorage.readArray<ArgonMessage>(reader, 'ArgonMessage');
+    const hasOlder = IonFormatterStorage.get<bool>('bool').read(reader);
+    const hasNewer = IonFormatterStorage.get<bool>('bool').read(reader);
+    const containsAnchor = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { messages, hasOlder, hasNewer, containsAnchor };
+  },
+  write(writer: CborWriter, value: MessageWindow): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.writeArray<ArgonMessage>(writer, value.messages, 'ArgonMessage');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasOlder);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasNewer);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.containsAnchor);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("JoinToChannelError", {
   read(reader: CborReader): JoinToChannelError {
     return IonFormatterStorage.readOpenEnum<JoinToChannelError>(reader, 'u2');
@@ -22282,6 +22310,7 @@ export interface IChannelInteraction extends IIonService
   GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
   SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
+  QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
 }
 
 
@@ -22701,6 +22730,7 @@ export interface IChannelInteraction extends IIonService
   GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
   SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
+  QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
 }
 
 
@@ -24132,6 +24162,23 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IUpdateChannelResult>("IUpdateChannelResult", writer.data, this.signal);
+  }
+  async QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "QueryMessagesAround");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<i4>('i4').write(writer, older);
+    IonFormatterStorage.get<i4>('i4').write(writer, newer);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<MessageWindow>("MessageWindow", writer.data, this.signal);
   }
 
 }

@@ -44,7 +44,8 @@ const props = defineProps<{
   channelId: Guid;
   spaceId?: Guid;
   /** Scrolls the list to the message; false when it is not loaded. */
-  jumpTo: (messageId: bigint) => boolean;
+  /** Scrolls to the message, loading the history around it if need be; false when it is gone. */
+  jumpTo: (messageId: bigint) => boolean | Promise<boolean>;
 }>();
 
 const { t } = useLocale();
@@ -69,11 +70,11 @@ watch(open, (isOpen) => {
 const subscriptions = [bus.reconnected, bus.needFullResync].map((s) => s.subscribe(() => void refresh(true)));
 onUnmounted(() => subscriptions.forEach((s) => s.unsubscribe()));
 
-function onJump(messageId: bigint) {
-  if (props.jumpTo(messageId)) {
+async function onJump(messageId: bigint) {
+  if (await props.jumpTo(messageId)) {
     open.value = false;
     return;
   }
-  toast({ title: t('pins_not_loaded') });
+  toast({ title: t('message_jump_gone') });
 }
 </script>

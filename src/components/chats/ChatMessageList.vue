@@ -79,7 +79,7 @@
             @publish="(msg) => emit('publish', msg)"
             @retry="(msg) => emit('retry', msg)"
             @open-lightbox="onOpenLightbox"
-            @scroll-to-message="scrollToMessage"
+            @scroll-to-message="onJumpRequest"
           />
         </div>
       </div>
@@ -116,10 +116,37 @@
       @close="lbOpen = false"
     />
 
+    <!-- ═══ Away in older history (opened by a jump): the way back to the present ═══ -->
+    <Transition name="fab-pop">
+      <div
+        v-if="detached"
+        class="absolute bottom-3 inset-x-0 z-10 flex justify-center pointer-events-none"
+        data-testid="older-history-bar"
+      >
+        <div class="pointer-events-auto flex items-center gap-3 pl-4 pr-1.5 py-1.5 rounded-full bg-card border border-border/40 shadow-md text-sm">
+          <span class="text-muted-foreground">{{ t('viewing_older_messages') }}</span>
+          <span
+            v-if="newMessagesCount > 0"
+            class="min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center"
+          >
+            {{ newMessagesCount > 99 ? '99+' : newMessagesCount }}
+          </span>
+          <button
+            class="flex items-center gap-1 h-7 px-3 rounded-full bg-primary text-primary-foreground text-xs font-semibold cursor-pointer transition-opacity hover:opacity-90"
+            data-testid="jump-to-present"
+            @click="emit('jump-to-present')"
+          >
+            <CircleArrowDown class="w-3.5 h-3.5" />
+            {{ t('jump_to_present') }}
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ═══ Scroll-to-bottom FAB ═══ -->
     <Transition name="fab-pop">
       <button
-        v-if="isScrolledUp"
+        v-if="isScrolledUp && !detached"
         class="absolute bottom-4 right-6 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-card text-foreground/70 border border-border/35 cursor-pointer shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:text-foreground"
         @click="onFabClick"
       >
@@ -136,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onUnmounted, type ShallowRef } from "vue";
+import { computed, ref, watch, onUnmounted, type ShallowRef } from "vue";
 import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
 import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
 
@@ -179,8 +206,10 @@ const props = withDefaults(defineProps<{
   announcement?: AnnouncementCardContext | null;
   channelType?: "text" | "announcement";
   canPublishAny?: boolean;
-  /** Announcement channels: a "read by N" line under the posts the user may see it for. */
+  /** Announcement channels: the eye and reader count beside the posts the user may see it for. */
   readCounts?: { spaceId: string; channelId: string } | null;
+  /** The list shows a stretch of older history opened by a jump, not the present. */
+  detached?: boolean;
 }>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, canPublishAny: false, readCounts: null });
 
 const emit = defineEmits<{
@@ -192,6 +221,9 @@ const emit = defineEmits<{
   (e: "near-top"): void;
   (e: "scroll-state", distanceFromBottom: number): void;
   (e: "reset-unread"): void;
+  /** A message that is not loaded was asked for (a reply's original): the parent opens it. */
+  (e: "jump-to-message", messageId: bigint): void;
+  (e: "jump-to-present"): void;
 }>();
 
 // ── Row memo keys ──
@@ -209,8 +241,11 @@ const messages = props.source();
 const {
   parentRef, chatWidth, renderedItems, topSpace, bottomSpace, measureElement,
   scrollToBottomImmediate, scrollToBottom, scrollToIndex,
-  onScrollNearTop, onScroll, resetScroller,
+  onScrollNearTop, onScroll, resetScroller, setFollowBottom,
 } = useChatScroll(messages);
+
+// History paged in below the reader must not drag the view down with it.
+watch(() => props.detached, (detached) => setFollowBottom(!detached), { immediate: true });
 
 onScrollNearTop(() => emit("near-top"));
 onScroll(({ distanceFromBottom }) => emit("scroll-state", distanceFromBottom));
@@ -242,10 +277,15 @@ let hlTimer: ReturnType<typeof setTimeout> | null = null;
 function scrollToMessage(messageId: bigint) {
   const idx = messages.value.findIndex((m) => m.messageId === messageId);
   if (idx < 0) return;
-  scrollToIndex(idx);
+  scrollToIndex(idx, "center");
   highlightedIdx.value = idx;
   if (hlTimer) clearTimeout(hlTimer);
   hlTimer = setTimeout(() => (highlightedIdx.value = null), 1500);
+}
+
+function onJumpRequest(messageId: bigint) {
+  if (messages.value.some((m) => m.messageId === messageId)) scrollToMessage(messageId);
+  else emit("jump-to-message", messageId);
 }
 
 onUnmounted(() => {

@@ -78,6 +78,14 @@ export function useChatMessages(
   const isLoadingOlder = ref(false);
   const newMessagesCount = ref(0);
   const isScrolledUp = ref(false);
+  // False while the list shows a stretch of history opened by a jump (a pin, a reply) that does not
+  // reach the present: new messages are held and counted rather than appended, and scrolling down
+  // pages towards the present.
+  const hasReachedLatest = ref(true);
+  const isLoadingNewer = ref(false);
+  const heldLive = new Map<bigint, ArgonMessage>();
+  // What the last load of the present did once it landed (scroll to the bottom), for coming back.
+  let onPresentLoaded: () => void = () => {};
   const subs = ref<Subscription | null>(null);
   const updateSubs = ref<Subscription | null>(null);
   const deleteSubs = ref<Subscription | null>(null);
@@ -280,15 +288,20 @@ export function useChatMessages(
     });
   }
 
-  const loadInitialMessages = async (onLoaded: () => void) => {
+  const loadInitialMessages = async (onLoaded: () => void, opts: { keepOptimistic?: boolean } = {}) => {
     if (!spaceId()) return;
 
     const generation = ++loadGeneration;
     revalidating = Promise.resolve();
     isLoading.value = true;
     hasReachedEnd.value = false;
+    hasReachedLatest.value = true;
+    heldLive.clear();
+    onPresentLoaded = onLoaded;
     newMessagesCount.value = 0;
     isScrolledUp.value = false;
+    // Coming back from a jump: what is being sent stays in view.
+    const pending = opts.keepOptimistic ? messages.value.filter((m) => m._optimistic) : [];
 
     try {
       // Step 6: Load from cache first WITHOUT clearing — no flash
@@ -297,14 +310,15 @@ export function useChatMessages(
 
       if (cachedMessages.length > 0) {
         messageIdSet.clear();
-        for (const m of cachedMessages) messageIdSet.add(m.messageId);
-        messages.value = cachedMessages;
+        for (const m of [...cachedMessages, ...pending]) messageIdSet.add(m.messageId);
+        messages.value = [...cachedMessages, ...pending];
         await nextTick();
         onLoaded();
       } else {
         // No cache — clear old channel's messages
         messageIdSet.clear();
-        messages.value = [];
+        for (const m of pending) messageIdSet.add(m.messageId);
+        messages.value = pending;
       }
 
       // The newest page is the truth for everything from its oldest message on: what the cache
@@ -328,6 +342,91 @@ export function useChatMessages(
     } finally {
       if (generation === loadGeneration) isLoading.value = false;
     }
+  };
+
+  /**
+   * Opens the stretch of history around a message that is not loaded: the list is replaced by the
+   * server's page around it and stops following the present until paging down reaches it. False
+   * when the message no longer exists (or cannot be read); the list is then left as it was.
+   *
+   * These pages stay out of the local cache: it holds one run back from the newest message, and a
+   * stretch from further back would sit under it as if it came next when scrolling up from the
+   * present.
+   */
+  const jumpToMessage = async (messageId: bigint): Promise<boolean> => {
+    if (messageIdSet.has(messageId)) return true;
+    const sid = spaceId();
+    const cid = channelId();
+    if (!sid) return false;
+
+    const newerAsked = Math.floor(MESSAGES_PER_LOAD / 2);
+    const olderAsked = MESSAGES_PER_LOAD - newerAsked;
+    const generation = loadGeneration;
+    const stretch = await api.channelInteraction.QueryMessagesAround(sid, cid, messageId, olderAsked, newerAsked);
+    if (generation !== loadGeneration || cid !== channelId()) return false;
+    if (!stretch.containsAnchor) return false;
+
+    const page = [...stretch.messages].sort((a, b) => Number(a.messageId - b.messageId));
+    const reachedLatest = !stretch.hasNewer;
+    const reachedStart = !stretch.hasOlder;
+
+    ++loadGeneration;
+    revalidating = Promise.resolve();
+    heldLive.clear();
+    newMessagesCount.value = 0;
+    const pending = reachedLatest ? messages.value.filter((m) => m._optimistic) : [];
+    messageIdSet.clear();
+    for (const m of [...page, ...pending]) messageIdSet.add(m.messageId);
+    messages.value = [...page, ...pending];
+    hasReachedEnd.value = reachedStart;
+    hasReachedLatest.value = reachedLatest;
+    return true;
+  };
+
+  /** Pages down from a jump towards the present; once there, the list follows it again. */
+  const loadNewerMessages = async () => {
+    const sid = spaceId();
+    const cid = channelId();
+    if (hasReachedLatest.value || isLoadingNewer.value || !sid) return;
+    const last = [...messages.value].reverse().find((m) => !m._optimistic);
+    if (!last) return;
+
+    const generation = loadGeneration;
+    isLoadingNewer.value = true;
+    try {
+      const stretch = await api.channelInteraction.QueryMessagesAround(sid, cid, last.messageId, 0, MESSAGES_PER_LOAD);
+      if (generation !== loadGeneration) return;
+
+      const reachedLatest = !stretch.hasNewer;
+      const page = [...stretch.messages].sort((a, b) => Number(a.messageId - b.messageId));
+
+      // Held while away: what arrived live and the last page came too early to include.
+      const held = reachedLatest ? [...heldLive.values()] : [];
+      const added = [...page, ...held]
+        .filter((m) => !messageIdSet.has(m.messageId))
+        .sort((a, b) => Number(a.messageId - b.messageId));
+      for (const m of added) messageIdSet.add(m.messageId);
+      if (added.length) {
+        messages.value.push(...added);
+        trimMessages();
+        triggerRef(messages);
+      }
+      if (reachedLatest) {
+        hasReachedLatest.value = true;
+        heldLive.clear();
+        newMessagesCount.value = 0;
+      }
+    } catch (error) {
+      logger.error("Failed to load newer messages:", error);
+    } finally {
+      isLoadingNewer.value = false;
+    }
+  };
+
+  /** Back to the newest messages after a jump; what is being sent stays. */
+  const returnToPresent = async () => {
+    if (hasReachedLatest.value) return;
+    await loadInitialMessages(onPresentLoaded, { keepOptimistic: true });
   };
 
   // ────────────────────────────────────────────
@@ -421,6 +520,13 @@ export function useChatMessages(
         }
       }
 
+      // Away in older history: counted and held, not appended past a gap.
+      if (!hasReachedLatest.value) {
+        heldLive.set(e.messageId, e);
+        if (e.sender !== me.me?.userId) newMessagesCount.value++;
+        return;
+      }
+
       // Batch incoming messages to avoid multiple array rebuilds per frame
       queueIncomingMessage(e, onNewMessage);
     });
@@ -444,6 +550,9 @@ export function useChatMessages(
       }
     }, OPTIMISTIC_TIMEOUT_MS);
     optimisticTimers.set(randomId, timer);
+
+    // Sent from older history: back to the present, where it lands.
+    if (!hasReachedLatest.value) void returnToPresent();
   };
 
   /**
@@ -600,6 +709,8 @@ export function useChatMessages(
     optimisticRandomIds.clear();
     resolvedMessageIds.clear();
     messageIdSet.clear();
+    heldLive.clear();
+    hasReachedLatest.value = true;
     loadGeneration++;
   };
 
@@ -616,6 +727,7 @@ export function useChatMessages(
 
   /** Takes a message out of the list and the local cache (MessageDeleted, or the user's own delete). */
   async function removeMessage(messageId: bigint) {
+    heldLive.delete(messageId);
     const idx = messages.value.findIndex((m) => m.messageId === messageId);
     if (idx !== -1) {
       messages.value.splice(idx, 1);
@@ -648,8 +760,13 @@ export function useChatMessages(
     isLoadingOlder,
     newMessagesCount,
     isScrolledUp,
+    hasReachedLatest,
+    isLoadingNewer,
     loadOlderMessages,
     loadInitialMessages,
+    jumpToMessage,
+    loadNewerMessages,
+    returnToPresent,
     subscribeToNewMessages,
     getMessageById,
     addOptimisticMessage,

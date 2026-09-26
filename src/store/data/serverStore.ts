@@ -21,6 +21,7 @@ import {
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useChannelStore } from "@/store/data/channelStore";
+import { useNotificationStore } from "@/store/data/notificationStore";
 import { channelLayoutRefusal, spaceManageRefusal } from "@/lib/refusals";
 
 export const useSpaceStore = defineStore("spaces", () => {
@@ -85,6 +86,8 @@ export const useSpaceStore = defineStore("spaces", () => {
 
     if (r.isSuccessJoin()) {
       await pool.loadServerDetails();
+      // The new space's read states: history from before the join arrives already read.
+      await useNotificationStore().initFromGlobalBadges();
       return '';
     } else if (r.isFailedJoin()) {
       switch (r.error) {

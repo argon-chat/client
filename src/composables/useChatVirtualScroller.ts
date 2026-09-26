@@ -33,6 +33,11 @@ export interface ChatVirtualScrollerOptions<T> {
   nearTopThreshold?: number;
   onNearBottom?: () => void;
   onNearTop?: () => void;
+  /**
+   * Whether content added below follows the viewport down while it sits at the bottom. Off while
+   * the list shows a stretch of history paged in below the reader, who stays where they read.
+   */
+  followBottom?: () => boolean;
 }
 
 /**
@@ -57,6 +62,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     nearTopThreshold = 300,
     onNearBottom,
     onNearTop,
+    followBottom = () => true,
   } = opts;
 
   const OVERSCAN = 0.4; // fraction of viewport rendered beyond each edge
@@ -221,6 +227,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
     // 1) Decide the scrollTop this pass renders for.
     let top: number;
+    let clampedTop: number | null = null;
     if (scrollTopOverride != null) {
       top = scrollTopOverride;
     } else if (doSnap) {
@@ -238,6 +245,10 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
           if (Math.abs(delta) < contentH) {
             top += delta;
             setScrollTopSilently(box, top);
+            // The spacers this pass sets are not in the DOM yet, so a scroll past the old content
+            // (a page prepended while at the very top) is clamped by the browser: applied again
+            // once they are (see step 4).
+            if (box.scrollTop < top - 1) clampedTop = top;
           }
         }
       }
@@ -293,8 +304,24 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
     renderedItems.value = out;
 
-    // 5) Save the anchors (first visible item onwards) for the next pass.
-    const firstVisible = Math.max(0, out.findIndex((v) => v.offset + v.height > top));
+    // A compensation the browser clamped: again after the DOM has the spacers set above.
+    if (clampedTop != null) {
+      const wanted = clampedTop;
+      nextTick(() => {
+        if (!dead && box.isConnected && !pinnedToBottom) {
+          setScrollTopSilently(box, wanted);
+          updateScrollState(box);
+        }
+      });
+    }
+
+    // 5) Save the anchors for the next pass: the first item that starts inside the viewport, then
+    // the ones after it. An item cut by the top edge is still being measured as it comes into
+    // view (media loading, its real height replacing the estimate), and anchoring on it would let
+    // its growth push everything under the reader down. Only when none starts inside (one item
+    // taller than the viewport) is the one cut by the edge used.
+    let firstVisible = out.findIndex((v) => v.offset >= top);
+    if (firstVisible < 0) firstVisible = Math.max(0, out.findIndex((v) => v.offset + v.height > top));
     anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: v.offset }));
 
     // 6) When following new content, re-snap to the true bottom after the DOM
@@ -364,14 +391,23 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     }
     if (changed) {
       // Heights grew/shrank while at the bottom (e.g. media loaded) → keep following.
-      if (pinnedToBottom) snapRequested = true;
+      if (pinnedToBottom && followBottom()) snapRequested = true;
       enqueue();
     }
   }
 
   /** Called from the template :ref — registers an element for measurement. */
   function measureElement(el: HTMLElement | null, key: string | number) {
-    if (!el || !el.isConnected) return;
+    if (!el) return;
+    // A row mounting inside a new wrapper gets its ref before the wrapper is attached. Skipping it
+    // then left the row unmeasured and unobserved until some later render: its real height landed
+    // on the next scroll tick as a jolt, and media loading in it went unseen.
+    if (!el.isConnected) {
+      queueMicrotask(() => {
+        if (!dead && el.isConnected) measureElement(el, key);
+      });
+      return;
+    }
     if (tracked.has(el)) return; // already observed; RO owns subsequent deltas
 
     elToKey.set(el, key);
@@ -385,7 +421,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       if (h > 0 && Math.abs(h - m.h) > 0.5) {
         m.h = h;
         if (m.index < firstDirty) firstDirty = m.index;
-        if (pinnedToBottom) snapRequested = true;
+        if (pinnedToBottom && followBottom()) snapRequested = true;
         enqueue();
       }
     }
@@ -494,7 +530,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       paused = false;
       // Appends while pinned should follow to the bottom; prepends (not pinned)
       // are handled by anchor compensation instead.
-      if (pinnedToBottom) snapRequested = true;
+      if (pinnedToBottom && followBottom()) snapRequested = true;
       enqueue();
     },
     { flush: "post" },
@@ -507,7 +543,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       box.addEventListener("scroll", onScroll, { passive: true });
       // Viewport resize (e.g. reply bar opens): stay at the bottom if pinned.
       const cro = new ResizeObserver(() => {
-        if (pinnedToBottom) snapRequested = true;
+        if (pinnedToBottom && followBottom()) snapRequested = true;
         enqueue();
       });
       cro.observe(box);

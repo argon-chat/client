@@ -31,7 +31,7 @@
           :class="{ 'ml-auto': channelType !== 'announcement' || !spaceId }"
           :channel-id="channelId"
           :space-id="spaceId"
-          :jump-to="jumpToPinned"
+          :jump-to="jumpToMessage"
         />
 
         <!-- Mute bell -->
@@ -106,6 +106,7 @@
       :channel-type="channelType"
       :can-publish-any="canPublishAny"
       :read-counts="readCounts"
+      :detached="!hasReachedLatest"
       :toggle-reaction="toggleReaction"
       @select-reply="(m) => emit('select-reply', m)"
       @select-edit="(m) => emit('select-edit', m)"
@@ -115,6 +116,8 @@
       @near-top="onNearTop"
       @scroll-state="onScrollState"
       @reset-unread="onResetUnread"
+      @jump-to-message="onJumpRequest"
+      @jump-to-present="goToPresent"
     />
 
     <!-- One confirmation for the whole list; shift-clicking the bin skips it -->
@@ -169,6 +172,7 @@ import { usePublishToFollowers } from "@/composables/useChannelFollow";
 import { useLocale } from "@/store/system/localeStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useChatMessages } from "@/composables/useChatMessages";
+import { useChatNavigation } from "@/composables/useChatNavigation";
 import { useMessageReactions } from "@/composables/useMessageReactions";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
 import { useAnnouncementChannel } from "@/composables/useAnnouncementChannel";
@@ -230,8 +234,9 @@ const typingText = computed(() => {
 
 const {
   messages, hasReachedEnd, isLoading, isLoadingOlder,
-  newMessagesCount, isScrolledUp,
+  newMessagesCount, isScrolledUp, hasReachedLatest,
   loadOlderMessages, loadInitialMessages, subscribeToNewMessages,
+  jumpToMessage: openAround, loadNewerMessages, returnToPresent,
   getMessageById, addOptimisticMessage, resolveOptimisticMessage,
   markOptimisticFailed, retryMessage, applyServerMessage, removeMessage, markPublished,
   cleanup: cleanupMessages,
@@ -264,24 +269,25 @@ function scrollToBottomImmediate() {
   listRef.value?.scrollToBottomImmediate();
 }
 
-function jumpToPinned(messageId: bigint): boolean {
-  if (!messages.value.some((m) => m.messageId === messageId)) return false;
-  listRef.value?.scrollToMessage(messageId);
-  return true;
+const nav = useChatNavigation(
+  {
+    messages, isScrolledUp, newMessagesCount, hasReachedEnd, hasReachedLatest, isLoadingOlder,
+    loadOlderMessages, loadNewerMessages, jumpToMessage: openAround, returnToPresent,
+  },
+  listRef,
+  { onOpened: (ids) => void batchLoadReactions(ids) },
+);
+
+const { onNearTop, jumpToMessage, goToPresent } = nav;
+
+async function onJumpRequest(messageId: bigint) {
+  if (!(await jumpToMessage(messageId))) toast({ title: t('message_jump_gone') });
 }
 
 // ── Scroll callbacks ──
 
-function onNearTop() {
-  if (!isLoadingOlder.value && !hasReachedEnd.value) {
-    loadOlderMessages({ beforePrepend: () => {}, afterPrepend: () => {} });
-  }
-}
-
 function onScrollState(distanceFromBottom: number) {
-  const was = isScrolledUp.value;
-  isScrolledUp.value = distanceFromBottom > 100;
-  if (was && !isScrolledUp.value) newMessagesCount.value = 0;
+  nav.onScrollState(distanceFromBottom);
 
   // ACK when at bottom
   if (distanceFromBottom <= 100 && messages.value.length) {
