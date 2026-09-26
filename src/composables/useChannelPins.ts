@@ -30,15 +30,19 @@ export function useChannelPins(channelId: () => Guid, spaceId: () => Guid | unde
   const pins = computed(() => store.list(channelId()));
   const count = computed(() => pins.value.length);
   const loaded = computed(() => store.isLoaded(channelId()));
+  /** The last load failed and there is nothing to show instead. */
+  const failed = computed(() => !loaded.value && store.isFailed(channelId()));
   const canManage = computed(() => pex.hasIn(channelId(), "ManageMessages", spaceId()));
 
   function isPinned(messageId: bigint): boolean {
     return store.isPinned(channelId(), messageId);
   }
 
-  async function refresh(): Promise<void> {
+  /** The held pins while fresh, else a load; `force` asks the server regardless (after a reconnect). */
+  async function refresh(force = false): Promise<void> {
     const space = spaceId();
-    if (space) await store.load(space, channelId());
+    if (!space) return;
+    await (force ? store.load(space, channelId()) : store.ensure(space, channelId()));
   }
 
   function report(outcome: PinOutcome, title: string): boolean {
@@ -67,5 +71,5 @@ export function useChannelPins(channelId: () => Guid, spaceId: () => Guid | unde
     return isPinned(messageId) ? unpin(messageId) : pin(messageId);
   }
 
-  return { pins, count, loaded, canManage, isPinned, refresh, pin, unpin, toggle };
+  return { pins, count, loaded, failed, canManage, isPinned, refresh, pin, unpin, toggle };
 }

@@ -20,6 +20,7 @@ const h = await vi.hoisted(async () => {
     badges: reactive(new Map<string, { totalMentions: number; unreadChannelCount: number }>()),
     rows: [] as any[],
     splitButton: ref(false),
+    failNext: false,
   };
 });
 
@@ -37,14 +38,30 @@ const ntf = {
 vi.mock("@/store/data/notificationStore", () => ({ useNotificationStore: () => ntf }));
 vi.mock("dexie", () => ({
   liveQuery: (fn: () => unknown) => ({
-    subscribe: ({ next }: { next: (v: unknown) => void }) => {
-      void Promise.resolve(fn()).then(next);
+    subscribe: ({ next, error }: { next: (v: unknown) => void; error?: (e: unknown) => void }) => {
+      void Promise.resolve()
+        .then(fn)
+        .then(next, (e) => error?.(e));
       return { unsubscribe() {} };
     },
   }),
 }));
 vi.mock("@/store/db/dexie", () => ({
-  db: { channels: { filter: (fn: (c: any) => boolean) => ({ toArray: async () => h.rows.filter(fn) }) } },
+  db: {
+    channels: {
+      where: (field: string) => ({
+        equals: (value: unknown) => ({
+          toArray: async () => {
+            if (h.failNext) {
+              h.failNext = false;
+              throw new Error("DatabaseClosedError");
+            }
+            return h.rows.filter((c) => c[field] === value);
+          },
+        }),
+      }),
+    },
+  },
 }));
 vi.mock("@/store/data/permissionStore", () => ({
   usePexStore: () => ({
@@ -96,6 +113,7 @@ import { ChannelType } from "@argon/glue";
 import ChannelItem from "@/components/ChannelItem.vue";
 import ServerRailIcon from "@/components/ServerRailIcon.vue";
 import { useAnnouncementStore } from "@/store/data/announcementStore";
+import { runSessionReset, sessionEpoch } from "@/store/system/sessionLifecycle";
 
 const channel = (channelId: string, type: ChannelType, lastMessageId = 10n, spaceId = "s1") =>
   ({ channelId, spaceId, name: channelId, type, groupId: null, lastMessageId, broadcast: null }) as any;
@@ -110,6 +128,7 @@ beforeEach(() => {
   h.mutes.clear();
   h.badges.clear();
   h.rows = [];
+  h.failNext = false;
 });
 
 describe("an announcement channel in the sidebar", () => {
@@ -207,5 +226,51 @@ describe("the spaces rail", () => {
 
     h.readStates.set("news", 10n);
     expect(store.hasUnreadIn("s1")).toBe(false);
+  });
+});
+
+describe("the store's subscription", () => {
+  // Components mounted by earlier tests call into their own stores, and a store action makes its
+  // pinia the active one again: ask this test's pinia explicitly.
+  const freshStore = () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    return useAnnouncementStore(pinia);
+  };
+
+  test("a failed query does not leave the store dead: the next reader subscribes again", async () => {
+    h.rows = [channel("news", ChannelType.Announcement, 10n, "s1")];
+    h.failNext = true;
+    const store = freshStore();
+
+    expect(store.hasUnreadIn("s1")).toBe(false);
+    await flushPromises();
+    expect(store.hasUnreadIn("s1")).toBe(false);
+
+    await flushPromises();
+
+    expect(store.hasUnreadIn("s1")).toBe(true);
+  });
+
+  test("binds to the next account's database once the switch is done", async () => {
+    h.rows = [channel("news", ChannelType.Announcement, 10n, "s1")];
+    const store = freshStore();
+    store.hasUnreadIn("s1");
+    await flushPromises();
+
+    await runSessionReset();
+    expect(store.channels).toEqual([]);
+    // The rail re-renders before the next account's database is open: that read lands on the
+    // database being closed.
+    store.hasUnreadIn("s1");
+    await flushPromises();
+
+    // The swap, then the epoch bump that follows it.
+    h.rows = [channel("other", ChannelType.Announcement, 3n, "s9")];
+    sessionEpoch.value++;
+    await flushPromises();
+
+    expect(store.channels.map((c) => c.channelId)).toEqual(["other"]);
+    expect(store.hasUnreadIn("s9")).toBe(true);
   });
 });

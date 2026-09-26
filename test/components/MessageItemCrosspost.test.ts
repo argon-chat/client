@@ -71,6 +71,7 @@ const crosspost = {
   sourceSpaceName: "Argon",
   sourceChannelName: "news",
   sourceSpaceAvatarFileId: null,
+  hideAuthor: false,
 };
 
 const message = (extra: Record<string, unknown> = {}) =>
@@ -135,6 +136,15 @@ describe("a crosspost", () => {
     h.users.author = { userId: "author", displayName: "Ada" };
     const w = await render(message({ crosspost }));
     expect(w.find('[data-testid="crosspost-author"]').text()).toBe('crosspost_by:{"name":"Ada"}');
+  });
+
+  test("from a source that posts as the space without its authors, names no author, known or not", async () => {
+    h.users.author = { userId: "author", displayName: "Ada" };
+    const w = await render(message({ crosspost: { ...crosspost, hideAuthor: true } }));
+
+    expect(w.find('[data-testid="crosspost-header"]').text()).toContain("Argon • #news");
+    expect(w.find('[data-testid="crosspost-author"]').exists()).toBe(false);
+    expect(w.text()).not.toContain("Ada");
   });
 
   test("a normal message by an unknown author still waits for the author", async () => {

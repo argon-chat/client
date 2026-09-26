@@ -28,12 +28,12 @@ export function useAvatarUpload() {
    * Full upload flow: begin → PUT (with progress) → complete
    *
    * @param beginFn - Calls BeginUpload* API and returns the result
-   * @param completeFn - Calls CompleteUpload* API with the blobId
+   * @param completeFn - Calls CompleteUpload* API with the blobId; resolves with a message when the server refused the file
    * @param data - Image data (dataURL, Blob, or File)
    */
   async function upload(
     beginFn: () => Promise<IUploadFileResult>,
-    completeFn: (blobId: string) => Promise<void>,
+    completeFn: (blobId: string) => Promise<string | void>,
     data: string | Blob | File,
   ): Promise<boolean> {
     reset();
@@ -55,7 +55,12 @@ export function useAvatarUpload() {
       // Step 3: Complete upload (90 → 100%)
       progress.value = 90;
       status.value = "processing";
-      await completeFn(blobId);
+      const refusal = await completeFn(blobId);
+      if (typeof refusal === "string") {
+        status.value = "error";
+        errorMessage.value = refusal;
+        return false;
+      }
 
       progress.value = 100;
       status.value = "done";

@@ -100,10 +100,11 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
   // keeps user wheel-scrolls from being yanked back: scroll events never set it.
   let snapRequested = false;
 
-  // Anchor (first visible item) — used to keep position stable across prepends
-  // and above-viewport height changes while NOT pinned.
-  let anchorKey: string | number | null = null;
-  let anchorY = 0;
+  // Anchors (the first visible item, then the ones after it) — used to keep position
+  // stable across prepends, removals and above-viewport height changes while NOT pinned.
+  // The later ones stand in when a row is taken out of the list (a deletion, or a
+  // cached row the server no longer has): the first one still present holds the place.
+  let anchors: { key: string | number; y: number }[] = [];
 
   // Programmatic-scroll guard: the scrollTop value we last wrote ourselves.
   let lastProgrammaticTop = -1;
@@ -206,7 +207,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       topSpace.value = 0;
       bottomSpace.value = 0;
       renderedItems.value = [];
-      anchorKey = null;
+      anchors = [];
       return;
     }
 
@@ -229,10 +230,11 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       // Anchor compensation (only while not pinned): if the first-visible item
       // shifted (prepend or above-viewport height change), move scrollTop by the
       // same delta so the content under the user's eyes stays put.
-      if (!pinnedToBottom && anchorKey != null) {
-        const ae = meta.get(anchorKey);
-        if (ae && ae.y !== anchorY) {
-          const delta = ae.y - anchorY;
+      if (!pinnedToBottom && anchors.length) {
+        const anchor = anchors.find((a) => meta.has(a.key));
+        const ae = anchor && meta.get(anchor.key);
+        if (anchor && ae && ae.y !== anchor.y) {
+          const delta = ae.y - anchor.y;
           if (Math.abs(delta) < contentH) {
             top += delta;
             setScrollTopSilently(box, top);
@@ -291,9 +293,9 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
 
     renderedItems.value = out;
 
-    // 5) Save the anchor (first visible item) for the next pass.
-    anchorKey = out[0].key;
-    anchorY = out[0].offset;
+    // 5) Save the anchors (first visible item onwards) for the next pass.
+    const firstVisible = Math.max(0, out.findIndex((v) => v.offset + v.height > top));
+    anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: v.offset }));
 
     // 6) When following new content, re-snap to the true bottom after the DOM
     // updates. This is what makes the list follow async media (GIFs/images)
@@ -465,8 +467,7 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     paused = true;
     pinnedToBottom = true;
     snapRequested = false;
-    anchorKey = null;
-    anchorY = 0;
+    anchors = [];
     lastProgrammaticTop = -1;
     for (const el of tracked) ro?.unobserve(el);
     tracked.clear();

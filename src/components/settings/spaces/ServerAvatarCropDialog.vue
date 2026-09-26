@@ -16,6 +16,9 @@ import { watch, computed } from 'vue'
 import { useApi } from '@/store/system/apiStore'
 import { useAvatarUpload } from '@/composables/useAvatarUpload'
 import { useConfigStore } from '@/store/ui/configStore'
+import { useLocale } from '@/store/system/localeStore'
+import { useToast } from '@argon/ui/toast'
+import { spaceManageErrorKey, spaceManageRefusal } from '@/lib/refusals'
 import { MediaEditor } from '@argon/media-editor'
 import type { MediaEditorFinalResult } from '@argon/media-editor'
 
@@ -39,6 +42,8 @@ const emit = defineEmits<Emits>()
 const api = useApi()
 const uploadState = useAvatarUpload()
 const configStore = useConfigStore()
+const { t } = useLocale()
+const { toast } = useToast()
 
 const isOpen = computed({
   get: () => props.open,
@@ -72,7 +77,7 @@ async function onEditorDone(result: MediaEditorFinalResult) {
 
   const success = await uploadState.upload(
     () => api.serverInteraction.BeginUploadSpaceAvatar(props.spaceId),
-    (blobId) => api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId),
+    completeServerAvatar,
     blob
   )
 
@@ -82,6 +87,15 @@ async function onEditorDone(result: MediaEditorFinalResult) {
     emit('avatarUpdated')
   }
   emit('uploadEnd', success)
+}
+
+/** A refusal is said here; the avatar only shows that the upload failed. */
+async function completeServerAvatar(blobId: string): Promise<string | void> {
+  const refused = spaceManageRefusal(await api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId))
+  if (refused === null) return
+  const reason = t(spaceManageErrorKey(refused))
+  toast({ title: t('server_avatar_upload_failed'), description: reason, variant: 'destructive' })
+  return reason
 }
 
 function onCancel() {

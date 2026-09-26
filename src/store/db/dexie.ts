@@ -126,6 +126,12 @@ export class PoolDatabase extends Dexie {
     this.version(6).stores({
       spaceVersions: "spaceId",
     }).upgrade(purgeEverything);
+    // v7: channels by type, for the announcement channels across all spaces (the rail's unread
+    // ring). An exception to the purge policy: nothing changed shape, and IndexedDB builds a new
+    // index over the rows already stored, so the cache is kept.
+    this.version(7).stores({
+      channels: "channelId, spaceId, type",
+    });
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
     // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier

@@ -17,9 +17,11 @@
       <PinnedMessagesPanel
         :pins="pins"
         :can-manage="canManage"
-        :loading="!loaded"
+        :loading="!loaded && !failed"
+        :failed="failed"
         @jump="onJump"
         @unpin="unpin"
+        @retry="refresh(true)"
       />
     </PopoverContent>
   </Popover>
@@ -50,16 +52,21 @@ const { toast } = useToast();
 const bus = useBus();
 
 const open = ref(false);
-const { pins, count, loaded, canManage, refresh, unpin } = useChannelPins(() => props.channelId, () => props.spaceId);
+const { pins, count, loaded, failed, canManage, refresh, unpin } = useChannelPins(() => props.channelId, () => props.spaceId);
 
-// Channel-scoped events reach only the open channel and are not replayed, so load on every open
-// and again after the connection comes back.
+// Channel-scoped events reach only the open channel and are not replayed: a channel opened again
+// after a while is loaded again (see PIN_TTL_MS), and so is a list a pin event could not fill in,
+// once the panel opens. A resumed session missed nothing; a reconnect or a resync may have.
 watch(() => [props.channelId, props.spaceId], () => {
   open.value = false;
   void refresh();
 }, { immediate: true });
 
-const subscriptions = [bus.reconnected, bus.resumed, bus.needFullResync].map((s) => s.subscribe(() => void refresh()));
+watch(open, (isOpen) => {
+  if (isOpen) void refresh();
+});
+
+const subscriptions = [bus.reconnected, bus.needFullResync].map((s) => s.subscribe(() => void refresh(true)));
 onUnmounted(() => subscriptions.forEach((s) => s.unsubscribe()));
 
 function onJump(messageId: bigint) {

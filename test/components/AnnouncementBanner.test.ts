@@ -13,6 +13,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 const h = await vi.hoisted(async () => {
   const { reactive } = await import("vue");
   const { vi } = await import("vitest");
+  const { Subject } = await import("rxjs");
   return {
     servers: reactive(new Map<string, any>()),
     channels: reactive(new Map<string, any>()),
@@ -20,6 +21,8 @@ const h = await vi.hoisted(async () => {
     readStates: reactive(new Map<string, bigint>()),
     mutes: reactive(new Map<string, number>()),
     queryMessages: vi.fn(),
+    cached: vi.fn(async (_id: bigint): Promise<any> => undefined),
+    live: new Subject<any>(),
     scheduleAck: vi.fn(),
     flushAcks: vi.fn(),
     setLastChannel: vi.fn(),
@@ -67,7 +70,8 @@ vi.mock("@/store/data/poolStore", async () => {
   const { computed } = await import("vue");
   return {
     usePoolStore: () => ({
-      getMessageById: async () => undefined,
+      getMessageById: (id: bigint) => h.cached(id),
+      onNewMessageReceived: h.live,
       getUser: async (id: string) => h.users.get(id),
       getUserReactive: (id: { value: string | undefined }) => computed(() => (id.value ? h.users.get(id.value) ?? null : null)),
       trackUser: async () => {},
@@ -80,8 +84,9 @@ vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string
 vi.mock("@argon/core", () => ({ logger: { warn() {}, info() {}, error() {} }, cn: (...c: unknown[]) => c.filter(Boolean).join(" ") }));
 vi.mock("@/components/ArgonAvatar.vue", () => ({ default: { name: "ArgonAvatar", setup: () => () => null } }));
 
-import { ChannelType } from "@argon/glue";
+import { ChannelType, EntityType } from "@argon/glue";
 import AnnouncementBanner from "@/components/space/AnnouncementBanner.vue";
+import { SPOILER_MASK } from "@/lib/chat/spoilers";
 
 const post = (messageId: bigint, text = "Season two starts on Friday\nBring friends\nand snacks") => ({
   messageId,
@@ -117,6 +122,8 @@ beforeEach(() => {
   h.mutes.clear();
   h.queryMessages.mockReset();
   h.queryMessages.mockImplementation(async () => [post(10n)]);
+  h.cached.mockReset();
+  h.cached.mockImplementation(async () => undefined);
   h.scheduleAck.mockReset();
   h.setLastChannel.mockReset();
   h.selectedTextChannel.value = null;
@@ -214,17 +221,89 @@ describe("the banner", () => {
     expect(h.scheduleAck).not.toHaveBeenCalled();
   });
 
-  test("follows a new post", async () => {
+  test("follows a new post from its MessageSent, without asking the server", async () => {
     space("news");
     channel(10n);
     const w = await render();
+    expect(h.queryMessages).toHaveBeenCalledTimes(1);
 
-    h.queryMessages.mockImplementation(async () => [post(11n, "Hotfix is live")]);
+    // What MessageSent does: the post arrives on the stream, then the channel's mark moves.
+    h.live.next(post(11n, "Hotfix is live"));
     channel(11n);
     await flushPromises();
     await flushPromises();
 
     expect(w.find('[data-testid="announcement-text"]').text()).toBe("Hotfix is live");
+    expect(h.queryMessages).toHaveBeenCalledTimes(1);
+  });
+
+  test("a post seen live before the banner was due is shown once it is, still without a call", async () => {
+    space("news");
+    channel(10n);
+    h.readStates.set("news", 10n);
+    const w = await render();
+    expect(banner(w).exists()).toBe(false);
+
+    h.live.next(post(11n, "Hotfix is live"));
+    channel(11n);
+    await flushPromises();
+    await flushPromises();
+
+    expect(w.find('[data-testid="announcement-text"]').text()).toBe("Hotfix is live");
+    expect(h.queryMessages).not.toHaveBeenCalled();
+  });
+
+  test("posts in other channels are not taken for the banner's", async () => {
+    space("news");
+    channel(10n);
+    const w = await render();
+
+    h.live.next({ ...post(11n, "chatter"), channelId: "general" });
+    await flushPromises();
+
+    expect(w.find('[data-testid="announcement-text"]').text()).toBe("Season two starts on Friday\nBring friends");
+  });
+
+  test("a mark that moved with no event keeps the shown post rather than asking", async () => {
+    space("news");
+    channel(10n);
+    const w = await render();
+
+    channel(12n);
+    await flushPromises();
+    await flushPromises();
+
+    expect(banner(w).exists()).toBe(true);
+    expect(h.queryMessages).toHaveBeenCalledTimes(1);
+  });
+
+  test("on mount the cached post is used, but not a cached row of another message under the same key", async () => {
+    space("news");
+    channel(10n);
+    h.cached.mockImplementation(async (id: bigint) => post(id, "from the cache"));
+    const fromCache = await render();
+    expect(fromCache.find('[data-testid="announcement-text"]').text()).toBe("from the cache");
+    expect(h.queryMessages).not.toHaveBeenCalled();
+
+    // Past 2^53 two snowflakes round to one Number key.
+    h.cached.mockImplementation(async () => post(2n ** 60n + 1n, "another message"));
+    channel(2n ** 60n + 2n);
+    h.queryMessages.mockImplementation(async () => [post(2n ** 60n + 2n, "the real one")]);
+    const collided = await render();
+
+    expect(collided.find('[data-testid="announcement-text"]').text()).toBe("the real one");
+  });
+
+  test("a spoiler in the post is masked", async () => {
+    space("news");
+    channel(10n);
+    h.queryMessages.mockImplementation(async () => [
+      { ...post(10n, "The winner is Bob, congrats"), entities: [{ type: EntityType.Spoiler, offset: 14, length: 3, version: 1 }] },
+    ]);
+
+    const w = await render();
+
+    expect(w.find('[data-testid="announcement-text"]').text()).toBe(`The winner is ${SPOILER_MASK}, congrats`);
   });
 
   test("goes when the channel stops being the main one or turns into a text channel", async () => {

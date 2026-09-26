@@ -68,6 +68,59 @@ export const useMessageStore = defineStore("message", () => {
     }
   };
 
+  /**
+   * Makes the cache agree with a page of history the server just returned, and caches the page.
+   *
+   * MessageDeleted and MessageUpdated reach only the channel's current viewers, so a cached row can
+   * outlive the message or keep its old text. The page is the truth for the ids it spans: from its
+   * oldest message (or the channel's start, when `reachedStart`) up to `before`, exclusive, or
+   * without an upper bound for the newest page (`before` null). Cached rows in that span the server
+   * did not return are deleted; the returned ones overwrite theirs. `keep`: ids that arrived live
+   * while the page was on its way, which the page could not have known about.
+   *
+   * @returns the ids deleted from the cache
+   */
+  const reconcileMessages = async (
+    spaceId: Guid,
+    channelId: Guid,
+    page: readonly ArgonMessage[],
+    span: { before: bigint | null; reachedStart: boolean; keep?: ReadonlySet<bigint> },
+  ): Promise<bigint[]> => {
+    let lower: bigint | null = null;
+    if (!span.reachedStart) {
+      if (page.length === 0) return [];
+      lower = page.reduce((min, m) => (m.messageId < min ? m.messageId : min), page[0].messageId);
+    }
+    const upper = span.before;
+    const returned = new Set(page.map((m) => m.messageId));
+    // `_msgId` is a rounded Number: the key range is widened by the rounding, the exact bigint
+    // bounds are checked per row.
+    const inSpan = (id: bigint) => (lower === null || id >= lower) && (upper === null || id < upper);
+
+    try {
+      return await db.transaction("rw", db.messages, async () => {
+        const rows = await db.messages
+          .where("[spaceId+channelId+_msgId]")
+          .between(
+            [spaceId, channelId, lower === null ? -Infinity : Number(lower)],
+            [spaceId, channelId, upper === null ? Infinity : Number(upper)],
+            true,
+            true,
+          )
+          .toArray();
+        const gone = rows.filter(
+          (r) => inSpan(r.messageId) && !returned.has(r.messageId) && !span.keep?.has(r.messageId),
+        );
+        if (gone.length) await db.messages.bulkDelete(gone.map((r) => r._msgId));
+        if (page.length) await db.messages.bulkPut(page.map(toStoredMessage));
+        return gone.map((r) => r.messageId);
+      });
+    } catch (error) {
+      logger.error("Failed to reconcile cached messages:", error);
+      return [];
+    }
+  };
+
   const cacheMessage = async (message: ArgonMessage): Promise<void> => {
     try {
       await db.messages.put(toStoredMessage(message));
@@ -148,6 +201,7 @@ export const useMessageStore = defineStore("message", () => {
     loadCachedMessages,
     loadOlderCachedMessages,
     cacheMessages,
+    reconcileMessages,
     cacheMessage,
     removeCachedMessage,
     getMessageById,

@@ -60,6 +60,7 @@ import { cdnUrl } from "@/store/system/fileStorage";
 import { v7 } from "uuid";
 import { useLocale } from "@/store/system/localeStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { spaceManageErrorKey, spaceManageRefusal } from "@/lib/refusals";
 
 interface Props {
   headerFileId?: string | null;
@@ -129,14 +130,14 @@ const onHeaderChange = async (event: Event) => {
       isLoadingHeader.value = true;
 
       const blobId = await uploadServerHeader(file);
-      await api.serverInteraction.CompleteUploadSpaceProfileHeader(props.spaceId, blobId);
+      if (await completeServerHeader(blobId)) {
+        toast.toast({
+          title: t('header_updated'),
+          description: t('header_updated_desc'),
+        });
 
-      toast.toast({
-        title: t('header_updated'),
-        description: t('header_updated_desc'),
-      });
-
-      emit("headerUpdated");
+        emit("headerUpdated");
+      }
     } catch (e) {
       toast.toast({
         title: t('error'),
@@ -160,7 +161,7 @@ const onHeaderChange = async (event: Event) => {
 const handleHeaderUpdated = async (croppedDataUrl: string) => {
   try {
     const blobId = await uploadServerHeader(croppedDataUrl);
-    await api.serverInteraction.CompleteUploadSpaceProfileHeader(props.spaceId, blobId);
+    if (!(await completeServerHeader(blobId))) return;
 
     toast.toast({
       title: t('header_updated'),
@@ -176,6 +177,18 @@ const handleHeaderUpdated = async (croppedDataUrl: string) => {
     });
   }
 };
+
+/** False, after saying why, when the server refused the banner. */
+async function completeServerHeader(blobId: string): Promise<boolean> {
+  const refused = spaceManageRefusal(await api.serverInteraction.CompleteUploadSpaceProfileHeader(props.spaceId, blobId));
+  if (refused === null) return true;
+  toast.toast({
+    title: t('header_upload_failed'),
+    description: t(spaceManageErrorKey(refused)),
+    variant: "destructive",
+  });
+  return false;
+}
 
 async function uploadServerHeader(data: string | Blob | File): Promise<string> {
   const begin = await api.serverInteraction.BeginUploadSpaceProfileHeader(props.spaceId);

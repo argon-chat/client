@@ -4,7 +4,7 @@
  * The sidebar's drag and drop used to know two things, channels and groups. A member is a third,
  * and it must only ever land on a voice channel of the same space other than the one it came from;
  * everything else (text channels, group headers, the source itself) has to refuse the drop, which
- * in HTML5 terms means not calling preventDefault on dragover.
+ * in HTML5 terms means not calling preventDefault on dragover. A move the server refuses is a toast.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -14,7 +14,8 @@ const h = vi.hoisted(() => ({
   permissions: new Set<string>(["MoveMember"]),
   deniedIn: new Set<string>(),
   moveMember: vi.fn(async () => true),
-  moveChannel: vi.fn(async () => {}),
+  moveChannel: vi.fn(async (..._args: unknown[]): Promise<unknown> => undefined),
+  toast: vi.fn(),
 }));
 
 vi.mock("@/store/data/permissionStore", () => ({
@@ -31,8 +32,10 @@ vi.mock("@/composables/useVoiceModeration", () => ({
   useVoiceModeration: () => ({ moveMember: h.moveMember }),
 }));
 vi.mock("@argon/core", () => ({ logger: { warn() {}, info() {}, error() {} } }));
+vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
+vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 
-import { ChannelType } from "@argon/glue";
+import { ChannelLayoutError, ChannelType, FailedChannelLayout, SuccessChannelLayout } from "@argon/glue";
 import { useChannelDragDrop } from "@/composables/useChannelDragDrop";
 
 const voice = (channelId: string, spaceId = "space-1") => ({ channelId, spaceId, type: ChannelType.Voice, groupId: null });
@@ -62,7 +65,9 @@ beforeEach(() => {
   h.permissions = new Set(["MoveMember"]);
   h.deniedIn = new Set();
   h.moveMember.mockClear();
-  h.moveChannel.mockClear();
+  h.moveChannel.mockReset();
+  h.moveChannel.mockResolvedValue(new SuccessChannelLayout());
+  h.toast.mockClear();
 });
 
 describe("starting a member drag", () => {
@@ -185,5 +190,32 @@ describe("dragging a channel", () => {
     dnd.onDragStart(text("t2"), null, allowed);
     expect(allowed.preventDefault).not.toHaveBeenCalled();
     expect(dnd.draggedChannel.value?.channelId).toBe("t2");
+  });
+});
+
+describe("a channel move the server refuses", () => {
+  function dropT2OnT3() {
+    h.permissions = new Set(["ManageChannels"]);
+    const dnd = setup();
+    dnd.onDragStart(text("t2"), null, dragEvent());
+    return dnd.onDrop(text("t3"), null, 0, dragEvent());
+  }
+
+  test("is a toast with the reason", async () => {
+    h.moveChannel.mockResolvedValue(new FailedChannelLayout(ChannelLayoutError.NO_PERMISSION));
+
+    await dropT2OnT3();
+
+    expect(h.moveChannel).toHaveBeenCalledWith("space-1", "t2", null, null, null);
+    expect(h.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "channel_move_failed", description: "channel_error_no_permission", variant: "destructive" }),
+    );
+  });
+
+  test("one it takes says nothing", async () => {
+    await dropT2OnT3();
+
+    expect(h.moveChannel).toHaveBeenCalledTimes(1);
+    expect(h.toast).not.toHaveBeenCalled();
   });
 });

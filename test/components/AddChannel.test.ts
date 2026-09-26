@@ -4,6 +4,7 @@
  * the dialog closes, the refusal is a toast, and the settings open on the Broadcast tab where the
  * switch can be tried again. An ordinary channel takes the old single call and opens nothing.
  * An announcement channel can name the roles that post in it, which become Allow overwrites.
+ * A creation the server refuses is a toast, and the dialog stays open.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -14,7 +15,7 @@ const h = await vi.hoisted(async () => {
   const { vi } = await import("vitest");
   return {
     addBroadcast: vi.fn(),
-    addChannel: vi.fn(async () => "new"),
+    addChannel: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({ ok: true, channelId: "new" })),
     openSettings: vi.fn(),
     toast: vi.fn(),
     close: vi.fn(),
@@ -85,7 +86,7 @@ vi.mock("@/components/shared/InputWithError.vue", async () => {
   };
 });
 
-import { ArgonEntitlement, ChannelType, SetBroadcastSettingsError } from "@argon/glue";
+import { ArgonEntitlement, ChannelLayoutError, ChannelType, SetBroadcastSettingsError } from "@argon/glue";
 import AddChannel from "@/components/modals/AddChannel.vue";
 
 const flush = async () => {
@@ -131,7 +132,7 @@ describe("a broadcast channel", () => {
   });
 
   test("when the mode is refused, the channel is kept, the refusal is a toast, and the settings open", async () => {
-    h.addBroadcast.mockResolvedValue({ channelId: "new", error: SetBroadcastSettingsError.INVALID_TARGET });
+    h.addBroadcast.mockResolvedValue({ ok: true, channelId: "new", error: SetBroadcastSettingsError.INVALID_TARGET });
     const w = render();
     await fillAndPick(w, "Raid HQ", "channel_type_broadcast");
     await submit(w).trigger("click");
@@ -149,7 +150,7 @@ describe("a broadcast channel", () => {
   });
 
   test("when the mode goes on, the settings open on the Broadcast tab without a toast", async () => {
-    h.addBroadcast.mockResolvedValue({ channelId: "new", error: null });
+    h.addBroadcast.mockResolvedValue({ ok: true, channelId: "new", error: null });
     const w = render();
     await fillAndPick(w, "Raid HQ", "channel_type_broadcast");
     await submit(w).trigger("click");
@@ -158,6 +159,20 @@ describe("a broadcast channel", () => {
     expect(h.close).toHaveBeenCalledTimes(1);
     expect(h.toast).not.toHaveBeenCalled();
     expect(h.openSettings).toHaveBeenCalledWith("s1", "new", "broadcast");
+  });
+
+  test("a refused creation is a toast; the dialog stays and nothing opens", async () => {
+    h.addBroadcast.mockResolvedValue({ ok: false, refused: ChannelLayoutError.NO_PERMISSION });
+    const w = render();
+    await fillAndPick(w, "Raid HQ", "channel_type_broadcast");
+    await submit(w).trigger("click");
+    await flush();
+
+    expect(h.close).not.toHaveBeenCalled();
+    expect(h.openSettings).not.toHaveBeenCalled();
+    expect(h.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "channel_create_failed", description: "channel_error_no_permission", variant: "destructive" }),
+    );
   });
 
   test("a failed creation stays in the dialog as an error", async () => {
@@ -184,6 +199,20 @@ describe("an ordinary channel", () => {
     expect(h.addBroadcast).not.toHaveBeenCalled();
     expect(h.openSettings).not.toHaveBeenCalled();
     expect(h.close).toHaveBeenCalledTimes(1);
+  });
+
+  test("a refused creation is a toast and the dialog stays", async () => {
+    h.addChannel.mockResolvedValueOnce({ ok: false, refused: ChannelLayoutError.INVALID_DATA });
+    const w = render();
+    await fillAndPick(w, "Party", "channel_type_voice");
+    await submit(w).trigger("click");
+    await flush();
+
+    expect(h.close).not.toHaveBeenCalled();
+    expect(h.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "channel_create_failed", description: "channel_layout_error_invalid", variant: "destructive" }),
+    );
+    expect(w.find("[data-error]").text()).toBe("");
   });
 
   test("an empty name is refused before any call", async () => {

@@ -27,6 +27,7 @@ export const FAILURE_KEYS: Partial<Record<ScheduledPostFailure, string>> = {
   [ScheduledPostFailure.INSUFFICIENT_PERMISSIONS]: "scheduled_failure_permissions",
   [ScheduledPostFailure.SLOW_MODE]: "scheduled_failure_slow_mode",
   [ScheduledPostFailure.SEND_FAILED]: "scheduled_failure_send",
+  [ScheduledPostFailure.ACCOUNT_RESTRICTED]: "scheduled_failure_restricted",
 };
 
 export const failureKey = (failure: ScheduledPostFailure) => FAILURE_KEYS[failure] ?? "scheduled_failure_send";

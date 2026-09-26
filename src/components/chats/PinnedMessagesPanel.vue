@@ -11,6 +11,21 @@
     </div>
 
     <div
+      v-else-if="failed && !pins.length"
+      class="flex flex-col items-center text-center gap-2 px-6 py-8"
+      data-testid="pinned-messages-error"
+    >
+      <p class="text-sm text-muted-foreground">{{ t('pins_load_failed') }}</p>
+      <button
+        class="inline-flex items-center h-7 px-3 rounded-md text-xs font-medium text-primary bg-primary/10 hover:bg-primary/15 transition-colors"
+        data-testid="pinned-messages-retry"
+        @click="emit('retry')"
+      >
+        {{ t('try_again') }}
+      </button>
+    </div>
+
+    <div
       v-else-if="!pins.length"
       class="flex flex-col items-center text-center gap-1.5 px-6 py-8"
       data-testid="pinned-messages-empty"
@@ -46,11 +61,14 @@ withDefaults(defineProps<{
   pins: readonly PinnedMessage[];
   canManage: boolean;
   loading?: boolean;
-}>(), { loading: false });
+  /** The pins could not be loaded: say so and offer to try again, instead of spinning. */
+  failed?: boolean;
+}>(), { loading: false, failed: false });
 
 const emit = defineEmits<{
   (e: "jump", messageId: bigint): void;
   (e: "unpin", messageId: bigint): void;
+  (e: "retry"): void;
 }>();
 
 const { t } = useLocale();

@@ -136,7 +136,8 @@ import { useToast } from "@argon/ui/toast";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { broadcastErrorKey } from "@/composables/useBroadcastSettings";
-import { ArgonEntitlement, ChannelType, type Archetype } from "@argon/glue";
+import { channelLayoutErrorKey } from "@/lib/refusals";
+import { ArgonEntitlement, ChannelLayoutError, ChannelType, type Archetype } from "@argon/glue";
 import { db } from "@/store/db/dexie";
 import { useApi } from "@/store/system/apiStore";
 import { usePexStore } from "@/store/data/permissionStore";
@@ -266,27 +267,29 @@ const addChannel = async (close: () => void) => {
   try {
     if (channelType.value === "Broadcast") {
       const spaceId = selectedSpaceId.value;
-      const { channelId, error } = await servers.addBroadcastChannel(spaceId, channelName.value, groupId.value);
+      const created = await servers.addBroadcastChannel(spaceId, channelName.value, groupId.value);
+      if (!created.ok) return refuseCreate(created.refused);
       close();
-      if (error !== null) {
-        toast({ title: t("broadcast_enable_failed"), description: t(broadcastErrorKey(error)), variant: "destructive" });
+      if (created.error !== null) {
+        toast({ title: t("broadcast_enable_failed"), description: t(broadcastErrorKey(created.error)), variant: "destructive" });
       }
       // The targets are picked in the settings; the sheet opens on them right away.
-      windows.openChannelSettings(spaceId, channelId, "broadcast");
+      windows.openChannelSettings(spaceId, created.channelId, "broadcast");
       return;
     }
 
     const spaceId = selectedSpaceId.value;
     const publishers = resolvedType === ChannelType.Announcement && canPickPublishers.value ? [...publisherRoleIds] : [];
-    const channelId = await servers.addChannelToServer(
+    const created = await servers.addChannelToServer(
       spaceId,
       channelName.value,
       resolvedType,
       groupId.value
     );
+    if (!created.ok) return refuseCreate(created.refused);
 
     close();
-    if (publishers.length) await allowPublishers(spaceId, channelId, publishers);
+    if (publishers.length) await allowPublishers(spaceId, created.channelId, publishers);
   } catch (error) {
     logger.error(`Failed to create channel: ${error}`);
     addChannelError.value = String(error);
@@ -294,4 +297,9 @@ const addChannel = async (close: () => void) => {
     isLoading.value = false
   }
 };
+
+// Refused, the dialog stays open with what was typed.
+function refuseCreate(error: ChannelLayoutError) {
+  toast({ title: t("channel_create_failed"), description: t(channelLayoutErrorKey(error)), variant: "destructive" });
+}
 </script>

@@ -12,8 +12,11 @@ import {
   EntityType,
   type IMessageEntity,
   type MessageEntityMention,
+  SendMessageError,
 } from "@argon/glue";
 import { useApi } from "@/store/system/apiStore";
+import { useLocale } from "@/store/system/localeStore";
+import { sendMessageErrorKey } from "@/lib/refusals";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useTone } from "@/store/media/toneStore";
@@ -38,6 +41,26 @@ const MESSAGES_PER_LOAD = 50;
 const OPTIMISTIC_TIMEOUT_MS = 30_000;
 const MAX_MESSAGES_IN_MEMORY = 500;
 
+/** Everything a row can show, for telling a cached copy from the server's; `_rev` and the cache key left out. */
+function signature(m: ChatMessage): string {
+  return JSON.stringify(m, (key, value) =>
+    key === "_rev" || key === "_msgId" ? undefined : typeof value === "bigint" ? value.toString() : value,
+  );
+}
+
+/**
+ * The server's copy of messages the list may already show. A row whose content changed gets its
+ * `_rev` bumped (the list memoises rows on it); an unchanged one keeps the `_rev` it had.
+ */
+function revised(page: readonly ArgonMessage[], shown: readonly ChatMessage[]): ChatMessage[] {
+  const byId = new Map(shown.map((m) => [m.messageId, m]));
+  return page.map((m) => {
+    const prev = byId.get(m.messageId);
+    if (!prev) return m;
+    return signature(prev) === signature(m) ? { ...m, _rev: prev._rev } : { ...m, _rev: (prev._rev ?? 0) + 1 };
+  });
+}
+
 export function useChatMessages(
   channelId: () => Guid,
   spaceId: () => Guid | undefined,
@@ -47,6 +70,7 @@ export function useChatMessages(
   const me = useMe();
   const tone = useTone();
   const ntf = useNotificationStore();
+  const { t } = useLocale();
 
   const messages = shallowRef<ChatMessage[]>([]);
   const hasReachedEnd = ref(false);
@@ -61,7 +85,7 @@ export function useChatMessages(
 
   // Maps randomId → optimistic message's randomId (used as messageId in the optimistic msg)
   const optimisticRandomIds = new Set<bigint>();
-  // Set of real messageIds that have been resolved via SendMessageWithReadback
+  // Set of real messageIds that have been resolved via SendMessage's readback
   // Used to skip the duplicate server event that arrives via WebSocket
   const resolvedMessageIds = new Set<bigint>();
   // Timers for orphaned optimistic cleanup
@@ -69,6 +93,44 @@ export function useChatMessages(
 
   // O(1) dedup: tracks all messageIds currently in the messages array
   const messageIdSet = new Set<bigint>();
+
+  // Bumped per channel load: a page or a check that comes back after the channel changed is dropped.
+  let loadGeneration = 0;
+  // While a page is on its way: what arrived or was deleted live in the meantime, which the page
+  // cannot know about and must not undo.
+  let pagesInFlight = 0;
+  const arrivedLive = new Set<bigint>();
+  const deletedLive = new Set<bigint>();
+  // The server check of the last older page served from the cache; the next page waits for it.
+  let revalidating: Promise<void> = Promise.resolve();
+
+  /**
+   * One page of history from the server, reconciled into the cache (see messageStore), minus what
+   * was deleted live since it was asked for. `use` applies it to the list, unless the channel has
+   * changed by then.
+   */
+  async function serverPage(
+    before: bigint | null,
+    use: (page: ArgonMessage[], reachedStart: boolean) => void | Promise<void>,
+  ): Promise<void> {
+    const sid = spaceId();
+    const cid = channelId();
+    if (!sid) return;
+    const generation = loadGeneration;
+    pagesInFlight++;
+    try {
+      const answer = (await api.channelInteraction.QueryMessages(sid, cid, before, MESSAGES_PER_LOAD)) ?? [];
+      const reachedStart = answer.length < MESSAGES_PER_LOAD;
+      const page = [...answer].filter((m) => !deletedLive.has(m.messageId)).sort((a, b) => Number(a.messageId - b.messageId));
+      await pool.reconcileMessages(sid, cid, page, { before, reachedStart, keep: arrivedLive });
+      if (generation === loadGeneration) await use(page, reachedStart);
+    } finally {
+      if (--pagesInFlight === 0) {
+        arrivedLive.clear();
+        deletedLive.clear();
+      }
+    }
+  }
 
   /**
    * Drop the oldest messages beyond MAX_MESSAGES_IN_MEMORY (newest kept). Only for the append path:
@@ -146,18 +208,24 @@ export function useChatMessages(
     isLoadingOlder.value = true;
 
     try {
+      // A check still on its way may change which message is the oldest.
+      await revalidating;
+      if (hasReachedEnd.value) return;
+
       const fromId = oldestMessageId.value;
       if (!fromId) {
         hasReachedEnd.value = true;
         return;
       }
 
+      const generation = loadGeneration;
       const cachedOlder = await pool.loadOlderCachedMessages(
         spaceId()!,
         channelId(),
         fromId,
         MESSAGES_PER_LOAD,
       );
+      if (generation !== loadGeneration) return;
 
       if (cachedOlder.length >= MESSAGES_PER_LOAD) {
         callbacks.beforePrepend();
@@ -165,37 +233,23 @@ export function useChatMessages(
         messages.value.unshift(...cachedOlder);
         triggerRef(messages);
         callbacks.afterPrepend();
-        isLoadingOlder.value = false;
+        // Shown from the cache at once; the server's copy of the same span follows.
+        revalidating = revalidateOlder(fromId).catch((error) =>
+          logger.warn("Failed to check cached messages with the server:", error),
+        );
         return;
       }
 
-      const olderMessages = await api.channelInteraction.QueryMessages(
-        spaceId()!,
-        channelId(),
-        fromId,
-        MESSAGES_PER_LOAD,
-      );
-
-      if (!olderMessages || olderMessages.length === 0) {
-        hasReachedEnd.value = true;
-        return;
-      }
-
-      await pool.cacheMessages(olderMessages);
-
-      const sortedOlder = [...olderMessages].sort(
-        (a, b) => Number(a.messageId - b.messageId),
-      );
-
-      callbacks.beforePrepend();
-      for (const m of sortedOlder) messageIdSet.add(m.messageId);
-      messages.value.unshift(...sortedOlder);
-      triggerRef(messages);
-      callbacks.afterPrepend();
-
-      if (olderMessages.length < MESSAGES_PER_LOAD) {
-        hasReachedEnd.value = true;
-      }
+      await serverPage(fromId, (sortedOlder, reachedStart) => {
+        if (sortedOlder.length > 0) {
+          callbacks.beforePrepend();
+          for (const m of sortedOlder) messageIdSet.add(m.messageId);
+          messages.value.unshift(...sortedOlder);
+          triggerRef(messages);
+          callbacks.afterPrepend();
+        }
+        if (reachedStart) hasReachedEnd.value = true;
+      });
     } catch (error) {
       logger.error("Failed to load older messages:", error);
     } finally {
@@ -203,9 +257,34 @@ export function useChatMessages(
     }
   };
 
+  /**
+   * Stale-while-revalidate for an older page shown from the cache: the server's page for the same
+   * span replaces it. Rows the server no longer has leave the list (and the cache), changed ones are
+   * swapped in, and ones the cache never had are added. Everything below `before` in the list is
+   * that cached page (the next older page waits for this), so the server's page takes its place.
+   */
+  async function revalidateOlder(before: bigint): Promise<void> {
+    await serverPage(before, (page, reachedStart) => {
+      const current = messages.value;
+      const rest = current.filter((m) => m._optimistic || m.messageId >= before);
+      const block = current.filter((m) => !m._optimistic && m.messageId < before);
+      const next = revised(page, block);
+      const unchanged =
+        block.length === next.length && block.every((m, i) => m.messageId === next[i].messageId && m._rev === next[i]._rev);
+      if (reachedStart) hasReachedEnd.value = true;
+      if (unchanged) return;
+
+      for (const m of block) messageIdSet.delete(m.messageId);
+      for (const m of next) messageIdSet.add(m.messageId);
+      messages.value = [...next, ...rest];
+    });
+  }
+
   const loadInitialMessages = async (onLoaded: () => void) => {
     if (!spaceId()) return;
 
+    const generation = ++loadGeneration;
+    revalidating = Promise.resolve();
     isLoading.value = true;
     hasReachedEnd.value = false;
     newMessagesCount.value = 0;
@@ -214,6 +293,7 @@ export function useChatMessages(
     try {
       // Step 6: Load from cache first WITHOUT clearing — no flash
       const cachedMessages = await pool.loadCachedMessages(spaceId()!, channelId());
+      if (generation !== loadGeneration) return;
 
       if (cachedMessages.length > 0) {
         messageIdSet.clear();
@@ -227,36 +307,26 @@ export function useChatMessages(
         messages.value = [];
       }
 
-      const initialMessages = await api.channelInteraction.QueryMessages(
-        spaceId()!,
-        channelId(),
-        null,
-        MESSAGES_PER_LOAD,
-      );
-
-      if (initialMessages && initialMessages.length > 0) {
-        await pool.cacheMessages(initialMessages);
-
-        const sorted = [...initialMessages].sort(
-          (a, b) => Number(a.messageId - b.messageId),
-        );
+      // The newest page is the truth for everything from its oldest message on: what the cache
+      // showed and the server no longer has was deleted (or edited) while nobody here was watching.
+      await serverPage(null, async (sorted, reachedStart) => {
+        const shown = messages.value;
+        const newest = sorted.length ? sorted[sorted.length - 1].messageId : -1n;
+        // Sent or received while the page was on its way: newer than anything it could hold.
+        const live = shown.filter((m) => m._optimistic || (arrivedLive.has(m.messageId) && m.messageId > newest));
         messageIdSet.clear();
         for (const m of sorted) messageIdSet.add(m.messageId);
-        messages.value = sorted;
-
-        if (initialMessages.length < MESSAGES_PER_LOAD) {
-          hasReachedEnd.value = true;
-        }
+        for (const m of live) messageIdSet.add(m.messageId);
+        messages.value = [...revised(sorted, shown), ...live];
+        if (reachedStart) hasReachedEnd.value = true;
 
         await nextTick();
-        onLoaded();
-      } else if (cachedMessages.length === 0) {
-        await nextTick();
-      }
+        if (sorted.length > 0) onLoaded();
+      });
     } catch (error) {
       logger.error("Failed to load initial messages:", error);
     } finally {
-      isLoading.value = false;
+      if (generation === loadGeneration) isLoading.value = false;
     }
   };
 
@@ -284,6 +354,7 @@ export function useChatMessages(
 
     deleteSubs.value = pool.onMessageDeleted.subscribe(async (e) => {
       if (chId !== e.channelId) return;
+      if (pagesInFlight > 0) deletedLive.add(e.messageId);
       await removeMessage(e.messageId);
     });
 
@@ -294,6 +365,7 @@ export function useChatMessages(
 
     subs.value = pool.onNewMessageReceived.subscribe(async (e) => {
       if (chId !== e.channelId) return;
+      if (pagesInFlight > 0) arrivedLive.add(e.messageId);
 
       // Step 1: If we already resolved this message via readback,
       // replace our optimistic-turned-resolved message with real server data
@@ -376,7 +448,7 @@ export function useChatMessages(
 
   /**
    * Step 1: Resolve optimistic message with real server data.
-   * Called by EnterText after SendMessageWithReadback returns.
+   * Called by EnterText after SendMessage succeeds.
    * Replaces the optimistic placeholder (messageId === randomId) with real messageId.
    * Adds realMessageId to resolvedMessageIds so the duplicate server event is skipped.
    */
@@ -489,7 +561,7 @@ export function useChatMessages(
         (e) => e.type !== EntityType.Attachment,
       );
 
-      const readback = await api.channelInteraction.SendMessageWithReadback(
+      const result = await api.channelInteraction.SendMessage(
         spaceId()!,
         channelId(),
         failedMsg.text ?? "",
@@ -498,7 +570,13 @@ export function useChatMessages(
         failedMsg.replyId ?? null,
       );
 
-      await resolveOptimisticMessage(newRandomId, readback);
+      if (result.isSuccessSendMessage()) {
+        await resolveOptimisticMessage(newRandomId, result.readback);
+        return;
+      }
+      const error = result.isFailedSendMessage() ? result.error : SendMessageError.NONE;
+      logger.warn("Retry refused:", SendMessageError[error] ?? error);
+      markOptimisticFailed(newRandomId, t(sendMessageErrorKey(error)));
     } catch (e: any) {
       logger.error("Retry failed:", e);
       markOptimisticFailed(newRandomId, e?.message ?? "Retry failed");
@@ -522,6 +600,7 @@ export function useChatMessages(
     optimisticRandomIds.clear();
     resolvedMessageIds.clear();
     messageIdSet.clear();
+    loadGeneration++;
   };
 
   /** Swaps in the server's copy of a message already in the list (MessageUpdated, or an edit's answer). */
@@ -559,7 +638,7 @@ export function useChatMessages(
       return;
     }
     const cached = await pool.getMessageById(messageId);
-    if (cached && cached.channelId === channelId() && !cached.publishedAt) await pool.cacheMessage({ ...cached, publishedAt });
+    if (cached && cached.messageId === messageId && cached.channelId === channelId() && !cached.publishedAt) await pool.cacheMessage({ ...cached, publishedAt });
   }
 
   return {

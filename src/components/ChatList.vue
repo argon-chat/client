@@ -162,6 +162,7 @@ import {
 } from '@argon/ui/context-menu';
 import { logger } from '@argon/core';
 import { ChannelType } from '@argon/glue';
+import { useToast } from '@argon/ui/toast';
 import ChannelItem from './ChannelItem.vue';
 import ChannelGroupHeader from './ChannelGroupHeader.vue';
 import BroadcastConnectors, { type BroadcastLink } from './channels/BroadcastConnectors.vue';
@@ -173,6 +174,7 @@ import { openInSplit } from '@/composables/useSplitView';
 import { useChannelDragDrop } from '@/composables/useChannelDragDrop';
 import { setLastChannel } from '@/lib/recentSpaces';
 import { isVoiceLikeChannel } from '@/lib/voice/channels';
+import { channelLayoutErrorKey, channelLayoutRefusal } from '@/lib/refusals';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
 
@@ -181,6 +183,7 @@ const voice = useUnifiedCall();
 const pex = usePexStore();
 const api = useApi();
 const { t } = useLocale();
+const { toast } = useToast();
 
 const selectedSpaceId = defineModel<string>('selectedSpace', {
   type: String, 
@@ -281,9 +284,12 @@ function openChannelInSplit(channelId: string) {
 async function deleteGroup(groupId: Guid, deleteChannels: boolean) {
   try {
     // Service ctx is (spaceId, channelId); the group id doubles as the context id.
-    await api.channelInteraction.DeleteChannelGroup(
+    const refused = channelLayoutRefusal(await api.channelInteraction.DeleteChannelGroup(
       selectedSpaceId.value, groupId, groupId, deleteChannels,
-    );
+    ));
+    if (refused !== null) {
+      toast({ title: t('channel_group_delete_failed'), description: t(channelLayoutErrorKey(refused)), variant: 'destructive' });
+    }
   } catch (error) {
     logger.error('Failed to delete channel group', error);
   }

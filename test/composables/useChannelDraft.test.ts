@@ -1,10 +1,11 @@
 /**
  * The server-side draft of a channel composer.
  *
- * An empty composer takes the channel's draft when it opens; typing saves it a moment after the
- * last keystroke; a send or a schedule deletes it. Editing a sent message borrows the composer, so
- * nothing is saved while it does. Leaving the channel (the composer is keyed by channel, so that
- * unmounts it) sends a pending save at once, and the composer opened next reads after it.
+ * An empty composer takes the channel's draft when it opens; typing saves it a few seconds after
+ * the last keystroke, or at once when the composer loses focus, the window is hidden or the channel
+ * is left; a send or a schedule deletes it. Editing a sent message borrows the composer, so nothing
+ * is saved while it does. What each channel's draft is, the session remembers: a channel opened
+ * again does not ask the server. An account switch stops everything still pending.
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
@@ -15,8 +16,15 @@ import { IonDateTime } from "@argon-chat/ion.webcore";
 
 vi.mock("@/store/system/apiStore", () => ({ useApi: () => ({}) }));
 
-import { useChannelDraft, type DraftApi, type DraftTarget } from "@/composables/useChannelDraft";
+import {
+  DRAFT_BLUR_GRACE_MS,
+  DRAFT_SAVE_DELAY_MS,
+  useChannelDraft,
+  type DraftApi,
+  type DraftTarget,
+} from "@/composables/useChannelDraft";
 import { parseMessageContent, serializeMessageContent } from "@/lib/chat/parseMessageContent";
+import { runSessionReset } from "@/store/system/sessionLifecycle";
 
 interface Harness {
   text: ReturnType<typeof ref<string>>;
@@ -69,12 +77,20 @@ async function type(h: Harness, value: string) {
   await nextTick();
 }
 
-beforeEach(() => {
+function setVisibility(state: "visible" | "hidden") {
+  Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+
+beforeEach(async () => {
+  // The drafts this "session" learnt belong to the test that learnt them.
+  await runSessionReset();
   vi.useFakeTimers();
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  setVisibility("visible");
 });
 
 describe("opening a channel", () => {
@@ -85,7 +101,7 @@ describe("opening a channel", () => {
     expect(h.api.get).toHaveBeenCalledWith("s1", "c1");
     expect(h.text.value).toBe("hello **world**");
 
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(h.api.save).not.toHaveBeenCalled();
     h.unmount();
   });
@@ -111,11 +127,26 @@ describe("opening a channel", () => {
     h.unmount();
   });
 
+  test("a draft that loads after the user already sent from the composer does not come back", async () => {
+    let answer!: (d: MessageDraft) => void;
+    const h = open({ api: { get: () => new Promise<MessageDraft>((r) => (answer = r)) } });
+
+    // Typed and sent before the answer: the composer is empty again, but not untouched.
+    await type(h, "sent at once");
+    void h.draft.clear();
+    await type(h, "");
+    answer(draftOf("an old draft"));
+    await flushPromises();
+
+    expect(h.text.value).toBe("");
+    h.unmount();
+  });
+
   test("a direct chat or a caption has no draft at all", async () => {
     const h = open({ target: null, server: draftOf("stored") });
     await flushPromises();
-    await type(h, "hi");
-    await vi.advanceTimersByTimeAsync(5000);
+    await type(h, "hi there");
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(h.api.get).not.toHaveBeenCalled();
     expect(h.api.save).not.toHaveBeenCalled();
@@ -124,21 +155,67 @@ describe("opening a channel", () => {
 });
 
 describe("autosave", () => {
-  test("saves once, a second and a half after the last keystroke, as parsed", async () => {
+  test(`saves once, ${DRAFT_SAVE_DELAY_MS / 1000} seconds after the last keystroke, as parsed`, async () => {
+    expect(DRAFT_SAVE_DELAY_MS).toBe(5000);
     const h = open();
     await flushPromises();
 
     await type(h, "**he**");
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(4000);
     await type(h, "**hey**");
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(4900);
     expect(h.api.save).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(600);
+    await vi.advanceTimersByTimeAsync(100);
     expect(h.api.save).toHaveBeenCalledTimes(1);
     const [spaceId, channelId, text, entities] = h.api.save.mock.calls[0];
     expect([spaceId, channelId, text]).toEqual(["s1", "c1", "hey"]);
     expect(entities).toEqual([new MessageEntityBold(EntityType.Bold, 0, 3, 1)]);
+    h.unmount();
+  });
+
+  test("the window being hidden saves at once", async () => {
+    const h = open();
+    await flushPromises();
+
+    await type(h, "half a thought");
+    setVisibility("hidden");
+    await flushPromises();
+    expect(h.api.save).toHaveBeenCalledWith("s1", "c1", "half a thought", []);
+
+    // Nothing pending: nothing sent.
+    await h.draft.flush();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(h.api.save).toHaveBeenCalledTimes(1);
+    h.unmount();
+  });
+
+  test("the composer losing focus saves within a moment", async () => {
+    const h = open();
+    await flushPromises();
+
+    await type(h, "half a thought");
+    h.draft.blurred();
+    await vi.advanceTimersByTimeAsync(DRAFT_BLUR_GRACE_MS);
+
+    expect(h.api.save).toHaveBeenCalledWith("s1", "c1", "half a thought", []);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(h.api.save).toHaveBeenCalledTimes(1);
+    h.unmount();
+  });
+
+  test("a click on Send (which blurs the composer first) costs no save", async () => {
+    const h = open();
+    await flushPromises();
+
+    await type(h, "sent with the button");
+    h.draft.blurred();
+    await vi.advanceTimersByTimeAsync(100);
+    void h.draft.clear();
+    await type(h, "");
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(h.api.save).not.toHaveBeenCalled();
     h.unmount();
   });
 
@@ -147,21 +224,39 @@ describe("autosave", () => {
     await flushPromises();
 
     await type(h, "a".repeat(5000));
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(h.api.save).not.toHaveBeenCalled();
     h.unmount();
   });
 
-  test("emptying the composer deletes a draft the server has", async () => {
-    const h = open({ server: draftOf("stored") });
+  test("a text shorter than three characters is not worth a call", async () => {
+    const h = open();
     await flushPromises();
 
-    await type(h, "");
-    await vi.advanceTimersByTimeAsync(2000);
+    await type(h, "ok");
+    await vi.advanceTimersByTimeAsync(10_000);
+    await h.draft.flush();
 
-    expect(h.api.save).toHaveBeenCalledWith("s1", "c1", "", []);
+    expect(h.api.save).not.toHaveBeenCalled();
     h.unmount();
+  });
+
+  test("but it clears a draft the server has, and so does emptying the composer", async () => {
+    const shortened = open({ server: draftOf("stored") });
+    await flushPromises();
+    await type(shortened, "st");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(shortened.api.save).toHaveBeenCalledWith("s1", "c1", "", []);
+    shortened.unmount();
+
+    await runSessionReset();
+    const emptied = open({ server: draftOf("stored") });
+    await flushPromises();
+    await type(emptied, "");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(emptied.api.save).toHaveBeenCalledWith("s1", "c1", "", []);
+    emptied.unmount();
   });
 });
 
@@ -171,12 +266,12 @@ describe("sending, scheduling and editing", () => {
     await flushPromises();
 
     await type(h, "draft");
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(DRAFT_SAVE_DELAY_MS);
     await type(h, "draft, more");
 
     void h.draft.clear();
     await type(h, "");
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10_000);
     await flushPromises();
 
     expect(h.api.save.mock.calls.map((c) => c[2])).toEqual(["draft", ""]);
@@ -190,7 +285,7 @@ describe("sending, scheduling and editing", () => {
     await type(h, "sent at once");
     void h.draft.clear();
     await type(h, "");
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(h.api.save).not.toHaveBeenCalled();
     h.unmount();
@@ -205,21 +300,21 @@ describe("sending, scheduling and editing", () => {
     h.editing.value = true;
     void h.draft.flush();
     await type(h, "the message being edited");
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(h.api.save.mock.calls.map((c) => c[2])).toEqual(["mine"]);
 
     // The edit ends and the draft comes back: already on the server, so nothing to save.
     h.editing.value = false;
     await type(h, "mine");
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(h.api.save).toHaveBeenCalledTimes(1);
     h.unmount();
   });
 });
 
 describe("switching channels", () => {
-  test("leaving sends the pending save at once, and the next composer reads after it", async () => {
+  test("leaving sends the pending save at once, and the channel opened again takes it without asking", async () => {
     let finishSave!: () => void;
     const first = open({ api: { save: () => new Promise<void>((r) => (finishSave = r)) } });
     await flushPromises();
@@ -229,14 +324,83 @@ describe("switching channels", () => {
     await flushPromises();
     expect(first.api.save).toHaveBeenCalledWith("s1", "c1", "half typed", []);
 
-    const second = open({ server: draftOf("half typed") });
+    const second = open({ server: draftOf("something older") });
     await flushPromises();
     expect(second.api.get).not.toHaveBeenCalled();
+    expect(second.text.value).toBe("half typed");
 
     finishSave();
     await flushPromises();
-    expect(second.api.get).toHaveBeenCalledTimes(1);
-    expect(second.text.value).toBe("half typed");
     second.unmount();
+  });
+
+  test("a channel whose draft was read once is not asked about again this session", async () => {
+    const first = open({ server: draftOf("stored") });
+    await flushPromises();
+    first.unmount();
+
+    const again = open({ server: draftOf("stored") });
+    await flushPromises();
+    expect(again.api.get).not.toHaveBeenCalled();
+    expect(again.text.value).toBe("stored");
+    again.unmount();
+
+    // Nothing there is remembered too.
+    await runSessionReset();
+    const none = open({ server: null });
+    await flushPromises();
+    none.unmount();
+    const noneAgain = open({ server: draftOf("never asked for") });
+    await flushPromises();
+    expect(noneAgain.api.get).not.toHaveBeenCalled();
+    expect(noneAgain.text.value).toBe("");
+    noneAgain.unmount();
+  });
+
+  test("a sent draft is remembered as gone: the channel opens empty", async () => {
+    const h = open({ server: draftOf("stored") });
+    await flushPromises();
+    void h.draft.clear();
+    await type(h, "");
+    h.unmount();
+
+    const again = open({ server: draftOf("stored") });
+    await flushPromises();
+    expect(again.api.get).not.toHaveBeenCalled();
+    expect(again.text.value).toBe("");
+    again.unmount();
+  });
+});
+
+describe("switching accounts", () => {
+  test("a pending save is dropped, not sent under the next account, and nothing is remembered", async () => {
+    const h = open({ server: draftOf("stored") });
+    await flushPromises();
+    await type(h, "typed by the first account");
+
+    await runSessionReset();
+    await vi.advanceTimersByTimeAsync(10_000);
+    h.unmount();
+    await flushPromises();
+
+    expect(h.api.save).not.toHaveBeenCalled();
+
+    const next = open({ server: draftOf("the next account's") });
+    await flushPromises();
+    expect(next.api.get).toHaveBeenCalledTimes(1);
+    expect(next.text.value).toBe("the next account's");
+    next.unmount();
+  });
+
+  test("a draft answering after the switch is not put into the composer", async () => {
+    let answer!: (d: MessageDraft) => void;
+    const h = open({ api: { get: () => new Promise<MessageDraft>((r) => (answer = r)) } });
+
+    await runSessionReset();
+    answer(draftOf("the first account's"));
+    await flushPromises();
+
+    expect(h.text.value).toBe("");
+    h.unmount();
   });
 });

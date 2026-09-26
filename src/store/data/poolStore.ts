@@ -490,6 +490,7 @@ export const usePoolStore = defineStore("data-pool", () => {
     loadCachedMessages: messageStore.loadCachedMessages,
     loadOlderCachedMessages: messageStore.loadOlderCachedMessages,
     cacheMessages: messageStore.cacheMessages,
+    reconcileMessages: messageStore.reconcileMessages,
     cacheMessage: messageStore.cacheMessage,
     removeCachedMessage: messageStore.removeCachedMessage,
     getMessageById: messageStore.getMessageById,

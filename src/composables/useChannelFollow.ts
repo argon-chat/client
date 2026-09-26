@@ -53,6 +53,8 @@ const FOLLOW_ERROR_KEYS: Record<FollowChannelError, string> = {
   [FollowChannelError.SAME_CHANNEL]: "follow_error_same_channel",
   [FollowChannelError.ALREADY_FOLLOWING]: "follow_error_already_following",
   [FollowChannelError.TOO_MANY_FOLLOWS]: "follow_error_too_many",
+  [FollowChannelError.SOURCE_PRIVATE]: "follow_error_source_private",
+  [FollowChannelError.SOURCE_FOLLOWER_LIMIT]: "follow_error_source_full",
 };
 
 const PUBLISH_ERROR_KEYS: Record<PublishMessageError, string> = {
@@ -180,6 +182,16 @@ export function crosspostHeaderOf(message: Pick<ArgonMessage, "crosspost">): Cro
 /** A crosspost renders without its author: they are usually not a member here, so not in the local users. */
 export function shouldRenderMessage(user: unknown, message: Pick<ArgonMessage, "crosspost">): boolean {
   return !!user || !!message.crosspost;
+}
+
+/** The name a reply shows: the source space for a crosspost that hides its author or whose author is not known here. */
+export function replyAuthorName(
+  message: Pick<ArgonMessage, "crosspost"> | null | undefined,
+  user: { displayName?: string } | null | undefined,
+): string | null {
+  const xp = message?.crosspost;
+  if (xp?.hideAuthor) return xp.sourceSpaceName;
+  return user?.displayName || xp?.sourceSpaceName || null;
 }
 
 // ── Picking where to follow into ──

@@ -26,6 +26,8 @@ export function webhookErrorKey(error: ChannelWebhookError): string {
       return "webhook_error_name_empty";
     case ChannelWebhookError.NAME_TOO_LONG:
       return "webhook_error_name_too_long";
+    case ChannelWebhookError.NAME_NOT_ALLOWED:
+      return "webhook_error_name_not_allowed";
     case ChannelWebhookError.LIMIT_REACHED:
       return "webhook_error_limit";
     case ChannelWebhookError.INSUFFICIENT_PERMISSIONS:

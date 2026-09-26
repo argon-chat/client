@@ -26,7 +26,8 @@
 <script setup lang="ts">
 /**
  * The meta row of a crosspost: where it was published, a "Following" chip, and the author in small
- * print — only when they are known here, since they are usually not a member of this space.
+ * print — only when they are known here, since they are usually not a member of this space, and
+ * never when the source posts as the space without naming its authors (`hideAuthor`).
  */
 import { computed } from "vue";
 import type { ArgonMessage } from "@argon/glue";
@@ -42,7 +43,7 @@ const props = defineProps<{
 const { t } = useLocale();
 
 const header = computed(() => crosspostHeaderOf(props.message));
-const authorName = computed(() => props.author?.displayName || null);
+const authorName = computed(() => (props.message.crosspost?.hideAuthor ? null : props.author?.displayName || null));
 </script>
 
 <style scoped>

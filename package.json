@@ -129,6 +129,7 @@
     "@vue/reactivity": "3.5.40",
     "@vue/test-utils": "^2.4.11",
     "autoprefixer": "^10.5.4",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.11.1",
     "http-proxy-middleware": "^3.0.7",
     "tailwindcss": "^3.4.19",

@@ -165,7 +165,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { AlertTriangleIcon, TrashIcon, HashIcon, Volume2Icon, AntennaIcon, Loader2 } from "lucide-vue-next";
-import { ChannelType, UpdateChannelError, type ArgonChannel } from "@argon/glue";
+import { ChannelLayoutError, ChannelType, UpdateChannelError, type ArgonChannel } from "@argon/glue";
 import DangerZone from "@/components/shared/DangerZone.vue";
 import { useApi } from "@/store/system/apiStore";
 import { useLocale } from "@/store/system/localeStore";
@@ -173,6 +173,7 @@ import { usePexStore } from "@/store/data/permissionStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { useWindow } from "@/store/ui/windowStore";
+import { channelLayoutErrorKey } from "@/lib/refusals";
 
 const props = defineProps<{ channel: ArgonChannel }>();
 
@@ -374,7 +375,12 @@ async function confirmDelete() {
   if (deleting.value || !canManageChannels.value) return;
   deleting.value = true;
   try {
-    await servers.deleteChannel(props.channel.channelId, props.channel.spaceId);
+    const refused = await servers.deleteChannel(props.channel.channelId, props.channel.spaceId);
+    // Already gone is what was asked for.
+    if (refused !== null && refused !== ChannelLayoutError.NOT_FOUND) {
+      toast({ title: t("channel_delete_failed"), description: t(channelLayoutErrorKey(refused)), variant: "destructive" });
+      return;
+    }
     showDeleteDialog.value = false;
     windows.closeChannelSettings();
   } catch (e) {

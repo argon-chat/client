@@ -20,6 +20,11 @@ import { onSessionReset } from "@/store/system/sessionLifecycle";
 /** The server refuses a pin past this many in one channel. */
 export const PIN_LIMIT = 50;
 
+/** A channel opened again within this long shows the pins it had, without asking the server. */
+export const PIN_TTL_MS = 2 * 60_000;
+/** How many channels' pins are kept; the least recently opened one goes first. */
+export const PIN_CHANNELS_KEPT = 10;
+
 export type PinOutcome = { ok: true } | { ok: false; error: PinMessageError | null };
 
 const EMPTY: readonly PinnedMessage[] = Object.freeze([]);
@@ -33,17 +38,29 @@ function newestFirst(pins: PinnedMessage[]): PinnedMessage[] {
 }
 
 /**
- * Pinned messages per channel, newest first. A channel is loaded when its view opens and kept
- * current by MessagePinned / MessageUnpinned while it is watched (they are channel-scoped).
+ * Pinned messages per channel, newest first. A channel is loaded when its view opens, unless it was
+ * loaded less than {@link PIN_TTL_MS} ago, and kept current by MessagePinned / MessageUnpinned while
+ * it is watched (they are channel-scoped). A pin whose message is not in the local cache marks the
+ * list stale instead of asking at once; the panel asks when it opens. The {@link PIN_CHANNELS_KEPT}
+ * most recently opened channels are kept.
  */
 export const usePinStore = defineStore("pins", () => {
   const api = useApi();
   const bus = useBus();
   const messageStore = useMessageStore();
 
-  // Absent key: never loaded. Lists are replaced, never mutated, so the map is the only thing tracked.
+  // Absent key: never loaded (or evicted). Lists are replaced, never mutated, so the map is the only
+  // thing tracked.
   const byChannel = shallowReactive(new Map<string, readonly PinnedMessage[]>());
+  // The held channels, least recently opened first. Not reactive: opening one redraws nothing.
+  const recency = new Set<string>();
+  // Channels whose last load failed, for the panel's error state.
+  const failed = shallowReactive(new Set<string>());
+  const loadedAt = new Map<string, number>();
+  const stale = new Set<string>();
   const inflight = new Map<string, Promise<void>>();
+  // Bumped on an account switch: a load that answers after it belongs to the previous account.
+  let session = 0;
 
   function list(channelId: Guid): readonly PinnedMessage[] {
     return byChannel.get(channelId) ?? EMPTY;
@@ -53,20 +70,53 @@ export const usePinStore = defineStore("pins", () => {
     return byChannel.has(channelId);
   }
 
+  function isFailed(channelId: Guid): boolean {
+    return failed.has(channelId);
+  }
+
   function isPinned(channelId: Guid, messageId: bigint): boolean {
     return list(channelId).some((p) => p.message.messageId === messageId);
   }
 
+  function touch(channelId: string) {
+    recency.delete(channelId);
+    recency.add(channelId);
+  }
+
+  function evict(channelId: string) {
+    byChannel.delete(channelId);
+    loadedAt.delete(channelId);
+    stale.delete(channelId);
+    recency.delete(channelId);
+  }
+
+  /** Stores a channel's list as the most recently used one, dropping the least recent past the cap. */
+  function keep(channelId: string, pins: readonly PinnedMessage[]) {
+    byChannel.set(channelId, pins);
+    touch(channelId);
+    for (const oldest of recency) {
+      if (byChannel.size <= PIN_CHANNELS_KEPT) break;
+      evict(oldest);
+    }
+  }
+
+  /** Asks the server, whatever is held. */
   function load(spaceId: Guid, channelId: Guid): Promise<void> {
     const pending = inflight.get(channelId);
     if (pending) return pending;
 
+    const askedIn = session;
     const run = (async () => {
       try {
         const pins = await api.channelPinsInteraction.GetPinnedMessages(spaceId, channelId);
-        byChannel.set(channelId, newestFirst(Array.from(pins)));
+        if (askedIn !== session) return;
+        keep(channelId, newestFirst(Array.from(pins)));
+        loadedAt.set(channelId, Date.now());
+        stale.delete(channelId);
+        failed.delete(channelId);
       } catch (e) {
         logger.error("[Pins] Failed to load pinned messages", channelId, e);
+        if (askedIn === session) failed.add(channelId);
       } finally {
         inflight.delete(channelId);
       }
@@ -74,6 +124,17 @@ export const usePinStore = defineStore("pins", () => {
 
     inflight.set(channelId, run);
     return run;
+  }
+
+  /** The held list while it is fresh; otherwise (stale, expired, failed, never loaded) a load. */
+  function ensure(spaceId: Guid, channelId: Guid): Promise<void> {
+    const pins = byChannel.get(channelId);
+    const at = loadedAt.get(channelId);
+    if (pins && at !== undefined && !stale.has(channelId) && Date.now() - at < PIN_TTL_MS) {
+      touch(channelId);
+      return Promise.resolve();
+    }
+    return load(spaceId, channelId);
   }
 
   function upsert(channelId: Guid, pin: PinnedMessage) {
@@ -135,15 +196,17 @@ export const usePinStore = defineStore("pins", () => {
     }
   }
 
-  // The event names the message only. A cached copy is enough for the panel; otherwise ask again.
+  // The event names the message only. A cached copy is enough for the panel; otherwise the list is
+  // stale, and is asked for again when the panel opens (every viewer asking at once is a stampede).
   async function onPinned(x: MessagePinned) {
     if (!isLoaded(x.channelId) || isPinned(x.channelId, x.messageId)) return;
     const cached = await messageStore.getMessageById(x.messageId);
-    if (cached && cached.channelId === x.channelId) {
+    // The cache is keyed by a rounded Number: a row there may be another message.
+    if (cached && cached.messageId === x.messageId && cached.channelId === x.channelId) {
       upsert(x.channelId, { message: cached, pinnedBy: x.byUserId, pinnedAt: IonDateTime.now() });
       return;
     }
-    await load(x.spaceId, x.channelId);
+    stale.add(x.channelId);
   }
 
   bus.onServerEvent<MessagePinned>("MessagePinned", (x) => void onPinned(x));
@@ -152,9 +215,14 @@ export const usePinStore = defineStore("pins", () => {
   bus.onServerEvent<MessageUpdated>("MessageUpdated", (x) => replaceMessage(x.message));
 
   onSessionReset(() => {
+    session++;
     byChannel.clear();
+    recency.clear();
+    failed.clear();
+    loadedAt.clear();
+    stale.clear();
     inflight.clear();
   });
 
-  return { list, isLoaded, isPinned, load, pin, unpin };
+  return { list, isLoaded, isFailed, isPinned, load, ensure, pin, unpin };
 });

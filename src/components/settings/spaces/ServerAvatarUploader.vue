@@ -70,6 +70,8 @@ import { useMe } from "@/store/auth/meStore";
 import { useApi } from "@/store/system/apiStore";
 import { useAvatarUpload } from "@/composables/useAvatarUpload";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { useLocale } from "@/store/system/localeStore";
+import { spaceManageErrorKey, spaceManageRefusal } from "@/lib/refusals";
 
 interface Props {
   fallback: string;
@@ -85,6 +87,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const toast = useToast();
+const { t } = useLocale();
 const me = useMe();
 const api = useApi();
 const featureFlags = useFeatureFlags();
@@ -130,7 +133,10 @@ const onAvatarChange = async (event: Event) => {
   if (isAnimated) {
     const success = await uploadState.upload(
       () => api.serverInteraction.BeginUploadSpaceAvatar(props.spaceId),
-      (blobId) => api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId),
+      async (blobId) => {
+        const refused = spaceManageRefusal(await api.serverInteraction.CompleteUploadSpaceAvatar(props.spaceId, blobId));
+        if (refused !== null) return t(spaceManageErrorKey(refused));
+      },
       file,
     );
 

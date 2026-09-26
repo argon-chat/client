@@ -207,6 +207,10 @@ describe("the channel's list", () => {
     expect(h.toast).toHaveBeenLastCalledWith(
       expect.objectContaining({ title: "scheduled_failed", description: "scheduled_failure_permissions", variant: "destructive" }),
     );
+
+    const p3 = post("p3", 0, { status: ScheduledPostStatus.FAILED, failure: ScheduledPostFailure.ACCOUNT_RESTRICTED });
+    h.handlers.get("ScheduledPostUpdated")!({ post: p3 });
+    expect(h.toast).toHaveBeenLastCalledWith(expect.objectContaining({ description: "scheduled_failure_restricted" }));
   });
 
   test("rescheduling moves a post and cancelling removes it", async () => {

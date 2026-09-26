@@ -57,9 +57,9 @@
       </div>
     </div>
 
-    <!-- ── Scheduled posts of this channel ── -->
+    <!-- ── Scheduled posts of this channel: only those who can post or moderate have any ── -->
     <ScheduledPostsChip
-      v-if="channelData && selectedChannelId && selectedSpaceId"
+      v-if="channelData && selectedChannelId && selectedSpaceId && canSeeScheduled"
       :space-id="selectedSpaceId"
       :channel-id="selectedChannelId"
     />
@@ -192,6 +192,7 @@ import { usePoolStore } from "@/store/data/poolStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
+import { replyAuthorName } from "@/composables/useChannelFollow";
 import { ArgonMessage } from "@argon/glue";
 
 import ChatView from "./ChatView.vue";
@@ -230,6 +231,11 @@ const selectedChannelId = defineModel<string | null>("selectedChannelId", { type
 const canSend = computed(() => pex.hasIn(selectedChannelId.value, "SendMessages", selectedSpaceId.value));
 const canInput = canSend;
 const canAttach = computed(() => canInput.value && pex.hasIn(selectedChannelId.value, "AttachFiles", selectedSpaceId.value));
+// Scheduled posts are the user's own (SendMessages) or, for ManageMessages, everyone's: a reader has
+// none, and asking for them on every channel open would be a call for nothing.
+const canSeeScheduled = computed(
+  () => canSend.value || pex.hasIn(selectedChannelId.value, "ManageMessages", selectedSpaceId.value),
+);
 
 // ── Composables ──
 
@@ -240,7 +246,7 @@ const { typingUsers, onTyping, onStopTyping } = useChannelTyping(selectedChannel
 
 const replySenderId = computed(() => replyTo.value?.sender);
 const replySender = pool.getUserReactive(replySenderId as any);
-const replySenderName = computed(() => replySender.value?.displayName || t("unknown_display_name"));
+const replySenderName = computed(() => replyAuthorName(replyTo.value, replySender.value) || t("unknown_display_name"));
 const replyColor = computed(() => userColors.getColorByUserId(replyTo.value?.sender ?? ""));
 
 function onSelectReply(msg: ArgonMessage) {
@@ -275,8 +281,10 @@ function onEdited(msg: ArgonMessage) {
   chatViewRef.value?.applyServerMessage(msg);
 }
 
+// The composer is per channel: a reply or an edit picked in one channel does not follow the user.
 watch(selectedChannelId, () => {
   editing.value = null;
+  replyTo.value = null;
 });
 
 // Keep last messages visible when reply bar resizes the chat area

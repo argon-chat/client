@@ -19,9 +19,6 @@ export const DEFAULT_ANNOUNCEMENT_SETTINGS: Readonly<AnnouncementSettings> = Obj
   showAuthor: true,
 });
 
-/** Longest post in an announcement channel: the server's `Messages:MaxAnnouncementTextLength`. */
-export const ANNOUNCEMENT_TEXT_LIMIT = 16000;
-
 /** A post longer than this, in characters or in lines, starts collapsed behind "Read more". */
 export const COLLAPSE_CHARS = 800;
 export const COLLAPSE_LINES = 12;
@@ -34,11 +31,8 @@ export interface ComposerLimits {
   counterFrom: number;
 }
 
-/** The composer's character limits: 2000 / 4000 with premium, and the announcement limit in an announcement channel. */
-export function composerLimits(isPremium: boolean, announcement: boolean): ComposerLimits {
-  if (announcement) {
-    return { limit: ANNOUNCEMENT_TEXT_LIMIT, warn: 14000, danger: 15500, counterFrom: 12000 };
-  }
+/** The composer's character limits: 2000, or 4000 with premium. */
+export function composerLimits(isPremium: boolean): ComposerLimits {
   return isPremium
     ? { limit: 4000, warn: 3000, danger: 3800, counterFrom: 2000 }
     : { limit: 2000, warn: 1500, danger: 1900, counterFrom: 1000 };

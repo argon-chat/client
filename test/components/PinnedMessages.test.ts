@@ -20,6 +20,9 @@ const h = await vi.hoisted(async () => {
     unpinMessage: vi.fn(),
     toast: vi.fn(),
     reconnected: new Subject<void>(),
+    resumed: new Subject<void>(),
+    resync: new Subject<void>(),
+    handlers: new Map<string, (e: any) => void>(),
   };
 });
 
@@ -48,13 +51,15 @@ vi.mock("@/store/system/apiStore", () => ({
   }),
 }));
 vi.mock("@/store/realtime/busStore", async () => {
-  const { Subject } = await import("rxjs");
   return {
     useBus: () => ({
-      onServerEvent: () => ({ unsubscribe() {} }),
+      onServerEvent: (event: string, handler: (e: any) => void) => {
+        h.handlers.set(event, handler);
+        return { unsubscribe() {} };
+      },
       reconnected: h.reconnected,
-      resumed: new Subject<void>(),
-      needFullResync: new Subject<void>(),
+      resumed: h.resumed,
+      needFullResync: h.resync,
     }),
   };
 });
@@ -85,6 +90,7 @@ import PinnedMessagesPanel from "@/components/chats/PinnedMessagesPanel.vue";
 import MessagePinMenuItem from "@/components/chats/MessagePinMenuItem.vue";
 import PinnedMessagesButton from "@/components/chats/PinnedMessagesButton.vue";
 import MessagePinMarker from "@/components/chats/MessagePinMarker.vue";
+import { SPOILER_MASK } from "@/lib/chat/spoilers";
 
 const attachment = { type: EntityType.Attachment, offset: 0, length: 0, version: 1, fileId: "f1", fileName: "a.png" };
 
@@ -102,6 +108,8 @@ beforeEach(() => {
   h.unpinMessage.mockReset();
   h.toast.mockReset();
   h.reconnected = new Subject<void>();
+  h.resumed = new Subject<void>();
+  h.resync = new Subject<void>();
 });
 
 describe("the panel", () => {
@@ -118,6 +126,17 @@ describe("the panel", () => {
     expect(rows[1].text()).toContain("welcome");
     expect(rows[1].find('[data-testid="pinned-attachment-hint"]').exists()).toBe(false);
     expect(w.text()).toContain("2/50");
+  });
+
+  test("a spoiler in a pinned message is masked in its preview", () => {
+    const spoiler = { type: EntityType.Spoiler, offset: 12, length: 4, version: 1 };
+    const w = mount(PinnedMessagesPanel, {
+      props: { pins: [pinned(1n, "the code is 4815, keep it", "u1", [spoiler])], canManage: false },
+    });
+
+    const row = w.find('[data-testid="pinned-message-row"]').text();
+    expect(row).not.toContain("4815");
+    expect(row).toContain(`the code is ${SPOILER_MASK}, keep it`);
   });
 
   test("Jump is there for everyone, Unpin only for those who manage messages", async () => {
@@ -191,6 +210,63 @@ describe("the header button", () => {
     expect(h.unpinMessage).toHaveBeenCalledWith("s1", "c1", 1n);
     expect(w.findAll('[data-testid="pinned-message-row"]')).toHaveLength(1);
     expect(w.find('[data-testid="pinned-messages-count"]').text()).toBe("1");
+  });
+
+  test("a resumed session asks nothing, a resync asks again", async () => {
+    h.getPinned.mockResolvedValue([]);
+    await button();
+
+    h.resumed.next();
+    await flushPromises();
+    expect(h.getPinned).toHaveBeenCalledTimes(1);
+
+    h.resync.next();
+    await flushPromises();
+    expect(h.getPinned).toHaveBeenCalledTimes(2);
+  });
+
+  test("back to a channel opened a moment ago: its pins are shown without asking", async () => {
+    h.getPinned.mockResolvedValue([pinned(1n, "a")]);
+    const w = await button();
+
+    await w.setProps({ channelId: "c2" });
+    await flushPromises();
+    await w.setProps({ channelId: "c1" });
+    await flushPromises();
+
+    expect(h.getPinned.mock.calls.map((c) => c[1])).toEqual(["c1", "c2"]);
+    expect(w.find('[data-testid="pinned-messages-count"]').text()).toBe("1");
+  });
+
+  test("a pin the cache cannot fill in is asked for when the panel opens, not when it happens", async () => {
+    h.getPinned.mockResolvedValueOnce([pinned(1n, "a")]);
+    const w = await button();
+
+    h.handlers.get("MessagePinned")!({ spaceId: "s1", channelId: "c1", messageId: 2n, byUserId: "mod" });
+    await flushPromises();
+    expect(h.getPinned).toHaveBeenCalledTimes(1);
+
+    h.getPinned.mockResolvedValueOnce([pinned(2n, "b"), pinned(1n, "a")]);
+    w.findComponent({ name: "Popover" }).vm.$emit("update:open", true);
+    await flushPromises();
+
+    expect(h.getPinned).toHaveBeenCalledTimes(2);
+    expect(w.findAll('[data-testid="pinned-message-row"]')).toHaveLength(2);
+  });
+
+  test("a failed load shows an error with Try again instead of spinning", async () => {
+    h.getPinned.mockRejectedValueOnce(new Error("offline"));
+    const w = await button();
+
+    expect(w.find('[data-testid="pinned-messages-error"]').text()).toContain("pins_load_failed");
+    expect(w.find(".animate-spin").exists()).toBe(false);
+
+    h.getPinned.mockResolvedValueOnce([pinned(1n, "a")]);
+    await w.find('[data-testid="pinned-messages-retry"]').trigger("click");
+    await flushPromises();
+
+    expect(w.find('[data-testid="pinned-messages-error"]').exists()).toBe(false);
+    expect(w.findAll('[data-testid="pinned-message-row"]')).toHaveLength(1);
   });
 
   test("a reconnect loads the pins again", async () => {

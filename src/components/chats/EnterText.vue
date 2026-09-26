@@ -62,6 +62,7 @@
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
+                    @blur="draft.blurred()"
                 />
 
                 <!-- Preview of the message as it will be sent -->
@@ -361,9 +362,11 @@ import LinkPreviewBar from "./LinkPreviewBar.vue";
 import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
 import { parseMessageContent as parseMessage, serializeMessageContent, type ParsedMessage } from "@/lib/chat/parseMessageContent";
 import { useToast } from "@argon/ui/toast";
-import { EditMessageError } from "@argon/glue";
+import { EditMessageError, SendMessageError } from "@argon/glue";
+import { sendMessageErrorKey } from "@/lib/refusals";
 import { sendLinkPreviews } from "@/lib/linkPreview/settings";
 import { composerLimits } from "@/lib/chat/announcement";
+import { editErrorKey } from "@/lib/chat/editErrors";
 import ComposerPreview from "./ComposerPreview.vue";
 import ScheduleSendButton from "./ScheduleSendButton.vue";
 import { useChannelDraft } from "@/composables/useChannelDraft";
@@ -428,8 +431,14 @@ const handleGifSelect = (gif: GifItem) => {
   (async () => {
     const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
-      const readback = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
-      emit("resolve-optimistic", randomId, readback);
+      const sent = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
+      if (!sent.ok) {
+        const error = refuseSend(randomId, sent.error);
+        sendTimer.end({ result: "failed" });
+        metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "failed", error });
+        return;
+      }
+      emit("resolve-optimistic", randomId, sent.readback);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
     } catch (e: any) {
@@ -479,8 +488,14 @@ const handleSavedGifSelect = (gif: SavedGif) => {
   (async () => {
     const sendTimer = metrics.startTimer("message.send.duration", { kind: "gif" });
     try {
-      const readback = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
-      emit("resolve-optimistic", randomId, readback);
+      const sent = await sendToTarget(resolvedChannelId, '', [gifEntity], randomId, replyTo);
+      if (!sent.ok) {
+        const error = refuseSend(randomId, sent.error);
+        sendTimer.end({ result: "failed" });
+        metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "failed", error });
+        return;
+      }
+      emit("resolve-optimistic", randomId, sent.readback);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { kind: "gif", reply: replyTo !== null, result: "ok" });
     } catch (e: any) {
@@ -511,7 +526,7 @@ function countGraphemes(text: string): number {
  */
 const graphemeCount = ref(0);
 // Announcement channels take long posts (the server's MaxAnnouncementTextLength).
-const limits = computed(() => composerLimits(me.isPremium, !!props.announcement));
+const limits = computed(() => composerLimits(me.isPremium));
 const charLimit = computed(() => limits.value.limit);
 const charWarnThreshold = computed(() => limits.value.warn);
 const charDangerThreshold = computed(() => limits.value.danger);
@@ -655,9 +670,9 @@ function uploadTarget(targetId: Guid): UploadTarget {
 }
 
 /**
- * Sends to the channel or the peer and returns what the list needs to replace the optimistic row.
- * A direct send answers with the message id only; the rest is filled in so both paths look alike
- * to the caller.
+ * Sends to the channel or the peer and returns what the list needs to replace the optimistic row,
+ * or why the server refused the message. A direct send answers with the message id only; the rest
+ * is filled in so both paths look alike to the caller.
  */
 async function sendToTarget(
   targetId: Guid,
@@ -665,12 +680,22 @@ async function sendToTarget(
   entities: IMessageEntity[],
   randomId: bigint,
   replyTo: bigint | null,
-): Promise<{ messageId: bigint; channelId: Guid; spaceId: Guid }> {
+): Promise<{ ok: true; readback: { messageId: bigint; channelId: Guid; spaceId: Guid } } | { ok: false; error: SendMessageError }> {
   if (props.receiverId) {
     const messageId = await api.userChatInteractions.SendDirectMessage(props.receiverId, text, entities, randomId, replyTo);
-    return { messageId, channelId: props.receiverId, spaceId: "" as Guid };
+    return { ok: true, readback: { messageId, channelId: props.receiverId, spaceId: "" as Guid } };
   }
-  return api.channelInteraction.SendMessageWithReadback(props.spaceId!, targetId, text, entities, randomId, replyTo);
+  const result = await api.channelInteraction.SendMessage(props.spaceId!, targetId, text, entities, randomId, replyTo);
+  if (result.isSuccessSendMessage()) return { ok: true, readback: result.readback };
+  return { ok: false, error: result.isFailedSendMessage() ? result.error : SendMessageError.NONE };
+}
+
+/** Marks the optimistic row failed with the server's reason, as a thrown send would; returns it as a metric label. */
+function refuseSend(randomId: bigint, error: SendMessageError): string {
+  const label = metrics.enumName(SendMessageError, error);
+  logger.warn("Message refused:", label);
+  emit("mark-optimistic-failed", randomId, t(sendMessageErrorKey(error)));
+  return label;
 }
 
 const emit = defineEmits<{
@@ -1171,13 +1196,6 @@ watch(
   },
 );
 
-const EDIT_ERROR_KEYS: Partial<Record<EditMessageError, string>> = {
-  [EditMessageError.MESSAGE_NOT_FOUND]: "edit_error_not_found",
-  [EditMessageError.NOT_AUTHOR]: "edit_error_not_author",
-  [EditMessageError.EMPTY_MESSAGE]: "edit_error_empty",
-  [EditMessageError.MESSAGE_TOO_LONG]: "edit_error_too_long",
-};
-
 async function submitEdit(message: ArgonMessage) {
   if (messageText.value === editBaseline) {
     emit("cancel-edit");
@@ -1201,7 +1219,7 @@ async function submitEdit(message: ArgonMessage) {
     }
     const error = result.isFailedEditMessage() ? result.error : EditMessageError.NONE;
     metrics.count("message.edited", { result: "failed", error: metrics.enumName(EditMessageError, error) });
-    toast({ title: t("edit_failed"), description: t(EDIT_ERROR_KEYS[error] ?? "edit_error_unknown"), variant: "destructive" });
+    toast({ title: t("edit_failed"), description: t(editErrorKey(error)), variant: "destructive" });
   } catch (e) {
     metrics.count("message.edited", { result: "failed", error: errorKind(e) });
     logger.error("Failed to edit message:", e);
@@ -1476,10 +1494,17 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
       }
 
       // Send to server
-      const readback = await sendToTarget(channelId, plainText, finalEntities, randomId, replyTo);
+      const sent = await sendToTarget(channelId, plainText, finalEntities, randomId, replyTo);
+      if (!sent.ok) {
+        const error = refuseSend(randomId, sent.error);
+        detachedUploader?.cleanup();
+        sendTimer.end({ result: "failed", error });
+        metrics.count("message.sent", { ...sendAttrs, result: "failed", error });
+        return;
+      }
 
       // Step 1: Resolve optimistic → replace placeholder with real messageId
-      emit("resolve-optimistic", randomId, readback);
+      emit("resolve-optimistic", randomId, sent.readback);
 
       detachedUploader?.cleanup();
       sendTimer.end({ result: "ok" });

@@ -221,6 +221,7 @@ import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import { db } from "@/store/db/dexie";
+import { spaceManageErrorKey, spaceManageRefusal } from "@/lib/refusals";
 
 const { t } = useLocale();
 const pool = usePoolStore();
@@ -294,11 +295,15 @@ async function updateServerInfo() {
   if (!spaceId.value || !serverName.value.trim() || !infoDirty.value) return;
   isUpdating.value = true;
   try {
-    await api.serverInteraction.UpdateSpaceInfo(
+    const refused = spaceManageRefusal(await api.serverInteraction.UpdateSpaceInfo(
       spaceId.value,
       serverName.value.trim(),
       currentSpace.value?.description ?? "",
-    );
+    ));
+    if (refused !== null) {
+      toast({ title: t("failed_to_update_server"), description: t(spaceManageErrorKey(refused)), variant: "destructive" });
+      return;
+    }
     await pool.loadServerDetails?.();
     toast({ title: t("server_updated"), description: t("server_name_updated") });
   } catch {
@@ -313,7 +318,11 @@ async function onToggleBoostStrip(value: boolean) {
   hideBoost.value = value;
   isTogglingBoost.value = true;
   try {
-    await api.serverInteraction.SetBoostStripHidden(spaceId.value, value);
+    const refused = spaceManageRefusal(await api.serverInteraction.SetBoostStripHidden(spaceId.value, value));
+    if (refused !== null) {
+      hideBoost.value = !value;
+      toast({ title: t("error"), description: t(spaceManageErrorKey(refused)), variant: "destructive" });
+    }
   } catch {
     hideBoost.value = !value;
     toast({ title: t("error"), variant: "destructive" });

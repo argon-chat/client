@@ -36,6 +36,7 @@ import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { useLocale } from "@/store/system/localeStore";
 import { useAnnouncementBanner } from "@/composables/useAnnouncementBanner";
 import { bannerTime, previewText } from "@/lib/announcements/spaceAnnouncements";
+import { maskSpoilers } from "@/lib/chat/spoilers";
 
 const props = defineProps<{
   spaceId: Guid | null;
@@ -54,7 +55,9 @@ const { channel, message, author, visible, dismiss, open } = useAnnouncementBann
 const sentAt = computed(() => message.value?.timeSent.toDate() ?? new Date(0));
 const time = computed(() => bannerTime(sentAt.value));
 const authorName = computed(() => author.value?.displayName || t("unknown_display_name"));
-const text = computed(() => previewText(message.value?.text ?? "") || t("attachment"));
+const text = computed(
+  () => previewText(maskSpoilers(message.value?.text ?? "", message.value?.entities)) || t("attachment"),
+);
 
 function onOpen() {
   const id = open();

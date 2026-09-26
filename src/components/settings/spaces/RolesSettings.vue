@@ -309,7 +309,8 @@ import EmptyStateArt from "@/components/shared/EmptyStateArt.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import DangerZone from "@/components/shared/DangerZone.vue";
 import { useFloating, offset, autoUpdate } from '@floating-ui/vue'
-import { Archetype, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
+import { Archetype, ArchetypeError, ArchetypeGroup, ArgonEntitlement } from "@argon/glue";
+import { archetypeErrorKey } from "@/lib/refusals";
 import { Guid } from "@argon-chat/ion.webcore";
 
 const topTab = ref<"roles" | "bots">("roles");
@@ -547,10 +548,13 @@ const filteredArchetypes = computed(() => {
 async function addArchetype() {
   if (!selectedServer.value) return;
   if (!pex.has('ManageArchetype')) return;
-  await api.archetypeInteraction.CreateArchetype(
+  const result = await api.archetypeInteraction.CreateArchetype(
     selectedServer.value,
     "New Archetype",
   );
+  if (result.isSuccessCreateArchetype()) return;
+  const error = result.isFailedCreateArchetype() ? result.error : ArchetypeError.NONE;
+  toast.toast({ title: t("archetype_create_failed"), description: t(archetypeErrorKey(error)), variant: "destructive" });
 }
 
 const deletingArchetype = ref(false);
@@ -593,10 +597,24 @@ async function updateArchetypeLocal() {
   if (!target || deletingArchetype.value) return;
   if (isLockedArchetype(target)) return;
   try {
-    await api.archetypeInteraction.UpdateArchetype(target.spaceId, target);
+    const result = await api.archetypeInteraction.UpdateArchetype(target.spaceId, target);
+    if (result.isSuccessUpdateArchetype()) {
+      toast.toast({
+        title: t("saved"),
+        duration: 1000,
+      });
+      return;
+    }
+    const error = result.isFailedUpdateArchetype() ? result.error : ArchetypeError.NONE;
+    // Deleted meanwhile, here or elsewhere: there is nothing left to save.
+    if (error === ArchetypeError.NOT_FOUND) {
+      logger.info("archetype is gone, save dropped", target.id);
+      return;
+    }
     toast.toast({
-      title: t("saved"),
-      duration: 1000,
+      title: t("fail_save"),
+      description: t(archetypeErrorKey(error)),
+      variant: "destructive",
     });
   } catch (e) {
     logger.error("failed to update archetype", e);

@@ -1,7 +1,8 @@
 /**
  * A message taken down on the server — by its author or a moderator — leaves the open channel and
  * the local cache at once, instead of lingering until the next reload. An announcement published to
- * the followers gets its "Published" stamp the same way.
+ * the followers gets its "Published" stamp the same way. A retried send the server refuses is
+ * failed again with the server's reason, the way a thrown send is.
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
@@ -17,10 +18,12 @@ const h = await vi.hoisted(async () => {
     removeCachedMessage: vi.fn(async () => {}),
     cacheMessage: vi.fn(async () => {}),
     getMessageById: vi.fn(async (_id: bigint): Promise<any> => undefined),
+    sendMessage: vi.fn(async (..._args: unknown[]): Promise<any> => undefined),
   };
 });
 
-vi.mock("@/store/system/apiStore", () => ({ useApi: () => ({}) }));
+vi.mock("@/store/system/apiStore", () => ({ useApi: () => ({ channelInteraction: { SendMessage: h.sendMessage } }) }));
+vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
 vi.mock("@/store/media/toneStore", () => ({ useTone: () => ({ playNotificationSound() {} }) }));
 vi.mock("@/store/data/notificationStore", () => ({ useNotificationStore: () => ({}) }));
@@ -37,6 +40,7 @@ vi.mock("@/store/data/poolStore", () => ({
 }));
 
 import { IonDateTime } from "@argon-chat/ion.webcore";
+import { FailedSendMessage, SendMessageError, SuccessSendMessage } from "@argon/glue";
 import { useChatMessages } from "@/composables/useChatMessages";
 
 const message = (messageId: bigint, channelId = "c1") =>
@@ -49,6 +53,7 @@ beforeEach(() => {
   h.cacheMessage.mockClear();
   h.getMessageById.mockReset();
   h.getMessageById.mockImplementation(async () => undefined);
+  h.sendMessage.mockReset();
 });
 
 describe("a deleted message", () => {
@@ -162,6 +167,20 @@ describe("a published announcement", () => {
     chat.cleanup();
   });
 
+  test("a cached row of another message under the same rounded key is left alone", async () => {
+    const chat = useChatMessages(() => "c1", () => "s1");
+    chat.subscribeToNewMessages("c1", () => {});
+    // The cache is keyed by Number(messageId): past 2^53, two snowflakes can share a key.
+    const asked = 2n ** 60n + 2n;
+    h.getMessageById.mockImplementation(async () => ({ ...message(2n ** 60n + 1n), publishedAt: null }));
+
+    h.onMessagePublished.next({ spaceId: "s1", channelId: "c1", messageId: asked, publishedAt: at() });
+    await settle();
+
+    expect(h.cacheMessage).not.toHaveBeenCalled();
+    chat.cleanup();
+  });
+
   test("a cached message of another channel under that id is left alone", async () => {
     const chat = useChatMessages(() => "c1", () => "s1");
     chat.subscribeToNewMessages("c1", () => {});
@@ -184,5 +203,50 @@ describe("a published announcement", () => {
     await settle();
 
     expect(chat.messages.value[0].publishedAt).toBeUndefined();
+  });
+});
+
+describe("retrying a failed message", () => {
+  function failedRow(chat: ReturnType<typeof useChatMessages>) {
+    chat.addOptimisticMessage(message(5n), 5n);
+    chat.markOptimisticFailed(5n, "offline");
+    return chat.messages.value[0];
+  }
+
+  test("goes through when the server takes it", async () => {
+    const chat = useChatMessages(() => "c1", () => "s1");
+    h.sendMessage.mockImplementation(async (...args: unknown[]) =>
+      new SuccessSendMessage({ messageId: 42n, channelId: "c1", spaceId: "s1", randomId: args[4] as bigint }));
+
+    await chat.retryMessage(failedRow(chat));
+
+    expect(h.sendMessage).toHaveBeenCalledWith("s1", "c1", "m5", [], expect.any(BigInt), null);
+    expect(chat.messages.value).toHaveLength(1);
+    expect(chat.messages.value[0].messageId).toBe(42n);
+    expect(chat.messages.value[0]._failed).toBeUndefined();
+    chat.cleanup();
+  });
+
+  test("a refusal fails it again with the server's reason", async () => {
+    const chat = useChatMessages(() => "c1", () => "s1");
+    h.sendMessage.mockResolvedValue(new FailedSendMessage(SendMessageError.SLOW_MODE));
+
+    await chat.retryMessage(failedRow(chat));
+
+    expect(chat.messages.value).toHaveLength(1);
+    expect(chat.messages.value[0]._failed).toBe(true);
+    expect(chat.messages.value[0]._error).toBe("send_error_slow_mode");
+    chat.cleanup();
+  });
+
+  test("a thrown send still fails it with the error", async () => {
+    const chat = useChatMessages(() => "c1", () => "s1");
+    h.sendMessage.mockRejectedValue(new Error("socket closed"));
+
+    await chat.retryMessage(failedRow(chat));
+
+    expect(chat.messages.value[0]._failed).toBe(true);
+    expect(chat.messages.value[0]._error).toBe("socket closed");
+    chat.cleanup();
   });
 });

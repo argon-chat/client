@@ -7,17 +7,21 @@ import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
 import {
   AcceptInviteError,
+  ChannelLayoutError,
   ChannelType,
   InviteCode,
-  ServerInvites,
   SetBroadcastSettingsError,
   SpaceDeletionStatus,
+  SpaceManageError,
   type ArgonChannel,
+  type ICreateInviteCodeResult,
+  type IGetInviteCodesResult,
   type SpaceDeletionState,
 } from "@argon/glue";
 import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useChannelStore } from "@/store/data/channelStore";
+import { channelLayoutRefusal, spaceManageRefusal } from "@/lib/refusals";
 
 export const useSpaceStore = defineStore("spaces", () => {
   const api = useApi();
@@ -98,7 +102,7 @@ export const useSpaceStore = defineStore("spaces", () => {
 
   /**
    * Creates the channel and returns its id, which is minted here so the caller can address the
-   * row as soon as CreateChannel returns.
+   * row as soon as CreateChannel returns; or why the server refused it.
    * @param broadcast counts the creation as a broadcast channel; the mode itself is set by the caller.
    */
   async function addChannelToServer(
@@ -107,20 +111,24 @@ export const useSpaceStore = defineStore("spaces", () => {
     channelKind: ChannelType,
     groupId: Guid | null = null,
     broadcast = false,
-  ): Promise<Guid> {
+  ): Promise<{ ok: true; channelId: Guid } | { ok: false; refused: ChannelLayoutError }> {
     const channelId = v7();
-    await api.channelInteraction.CreateChannel(spaceId, channelId, {
+    const refused = channelLayoutRefusal(await api.channelInteraction.CreateChannel(spaceId, channelId, {
       name: channelName,
       desc: "",
       kind: channelKind,
       spaceId: spaceId,
       groupId: groupId
-    });
+    }));
+    if (refused !== null) {
+      logger.warn("[SpaceStore] CreateChannel refused", enumName(ChannelLayoutError, refused));
+      return { ok: false, refused };
+    }
     metrics.count("channel.created", {
       kind: broadcast ? "broadcast" : enumName(ChannelType, channelKind),
       grouped: groupId !== null,
     });
-    return channelId;
+    return { ok: true, channelId };
   }
 
   /**
@@ -131,25 +139,31 @@ export const useSpaceStore = defineStore("spaces", () => {
     spaceId: Guid,
     channelName: string,
     groupId: Guid | null = null,
-  ): Promise<{ channelId: Guid; error: SetBroadcastSettingsError | null }> {
-    const channelId = await addChannelToServer(spaceId, channelName, ChannelType.Voice, groupId, true);
+  ): Promise<{ ok: true; channelId: Guid; error: SetBroadcastSettingsError | null } | { ok: false; refused: ChannelLayoutError }> {
+    const created = await addChannelToServer(spaceId, channelName, ChannelType.Voice, groupId, true);
+    if (!created.ok) return created;
+    const { channelId } = created;
     const result = await api.channelInteraction.SetBroadcastMode(spaceId, channelId, true);
     if (result.isSuccessSetBroadcastSettings()) {
       await useChannelStore().trackChannel(result.channel);
-      return { channelId, error: null };
+      return { ok: true, channelId, error: null };
     }
     const error = result.isFailedSetBroadcastSettings() ? result.error : SetBroadcastSettingsError.NONE;
     logger.warn("[SpaceStore] SetBroadcastMode refused for a new channel", enumName(SetBroadcastSettingsError, error));
-    return { channelId, error };
+    return { ok: true, channelId, error };
   }
 
-  /** @param spaceId the channel's space; defaults to the selected one, which is where the sidebar lives. */
-  async function deleteChannel(channelId: string, spaceId?: string) {
+  /**
+   * @param spaceId the channel's space; defaults to the selected one, which is where the sidebar lives.
+   * @returns why the server refused, or null.
+   */
+  async function deleteChannel(channelId: string, spaceId?: string): Promise<ChannelLayoutError | null> {
     const selectedServer = spaceId ?? pool.selectedServer;
-    if (!selectedServer) return;
+    if (!selectedServer) return null;
 
-    await api.channelInteraction.DeleteChannel(selectedServer, channelId);
-    metrics.count("channel.deleted");
+    const refused = channelLayoutRefusal(await api.channelInteraction.DeleteChannel(selectedServer, channelId));
+    if (refused === null) metrics.count("channel.deleted");
+    return refused;
   }
 
   /**
@@ -178,7 +192,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     }
   }
 
-  async function getServerInvites(): Promise<ServerInvites | null> {
+  async function getServerInvites(): Promise<IGetInviteCodesResult | null> {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return null;
 
@@ -190,24 +204,28 @@ export const useSpaceStore = defineStore("spaces", () => {
    * @param expireMinutes minutes until expiry, or 0 for "never".
    * @param maxUses maximum joins allowed, or 0 for "unlimited".
    */
-  async function addInvite(expireMinutes: number, maxUses: number): Promise<InviteCode | null> {
+  async function addInvite(expireMinutes: number, maxUses: number): Promise<ICreateInviteCodeResult | null> {
     const selectedServer = pool.selectedServer;
     if (!selectedServer) return null;
 
-    const invite = await api.serverInteraction.CreateInviteCode(selectedServer, expireMinutes, maxUses);
-    metrics.count("space.invite.created", {
-      expires: expireMinutes === 0 ? "never" : bucket(expireMinutes, [60, 1440, 10080]),
-      uses: maxUses === 0 ? "unlimited" : bucket(maxUses, [5, 25, 100]),
-    });
-    return invite;
+    const result = await api.serverInteraction.CreateInviteCode(selectedServer, expireMinutes, maxUses);
+    if (result.isSuccessCreateInviteCode()) {
+      metrics.count("space.invite.created", {
+        expires: expireMinutes === 0 ? "never" : bucket(expireMinutes, [60, 1440, 10080]),
+        uses: maxUses === 0 ? "unlimited" : bucket(maxUses, [5, 25, 100]),
+      });
+    }
+    return result;
   }
 
-  async function revokeInvite(code: InviteCode): Promise<void> {
+  /** @returns why the server refused, or null. */
+  async function revokeInvite(code: InviteCode): Promise<SpaceManageError | null> {
     const selectedServer = pool.selectedServer;
-    if (!selectedServer) return;
+    if (!selectedServer) return null;
 
-    await api.serverInteraction.RevokeInviteCode(selectedServer, code);
-    metrics.count("space.invite.revoked");
+    const refused = spaceManageRefusal(await api.serverInteraction.RevokeInviteCode(selectedServer, code));
+    if (refused === null) metrics.count("space.invite.revoked");
+    return refused;
   }
 
   return {

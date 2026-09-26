@@ -91,6 +91,7 @@ import {
   publishErrorKey,
   publishSuccessDescription,
   removeFollowErrorKey,
+  replyAuthorName,
   shouldRenderMessage,
   toFollowOutcome,
   toPublishOutcome,
@@ -177,6 +178,8 @@ describe("refusals", () => {
     const keys = errors.map(followErrorKey);
     expect(new Set(keys).size).toBe(errors.length);
     expect(followErrorKey(FollowChannelError.TOO_MANY_FOLLOWS)).toBe("follow_error_too_many");
+    expect(followErrorKey(FollowChannelError.SOURCE_PRIVATE)).toBe("follow_error_source_private");
+    expect(followErrorKey(FollowChannelError.SOURCE_FOLLOWER_LIMIT)).toBe("follow_error_source_full");
     expect(followErrorKey(FollowChannelError.ALREADY_FOLLOWING)).toBe("follow_error_already_following");
     expect(followErrorKey(99 as FollowChannelError)).toBe("follow_error_unknown");
   });
@@ -296,6 +299,15 @@ describe("crossposts", () => {
       avatarFileId: "file-1",
       label: "Argon • #news",
     });
+  });
+
+  test("a reply never names the author of a crosspost that hides them", () => {
+    const author = { displayName: "Alice" };
+    expect(replyAuthorName(msg({ crosspost: { ...crosspost, hideAuthor: true } }), author)).toBe("Argon");
+    expect(replyAuthorName(msg({ crosspost: { ...crosspost, hideAuthor: false } }), author)).toBe("Alice");
+    expect(replyAuthorName(msg({ crosspost }), null)).toBe("Argon");
+    expect(replyAuthorName(msg(), author)).toBe("Alice");
+    expect(replyAuthorName(msg(), null)).toBeNull();
   });
 
   test("renders without a locally known author; a normal message still needs one", () => {

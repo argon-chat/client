@@ -132,7 +132,8 @@ import { uploadFile } from "@/lib/uploadFile";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { useLiveQuery } from "@/composables/useLiveQuery";
 import { db } from "@/store/db/dexie";
-import type { InviteCodeEntity } from "@argon/glue";
+import { spaceManageErrorKey, spaceManageRefusal } from "@/lib/refusals";
+import { SpaceManageError, type InviteCodeEntity } from "@argon/glue";
 import type { IonDateTime } from "@argon-chat/ion.webcore";
 
 const { t } = useLocale();
@@ -181,8 +182,14 @@ async function refreshInvites() {
   loading.value = true;
   try {
     const res = await servers.getServerInvites();
-    invites.value = res ? [...res.invites] : [];
-    if (res?.domain) inviteDomain.value = res.domain;
+    if (!res) {
+      invites.value = [];
+    } else if (res.isSuccessGetInviteCodes()) {
+      invites.value = [...res.invites.invites];
+      if (res.invites.domain) inviteDomain.value = res.invites.domain;
+    } else {
+      refuse("invites_load_failed", res.isFailedGetInviteCodes() ? res.error : SpaceManageError.NONE);
+    }
   } finally {
     loading.value = false;
   }
@@ -191,7 +198,11 @@ async function refreshInvites() {
 async function createInvite() {
   creating.value = true;
   try {
-    await servers.addInvite(newExpireMinutes.value, newMaxUses.value);
+    const result = await servers.addInvite(newExpireMinutes.value, newMaxUses.value);
+    if (result && !result.isSuccessCreateInviteCode()) {
+      refuse("invite_create_failed", result.isFailedCreateInviteCode() ? result.error : SpaceManageError.NONE);
+      return;
+    }
     await refreshInvites();
   } finally {
     creating.value = false;
@@ -201,11 +212,20 @@ async function createInvite() {
 async function revokeInvite(invite: InviteCodeEntity) {
   revokingCode.value = invite.code.inviteCode;
   try {
-    await servers.revokeInvite(invite.code);
+    const refused = await servers.revokeInvite(invite.code);
+    // Already gone is what was asked for.
+    if (refused !== null && refused !== SpaceManageError.NOT_FOUND) {
+      refuse("invite_revoke_failed", refused);
+      return;
+    }
     invites.value = invites.value.filter((i) => i.code.inviteCode !== invite.code.inviteCode);
   } finally {
     revokingCode.value = null;
   }
+}
+
+function refuse(title: string, error: SpaceManageError) {
+  toast({ title: t(title), description: t(spaceManageErrorKey(error)), variant: "destructive" });
 }
 
 // ── Display helpers ───────────────────────────────────────
@@ -260,7 +280,11 @@ async function onInviteImageSelected(event: Event) {
   try {
     const begin = await api.serverInteraction.BeginUploadInviteImage(spaceId.value);
     const { blobId } = await uploadFile(begin, file, "SpaceInviteImage");
-    await api.serverInteraction.CompleteUploadInviteImage(spaceId.value, blobId);
+    const refused = spaceManageRefusal(await api.serverInteraction.CompleteUploadInviteImage(spaceId.value, blobId));
+    if (refused !== null) {
+      refuse("error", refused);
+      return;
+    }
     await pool.loadServerDetails?.();
     toast({ title: t("invite_splash_image_updated") });
   } catch (e) {

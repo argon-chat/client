@@ -475,7 +475,7 @@ import type { AnnouncementCardContext } from "@/composables/useAnnouncementChann
 import CrosspostAvatar from "./chats/CrosspostAvatar.vue";
 import CrosspostHeader from "./chats/CrosspostHeader.vue";
 import PublishedMark from "./chats/PublishedMark.vue";
-import { canPublishMessage } from "@/composables/useChannelFollow";
+import { canPublishMessage, replyAuthorName } from "@/composables/useChannelFollow";
 
 import {
   Popover, PopoverTrigger, PopoverContent,
@@ -518,7 +518,7 @@ const ReplyPreview = defineComponent({
             h(
               "span",
               { class: "font-semibold text-xs leading-tight", style: { color: color.value } },
-              props.replyUser?.displayName || props.replyMessage?.crosspost?.sourceSpaceName || t("unknown_display_name"),
+              replyAuthorName(props.replyMessage, props.replyUser) || t("unknown_display_name"),
             ),
             h(
               "span",

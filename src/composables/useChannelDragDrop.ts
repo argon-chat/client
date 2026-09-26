@@ -2,10 +2,13 @@ import { ref, computed, type Ref } from 'vue';
 import { usePexStore } from '@/store/data/permissionStore';
 import { useApi } from '@/store/system/apiStore';
 import { useVoiceModeration } from '@/composables/useVoiceModeration';
+import { useLocale } from '@/store/system/localeStore';
+import { useToast } from '@argon/ui/toast';
 import { isVoiceLikeChannel } from '@/lib/voice/channels';
+import { channelLayoutErrorKey, channelLayoutRefusal } from '@/lib/refusals';
 import { logger } from '@argon/core';
 import type { Guid } from '@argon-chat/ion.webcore';
-import type { ChannelType } from '@argon/glue';
+import type { ChannelType, IChannelLayoutResult } from '@argon/glue';
 
 export type DropPosition = 'before' | 'after';
 
@@ -29,6 +32,15 @@ export function useChannelDragDrop(
   const pex = usePexStore();
   const api = useApi();
   const moderation = useVoiceModeration();
+  const { t } = useLocale();
+  const { toast } = useToast();
+
+  // Nothing to put back: the sidebar only moves on the server's layout event.
+  const reportRefusal = (result: IChannelLayoutResult, title: string) => {
+    const refused = channelLayoutRefusal(result);
+    if (refused === null) return;
+    toast({ title: t(title), description: t(channelLayoutErrorKey(refused)), variant: 'destructive' });
+  };
 
   const dragged = ref<Dragged | null>(null);
 
@@ -189,9 +201,9 @@ export function useChannelDragDrop(
         if (targetIndex < targetChannels.length - 1) beforeChannelId = targetChannels[targetIndex + 1].channelId;
       }
 
-      await api.channelInteraction.MoveChannel(
+      reportRefusal(await api.channelInteraction.MoveChannel(
         selectedSpaceId.value, sourceChannelId, targetGroupId, afterChannelId, beforeChannelId,
-      );
+      ), 'channel_move_failed');
     } catch (error) {
       logger.error('Failed to move channel', error);
     } finally {
@@ -215,9 +227,9 @@ export function useChannelDragDrop(
 
       const afterChannelId = channels.length > 0 ? channels[channels.length - 1].channelId : null;
 
-      await api.channelInteraction.MoveChannel(
+      reportRefusal(await api.channelInteraction.MoveChannel(
         selectedSpaceId.value, sourceChannelId, targetGroupId, afterChannelId, null,
-      );
+      ), 'channel_move_failed');
     } catch (error) {
       logger.error('Failed to move channel to end', error);
     } finally {
@@ -283,7 +295,10 @@ export function useChannelDragDrop(
       try {
         const groupChannels = getGroupChannels(groupId).filter(c => c.channelId !== sourceChannelId);
         const afterChannelId = groupChannels.length > 0 ? groupChannels[groupChannels.length - 1].channelId : null;
-        await api.channelInteraction.MoveChannel(selectedSpaceId.value, sourceChannelId, groupId, afterChannelId, null);
+        reportRefusal(
+          await api.channelInteraction.MoveChannel(selectedSpaceId.value, sourceChannelId, groupId, afterChannelId, null),
+          'channel_move_failed',
+        );
       } catch (error) {
         logger.error('Failed to move channel to group', error);
       } finally {
@@ -316,9 +331,9 @@ export function useChannelDragDrop(
       }
 
       // Service is (spaceId, channelId) — for group ops the moved group id is the context id.
-      await api.channelInteraction.MoveChannelGroup(
+      reportRefusal(await api.channelInteraction.MoveChannelGroup(
         selectedSpaceId.value, movedId, afterGroupId, beforeGroupId,
-      );
+      ), 'channel_group_move_failed');
     } catch (error) {
       logger.error('Failed to reorder group', error);
     } finally {

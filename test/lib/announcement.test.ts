@@ -7,7 +7,6 @@ import {
   type ChannelEntitlementOverwrite,
 } from "@argon/glue";
 import {
-  ANNOUNCEMENT_TEXT_LIMIT,
   COLLAPSE_CHARS,
   COLLAPSE_LINES,
   announcementSettingsOf,
@@ -107,18 +106,13 @@ describe("cardHeader", () => {
 });
 
 describe("composerLimits", () => {
-  it("keeps 2000 / 4000 outside announcement channels", () => {
-    expect(composerLimits(false, false).limit).toBe(2000);
-    expect(composerLimits(true, false).limit).toBe(4000);
-  });
-
-  it("gives announcement channels the server's long-post limit, premium or not", () => {
-    expect(composerLimits(false, true).limit).toBe(ANNOUNCEMENT_TEXT_LIMIT);
-    expect(composerLimits(true, true).limit).toBe(16000);
+  it("is 2000, or 4000 with premium", () => {
+    expect(composerLimits(false).limit).toBe(2000);
+    expect(composerLimits(true).limit).toBe(4000);
   });
 
   it("orders its thresholds below the limit", () => {
-    for (const l of [composerLimits(false, false), composerLimits(true, false), composerLimits(false, true)]) {
+    for (const l of [composerLimits(false), composerLimits(true)]) {
       expect(l.counterFrom).toBeLessThan(l.warn);
       expect(l.warn).toBeLessThan(l.danger);
       expect(l.danger).toBeLessThan(l.limit);

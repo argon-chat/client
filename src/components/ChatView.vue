@@ -105,7 +105,7 @@
       :announcement="announcementCard"
       :channel-type="channelType"
       :can-publish-any="canPublishAny"
-      :read-counts="channelType === 'announcement' && spaceId ? { spaceId, channelId } : null"
+      :read-counts="readCounts"
       :toggle-reaction="toggleReaction"
       @select-reply="(m) => emit('select-reply', m)"
       @select-edit="(m) => emit('select-edit', m)"
@@ -251,6 +251,11 @@ const { groupingMap } = useMessageGrouping(messages, {
 
 // Stable getter — passes the real shallowRef into the list (keeps triggerRef reactivity).
 const getMessages = () => messages;
+
+// One object per channel, not a new one on every render of this view.
+const readCounts = computed(() =>
+  props.channelType === "announcement" && props.spaceId ? { spaceId: props.spaceId, channelId: props.channelId } : null,
+);
 
 // ── List ref ──
 

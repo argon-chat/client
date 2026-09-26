@@ -39,8 +39,13 @@
             groupingMap[item.index]?.showDate,
             groupingMap[item.index]?.showUnread,
             canPin,
-            announcement,
+            announcementKey,
             canReact,
+            canReply,
+            canEdit,
+            canDeleteAny,
+            channelType,
+            readCountsKey,
           ]"
         >
           <DateSeparator
@@ -131,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, type ShallowRef } from "vue";
+import { computed, ref, onUnmounted, type ShallowRef } from "vue";
 import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
 import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
 
@@ -146,7 +151,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useChatScroll } from "@/composables/useChatScroll";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import type { GroupMeta } from "@/composables/useMessageGrouping";
-import type { AnnouncementCardContext } from "@/composables/useAnnouncementChannel";
+import { announcementMemoKey, type AnnouncementCardContext } from "@/composables/useAnnouncementChannel";
 
 const { t } = useLocale();
 
@@ -189,6 +194,14 @@ const emit = defineEmits<{
   (e: "scroll-state", distanceFromBottom: number): void;
   (e: "reset-unread"): void;
 }>();
+
+// ── Row memo keys ──
+// Rows are memoised on primitives. The card context is a new object on every write of the channel
+// row, and every message in the channel writes it (lastMessageId): as a memo key it redrew every row
+// on every message.
+
+const announcementKey = computed(() => announcementMemoKey(props.announcement));
+const readCountsKey = computed(() => (props.readCounts ? `${props.readCounts.spaceId}:${props.readCounts.channelId}` : ""));
 
 // ── Scroll engine (owns the real messages ref for triggerRef reactivity) ──
 

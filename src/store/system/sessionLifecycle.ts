@@ -25,8 +25,15 @@ type Resetter = () => void | Promise<void>;
 
 const resetters = new Set<Resetter>();
 
-export function onSessionReset(fn: Resetter): void {
+/**
+ * Registers a teardown for the next switches. Returns its removal, for a registrant that lives
+ * shorter than the app (a composable of a mounted component); a store never needs it.
+ */
+export function onSessionReset(fn: Resetter): () => void {
   resetters.add(fn);
+  return () => {
+    resetters.delete(fn);
+  };
 }
 
 export async function runSessionReset(): Promise<void> {

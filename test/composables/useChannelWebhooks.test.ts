@@ -79,6 +79,13 @@ describe("webhookErrorKey", () => {
     expect(webhookErrorKey(ChannelWebhookError.WEBHOOK_NOT_FOUND)).toBe("webhook_error_not_found");
     expect(webhookErrorKey(ChannelWebhookError.NONE)).toBe("webhook_error_generic");
   });
+
+  test("a reserved name is explained as such, not as a generic failure", async () => {
+    expect(webhookErrorKey(ChannelWebhookError.NAME_NOT_ALLOWED)).toBe("webhook_error_name_not_allowed");
+
+    h.create.mockResolvedValue(new FailedCreateWebhook(ChannelWebhookError.NAME_NOT_ALLOWED));
+    expect(await useChannelWebhooks(channel).create("Argon")).toEqual({ ok: false, errorKey: "webhook_error_name_not_allowed" });
+  });
 });
 
 describe("useChannelWebhooks", () => {

@@ -15,8 +15,10 @@
 
 <script setup lang="ts">
 /**
- * "Read by N" under an announcement, for its author and for moderators. Asks the server only once
- * the line is on screen or hovered; the answer is cached briefly (see useReadCount).
+ * "Read by N" under an announcement, for its author and for moderators. Asks only once the line is
+ * on screen or hovered, together with the other posts on screen; the answer is cached briefly (see
+ * useReadCount). A post the server gives no count for (too few members to count without singling
+ * anyone out, among others) shows no line at all.
  */
 import { computed, ref, watch } from "vue";
 import { useIntersectionObserver } from "@vueuse/core";
@@ -36,17 +38,24 @@ const { t } = useLocale();
 const me = useMe();
 const pex = usePexStore();
 
-const visible = computed(() =>
+const allowed = computed(() =>
   canSeeReadCount(props.message, me.me?.userId, pex.hasIn(props.context.channelId, "ManageMessages", props.context.spaceId)),
 );
 
 const el = ref<HTMLElement | null>(null);
-const count = ref<ReadCount | null>(peekReadCount(props.context.channelId, props.message.messageId) ?? null);
+const cached = () => peekReadCount(props.context.channelId, props.message.messageId);
+const count = ref<ReadCount | null>(cached() ?? null);
+/** The server answered with no count for this post. */
+const none = ref(cached() === null);
+const visible = computed(() => allowed.value && !none.value);
 
 async function load() {
   if (!visible.value) return;
-  const value = await fetchReadCount(props.context.spaceId, props.context.channelId, props.message.messageId);
-  if (value) count.value = value;
+  const id = props.message.messageId;
+  const value = await fetchReadCount(props.context.spaceId, props.context.channelId, id);
+  if (id !== props.message.messageId) return;
+  count.value = value;
+  none.value = value === null;
 }
 
 useIntersectionObserver(el, ([entry]) => {
@@ -56,8 +65,9 @@ useIntersectionObserver(el, ([entry]) => {
 // A row reused by the virtual list for another message starts over.
 watch(
   () => props.message.messageId,
-  (id) => {
-    count.value = peekReadCount(props.context.channelId, id) ?? null;
+  () => {
+    count.value = cached() ?? null;
+    none.value = cached() === null;
   },
 );
 </script>

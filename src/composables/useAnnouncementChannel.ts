@@ -11,6 +11,13 @@ export interface AnnouncementCardContext {
   space: CardIdentity | null;
 }
 
+/** The context as a string that changes only when what it renders does, for memoising rows on it. */
+export function announcementMemoKey(card: AnnouncementCardContext | null | undefined): string {
+  if (!card) return "";
+  const { reactions, postAsSpace, showAuthor } = card.settings;
+  return `${+reactions}${+postAsSpace}${+showAuthor}|${card.space?.name ?? ""}|${card.space?.avatarFileId ?? ""}`;
+}
+
 /**
  * The announcement settings of a channel, followed live from the local database (ChannelModifiedV2
  * lands there), and the space's name and avatar for "post as space". Null settings: not an

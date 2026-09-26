@@ -109,9 +109,10 @@ export enum ArchetypeError
   IN_USE = 5,
   INCOMPLETE_ORDER = 6,
   INTERNAL_ERROR = 7,
+  INVALID_DATA = 8,
 }
 
-const declaredArchetypeError: ReadonlySet<unknown> = new Set<unknown>([ArchetypeError.NONE, ArchetypeError.NOT_FOUND, ArchetypeError.NO_PERMISSION, ArchetypeError.IS_DEFAULT, ArchetypeError.IS_LOCKED, ArchetypeError.IN_USE, ArchetypeError.INCOMPLETE_ORDER, ArchetypeError.INTERNAL_ERROR]);
+const declaredArchetypeError: ReadonlySet<unknown> = new Set<unknown>([ArchetypeError.NONE, ArchetypeError.NOT_FOUND, ArchetypeError.NO_PERMISSION, ArchetypeError.IS_DEFAULT, ArchetypeError.IS_LOCKED, ArchetypeError.IN_USE, ArchetypeError.INCOMPLETE_ORDER, ArchetypeError.INTERNAL_ERROR, ArchetypeError.INVALID_DATA]);
 
 /**
  * Open-enum helpers for {@link ArchetypeError}.
@@ -394,9 +395,10 @@ export enum ScheduledPostFailure
   INSUFFICIENT_PERMISSIONS = 2,
   SLOW_MODE = 3,
   SEND_FAILED = 4,
+  ACCOUNT_RESTRICTED = 5,
 }
 
-const declaredScheduledPostFailure: ReadonlySet<unknown> = new Set<unknown>([ScheduledPostFailure.NONE, ScheduledPostFailure.CHANNEL_NOT_FOUND, ScheduledPostFailure.INSUFFICIENT_PERMISSIONS, ScheduledPostFailure.SLOW_MODE, ScheduledPostFailure.SEND_FAILED]);
+const declaredScheduledPostFailure: ReadonlySet<unknown> = new Set<unknown>([ScheduledPostFailure.NONE, ScheduledPostFailure.CHANNEL_NOT_FOUND, ScheduledPostFailure.INSUFFICIENT_PERMISSIONS, ScheduledPostFailure.SLOW_MODE, ScheduledPostFailure.SEND_FAILED, ScheduledPostFailure.ACCOUNT_RESTRICTED]);
 
 /**
  * Open-enum helpers for {@link ScheduledPostFailure}.
@@ -470,6 +472,7 @@ export interface CrosspostInfo {
   sourceSpaceName: string;
   sourceChannelName: string;
   sourceSpaceAvatarFileId: string | null;
+  hideAuthor: bool;
 };
 
 
@@ -502,9 +505,11 @@ export enum FollowChannelError
   SAME_CHANNEL = 7,
   ALREADY_FOLLOWING = 8,
   TOO_MANY_FOLLOWS = 9,
+  SOURCE_PRIVATE = 10,
+  SOURCE_FOLLOWER_LIMIT = 11,
 }
 
-const declaredFollowChannelError: ReadonlySet<unknown> = new Set<unknown>([FollowChannelError.NONE, FollowChannelError.SOURCE_NOT_FOUND, FollowChannelError.NOT_AN_ANNOUNCEMENT_CHANNEL, FollowChannelError.NO_ACCESS_TO_SOURCE, FollowChannelError.TARGET_NOT_FOUND, FollowChannelError.TARGET_NOT_TEXT, FollowChannelError.INSUFFICIENT_PERMISSIONS, FollowChannelError.SAME_CHANNEL, FollowChannelError.ALREADY_FOLLOWING, FollowChannelError.TOO_MANY_FOLLOWS]);
+const declaredFollowChannelError: ReadonlySet<unknown> = new Set<unknown>([FollowChannelError.NONE, FollowChannelError.SOURCE_NOT_FOUND, FollowChannelError.NOT_AN_ANNOUNCEMENT_CHANNEL, FollowChannelError.NO_ACCESS_TO_SOURCE, FollowChannelError.TARGET_NOT_FOUND, FollowChannelError.TARGET_NOT_TEXT, FollowChannelError.INSUFFICIENT_PERMISSIONS, FollowChannelError.SAME_CHANNEL, FollowChannelError.ALREADY_FOLLOWING, FollowChannelError.TOO_MANY_FOLLOWS, FollowChannelError.SOURCE_PRIVATE, FollowChannelError.SOURCE_FOLLOWER_LIMIT]);
 
 /**
  * Open-enum helpers for {@link FollowChannelError}.
@@ -597,15 +602,23 @@ export const Ion_PublishMessageError_OpenEnum = {
 } as const;
 
 
+export interface ReadCountEntry {
+  messageId: i8;
+  readers: i4;
+  members: i4;
+};
+
+
 export enum ReadCountError
 {
   NONE = 0,
   MESSAGE_NOT_FOUND = 1,
   INSUFFICIENT_PERMISSIONS = 2,
   NOT_AN_ANNOUNCEMENT_CHANNEL = 3,
+  TOO_FEW_MEMBERS = 4,
 }
 
-const declaredReadCountError: ReadonlySet<unknown> = new Set<unknown>([ReadCountError.NONE, ReadCountError.MESSAGE_NOT_FOUND, ReadCountError.INSUFFICIENT_PERMISSIONS, ReadCountError.NOT_AN_ANNOUNCEMENT_CHANNEL]);
+const declaredReadCountError: ReadonlySet<unknown> = new Set<unknown>([ReadCountError.NONE, ReadCountError.MESSAGE_NOT_FOUND, ReadCountError.INSUFFICIENT_PERMISSIONS, ReadCountError.NOT_AN_ANNOUNCEMENT_CHANNEL, ReadCountError.TOO_FEW_MEMBERS]);
 
 /**
  * Open-enum helpers for {@link ReadCountError}.
@@ -1262,9 +1275,10 @@ export enum EditMessageError
   NOT_AUTHOR = 2,
   EMPTY_MESSAGE = 3,
   MESSAGE_TOO_LONG = 4,
+  INSUFFICIENT_PERMISSIONS = 5,
 }
 
-const declaredEditMessageError: ReadonlySet<unknown> = new Set<unknown>([EditMessageError.NONE, EditMessageError.MESSAGE_NOT_FOUND, EditMessageError.NOT_AUTHOR, EditMessageError.EMPTY_MESSAGE, EditMessageError.MESSAGE_TOO_LONG]);
+const declaredEditMessageError: ReadonlySet<unknown> = new Set<unknown>([EditMessageError.NONE, EditMessageError.MESSAGE_NOT_FOUND, EditMessageError.NOT_AUTHOR, EditMessageError.EMPTY_MESSAGE, EditMessageError.MESSAGE_TOO_LONG, EditMessageError.INSUFFICIENT_PERMISSIONS]);
 
 /**
  * Open-enum helpers for {@link EditMessageError}.
@@ -1882,6 +1896,80 @@ export const Ion_ActivityPresenceKind_OpenEnum = {
 } as const;
 
 
+export enum ChannelLayoutError
+{
+  NONE = 0,
+  NO_PERMISSION = 1,
+  NOT_FOUND = 2,
+  INVALID_DATA = 3,
+  INTERNAL_ERROR = 4,
+}
+
+const declaredChannelLayoutError: ReadonlySet<unknown> = new Set<unknown>([ChannelLayoutError.NONE, ChannelLayoutError.NO_PERMISSION, ChannelLayoutError.NOT_FOUND, ChannelLayoutError.INVALID_DATA, ChannelLayoutError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link ChannelLayoutError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ChannelLayoutError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ChannelLayoutError): boolean {
+    return declaredChannelLayoutError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ChannelLayoutError): u2 | undefined {
+    return declaredChannelLayoutError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum SendMessageError
+{
+  NONE = 0,
+  NO_PERMISSION = 1,
+  NOT_TEXT_CHANNEL = 2,
+  BOTS_NOT_ALLOWED = 3,
+  TEXT_TOO_LONG = 4,
+  NO_ATTACH_PERMISSION = 5,
+  TOO_MANY_ATTACHMENTS = 6,
+  SLOW_MODE = 7,
+  CHANNEL_CAP = 8,
+  INVALID_DATA = 9,
+  INTERNAL_ERROR = 10,
+}
+
+const declaredSendMessageError: ReadonlySet<unknown> = new Set<unknown>([SendMessageError.NONE, SendMessageError.NO_PERMISSION, SendMessageError.NOT_TEXT_CHANNEL, SendMessageError.BOTS_NOT_ALLOWED, SendMessageError.TEXT_TOO_LONG, SendMessageError.NO_ATTACH_PERMISSION, SendMessageError.TOO_MANY_ATTACHMENTS, SendMessageError.SLOW_MODE, SendMessageError.CHANNEL_CAP, SendMessageError.INVALID_DATA, SendMessageError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SendMessageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SendMessageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SendMessageError): boolean {
+    return declaredSendMessageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SendMessageError): u2 | undefined {
+    return declaredSendMessageError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
 export enum ChannelMemberState
 {
   NONE = 0,
@@ -1963,9 +2051,10 @@ export enum ChannelWebhookError
   NAME_TOO_LONG = 5,
   LIMIT_REACHED = 6,
   WEBHOOK_NOT_FOUND = 7,
+  NAME_NOT_ALLOWED = 8,
 }
 
-const declaredChannelWebhookError: ReadonlySet<unknown> = new Set<unknown>([ChannelWebhookError.NONE, ChannelWebhookError.CHANNEL_NOT_FOUND, ChannelWebhookError.INSUFFICIENT_PERMISSIONS, ChannelWebhookError.NOT_A_TEXT_CHANNEL, ChannelWebhookError.NAME_EMPTY, ChannelWebhookError.NAME_TOO_LONG, ChannelWebhookError.LIMIT_REACHED, ChannelWebhookError.WEBHOOK_NOT_FOUND]);
+const declaredChannelWebhookError: ReadonlySet<unknown> = new Set<unknown>([ChannelWebhookError.NONE, ChannelWebhookError.CHANNEL_NOT_FOUND, ChannelWebhookError.INSUFFICIENT_PERMISSIONS, ChannelWebhookError.NOT_A_TEXT_CHANNEL, ChannelWebhookError.NAME_EMPTY, ChannelWebhookError.NAME_TOO_LONG, ChannelWebhookError.LIMIT_REACHED, ChannelWebhookError.WEBHOOK_NOT_FOUND, ChannelWebhookError.NAME_NOT_ALLOWED]);
 
 /**
  * Open-enum helpers for {@link ChannelWebhookError}.
@@ -3589,6 +3678,41 @@ export const Ion_UserStatus_OpenEnum = {
 } as const;
 
 
+export enum SpaceManageError
+{
+  NONE = 0,
+  NO_PERMISSION = 1,
+  NOT_FOUND = 2,
+  INVALID_DATA = 3,
+  CONTENT_REJECTED = 4,
+  INTERNAL_ERROR = 5,
+}
+
+const declaredSpaceManageError: ReadonlySet<unknown> = new Set<unknown>([SpaceManageError.NONE, SpaceManageError.NO_PERMISSION, SpaceManageError.NOT_FOUND, SpaceManageError.INVALID_DATA, SpaceManageError.CONTENT_REJECTED, SpaceManageError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link SpaceManageError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SpaceManageError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SpaceManageError): boolean {
+    return declaredSpaceManageError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SpaceManageError): u2 | undefined {
+    return declaredSpaceManageError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
 export enum ArgonEntitlement
 {
   None = 0n as any,
@@ -4651,6 +4775,208 @@ export const Ion_CallFailedError_OpenEnum = {
     return declaredCallFailedError.has(value) ? undefined : (value as unknown as u4);
   },
 } as const;
+
+
+
+export abstract class ICreateArchetypeResult implements IIonUnion<ICreateArchetypeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateArchetype(): this is SuccessCreateArchetype {
+    return this.UnionKey === "SuccessCreateArchetype";
+  }
+  public isFailedCreateArchetype(): this is FailedCreateArchetype {
+    return this.UnionKey === "FailedCreateArchetype";
+  }
+
+}
+
+
+export class SuccessCreateArchetype extends ICreateArchetypeResult
+{
+  constructor(public archetype: Archetype) { super(); }
+
+  UnionKey: string = "SuccessCreateArchetype";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateArchetype extends ICreateArchetypeResult
+{
+  constructor(public error: ArchetypeError) { super(); }
+
+  UnionKey: string = "FailedCreateArchetype";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateArchetypeResult", {
+  read(reader: CborReader): ICreateArchetypeResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateArchetypeResult", 2);
+    let value: ICreateArchetypeResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateArchetype>("SuccessCreateArchetype").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateArchetype>("FailedCreateArchetype").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICreateArchetypeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateArchetypeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateArchetype>("SuccessCreateArchetype").write(writer, value as SuccessCreateArchetype);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateArchetype>("FailedCreateArchetype").write(writer, value as FailedCreateArchetype);
+    }
+  
+    else throw new Error(`Ion union 'ICreateArchetypeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateArchetype", {
+  read(reader: CborReader): SuccessCreateArchetype {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCreateArchetype");
+    const archetype = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreateArchetype(archetype);
+  },
+  write(writer: CborWriter, value: SuccessCreateArchetype): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<Archetype>('Archetype').write(writer, value.archetype);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateArchetype", {
+  read(reader: CborReader): FailedCreateArchetype {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateArchetype");
+    const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateArchetype(error);
+  },
+  write(writer: CborWriter, value: FailedCreateArchetype): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArchetypeError>('ArchetypeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUpdateArchetypeResult implements IIonUnion<IUpdateArchetypeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUpdateArchetype(): this is SuccessUpdateArchetype {
+    return this.UnionKey === "SuccessUpdateArchetype";
+  }
+  public isFailedUpdateArchetype(): this is FailedUpdateArchetype {
+    return this.UnionKey === "FailedUpdateArchetype";
+  }
+
+}
+
+
+export class SuccessUpdateArchetype extends IUpdateArchetypeResult
+{
+  constructor(public archetype: Archetype) { super(); }
+
+  UnionKey: string = "SuccessUpdateArchetype";
+  UnionIndex: number = 0;
+}
+
+export class FailedUpdateArchetype extends IUpdateArchetypeResult
+{
+  constructor(public error: ArchetypeError) { super(); }
+
+  UnionKey: string = "FailedUpdateArchetype";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUpdateArchetypeResult", {
+  read(reader: CborReader): IUpdateArchetypeResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUpdateArchetypeResult", 2);
+    let value: IUpdateArchetypeResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUpdateArchetype>("SuccessUpdateArchetype").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUpdateArchetype>("FailedUpdateArchetype").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IUpdateArchetypeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IUpdateArchetypeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUpdateArchetype>("SuccessUpdateArchetype").write(writer, value as SuccessUpdateArchetype);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUpdateArchetype>("FailedUpdateArchetype").write(writer, value as FailedUpdateArchetype);
+    }
+  
+    else throw new Error(`Ion union 'IUpdateArchetypeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUpdateArchetype", {
+  read(reader: CborReader): SuccessUpdateArchetype {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessUpdateArchetype");
+    const archetype = IonFormatterStorage.get<Archetype>('Archetype').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessUpdateArchetype(archetype);
+  },
+  write(writer: CborWriter, value: SuccessUpdateArchetype): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<Archetype>('Archetype').write(writer, value.archetype);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUpdateArchetype", {
+  read(reader: CborReader): FailedUpdateArchetype {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUpdateArchetype");
+    const error = IonFormatterStorage.get<ArchetypeError>('ArchetypeError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUpdateArchetype(error);
+  },
+  write(writer: CborWriter, value: FailedUpdateArchetype): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArchetypeError>('ArchetypeError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
 
 
 
@@ -11677,6 +12003,208 @@ IonFormatterStorage.register("StopTyping", {
 
 
 
+export abstract class IChannelLayoutResult implements IIonUnion<IChannelLayoutResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessChannelLayout(): this is SuccessChannelLayout {
+    return this.UnionKey === "SuccessChannelLayout";
+  }
+  public isFailedChannelLayout(): this is FailedChannelLayout {
+    return this.UnionKey === "FailedChannelLayout";
+  }
+
+}
+
+
+export class SuccessChannelLayout extends IChannelLayoutResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessChannelLayout";
+  UnionIndex: number = 0;
+}
+
+export class FailedChannelLayout extends IChannelLayoutResult
+{
+  constructor(public error: ChannelLayoutError) { super(); }
+
+  UnionKey: string = "FailedChannelLayout";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IChannelLayoutResult", {
+  read(reader: CborReader): IChannelLayoutResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IChannelLayoutResult", 2);
+    let value: IChannelLayoutResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessChannelLayout>("SuccessChannelLayout").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedChannelLayout>("FailedChannelLayout").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IChannelLayoutResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IChannelLayoutResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessChannelLayout>("SuccessChannelLayout").write(writer, value as SuccessChannelLayout);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedChannelLayout>("FailedChannelLayout").write(writer, value as FailedChannelLayout);
+    }
+  
+    else throw new Error(`Ion union 'IChannelLayoutResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessChannelLayout", {
+  read(reader: CborReader): SuccessChannelLayout {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessChannelLayout");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessChannelLayout();
+  },
+  write(writer: CborWriter, value: SuccessChannelLayout): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedChannelLayout", {
+  read(reader: CborReader): FailedChannelLayout {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedChannelLayout");
+    const error = IonFormatterStorage.get<ChannelLayoutError>('ChannelLayoutError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedChannelLayout(error);
+  },
+  write(writer: CborWriter, value: FailedChannelLayout): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ChannelLayoutError>('ChannelLayoutError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISendMessageResult implements IIonUnion<ISendMessageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSendMessage(): this is SuccessSendMessage {
+    return this.UnionKey === "SuccessSendMessage";
+  }
+  public isFailedSendMessage(): this is FailedSendMessage {
+    return this.UnionKey === "FailedSendMessage";
+  }
+
+}
+
+
+export class SuccessSendMessage extends ISendMessageResult
+{
+  constructor(public readback: SendMessageReadback) { super(); }
+
+  UnionKey: string = "SuccessSendMessage";
+  UnionIndex: number = 0;
+}
+
+export class FailedSendMessage extends ISendMessageResult
+{
+  constructor(public error: SendMessageError) { super(); }
+
+  UnionKey: string = "FailedSendMessage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISendMessageResult", {
+  read(reader: CborReader): ISendMessageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISendMessageResult", 2);
+    let value: ISendMessageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSendMessage>("SuccessSendMessage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSendMessage>("FailedSendMessage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISendMessageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISendMessageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSendMessage>("SuccessSendMessage").write(writer, value as SuccessSendMessage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSendMessage>("FailedSendMessage").write(writer, value as FailedSendMessage);
+    }
+  
+    else throw new Error(`Ion union 'ISendMessageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSendMessage", {
+  read(reader: CborReader): SuccessSendMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSendMessage");
+    const readback = IonFormatterStorage.get<SendMessageReadback>('SendMessageReadback').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSendMessage(readback);
+  },
+  write(writer: CborWriter, value: SuccessSendMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SendMessageReadback>('SendMessageReadback').write(writer, value.readback);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSendMessage", {
+  read(reader: CborReader): FailedSendMessage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSendMessage");
+    const error = IonFormatterStorage.get<SendMessageError>('SendMessageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSendMessage(error);
+  },
+  write(writer: CborWriter, value: FailedSendMessage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SendMessageError>('SendMessageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IPinMessageResult implements IIonUnion<IPinMessageResult>
 {
   abstract UnionKey: string;
@@ -15712,6 +16240,309 @@ IonFormatterStorage.register("FailedCancelDeleteSpace", {
 
 
 
+export abstract class ISpaceManageResult implements IIonUnion<ISpaceManageResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSpaceManage(): this is SuccessSpaceManage {
+    return this.UnionKey === "SuccessSpaceManage";
+  }
+  public isFailedSpaceManage(): this is FailedSpaceManage {
+    return this.UnionKey === "FailedSpaceManage";
+  }
+
+}
+
+
+export class SuccessSpaceManage extends ISpaceManageResult
+{
+  constructor() { super(); }
+
+  UnionKey: string = "SuccessSpaceManage";
+  UnionIndex: number = 0;
+}
+
+export class FailedSpaceManage extends ISpaceManageResult
+{
+  constructor(public error: SpaceManageError) { super(); }
+
+  UnionKey: string = "FailedSpaceManage";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISpaceManageResult", {
+  read(reader: CborReader): ISpaceManageResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISpaceManageResult", 2);
+    let value: ISpaceManageResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSpaceManage>("SuccessSpaceManage").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSpaceManage>("FailedSpaceManage").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISpaceManageResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISpaceManageResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSpaceManage>("SuccessSpaceManage").write(writer, value as SuccessSpaceManage);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSpaceManage>("FailedSpaceManage").write(writer, value as FailedSpaceManage);
+    }
+  
+    else throw new Error(`Ion union 'ISpaceManageResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSpaceManage", {
+  read(reader: CborReader): SuccessSpaceManage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessSpaceManage");
+    
+    reader.readEndArrayAndSkip(arraySize - 0);
+    return new SuccessSpaceManage();
+  },
+  write(writer: CborWriter, value: SuccessSpaceManage): void {
+    writer.writeStartArray(0);
+    
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSpaceManage", {
+  read(reader: CborReader): FailedSpaceManage {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSpaceManage");
+    const error = IonFormatterStorage.get<SpaceManageError>('SpaceManageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSpaceManage(error);
+  },
+  write(writer: CborWriter, value: FailedSpaceManage): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceManageError>('SpaceManageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IGetInviteCodesResult implements IIonUnion<IGetInviteCodesResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessGetInviteCodes(): this is SuccessGetInviteCodes {
+    return this.UnionKey === "SuccessGetInviteCodes";
+  }
+  public isFailedGetInviteCodes(): this is FailedGetInviteCodes {
+    return this.UnionKey === "FailedGetInviteCodes";
+  }
+
+}
+
+
+export class SuccessGetInviteCodes extends IGetInviteCodesResult
+{
+  constructor(public invites: ServerInvites) { super(); }
+
+  UnionKey: string = "SuccessGetInviteCodes";
+  UnionIndex: number = 0;
+}
+
+export class FailedGetInviteCodes extends IGetInviteCodesResult
+{
+  constructor(public error: SpaceManageError) { super(); }
+
+  UnionKey: string = "FailedGetInviteCodes";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IGetInviteCodesResult", {
+  read(reader: CborReader): IGetInviteCodesResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IGetInviteCodesResult", 2);
+    let value: IGetInviteCodesResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessGetInviteCodes>("SuccessGetInviteCodes").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedGetInviteCodes>("FailedGetInviteCodes").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IGetInviteCodesResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IGetInviteCodesResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessGetInviteCodes>("SuccessGetInviteCodes").write(writer, value as SuccessGetInviteCodes);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedGetInviteCodes>("FailedGetInviteCodes").write(writer, value as FailedGetInviteCodes);
+    }
+  
+    else throw new Error(`Ion union 'IGetInviteCodesResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessGetInviteCodes", {
+  read(reader: CborReader): SuccessGetInviteCodes {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessGetInviteCodes");
+    const invites = IonFormatterStorage.get<ServerInvites>('ServerInvites').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessGetInviteCodes(invites);
+  },
+  write(writer: CborWriter, value: SuccessGetInviteCodes): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ServerInvites>('ServerInvites').write(writer, value.invites);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedGetInviteCodes", {
+  read(reader: CborReader): FailedGetInviteCodes {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedGetInviteCodes");
+    const error = IonFormatterStorage.get<SpaceManageError>('SpaceManageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedGetInviteCodes(error);
+  },
+  write(writer: CborWriter, value: FailedGetInviteCodes): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceManageError>('SpaceManageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ICreateInviteCodeResult implements IIonUnion<ICreateInviteCodeResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCreateInviteCode(): this is SuccessCreateInviteCode {
+    return this.UnionKey === "SuccessCreateInviteCode";
+  }
+  public isFailedCreateInviteCode(): this is FailedCreateInviteCode {
+    return this.UnionKey === "FailedCreateInviteCode";
+  }
+
+}
+
+
+export class SuccessCreateInviteCode extends ICreateInviteCodeResult
+{
+  constructor(public code: InviteCode) { super(); }
+
+  UnionKey: string = "SuccessCreateInviteCode";
+  UnionIndex: number = 0;
+}
+
+export class FailedCreateInviteCode extends ICreateInviteCodeResult
+{
+  constructor(public error: SpaceManageError) { super(); }
+
+  UnionKey: string = "FailedCreateInviteCode";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICreateInviteCodeResult", {
+  read(reader: CborReader): ICreateInviteCodeResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICreateInviteCodeResult", 2);
+    let value: ICreateInviteCodeResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCreateInviteCode>("SuccessCreateInviteCode").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCreateInviteCode>("FailedCreateInviteCode").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICreateInviteCodeResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICreateInviteCodeResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCreateInviteCode>("SuccessCreateInviteCode").write(writer, value as SuccessCreateInviteCode);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCreateInviteCode>("FailedCreateInviteCode").write(writer, value as FailedCreateInviteCode);
+    }
+  
+    else throw new Error(`Ion union 'ICreateInviteCodeResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCreateInviteCode", {
+  read(reader: CborReader): SuccessCreateInviteCode {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessCreateInviteCode");
+    const code = IonFormatterStorage.get<InviteCode>('InviteCode').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessCreateInviteCode(code);
+  },
+  write(writer: CborWriter, value: SuccessCreateInviteCode): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<InviteCode>('InviteCode').write(writer, value.code);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCreateInviteCode", {
+  read(reader: CborReader): FailedCreateInviteCode {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCreateInviteCode");
+    const error = IonFormatterStorage.get<SpaceManageError>('SpaceManageError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCreateInviteCode(error);
+  },
+  write(writer: CborWriter, value: FailedCreateInviteCode): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SpaceManageError>('SpaceManageError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ISetMainAnnouncementChannelResult implements IIonUnion<ISetMainAnnouncementChannelResult>
 {
   abstract UnionKey: string;
@@ -17824,24 +18655,26 @@ IonFormatterStorage.register("SchedulePostError", {
 
 IonFormatterStorage.register("CrosspostInfo", {
   read(reader: CborReader): CrosspostInfo {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "CrosspostInfo");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "CrosspostInfo");
     const sourceSpaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const sourceChannelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const sourceMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const sourceSpaceName = IonFormatterStorage.get<string>('string').read(reader);
     const sourceChannelName = IonFormatterStorage.get<string>('string').read(reader);
     const sourceSpaceAvatarFileId = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 6);
-    return { sourceSpaceId, sourceChannelId, sourceMessageId, sourceSpaceName, sourceChannelName, sourceSpaceAvatarFileId };
+    const hideAuthor = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { sourceSpaceId, sourceChannelId, sourceMessageId, sourceSpaceName, sourceChannelName, sourceSpaceAvatarFileId, hideAuthor };
   },
   write(writer: CborWriter, value: CrosspostInfo): void {
-    writer.writeStartArray(6);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sourceSpaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sourceChannelId);
     IonFormatterStorage.get<i8>('i8').write(writer, value.sourceMessageId);
     IonFormatterStorage.get<string>('string').write(writer, value.sourceSpaceName);
     IonFormatterStorage.get<string>('string').write(writer, value.sourceChannelName);
     IonFormatterStorage.writeNullable<string>(writer, value.sourceSpaceAvatarFileId, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hideAuthor);
     writer.writeEndArray();
   }
 });
@@ -17911,6 +18744,24 @@ IonFormatterStorage.register("PublishMessageError", {
   write(writer: CborWriter, value: PublishMessageError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ReadCountEntry", {
+  read(reader: CborReader): ReadCountEntry {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ReadCountEntry");
+    const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
+    const readers = IonFormatterStorage.get<i4>('i4').read(reader);
+    const members = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { messageId, readers, members };
+  },
+  write(writer: CborWriter, value: ReadCountEntry): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.readers);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.members);
+    writer.writeEndArray();
   }
 });
 
@@ -18868,6 +19719,26 @@ IonFormatterStorage.register("MentionTargetType", {
     return IonFormatterStorage.readOpenEnum<MentionTargetType>(reader, 'u2');
   },
   write(writer: CborWriter, value: MentionTargetType): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ChannelLayoutError", {
+  read(reader: CborReader): ChannelLayoutError {
+    return IonFormatterStorage.readOpenEnum<ChannelLayoutError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ChannelLayoutError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SendMessageError", {
+  read(reader: CborReader): SendMessageError {
+    return IonFormatterStorage.readOpenEnum<SendMessageError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: SendMessageError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -20480,6 +21351,16 @@ IonFormatterStorage.register("SpaceDeletionError", {
   }
 });
 
+IonFormatterStorage.register("SpaceManageError", {
+  read(reader: CborReader): SpaceManageError {
+    return IonFormatterStorage.readOpenEnum<SpaceManageError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: SpaceManageError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ArgonIonTicket", {
   read(reader: CborReader): ArgonIonTicket {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonIonTicket");
@@ -21297,8 +22178,8 @@ IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSett
 export interface IArchetypeInteraction extends IIonService
 {
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
-  CreateArchetype(spaceId: guid, name: string): Promise<Archetype>;
-  UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
+  CreateArchetype(spaceId: guid, name: string): Promise<ICreateArchetypeResult>;
+  UpdateArchetype(spaceId: guid, data: Archetype): Promise<IUpdateArchetypeResult>;
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
@@ -21353,6 +22234,7 @@ export interface IChannelFollowInteraction extends IIonService
 export interface IChannelInsightsInteraction extends IIonService
 {
   GetReadCount(spaceId: guid, channelId: guid, messageId: i8): Promise<IReadCountResult>;
+  GetReadCounts(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<ReadCountEntry>>;
 }
 
 
@@ -21360,21 +22242,20 @@ export interface IChannelInsightsInteraction extends IIonService
 
 export interface IChannelInteraction extends IIonService
 {
-  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
-  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void>;
-  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void>;
-  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void>;
-  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
-  DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
+  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<IChannelLayoutResult>;
+  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<IChannelLayoutResult>;
+  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<IChannelLayoutResult>;
+  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<IChannelLayoutResult>;
+  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<IChannelLayoutResult>;
+  DeleteChannel(spaceId: guid, channelId: guid): Promise<IChannelLayoutResult>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
+  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<IChannelLayoutResult>;
   UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
   SetChannelType(spaceId: guid, channelId: guid, type: ChannelType): Promise<IUpdateChannelResult>;
   DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
-  SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<ISendMessageResult>;
   DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
   EditMessage(spaceId: guid, channelId: guid, messageId: i8, text: string, entities: IonArray<IMessageEntity>): Promise<IEditMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
@@ -21599,11 +22480,11 @@ export interface IServerInteraction extends IIonService
   GetMemberPresence(spaceId: guid): Promise<IonArray<MemberPresence>>;
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
-  GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
-  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
-  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
-  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
-  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
+  GetInviteCodes(spaceId: guid): Promise<IGetInviteCodesResult>;
+  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateInviteCodeResult>;
+  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<ISpaceManageResult>;
+  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<ISpaceManageResult>;
+  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<ISpaceManageResult>;
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
@@ -21612,11 +22493,11 @@ export interface IServerInteraction extends IIonService
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   BeginUploadSpaceProfileHeader(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
   RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
@@ -21716,8 +22597,8 @@ export interface ICallInteraction extends IIonService
 export interface IArchetypeInteraction extends IIonService
 {
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
-  CreateArchetype(spaceId: guid, name: string): Promise<Archetype>;
-  UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype>;
+  CreateArchetype(spaceId: guid, name: string): Promise<ICreateArchetypeResult>;
+  UpdateArchetype(spaceId: guid, data: Archetype): Promise<IUpdateArchetypeResult>;
   SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   UpsertArchetypeEntitlementForChannel(spaceId: guid, channelId: guid, archetypeId: guid, deny: ArgonEntitlement, allow: ArgonEntitlement): Promise<ChannelEntitlementOverwrite | null>;
@@ -21772,6 +22653,7 @@ export interface IChannelFollowInteraction extends IIonService
 export interface IChannelInsightsInteraction extends IIonService
 {
   GetReadCount(spaceId: guid, channelId: guid, messageId: i8): Promise<IReadCountResult>;
+  GetReadCounts(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<ReadCountEntry>>;
 }
 
 
@@ -21779,21 +22661,20 @@ export interface IChannelInsightsInteraction extends IIonService
 
 export interface IChannelInteraction extends IIonService
 {
-  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void>;
-  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void>;
-  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void>;
-  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void>;
-  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void>;
-  DeleteChannel(spaceId: guid, channelId: guid): Promise<void>;
+  CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<IChannelLayoutResult>;
+  MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<IChannelLayoutResult>;
+  DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<IChannelLayoutResult>;
+  CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<IChannelLayoutResult>;
+  MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<IChannelLayoutResult>;
+  DeleteChannel(spaceId: guid, channelId: guid): Promise<IChannelLayoutResult>;
   GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>>;
-  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void>;
+  UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<IChannelLayoutResult>;
   UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult>;
   SetChannelType(spaceId: guid, channelId: guid, type: ChannelType): Promise<IUpdateChannelResult>;
   DuplicateChannel(spaceId: guid, channelId: guid): Promise<IDuplicateChannelResult>;
   CreateVoiceInviteCode(spaceId: guid, channelId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateVoiceInviteResult>;
   QueryMessages(spaceId: guid, channelId: guid, from: i8 | null, limit: i4): Promise<IonArray<ArgonMessage>>;
-  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
-  SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback>;
+  SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<ISendMessageResult>;
   DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult>;
   EditMessage(spaceId: guid, channelId: guid, messageId: i8, text: string, entities: IonArray<IMessageEntity>): Promise<IEditMessageResult>;
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
@@ -22018,11 +22899,11 @@ export interface IServerInteraction extends IIonService
   GetMemberPresence(spaceId: guid): Promise<IonArray<MemberPresence>>;
   GetMembers(spaceId: guid): Promise<IonArray<RealtimeServerMember>>;
   GetMember(spaceId: guid, userId: guid): Promise<RealtimeServerMember>;
-  GetInviteCodes(spaceId: guid): Promise<ServerInvites>;
-  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode>;
-  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void>;
-  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void>;
-  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void>;
+  GetInviteCodes(spaceId: guid): Promise<IGetInviteCodesResult>;
+  CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateInviteCodeResult>;
+  RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<ISpaceManageResult>;
+  UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<ISpaceManageResult>;
+  SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<ISpaceManageResult>;
   GetSpaceStats(spaceId: guid): Promise<SpaceStats>;
   PrefetchUser(spaceId: guid, userId: guid): Promise<ArgonUser>;
   PrefetchProfile(spaceId: guid, userId: guid): Promise<ArgonUserProfile>;
@@ -22031,11 +22912,11 @@ export interface IServerInteraction extends IIonService
   GetServerArchetypes(spaceId: guid): Promise<IonArray<Archetype>>;
   GetDetailedServerArchetypes(spaceId: guid): Promise<IonArray<ArchetypeGroup>>;
   BeginUploadSpaceProfileHeader(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult>;
-  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void>;
+  CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<ISpaceManageResult>;
   GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>>;
   RequestDeleteSpace(spaceId: guid): Promise<IRequestDeleteSpaceResult>;
   CancelDeleteSpace(spaceId: guid): Promise<ICancelDeleteSpaceResult>;
@@ -22158,7 +23039,7 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
           
     return await req.callAsyncT<IonArray<Archetype>>("IonArray<Archetype>", writer.data, this.signal);
   }
-  async CreateArchetype(spaceId: guid, name: string): Promise<Archetype> {
+  async CreateArchetype(spaceId: guid, name: string): Promise<ICreateArchetypeResult> {
     const req = new IonRequest(this.ctx, "IArchetypeInteraction", "CreateArchetype");
           
     const writer = new CborWriter();
@@ -22170,9 +23051,9 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<Archetype>("Archetype", writer.data, this.signal);
+    return await req.callAsyncT<ICreateArchetypeResult>("ICreateArchetypeResult", writer.data, this.signal);
   }
-  async UpdateArchetype(spaceId: guid, data: Archetype): Promise<Archetype> {
+  async UpdateArchetype(spaceId: guid, data: Archetype): Promise<IUpdateArchetypeResult> {
     const req = new IonRequest(this.ctx, "IArchetypeInteraction", "UpdateArchetype");
           
     const writer = new CborWriter();
@@ -22184,7 +23065,7 @@ export class ArchetypeInteraction_Executor extends ServiceExecutor<IArchetypeInt
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<Archetype>("Archetype", writer.data, this.signal);
+    return await req.callAsyncT<IUpdateArchetypeResult>("IUpdateArchetypeResult", writer.data, this.signal);
   }
   async SetArchetypeToMember(spaceId: guid, memberId: guid, archetypeId: guid, isGrant: bool): Promise<bool> {
     const req = new IonRequest(this.ctx, "IArchetypeInteraction", "SetArchetypeToMember");
@@ -22610,6 +23491,21 @@ export class ChannelInsightsInteraction_Executor extends ServiceExecutor<IChanne
           
     return await req.callAsyncT<IReadCountResult>("IReadCountResult", writer.data, this.signal);
   }
+  async GetReadCounts(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<ReadCountEntry>> {
+    const req = new IonRequest(this.ctx, "IChannelInsightsInteraction", "GetReadCounts");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.writeArray<i8>(writer, messageIds, 'i8');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ReadCountEntry>>("IonArray<ReadCountEntry>", writer.data, this.signal);
+  }
 
 }
 
@@ -22621,7 +23517,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
   }
 
   
-  async CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<void> {
+  async CreateChannel(spaceId: guid, channelId: guid, request: CreateChannelRequest): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateChannel");
           
     const writer = new CborWriter();
@@ -22634,9 +23530,9 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
-  async MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<void> {
+  async MoveChannel(spaceId: guid, channelId: guid, targetGroupId: guid | null, afterChannelId: guid | null, beforeChannelId: guid | null): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "MoveChannel");
           
     const writer = new CborWriter();
@@ -22651,9 +23547,9 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
-  async DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<void> {
+  async DeleteChannelGroup(spaceId: guid, channelId: guid, groupId: guid, deleteChannels: bool): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteChannelGroup");
           
     const writer = new CborWriter();
@@ -22667,9 +23563,9 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
-  async CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<void> {
+  async CreateChannelGroup(spaceId: guid, channelId: guid, name: string, desk: string | null): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "CreateChannelGroup");
           
     const writer = new CborWriter();
@@ -22683,9 +23579,9 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
-  async MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<void> {
+  async MoveChannelGroup(spaceId: guid, channelId: guid, afterGroupId: guid | null, beforeGroupId: guid | null): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "MoveChannelGroup");
           
     const writer = new CborWriter();
@@ -22699,9 +23595,9 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
-  async DeleteChannel(spaceId: guid, channelId: guid): Promise<void> {
+  async DeleteChannel(spaceId: guid, channelId: guid): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteChannel");
           
     const writer = new CborWriter();
@@ -22713,7 +23609,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
   async GetChannels(spaceId: guid, channelId: guid): Promise<IonArray<RealtimeChannel>> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "GetChannels");
@@ -22729,7 +23625,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IonArray<RealtimeChannel>>("IonArray<RealtimeChannel>", writer.data, this.signal);
   }
-  async UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<void> {
+  async UpdateChannelGroup(spaceId: guid, channelId: guid, groupId: guid, name: string | null, description: string | null): Promise<IChannelLayoutResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateChannelGroup");
           
     const writer = new CborWriter();
@@ -22744,7 +23640,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<IChannelLayoutResult>("IChannelLayoutResult", writer.data, this.signal);
   }
   async UpdateChannel(spaceId: guid, channelId: guid, name: string | null, description: string | null, slowModeSeconds: i4 | null, bitrate: i4 | null): Promise<IUpdateChannelResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "UpdateChannel");
@@ -22825,7 +23721,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IonArray<ArgonMessage>>("IonArray<ArgonMessage>", writer.data, this.signal);
   }
-  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8> {
+  async SendMessage(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<ISendMessageResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "SendMessage");
           
     const writer = new CborWriter();
@@ -22841,25 +23737,7 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<i8>("i8", writer.data, this.signal);
-  }
-  async SendMessageWithReadback(spaceId: guid, channelId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<SendMessageReadback> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "SendMessageWithReadback");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(6);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.get<string>('string').write(writer, text);
-    IonFormatterStorage.writeArray<IMessageEntity>(writer, entities, 'IMessageEntity');
-    IonFormatterStorage.get<i8>('i8').write(writer, randomId);
-    IonFormatterStorage.writeNullable<i8>(writer, replyTo, 'i8');
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<SendMessageReadback>("SendMessageReadback", writer.data, this.signal);
+    return await req.callAsyncT<ISendMessageResult>("ISendMessageResult", writer.data, this.signal);
   }
   async DeleteMessage(spaceId: guid, channelId: guid, messageId: i8): Promise<IDeleteMessageResult> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "DeleteMessage");
@@ -24728,7 +25606,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<RealtimeServerMember>("RealtimeServerMember", writer.data, this.signal);
   }
-  async GetInviteCodes(spaceId: guid): Promise<ServerInvites> {
+  async GetInviteCodes(spaceId: guid): Promise<IGetInviteCodesResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetInviteCodes");
           
     const writer = new CborWriter();
@@ -24739,9 +25617,9 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<ServerInvites>("ServerInvites", writer.data, this.signal);
+    return await req.callAsyncT<IGetInviteCodesResult>("IGetInviteCodesResult", writer.data, this.signal);
   }
-  async CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<InviteCode> {
+  async CreateInviteCode(spaceId: guid, expireMinutes: i4, maxUses: i4): Promise<ICreateInviteCodeResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CreateInviteCode");
           
     const writer = new CborWriter();
@@ -24754,9 +25632,9 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    return await req.callAsyncT<InviteCode>("InviteCode", writer.data, this.signal);
+    return await req.callAsyncT<ICreateInviteCodeResult>("ICreateInviteCodeResult", writer.data, this.signal);
   }
-  async RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<void> {
+  async RevokeInviteCode(spaceId: guid, code: InviteCode): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "RevokeInviteCode");
           
     const writer = new CborWriter();
@@ -24768,9 +25646,9 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
-  async UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<void> {
+  async UpdateSpaceInfo(spaceId: guid, name: string, description: string): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "UpdateSpaceInfo");
           
     const writer = new CborWriter();
@@ -24783,9 +25661,9 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
-  async SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<void> {
+  async SetBoostStripHidden(spaceId: guid, hidden: bool): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "SetBoostStripHidden");
           
     const writer = new CborWriter();
@@ -24797,7 +25675,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
   async GetSpaceStats(spaceId: guid): Promise<SpaceStats> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetSpaceStats");
@@ -24906,7 +25784,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
   }
-  async CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<void> {
+  async CompleteUploadSpaceProfileHeader(spaceId: guid, blobId: guid): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceProfileHeader");
           
     const writer = new CborWriter();
@@ -24918,7 +25796,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
   async BeginUploadSpaceAvatar(spaceId: guid): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadSpaceAvatar");
@@ -24933,7 +25811,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
   }
-  async CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<void> {
+  async CompleteUploadSpaceAvatar(spaceId: guid, blobId: guid): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadSpaceAvatar");
           
     const writer = new CborWriter();
@@ -24945,7 +25823,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
   async BeginUploadInviteImage(spaceId: guid): Promise<IUploadFileResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "BeginUploadInviteImage");
@@ -24960,7 +25838,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
           
     return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
   }
-  async CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<void> {
+  async CompleteUploadInviteImage(spaceId: guid, blobId: guid): Promise<ISpaceManageResult> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "CompleteUploadInviteImage");
           
     const writer = new CborWriter();
@@ -24972,7 +25850,7 @@ export class ServerInteraction_Executor extends ServiceExecutor<IServerInteracti
       
     writer.writeEndArray();
           
-    await req.callAsync(writer.data, this.signal);
+    return await req.callAsyncT<ISpaceManageResult>("ISpaceManageResult", writer.data, this.signal);
   }
   async GetChannelGroups(spaceId: guid): Promise<IonArray<ChannelGroup>> {
     const req = new IonRequest(this.ctx, "IServerInteraction", "GetChannelGroups");

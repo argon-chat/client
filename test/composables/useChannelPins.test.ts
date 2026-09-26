@@ -59,7 +59,8 @@ vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 
 import { useChannelPins, pinErrorKey } from "@/composables/useChannelPins";
-import { usePinStore } from "@/store/data/pinStore";
+import { PIN_CHANNELS_KEPT, PIN_TTL_MS, usePinStore } from "@/store/data/pinStore";
+import { runSessionReset } from "@/store/system/sessionLifecycle";
 
 const message = (messageId: bigint, channelId = "c1", text = `m${messageId}`) =>
   ({ messageId, channelId, spaceId: "s1", text, entities: [], sender: "u1" }) as any;
@@ -202,17 +203,38 @@ describe("live updates", () => {
     expect(h.getPinned).toHaveBeenCalledTimes(1);
   });
 
-  test("a pin of a message not in the cache asks the server again", async () => {
+  test("a pin of a message not in the cache marks the list stale; the next refresh asks, not the event", async () => {
     const chan = await opened([pinned(1n, 10)]);
     h.cached.mockResolvedValueOnce(undefined);
-    h.getPinned.mockResolvedValueOnce([pinned(1n, 10), pinned(8n, 80)]);
 
     fire("MessagePinned", { spaceId: "s1", channelId: "c1", messageId: 8n, byUserId: "mod" });
     await settle();
     await settle();
 
+    // Every viewer of the channel gets the event: asking at once would be all of them at once.
+    expect(h.getPinned).toHaveBeenCalledTimes(1);
+    expect(ids(chan.pins.value)).toEqual([1n]);
+
+    // The panel opening: stale, so asked for although well inside the TTL.
+    h.getPinned.mockResolvedValueOnce([pinned(1n, 10), pinned(8n, 80)]);
+    await chan.refresh();
+
     expect(h.getPinned).toHaveBeenCalledTimes(2);
     expect(ids(chan.pins.value)).toEqual([8n, 1n]);
+  });
+
+  test("a cached row of another message under the same rounded key is not taken for the pinned one", async () => {
+    const chan = await opened([pinned(1n, 10)]);
+    // The cache is keyed by Number(messageId): past 2^53, two snowflakes can share a key.
+    h.cached.mockResolvedValueOnce(message(2n ** 60n + 1n, "c1", "someone else's"));
+
+    fire("MessagePinned", { spaceId: "s1", channelId: "c1", messageId: 2n ** 60n + 2n, byUserId: "mod" });
+    await settle();
+
+    expect(ids(chan.pins.value)).toEqual([1n]);
+    h.getPinned.mockResolvedValueOnce([pinned(1n, 10), pinned(2n ** 60n + 2n, 20)]);
+    await chan.refresh();
+    expect(ids(chan.pins.value)).toEqual([2n ** 60n + 2n, 1n]);
   });
 
   test("events for a channel that was never opened are ignored", async () => {
@@ -244,5 +266,79 @@ describe("live updates", () => {
 
     expect(chan.pins.value[0].message.text).toBe("edited");
     expect(chan.pins.value[0].pinnedBy).toBe("mod");
+  });
+});
+
+describe("keeping pins between opens", () => {
+  let clock = 1_000_000;
+
+  beforeEach(() => {
+    clock = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+  });
+
+  test("a channel opened again within the TTL is not asked for again; after it, it is", async () => {
+    const chan = await opened([pinned(1n, 10)]);
+
+    clock += PIN_TTL_MS - 1;
+    await chan.refresh();
+    expect(h.getPinned).toHaveBeenCalledTimes(1);
+
+    clock += 1;
+    h.getPinned.mockResolvedValueOnce([pinned(1n, 10), pinned(2n, 20)]);
+    await chan.refresh();
+    expect(h.getPinned).toHaveBeenCalledTimes(2);
+    expect(ids(chan.pins.value)).toEqual([2n, 1n]);
+  });
+
+  test("a forced refresh (after a reconnect) asks inside the TTL too", async () => {
+    const chan = await opened([pinned(1n, 10)]);
+    h.getPinned.mockResolvedValueOnce([]);
+
+    await chan.refresh(true);
+
+    expect(h.getPinned).toHaveBeenCalledTimes(2);
+    expect(chan.count.value).toBe(0);
+  });
+
+  test(`only the ${PIN_CHANNELS_KEPT} most recently opened channels are kept`, async () => {
+    const channels = Array.from({ length: PIN_CHANNELS_KEPT + 1 }, (_, i) => `c${i}`);
+    h.getPinned.mockImplementation(async (_s: string, c: string) => [pinned(1n, 10, c)]);
+    for (const c of channels.slice(0, PIN_CHANNELS_KEPT)) await useChannelPins(() => c, () => "s1").refresh();
+    // c0 opened again: now the most recent, so c1 is the one to go.
+    await useChannelPins(() => "c0", () => "s1").refresh();
+    await useChannelPins(() => channels[PIN_CHANNELS_KEPT], () => "s1").refresh();
+
+    const store = usePinStore();
+    expect(store.isLoaded("c0")).toBe(true);
+    expect(store.isLoaded("c1")).toBe(false);
+    expect(channels.filter((c) => store.isLoaded(c))).toHaveLength(PIN_CHANNELS_KEPT);
+  });
+
+  test("a failed load says so instead of loading forever, and trying again can succeed", async () => {
+    h.getPinned.mockRejectedValueOnce(new Error("offline"));
+    const chan = useChannelPins(() => "c1", () => "s1");
+
+    await chan.refresh();
+    expect(chan.loaded.value).toBe(false);
+    expect(chan.failed.value).toBe(true);
+
+    h.getPinned.mockResolvedValueOnce([pinned(1n, 10)]);
+    await chan.refresh(true);
+    expect(chan.failed.value).toBe(false);
+    expect(chan.count.value).toBe(1);
+  });
+
+  test("a load that answers after an account switch is dropped", async () => {
+    let answer!: (v: unknown) => void;
+    h.getPinned.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    const chan = useChannelPins(() => "c1", () => "s1");
+
+    const loading = chan.refresh();
+    await runSessionReset();
+    answer([pinned(1n, 10)]);
+    await loading;
+
+    expect(chan.loaded.value).toBe(false);
   });
 });

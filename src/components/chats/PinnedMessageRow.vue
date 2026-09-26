@@ -58,6 +58,7 @@ import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
+import { maskSpoilers } from "@/lib/chat/spoilers";
 
 const props = defineProps<{ pin: PinnedMessage; canManage: boolean }>();
 
@@ -79,7 +80,7 @@ const sentAt = computed(() =>
   props.pin.message.timeSent.toDate().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }),
 );
 
-const preview = computed(() => props.pin.message.text?.trim() ?? "");
+const preview = computed(() => maskSpoilers(props.pin.message.text ?? "", props.pin.message.entities).trim());
 
 const attachmentCount = computed(
   () => (props.pin.message.entities ?? []).filter((e) => e.type === EntityType.Attachment || e.type === EntityType.Gif).length,

@@ -1,4 +1,4 @@
-import { computed, shallowRef, watch, type Ref } from "vue";
+import { computed, onScopeDispose, shallowRef, watch, type Ref } from "vue";
 import { logger } from "@argon/core";
 import type { ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -36,10 +36,22 @@ export function useAnnouncementBanner(spaceId: Ref<Guid | null | undefined>, ope
 
   const message = shallowRef<ArgonMessage | null>(null);
 
+  // MessageSent reaches every member of the space and carries the post whole: the newest one seen
+  // in the main channel is the banner's post, with no call. Asking the server on every post meant
+  // every member asking the same channel at the same moment.
+  let latestLive: ArgonMessage | null = null;
+  const liveSub = pool.onNewMessageReceived.subscribe((m) => {
+    if (!mainChannelId.value || m.channelId !== mainChannelId.value) return;
+    if (latestLive?.channelId === m.channelId && latestLive.messageId >= m.messageId) return;
+    latestLive = m;
+  });
+  onScopeDispose(() => liveSub.unsubscribe());
+
   async function loadNewest(sid: Guid, cid: Guid, last: bigint): Promise<ArgonMessage | null> {
     try {
       const cached = last > 0n ? await pool.getMessageById(last) : undefined;
-      if (cached && cached.channelId === cid) return cached;
+      // The cache is keyed by a rounded Number: a row there may be another message.
+      if (cached && cached.messageId === last && cached.channelId === cid) return cached;
       return newestMessage((await api.channelInteraction.QueryMessages(sid, cid, null, 1)) ?? []);
     } catch (e) {
       logger.warn("[AnnouncementBanner] could not load the latest announcement", e);
@@ -47,7 +59,7 @@ export function useAnnouncementBanner(spaceId: Ref<Guid | null | undefined>, ope
     }
   }
 
-  // Reloaded whenever the channel's high-water mark moves, and only while the banner is due.
+  // Follows the channel's high-water mark, only while the banner is due.
   let loads = 0;
   watch(
     () => (due.value && channel.value ? `${channel.value.channelId}:${channel.value.lastMessageId}` : null),
@@ -56,6 +68,14 @@ export function useAnnouncementBanner(spaceId: Ref<Guid | null | undefined>, ope
       const ch = channel.value;
       if (!key || !ch) return;
       if (message.value?.channelId === ch.channelId && message.value.messageId === ch.lastMessageId) return;
+      if (latestLive?.channelId === ch.channelId && latestLive.messageId >= ch.lastMessageId) {
+        message.value = latestLive;
+        return;
+      }
+      // A post of this channel is up already and the newer one's event has not come (a reconnect
+      // skips them): keep it rather than have everyone ask at once. Only a banner with nothing to
+      // show asks — on mount, or when the channel changed.
+      if (message.value?.channelId === ch.channelId) return;
       const loaded = await loadNewest(ch.spaceId, ch.channelId, ch.lastMessageId);
       if (seq === loads) message.value = loaded;
     },

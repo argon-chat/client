@@ -66,10 +66,13 @@ import { shallowRef, onUnmounted } from "vue";
 import { logger } from "@argon/core";
 import { Label } from "@argon/ui/label";
 import { useApi } from "@/store/system/apiStore";
+import { useToast } from "@argon/ui/toast";
+import { channelLayoutErrorKey, channelLayoutRefusal } from "@/lib/refusals";
 import { v7 } from "uuid";
 
 const { t } = useLocale();
 const api = useApi();
+const { toast } = useToast();
 
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
 const groupName = shallowRef("");
@@ -94,12 +97,16 @@ const addGroup = async (close: () => void) => {
 
   try {
     const groupId = v7();
-    await api.channelInteraction.CreateChannelGroup(
+    const refused = channelLayoutRefusal(await api.channelInteraction.CreateChannelGroup(
       selectedSpaceId.value,
       groupId,
       groupName.value,
       groupDescription.value || null
-    );
+    ));
+    if (refused !== null) {
+      toast({ title: t("failed_to_create_group"), description: t(channelLayoutErrorKey(refused)), variant: "destructive" });
+      return;
+    }
 
     groupName.value = "";
     groupDescription.value = "";

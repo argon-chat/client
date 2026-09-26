@@ -42,7 +42,15 @@ vi.mock("@/composables/useChannelTyping", async () => {
 vi.mock("@/components/shared/EmptyStateArt.vue", () => ({ default: { name: "EmptyStateArt", setup: () => () => null } }));
 vi.mock("@/components/ChatView.vue", async () => {
   const { h: hh } = await import("vue");
-  return { default: { name: "ChatView", setup: () => () => hh("div", { class: "stub-chat-view" }) } };
+  return {
+    default: {
+      name: "ChatView",
+      setup: (_: unknown, { expose }: any) => {
+        expose({ scrollToBottomImmediate() {} });
+        return () => hh("div", { class: "stub-chat-view" });
+      },
+    },
+  };
 });
 vi.mock("@/components/chats/EnterText.vue", async () => {
   const { h: hh } = await import("vue");
@@ -212,12 +220,45 @@ describe("author tools", () => {
     expect(h.composerMounts).toBe(2);
   });
 
-  test("the scheduled chip follows the open channel, composer or not", async () => {
-    h.granted = new Set(["ViewChannel", "ReadHistory"]);
+  test("the scheduled chip follows the open channel, for a moderator without a composer too", async () => {
+    h.granted = new Set(["ViewChannel", "ReadHistory", "ManageMessages"]);
     const w = render("announcement");
 
+    expect(w.find(".stub-enter-text").exists()).toBe(false);
     expect(w.find(".stub-scheduled-chip").text()).toBe("c1");
     await w.setProps({ selectedChannelId: "c2" });
     expect(w.find(".stub-scheduled-chip").text()).toBe("c2");
+  });
+
+  test("a reader, who has no scheduled posts to see, does not get the chip (nor its request)", () => {
+    h.granted = new Set(["ViewChannel", "ReadHistory"]);
+    const w = render("announcement");
+
+    expect(w.find(".stub-scheduled-chip").exists()).toBe(false);
+  });
+
+  test("an author gets the chip", () => {
+    h.granted = new Set(["ViewChannel", "SendMessages"]);
+    const w = render();
+
+    expect(w.find(".stub-scheduled-chip").text()).toBe("c1");
+  });
+});
+
+describe("replying", () => {
+  const sent = { messageId: 7n, channelId: "c1", spaceId: "s1", text: "Raid at 20:00", entities: [], sender: "u1" };
+
+  test("switching channels drops the reply target, so it never lands in another channel", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages"]);
+    const w = render();
+
+    w.findComponent({ name: "ChatView" }).vm.$emit("select-reply", sent);
+    await w.vm.$nextTick();
+    expect(w.findComponent({ name: "EnterText" }).vm.$attrs["reply-to"]).toEqual(sent);
+
+    await w.setProps({ selectedChannelId: "c2" });
+
+    expect(w.findComponent({ name: "EnterText" }).vm.$attrs["reply-to"]).toBeNull();
+    expect(w.text()).not.toContain("Raid at 20:00");
   });
 });
