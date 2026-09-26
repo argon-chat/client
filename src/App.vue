@@ -31,6 +31,7 @@ import { useSystemStore } from "./store";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useLocale } from "@/store/system/localeStore";
 import { initHotkeyActions } from "@/lib/hotkeys/actions";
+import { initWebRadioKey } from "@/lib/hotkeys/webRadioKey";
 
 const { t } = useLocale();
 const sys = useSystemStore();
@@ -67,6 +68,8 @@ onMounted(() => {
   initDeepLinks();
   initDesktopTaskbar();
   initHotkeyActions();
+  // The browser build has no global hotkeys: the radio key is a focused-window key instead.
+  initWebRadioKey();
   // If this load followed a renderer crash, rejoin the voice channel we were in.
   void call.maybeRecoverVoiceAfterCrash();
 });

@@ -327,3 +327,39 @@ describe("stored settings are not trusted blindly", () => {
     expect(m.getOutputVolume().value).toBe(0);
   });
 });
+
+describe("the voice bus", () => {
+  const track = () => ({ kind: "audio" }) as unknown as MediaStreamTrack;
+
+  test("remote graphs end on the bus by default, and the bus on the master gain", async () => {
+    const m = make();
+    const graph = m.createRemoteAudioGraph({ track: track() });
+
+    const bus = m.getVoiceBus() as unknown as FakeNode;
+    expect([...(graph.gainNode as unknown as FakeNode).outputs]).toEqual([bus]);
+    expect([...bus.outputs]).toEqual([m.getOutputDestination()]);
+  });
+
+  test("a graph can bypass the bus and go straight to the master", async () => {
+    const m = make();
+    const graph = m.createRemoteAudioGraph({ track: track(), destination: m.getOutputDestination() });
+
+    expect([...(graph.gainNode as unknown as FakeNode).outputs]).toEqual([m.getOutputDestination()]);
+  });
+
+  test("ducking moves the bus gain only, clamped to unity", async () => {
+    const m = make();
+    const bus = m.getVoiceBus() as unknown as FakeGain;
+    const master = m.getOutputDestination() as unknown as FakeGain;
+    const before = master.gain.value;
+
+    m.setVoiceBusGain(0.4);
+    expect(bus.gain.value).toBeCloseTo(0.4);
+    expect(master.gain.value).toBe(before);
+
+    m.setVoiceBusGain(3);
+    expect(bus.gain.value).toBe(1);
+    m.setVoiceBusGain(-1);
+    expect(bus.gain.value).toBe(0);
+  });
+});

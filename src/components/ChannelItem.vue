@@ -1,10 +1,13 @@
 <template>
   <div
+    :data-channel-id="channel.channelId"
     :data-active="isActive || undefined"
     :data-connected="isConnectedVoiceChannel || undefined"
     :data-drop-position="isDragOver ? dropPosition : undefined"
     :data-voice-drop="voiceDrop"
     :data-locked="voiceLocked || undefined"
+    :data-broadcast="isBroadcast || undefined"
+    :data-live="isLive || undefined"
     class="channel-item"
   >
     <ContextMenu>
@@ -27,9 +30,18 @@
           >
             <div class="flex items-center space-x-2">
             <HashIcon v-if="channel.type === ChannelType.Text" class="w-5 h-5 text-muted-foreground flex-shrink-0 icon-appear" />
+            <RadioTowerIcon v-else-if="isBroadcast" data-testid="broadcast-icon" class="icon-appear" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" :title="t('broadcast_channel')" />
             <Volume2Icon class="icon-appear" v-else-if="isVoice" :class="['w-5 h-5 flex-shrink-0', isConnectedVoiceChannel ? 'text-green-400' : 'text-muted-foreground']" />
             <AntennaIcon v-else-if="channel.type === ChannelType.Announcement" class="w-5 h-5 text-muted-foreground flex-shrink-0" />
             <span :class="['text-muted-foreground font-medium truncate', channelUnread && 'text-foreground font-semibold']" :title="voiceLocked ? t('voice_channel_locked') : channel?.name">{{ channel?.name }}</span>
+            <!-- A target: this channel hears the radio of the broadcast channel(s) that list it. -->
+            <RadioIcon
+              v-if="hearsRadioOf.length > 0"
+              data-testid="radio-target"
+              class="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground/60"
+              :title="t('broadcast_hears_radio_of', { name: hearsRadioOf.map((c) => c.name).join(', ') })"
+            />
+            <span v-if="isLive" data-testid="live-pill" class="live-pill flex-shrink-0">{{ t('broadcast_live') }}</span>
             <LockIcon v-if="voiceLocked" data-testid="voice-lock" class="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground" aria-hidden="true" />
             <span v-if="channelMentions > 0" class="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex-shrink-0">
               {{ channelMentions }}
@@ -191,7 +203,7 @@
 import { computed, ref as vueRef, TransitionGroup } from 'vue';
 import {
   HashIcon, Volume2Icon, AntennaIcon, BellIcon, BellOffIcon, SettingsIcon, CopyIcon, CopyPlusIcon,
-  LinkIcon, Loader2, CheckIcon, LockIcon,
+  LinkIcon, Loader2, CheckIcon, LockIcon, RadioIcon, RadioTowerIcon,
 } from 'lucide-vue-next';
 import { IconColumns } from '@tabler/icons-vue';
 import { canButton, canCtrlClick, splitEnabled } from '@/composables/useSplitView';
@@ -311,6 +323,27 @@ const isConnectedVoiceChannel = computed(() =>
   isVoice.value &&
   voice.connectedVoiceChannelId === props.channel.channelId
 );
+
+// ── Broadcast (radio) ──
+
+const isBroadcast = computed(() => isVoice.value && props.channel.broadcast != null);
+
+// The broadcast channels whose target list names this one, from the same list the "Move to"
+// menu reads — the sidebar already has every voice channel of the space.
+const hearsRadioOf = computed(() =>
+  (props.voiceChannels ?? []).filter(
+    (c) => c.channelId !== props.channel.channelId && (c.broadcast?.targets.includes(props.channel.channelId) ?? false),
+  ),
+);
+
+// LIVE on HQ only (decision 14): while a radio from it is audible in my room, or — when I am in
+// HQ myself — while I or another member is on air.
+const isLive = computed(() => {
+  if (!isBroadcast.value) return false;
+  const radio = voice.radio;
+  if (radio.onAir.some((s) => s.hqChannelId === props.channel.channelId)) return true;
+  return isConnectedVoiceChannel.value && (radio.transmitting || radio.busyBy !== null);
+});
 
 const canConnect = computed(() => pex.hasIn(props.channel.channelId, 'Connect', props.channel.spaceId));
 // Join is never hidden on a voice channel: not being allowed in is exactly what the user needs to see.
@@ -525,6 +558,19 @@ async function copyChannelId() {
 .channel-item[data-connected] .channel-inner {
   background-color: hsl(142 71% 45% / 0.08);
   border-left: 2px solid hsl(142 71% 45%);
+}
+
+/* Somebody is on the radio of this broadcast channel. */
+.live-pill {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  color: hsl(0 84% 60%);
+  background-color: hsl(0 84% 60% / 0.14);
+  border: 1px solid hsl(0 84% 60% / 0.35);
 }
 
 /* Drop indicators */

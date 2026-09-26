@@ -23,6 +23,9 @@
             </div>
         </div>
 
+        <!-- Who is on the radio in this room (broadcast channels forwarded here). -->
+        <RadioBanner v-if="viewingConnectedChannel" class="media-radio-banner" />
+
         <!-- Content area -->
         <div class="media-content">
             <!-- Activity Mode: Game stage + participants strip below -->
@@ -74,6 +77,9 @@
             <CallGrid v-else :layout="layout" :activities="activityTiles" />
         </div>
 
+        <!-- The radio key, for members of a broadcast channel who may transmit. -->
+        <RadioControl v-if="viewingConnectedChannel" class="mx-3 mb-2" />
+
         <!-- Controls Block: inside the card, under the stage — same placement as a DM call -->
         <MediaControls
             class="mx-3 mb-3"
@@ -102,6 +108,8 @@ import { useMediaLayout } from "@/composables/useMediaLayout";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
+import RadioBanner from "./media/RadioBanner.vue";
+import RadioControl from "./media/RadioControl.vue";
 import EmptyStateArt from "./shared/EmptyStateArt.vue";
 import {
     Signal, Users2, Volume2, Gamepad2,
@@ -157,6 +165,11 @@ const activityStrip = useResponsiveGrid({ width: aW, height: aH, count: () => al
 
 const isConnected = computed(() => voice.isConnected);
 const isConnecting = computed(() => voice.isConnecting);
+
+// The radio belongs to the room I am in, not to whichever voice channel is being looked at.
+const viewingConnectedChannel = computed(
+    () => voice.mode === "channel" && !!selectedChannelId.value && voice.connectedVoiceChannelId === selectedChannelId.value,
+);
 
 async function endActiveCall() {
     if (voice.mode === "dm" && voice.callId) {
@@ -259,6 +272,13 @@ async function endActiveCall() {
     left: 12px;
     display: flex;
     gap: 6px;
+    z-index: 10;
+}
+
+.media-radio-banner {
+    position: absolute;
+    top: 40px;
+    left: 12px;
     z-index: 10;
 }
 

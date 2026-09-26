@@ -90,6 +90,9 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
       createVirtualVUMeter: async () => ({ dispose() {} }),
       onAudioDeviceError: () => ({ unsubscribe() {} }) as any,
+      getVoiceBus: () => ({}) as any,
+      setVoiceBusGain() {},
+      getOutputDestination: () => ({}) as any,
     },
     api: {
       callInteraction: {
@@ -104,6 +107,8 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
           rtc: { endpoint: "wss://sfu.test", ices: [] } as any,
         }),
         UpdateVoiceState: vi.fn(async () => undefined),
+        GetBroadcastLinks: vi.fn(async () => ({ isSuccessBroadcastLinks: () => false, isFailedBroadcastLinks: () => true, error: 2 }) as any),
+        ConfirmBroadcastLinks: vi.fn(async () => ({ isSuccessConfirmBroadcastLinks: () => false, isFailedConfirmBroadcastLinks: () => true, error: 2 }) as any),
       },
       serverInteraction: { PrefetchUser: async () => null },
     },
@@ -116,6 +121,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
     tone: {
       playRingSound() {}, stopPlayRingSound() {},
       playSoftEnterSound() {}, playSoftLeaveSound() {},
+      playRadioError() {}, playRadioChirp() {},
     },
     me: { me: { userId: "me" } },
     bus: { onServerEvent: () => ({ unsubscribe() {} }) },
@@ -125,6 +131,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       muteEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       setServerVoiceRestriction: vi.fn(),
+      setMicrophoneMuted: vi.fn(),
     },
     userVolume: { getUserVolume: () => 100, setUserVolume() {} },
     realtimeStore: {
@@ -296,8 +303,9 @@ describe("call behaviour survived the move", () => {
     expect(unsubscribe).not.toHaveBeenCalled();
 
     await calls.dispose();
-    // CallIncoming, CallFinished, CallAccepted, VoiceMemberStateChanged, VoiceMoveRequested.
-    expect(unsubscribe).toHaveBeenCalledTimes(5);
+    // CallIncoming, CallFinished, CallAccepted, VoiceMemberStateChanged, VoiceMoveRequested,
+    // EntitlementsChanged, ChannelModifiedV2.
+    expect(unsubscribe).toHaveBeenCalledTimes(7);
   });
 
   test("incoming-call subscriptions outlive a completed call", async () => {

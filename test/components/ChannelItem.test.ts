@@ -17,7 +17,12 @@ const h = await vi.hoisted(async () => {
     // Space-level grants, and per-channel grants (a channel absent here has none).
     space: new Set<string>(),
     channels: new Map<string, Set<string>>(),
-    voice: reactive({ connectedVoiceChannelId: null as string | null, isConnected: false, participants: {} }),
+    voice: reactive({
+      connectedVoiceChannelId: null as string | null,
+      isConnected: false,
+      participants: {},
+      radio: { onAir: [] as { userId: string; hqChannelId: string | null }[], transmitting: false, busyBy: null as string | null },
+    }),
     openChannelSettings: (..._a: unknown[]) => {},
     splitButton: ref(true),
     splitCtrl: ref(true),

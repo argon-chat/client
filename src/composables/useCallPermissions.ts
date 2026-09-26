@@ -4,7 +4,8 @@ import { usePexStore } from "@/store/data/permissionStore";
 import type { ArgonEntitlementFlag } from "@/lib/rbac/ArgonEntitlement";
 
 /**
- * What the user may do in the voice channel they are in: speak, show video, share the screen.
+ * What the user may do in the voice channel they are in: speak, show video, share the screen,
+ * transmit on the radio when it is a broadcast channel.
  * Outside a channel call (a direct call, or no call) everything is allowed — those have no roles.
  */
 export function useCallPermissions() {
@@ -22,5 +23,6 @@ export function useCallPermissions() {
     canSpeak: allows("Speak"),
     canVideo: allows("Video"),
     canStream: allows("Stream"),
+    canBroadcast: allows("Broadcast"),
   };
 }

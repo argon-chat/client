@@ -10,6 +10,7 @@ import {
   ChannelType,
   InviteCode,
   ServerInvites,
+  SetBroadcastSettingsError,
   SpaceDeletionStatus,
   type ArgonChannel,
   type SpaceDeletionState,
@@ -95,20 +96,51 @@ export const useSpaceStore = defineStore("spaces", () => {
     return "Unknown error";
   }
 
+  /**
+   * Creates the channel and returns its id, which is minted here so the caller can address the
+   * row as soon as CreateChannel returns.
+   * @param broadcast counts the creation as a broadcast channel; the mode itself is set by the caller.
+   */
   async function addChannelToServer(
     spaceId: Guid,
     channelName: string,
     channelKind: ChannelType,
-    groupId: Guid | null = null
-  ) {
-    await api.channelInteraction.CreateChannel(spaceId, v7(), {
+    groupId: Guid | null = null,
+    broadcast = false,
+  ): Promise<Guid> {
+    const channelId = v7();
+    await api.channelInteraction.CreateChannel(spaceId, channelId, {
       name: channelName,
       desc: "",
       kind: channelKind,
       spaceId: spaceId,
       groupId: groupId
     });
-    metrics.count("channel.created", { kind: enumName(ChannelType, channelKind), grouped: groupId !== null });
+    metrics.count("channel.created", {
+      kind: broadcast ? "broadcast" : enumName(ChannelType, channelKind),
+      grouped: groupId !== null,
+    });
+    return channelId;
+  }
+
+  /**
+   * A voice channel with broadcast mode already on. The channel exists either way: when the mode
+   * could not be turned on, `error` says why and the settings tab offers the switch again.
+   */
+  async function addBroadcastChannel(
+    spaceId: Guid,
+    channelName: string,
+    groupId: Guid | null = null,
+  ): Promise<{ channelId: Guid; error: SetBroadcastSettingsError | null }> {
+    const channelId = await addChannelToServer(spaceId, channelName, ChannelType.Voice, groupId, true);
+    const result = await api.channelInteraction.SetBroadcastMode(spaceId, channelId, true);
+    if (result.isSuccessSetBroadcastSettings()) {
+      await useChannelStore().trackChannel(result.channel);
+      return { channelId, error: null };
+    }
+    const error = result.isFailedSetBroadcastSettings() ? result.error : SetBroadcastSettingsError.NONE;
+    logger.warn("[SpaceStore] SetBroadcastMode refused for a new channel", enumName(SetBroadcastSettingsError, error));
+    return { channelId, error };
   }
 
   /** @param spaceId the channel's space; defaults to the selected one, which is where the sidebar lives. */
@@ -186,6 +218,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     deletionStateOf,
     joinToServer,
     addChannelToServer,
+    addBroadcastChannel,
     deleteChannel,
     duplicateChannel,
     getServerInvites,

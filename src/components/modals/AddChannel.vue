@@ -107,13 +107,18 @@ import InputWithError from "../shared/InputWithError.vue";
 import { Button } from "@argon/ui/button";
 import { computed, shallowRef, watch } from "vue";
 import { logger } from "@argon/core";
+import { useToast } from "@argon/ui/toast";
 import { useSpaceStore } from "@/store/data/serverStore";
+import { useWindow } from "@/store/ui/windowStore";
+import { broadcastErrorKey } from "@/composables/useBroadcastSettings";
 import { ChannelType } from "@argon/glue";
 import { Label } from "@argon/ui/label";
-import { Hash, Megaphone, Mic } from "lucide-vue-next";
+import { Hash, Megaphone, Mic, RadioTower } from "lucide-vue-next";
 
 const { t } = useLocale();
+const { toast } = useToast();
 const servers = useSpaceStore();
+const windows = useWindow();
 
 const open = defineModel<boolean>("open", { type: Boolean, default: false });
 const channelType = shallowRef("Text");
@@ -141,10 +146,13 @@ watch(open, (isOpen) => {
   }
 });
 
+// Broadcast is a mode on a voice channel, not a type of its own: it is created as Voice and the
+// mode is switched on right after (see addChannel).
 const channelTypeMap: Record<string, ChannelType> = {
   Text: ChannelType.Text,
   Voice: ChannelType.Voice,
   Announcement: ChannelType.Announcement,
+  Broadcast: ChannelType.Voice,
 };
 
 const channelTypes = computed(() => [
@@ -166,6 +174,12 @@ const channelTypes = computed(() => [
     description: t("channel_type_announcement_desc"),
     icon: Megaphone,
   },
+  {
+    value: "Broadcast",
+    label: t("channel_type_broadcast"),
+    description: t("channel_type_broadcast_desc"),
+    icon: RadioTower,
+  },
 ]);
 
 const addChannel = async (close: () => void) => {
@@ -185,6 +199,18 @@ const addChannel = async (close: () => void) => {
   logger.info(`Creation channel: ${channelType.value}, ${channelName.value}`);
 
   try {
+    if (channelType.value === "Broadcast") {
+      const spaceId = selectedSpaceId.value;
+      const { channelId, error } = await servers.addBroadcastChannel(spaceId, channelName.value, groupId.value);
+      close();
+      if (error !== null) {
+        toast({ title: t("broadcast_enable_failed"), description: t(broadcastErrorKey(error)), variant: "destructive" });
+      }
+      // The targets are picked in the settings; the sheet opens on them right away.
+      windows.openChannelSettings(spaceId, channelId, "broadcast");
+      return;
+    }
+
     await servers.addChannelToServer(
       selectedSpaceId.value,
       channelName.value,

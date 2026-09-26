@@ -75,3 +75,36 @@ export function playUiBeep(kind: UiBeep): void {
     // A cue that cannot play is not worth reporting.
   }
 }
+
+/**
+ * The radio chirp: two rising tones that tell listeners a transmission is starting. Played on
+ * the master, past the ducked voice bus; `volume` scales it like the other tones (0–1).
+ */
+export function playRadioChirp(volume = 1): void {
+  try {
+    const ctx = audio.getCurrentAudioContext();
+    const now = ctx.currentTime;
+    const level = Math.max(0, Math.min(volume, 1)) * 0.05;
+    if (level <= 0) return;
+    const notes = [
+      { freq: 1245, start: 0, duration: 0.055 },
+      { freq: 1660, start: 0.07, duration: 0.075 },
+    ];
+    for (const { freq, start, duration } of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + start);
+      gain.gain.setValueAtTime(0.0001, now + start);
+      gain.gain.exponentialRampToValueAtTime(level, now + start + 0.008);
+      gain.gain.setValueAtTime(level, now + start + duration * 0.7);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+      osc.connect(gain);
+      gain.connect(audio.getOutputDestination());
+      osc.start(now + start);
+      osc.stop(now + start + duration + 0.02);
+    }
+  } catch {
+    // A cue that cannot play is not worth reporting.
+  }
+}

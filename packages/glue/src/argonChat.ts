@@ -24,6 +24,7 @@ import type {
   TimeOnly,
   Guid,
   IonArray,
+  IonPartial,
   IIonService,
   IIonUnion,
   IonClientContext,
@@ -349,6 +350,7 @@ export interface ArgonChannel {
   lastMessageId: i8;
   slowModeSeconds: i4 | null;
   bitrate: i4 | null;
+  broadcast: BroadcastSettings | null;
 };
 
 
@@ -392,6 +394,15 @@ export interface AttachmentInfo {
 export interface MessageReactionsEntry {
   messageId: i8;
   reactions: IonArray<ReactionInfo>;
+};
+
+
+export interface BroadcastSettings {
+  targets: IonArray<guid>;
+  overlap: BroadcastOverlap;
+  duckingDb: i4;
+  maxTransmitSeconds: i4 | null;
+  chirp: bool;
 };
 
 
@@ -720,6 +731,106 @@ export const Ion_MoveVoiceMemberError_OpenEnum = {
    */
   unknownValue(value: MoveVoiceMemberError): u2 | undefined {
     return declaredMoveVoiceMemberError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum BroadcastOverlap
+{
+  MIX = 0,
+  LOCK = 1,
+}
+
+const declaredBroadcastOverlap: ReadonlySet<unknown> = new Set<unknown>([BroadcastOverlap.MIX, BroadcastOverlap.LOCK]);
+
+/**
+ * Open-enum helpers for {@link BroadcastOverlap}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BroadcastOverlap_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BroadcastOverlap): boolean {
+    return declaredBroadcastOverlap.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BroadcastOverlap): u2 | undefined {
+    return declaredBroadcastOverlap.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum SetBroadcastSettingsError
+{
+  NONE = 0,
+  INSUFFICIENT_PERMISSIONS = 1,
+  CHANNEL_IS_NOT_VOICE = 2,
+  INVALID_TARGET = 3,
+  NOT_A_BROADCAST_CHANNEL = 4,
+}
+
+const declaredSetBroadcastSettingsError: ReadonlySet<unknown> = new Set<unknown>([SetBroadcastSettingsError.NONE, SetBroadcastSettingsError.INSUFFICIENT_PERMISSIONS, SetBroadcastSettingsError.CHANNEL_IS_NOT_VOICE, SetBroadcastSettingsError.INVALID_TARGET, SetBroadcastSettingsError.NOT_A_BROADCAST_CHANNEL]);
+
+/**
+ * Open-enum helpers for {@link SetBroadcastSettingsError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SetBroadcastSettingsError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SetBroadcastSettingsError): boolean {
+    return declaredSetBroadcastSettingsError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SetBroadcastSettingsError): u2 | undefined {
+    return declaredSetBroadcastSettingsError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum BroadcastLinksError
+{
+  NONE = 0,
+  NOT_IN_CHANNEL = 1,
+  NOT_A_BROADCAST_CHANNEL = 2,
+  INSUFFICIENT_PERMISSIONS = 3,
+  SERVER_RESTRICTED = 4,
+  SFU_UNAVAILABLE = 5,
+}
+
+const declaredBroadcastLinksError: ReadonlySet<unknown> = new Set<unknown>([BroadcastLinksError.NONE, BroadcastLinksError.NOT_IN_CHANNEL, BroadcastLinksError.NOT_A_BROADCAST_CHANNEL, BroadcastLinksError.INSUFFICIENT_PERMISSIONS, BroadcastLinksError.SERVER_RESTRICTED, BroadcastLinksError.SFU_UNAVAILABLE]);
+
+/**
+ * Open-enum helpers for {@link BroadcastLinksError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BroadcastLinksError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BroadcastLinksError): boolean {
+    return declaredBroadcastLinksError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BroadcastLinksError): u2 | undefined {
+    return declaredBroadcastLinksError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -3051,6 +3162,7 @@ export enum ArgonEntitlement
   Video = 4194304n as any,
   Stream = 8388608n as any,
   CanDrawOnStream = 16777216n as any,
+  Broadcast = 33554432n as any,
   UseASIO = 1073741824n as any,
   AdditionalStreams = 2147483648n as any,
   DisconnectMember = 1099511627776n as any,
@@ -5618,6 +5730,317 @@ IonFormatterStorage.register("FailedMoveVoiceMember", {
 
 
 
+export abstract class ISetBroadcastSettingsResult implements IIonUnion<ISetBroadcastSettingsResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSetBroadcastSettings(): this is SuccessSetBroadcastSettings {
+    return this.UnionKey === "SuccessSetBroadcastSettings";
+  }
+  public isFailedSetBroadcastSettings(): this is FailedSetBroadcastSettings {
+    return this.UnionKey === "FailedSetBroadcastSettings";
+  }
+
+}
+
+
+export class SuccessSetBroadcastSettings extends ISetBroadcastSettingsResult
+{
+  constructor(public channel: ArgonChannel) { super(); }
+
+  UnionKey: string = "SuccessSetBroadcastSettings";
+  UnionIndex: number = 0;
+}
+
+export class FailedSetBroadcastSettings extends ISetBroadcastSettingsResult
+{
+  constructor(public error: SetBroadcastSettingsError) { super(); }
+
+  UnionKey: string = "FailedSetBroadcastSettings";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISetBroadcastSettingsResult", {
+  read(reader: CborReader): ISetBroadcastSettingsResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISetBroadcastSettingsResult", 2);
+    let value: ISetBroadcastSettingsResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSetBroadcastSettings>("SuccessSetBroadcastSettings").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSetBroadcastSettings>("FailedSetBroadcastSettings").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISetBroadcastSettingsResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISetBroadcastSettingsResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSetBroadcastSettings>("SuccessSetBroadcastSettings").write(writer, value as SuccessSetBroadcastSettings);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSetBroadcastSettings>("FailedSetBroadcastSettings").write(writer, value as FailedSetBroadcastSettings);
+    }
+  
+    else throw new Error(`Ion union 'ISetBroadcastSettingsResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSetBroadcastSettings", {
+  read(reader: CborReader): SuccessSetBroadcastSettings {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSetBroadcastSettings");
+    const channel = IonFormatterStorage.get<ArgonChannel>('ArgonChannel').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSetBroadcastSettings(channel);
+  },
+  write(writer: CborWriter, value: SuccessSetBroadcastSettings): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ArgonChannel>('ArgonChannel').write(writer, value.channel);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSetBroadcastSettings", {
+  read(reader: CborReader): FailedSetBroadcastSettings {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedSetBroadcastSettings");
+    const error = IonFormatterStorage.get<SetBroadcastSettingsError>('SetBroadcastSettingsError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedSetBroadcastSettings(error);
+  },
+  write(writer: CborWriter, value: FailedSetBroadcastSettings): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<SetBroadcastSettingsError>('SetBroadcastSettingsError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IBroadcastLinksResult implements IIonUnion<IBroadcastLinksResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBroadcastLinks(): this is SuccessBroadcastLinks {
+    return this.UnionKey === "SuccessBroadcastLinks";
+  }
+  public isFailedBroadcastLinks(): this is FailedBroadcastLinks {
+    return this.UnionKey === "FailedBroadcastLinks";
+  }
+
+}
+
+
+export class SuccessBroadcastLinks extends IBroadcastLinksResult
+{
+  constructor(public rtc: RtcEndpoint, public token: string, public identity: string, public room: string, public settings: BroadcastSettings) { super(); }
+
+  UnionKey: string = "SuccessBroadcastLinks";
+  UnionIndex: number = 0;
+}
+
+export class FailedBroadcastLinks extends IBroadcastLinksResult
+{
+  constructor(public error: BroadcastLinksError) { super(); }
+
+  UnionKey: string = "FailedBroadcastLinks";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBroadcastLinksResult", {
+  read(reader: CborReader): IBroadcastLinksResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBroadcastLinksResult", 2);
+    let value: IBroadcastLinksResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBroadcastLinks>("SuccessBroadcastLinks").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBroadcastLinks>("FailedBroadcastLinks").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IBroadcastLinksResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IBroadcastLinksResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBroadcastLinks>("SuccessBroadcastLinks").write(writer, value as SuccessBroadcastLinks);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBroadcastLinks>("FailedBroadcastLinks").write(writer, value as FailedBroadcastLinks);
+    }
+  
+    else throw new Error(`Ion union 'IBroadcastLinksResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBroadcastLinks", {
+  read(reader: CborReader): SuccessBroadcastLinks {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "SuccessBroadcastLinks");
+    const rtc = IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').read(reader);
+    const token = IonFormatterStorage.get<string>('string').read(reader);
+    const identity = IonFormatterStorage.get<string>('string').read(reader);
+    const room = IonFormatterStorage.get<string>('string').read(reader);
+    const settings = IonFormatterStorage.get<BroadcastSettings>('BroadcastSettings').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return new SuccessBroadcastLinks(rtc, token, identity, room, settings);
+  },
+  write(writer: CborWriter, value: SuccessBroadcastLinks): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<RtcEndpoint>('RtcEndpoint').write(writer, value.rtc);
+    IonFormatterStorage.get<string>('string').write(writer, value.token);
+    IonFormatterStorage.get<string>('string').write(writer, value.identity);
+    IonFormatterStorage.get<string>('string').write(writer, value.room);
+    IonFormatterStorage.get<BroadcastSettings>('BroadcastSettings').write(writer, value.settings);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBroadcastLinks", {
+  read(reader: CborReader): FailedBroadcastLinks {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedBroadcastLinks");
+    const error = IonFormatterStorage.get<BroadcastLinksError>('BroadcastLinksError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBroadcastLinks(error);
+  },
+  write(writer: CborWriter, value: FailedBroadcastLinks): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<BroadcastLinksError>('BroadcastLinksError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IConfirmBroadcastLinksResult implements IIonUnion<IConfirmBroadcastLinksResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessConfirmBroadcastLinks(): this is SuccessConfirmBroadcastLinks {
+    return this.UnionKey === "SuccessConfirmBroadcastLinks";
+  }
+  public isFailedConfirmBroadcastLinks(): this is FailedConfirmBroadcastLinks {
+    return this.UnionKey === "FailedConfirmBroadcastLinks";
+  }
+
+}
+
+
+export class SuccessConfirmBroadcastLinks extends IConfirmBroadcastLinksResult
+{
+  constructor(public forwardedTargets: i4) { super(); }
+
+  UnionKey: string = "SuccessConfirmBroadcastLinks";
+  UnionIndex: number = 0;
+}
+
+export class FailedConfirmBroadcastLinks extends IConfirmBroadcastLinksResult
+{
+  constructor(public error: BroadcastLinksError) { super(); }
+
+  UnionKey: string = "FailedConfirmBroadcastLinks";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IConfirmBroadcastLinksResult", {
+  read(reader: CborReader): IConfirmBroadcastLinksResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IConfirmBroadcastLinksResult", 2);
+    let value: IConfirmBroadcastLinksResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessConfirmBroadcastLinks>("SuccessConfirmBroadcastLinks").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedConfirmBroadcastLinks>("FailedConfirmBroadcastLinks").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IConfirmBroadcastLinksResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IConfirmBroadcastLinksResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessConfirmBroadcastLinks>("SuccessConfirmBroadcastLinks").write(writer, value as SuccessConfirmBroadcastLinks);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedConfirmBroadcastLinks>("FailedConfirmBroadcastLinks").write(writer, value as FailedConfirmBroadcastLinks);
+    }
+  
+    else throw new Error(`Ion union 'IConfirmBroadcastLinksResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessConfirmBroadcastLinks", {
+  read(reader: CborReader): SuccessConfirmBroadcastLinks {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessConfirmBroadcastLinks");
+    const forwardedTargets = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessConfirmBroadcastLinks(forwardedTargets);
+  },
+  write(writer: CborWriter, value: SuccessConfirmBroadcastLinks): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.forwardedTargets);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedConfirmBroadcastLinks", {
+  read(reader: CborReader): FailedConfirmBroadcastLinks {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedConfirmBroadcastLinks");
+    const error = IonFormatterStorage.get<BroadcastLinksError>('BroadcastLinksError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedConfirmBroadcastLinks(error);
+  },
+  write(writer: CborWriter, value: FailedConfirmBroadcastLinks): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<BroadcastLinksError>('BroadcastLinksError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IUpdateChannelResult implements IIonUnion<IUpdateChannelResult>
 {
   abstract UnionKey: string;
@@ -7160,6 +7583,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isEntitlementsChanged(): this is EntitlementsChanged {
     return this.UnionKey === "EntitlementsChanged";
   }
+  public isChannelModifiedV2(): this is ChannelModifiedV2 {
+    return this.UnionKey === "ChannelModifiedV2";
+  }
 
 }
 
@@ -7188,6 +7614,9 @@ export class ChannelCreated extends IArgonEvent
   UnionIndex: number = 2;
 }
 
+/**
+ * @deprecated
+ */
 export class ChannelModified extends IArgonEvent
 {
   constructor(public spaceId: guid, public channelId: guid, public bag: IonArray<string>) { super(); }
@@ -7732,11 +8161,19 @@ export class EntitlementsChanged extends IArgonEvent
   UnionIndex: number = 70;
 }
 
+export class ChannelModifiedV2 extends IArgonEvent
+{
+  constructor(public spaceId: guid, public channelId: guid, public patch: IonPartial<ArgonChannel>) { super(); }
+
+  UnionKey: string = "ChannelModifiedV2";
+  UnionIndex: number = 71;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 71);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 72);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -7883,8 +8320,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<VoiceMoveRequested>("VoiceMoveRequested").read(reader);
     else if (unionIndex == 70)
       value = IonFormatterStorage.get<EntitlementsChanged>("EntitlementsChanged").read(reader);
+    else if (unionIndex == 71)
+      value = IonFormatterStorage.get<ChannelModifiedV2>("ChannelModifiedV2").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 71);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 72);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -8107,8 +8546,11 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 70) {
         IonFormatterStorage.get<EntitlementsChanged>("EntitlementsChanged").write(writer, value as EntitlementsChanged);
     }
+    else if (value.UnionIndex == 71) {
+        IonFormatterStorage.get<ChannelModifiedV2>("ChannelModifiedV2").write(writer, value as ChannelModifiedV2);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 71 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 72 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -9326,6 +9768,24 @@ IonFormatterStorage.register("EntitlementsChanged", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.writeNullable<guid>(writer, value.userId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ChannelModifiedV2", {
+  read(reader: CborReader): ChannelModifiedV2 {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ChannelModifiedV2");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const patch = IonFormatterStorage.get<IonPartial<ArgonChannel>>('IonPartial<ArgonChannel>').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ChannelModifiedV2(spaceId, channelId, patch);
+  },
+  write(writer: CborWriter, value: ChannelModifiedV2): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    IonFormatterStorage.get<IonPartial<ArgonChannel>>('IonPartial<ArgonChannel>').write(writer, value.patch);
     writer.writeEndArray();
   }
 });
@@ -15547,7 +16007,7 @@ IonFormatterStorage.register("CreateChannelRequest", {
 
 IonFormatterStorage.register("ArgonChannel", {
   read(reader: CborReader): ArgonChannel {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "ArgonChannel");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "ArgonChannel");
     const type = IonFormatterStorage.get<ChannelType>('ChannelType').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -15558,11 +16018,12 @@ IonFormatterStorage.register("ArgonChannel", {
     const lastMessageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const slowModeSeconds = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const bitrate = IonFormatterStorage.readNullable<i4>(reader, 'i4');
-    reader.readEndArrayAndSkip(arraySize - 10);
-    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds, bitrate };
+    const broadcast = IonFormatterStorage.readNullable<BroadcastSettings>(reader, 'BroadcastSettings');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { type, spaceId, channelId, name, description, groupId, fractionalIndex, lastMessageId, slowModeSeconds, bitrate, broadcast };
   },
   write(writer: CborWriter, value: ArgonChannel): void {
-    writer.writeStartArray(10);
+    writer.writeStartArray(11);
     IonFormatterStorage.get<ChannelType>('ChannelType').write(writer, value.type);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
@@ -15573,6 +16034,7 @@ IonFormatterStorage.register("ArgonChannel", {
     IonFormatterStorage.get<i8>('i8').write(writer, value.lastMessageId);
     IonFormatterStorage.writeNullable<i4>(writer, value.slowModeSeconds, 'i4');
     IonFormatterStorage.writeNullable<i4>(writer, value.bitrate, 'i4');
+    IonFormatterStorage.writeNullable<BroadcastSettings>(writer, value.broadcast, 'BroadcastSettings');
     writer.writeEndArray();
   }
 });
@@ -15706,6 +16168,38 @@ IonFormatterStorage.register("MessageReactionsEntry", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.writeArray<ReactionInfo>(writer, value.reactions, 'ReactionInfo');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("BroadcastOverlap", {
+  read(reader: CborReader): BroadcastOverlap {
+    return IonFormatterStorage.readOpenEnum<BroadcastOverlap>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: BroadcastOverlap): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("BroadcastSettings", {
+  read(reader: CborReader): BroadcastSettings {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "BroadcastSettings");
+    const targets = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const overlap = IonFormatterStorage.get<BroadcastOverlap>('BroadcastOverlap').read(reader);
+    const duckingDb = IonFormatterStorage.get<i4>('i4').read(reader);
+    const maxTransmitSeconds = IonFormatterStorage.readNullable<i4>(reader, 'i4');
+    const chirp = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { targets, overlap, duckingDb, maxTransmitSeconds, chirp };
+  },
+  write(writer: CborWriter, value: BroadcastSettings): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.writeArray<guid>(writer, value.targets, 'guid');
+    IonFormatterStorage.get<BroadcastOverlap>('BroadcastOverlap').write(writer, value.overlap);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.duckingDb);
+    IonFormatterStorage.writeNullable<i4>(writer, value.maxTransmitSeconds, 'i4');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.chirp);
     writer.writeEndArray();
   }
 });
@@ -16223,6 +16717,26 @@ IonFormatterStorage.register("MoveVoiceMemberError", {
     return IonFormatterStorage.readOpenEnum<MoveVoiceMemberError>(reader, 'u2');
   },
   write(writer: CborWriter, value: MoveVoiceMemberError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("SetBroadcastSettingsError", {
+  read(reader: CborReader): SetBroadcastSettingsError {
+    return IonFormatterStorage.readOpenEnum<SetBroadcastSettingsError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: SetBroadcastSettingsError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("BroadcastLinksError", {
+  read(reader: CborReader): BroadcastLinksError {
+    return IonFormatterStorage.readOpenEnum<BroadcastLinksError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: BroadcastLinksError): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -18684,6 +19198,28 @@ IonFormatterStorage.register("CallFailedError", {
 });
 
 
+IonFormatterStorage.registerPartial<ArgonChannel>("IonPartial<ArgonChannel>", [
+  { name: "type", type: "ChannelType" },
+  { name: "spaceId", type: "guid" },
+  { name: "channelId", type: "guid" },
+  { name: "name", type: "string" },
+  { name: "description", type: "string", kind: "nullable" },
+  { name: "groupId", type: "guid", kind: "nullable" },
+  { name: "fractionalIndex", type: "string", kind: "nullable" },
+  { name: "lastMessageId", type: "i8" },
+  { name: "slowModeSeconds", type: "i4", kind: "nullable" },
+  { name: "bitrate", type: "i4", kind: "nullable" },
+  { name: "broadcast", type: "BroadcastSettings", kind: "nullable" },
+]);
+
+IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSettings>", [
+  { name: "targets", type: "guid", kind: "array" },
+  { name: "overlap", type: "BroadcastOverlap" },
+  { name: "duckingDb", type: "i4" },
+  { name: "maxTransmitSeconds", type: "i4", kind: "nullable" },
+  { name: "chirp", type: "bool" },
+]);
+
 
 
 export interface IArchetypeInteraction extends IIonService
@@ -18753,6 +19289,10 @@ export interface IChannelInteraction extends IIonService
   AddReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IAddReactionResult>;
   RemoveReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IRemoveReactionResult>;
   BatchGetReactions(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<MessageReactionsEntry>>;
+  SetBroadcastMode(spaceId: guid, channelId: guid, enabled: bool): Promise<ISetBroadcastSettingsResult>;
+  PatchBroadcastSettings(spaceId: guid, channelId: guid, patch: IonPartial<BroadcastSettings>): Promise<ISetBroadcastSettingsResult>;
+  GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
+  ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
 }
 
 
@@ -19100,6 +19640,10 @@ export interface IChannelInteraction extends IIonService
   AddReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IAddReactionResult>;
   RemoveReaction(spaceId: guid, channelId: guid, messageId: i8, emoji: string): Promise<IRemoveReactionResult>;
   BatchGetReactions(spaceId: guid, channelId: guid, messageIds: IonArray<i8>): Promise<IonArray<MessageReactionsEntry>>;
+  SetBroadcastMode(spaceId: guid, channelId: guid, enabled: bool): Promise<ISetBroadcastSettingsResult>;
+  PatchBroadcastSettings(spaceId: guid, channelId: guid, patch: IonPartial<BroadcastSettings>): Promise<ISetBroadcastSettingsResult>;
+  GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult>;
+  ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
 }
 
 
@@ -20183,6 +20727,64 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<MessageReactionsEntry>>("IonArray<MessageReactionsEntry>", writer.data, this.signal);
+  }
+  async SetBroadcastMode(spaceId: guid, channelId: guid, enabled: bool): Promise<ISetBroadcastSettingsResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "SetBroadcastMode");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<bool>('bool').write(writer, enabled);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISetBroadcastSettingsResult>("ISetBroadcastSettingsResult", writer.data, this.signal);
+  }
+  async PatchBroadcastSettings(spaceId: guid, channelId: guid, patch: IonPartial<BroadcastSettings>): Promise<ISetBroadcastSettingsResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "PatchBroadcastSettings");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<IonPartial<BroadcastSettings>>('IonPartial<BroadcastSettings>').write(writer, patch);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISetBroadcastSettingsResult>("ISetBroadcastSettingsResult", writer.data, this.signal);
+  }
+  async GetBroadcastLinks(spaceId: guid, channelId: guid): Promise<IBroadcastLinksResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "GetBroadcastLinks");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBroadcastLinksResult>("IBroadcastLinksResult", writer.data, this.signal);
+  }
+  async ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "ConfirmBroadcastLinks");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IConfirmBroadcastLinksResult>("IConfirmBroadcastLinksResult", writer.data, this.signal);
   }
 
 }

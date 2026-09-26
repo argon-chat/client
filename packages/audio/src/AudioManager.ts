@@ -61,6 +61,11 @@ export interface RemoteAudioGraphOptions {
   onSpeakingChange?: (isSpeaking: boolean) => void;
   /** Speaking detection threshold (RMS), default 0.001 */
   speakingThreshold?: number;
+  /**
+   * Where the graph ends. Default: the voice bus, which the radio ducks while someone is on air.
+   * Pass `getOutputDestination()` for audio that must not be ducked (the radio itself).
+   */
+  destination?: AudioNode;
 }
 
 export interface RemoteAudioGraph {
@@ -170,7 +175,11 @@ export interface IAudioManagement {
   
   // Output destination (for routing audio through master gain)
   getOutputDestination(): AudioNode;
-  
+
+  // Voice bus: every remote voice graph plays through it, ahead of the master gain
+  getVoiceBus(): GainNode;
+  setVoiceBusGain(gain: number, rampSeconds?: number): void;
+
   // Level reporting
   reportOutputLevel(level: number): void;
   
@@ -272,6 +281,9 @@ export class AudioManagement implements IAudioManagement {
   private outputAnalyserRight: AnalyserNode | null = null;
   private outputSplitter: ChannelSplitterNode | null = null;
   private masterGainNode: GainNode | null = null;
+  // Remote voices share this bus into the master gain, so the radio can duck them all at once
+  // while the radio itself, tones and UI cues stay on the master.
+  private voiceBusNode: GainNode | null = null;
   private virtualOutputInitialized = false;
   private outputLevelAnimationFrame: number | null = null;
   private outputStereoCallbacks: Set<(left: number, right: number) => void> = new Set();
@@ -384,6 +396,8 @@ export class AudioManagement implements IAudioManagement {
     this.virtualStreamInitPromise = null;
     
     // Cleanup virtual output stream
+    this.voiceBusNode?.disconnect();
+    this.voiceBusNode = null;
     this.masterGainNode?.disconnect();
     this.outputAnalyserNode?.disconnect();
     this.outputAnalyserLeft?.disconnect();
@@ -1146,6 +1160,9 @@ export class AudioManagement implements IAudioManagement {
     this.masterGainNode.connect(this.outputAnalyserNode);
     this.masterGainNode.connect(this.outputSplitter);
     this.applyOutputVolume();
+
+    this.voiceBusNode = ctx.createGain();
+    this.voiceBusNode.connect(this.masterGainNode);
     
     // Apply saved output device via AudioContext.setSinkId
     if ('setSinkId' in ctx && this.outputDeviceId.value && this.outputDeviceId.value !== 'default') {
@@ -1380,6 +1397,7 @@ export class AudioManagement implements IAudioManagement {
       isMutedAll = false,
       onSpeakingChange,
       speakingThreshold = 0.001,
+      destination = this.getVoiceBus(),
     } = options;
 
     const graphId = v4();
@@ -1415,10 +1433,10 @@ export class AudioManagement implements IAudioManagement {
     analyser.fftSize = 512;
     const buffer = new Float32Array(analyser.fftSize);
 
-    // Connect: source -> analyser -> gain -> masterGain (output destination)
+    // Connect: source -> analyser -> gain -> voice bus (default) -> masterGain
     sourceNode.connect(analyser);
     analyser.connect(gainNode);
-    gainNode.connect(this.getOutputDestination());
+    gainNode.connect(destination);
 
     // `isMutedAll` only describes the moment the graph was created. It used to be read
     // on every volume change, which latched the participant silent forever: subscribe to
@@ -1790,6 +1808,21 @@ export class AudioManagement implements IAudioManagement {
    */
   getOutputDestination(): AudioNode {
     return this.masterGainNode ?? this.audioCtx.destination;
+  }
+
+  /** The bus every remote voice plays through, one gain ahead of the master. */
+  getVoiceBus(): GainNode {
+    if (!this.voiceBusNode) {
+      this.voiceBusNode = this.audioCtx.createGain();
+      this.voiceBusNode.connect(this.getOutputDestination());
+    }
+    return this.voiceBusNode;
+  }
+
+  /** Attenuate (or restore) every remote voice at once; used to duck them under the radio. */
+  setVoiceBusGain(gain: number, rampSeconds = 0.05): void {
+    const g = Math.max(0, Math.min(gain, 1));
+    this.getVoiceBus().gain.setTargetAtTime(g, this.audioCtx.currentTime, rampSeconds);
   }
 
   // ==================== WORKLETS ====================

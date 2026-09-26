@@ -12,6 +12,7 @@
 export type HotkeyActionId =
   | "voice.pushToTalk"
   | "voice.pushToMute"
+  | "voice.broadcastPushToTalk"
   | "voice.toggleMute"
   | "voice.mute"
   | "voice.unmute"
@@ -68,6 +69,13 @@ export const HOTKEY_ACTIONS: readonly HotkeyActionDef[] = [
     kind: "hold",
     title: "hotkeys_action_push_to_mute",
     description: "hotkeys_action_push_to_mute_desc",
+  },
+  {
+    id: "voice.broadcastPushToTalk",
+    group: "voice",
+    kind: "hold",
+    title: "hotkeys_action_broadcast_ptt",
+    description: "hotkeys_action_broadcast_ptt_desc",
   },
   {
     id: "voice.toggleMute",

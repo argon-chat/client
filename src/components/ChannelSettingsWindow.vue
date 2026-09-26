@@ -60,7 +60,7 @@ import {
     DrawerDescription,
 } from "@argon/ui/drawer";
 import {
-    CircleXIcon, SlidersHorizontalIcon, ShieldIcon, HashIcon, Volume2Icon, AntennaIcon,
+    CircleXIcon, SlidersHorizontalIcon, ShieldIcon, HashIcon, Volume2Icon, AntennaIcon, RadioTowerIcon,
 } from "lucide-vue-next";
 import { logger } from "@argon/core";
 import { ChannelType, type ArgonChannel } from "@argon/glue";
@@ -71,6 +71,7 @@ import { usePexStore } from "@/store/data/permissionStore";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import ChannelOverview from "@/components/settings/channels/ChannelOverview.vue";
 import ChannelPermissions from "@/components/settings/channels/ChannelPermissions.vue";
+import ChannelBroadcast from "@/components/settings/channels/ChannelBroadcast.vue";
 
 const windows = useWindow();
 const { t } = useLocale();
@@ -78,6 +79,7 @@ const pex = usePexStore();
 
 const tabs: { id: ChannelSettingsTab; label: string; icon: unknown; component: unknown }[] = [
     { id: "overview", label: "overview", icon: SlidersHorizontalIcon, component: ChannelOverview },
+    { id: "broadcast", label: "broadcast_settings", icon: RadioTowerIcon, component: ChannelBroadcast },
     { id: "permissions", label: "channel_permissions", icon: ShieldIcon, component: ChannelPermissions },
 ];
 
@@ -89,7 +91,16 @@ const canEditOverwrites = computed(() => {
     return pex.hasInSpace(spaceId, "ManageChannels") && pex.hasInSpace(spaceId, "ManageArchetype");
 });
 
-const visibleTabs = computed(() => tabs.filter((tab) => tab.id !== "permissions" || canEditOverwrites.value));
+// Broadcast is a mode on a voice channel; the tab has nothing to say about a text channel.
+const isVoice = computed(() => channel.value?.type === ChannelType.Voice);
+
+const visibleTabs = computed(() =>
+    tabs.filter((tab) => {
+        if (tab.id === "permissions") return canEditOverwrites.value;
+        if (tab.id === "broadcast") return isVoice.value;
+        return true;
+    }),
+);
 const activeTab = computed(() => visibleTabs.value.find((tab) => tab.id === windows.channelSettingsTab) ?? visibleTabs.value[0]);
 
 // Taken away while open (an overwrite, a role change): the sheet goes rather than failing on save.
@@ -124,6 +135,7 @@ watch(
 );
 
 const channelIcon = computed(() => {
+    if (channel.value?.broadcast) return RadioTowerIcon;
     switch (channel.value?.type) {
         case ChannelType.Voice: return Volume2Icon;
         case ChannelType.Announcement: return AntennaIcon;

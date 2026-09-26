@@ -4,6 +4,7 @@ import { ref } from "vue";
 import { createAudioAtlas, type AudioAtlas } from "@argon/soundfx";
 import normalizedAtlas from "@argon/assets/sounds/normalized_atlas.wav";
 import { audio } from "@/lib/audio/AudioManager";
+import { playRadioChirp as chirp, playUiBeep } from "@/lib/audio/uiBeep";
 import { logger } from "@argon/core";
 
 // Sprite definitions: [startMs, durationMs]
@@ -124,6 +125,11 @@ export const useTone = defineStore("tone", () => {
     ringInstanceId = null;
   };
 
+  // Radio cues are synthesized, not sampled: the refusal beep is the hotkey one, the chirp a
+  // short two-tone at the sound level the atlas uses.
+  const playRadioError = () => playUiBeep("capture-fail");
+  const playRadioChirp = () => chirp(volume.value);
+
   return {
     init,
     playSoftEnterSound,
@@ -134,6 +140,8 @@ export const useTone = defineStore("tone", () => {
     playNotificationSound,
     playRingSound,
     stopPlayRingSound,
+    playRadioError,
+    playRadioChirp,
   };
 });
 

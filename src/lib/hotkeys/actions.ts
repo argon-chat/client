@@ -8,6 +8,8 @@
  * Push-to-talk is deliberately silent: the mute/unmute tones would otherwise play on every press.
  * Its release can be delayed (so the end of a sentence is not cut off) and can play walkie-talkie
  * beeps instead. Push-to-mute restores the microphone only if it was on before the key went down.
+ * Push-to-talk and the radio key open the microphone through the call manager's shared hold, so
+ * releasing one while the other is held does not close it.
  */
 
 import { logger } from "@argon/core";
@@ -61,17 +63,22 @@ export function initHotkeyActions(): void {
         pttReleaseTimer = null;
       }
       if (hotkeys.options.pttRadioBeeps) playUiBeep("ptt-on");
-      return sys.setMicrophoneMuted(false, { silent: true });
+      return call.micHold.acquire("ptt");
     }
     if (hotkeys.options.pttRadioBeeps) playUiBeep("ptt-off");
     const close = () => {
       pttReleaseTimer = null;
-      void sys.setMicrophoneMuted(true, { silent: true });
+      void call.micHold.release("ptt");
     };
     const delay = Math.max(0, Number(hotkeys.options.pttReleaseDelayMs) || 0);
     if (delay > 0) pttReleaseTimer = setTimeout(close, delay);
     else close();
   });
+
+  // ── Radio (broadcast channels) ───────────────────────────────────
+
+  // The release delay, the max-transmit guard and the shared microphone hold live in the manager.
+  bind("voice.broadcastPushToTalk", ({ phase }) => (phase === "down" ? call.radioKeyDown() : call.radioKeyUp()));
 
   // ── Push-to-mute ─────────────────────────────────────────────────
 

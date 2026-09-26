@@ -31,5 +31,19 @@ export async function showCallNotice(notice: CallNotice): Promise<void> {
       toast({ title: t("voice_you_were_moved", { channel: channel?.name ?? "" }) });
       return;
     }
+    case "radio_connecting":
+      toast({ title: t("voice_radio_connecting") });
+      return;
+    case "radio_busy": {
+      const user = await usePoolStore().getUser(notice.userId).catch((e: unknown) => {
+        logger.warn("[voice] radio busy by a user we could not load", e);
+        return null;
+      });
+      toast({ title: t("voice_radio_busy", { name: user?.displayName ?? "" }) });
+      return;
+    }
+    case "radio_max_transmit":
+      toast({ title: t("voice_radio_max_transmit") });
+      return;
   }
 }

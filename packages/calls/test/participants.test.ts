@@ -111,6 +111,9 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       }),
       createVirtualVUMeter: async () => ({ dispose() {} }),
       onAudioDeviceError: () => ({ unsubscribe() {} }) as any,
+      getVoiceBus: () => ({}) as any,
+      setVoiceBusGain: vi.fn(),
+      getOutputDestination: () => ({}) as any,
     },
     api: {
       callInteraction: {
@@ -130,6 +133,8 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
           rtc: { endpoint: "wss://sfu.test", ices: [] } as any,
         }),
         UpdateVoiceState: vi.fn(async () => undefined),
+        GetBroadcastLinks: vi.fn(async () => ({ isSuccessBroadcastLinks: () => false, isFailedBroadcastLinks: () => true, error: 2 }) as any),
+        ConfirmBroadcastLinks: vi.fn(async () => ({ isSuccessConfirmBroadcastLinks: () => false, isFailedConfirmBroadcastLinks: () => true, error: 2 }) as any),
       },
       serverInteraction: { PrefetchUser: async () => null },
     },
@@ -142,6 +147,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
     tone: {
       playRingSound: vi.fn(), stopPlayRingSound: vi.fn(),
       playSoftEnterSound: vi.fn(), playSoftLeaveSound: vi.fn(),
+      playRadioError: vi.fn(), playRadioChirp: vi.fn(),
     },
     me: { me: { userId: "me" } },
     bus: { onServerEvent: () => ({ unsubscribe() {} }) },
@@ -150,6 +156,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
       muteEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       setServerVoiceRestriction: vi.fn(),
+      setMicrophoneMuted: vi.fn(),
     },
     userVolume: { getUserVolume: () => 80, setUserVolume: vi.fn() },
     realtimeStore: {

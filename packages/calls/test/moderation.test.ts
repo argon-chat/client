@@ -114,6 +114,9 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
       createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
       createVirtualVUMeter: async () => ({ dispose() {} }),
       onAudioDeviceError: () => ({ unsubscribe() {} }) as any,
+      getVoiceBus: () => ({}) as any,
+      setVoiceBusGain() {},
+      getOutputDestination: () => ({}) as any,
     },
     api: {
       callInteraction: {
@@ -124,6 +127,8 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
       channelInteraction: {
         Interlink: interlink,
         UpdateVoiceState: vi.fn(async () => undefined),
+        GetBroadcastLinks: vi.fn(async () => ({ isSuccessBroadcastLinks: () => false, isFailedBroadcastLinks: () => true, error: 2 }) as any),
+        ConfirmBroadcastLinks: vi.fn(async () => ({ isSuccessConfirmBroadcastLinks: () => false, isFailedConfirmBroadcastLinks: () => true, error: 2 }) as any),
       },
       serverInteraction: { PrefetchUser: async () => null },
     },
@@ -136,6 +141,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
     tone: {
       playRingSound() {}, stopPlayRingSound() {},
       playSoftEnterSound() {}, playSoftLeaveSound() {},
+      playRadioError() {}, playRadioChirp() {},
     },
     me: { me: { userId: "me" } },
     bus,
@@ -145,6 +151,7 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
       muteEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       muteHeadphoneEvent: { subscribe: () => ({ unsubscribe() {} }) as any },
       setServerVoiceRestriction: vi.fn(),
+      setMicrophoneMuted: vi.fn(),
     },
     userVolume: { getUserVolume: () => 100, setUserVolume() {} },
     realtimeStore: {

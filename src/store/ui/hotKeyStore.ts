@@ -43,6 +43,8 @@ export interface HotkeyOptions {
   pttReleaseDelayMs: number;
   /** Push-to-talk: walkie-talkie beeps when the microphone opens and closes. */
   pttRadioBeeps: boolean;
+  /** Web build: the focused-window key (a `KeyboardEvent.code`) that transmits on the radio. */
+  radioWebKey: string;
 }
 
 export type HotkeyEventPhase = "down" | "up";
@@ -58,6 +60,7 @@ export const DEFAULT_HOTKEY_OPTIONS: Readonly<HotkeyOptions> = {
   enabled: true,
   pttReleaseDelayMs: 0,
   pttRadioBeeps: false,
+  radioWebKey: "Backquote",
 };
 
 const BINDINGS_KEY = "hotkeys.bindings.v3";

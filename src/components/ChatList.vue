@@ -1,6 +1,7 @@
 <template>
   <div class="chat-list flex flex-col">
-    <div class="chat-list-scroll">
+    <div ref="scrollEl" class="chat-list-scroll">
+      <BroadcastConnectors :container="scrollEl" :links="broadcastLinks" :revision="layoutRevision" />
       <Transition name="panel-swap" mode="out-in">
       <!-- Loading skeletons -->
       <div v-if="channelsLoading && channelLists.length === 0" key="loading">
@@ -143,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { PlusIcon } from 'lucide-vue-next';
 import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { usePoolStore } from '@/store/data/poolStore';
@@ -163,6 +164,7 @@ import { logger } from '@argon/core';
 import { ChannelType } from '@argon/glue';
 import ChannelItem from './ChannelItem.vue';
 import ChannelGroupHeader from './ChannelGroupHeader.vue';
+import BroadcastConnectors, { type BroadcastLink } from './channels/BroadcastConnectors.vue';
 import AddChannel from './modals/AddChannel.vue';
 import Skeleton from './shared/Skeleton.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
@@ -229,6 +231,21 @@ const voiceChannels = computed(() =>
     ...sortedGroups.value.flatMap(g => getGroupChannels(g.groupId)),
   ].filter(c => isVoiceLikeChannel(c.type)),
 );
+
+// ── Broadcast connectors: each broadcast channel to the rows that hear it ──
+
+const scrollEl = ref<HTMLElement | null>(null);
+
+const broadcastLinks = computed<BroadcastLink[]>(() =>
+  voiceChannels.value
+    .filter(c => c.broadcast !== null && c.broadcast.targets.length > 0)
+    .map(c => ({ from: c.channelId, to: c.broadcast!.targets })),
+);
+
+// Rows move when the list changes, a group folds or a member list grows; the overlay re-measures.
+// (Each of these is replaced wholesale on change, so a shallow watch sees it.)
+const layoutRevision = ref(0);
+watch([channelLists, sortedGroups, voiceChannelUsers], () => layoutRevision.value++);
 
 const {
   canDrag,
@@ -356,6 +373,7 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
 
 /* Scrollbar fully hidden — no arrows, no reserved pixels, no layout jitter. */
 .chat-list-scroll {
+  position: relative; /* the broadcast connector overlay is laid over the content */
   overflow-y: auto;
   overflow-x: hidden;
   height: 100%;

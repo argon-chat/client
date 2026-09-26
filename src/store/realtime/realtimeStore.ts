@@ -84,6 +84,15 @@ export const useRealtimeStore = defineStore("realtime", () => {
   };
 
   /**
+   * Replace the channel record of a live channel (a rename, broadcast settings) without touching
+   * its members.
+   */
+  const updateRealtimeChannel = (channel: ArgonChannel) => {
+    const existing = realtimeChannels.get(channel.channelId);
+    if (existing) existing.Channel = channel;
+  };
+
+  /**
    * Remove realtime channel
    */
   const removeRealtimeChannel = (channelId: Guid) => {
@@ -320,6 +329,7 @@ export const useRealtimeStore = defineStore("realtime", () => {
   return {
     realtimeChannels,
     initRealtimeChannel,
+    updateRealtimeChannel,
     removeRealtimeChannel,
     getRealtimeChannel,
     addUserToChannel,

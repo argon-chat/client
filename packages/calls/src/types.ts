@@ -6,7 +6,14 @@
 
 import type { Ref } from "vue";
 import type { Subscription } from "rxjs";
-import type { CallIncoming, RtcEndpoint } from "@argon/glue";
+import type { Room, RoomOptions } from "livekit-client";
+import type {
+  BroadcastSettings,
+  CallIncoming,
+  IBroadcastLinksResult,
+  IConfirmBroadcastLinksResult,
+  RtcEndpoint,
+} from "@argon/glue";
 
 export type CallMode = "none" | "dm" | "channel";
 
@@ -38,6 +45,8 @@ export interface RemoteAudioGraphOptions {
   initialVolume?: number;
   isMutedAll?: boolean;
   onSpeakingChange?: (isSpeaking: boolean) => void;
+  /** Where the graph ends: the voice bus by default; `getOutputDestination()` escapes ducking. */
+  destination?: AudioNode;
 }
 
 /** Audio engine. Satisfied by @argon/audio's AudioManagement. */
@@ -49,6 +58,11 @@ export interface ICallAudioManager {
   createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph;
   createVirtualVUMeter(onLevel: (level: number) => void): Promise<{ dispose(): void }>;
   onAudioDeviceError(on: (error: AudioDeviceError) => void): Subscription;
+  /** The bus every remote voice plays through, ahead of the master gain; ducked under the radio. */
+  getVoiceBus(): GainNode;
+  setVoiceBusGain(gain: number, rampSeconds?: number): void;
+  /** The master gain, for what must not be ducked: the radio, tones. */
+  getOutputDestination(): AudioNode;
 }
 
 export interface DingDongResult {
@@ -84,6 +98,10 @@ export interface ICallApiClient {
     Interlink(spaceId: string, channelId: string): Promise<InterlinkResult | null>;
     /** Our own MUTED / MUTED_HEADPHONES / STREAMING bits, so members outside the room see them. */
     UpdateVoiceState(spaceId: string, channelId: string, state: number): Promise<unknown>;
+    /** The radio token for the broadcast channel I am in; a FailedBroadcastLinks says why not. */
+    GetBroadcastLinks(spaceId: string, channelId: string): Promise<IBroadcastLinksResult>;
+    /** Once the radio room is connected: the server forwards bc:{me} into the targets. */
+    ConfirmBroadcastLinks(spaceId: string, channelId: string): Promise<IConfirmBroadcastLinksResult>;
   };
   serverInteraction: {
     PrefetchUser(spaceId: string, userId: string): Promise<unknown>;
@@ -93,8 +111,11 @@ export interface ICallApiClient {
 export interface ICallUserPool {
   readonly selectedServer: string | null;
   getUser(userId: string): Promise<{ displayName?: string } | null | undefined>;
-  /** The channel being joined, for its per-room settings (bitrate). Optional: a pool without it joins with defaults. */
-  getChannel?(channelId: string): Promise<{ bitrate?: number | null } | null | undefined>;
+  /**
+   * A channel's per-room settings (bitrate) and, when it is a broadcast channel, its radio settings.
+   * Optional: a pool without it joins with defaults and hears the radio with them too.
+   */
+  getChannel?(channelId: string): Promise<{ bitrate?: number | null; broadcast?: BroadcastSettings | null } | null | undefined>;
   trackUser(user: unknown): Promise<unknown>;
   readonly _realtimeStore: {
     addUserToChannel(channelId: string, userId: string, user: unknown): void;
@@ -103,7 +124,10 @@ export interface ICallUserPool {
 }
 
 export interface ICallRealtimeStore {
-  getRealtimeChannel(channelId: string): { Channel: { spaceId: string }; Users: Map<string, unknown> } | null | undefined;
+  getRealtimeChannel(channelId: string): {
+    Channel: { spaceId: string; broadcast?: BroadcastSettings | null };
+    Users: Map<string, unknown>;
+  } | null | undefined;
   addUserToChannel(channelId: string, userId: string, user: unknown): void;
   removeUserFromChannel(channelId: string, userId: string): void;
   setUserProperty(channelId: string, userId: string, mutate: (user: any) => void): void;
@@ -114,6 +138,10 @@ export interface ICallEventBus {
   // union, and pinning it here would make every real implementation unassignable.
   // The return value must be unsubscribable so dispose() can let the bus go.
   onServerEvent<T = unknown>(event: string, handler: (data: any) => void): { unsubscribe(): void };
+  /** The realtime stream came back on a new server session: state may have drifted. */
+  onReconnected?(handler: () => void): { unsubscribe(): void };
+  /** The server could not replay what was missed: the host rebuilds its state. */
+  onFullResync?(handler: () => void): { unsubscribe(): void };
 }
 
 export interface ICallTonePlayer {
@@ -121,6 +149,10 @@ export interface ICallTonePlayer {
   stopPlayRingSound(): void;
   playSoftEnterSound(): void;
   playSoftLeaveSound(): void;
+  /** The radio key was refused (not connected, or someone else is on air). */
+  playRadioError(): void;
+  /** A transmission just started in a channel with the chirp on. */
+  playRadioChirp(): void;
 }
 
 /** Local mute state, owned by the app so the tray and hotkeys can drive it too. */
@@ -129,6 +161,8 @@ export interface ICallSystemState {
   readonly headphoneMuted: boolean;
   muteEvent: { subscribe(next: (muted: boolean) => void): Subscription };
   muteHeadphoneEvent: { subscribe(next: (muted: boolean) => void): Subscription };
+  /** Silent while a key is held (push-to-talk, the radio): the tones would play on every press. */
+  setMicrophoneMuted(muted: boolean, opts?: { silent?: boolean }): Promise<unknown> | void;
   /**
    * A moderator's mute/deafen on us in the space we are talking in. While it holds, the host
    * keeps the microphone (and, when deafened, the headphones) muted and refuses to unmute.
@@ -143,7 +177,13 @@ export type CallNotice =
   | { kind: "server-deafened" }
   | { kind: "server-undeafened" }
   | { kind: "moved"; spaceId: string; channelId: string }
-  | { kind: "join-refused"; reason: "insufficient_permissions" };
+  | { kind: "join-refused"; reason: "insufficient_permissions" }
+  /** The radio key was pressed before the radio room connected (not queued). */
+  | { kind: "radio_connecting" }
+  /** Single-talker lock: someone else is on air. */
+  | { kind: "radio_busy"; userId: string }
+  /** The stuck-key guard released the key. */
+  | { kind: "radio_max_transmit" };
 
 export interface ICallUserVolumeStore {
   getUserVolume(userId: string): number;
@@ -204,6 +244,13 @@ export interface CallManagerConfig {
   telemetry?: ICallTelemetry;
   /** Tells the user about moderation and moves. Optional: without it nothing is shown. */
   notify?(notice: CallNotice): void;
+  /**
+   * The LiveKit room for a call or for the radio. Optional: `new Room(options)`. Tests hand in
+   * fakes so no real SDK connection is ever made.
+   */
+  createRoom?(options: RoomOptions, purpose: "call" | "radio"): Room;
+  /** Push-to-talk release delay, read live on every radio key release. Optional: none. */
+  pttReleaseDelayMs?(): number;
 
   /**
    * Storage that survives a renderer reload; used to rejoin voice after a crash.

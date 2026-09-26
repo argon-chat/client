@@ -110,6 +110,9 @@ vi.mock("@/lib/audio/AudioManager", () => ({
     createVirtualVUMeter: async () => ({ dispose() {} }),
     onAudioDeviceError: () => ({ unsubscribe() {} }),
     createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
+    getVoiceBus: () => ({}),
+    setVoiceBusGain() {},
+    getOutputDestination: () => ({}),
   },
 }));
 vi.mock("@/store/system/apiStore", () => ({
@@ -133,7 +136,13 @@ vi.mock("@/store/media/toneStore", () => ({
   }),
 }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
-vi.mock("@/store/realtime/busStore", () => ({ useBus: () => ({ onServerEvent: () => ({}) }) }));
+vi.mock("@/store/realtime/busStore", () => ({
+  useBus: () => ({
+    onServerEvent: () => ({}),
+    reconnected: { subscribe: () => ({ unsubscribe() {} }) },
+    needFullResync: { subscribe: () => ({ unsubscribe() {} }) },
+  }),
+}));
 vi.mock("@/store/media/userVolumeStore", () => ({
   useUserVolumeStore: () => ({ getUserVolume: () => 100, setUserVolume() {} }),
 }));

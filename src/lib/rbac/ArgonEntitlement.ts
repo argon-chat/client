@@ -21,6 +21,7 @@ export const ArgonEntitlementFlags = {
   Speak: ArgonEntitlement.Speak,
   Video: ArgonEntitlement.Video,
   Stream: ArgonEntitlement.Stream,
+  Broadcast: ArgonEntitlement.Broadcast,
 
   CanDrawOnStream: ArgonEntitlement.CanDrawOnStream,
 
@@ -163,6 +164,10 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
       {
         value: ArgonEntitlementFlags.Stream,
         i18nKey: "permissions.flags.Stream",
+      },
+      {
+        value: ArgonEntitlementFlags.Broadcast,
+        i18nKey: "permissions.flags.Broadcast",
       },
       {
         value: ArgonEntitlementFlags.UseASIO,

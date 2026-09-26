@@ -15,6 +15,7 @@ import { useSystemStore } from "@/store/system/systemStore";
 import { usePexStore } from "@/store/data/permissionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
+import { useHotkeys } from "@/store/ui/hotKeyStore";
 import { metrics } from "@/lib/telemetry/metrics";
 import { logger } from "@argon/core";
 
@@ -28,13 +29,20 @@ export type { ScreenShareOpts } from "@argon/calls";
  * package, where it can be tested without pinia.
  */
 export const useUnifiedCall = defineStore("unifiedCall", () => {
+  const bus = useBus();
   const config: CallManagerConfig = {
     audio,
     api: useApi() as unknown as CallManagerConfig["api"],
     pool: usePoolStore() as unknown as CallManagerConfig["pool"],
     tone: useTone(),
     me: useMe(),
-    bus: useBus(),
+    // The stream's own signals, for the radio: a new server session or a full resync means the
+    // forward has to be confirmed again.
+    bus: {
+      onServerEvent: (event, handler) => bus.onServerEvent(event, handler),
+      onReconnected: (handler) => bus.reconnected.subscribe(handler),
+      onFullResync: (handler) => bus.needFullResync.subscribe(handler),
+    },
     sys: useSystemStore(),
     userVolume: useUserVolumeStore(),
     realtimeStore: useRealtimeStore() as unknown as CallManagerConfig["realtimeStore"],
@@ -63,6 +71,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
       void import("@/lib/voice/notices")
         .then((m) => m.showCallNotice(notice))
         .catch((e) => logger.warn("[CALL] failed to show a notice", e)),
+    // The radio key honours the same release delay as push-to-talk, read live.
+    pttReleaseDelayMs: () => Math.max(0, Number(useHotkeys().options.pttReleaseDelayMs) || 0),
 
     persistedValue,
     ensureMediaPermission,

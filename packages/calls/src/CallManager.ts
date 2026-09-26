@@ -30,9 +30,12 @@ import { ref, reactive, computed, watch, toRaw } from "vue";
 import { Subscription } from "rxjs";
 import { logger, startTimer, DisposableBag } from "@argon/core";
 import type {
+  BroadcastSettings,
   CallIncoming,
   CallFinished,
   CallAccepted,
+  ChannelModifiedV2,
+  EntitlementsChanged,
   RtcEndpoint,
   VoiceMemberStateChanged,
   VoiceMoveRequested,
@@ -40,12 +43,47 @@ import type {
 
 import { parseRtcStats } from "./rtcStats";
 import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
+import { connectRoom } from "./connectRoom";
+import { createMicHold } from "./micHold";
 import type { CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts } from "./types";
+import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
+import { isRadioIdentity, radioUserId, RADIO_ATTR, RADIO_ON_AIR } from "./radio/identity";
+import { RadioSession } from "./radio/RadioSession";
 
 export type { ScreenShareOpts } from "./types";
 
 /** JoinToChannelError.INSUFFICIENT_PERMISSIONS in the contract. */
 const JOIN_ERROR_INSUFFICIENT_PERMISSIONS = 2;
+
+/** BroadcastLinksError in the contract, by value, and what each means to the user. */
+const RADIO_LINKS_ERROR_NOT_IN_CHANNEL = 1;
+const RADIO_LINKS_ERRORS: Record<number, RadioUnavailableReason> = {
+  1: "not_in_channel",
+  2: "not_a_broadcast_channel",
+  3: "insufficient_permissions",
+  4: "server_restricted",
+  5: "sfu_unavailable",
+};
+/** Reasons the next trigger will not change on its own: the key just beeps, no "connecting" toast. */
+const RADIO_TERMINAL_REASONS: ReadonlySet<RadioUnavailableReason> = new Set<RadioUnavailableReason>([
+  "not_a_broadcast_channel",
+  "insufficient_permissions",
+  "server_restricted",
+]);
+/** BroadcastOverlap.LOCK in the contract. */
+const RADIO_OVERLAP_LOCK = 1;
+/** A key-down this soon after a key-up is a bounce, not a new press. */
+const RADIO_KEY_DEBOUNCE_MS = 200;
+/** A speaker stays "on air" this long after their level drops, so pauses do not flicker. */
+const RADIO_ON_AIR_HANGOVER_MS = 400;
+/** Ducking applied to the voice bus when the HQ channel's settings cannot be read. */
+const RADIO_DEFAULT_DUCKING_DB = -8;
+/** The radio room dropped while we are still in HQ: refetch after these, then give up. */
+const RADIO_RECONNECT_BACKOFF_MS = [1000, 2000, 5000];
+/** A confirm that finds us not in the channel: one refetch after this. */
+const RADIO_CONFIRM_RETRY_MS = 1000;
+/** Entitlement changes are refetched by the host with a debounce; wait for that before asking. */
+const RADIO_ENTITLEMENT_SETTLE_MS = 1000;
 
 /** Own voice flags are reported at most this often; a mute toggle fires two events. */
 const VOICE_STATE_DEBOUNCE_MS = 150;
@@ -83,6 +121,10 @@ export function createCallManager(config: CallManagerConfig) {
   const mode = ref<"none" | "dm" | "channel">("none");
 
   const room = ref<Room | null>(null);
+  const createRoom = config.createRoom ?? ((options) => new Room(options));
+
+  // One registry for every key that opens the microphone (push-to-talk, the radio).
+  const micHold = createMicHold(sys);
 
   // Product metrics. Every timestamp below is null while the thing it times is not happening,
   // and is cleared by whoever records the duration, so a call that ends by any route reports once.
@@ -451,6 +493,9 @@ export function createCallManager(config: CallManagerConfig) {
       catch (e) { logger.warn("[CALL] endStreamerSession failed", e); }
     }
 
+    // The radio goes with the room: its token is bound to our voice slot in HQ.
+    resetRadio();
+
     try {
       if (room.value) {
         room.value.removeAllListeners();
@@ -700,7 +745,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     startTimersRTT();
 
-    if (isConnected.value && connectedVoiceChannelId.value === channelId) scheduleVoiceStateReport();
+    if (isConnected.value && connectedVoiceChannelId.value === channelId) {
+      scheduleVoiceStateReport();
+      void refetchRadioLinks();
+    }
   }
 
   /** Report our own flags to the server, collapsed over a short window. */
@@ -746,7 +794,12 @@ export function createCallManager(config: CallManagerConfig) {
       if (wasMuted !== flags.serverMuted) notify({ kind: flags.serverMuted ? "server-muted" : "server-unmuted" });
     }
 
-    if (!flags.serverMuted && !flags.serverDeafened) void ensureMicrophonePublished();
+    const restricted = flags.serverMuted || flags.serverDeafened;
+    if (!restricted) void ensureMicrophonePublished();
+    // The server revokes the radio with the restriction and refuses links while it holds; once it
+    // is lifted the links have to be asked for again.
+    if (restricted) closeRadio("server_restricted");
+    else if (announce && (wasMuted || wasDeafened)) void refetchRadioLinks();
   }
 
   function onVoiceMemberStateChanged(ev: VoiceMemberStateChanged) {
@@ -1045,10 +1098,13 @@ export function createCallManager(config: CallManagerConfig) {
 
     const spaceId = rt.Channel.spaceId;
 
-    // Source of truth: self + everyone LiveKit currently sees in the room
+    // Source of truth: self + everyone LiveKit currently sees in the room. Radio participants are
+    // forwarded from another room and never members of this one.
     const liveIds = new Set<string>();
     liveIds.add(me.me!.userId);
-    for (const id of r.remoteParticipants.keys()) liveIds.add(id);
+    for (const id of r.remoteParticipants.keys()) {
+      if (!isRadioIdentity(id)) liveIds.add(id);
+    }
 
     // Add LiveKit participants the store is missing
     for (const uid of liveIds) {
@@ -1100,6 +1156,7 @@ export function createCallManager(config: CallManagerConfig) {
     }
 
     for (const [uid, particant] of room.value.remoteParticipants) {
+      if (isRadioIdentity(uid)) continue;
       const firstTrack = particant.getTrackPublications().at(0);
 
       try {
@@ -1197,7 +1254,7 @@ export function createCallManager(config: CallManagerConfig) {
     const adaptive = preference.adaptiveVideoQuality;
     adaptiveStreamActive.value = adaptive;
 
-    const r = new Room({
+    const r = createRoom({
       loggerName: `${callId.value}-room`,
       // 'screen' matches the tile's physical pixels, so a share stays readable on a
       // scaled/HiDPI display instead of being downscaled to CSS pixels.
@@ -1219,7 +1276,7 @@ export function createCallManager(config: CallManagerConfig) {
       webAudioMix: {
         audioContext: audio.getCurrentAudioContext(),
       },
-    });
+    }, "call");
     room.value = r;
 
     // Warm DNS/TLS to the SFU while we spend up to 2s probing TURN below, so
@@ -1229,11 +1286,20 @@ export function createCallManager(config: CallManagerConfig) {
 
     r.on("participantConnected", async (p: RemoteParticipant) => {
       logger.info(`[CALL] participantConnected event:`, p.identity);
+      // A radio participant is not a person in this room: no tile, no lookup, no tone. Its audio
+      // is wired when its track arrives.
+      if (isRadioIdentity(p.identity)) return;
       await addParticipant(p);
+      recomputeRadioBusy();
     });
 
     r.on("participantDisconnected", (p) => {
       const uid = p.identity;
+      if (isRadioIdentity(uid)) {
+        releaseRadioGraph(uid);
+        return;
+      }
+      recomputeRadioBusy();
       // Normally already released by the trackUnsubscribed events the SDK fires first; the
       // graphs just must not depend on that ordering.
       releaseAudioGraph(uid, "mic");
@@ -1262,7 +1328,14 @@ export function createCallManager(config: CallManagerConfig) {
       tone.playSoftLeaveSound();
     });
     r.on("participantActive", (p) => {
+      if (isRadioIdentity(p.identity)) return;
       tone.playSoftEnterSound();
+    });
+
+    // "Busy" for the radio key: another HQ member has `argon.radio=on`.
+    r.on(RoomEvent.ParticipantAttributesChanged, (changed, participant) => {
+      if (isLocalParticipant(participant) || !(RADIO_ATTR.onAir in changed)) return;
+      recomputeRadioBusy();
     });
     r.on("trackSubscribed", onTrackSubscribed);
     r.on("trackUnsubscribed", onTrackUnsubscribed);
@@ -1281,6 +1354,7 @@ export function createCallManager(config: CallManagerConfig) {
     // Reported for every participant, so the UI can point at whose link is bad rather
     // than only showing our own.
     r.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+      if (isRadioIdentity(participant.identity)) return;
       participantQuality.set(participant.identity, quality);
       if (isLocalParticipant(participant)) {
         networkQuality.value = quality;
@@ -1289,10 +1363,11 @@ export function createCallManager(config: CallManagerConfig) {
     });
 
     r.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-      activeSpeakerId.value = speakers[0]?.identity ?? null;
+      activeSpeakerId.value = speakers.find((s) => !isRadioIdentity(s.identity))?.identity ?? null;
     });
 
     r.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant, reason) => {
+      if (isRadioIdentity(participant.identity)) return;
       const message = describeSubscriptionError(reason);
       logger.error(`[CALL] track subscription failed for ${participant.identity}`, {
         trackSid,
@@ -1384,87 +1459,13 @@ export function createCallManager(config: CallManagerConfig) {
       }, 10_000);
     });
 
-    function isStun(url: string) {
-      return url.startsWith("stun:");
-    }
-
-    function isTurn(url: string) {
-      return url.startsWith("turn:");
-    }
-
-    function normalizeUrls(urls: string | string[]) {
-      return Array.isArray(urls) ? urls : [urls];
-    }
-
     try {
-      const stunServers: RTCIceServer[] = opts.rts.ices.flatMap((x) =>
-        normalizeUrls(x.endpoint)
-          .filter(isStun)
-          .map((url) => ({ urls: url })),
-      );
-
-      // Check TURN servers aggressively in parallel
-      const turnServers: RTCIceServer[] = [];
-      const turnConfigs = opts.rts.ices.filter((x) =>
-        normalizeUrls(x.endpoint).some(isTurn),
-      );
-
-      if (turnConfigs.length > 0) {
-        logger.info(`[CALL] Testing ${turnConfigs.length} TURN servers...`);
-
-        const probePromises = turnConfigs.flatMap((turnConfig) => {
-          const turnUrls = normalizeUrls(turnConfig.endpoint).filter(isTurn);
-          return turnUrls.map(async (turnUrl) => {
-            const isAlive = await probeTurn(
-              {
-                endpoint: turnUrl,
-                username: turnConfig.username || "",
-                password: turnConfig.password || "",
-              },
-              2000, // 2s timeout for real data transfer test
-            );
-
-            if (isAlive) {
-              logger.info(`[CALL] ✓ TURN OK: ${turnUrl}`);
-              return {
-                urls: turnUrl,
-                username: turnConfig.username,
-                credential: turnConfig.password,
-              };
-            } else {
-              logger.warn(`[CALL] ✗ TURN DEAD: ${turnUrl}`);
-              return null;
-            }
-          });
-        });
-
-        const results = await Promise.allSettled(probePromises);
-        results.forEach((result) => {
-          if (result.status === "fulfilled" && result.value) {
-            turnServers.push(result.value);
-          }
-        });
-
-        logger.info(`[CALL] TURN results: ${turnServers.length}/${turnConfigs.length} alive`);
+      await connectRoom(r, opts.rts, opts.token, {
         // How often the relay path is actually there when a call needs it.
-        telemetry.count("call.turn.probe", {
-          result: turnConfigs.length === 0 ? "none" : turnServers.length === 0 ? "all_dead" : turnServers.length < turnConfigs.length ? "partial" : "ok",
-        });
-      }
-
-      const allIceServers = [...stunServers, ...turnServers];
-
-      logger.warn("LiveKit connecting...", opts.rts.endpoint, {
-        stun: stunServers.length,
-        turn: turnServers.length,
-      });
-
-      await r.connect(opts.rts.endpoint, opts.token, {
-        rtcConfig: {
-          iceServers: allIceServers,
-          iceCandidatePoolSize: 10,
-          iceTransportPolicy: "all",
-        },
+        onTurnProbed: ({ total, alive }) =>
+          telemetry.count("call.turn.probe", {
+            result: total === 0 ? "none" : alive === 0 ? "all_dead" : alive < total ? "partial" : "ok",
+          }),
       });
     } catch (err) {
       logger.error("LiveKit connect failed", err);
@@ -1574,135 +1575,10 @@ export function createCallManager(config: CallManagerConfig) {
       `[CALL] Processing ${r.remoteParticipants.size} already connected participants`,
     );
     for (const [uid, participant] of r.remoteParticipants) {
+      if (isRadioIdentity(uid)) continue;
       await addParticipant(participant);
     }
-  }
-
-  async function probeTurn(
-    turn: {
-      endpoint: string;
-      username: string;
-      password: string;
-    },
-    timeoutMs = 3000,
-  ): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-      let pc1: RTCPeerConnection | null = null;
-      let pc2: RTCPeerConnection | null = null;
-      let settled = false;
-      let dataReceived = false;
-
-      const cleanup = () => {
-        if (pc1) pc1.close();
-        if (pc2) pc2.close();
-        pc1 = null;
-        pc2 = null;
-      };
-
-      const fail = () => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(false);
-      };
-
-      const ok = () => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(true);
-      };
-
-      try {
-        // Create two peer connections - both forced to use TURN relay only
-        const config = {
-          iceServers: [
-            {
-              urls: turn.endpoint,
-              username: turn.username,
-              credential: turn.password,
-            },
-          ],
-          iceTransportPolicy: "relay" as RTCIceTransportPolicy,
-        };
-
-        pc1 = new RTCPeerConnection(config);
-        pc2 = new RTCPeerConnection(config);
-
-        // Setup data channel
-        const dc = pc1.createDataChannel("probe");
-        const testMessage = "ping";
-
-        dc.onopen = () => {
-          try {
-            dc.send(testMessage);
-          } catch (err) {
-            fail();
-          }
-        };
-
-        dc.onerror = fail;
-
-        // Receive data on pc2
-        pc2.ondatachannel = (event) => {
-          const remoteChannel = event.channel;
-          remoteChannel.onmessage = (msg) => {
-            if (msg.data === testMessage) {
-              dataReceived = true;
-              ok(); // Real data transfer successful!
-            }
-          };
-          remoteChannel.onerror = fail;
-        };
-
-        // ICE candidate exchange
-        pc1.onicecandidate = (e) => {
-          if (e.candidate) {
-            pc2?.addIceCandidate(e.candidate).catch(fail);
-          }
-        };
-
-        pc2.onicecandidate = (e) => {
-          if (e.candidate) {
-            pc1?.addIceCandidate(e.candidate).catch(fail);
-          }
-        };
-
-        // Monitor connection state
-        pc1.oniceconnectionstatechange = () => {
-          if (pc1!.iceConnectionState === "failed") {
-            fail();
-          }
-        };
-
-        pc2.oniceconnectionstatechange = () => {
-          if (pc2!.iceConnectionState === "failed") {
-            fail();
-          }
-        };
-
-        // Start signaling
-        pc1
-          .createOffer()
-          .then((offer) => pc1!.setLocalDescription(offer))
-          .then(() => pc2!.setRemoteDescription(pc1!.localDescription!))
-          .then(() => pc2!.createAnswer())
-          .then((answer) => pc2!.setLocalDescription(answer))
-          .then(() => pc1!.setRemoteDescription(pc2!.localDescription!))
-          .catch(fail);
-
-        // Timeout
-        setTimeout(() => {
-          if (!settled) {
-            if (!dataReceived) {
-              fail();
-            }
-          }
-        }, timeoutMs);
-      } catch (err) {
-        fail();
-      }
-    });
+    recomputeRadioBusy();
   }
 
   /** Whether the SFU would take a microphone track from us right now. */
@@ -1799,6 +1675,10 @@ export function createCallManager(config: CallManagerConfig) {
   function applyMuteAllToExistingParticipants(isMutedAll: boolean) {
     if (!room.value) return;
 
+    // Deafened is deafened: the radio graphs sit on the master, past the ducked bus, so they
+    // are silenced here, one by one, like every other graph.
+    for (const entry of radioGraphs.values()) entry.graph.setVolume(isMutedAll ? 0 : 100);
+
     Object.values(participants).forEach((x) => {
       if (isMutedAll) {
         // Mute: set volume to 0 WITHOUT saving to localStorage
@@ -1817,6 +1697,10 @@ export function createCallManager(config: CallManagerConfig) {
     participant: RemoteParticipant,
   ) {
     const uid = participant.identity;
+    if (isRadioIdentity(uid)) {
+      if (track.kind === Track.Kind.Audio) setupRadioGraph(uid, track, participant);
+      return;
+    }
     if (!participants[uid]) {
       const info = await pool.getUser(uid);
       // Re-check after the await. A participant's microphone and screen-share audio
@@ -1895,6 +1779,10 @@ export function createCallManager(config: CallManagerConfig) {
 
     if (track.kind === "audio") {
       track.detach();
+      if (isRadioIdentity(uid)) {
+        releaseRadioGraph(uid);
+        return;
+      }
       const isScreenAudio =
         (track.source || pub.source) === Track.Source.ScreenShareAudio;
       // Through the handle rather than the graph: that clears the record's slot and takes the
@@ -2274,6 +2162,486 @@ export function createCallManager(config: CallManagerConfig) {
     await switchScreenShare({ ...lastShareOpts.value, systemAudio: "include" });
   }
 
+  // ── Radio (broadcast channels) ───────────────────────────────────
+  //
+  // Broadcaster side: in a broadcast channel ("HQ") with the Broadcast right, the server hands
+  // out a token for a second room, `radio/{space}/{HQ}`, joined as `bc:{me}`; the SFU forwards
+  // that participant into the targets. The key unmutes the radio track, opens the HQ mic through
+  // the shared hold, and flags `argon.radio=on` on the HQ participant so others see "Busy".
+  //
+  // Listener side: every `bc:*` in our room is a forwarded broadcaster. It gets a playback graph
+  // on the master (past the ducked bus) and nothing else — no tile, no tones, no roster entry.
+
+  const radio = ref<RadioState>(initialRadioState());
+  let radioSession: RadioSession | null = null;
+  // Bumped by every fetch; anything async that finds another number is stale and stops.
+  let radioFetchSeq = 0;
+  let radioRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let radioBackoffStep = 0;
+  let radioConfirmRetried = false;
+  let radioEntitlementTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // The key, as the user holds it, versus the transmission, which outlives it by the release
+  // delay and dies early on the max-transmit guard.
+  let radioKeyHeld = false;
+  let radioLastKeyUpAt = -Infinity;
+  let radioReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+  let radioMaxTimer: ReturnType<typeof setTimeout> | null = null;
+  let radioTransmitStartedAt: number | null = null;
+
+  const radioGraphs = new Map<string, {
+    graph: RemoteAudioGraph;
+    userId: string;
+    hqChannelId: string | null;
+    hangover: ReturnType<typeof setTimeout> | null;
+  }>();
+  // Broadcast settings of HQ channels we listen to, from the pool when the realtime store has no
+  // copy; the ducking depth and the chirp come from here.
+  const radioHqSettings = new Map<string, BroadcastSettings | null>();
+  const radioHqLookups = new Set<string>();
+
+  function clearRadioRetry() {
+    if (radioRetryTimer) {
+      clearTimeout(radioRetryTimer);
+      radioRetryTimer = null;
+    }
+  }
+
+  /** Stop transmitting now: the key release, the guard, and every close come through here. */
+  function stopRadioTransmission() {
+    if (radioReleaseTimer) {
+      clearTimeout(radioReleaseTimer);
+      radioReleaseTimer = null;
+    }
+    if (radioMaxTimer) {
+      clearTimeout(radioMaxTimer);
+      radioMaxTimer = null;
+    }
+    if (!radio.value.transmitting) return;
+    radio.value.transmitting = false;
+    if (radioSession) {
+      radioSession.setTransmitting(false).catch((e) => logger.warn("[RADIO] mute failed", e));
+    }
+    void micHold.release("radio");
+    void setRadioOnAir(false);
+    if (radioTransmitStartedAt !== null) {
+      telemetry.distribution("call.radio.transmit_ms", performance.now() - radioTransmitStartedAt, "millisecond");
+      radioTransmitStartedAt = null;
+    }
+  }
+
+  /** Mute, disconnect, forget the links; `reason` is what the UI shows in place of the key. */
+  function closeRadio(reason: RadioUnavailableReason | null) {
+    radioFetchSeq++;
+    clearRadioRetry();
+    stopRadioTransmission();
+    radioKeyHeld = false;
+    const session = radioSession;
+    radioSession = null;
+    session?.close();
+    const s = radio.value;
+    s.available = false;
+    s.connecting = false;
+    s.settings = null;
+    s.unavailableReason = reason;
+  }
+
+  /** Everything radio, both sides, on leave(). */
+  function resetRadio() {
+    closeRadio(null);
+    if (radioEntitlementTimer) {
+      clearTimeout(radioEntitlementTimer);
+      radioEntitlementTimer = null;
+    }
+    radioBackoffStep = 0;
+    radioConfirmRetried = false;
+    for (const identity of [...radioGraphs.keys()]) releaseRadioGraph(identity);
+    radioHqSettings.clear();
+    radioHqLookups.clear();
+    radio.value = initialRadioState();
+    audio.setVoiceBusGain(1);
+  }
+
+  async function setRadioOnAir(on: boolean) {
+    const r = toRaw(room.value) as Room | null;
+    if (!r) return;
+    try {
+      await r.localParticipant.setAttributes({ [RADIO_ATTR.onAir]: on ? RADIO_ON_AIR.on : RADIO_ON_AIR.off });
+    } catch (e) {
+      logger.warn("[RADIO] on-air attribute failed", e);
+    }
+  }
+
+  /** The broadcast settings of the channel we are in, as the host knows them right now. */
+  async function currentBroadcast(channelId: string): Promise<BroadcastSettings | null> {
+    const rt = realtimeStore.getRealtimeChannel(channelId);
+    if (rt) return rt.Channel.broadcast ?? null;
+    const channel = await pool.getChannel?.(channelId).catch(() => null);
+    return channel?.broadcast ?? null;
+  }
+
+  function radioLinksFailed(reason: RadioUnavailableReason, error: string) {
+    telemetry.count("call.radio.links", { result: "failed", error });
+    closeRadio(reason);
+  }
+
+  /**
+   * Ask for the links and connect. `broadcast` overrides what the host knows when the trigger
+   * itself carried the new settings (a ChannelModifiedV2 the host may not have applied yet).
+   */
+  async function fetchRadioLinks(broadcast?: BroadcastSettings | null) {
+    clearRadioRetry();
+    const channelId = connectedVoiceChannelId.value;
+    const spaceId = connectedVoiceSpaceId.value;
+    if (mode.value !== "channel" || !channelId || !spaceId || !isConnected.value) {
+      closeRadio(null);
+      return;
+    }
+    if (serverMuted.value || serverDeafened.value) {
+      closeRadio("server_restricted");
+      return;
+    }
+    const seq = ++radioFetchSeq;
+    const settings = broadcast === undefined ? await currentBroadcast(channelId) : broadcast;
+    if (seq !== radioFetchSeq) return;
+    if (!settings) {
+      closeRadio(null);
+      return;
+    }
+    if (!canInChannel(channelId, "Broadcast", spaceId)) {
+      closeRadio("insufficient_permissions");
+      return;
+    }
+
+    closeRadio(null);
+    const mySeq = ++radioFetchSeq;
+    radio.value.connecting = true;
+    radio.value.unavailableReason = "connecting";
+
+    let links;
+    try {
+      links = await api.channelInteraction.GetBroadcastLinks(spaceId, channelId);
+    } catch (e) {
+      if (mySeq !== radioFetchSeq) return;
+      logger.error("[RADIO] GetBroadcastLinks failed", e);
+      radioLinksFailed("error", errorName(e));
+      return;
+    }
+    if (mySeq !== radioFetchSeq) return;
+    if (!links.isSuccessBroadcastLinks()) {
+      const code = links.isFailedBroadcastLinks() ? Number(links.error) : -1;
+      const reason = RADIO_LINKS_ERRORS[code] ?? "error";
+      logger.warn("[RADIO] links refused", reason);
+      radioLinksFailed(reason, reason);
+      return;
+    }
+
+    radio.value.settings = links.settings;
+    const session = new RadioSession(
+      {
+        createRoom: (options) => createRoom(options, "radio"),
+        connect: (r, rtc, token) => connectRoom(r, rtc, token, { connect: { autoSubscribe: false } }),
+        audioContext: () => audio.getCurrentAudioContext(),
+        micSource: () => micSource,
+        onReconnected: () => {
+          if (radioSession === session) void confirmRadioLinks(mySeq, spaceId, channelId);
+        },
+        onDisconnected: (reason) => {
+          if (radioSession === session) onRadioDisconnected(reason);
+        },
+      },
+      `radio-${channelId}`,
+    );
+    radioSession = session;
+    try {
+      const connected = await session.connect(links.rtc, links.token);
+      if (!connected || mySeq !== radioFetchSeq) return;
+    } catch (e) {
+      if (mySeq !== radioFetchSeq) return;
+      logger.error("[RADIO] connect failed", e);
+      radioLinksFailed("error", errorName(e));
+      return;
+    }
+    await confirmRadioLinks(mySeq, spaceId, channelId);
+  }
+
+  /** Tell the server the radio room is up, so it forwards `bc:{me}` into the targets. */
+  async function confirmRadioLinks(seq: number, spaceId: string, channelId: string) {
+    let res;
+    try {
+      res = await api.channelInteraction.ConfirmBroadcastLinks(spaceId, channelId);
+    } catch (e) {
+      if (seq !== radioFetchSeq) return;
+      logger.error("[RADIO] ConfirmBroadcastLinks failed", e);
+      radioLinksFailed("error", errorName(e));
+      return;
+    }
+    if (seq !== radioFetchSeq) return;
+    if (res.isSuccessConfirmBroadcastLinks()) {
+      const s = radio.value;
+      s.available = true;
+      s.connecting = false;
+      s.unavailableReason = null;
+      radioBackoffStep = 0;
+      radioConfirmRetried = false;
+      telemetry.count("call.radio.links", { result: "ok" });
+      logger.info("[RADIO] on the air-ready", { targets: res.forwardedTargets });
+      return;
+    }
+    const code = res.isFailedConfirmBroadcastLinks() ? Number(res.error) : -1;
+    const reason = RADIO_LINKS_ERRORS[code] ?? "error";
+    telemetry.count("call.radio.links", { result: "failed", error: reason });
+    // The roster lost us (a silo restart): one more try once the server has caught up.
+    if (code === RADIO_LINKS_ERROR_NOT_IN_CHANNEL && !radioConfirmRetried) {
+      radioConfirmRetried = true;
+      closeRadio(reason);
+      radio.value.connecting = true;
+      radioRetryTimer = setTimeout(() => {
+        radioRetryTimer = null;
+        void fetchRadioLinks();
+      }, RADIO_CONFIRM_RETRY_MS);
+      return;
+    }
+    closeRadio(reason);
+  }
+
+  /** The radio room dropped for good while we are still in HQ: reconnect with a short backoff. */
+  function onRadioDisconnected(reason: DisconnectReason | undefined) {
+    const why = reason === undefined ? "unknown" : (DisconnectReason[reason] ?? String(reason));
+    logger.warn(`[RADIO] disconnected (${why})`);
+    const delay = RADIO_RECONNECT_BACKOFF_MS[radioBackoffStep];
+    closeRadio(delay === undefined ? "error" : "connecting");
+    if (delay === undefined) return;
+    radioBackoffStep++;
+    radio.value.connecting = true;
+    radioRetryTimer = setTimeout(() => {
+      radioRetryTimer = null;
+      void fetchRadioLinks();
+    }, delay);
+  }
+
+  /** A fresh attempt from a trigger: earlier retries are forgotten. */
+  async function refetchRadioLinks() {
+    radioBackoffStep = 0;
+    radioConfirmRetried = false;
+    await fetchRadioLinks();
+  }
+
+  /** After a realtime resync: a working radio only needs its forward re-confirmed. */
+  function resyncRadio() {
+    if (mode.value !== "channel") return;
+    const channelId = connectedVoiceChannelId.value;
+    const spaceId = connectedVoiceSpaceId.value;
+    if (radio.value.available && radioSession && channelId && spaceId) {
+      void confirmRadioLinks(radioFetchSeq, spaceId, channelId);
+      return;
+    }
+    void refetchRadioLinks();
+  }
+
+  /** The channel's broadcast settings changed under us. */
+  function onRadioBroadcastChanged(broadcast: BroadcastSettings | null) {
+    if (broadcast === null) {
+      closeRadio(null);
+      return;
+    }
+    if (radio.value.available) {
+      radio.value.settings = broadcast;
+      return;
+    }
+    radioBackoffStep = 0;
+    radioConfirmRetried = false;
+    void fetchRadioLinks(broadcast);
+  }
+
+  /** My entitlements changed: the host refetches them first; then ask again or stand down. */
+  function onRadioEntitlementsChanged() {
+    if (radioEntitlementTimer) clearTimeout(radioEntitlementTimer);
+    radioEntitlementTimer = setTimeout(() => {
+      radioEntitlementTimer = null;
+      if (mode.value !== "channel") return;
+      const channelId = connectedVoiceChannelId.value;
+      const allowed = channelId ? canInChannel(channelId, "Broadcast", connectedVoiceSpaceId.value) : false;
+      if (!allowed) {
+        if (radio.value.available || radio.value.connecting) closeRadio("insufficient_permissions");
+        return;
+      }
+      if (!radio.value.available) void refetchRadioLinks();
+    }, RADIO_ENTITLEMENT_SETTLE_MS);
+  }
+
+  function recomputeRadioBusy() {
+    const r = toRaw(room.value) as Room | null;
+    let busy: string | null = null;
+    if (r) {
+      for (const [identity, p] of r.remoteParticipants) {
+        if (isRadioIdentity(identity)) continue;
+        if (p.attributes?.[RADIO_ATTR.onAir] === RADIO_ON_AIR.on) {
+          busy = identity;
+          break;
+        }
+      }
+    }
+    radio.value.busyBy = busy;
+  }
+
+  function radioKeyDown() {
+    if (radioKeyHeld) return;
+    if (mode.value !== "channel" || !isConnected.value) return;
+    if (Date.now() - radioLastKeyUpAt < RADIO_KEY_DEBOUNCE_MS) return;
+    // Pressed again inside the release delay: the transmission simply goes on.
+    if (radioReleaseTimer && radio.value.transmitting) {
+      clearTimeout(radioReleaseTimer);
+      radioReleaseTimer = null;
+      radioKeyHeld = true;
+      return;
+    }
+    const s = radio.value;
+    if (!s.available || !radioSession) {
+      tone.playRadioError();
+      if (!s.unavailableReason || !RADIO_TERMINAL_REASONS.has(s.unavailableReason)) notify({ kind: "radio_connecting" });
+      return;
+    }
+    if (Number(s.settings?.overlap) === RADIO_OVERLAP_LOCK && s.busyBy) {
+      tone.playRadioError();
+      notify({ kind: "radio_busy", userId: s.busyBy });
+      return;
+    }
+
+    radioKeyHeld = true;
+    s.transmitting = true;
+    radioTransmitStartedAt = performance.now();
+    radioSession.setTransmitting(true).catch((e) => logger.error("[RADIO] unmute failed", e));
+    // The HQ mic too: HQ hears the callout once, through HQ.
+    void micHold.acquire("radio");
+    void setRadioOnAir(true);
+    const maxSeconds = Number(s.settings?.maxTransmitSeconds ?? 0);
+    if (maxSeconds > 0) {
+      radioMaxTimer = setTimeout(() => {
+        radioMaxTimer = null;
+        logger.warn("[RADIO] max transmit reached, releasing");
+        radioKeyHeld = false;
+        radioLastKeyUpAt = Date.now();
+        stopRadioTransmission();
+        notify({ kind: "radio_max_transmit" });
+      }, maxSeconds * 1000);
+    }
+    telemetry.count("call.radio.transmit");
+  }
+
+  function radioKeyUp() {
+    if (!radioKeyHeld) return;
+    radioKeyHeld = false;
+    radioLastKeyUpAt = Date.now();
+    if (!radio.value.transmitting) return;
+    const delay = Math.max(0, Number(config.pttReleaseDelayMs?.() ?? 0) || 0);
+    if (delay > 0) {
+      radioReleaseTimer = setTimeout(() => {
+        radioReleaseTimer = null;
+        stopRadioTransmission();
+      }, delay);
+      return;
+    }
+    stopRadioTransmission();
+  }
+
+  // ── Radio, listener side ──
+
+  /** What we know of an HQ channel's settings; kicks off a lookup when nothing is known yet. */
+  function knownHqSettings(hqChannelId: string | null): BroadcastSettings | null | undefined {
+    if (!hqChannelId) return null;
+    const rt = realtimeStore.getRealtimeChannel(hqChannelId);
+    if (rt) return rt.Channel.broadcast ?? null;
+    if (radioHqSettings.has(hqChannelId)) return radioHqSettings.get(hqChannelId);
+    if (!radioHqLookups.has(hqChannelId) && pool.getChannel) {
+      radioHqLookups.add(hqChannelId);
+      pool.getChannel(hqChannelId)
+        .then((channel) => {
+          radioHqSettings.set(hqChannelId, channel?.broadcast ?? null);
+          updateRadioDucking();
+        })
+        .catch(() => radioHqSettings.set(hqChannelId, null))
+        .finally(() => radioHqLookups.delete(hqChannelId));
+    }
+    return undefined;
+  }
+
+  /** Duck the voice bus under whoever is on air; the deepest setting wins when there are several. */
+  function updateRadioDucking() {
+    const speakers = radio.value.onAir;
+    if (speakers.length === 0) {
+      audio.setVoiceBusGain(1);
+      return;
+    }
+    let db = 0;
+    for (const speaker of speakers) {
+      const settings = knownHqSettings(speaker.hqChannelId);
+      const depth = settings === undefined ? RADIO_DEFAULT_DUCKING_DB : (settings?.duckingDb ?? RADIO_DEFAULT_DUCKING_DB);
+      db = Math.min(db, Number(depth) || 0);
+    }
+    audio.setVoiceBusGain(Math.pow(10, db / 20));
+  }
+
+  function onRadioSpeaking(identity: string, speaking: boolean) {
+    const entry = radioGraphs.get(identity);
+    if (!entry) return;
+    if (speaking) {
+      if (entry.hangover) {
+        clearTimeout(entry.hangover);
+        entry.hangover = null;
+      }
+      const onAir = radio.value.onAir;
+      if (onAir.some((s) => s.userId === entry.userId && s.hqChannelId === entry.hqChannelId)) return;
+      onAir.push({ userId: entry.userId, hqChannelId: entry.hqChannelId });
+      if (knownHqSettings(entry.hqChannelId)?.chirp) tone.playRadioChirp();
+      updateRadioDucking();
+      return;
+    }
+    if (entry.hangover) return;
+    entry.hangover = setTimeout(() => {
+      entry.hangover = null;
+      removeRadioSpeaker(entry.userId, entry.hqChannelId);
+    }, RADIO_ON_AIR_HANGOVER_MS);
+  }
+
+  function removeRadioSpeaker(userId: string, hqChannelId: string | null) {
+    const onAir = radio.value.onAir;
+    const index = onAir.findIndex((s) => s.userId === userId && s.hqChannelId === hqChannelId);
+    if (index < 0) return;
+    onAir.splice(index, 1);
+    updateRadioDucking();
+  }
+
+  /** A forwarded broadcaster's audio: on the master, so the ducking never touches it. */
+  function setupRadioGraph(identity: string, track: RemoteTrack, participant: RemoteParticipant) {
+    if (radioGraphs.has(identity)) return;
+    const deafened = sys.headphoneMuted;
+    const graph = audio.createRemoteAudioGraph({
+      track: (track as any).mediaStreamTrack,
+      label: "Radio",
+      initialVolume: deafened ? 0 : 100,
+      isMutedAll: deafened,
+      destination: audio.getOutputDestination(),
+      onSpeakingChange: (speaking) => onRadioSpeaking(identity, speaking),
+    });
+    radioGraphs.set(identity, {
+      graph,
+      userId: radioUserId(identity) ?? identity,
+      hqChannelId: participant.attributes?.[RADIO_ATTR.broadcast] || null,
+      hangover: null,
+    });
+    logger.info(`[RADIO] listening to ${identity}`);
+  }
+
+  function releaseRadioGraph(identity: string) {
+    const entry = radioGraphs.get(identity);
+    if (!entry) return;
+    radioGraphs.delete(identity);
+    if (entry.hangover) clearTimeout(entry.hangover);
+    removeRadioSpeaker(entry.userId, entry.hqChannelId);
+    try { entry.graph.dispose(); } catch (e) { logger.warn("[RADIO] graph dispose failed", e); }
+  }
+
   // Held separately from `disposables`, which leave() empties. Putting them there is
   // exactly how the previous implementation stopped ringing after the first completed
   // call — these have to outlive every call the manager handles.
@@ -2302,6 +2670,23 @@ export function createCallManager(config: CallManagerConfig) {
     bus.onServerEvent<VoiceMoveRequested>("VoiceMoveRequested", (ev) => {
       void onVoiceMoveRequested(ev).catch((e) => logger.error("[CALL] move failed", e));
     }),
+
+    // Radio triggers. A null userId is a role change that touches everyone, us included.
+    bus.onServerEvent<EntitlementsChanged>("EntitlementsChanged", (ev) => {
+      if (mode.value !== "channel" || String(ev.spaceId) !== connectedVoiceSpaceId.value) return;
+      if (ev.userId != null && String(ev.userId) !== me.me?.userId) return;
+      onRadioEntitlementsChanged();
+    }),
+
+    bus.onServerEvent<ChannelModifiedV2>("ChannelModifiedV2", (ev) => {
+      if (mode.value !== "channel" || String(ev.channelId) !== connectedVoiceChannelId.value) return;
+      const patch = ev.patch as { broadcast?: BroadcastSettings | null } | null | undefined;
+      if (!patch || !("broadcast" in patch) || patch.broadcast === undefined) return;
+      onRadioBroadcastChanged(patch.broadcast);
+    }),
+
+    bus.onReconnected?.(() => resyncRadio()) ?? { unsubscribe() {} },
+    bus.onFullResync?.(() => resyncRadio()) ?? { unsubscribe() {} },
   ];
 
   const stopSharingWatch = watch(isSharing, () => scheduleVoiceStateReport());
@@ -2320,6 +2705,11 @@ export function createCallManager(config: CallManagerConfig) {
 
   return {
     dispose,
+    radio,
+    radioKeyDown,
+    radioKeyUp,
+    refetchRadioLinks,
+    micHold,
     mode,
     room,
     callId,

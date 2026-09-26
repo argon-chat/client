@@ -2,6 +2,7 @@ import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { Subject } from "rxjs";
 import { nextTick } from "vue";
+import type { IonPartial } from "@argon-chat/ion.webcore";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
@@ -13,9 +14,11 @@ import { useArchetypeStore } from "@/store/data/archetypeStore";
 import { useSpaceStore } from "@/store/data/serverStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import {
+  type ArgonChannel,
   type ArgonMessage,
   type ChannelCreated,
   type ChannelModified,
+  type ChannelModifiedV2,
   type ChannelRemoved,
   type JoinedToChannelUser,
   type JoinToServerUser,
@@ -121,6 +124,31 @@ export const useEventStore = defineStore("events", () => {
     return !!(await userStore.getUser(userId));
   };
 
+  const refetchChannel = async (spaceId: string, channelId: string, event: string) => {
+    const list = await api.channelInteraction.GetChannels(spaceId, channelId);
+    const fresh = Array.from(list).find((c) => c.channel.channelId === channelId)?.channel;
+    if (fresh) await channelStore.trackChannel(fresh);
+    else logger.warn(`[EventStore] ${event} for a channel the server no longer lists`, channelId);
+  };
+
+  // The patch carries only the fields that changed: a present key is the new value, null clears
+  // it. Applied to the Dexie row and to the live voice copy; a channel we do not have yet is
+  // fetched whole instead.
+  const applyChannelPatch = async (spaceId: string, channelId: string, patch: IonPartial<ArgonChannel>) => {
+    const current = await db.channels.get(channelId);
+    if (!current) {
+      await refetchChannel(spaceId, channelId, "ChannelModifiedV2");
+      return;
+    }
+    const updated: ArgonChannel = { ...current };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) continue;
+      (updated as unknown as Record<string, unknown>)[key] = value;
+    }
+    await channelStore.trackChannel(updated);
+    realtimeStore.updateRealtimeChannel(updated);
+  };
+
   // The bus outlives any one sign-in and the boot sequence re-runs every step on a retry (up to
   // eleven times), so without this guard each attempt stacked another full set of handlers and
   // every server event was then processed N times over.
@@ -158,6 +186,11 @@ export const useEventStore = defineStore("events", () => {
     bus.onServerEvent<ChannelRemoved>("ChannelRemoved", (x) => {
       void (async () => {
         try {
+          // The room I am talking in is gone (voice-broadcast.md, case 9): hang up before the
+          // row goes, so nothing keeps pointing at a channel that no longer exists.
+          const { useUnifiedCall } = await import("@/store/media/unifiedCallStore");
+          const voice = useUnifiedCall();
+          if (voice.connectedVoiceChannelId === x.channelId) await voice.leave();
           realtimeStore.removeRealtimeChannel(x.channelId);
           await channelStore.removeChannel(x.channelId);
         } catch (error) {
@@ -178,6 +211,16 @@ export const useEventStore = defineStore("events", () => {
           else logger.warn("[EventStore] ChannelModified for a channel the server no longer lists", x.channelId);
         } catch (error) {
           logger.error("Error handling ChannelModified", error);
+        }
+      })();
+    });
+
+    bus.onServerEvent<ChannelModifiedV2>("ChannelModifiedV2", (x) => {
+      void (async () => {
+        try {
+          await applyChannelPatch(x.spaceId, x.channelId, x.patch);
+        } catch (error) {
+          logger.error("Error handling ChannelModifiedV2", error);
         }
       })();
     });

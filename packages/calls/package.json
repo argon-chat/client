@@ -12,6 +12,10 @@
     "./voice-state": {
       "import": "./src/voiceState.ts",
       "types": "./src/voiceState.ts"
+    },
+    "./radio-identity": {
+      "import": "./src/radio/identity.ts",
+      "types": "./src/radio/identity.ts"
     }
   },
   "scripts": {

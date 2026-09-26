@@ -107,6 +107,9 @@ const METRICS = {
   "call.screenshare.duration": SEC,
   "call.camera.start": C,
   "call.camera.duration": SEC,
+  "call.radio.links": C,
+  "call.radio.transmit": C,
+  "call.radio.transmit_ms": MS,
   // messaging
   "message.sent": C,
   "message.send.duration": MS,
@@ -345,6 +348,9 @@ const CALLS: WidgetDraft[] = [
   ], { w: 4 }),
   big("Crash recoveries", M("call.crash_recovery")),
   big("Busy on incoming", M("call.dm.incoming", "busy:true")),
+  by("Radio links", M("call.radio.links"), "result", { w: 2 }),
+  big("Radio transmissions", M("call.radio.transmit")),
+  percentiles("Radio transmission length (ms)", M("call.radio.transmit_ms"), { w: 3 }),
 ];
 
 const RELIABILITY: WidgetDraft[] = [
