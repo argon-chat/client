@@ -117,6 +117,7 @@ vi.mock("@/store/data/expressionsStore", async () => {
 });
 
 import ExpressionsSettings from "@/components/settings/spaces/ExpressionsSettings.vue";
+import StickerView from "@/components/expressions/StickerView.vue";
 import * as storeModule from "@/store/data/expressionsStore";
 import { decodeOutline } from "@/lib/expressions/outline";
 import { ExpressionRefusal } from "@/lib/refusals";
@@ -430,11 +431,12 @@ describe("the grid", () => {
     state.packs[0].items = [item("lottie-emoji", "ep", ExpressionKind.Emoji)];
     const wrapper = open();
     await nextTick();
-    const view = () => $(wrapper, '[data-item-id="lottie-emoji"] .sticker-view');
-    await until(() => view()?.dataset.phase === "ready");
-    const canvas = view()!.querySelector<HTMLCanvasElement>("canvas:not([style*='display: none'])")!;
+    const sticker = () =>
+      wrapper.findAllComponents(StickerView).find((c) => !!(c.element as HTMLElement).closest('[data-item-id="lottie-emoji"]'));
+    await until(() => sticker()?.emitted("ready") !== undefined);
+    const canvas = [...(sticker()!.element as HTMLElement).querySelectorAll("canvas")].at(-1)!;
     expect(canvas.width).toBeGreaterThan(0);
-    // Drawn: the square's middle is red.
+    // `ready` follows the frame onto the canvas: the square's middle is red already.
     expect(pixel(canvas, 0.5, 0.5)).toEqual([255, 0, 0, 255]);
 
     // Playing: the square turns (0° → 90° over a second), so a point near its corner is covered at

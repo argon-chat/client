@@ -375,6 +375,22 @@ describe("frames and lifetime", () => {
     expect(onFirstFrame).toHaveBeenCalledWith(bitmap);
   });
 
+  test("presented reaches onFirstPresent once, and not after destroy", async () => {
+    const onFirstPresent = vi.fn();
+    const { handle, worker } = await loaded({ onFirstPresent });
+    expect(onFirstPresent).not.toHaveBeenCalled(); // loaded is not shown
+    worker.emit({ type: "presented", playerId: handle.id, frameNo: 0 });
+    worker.emit({ type: "presented", playerId: handle.id, frameNo: 0 });
+    expect(onFirstPresent).toHaveBeenCalledTimes(1);
+    expect(onFirstPresent).toHaveBeenCalledWith(0);
+
+    const late = vi.fn();
+    const gone = await loaded({ onFirstPresent: late });
+    gone.handle.destroy();
+    gone.worker.emit({ type: "presented", playerId: gone.handle.id, frameNo: 0 });
+    expect(late).not.toHaveBeenCalled();
+  });
+
   test("renderFrame resolves with the worker's reply", async () => {
     const { handle, worker } = await loaded();
     const pending = handle.renderFrame(7);

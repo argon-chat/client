@@ -39,5 +39,10 @@ export type LottieFromWorker =
   | { type: "firstFrame"; playerId: number; bitmap: ImageBitmap }
   /** A free-run frame (canvas-less players, to be acked) or a `renderFrame` reply (`requestId`). */
   | { type: "frame"; playerId: number; frameNo: number; bitmap: ImageBitmap; requestId?: number }
+  /**
+   * Once per player, after `loaded`: its first frame is on the page. A canvas player's frame has
+   * reached the placeholder canvas; otherwise this follows the first `frame` message.
+   */
+  | { type: "presented"; playerId: number; frameNo: number }
   | { type: "ended"; playerId: number; frameNo: number }
   | { type: "error"; playerId: number; message: string; requestId?: number };

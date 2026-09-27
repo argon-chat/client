@@ -26,6 +26,11 @@ export interface LottiePlayerOptions {
   textColor?: string | null;
   /** A copy of the first frame, the receiver's to keep (and close). */
   onFirstFrame?: (bitmap: ImageBitmap) => void;
+  /**
+   * Once, when the first frame is on the page: committed to the canvas (a worker-drawn one included)
+   * or, without a canvas, handed to `onFrame`. Comes after `onLoaded`.
+   */
+  onFirstPresent?: (frameNo: number) => void;
   /** Canvas-less players: every frame, borrowed — valid until the next one arrives. */
   onFrame?: (bitmap: ImageBitmap, frameNo: number) => void;
   onLoaded?: (info: { frameCount: number; fps: number }) => void;
@@ -51,7 +56,7 @@ export interface LottiePlayerHandle {
   readonly height: number;
   readonly state: LottiePlayerState;
   readonly playing: boolean;
-  /** Resolves once the first frame is shown; rejects when loading fails. */
+  /** Resolves once loaded (the first frame rendered, maybe not on screen yet); rejects when loading fails. */
   readonly ready: Promise<void>;
   play(): void;
   pause(): void;
@@ -134,6 +139,7 @@ class PoolPlayer implements LottiePlayerHandle {
   private wantPlaying = false;
   private sentPlaying = false;
   private ended = false;
+  private presented = false;
   private color: string | null;
   private loop: boolean;
   private requestSeq = 0;
@@ -245,6 +251,12 @@ class PoolPlayer implements LottiePlayerHandle {
       return;
     }
     this.opts.onFirstFrame(bitmap);
+  }
+
+  onPresented(frameNo: number) {
+    if (this.presented || this.state !== "ready") return;
+    this.presented = true;
+    this.opts.onFirstPresent?.(frameNo);
   }
 
   onFrame(bitmap: ImageBitmap, frameNo: number) {
@@ -459,6 +471,9 @@ export class LottiePool {
       case "frame":
         if (msg.requestId !== undefined) player.onReply(msg.requestId, msg.bitmap);
         else player.onFrame(msg.bitmap, msg.frameNo);
+        break;
+      case "presented":
+        player.onPresented(msg.frameNo);
         break;
       case "ended":
         player.onEnded();

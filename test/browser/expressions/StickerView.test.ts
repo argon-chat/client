@@ -42,9 +42,9 @@ const media = (fileId: string): ExpressionMedia => ({
 
 const mounted: VueWrapper[] = [];
 
-function show(fileId: string) {
+function show(fileId: string, onReady?: (root: HTMLElement) => void) {
   const wrapper = mount(StickerView, {
-    props: { media: media(fileId), size: 100 },
+    props: { media: media(fileId), size: 100, onReady: () => onReady?.(wrapper.element as HTMLElement) },
     attachTo: document.body,
   });
   mounted.push(wrapper);
@@ -112,7 +112,9 @@ async function settle() {
 
 describe("StickerView", () => {
   test("outline first, then the frame", async () => {
-    const wrapper = show("sticker-a");
+    // Read in the handler: `ready` means the frame is already on the canvas, not merely drawn.
+    let atReady: number[] | null = null;
+    const wrapper = show("sticker-a", (root) => (atReady = centre([...root.querySelectorAll("canvas")].at(-1)!)));
     await nextTick();
 
     const root = wrapper.element as HTMLElement;
@@ -121,6 +123,7 @@ describe("StickerView", () => {
     expect([root.style.width, root.style.height]).toEqual(["100px", "100px"]);
 
     await until(() => wrapper.emitted("ready") !== undefined);
+    expect(atReady).toEqual([255, 0, 0, 255]);
     await nextTick();
 
     expect(root.dataset.phase).toBe("ready");
@@ -144,6 +147,24 @@ describe("StickerView", () => {
     const preview = [...root.querySelectorAll("canvas")].find((c) => c.style.display !== "none")!;
     expect(centre(preview)).toEqual([255, 0, 0, 255]);
     await until(() => second.emitted("ready") !== undefined);
+  });
+
+  test("a loaded frame that never reports as shown still clears the outline, after a while", async () => {
+    const pool = getLottiePool();
+    const createPlayer = pool.createPlayer.bind(pool);
+    const loadedAt: number[] = [];
+    vi.spyOn(pool, "createPlayer").mockImplementation((opts) => {
+      const handle = createPlayer({ ...opts, onFirstPresent: undefined });
+      void handle.ready.then(() => loadedAt.push(performance.now()));
+      return handle;
+    });
+    const wrapper = show("sticker-silent");
+    await until(() => loadedAt.length > 0);
+    expect(wrapper.emitted("ready")).toBeUndefined();
+    await until(() => wrapper.emitted("ready") !== undefined, 5_000);
+    expect(performance.now() - loadedAt[0]).toBeGreaterThanOrEqual(1_900);
+    await nextTick();
+    expect((wrapper.element as HTMLElement).querySelector(".sticker-view__outline")).toBeNull();
   });
 
   test("a file that fails to load keeps the outline and shows the thumbnail", async () => {

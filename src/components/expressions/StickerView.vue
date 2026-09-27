@@ -34,6 +34,9 @@ const emit = defineEmits<{ ready: []; error: [error: Error] }>();
 
 type Phase = "pending" | "ready" | "fallback";
 
+/** A loaded Lottie whose frame never reports as shown (a hidden page) is taken as shown after this. */
+const PRESENT_FALLBACK_MS = 2000;
+
 const root = ref<HTMLElement | null>(null);
 const lottieCanvas = ref<HTMLCanvasElement | null>(null);
 const previewCanvas = ref<HTMLCanvasElement | null>(null);
@@ -87,6 +90,7 @@ const maskStyle = computed(() => ({
 
 let player: LottiePlayerHandle | null = null;
 let videoControl: AnimationControl | null = null;
+let presentTimer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
 
 function tintColor(): string | null {
@@ -105,13 +109,20 @@ function drawPreview(bitmap: ImageBitmap) {
   hasPreview.value = true;
 }
 
+function stopPresentTimer() {
+  clearTimeout(presentTimer);
+  presentTimer = undefined;
+}
+
 function markReady() {
+  stopPresentTimer();
   if (disposed || phase.value === "ready") return;
   phase.value = "ready";
   emit("ready");
 }
 
 function fail(error: Error) {
+  stopPresentTimer();
   if (disposed || phase.value === "fallback") return;
   phase.value = "fallback";
   emit("error", error);
@@ -139,13 +150,16 @@ function startLottie() {
     toneIndex: tone,
     textColor: tintColor(),
     onFirstFrame: (bitmap) => putPreview(fileId, tone, bitmap),
+    // The underlay goes once the frame is on the canvas, not when the worker has merely drawn it.
+    onFirstPresent: () => player === handle && markReady(),
     onError: fail,
   });
   player = handle;
   handle.ready.then(
-    // The worker commits the frame to the canvas a little after telling us: wait two frames before
-    // taking the underlay away, or it blinks.
-    () => requestAnimationFrame(() => requestAnimationFrame(() => player === handle && markReady())),
+    () => {
+      if (player !== handle || phase.value !== "pending") return;
+      presentTimer = setTimeout(() => player === handle && markReady(), PRESENT_FALLBACK_MS);
+    },
     () => {},
   );
 }
@@ -191,6 +205,7 @@ function start() {
 
 function teardown() {
   disposed = true;
+  stopPresentTimer();
   player?.destroy();
   player = null;
   videoControl?.remove();

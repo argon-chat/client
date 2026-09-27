@@ -14,9 +14,20 @@ import type { LottieFromWorker, LottieLoadMessage, LottieToWorker } from "@/lib/
 interface WorkerScope {
   postMessage(message: LottieFromWorker, transfer?: Transferable[]): void;
   addEventListener(type: "message", listener: (event: MessageEvent<LottieToWorker>) => void): void;
+  requestAnimationFrame?(callback: () => void): number;
 }
 
 const scope = self as unknown as WorkerScope;
+
+/**
+ * Runs `callback` once what was drawn so far is on the page. An OffscreenCanvas reaches its
+ * placeholder at the end of the worker's next animation frame, not at the end of the drawing task,
+ * so: that frame, then a task after it.
+ */
+function afterCommit(callback: () => void) {
+  if (typeof scope.requestAnimationFrame === "function") scope.requestAnimationFrame(() => setTimeout(callback, 0));
+  else setTimeout(callback, 16);
+}
 
 let wasmUrl: string | null = null;
 const cache = new FrameCache<ImageBitmap>((frame) => frame.width * frame.height * 4);
@@ -190,6 +201,15 @@ class Item {
     }
   }
 
+  /** Frame 0 is on the page: posted before this when delivered, committed after it when drawn here. */
+  announcePresented() {
+    const send = () => {
+      if (!this.dead) post({ type: "presented", playerId: this.id, frameNo: 0 });
+    };
+    if (this.ctx) afterCommit(send);
+    else send();
+  }
+
   async renderFrameFor(requestId: number, frameNo: number) {
     const frame = await this.render(frameNo);
     this.curFrame = Math.max(0, Math.min(this.lastFrame, frameNo | 0));
@@ -306,6 +326,7 @@ async function load(msg: LottieLoadMessage) {
     if (item.dead) return;
     post({ type: "loaded", playerId: item.id, frameCount: item.frameCount, fps: item.fps });
     item.markReady();
+    item.announcePresented();
   } catch (err) {
     if (err instanceof DestroyedError || item.dead) return;
     item.destroy();

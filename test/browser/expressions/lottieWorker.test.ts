@@ -149,6 +149,32 @@ describe("lottie worker", () => {
     }
   });
 
+  test("says presented once the first frame is on the handed-over canvas", async () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    try {
+      const offscreen = canvas.transferControlToOffscreen();
+      const { post, next, messages } = start();
+      post(load({ canvas: offscreen }), [offscreen]);
+      const presented = await next("presented");
+      expect(pixels(canvas).at(50, 50)).toEqual([255, 0, 0, 255]); // read at once: no frames waited
+      expect(presented.frameNo).toBe(0);
+      expect(messages.findIndex((m) => m.type === "loaded")).toBeLessThan(messages.indexOf(presented));
+    } finally {
+      canvas.remove();
+    }
+  });
+
+  test("without a canvas, presented follows the first frame", async () => {
+    const { post, next, messages } = start();
+    post(load());
+    const presented = await next("presented");
+    const first = messages.findIndex((m) => m.type === "frame");
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(messages.indexOf(presented));
+    expect(messages.filter((m) => m.type === "presented")).toHaveLength(1);
+  });
+
   test("tints with a text colour", async () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
@@ -219,6 +245,9 @@ describe("lottie worker", () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     try {
+      let atPresent: number[] | null = null;
+      let presented!: () => void;
+      const shown = new Promise<void>((resolve) => (presented = resolve));
       const handle = pool.createPlayer({
         canvas,
         fileId: "draw-mode",
@@ -227,10 +256,16 @@ describe("lottie worker", () => {
         height: 50,
         pixelRatio: 1,
         textColor: "rgb(0, 0, 255)",
+        onFirstPresent: () => {
+          atPresent = pixels(canvas, 50, 50).at(25, 25);
+          presented();
+        },
       });
       await handle.ready;
       expect([canvas.width, canvas.height]).toEqual([50, 50]);
       expect(pixels(canvas, 50, 50).at(25, 25)).toEqual([0, 0, 255, 255]);
+      await shown;
+      expect(atPresent).toEqual([0, 0, 255, 255]);
     } finally {
       pool.terminate();
       intersector.destroy();
