@@ -54,6 +54,8 @@ type CreateFinalResultArgs = {
   /** Expression modes: file format and the size the file should stay under. */
   exportFormat?: ExpressionExportFormat;
   maxBytes?: number;
+  /** The editor's device pixel ratio: brush lines are stored in device pixels. */
+  pixelRatio?: number;
 };
 
 // Export canvases are full output resolution; a zero size drops the backing store now, not at GC.
@@ -155,7 +157,9 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
       layers: mediaState.resizableLayers,
       lines: mediaState.brushDrawnLines,
       canvasSize,
-      resultSize: [scaledWidth, scaledHeight]
+      resultSize: [scaledWidth, scaledHeight],
+      cropRatio: newRatio,
+      pixelRatio: args.pixelRatio
     });
 
     // Redraw brush lines at output resolution
@@ -450,7 +454,9 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
       layers: mediaState.resizableLayers,
       lines: mediaState.brushDrawnLines,
       canvasSize,
-      resultSize: [width, height]
+      resultSize: [width, height],
+      cropRatio: mediaState.currentImageRatio || mediaRatio,
+      pixelRatio: args.pixelRatio
     });
 
     if (scaledLines.length) {

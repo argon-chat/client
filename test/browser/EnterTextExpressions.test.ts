@@ -1,16 +1,17 @@
 /**
- * The composer's expressions picker in a real browser, over a seeded expressions store: a sticker is
- * sent at once as a message of no text and one sticker entity, and the picker closes with focus back
- * in the input; a custom emoji goes into the input as a placeholder the value carries as an entity,
- * and the picker stays open for the next pick; Esc closes the picker only. In a direct chat the
- * picker offers every loaded space's packs and no way to their settings.
+ * The composer's expressions picker in a real browser, over a seeded expressions store: it opens at
+ * its full size inside the composer's popover; a sticker is sent at once as a message of no text and
+ * one sticker entity, and the picker closes with focus back in the input; a custom emoji goes into the
+ * input as a placeholder the value carries as an entity, and the picker stays open for the next pick;
+ * Esc closes the picker only. The sticker tab is there whenever a sticker can be sent. In a direct
+ * chat the picker loads and offers every space's packs and no way to their settings.
  */
 
 import "../../packages/assets/styles/index.css";
 import { describe, test, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { createPinia, setActivePinia } from "pinia";
 import { emojiRegistry, initializeEmojix } from "@argon-chat/emojix";
 import {
@@ -27,7 +28,7 @@ const h = await vi.hoisted(async () => {
   const stub = (name: string) => ({ default: defineComponent({ name, setup: () => () => null }) });
   return {
     stub,
-    flags: { stickersActive: ref(true), gifsSelectorActive: ref(true) },
+    flags: { gifsSelectorActive: ref(true) },
     perms: new Set<string>(["CreateExpressions"]),
     sendMessage: vi.fn(),
     sendDirect: vi.fn(),
@@ -108,6 +109,7 @@ import EnterText from "@/components/chats/EnterText.vue";
 import MessageInput from "@/components/chats/MessageInput.vue";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { useWindow } from "@/store/ui/windowStore";
+import { db } from "@/store/db/dexie";
 import { EXPRESSION_RESOLVER, createStoreResolver } from "@/lib/expressions/resolver";
 
 const item = (spaceId: string, itemId: string, packId: string, kind: ExpressionKind, sortOrder: number): ExpressionItem => ({
@@ -129,6 +131,7 @@ const item = (spaceId: string, itemId: string, packId: string, kind: ExpressionK
   sortOrder,
   downloadUrl: "https://cdn.example/sticker.json",
   thumbUrl: null,
+  creatorId: null,
 });
 
 const pack = (spaceId: string, packId: string, kind: ExpressionKind, prefix: string, count: number): ExpressionPack => ({
@@ -141,6 +144,7 @@ const pack = (spaceId: string, packId: string, kind: ExpressionKind, prefix: str
   sortOrder: kind === ExpressionKind.Sticker ? 0 : 1,
   version: 1n,
   items: Array.from({ length: count }, (_, i) => item(spaceId, `${prefix}-${i}`, packId, kind, i)),
+  creatorId: null,
 });
 
 function seed(spaceId: string, packs: ExpressionPack[]) {
@@ -187,12 +191,13 @@ async function search(query: string) {
 
 beforeAll(async () => {
   await initializeEmojix();
+  await page.viewport(1280, 900);
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   setActivePinia(createPinia());
-  h.flags.stickersActive.value = true;
+  await db.servers.clear();
   h.flags.gifsSelectorActive.value = true;
   h.perms.clear();
   h.perms.add("CreateExpressions");
@@ -217,8 +222,26 @@ describe("the composer's expressions picker", () => {
   test("opens on the emoji tab with its search focused; stickers and GIFs are tabs of it", async () => {
     composer();
     await openPicker();
-    expect(tabs()).toEqual(["emoji", "stickers", "gifs"]);
+    expect(tabs()).toEqual(["stickers", "gifs", "emoji"]);
+    expect($('[data-tab="emoji"]')?.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement).toBe($(".xp-search__input"));
+  });
+
+  test("the popover does not squeeze it: the picker opens at its full width, rail beside the grid", async () => {
+    composer();
+    await openPicker();
+    const popover = $("[data-testid=expression-picker-popover]")!;
+    // Measured once the popover's zoom-in is over.
+    await Promise.all(popover.getAnimations({ subtree: true }).map((a) => a.finished));
+    const box = picker()!.getBoundingClientRect();
+    expect(box.width).toBeGreaterThanOrEqual(480);
+    expect(box.height).toBe(440);
+    expect(popover.getBoundingClientRect().width).toBeGreaterThanOrEqual(box.width);
+    expect($(".xp-rail")!.getBoundingClientRect().width).toBe(48);
+    // Nine emoji to a row, as in Discord, not two.
+    const smileys = [...document.querySelectorAll<HTMLElement>('[data-group-id="smileys"] .xp-cell')];
+    const top = smileys[0].getBoundingClientRect().top;
+    expect(smileys.filter((c) => c.getBoundingClientRect().top === top)).toHaveLength(9);
   });
 
   test("a sticker is sent at once, alone and with no text; the picker closes and the input has focus", async () => {
@@ -271,7 +294,7 @@ describe("the composer's expressions picker", () => {
   test("a unicode emoji goes in as the atlas sprite, at the caret", async () => {
     const { editor, value } = composer();
     await openPicker();
-    await userEvent.click($('[data-cell="0:0"]')!);
+    await userEvent.click($('[data-group-id="smileys"] .xp-cell')!);
     const first = emojiRegistry.getByCategory("smileys")[0];
     const text = String.fromCodePoint(...first.codepoints);
     await until(() => value().text === text);
@@ -289,41 +312,49 @@ describe("the composer's expressions picker", () => {
     await until(() => document.activeElement === editor);
   });
 
-  test("the sticker tab needs the stickers flag, the GIF tab the GIF flag", async () => {
-    h.flags.stickersActive.value = false;
+  test("the sticker tab is there whenever a sticker can be sent; the GIF tab needs the GIF flag", async () => {
+    h.flags.gifsSelectorActive.value = false;
     composer();
     await openPicker();
-    expect(tabs()).toEqual(["emoji", "gifs"]);
-    await userEvent.keyboard("{Escape}");
-    await until(() => !picker());
-
-    h.flags.stickersActive.value = true;
-    h.flags.gifsSelectorActive.value = false;
-    await openPicker();
-    expect(tabs()).toEqual(["emoji", "stickers"]);
+    expect(tabs()).toEqual(["stickers", "emoji"]);
   });
 
-  test("with no custom emoji yet, a member who may add them is sent to the space's expression settings", async () => {
+  test("while editing a message no sticker can be sent: the emoji tab alone, its tab bar still there", async () => {
+    const editing = { messageId: 5n, spaceId: "s1", channelId: "c1", text: "hi", entities: [] } as any;
+    composer({ spaceId: "s1", channelId: "c1", editing });
+    await openPicker();
+    expect(tabs()).toEqual(["emoji"]);
+  });
+
+  test("a member who may add expressions is sent to the space's expression settings from the rail", async () => {
     seed("s1", [pack("s1", "sp", ExpressionKind.Sticker, "st", 1)]);
     composer();
     await openPicker();
-    $(".xp-footer__link")!.click();
+    $('[data-rail="manage"]')!.click();
     await until(() => !picker());
     const windows = useWindow();
     expect(windows.serverSettingsOpen).toBe(true);
     expect(windows.serverSettingsCategory).toBe("expressions");
   });
 
-  test("in a direct chat: every loaded space's stickers, sent to the peer; no way to settings", async () => {
+  test("in a direct chat: every space's stickers, sent to the peer; no way to settings", async () => {
     seed("s1", [pack("s1", "sp", ExpressionKind.Sticker, "st", 1)]);
     seed("s2", [pack("s2", "sp2", ExpressionKind.Sticker, "other", 2)]);
+    const loadAll = vi.spyOn(useExpressionsStore(), "ensureLoadedAll");
     composer({ receiverId: "u2" });
     await openPicker();
-    expect($(".xp-footer__link")).toBeNull();
+    expect(loadAll).toHaveBeenCalledTimes(1);
+    expect($('[data-rail="manage"]')).toBeNull();
     await userEvent.click($('[data-tab="stickers"]')!);
     await until(() => document.querySelectorAll(".xp-cell--sticker").length === 3);
-    expect([...document.querySelectorAll<HTMLElement>(".xp-section")].map((s) => s.dataset.sectionId)).toEqual([
+    expect([...document.querySelectorAll<HTMLElement>(".xp-group")].map((s) => s.dataset.groupId)).toEqual([
       "pack:sp",
+      "pack:sp2",
+    ]);
+    expect([...document.querySelectorAll<HTMLElement>(".xp-rail__item")].map((b) => b.dataset.rail)).toEqual([
+      "space:s1",
+      "pack:sp",
+      "space:s2",
       "pack:sp2",
     ]);
 

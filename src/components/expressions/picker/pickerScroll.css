@@ -1,0 +1,40 @@
+/*
+ * The picker's scrollers (grid, rail, GIF tab) in the theme's colours, as the chat's (ChatMessageList).
+ * Chromium ignores ::-webkit-scrollbar once scrollbar-width or scrollbar-color is set, so both stay auto.
+ */
+.xp-scroll,
+.xp .xp-gifs .gif-picker-grid-container {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.xp-scroll::-webkit-scrollbar,
+.xp .xp-gifs .gif-picker-grid-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.xp-scroll--rail::-webkit-scrollbar {
+  width: 3px;
+}
+
+.xp-scroll::-webkit-scrollbar-track,
+.xp .xp-gifs .gif-picker-grid-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xp-scroll::-webkit-scrollbar-thumb,
+.xp .xp-gifs .gif-picker-grid-container::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.12);
+  border-radius: 3px;
+}
+
+.xp-scroll:hover::-webkit-scrollbar-thumb,
+.xp .xp-gifs .gif-picker-grid-container:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--foreground) / 0.22);
+}
+
+.xp-scroll::-webkit-scrollbar-thumb:hover,
+.xp .xp-gifs .gif-picker-grid-container::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--foreground) / 0.34);
+}

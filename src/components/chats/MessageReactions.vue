@@ -1,55 +1,73 @@
 <template>
   <component :is="row.is" v-if="reactions.length" v-bind="row.props" class="reactions-row">
-    <button
+    <!-- A click toggles; on a custom emoji, right-click (the context-menu key) or a long press says where it is from. -->
+    <ExpressionInfoPopover
       v-for="r in reactions"
       :key="reactionKey(r)"
-      class="reaction-pill"
-      :class="{
-        'reaction-pill--mine': isMine(r),
-        'reaction-pill--disabled': !canToggle(r),
-      }"
-      :disabled="!canToggle(r)"
-      @click="r.customEmojiId ? $emit('toggle-custom', r.customEmojiId) : $emit('toggle', r.emoji)"
+      manual
+      :target="reactionTarget(r)"
+      :open="infoKey === reactionKey(r)"
+      @update:open="(open) => setInfo(r, open)"
     >
-      <span class="reaction-pill__emoji">
-        <template v-if="r.customEmojiId">
-          <CustomEmojiInline
-            v-if="customItem(r.customEmojiId)"
-            :media="itemMedia(customItem(r.customEmojiId)!)"
+      <button
+        class="reaction-pill"
+        :class="{
+          'reaction-pill--mine': isMine(r),
+          'reaction-pill--disabled': !canToggle(r),
+        }"
+        :disabled="!canToggle(r)"
+        :title="r.customEmojiId ? reactionTitle(r) : undefined"
+        :data-reaction="reactionKey(r)"
+        @click="onClick(r)"
+        @contextmenu="onContextMenu(r, $event)"
+        @pointerdown="onPointerDown(r, $event)"
+        @pointermove="onPointerMove"
+        @pointerup="cancelPress"
+        @pointercancel="cancelPress"
+        @pointerleave="cancelPress"
+      >
+        <span class="reaction-pill__emoji">
+          <template v-if="r.customEmojiId">
+            <CustomEmojiInline
+              v-if="customItem(r.customEmojiId)"
+              :media="itemMedia(customItem(r.customEmojiId)!)"
+              :size="18"
+              :alt="customEmojiAlt(customItem(r.customEmojiId)!.name)"
+            />
+            <!-- An emoji this client does not know (yet): a neutral mark, the count still shows. -->
+            <span
+              v-else
+              class="reaction-pill__unknown"
+              role="img"
+              :aria-label="t('reaction_custom_unknown')"
+              :title="t('reaction_custom_unknown')"
+              data-testid="reaction-unknown"
+            />
+          </template>
+          <EmojiSprite
+            v-else-if="resolveEmoji(r.emoji)"
+            :emoji="resolveEmoji(r.emoji)!"
             :size="18"
-            :alt="customEmojiAlt(customItem(r.customEmojiId)!.name)"
+            render-mode="atlas"
           />
-          <!-- An emoji this client does not know (yet): a neutral mark, the count still shows. -->
-          <span
-            v-else
-            class="reaction-pill__unknown"
-            role="img"
-            :aria-label="t('reaction_custom_unknown')"
-            :title="t('reaction_custom_unknown')"
-            data-testid="reaction-unknown"
-          />
-        </template>
-        <EmojiSprite
-          v-else-if="resolveEmoji(r.emoji)"
-          :emoji="resolveEmoji(r.emoji)!"
-          :size="18"
-          render-mode="atlas"
-        />
-        <template v-else>{{ r.emoji }}</template>
-      </span>
-      <span class="reaction-pill__count">{{ r.count }}</span>
-    </button>
+          <template v-else>{{ r.emoji }}</template>
+        </span>
+        <span class="reaction-pill__count">{{ r.count }}</span>
+      </button>
+    </ExpressionInfoPopover>
   </component>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import type { ReactionInfo } from "@argon/glue";
 import { EmojiSprite, emojiRegistry, stringToCodepoints, codepointsToHexcode } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
 import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
 import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
+import ExpressionInfoPopover from "@/components/expressions/ExpressionInfoPopover.vue";
 import { useExpressionResolver } from "@/lib/expressions/resolver";
+import { stripColons, type ExpressionInfoTarget } from "@/lib/expressions/expressionInfo";
 import { customEmojiAlt, itemMedia } from "@/lib/chat/customEmoji";
 import { reactionKey } from "@/lib/chat/reactions";
 import { useLocale } from "@/store/system/localeStore";
@@ -62,7 +80,7 @@ const props = defineProps<{
   removeOnly?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "toggle", emoji: string): void;
   (e: "toggle-custom", itemId: string): void;
 }>();
@@ -70,6 +88,77 @@ defineEmits<{
 const { t } = useLocale();
 const resolver = useExpressionResolver();
 const customItem = (itemId: string) => resolver.itemById(itemId);
+
+// ── Where a custom emoji is from ──
+// A click is the toggle, so the details sit on the secondary gestures: right-click (which the
+// context-menu key and Shift+F10 also send to a focused chip) and, on touch, a long press.
+
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_SLOP_PX = 10;
+
+const infoKey = ref<string | null>(null);
+let pressTimer: ReturnType<typeof setTimeout> | undefined;
+let pressAt: [number, number] | null = null;
+let swallowClick = false;
+
+function reactionName(r: ReactionInfo): string | null {
+  const item = r.customEmojiId ? customItem(r.customEmojiId) : null;
+  return item?.name ?? (stripColons(r.emoji ?? "") || null);
+}
+
+function reactionTarget(r: ReactionInfo): ExpressionInfoTarget | null {
+  if (!r.customEmojiId) return null;
+  return { kind: "emoji", itemId: r.customEmojiId, spaceId: customItem(r.customEmojiId)?.spaceId ?? null, name: reactionName(r) };
+}
+
+function reactionTitle(r: ReactionInfo): string {
+  const name = reactionName(r);
+  return name ? customEmojiAlt(name) : t("reaction_custom_unknown");
+}
+
+function setInfo(r: ReactionInfo, open: boolean) {
+  const key = reactionKey(r);
+  if (open) infoKey.value = key;
+  else if (infoKey.value === key) infoKey.value = null;
+}
+
+function onClick(r: ReactionInfo) {
+  if (swallowClick) {
+    swallowClick = false;
+    return;
+  }
+  if (r.customEmojiId) emit("toggle-custom", r.customEmojiId);
+  else emit("toggle", r.emoji);
+}
+
+function onContextMenu(r: ReactionInfo, e: MouseEvent) {
+  if (!r.customEmojiId) return;
+  e.preventDefault();
+  setInfo(r, true);
+}
+
+function onPointerDown(r: ReactionInfo, e: PointerEvent) {
+  swallowClick = false;
+  if (!r.customEmojiId || e.pointerType !== "touch") return;
+  cancelPress();
+  pressAt = [e.clientX, e.clientY];
+  pressTimer = setTimeout(() => {
+    pressAt = null;
+    swallowClick = true;
+    setInfo(r, true);
+  }, LONG_PRESS_MS);
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (pressAt && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > LONG_PRESS_SLOP_PX) cancelPress();
+}
+
+function cancelPress() {
+  clearTimeout(pressTimer);
+  pressAt = null;
+}
+
+onBeforeUnmount(cancelPress);
 
 /** The row draws custom emoji through an overlay only when it has some. */
 const row = computed(() =>

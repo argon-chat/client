@@ -95,7 +95,9 @@
                     <PopoverContent
                       side="top"
                       align="end"
-                      class="w-auto p-0"
+                      :collision-padding="8"
+                      class="w-auto max-w-none p-0"
+                      data-testid="expression-picker-popover"
                       @open-auto-focus="onPickerOpenAutoFocus"
                       @close-auto-focus="onPickerCloseAutoFocus"
                       @focus-outside="onPickerFocusOutside"
@@ -431,7 +433,7 @@ const { t } = useLocale();
 
 const configStore = useConfigStore();
 
-const { gifsSelectorActive, stickersActive } = storeToRefs(useFeatureFlags());
+const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
 
 // ── GIFs (gated behind af.chat.gifs-selector): a message of one GIF entity and no text ──
 const canSendGifs = computed(
@@ -558,8 +560,8 @@ const handleSavedGifSelect = (gif: SavedGif) => {
   })();
 };
 
-// ── Stickers (gated behind af.chat.stickers): a message of one sticker entity and no text ──
-const canSendStickers = computed(() => stickersActive.value && canSendMessages.value && !props.editing && !props.captionMode);
+// ── Stickers: a message of one sticker entity and no text ──
+const canSendStickers = computed(() => canSendMessages.value && !props.editing && !props.captionMode);
 
 const handleStickerSelect = (item: ExpressionItem) => {
   if (!canSendStickers.value) return;

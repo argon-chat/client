@@ -1,38 +1,30 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { UploadCloudIcon, WandSparklesIcon } from "lucide-vue-next";
+import { UploadCloudIcon } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
 
 /**
- * Where files for a pack come in: dropped, chosen, or pasted anywhere while the settings are open
- * (not into a text field). Several at once. "Create from image" picks one picture for the sticker
- * workbench instead.
+ * Where files for a pack come in: a slim strip to click, the whole area it wraps (the pack's grid)
+ * to drop on, or a paste anywhere while the settings are open (not into a text field). Several at
+ * once.
  */
 const props = defineProps<{
   disabled?: boolean;
   hint: string;
   /** Why it is disabled, shown in place of the prompt. */
   disabledReason?: string | null;
-  /** Offer "Create from image" (the workbench needs WebGPU). */
-  canCreate?: boolean;
 }>();
 
-const emit = defineEmits<{ files: [files: File[]]; create: [file: File] }>();
+const emit = defineEmits<{ files: [files: File[]] }>();
 
 const { t } = useLocale();
 
 const ACCEPT = ".png,.webp,.tgs,.json,.webm,image/png,image/webp,video/webm,application/json,application/x-tgsticker";
-const IMAGE_ACCEPT = "image/png,image/webp,image/jpeg,image/gif,image/avif,image/bmp";
 
+const root = ref<HTMLElement | null>(null);
 const input = ref<HTMLInputElement | null>(null);
-const imageInput = ref<HTMLInputElement | null>(null);
 const over = ref(false);
-
-function onImageChange() {
-  const file = imageInput.value?.files?.[0];
-  if (imageInput.value) imageInput.value.value = "";
-  if (file && file.size > 0 && !props.disabled) emit("create", file);
-}
+let depth = 0;
 
 function take(list: FileList | File[] | null | undefined) {
   if (props.disabled || !list) return;
@@ -40,17 +32,31 @@ function take(list: FileList | File[] | null | undefined) {
   if (files.length) emit("files", files);
 }
 
-function onDrop(e: DragEvent) {
-  e.preventDefault();
-  over.value = false;
-  take(e.dataTransfer?.files);
+const carriesFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+
+function onDragEnter(e: DragEvent) {
+  if (props.disabled || !carriesFiles(e)) return;
+  depth++;
+  over.value = true;
+}
+
+function onDragLeave() {
+  depth = Math.max(0, depth - 1);
+  if (!depth) over.value = false;
 }
 
 function onDragOver(e: DragEvent) {
-  if (props.disabled || !e.dataTransfer?.types.includes("Files")) return;
+  if (props.disabled || !carriesFiles(e)) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = "copy";
+  e.dataTransfer!.dropEffect = "copy";
   over.value = true;
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault();
+  depth = 0;
+  over.value = false;
+  take(e.dataTransfer?.files);
 }
 
 function onChange() {
@@ -61,6 +67,9 @@ function onChange() {
 function onPaste(e: ClipboardEvent) {
   const target = e.target as HTMLElement | null;
   if (target?.closest("input, textarea, [contenteditable='true']")) return;
+  // A dialog over the settings (an item being edited) keeps its pastes; the settings' own drawer does not.
+  const dialog = target?.closest("[role='dialog']");
+  if (dialog && root.value && !dialog.contains(root.value)) return;
   const files = Array.from(e.clipboardData?.files ?? []);
   if (!files.length) return;
   e.preventDefault();
@@ -73,83 +82,100 @@ onBeforeUnmount(() => document.removeEventListener("paste", onPaste));
 
 <template>
   <div
-    class="upload-zone"
-    :class="{ 'upload-zone--over': over, 'upload-zone--disabled': disabled }"
+    ref="root"
+    class="upload-area"
+    :class="{ 'upload-area--over': over }"
     data-upload-zone
+    @dragenter="onDragEnter"
+    @dragleave="onDragLeave"
     @dragover="onDragOver"
-    @dragleave="over = false"
     @drop="onDrop"
   >
-    <UploadCloudIcon class="w-6 h-6 text-muted-foreground" aria-hidden="true" />
-    <div class="text-sm font-medium">
-      {{ disabled && disabledReason ? disabledReason : t("expression_settings_upload_title") }}
-    </div>
-    <div class="text-xs text-muted-foreground">{{ hint }}</div>
-    <div class="flex flex-wrap items-center justify-center gap-2">
-      <button type="button" class="upload-zone__choose" :disabled="disabled" @click="input?.click()">
-        {{ t("expression_settings_upload_choose") }}
-      </button>
-      <button
-        v-if="canCreate"
-        type="button"
-        class="upload-zone__choose upload-zone__create"
-        :disabled="disabled"
-        data-create-from-image
-        @click="imageInput?.click()"
-      >
-        <WandSparklesIcon class="w-3.5 h-3.5" aria-hidden="true" />
-        {{ t("expression_workbench_create_from_image") }}
-      </button>
-    </div>
+    <button
+      type="button"
+      class="upload-strip"
+      :class="{ 'upload-strip--over': over }"
+      :disabled="disabled"
+      data-upload-strip
+      @click="input?.click()"
+    >
+      <UploadCloudIcon class="w-4 h-4 shrink-0" aria-hidden="true" />
+      <span class="upload-strip__prompt">{{ disabled && disabledReason ? disabledReason : t("expression_settings_upload_title") }}</span>
+      <span class="upload-strip__hint" :title="hint">{{ hint }}</span>
+    </button>
     <input ref="input" type="file" class="hidden" multiple :accept="ACCEPT" :disabled="disabled" @change="onChange" />
-    <input ref="imageInput" type="file" class="hidden" :accept="IMAGE_ACCEPT" :disabled="disabled" @change="onImageChange" />
+    <slot />
   </div>
 </template>
 
 <style scoped>
-.upload-zone {
+.upload-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 18px 16px;
-  text-align: center;
-  border: 1.5px dashed hsl(var(--border));
+  gap: 12px;
+  min-width: 0;
   border-radius: var(--radius);
-  background: hsl(var(--muted) / 0.35);
-  transition: border-color 0.12s ease, background-color 0.12s ease;
+  outline: 2px dashed transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.12s ease;
 }
 
-.upload-zone--over {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.08);
+.upload-area--over {
+  outline-color: hsl(var(--primary) / 0.6);
 }
 
-.upload-zone--disabled {
-  opacity: 0.6;
-}
-
-.upload-zone__choose {
-  margin-top: 4px;
-  padding: 4px 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  border-radius: calc(var(--radius) - 2px);
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-}
-
-.upload-zone__choose:hover:not(:disabled) {
-  background: hsl(var(--accent));
-}
-
-.upload-zone__choose:disabled {
-  cursor: not-allowed;
-}
-
-.upload-zone__create {
-  display: inline-flex;
+.upload-strip {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 12px;
+  text-align: left;
+  color: hsl(var(--muted-foreground));
+  border: 1.5px dashed hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--muted) / 0.25);
+  transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.upload-strip:hover:not(:disabled),
+.upload-strip--over {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--primary) / 0.7);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.upload-strip:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.upload-strip__prompt {
+  flex: none;
+  max-width: 100%;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.upload-strip__hint {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 560px) {
+  .upload-strip {
+    flex-wrap: wrap;
+  }
+
+  .upload-strip__hint {
+    flex-basis: 100%;
+  }
 }
 </style>

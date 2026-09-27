@@ -24,7 +24,7 @@ export const FeatureFlagKeys = {
   OVERLAY_GAMES_ENABLED: "af.overlay.games.enabled",
   SCREENCAST_DRAWING: "af.screencast.drawing",
   CHAT_GIFS_SELECTOR: "af.chat.gifs-selector",
-  CHAT_STICKERS: "af.chat.stickers",
+  STICKERS_AND_EMOJI: "af.stickers_and_emoji",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -51,7 +51,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.OVERLAY_GAMES_ENABLED]: false,
     [FeatureFlagKeys.SCREENCAST_DRAWING]: false,
     [FeatureFlagKeys.CHAT_GIFS_SELECTOR]: false,
-    [FeatureFlagKeys.CHAT_STICKERS]: false,
+    [FeatureFlagKeys.STICKERS_AND_EMOJI]: false,
   });
 
   const flags = ref<Record<string, boolean>>(defaultFlags());
@@ -115,7 +115,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const screencastDrawingActive = computed(() => flags.value[FeatureFlagKeys.SCREENCAST_DRAWING]);
   const gifsSelectorActive = computed(() => flags.value[FeatureFlagKeys.CHAT_GIFS_SELECTOR]);
   /** Sending stickers (the picker tab, the send path). Stickers and custom emoji received always render. */
-  const stickersActive = computed(() => flags.value[FeatureFlagKeys.CHAT_STICKERS]);
+  const stickersAndEmojiActive = computed(() => flags.value[FeatureFlagKeys.STICKERS_AND_EMOJI]);
 
   return {
     flags,
@@ -140,6 +140,6 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     overlayGamesEnabled,
     screencastDrawingActive,
     gifsSelectorActive,
-    stickersActive,
+    stickersAndEmojiActive,
   };
 });

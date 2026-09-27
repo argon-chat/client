@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import type { EmojiEntry, SkinTone } from "@argon-chat/emojix";
+import { emojiRegistry, spriteResolver, type EmojiEntry, type SkinTone } from "@argon-chat/emojix";
 import { useLocale } from "@/store/system/localeStore";
-import { emojiWithTone, SKIN_TONES } from "./pickerModel";
+import { emojiWithTone, SKIN_TONES, tonedEntry } from "./pickerModel";
 
-/**
- * The six tones of one emoji, over the cell that was right-clicked or long-pressed. The sprite atlas
- * holds only the default tone, so the variants are drawn with the system emoji font.
- */
+/** The six tones of one emoji, drawn from the atlases, over the cell (or button) that asked for them. */
 const props = defineProps<{
   entry: EmojiEntry;
   anchor: HTMLElement;
@@ -22,6 +19,10 @@ const root = ref<HTMLElement | null>(null);
 const position = ref({ left: "0px", top: "0px", visibility: "hidden" as "hidden" | "visible" });
 
 const MARGIN = 8;
+const SIZE = 28;
+
+const byText = (text: string) => emojiRegistry.getByText(text);
+const spriteOf = (tone: SkinTone) => spriteResolver.getStyle(tonedEntry(props.entry, tone, byText), SIZE) ?? undefined;
 
 function place() {
   const menu = root.value;
@@ -82,9 +83,11 @@ onBeforeUnmount(() => document.removeEventListener("pointerdown", onOutside, tru
         :class="{ 'is-selected': tone === props.tone }"
         :aria-checked="tone === props.tone ? 'true' : 'false'"
         :data-tone="tone"
+        :aria-label="tonedEntry(entry, tone, byText).name"
         @click="emit('select', tone)"
       >
-        <span class="xp-tones__emoji">{{ emojiWithTone(entry, tone) }}</span>
+        <span v-if="spriteOf(tone)" class="xp-tones__sprite" :style="spriteOf(tone)" aria-hidden="true" />
+        <span v-else class="xp-tones__emoji">{{ emojiWithTone(entry, tone) }}</span>
       </button>
     </div>
   </Teleport>
@@ -121,6 +124,13 @@ onBeforeUnmount(() => document.removeEventListener("pointerdown", onOutside, tru
 
 .xp-tones__item.is-selected {
   box-shadow: inset 0 0 0 2px hsl(var(--primary));
+}
+
+.xp-tones__sprite {
+  display: block;
+  width: 28px;
+  height: 28px;
+  background-repeat: no-repeat;
 }
 
 .xp-tones__emoji {

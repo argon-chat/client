@@ -183,18 +183,25 @@
                   :reply-user="replyUser"
                   @click="emit('scroll-to-message', replyMessage!.messageId)"
                 />
-                <StickerView
+                <ExpressionInfoPopover
                   v-for="(s, si) in stickerEntities"
                   :key="`sticker-${si}`"
+                  :target="stickerTarget(s)"
                   :media="stickerMedia(s)"
-                  :size="stickerSize"
-                  :loop="true"
-                  :autoplay="stickerAutoplay"
-                  group="chat"
-                  role="img"
-                  :aria-label="t('sticker')"
-                  :title="t('sticker')"
-                />
+                >
+                  <button type="button" class="block rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="t('sticker')" data-testid="sticker-trigger">
+                    <StickerView
+                      :media="stickerMedia(s)"
+                      :size="stickerSize"
+                      :loop="true"
+                      :autoplay="stickerAutoplay"
+                      group="chat"
+                      role="img"
+                      :aria-label="t('sticker')"
+                      :title="t('sticker')"
+                    />
+                  </button>
+                </ExpressionInfoPopover>
                 <span
                   v-if="isGrouped"
                   class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full bg-black/40 text-[11px] text-white select-none pointer-events-none tabular-nums"
@@ -234,19 +241,25 @@
                 </div>
 
                 <!-- A sticker that came with text or files (a bot's message): above the bubble -->
-                <StickerView
+                <ExpressionInfoPopover
                   v-for="(s, si) in stickerEntities"
                   :key="`sticker-${si}`"
+                  :target="stickerTarget(s)"
                   :media="stickerMedia(s)"
-                  :size="stickerSize"
-                  :loop="true"
-                  :autoplay="stickerAutoplay"
-                  group="chat"
-                  role="img"
-                  class="mb-1"
-                  :aria-label="t('sticker')"
-                  :title="t('sticker')"
-                />
+                >
+                  <button type="button" class="block mb-1 rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="t('sticker')" data-testid="sticker-trigger">
+                    <StickerView
+                      :media="stickerMedia(s)"
+                      :size="stickerSize"
+                      :loop="true"
+                      :autoplay="stickerAutoplay"
+                      group="chat"
+                      role="img"
+                      :aria-label="t('sticker')"
+                      :title="t('sticker')"
+                    />
+                  </button>
+                </ExpressionInfoPopover>
 
                 <!-- Text/file bubble -->
                 <div
@@ -516,6 +529,8 @@ import { EXPRESSION_SIZES, customEmojiSize } from "@/lib/expressions/sizes";
 import { animationsEnabled } from "@/lib/expressions/settings";
 import StickerView from "./expressions/StickerView.vue";
 import CustomEmojiOverlay from "./expressions/CustomEmojiOverlay.vue";
+import ExpressionInfoPopover from "./expressions/ExpressionInfoPopover.vue";
+import { EXPRESSION_INFO_SPACE, type ExpressionInfoTarget } from "@/lib/expressions/expressionInfo";
 import { CUSTOM_EMOJI_SIZE } from "./chats/customEmojiSize";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -845,6 +860,10 @@ const isStickerOnly = computed(
 const stickerSize = computed(() => (props.narrow ? EXPRESSION_SIZES.chatStickerNarrow : EXPRESSION_SIZES.chatSticker));
 // The user's switch; its default already follows reduced motion, and an explicit "on" wins over it.
 const stickerAutoplay = computed(() => animationsEnabled.value);
+
+// A click on a sticker or a custom emoji opens where it comes from; "here" is this message's space.
+const stickerTarget = (s: MessageEntitySticker): ExpressionInfoTarget => ({ kind: "sticker", itemId: s.itemId, spaceId: s.spaceId });
+provide(EXPRESSION_INFO_SPACE, computed(() => props.message.spaceId || null));
 
 // ── Custom emoji and big emoji ──
 

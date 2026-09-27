@@ -19,7 +19,7 @@ function prepared(file: Blob): PreparedUpload {
 }
 
 function target(kind = ExpressionKind.Sticker): UploadTarget {
-  return { spaceId: "s1", packId: "p1", kind, emoji: ["🙂"], takenNames: () => new Set(), capacity: () => 10 };
+  return { spaceId: "s1", packId: "p1", kind, takenNames: () => new Set(), capacity: () => 10 };
 }
 
 function deferred<T>() {
@@ -81,9 +81,11 @@ describe("sticker workbench entry", () => {
     expect(prepare).toHaveBeenLastCalledWith(edited, ExpressionKind.Sticker);
     expect(uploaded).toHaveLength(1);
     expect(uploaded[0].file).toBe(edited);
-    expect(uploaded[0]).toMatchObject({ name: "Big Cat", contentType: "image/webp", packId: "p1" });
-    expect(uploads.fileOf(row.id)).toBe(edited);
+    expect(uploaded[0]).toMatchObject({ name: "Big Cat", contentType: "image/webp", packId: "p1", emoji: [] });
     expect(row.error).toBeNull();
+    // Gone up: the row leaves the grid to the store's item.
+    expect(uploads.rows.value).toHaveLength(0);
+    expect(uploads.fileOf(row.id)).toBeNull();
   });
 
   test("Edit on a file still in the queue holds it: the queue passes it by until the edit is saved", async () => {
@@ -167,9 +169,11 @@ describe("sticker workbench entry", () => {
 
     const ok = setup();
     await flush();
-    await ok.uploads.enqueue([png("fine.png")], target());
-    expect(ok.uploads.rows.value[0].status).toBe("done");
-    expect(ok.workbench.edit(ok.uploads.rows.value[0].id)).toBe(false);
+    const running = ok.uploads.enqueue([png("fine.png")], target());
+    const fine = ok.uploads.rows.value[0];
+    await running;
+    expect(fine.status).toBe("done");
+    expect(ok.workbench.edit(fine.id)).toBe(false);
   });
 
   test("a waiting file can be discarded", async () => {

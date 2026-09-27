@@ -23,7 +23,11 @@ vi.mock("@/store/system/fileStorage", () => ({
   cdnFetchUrl: (id: string) => `data:,${id}`,
   cdnCrossOrigin: () => undefined,
 }));
+vi.mock("@/store/db/dexie", () => ({
+  db: { servers: { get: async (id: string) => (id === "s-cats" ? { spaceId: "s-cats", name: "Cats", avatarFieldId: null } : undefined) } },
+}));
 
+import { nextTick } from "vue";
 import MessageReactions from "@/components/chats/MessageReactions.vue";
 import { EXPRESSION_RESOLVER, noopResolver } from "@/lib/expressions/resolver";
 
@@ -78,5 +82,95 @@ describe("MessageReactions", () => {
     await unknown.trigger("click");
     expect(w.emitted("toggle-custom")).toEqual([["item-party"], ["item-gone"]]);
     expect(w.emitted("toggle")).toBeUndefined();
+  });
+});
+
+describe("where a custom reaction comes from", () => {
+  const party = { itemId: "item-party", packId: "p-fun", spaceId: "s-cats", kind: 1, name: "party", fileId: "file-party", format: 0, width: 64, height: 64, textColor: false } as any;
+  const resolver = {
+    ...noopResolver,
+    itemById: (id: string) => (id === "item-party" ? party : null),
+    packOf: () => ({ packId: "p-fun", spaceId: "s-cats", kind: 1, title: "Fun" }) as any,
+  };
+  const custom = [
+    { emoji: "👍", customEmojiId: null, count: 1, userIds: ["you"] },
+    { emoji: ":party:", customEmojiId: "item-party", count: 3, userIds: ["you"] },
+    { emoji: ":gone:", customEmojiId: "item-gone", count: 2, userIds: ["me"] },
+  ] as any[];
+
+  const popover = () => document.body.querySelector<HTMLElement>('[data-testid="expression-info"]');
+  async function settle() {
+    for (let i = 0; i < 5; i++) {
+      await nextTick();
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  function mountRow() {
+    return mount(MessageReactions, {
+      attachTo: document.body,
+      props: { reactions: custom, currentUserId: "me", canReact: true },
+      global: { provide: { [EXPRESSION_RESOLVER as symbol]: resolver } },
+    });
+  }
+
+  test("right-click opens it (name, pack, space) without toggling; a click still toggles", async () => {
+    const w = mountRow();
+    const [plain, known] = w.findAll("button");
+    expect(known.attributes("title")).toBe(":party:");
+
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    known.element.dispatchEvent(menu);
+    await settle();
+    expect(menu.defaultPrevented).toBe(true);
+    expect(popover()?.querySelector('[data-testid="expression-info-label"]')?.textContent).toBe(":party:");
+    expect(popover()?.querySelector('[data-testid="expression-info-pack"]')?.textContent).toContain("Fun");
+    expect(popover()?.querySelector('[data-testid="expression-info-space-name"]')?.textContent).toBe("Cats");
+    expect(w.emitted("toggle-custom")).toBeUndefined();
+
+    // A plain emoji's right-click is left alone.
+    const plainMenu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    plain.element.dispatchEvent(plainMenu);
+    expect(plainMenu.defaultPrevented).toBe(false);
+
+    await known.trigger("click");
+    expect(w.emitted("toggle-custom")).toEqual([["item-party"]]);
+    w.unmount();
+  });
+
+  test("an emoji this client does not know: the name from the reaction, from another space", async () => {
+    const w = mountRow();
+    const unknown = w.findAll("button")[2];
+    expect(unknown.attributes("title")).toBe(":gone:");
+    unknown.element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    await settle();
+    expect(popover()?.querySelector('[data-testid="expression-info-label"]')?.textContent).toBe(":gone:");
+    expect(popover()?.querySelector('[data-testid="expression-info-other-space"]')).not.toBeNull();
+    w.unmount();
+  });
+
+  test("a long press on touch opens it and the click that ends it does not toggle", async () => {
+    vi.useFakeTimers();
+    try {
+      const w = mountRow();
+      const known = w.findAll("button")[1];
+      known.element.dispatchEvent(new PointerEvent("pointerdown", { pointerType: "touch", clientX: 10, clientY: 10, bubbles: true }));
+      await vi.advanceTimersByTimeAsync(600);
+      known.element.dispatchEvent(new PointerEvent("pointerup", { pointerType: "touch", bubbles: true }));
+      await known.trigger("click");
+      expect(w.emitted("toggle-custom")).toBeUndefined();
+      vi.useRealTimers();
+      await settle();
+      expect(popover()?.querySelector('[data-testid="expression-info-label"]')?.textContent).toBe(":party:");
+
+      // A tap is still a toggle.
+      known.element.dispatchEvent(new PointerEvent("pointerdown", { pointerType: "touch", bubbles: true }));
+      known.element.dispatchEvent(new PointerEvent("pointerup", { pointerType: "touch", bubbles: true }));
+      await known.trigger("click");
+      expect(w.emitted("toggle-custom")).toEqual([["item-party"]]);
+      w.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

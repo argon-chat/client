@@ -19,6 +19,7 @@ import { isExpressionMode, type MaskStroke, type Vec2 } from '../types';
 import { createMaskRaster, type MaskRasterCanvas } from '../mask/maskRaster';
 import { canvasToSource, maskResolution, outlineRadiusOnCanvas } from '../mask/maskMath';
 import { fitExpressionContent } from '../finalRender/computeExportDimensions';
+import getResultTransform from '../finalRender/getResultTransform';
 
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
@@ -64,8 +65,8 @@ onMounted(async () => {
     store.mediaState.videoQuality = resolveOutputQuality(payload.media.height);
   }
 
-  // Init image ratio + scale for avatar mode (and emoji, which are square unless asked otherwise)
-  if ((mode === 'avatar' || mode === 'emoji') && !store.mediaState.currentImageRatio) {
+  // Avatars start as a centred square. Emoji start uncropped: the export fits them into 100×100.
+  if (mode === 'avatar' && !store.mediaState.currentImageRatio) {
     const co = cropOffset.value;
     const squareRatio = 1;
     const [w1, h1] = fitToAspectRatio(payload.media.width / payload.media.height, co.width, co.height);
@@ -201,7 +202,14 @@ function outlineOnCanvas(): OutlineDrawParams | null {
   if (!expression || !payload || !o.enabled || o.radius <= 0 || !isExpressionMode(mode)) return null;
   const ratio = store.mediaState.currentImageRatio || payload.media.width / payload.media.height;
   const [w, h] = fitExpressionContent(mode, ratio);
-  const outputScale = Math.max(w / payload.media.width, h / payload.media.height) * store.mediaState.scale;
+  const { scale: outputScale } = getResultTransform({
+    scaledWidth: w,
+    scaledHeight: h,
+    imageWidth: payload.media.width,
+    imageHeight: payload.media.height,
+    cropOffset: cropOffset.value,
+    mediaState: store.mediaState
+  });
   return { radius: outlineRadiusOnCanvas(o.radius, store.uiState.finalTransform.scale, outputScale), color: o.color };
 }
 

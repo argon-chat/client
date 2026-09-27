@@ -1,10 +1,13 @@
 import { codepointsToString, SKIN_TONE_CODEPOINTS, type EmojiEntry, type SkinTone } from "@argon-chat/emojix";
 import type { ExpressionItem, ExpressionPack } from "@argon/glue";
 
-// The expression picker without Vue: what its sections are, where each one sits in the scroller, which
-// rows of it are on screen, and which one the category bar should show as current.
+// The expression picker without Vue: its groups and sections, the rail beside them, where each one
+// sits in the scroller, which rows are on screen, and which group the rail shows as current.
 
 export type PickerTab = "emoji" | "stickers" | "gifs";
+
+/** The header's order. */
+export const TAB_ORDER: readonly PickerTab[] = ["stickers", "gifs", "emoji"];
 
 export const UNICODE_GROUPS = ["smileys", "people", "animals", "food", "travel", "activities", "objects", "symbols", "flags"] as const;
 export type UnicodeGroup = (typeof UNICODE_GROUPS)[number];
@@ -26,17 +29,34 @@ export type PickerCell =
   | { type: "custom"; key: string; item: ExpressionItem }
   | { type: "sticker"; key: string; item: ExpressionItem };
 
-export type SectionIcon =
+export interface SpaceInfo {
+  spaceId: string;
+  name: string;
+  avatarFileId: string | null;
+}
+
+/** A block of cells; `title` is a pack's sub-header under its space's header. */
+export interface PickerSection {
+  id: string;
+  title: string | null;
+  cells: PickerCell[];
+}
+
+export type GroupKind =
   | { type: "recent" }
   | { type: "search" }
-  | { type: "group"; group: UnicodeGroup }
-  | { type: "pack"; cover: ExpressionItem | null };
+  | { type: "unicode"; group: UnicodeGroup }
+  /** Emoji: all of a space's packs. */
+  | { type: "space"; space: SpaceInfo }
+  /** Stickers: one pack. */
+  | { type: "pack"; space: SpaceInfo; cover: ExpressionItem | null };
 
-export interface PickerSectionData {
+/** What sits under one sticky header, and what the rail jumps to. */
+export interface PickerGroup {
   id: string;
   title: string;
-  icon: SectionIcon;
-  cells: PickerCell[];
+  kind: GroupKind;
+  sections: PickerSection[];
 }
 
 export type Label = (key: string) => string;
@@ -50,76 +70,144 @@ export function packCover(pack: ExpressionPack): ExpressionItem | null {
   return (pack.coverItemId ? pack.items.find((i) => i.itemId === pack.coverItemId) : undefined) ?? pack.items[0] ?? null;
 }
 
-const packSectionId = (pack: ExpressionPack) => `pack:${pack.packId}`;
+const single = (id: string, cells: PickerCell[]): PickerSection[] => [{ id, title: null, cells }];
 
-export interface EmojiSectionsInput {
-  recent: PickerCell[];
-  groups: { id: UnicodeGroup; entries: EmojiEntry[] }[];
+export interface SpacePacks {
+  space: SpaceInfo;
   packs: ExpressionPack[];
+}
+
+export interface EmojiGroupsInput {
+  recent: PickerCell[];
+  spaces: SpacePacks[];
+  unicode: { id: UnicodeGroup; entries: EmojiEntry[] }[];
   label: Label;
 }
 
-/** Recent, then the unicode groups, then the space's emoji packs. Empty sections are left out. */
-export function buildEmojiSections({ recent, groups, packs, label }: EmojiSectionsInput): PickerSectionData[] {
-  const out: PickerSectionData[] = [];
-  if (recent.length) out.push({ id: "recent", title: label("expression_picker_recent"), icon: { type: "recent" }, cells: recent });
-  for (const group of groups) {
+/** Recent, then each space (its packs as sub-sections when it has several), then the unicode groups. */
+export function buildEmojiGroups({ recent, spaces, unicode, label }: EmojiGroupsInput): PickerGroup[] {
+  const out: PickerGroup[] = [];
+  if (recent.length) out.push({ id: "recent", title: label("expression_picker_recent"), kind: { type: "recent" }, sections: single("recent", recent) });
+  for (const { space, packs } of spaces) {
+    const filled = packs.filter((p) => p.items.length > 0);
+    if (!filled.length) continue;
+    out.push({
+      id: `space:${space.spaceId}`,
+      title: space.name,
+      kind: { type: "space", space },
+      sections: filled.map((pack) => ({ id: `pack:${pack.packId}`, title: filled.length > 1 ? pack.title : null, cells: pack.items.map(customCell) })),
+    });
+  }
+  for (const group of unicode) {
     if (!group.entries.length) continue;
     out.push({
       id: group.id,
       title: label(GROUP_LABELS[group.id]),
-      icon: { type: "group", group: group.id },
-      cells: group.entries.map(unicodeCell),
+      kind: { type: "unicode", group: group.id },
+      sections: single(group.id, group.entries.map(unicodeCell)),
     });
-  }
-  for (const pack of packs) {
-    if (!pack.items.length) continue;
-    out.push({ id: packSectionId(pack), title: pack.title, icon: { type: "pack", cover: packCover(pack) }, cells: pack.items.map(customCell) });
   }
   return out;
 }
 
-export interface StickerSectionsInput {
+export interface StickerGroupsInput {
   recent: ExpressionItem[];
-  packs: ExpressionPack[];
+  spaces: SpacePacks[];
   label: Label;
 }
 
-export function buildStickerSections({ recent, packs, label }: StickerSectionsInput): PickerSectionData[] {
-  const out: PickerSectionData[] = [];
-  if (recent.length) out.push({ id: "recent", title: label("expression_picker_recent"), icon: { type: "recent" }, cells: recent.map(stickerCell) });
-  for (const pack of packs) {
-    if (!pack.items.length) continue;
-    out.push({ id: packSectionId(pack), title: pack.title, icon: { type: "pack", cover: packCover(pack) }, cells: pack.items.map(stickerCell) });
+/** Recent, then one group per pack, headed "Pack · Space". */
+export function buildStickerGroups({ recent, spaces, label }: StickerGroupsInput): PickerGroup[] {
+  const out: PickerGroup[] = [];
+  if (recent.length) {
+    out.push({ id: "recent", title: label("expression_picker_recent"), kind: { type: "recent" }, sections: single("recent", recent.map(stickerCell)) });
+  }
+  for (const { space, packs } of spaces) {
+    for (const pack of packs) {
+      if (!pack.items.length) continue;
+      const id = `pack:${pack.packId}`;
+      out.push({
+        id,
+        title: `${pack.title} · ${space.name}`,
+        kind: { type: "pack", space, cover: packCover(pack) },
+        sections: single(id, pack.items.map(stickerCell)),
+      });
+    }
   }
   return out;
 }
 
 export interface SearchDeps {
   unicode: (query: string) => EmojiEntry[];
-  custom: (query: string) => ExpressionItem[];
+  /** Matching custom emoji of each space, in the spaces' order. */
+  custom: (query: string) => { space: SpaceInfo; items: ExpressionItem[] }[];
   stickers: (query: string) => ExpressionItem[];
   label: Label;
 }
 
-/** Results as sections: the space's own emoji before unicode ones; stickers by name, keyword or emoji. */
-export function buildSearchSections(tab: "emoji" | "stickers", query: string, deps: SearchDeps): PickerSectionData[] {
+/** Results as groups: custom emoji by space before unicode ones; stickers by name, keyword or emoji. */
+export function buildSearchGroups(tab: "emoji" | "stickers", query: string, deps: SearchDeps): PickerGroup[] {
   const q = query.trim();
   if (!q) return [];
+  const search = { type: "search" } as const;
   if (tab === "stickers") {
     const stickers = deps.stickers(q);
     return stickers.length
-      ? [{ id: "search:stickers", title: deps.label("expression_picker_search_stickers"), icon: { type: "search" }, cells: stickers.map(stickerCell) }]
+      ? [{ id: "search:stickers", title: deps.label("expression_picker_search_stickers"), kind: search, sections: single("search:stickers", stickers.map(stickerCell)) }]
       : [];
   }
-  const out: PickerSectionData[] = [];
-  const custom = deps.custom(q);
-  if (custom.length) {
-    out.push({ id: "search:custom", title: deps.label("expression_picker_search_custom"), icon: { type: "search" }, cells: custom.map(customCell) });
+  const out: PickerGroup[] = [];
+  for (const { space, items } of deps.custom(q)) {
+    if (!items.length) continue;
+    const id = `search:space:${space.spaceId}`;
+    out.push({ id, title: space.name, kind: search, sections: single(id, items.map(customCell)) });
   }
   const unicode = deps.unicode(q);
   if (unicode.length) {
-    out.push({ id: "search:unicode", title: deps.label("expression_picker_search_emoji"), icon: { type: "search" }, cells: unicode.map(unicodeCell) });
+    out.push({ id: "search:unicode", title: deps.label("expression_picker_search_emoji"), kind: search, sections: single("search:unicode", unicode.map(unicodeCell)) });
+  }
+  return out;
+}
+
+// ── rail ────────────────────────────────────────────────────────────────────────────────────────
+
+export type RailEntry =
+  | { type: "recent"; id: string; target: string; label: string; within: string[]; block: string }
+  | { type: "space"; id: string; target: string; label: string; within: string[]; block: string; space: SpaceInfo }
+  | { type: "pack"; id: string; target: string; label: string; within: string[]; block: string; cover: ExpressionItem | null }
+  | { type: "unicode"; id: string; target: string; label: string; within: string[]; block: string; group: UnicodeGroup };
+
+/**
+ * The rail beside the grid: recent, one icon per space (followed, on the sticker tab, by its packs'
+ * covers), then the unicode groups. `target` is the group a click scrolls to; the entry shows as
+ * current while the scroll is in any group of `within`. Entries of one `block` sit together.
+ */
+export function buildRail(groups: readonly PickerGroup[]): RailEntry[] {
+  const out: RailEntry[] = [];
+  let spaceEntry = null as Extract<RailEntry, { type: "space" }> | null;
+  for (const group of groups) {
+    const { kind } = group;
+    switch (kind.type) {
+      case "recent":
+        out.push({ type: "recent", id: "recent", target: group.id, label: group.title, within: [group.id], block: "recent" });
+        break;
+      case "space":
+        out.push({ type: "space", id: group.id, target: group.id, label: kind.space.name, within: [group.id], block: group.id, space: kind.space });
+        break;
+      case "pack": {
+        const block = `space:${kind.space.spaceId}`;
+        if (spaceEntry?.block !== block) {
+          spaceEntry = { type: "space", id: block, target: group.id, label: kind.space.name, within: [], block, space: kind.space };
+          out.push(spaceEntry);
+        }
+        spaceEntry.within.push(group.id);
+        out.push({ type: "pack", id: group.id, target: group.id, label: group.title, within: [group.id], block, cover: kind.cover });
+        break;
+      }
+      case "unicode":
+        out.push({ type: "unicode", id: group.id, target: group.id, label: group.title, within: [group.id], block: "unicode", group: kind.group });
+        break;
+    }
   }
   return out;
 }
@@ -197,6 +285,12 @@ export function emojiWithTone(entry: EmojiEntry, tone: SkinTone): string {
   return codepointsToString(out);
 }
 
+/** The atlas entry that draws `entry` in `tone` (the atlases hold every variant); the base without one. */
+export function tonedEntry(entry: EmojiEntry, tone: SkinTone, byText: (text: string) => EmojiEntry | undefined): EmojiEntry {
+  if (!entry.hasSkinTones || tone === "default") return entry;
+  return byText(emojiWithTone(entry, tone)) ?? entry;
+}
+
 // ── layout ──────────────────────────────────────────────────────────────────────────────────────
 
 export interface GridMetrics {
@@ -205,25 +299,46 @@ export interface GridMetrics {
   /** Least horizontal gap; the spare width is shared out between the columns. */
   gapX: number;
   gapY: number;
+  /** A group's sticky header. */
   header: number;
+  /** A pack's title inside its space's group. */
+  subheader: number;
   /** Space after a section's last row. */
   sectionGap: number;
 }
 
-export const EMOJI_GRID: GridMetrics = { cell: 42, gapX: 4, gapY: 0, header: 32, sectionGap: 8 };
-export const STICKER_GRID: GridMetrics = { cell: 72, gapX: 4, gapY: 4, header: 32, sectionGap: 8 };
+export const EMOJI_GRID: GridMetrics = { cell: 40, gapX: 4, gapY: 2, header: 32, subheader: 24, sectionGap: 8 };
+export const STICKER_GRID: GridMetrics = { cell: 96, gapX: 4, gapY: 4, header: 32, subheader: 24, sectionGap: 8 };
+
+/** What a cell draws inside its box. */
+export const EMOJI_ART = 32;
+export const STICKER_ART = 88;
 
 export interface SectionLayout {
   id: string;
+  /** Across all groups: the keyboard's and `data-cell`'s section number. */
   index: number;
+  group: number;
   /** From the top of the scroll content. */
   top: number;
+  /** Where its first row starts: under its sub-header, if any. */
+  itemsTop: number;
   height: number;
   rows: number;
   count: number;
 }
 
+export interface GroupLayout {
+  id: string;
+  index: number;
+  top: number;
+  height: number;
+  /** Its sections' indices. */
+  sections: number[];
+}
+
 export interface GridLayout {
+  groups: GroupLayout[];
   sections: SectionLayout[];
   height: number;
   columns: number;
@@ -232,34 +347,50 @@ export interface GridLayout {
   metrics: GridMetrics;
 }
 
+type LayoutInput = readonly { id: string; sections: readonly { id: string; title: string | null; cells: readonly unknown[] }[] }[];
+
 export function columnsFor(width: number, m: GridMetrics): number {
   return Math.max(1, Math.floor((width + m.gapX) / (m.cell + m.gapX)));
 }
 
 export const rowPitch = (m: GridMetrics) => m.cell + m.gapY;
 
-/** Every section's height is known before any of it is mounted: rows × pitch under its header. */
-export function layoutGrid(sections: readonly { id: string; cells: readonly unknown[] }[], width: number, m: GridMetrics): GridLayout {
+export const rowsHeight = (rows: number, m: GridMetrics) => (rows ? rows * m.cell + (rows - 1) * m.gapY : 0);
+
+/**
+ * Every group's and section's height is known before any of it is mounted: a group is its header
+ * and its sections; a section its sub-header (if any), its rows, and a gap.
+ */
+export function layoutGrid(groups: LayoutInput, width: number, m: GridMetrics): GridLayout {
   const columns = columnsFor(width, m);
   const gapX = columns > 1 ? Math.max(m.gapX, Math.min(m.cell / 2, (width - columns * m.cell) / (columns - 1))) : 0;
-  const out: SectionLayout[] = [];
+  const outGroups: GroupLayout[] = [];
+  const outSections: SectionLayout[] = [];
   let top = 0;
-  sections.forEach((section, index) => {
-    const count = section.cells.length;
-    const rows = Math.ceil(count / columns);
-    const height = m.header + (rows ? rows * m.cell + (rows - 1) * m.gapY : 0) + m.sectionGap;
-    out.push({ id: section.id, index, top, height, rows, count });
-    top += height;
+  groups.forEach((group, g) => {
+    const groupTop = top;
+    const indices: number[] = [];
+    top += m.header;
+    for (const section of group.sections) {
+      const count = section.cells.length;
+      const rows = Math.ceil(count / columns);
+      const sub = section.title ? m.subheader : 0;
+      const height = sub + rowsHeight(rows, m) + m.sectionGap;
+      const index = outSections.length;
+      indices.push(index);
+      outSections.push({ id: section.id, index, group: g, top, itemsTop: top + sub, height, rows, count });
+      top += height;
+    }
+    outGroups.push({ id: group.id, index: g, top: groupTop, height: top - groupTop, sections: indices });
   });
-  return { sections: out, height: top, columns, gapX, metrics: m };
+  return { groups: outGroups, sections: outSections, height: top, columns, gapX, metrics: m };
 }
 
 /** Rows of `section` within [viewTop, viewBottom] plus `overscan` px either side, as [first, end). */
 export function visibleRowRange(section: SectionLayout, m: GridMetrics, viewTop: number, viewBottom: number, overscan = 0): [number, number] {
-  const itemsTop = section.top + m.header;
   const pitch = rowPitch(m);
-  const from = viewTop - overscan - itemsTop;
-  const to = viewBottom + overscan - itemsTop;
+  const from = viewTop - overscan - section.itemsTop;
+  const to = viewBottom + overscan - section.itemsTop;
   if (to < 0 || section.rows === 0) return [0, 0];
   const first = Math.max(0, Math.floor(from / pitch));
   const end = Math.min(section.rows, Math.floor(to / pitch) + 1);
@@ -267,16 +398,16 @@ export function visibleRowRange(section: SectionLayout, m: GridMetrics, viewTop:
 }
 
 /**
- * The section the category bar shows as current: the one whose header sticks at the top. Scrolled to
- * the end, the last one — a short last section would otherwise never become current.
+ * The group the rail shows as current: the one whose header sticks at the top. Scrolled to the end,
+ * the last one — a short last group would otherwise never become current.
  */
-export function activeSectionIndex(layout: GridLayout, scrollTop: number, viewport: number): number {
-  const { sections } = layout;
-  if (!sections.length) return -1;
-  if (viewport > 0 && scrollTop > 0 && scrollTop + viewport >= layout.height - 1) return sections.length - 1;
+export function activeGroupIndex(layout: GridLayout, scrollTop: number, viewport: number): number {
+  const { groups } = layout;
+  if (!groups.length) return -1;
+  if (viewport > 0 && scrollTop > 0 && scrollTop + viewport >= layout.height - 1) return groups.length - 1;
   let active = 0;
-  for (const s of sections) {
-    if (s.top <= scrollTop + 1) active = s.index;
+  for (const g of groups) {
+    if (g.top <= scrollTop + 1) active = g.index;
     else break;
   }
   return active;
@@ -287,6 +418,6 @@ export function cellOffset(layout: GridLayout, section: number, index: number): 
   const s = layout.sections[section];
   const m = layout.metrics;
   const row = Math.floor(index / layout.columns);
-  const top = s.top + m.header + row * rowPitch(m);
+  const top = s.itemsTop + row * rowPitch(m);
   return { top, bottom: top + m.cell };
 }

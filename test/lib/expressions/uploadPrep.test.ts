@@ -291,10 +291,13 @@ describe("names, emoji and keywords", () => {
     expect(slugify("Café déjà vu")).toBe("cafe_deja_vu");
   });
 
-  test("1 to 20 associated emoji; at most 20 keywords, 64 characters in all", () => {
-    expect(associatedEmojiError([])).toBe("expression_settings_emoji_required");
+  test("associated emoji are optional, at most 20; at most 20 keywords, 64 characters in all", () => {
+    expect(associatedEmojiError([])).toBeNull();
     expect(associatedEmojiError(["😀"])).toBeNull();
+    expect(associatedEmojiError(Array(20).fill("😀"))).toBeNull();
     expect(associatedEmojiError(Array(21).fill("😀"))).toBe("expression_settings_emoji_too_many");
+    expect(associatedEmojiError([" "])).toBe("expression_settings_emoji_invalid");
+    expect(associatedEmojiError(["x".repeat(33)])).toBe("expression_settings_emoji_invalid");
     expect(keywordsError([])).toBeNull();
     expect(keywordsError(Array(21).fill("a"))).toBe("expression_settings_keywords_too_many");
     expect(keywordsError(["a".repeat(40), "b".repeat(25)])).toBe("expression_settings_keywords_too_long");

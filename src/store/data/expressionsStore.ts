@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, shallowReactive, shallowRef } from "vue";
-import { logger } from "@argon/core";
+import { delay, logger } from "@argon/core";
 import { persisted, type PersistedRef } from "@argon/storage";
 import {
   ExpressionError,
@@ -33,6 +33,10 @@ export const EXPRESSIONS_RETRY_MS = 5_000;
 export const EXPRESSIONS_REFRESH_DEBOUNCE_MS = 300;
 export const EXPRESSIONS_REFRESH_JITTER_MS = 2_000;
 export const RECENT_EXPRESSIONS_LIMIT = 32;
+/** `ensureLoadedAll` sweeps the user's spaces at most this often. */
+export const EXPRESSIONS_LOAD_ALL_INTERVAL_MS = 5 * 60_000;
+/** Pause between two of the sweep's requests, so opening the picker is not a burst. */
+export const EXPRESSIONS_LOAD_ALL_GAP_MS = 250;
 
 export const RECENT_STICKERS_KEY = "argon_recent_stickers";
 export const RECENT_EMOJI_KEY = "argon_recent_emoji";
@@ -462,6 +466,50 @@ export const useExpressionsStore = defineStore("expressions", () => {
     return revalidate(spaceId);
   }
 
+  let loadAllRun: Promise<void> | null = null;
+  let loadAllAt = -Infinity;
+
+  const isDue = (spaceId: string) => !inflight.has(spaceId) && Date.now() >= (nextRevalidateAt.get(spaceId) ?? 0);
+
+  /**
+   * Every space the user is in (a direct chat's picker offers all of them): the cached copies at
+   * once, then the server one space after another with a pause between. At most once per
+   * EXPRESSIONS_LOAD_ALL_INTERVAL_MS; spaces already fresh are skipped.
+   */
+  function ensureLoadedAll(): Promise<void> {
+    if (loadAllRun) return loadAllRun;
+    const now = Date.now();
+    if (now - loadAllAt < EXPRESSIONS_LOAD_ALL_INTERVAL_MS) return Promise.resolve();
+    loadAllAt = now;
+    const gen = generation;
+    const run = (async () => {
+      let spaceIds: string[];
+      try {
+        spaceIds = (await db.servers.toCollection().primaryKeys()).map(String);
+      } catch (e) {
+        logger.warn("[expressions] space list read failed", e);
+        return;
+      }
+      if (gen !== generation) return;
+      await Promise.all(spaceIds.map(hydrate));
+      let requested = false;
+      for (const spaceId of spaceIds) {
+        if (gen !== generation) return;
+        if (!isDue(spaceId)) continue;
+        if (requested) {
+          await delay(EXPRESSIONS_LOAD_ALL_GAP_MS);
+          if (gen !== generation) return;
+        }
+        requested = true;
+        await ensureLoaded(spaceId);
+      }
+    })().finally(() => {
+      if (loadAllRun === run) loadAllRun = null;
+    });
+    loadAllRun = run;
+    return run;
+  }
+
   /**
    * Refetch because an event says the copy is behind; not held back by the revalidation window.
    * Calls within the debounce collapse into one request, sent after a random jitter so a change
@@ -717,6 +765,8 @@ export const useExpressionsStore = defineStore("expressions", () => {
     inflight.clear();
     again.clear();
     nextRevalidateAt.clear();
+    loadAllRun = null;
+    loadAllAt = -Infinity;
     bySpace.clear();
     recentStickerStore.value = openRecent(RECENT_STICKERS_KEY);
     recentEmojiStore.value = openRecent(RECENT_EMOJI_KEY);
@@ -728,6 +778,7 @@ export const useExpressionsStore = defineStore("expressions", () => {
     recentEmoji,
 
     ensureLoaded,
+    ensureLoadedAll,
     refresh,
     applyChange,
 

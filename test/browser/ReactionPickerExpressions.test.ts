@@ -1,15 +1,16 @@
 /**
  * Reacting from a message's hover bar, in a real browser: the quick row reacts with a unicode emoji;
- * "more" opens the expressions picker in reaction mode (the emoji tab alone, with the space's own),
- * and a custom emoji picked there toggles a custom reaction by its item id. In a direct chat the
- * picker offers every loaded space's emoji.
+ * "more" opens the expressions picker in reaction mode (the emoji tab alone, with its tab bar, rail
+ * and search, the space's own emoji included, at the composer picker's full size), and a custom emoji
+ * picked there toggles a custom reaction by its item id. In a direct chat the picker loads and offers
+ * every space's emoji.
  */
 
 import "../../packages/assets/styles/index.css";
 import { describe, test, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { createPinia, setActivePinia } from "pinia";
 import { emojiRegistry, initializeEmojix } from "@argon-chat/emojix";
 import { ExpressionFormat, ExpressionKind, type ExpressionItem, type ExpressionPack } from "@argon/glue";
@@ -65,6 +66,7 @@ vi.mock("@/components/chats/GifPicker.vue", () => h.stub("GifPicker"));
 import { IonDateTime } from "@argon-chat/ion.webcore";
 import MessageItem from "@/components/MessageItem.vue";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
+import { db } from "@/store/db/dexie";
 import { EXPRESSION_RESOLVER, createStoreResolver } from "@/lib/expressions/resolver";
 
 const emojiItem = (spaceId: string, itemId: string, packId: string, sortOrder: number): ExpressionItem => ({
@@ -86,6 +88,7 @@ const emojiItem = (spaceId: string, itemId: string, packId: string, sortOrder: n
   sortOrder,
   downloadUrl: null,
   thumbUrl: null,
+  creatorId: null,
 });
 
 const emojiPack = (spaceId: string, packId: string, prefix: string, count: number): ExpressionPack => ({
@@ -98,6 +101,7 @@ const emojiPack = (spaceId: string, packId: string, prefix: string, count: numbe
   sortOrder: 0,
   version: 1n,
   items: Array.from({ length: count }, (_, i) => emojiItem(spaceId, `${prefix}-${i}`, packId, i)),
+  creatorId: null,
 });
 
 function seed(spaceId: string, packs: ExpressionPack[]) {
@@ -177,11 +181,13 @@ async function search(query: string) {
 
 beforeAll(async () => {
   await initializeEmojix();
+  await page.viewport(1280, 900);
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   setActivePinia(createPinia());
+  await db.servers.clear();
   seed("s1", [emojiPack("s1", "ep", "em", 2)]);
 });
 
@@ -203,8 +209,11 @@ describe("reacting to a message", () => {
   test("more: the picker in reaction mode; a custom emoji toggles a custom reaction by its item id", async () => {
     const { w, toggleCustomReaction, toggleReaction } = await render();
     await openFullPicker(w);
-    expect($(".xp-tabs")).toBeNull();
+    expect([...document.querySelectorAll<HTMLElement>(".xp-tabs__tab")].map((b) => b.dataset.tab)).toEqual(["emoji"]);
     expect(document.activeElement).toBe($(".xp-search__input"));
+    // The same panel as the composer's, at its full size, the rail beside the grid.
+    expect($(".xp")!.getBoundingClientRect().width).toBe(498);
+    expect($(".xp-rail")).not.toBeNull();
 
     await search("em_1");
     await until(() => !!$(".xp-cell--custom"));
@@ -217,7 +226,7 @@ describe("reacting to a message", () => {
   test("more: a unicode pick toggles that emoji", async () => {
     const { w, toggleReaction } = await render();
     await openFullPicker(w);
-    await userEvent.click($('[data-cell="0:0"]')!);
+    await userEvent.click($('[data-group-id="smileys"] .xp-cell')!);
     const first = emojiRegistry.getByCategory("smileys")[0];
     expect(toggleReaction).toHaveBeenCalledWith(1n, String.fromCodePoint(...first.codepoints));
   });
@@ -229,13 +238,15 @@ describe("reacting to a message", () => {
     await until(() => !$(".xp"));
   });
 
-  test("in a direct chat the picker offers every loaded space's emoji", async () => {
+  test("in a direct chat the picker loads and offers every space's emoji, a rail icon per space", async () => {
     seed("s2", [emojiPack("s2", "ep2", "other", 1)]);
+    const loadAll = vi.spyOn(useExpressionsStore(), "ensureLoadedAll");
     const { w, toggleCustomReaction } = await render("");
     await openFullPicker(w);
-    const packs = () =>
-      [...document.querySelectorAll<HTMLElement>(".xp-bar__item")].map((b) => b.dataset.section).filter((s) => s?.startsWith("pack:"));
-    expect(packs()).toEqual(["pack:ep", "pack:ep2"]);
+    expect(loadAll).toHaveBeenCalledTimes(1);
+    const spaces = () =>
+      [...document.querySelectorAll<HTMLElement>(".xp-rail__item")].map((b) => b.dataset.rail).filter((s) => s?.startsWith("space:"));
+    expect(spaces()).toEqual(["space:s1", "space:s2"]);
 
     await search("other");
     await until(() => !!$(".xp-cell--custom"));

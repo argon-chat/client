@@ -55,20 +55,24 @@ import BotsSettings from "./settings/spaces/BotsSettings.vue";
 import ExpressionsSettings from "./settings/spaces/ExpressionsSettings.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import { useLocale } from "@/store/system/localeStore";
+import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
 const windows = useWindow();
 const pex = usePexStore();
+const features = useFeatureFlags();
 const { t } = useLocale();
 
 // Each category declares the permission required to see it, so the nav adapts
 // to what the current member is actually allowed to manage.
 // `perm` may list several flags: any one of them shows the category. `labelKey` is translated.
+// `feature`, when set, hides the category until that feature is on.
 type Category = {
     id: ServerSettingsCategory;
     label?: string;
     labelKey?: string;
     icon: Component;
     perm: ArgonEntitlementFlag | readonly ArgonEntitlementFlag[];
+    feature?: () => boolean;
     component: Component;
 };
 
@@ -81,13 +85,18 @@ const allCategories: readonly Category[] = [
         labelKey: "expression_settings_nav",
         icon: SmilePlusIcon,
         perm: ["CreateExpressions", "ManageExpressions"],
+        feature: () => !!features.stickersAndEmojiActive,
         component: ExpressionsSettings,
     },
     { id: "bots", label: "Bots", icon: BotIcon, perm: "ManageBots", component: BotsSettings },
 ];
 
 const categories = computed(() =>
-    allCategories.filter((c) => (typeof c.perm === "string" ? [c.perm] : c.perm).some((flag) => pex.has(flag))),
+    allCategories.filter(
+        (c) =>
+            (c.feature?.() ?? true) &&
+            (typeof c.perm === "string" ? [c.perm] : c.perm).some((flag) => pex.has(flag)),
+    ),
 );
 
 const selectedCategory = ref<ServerSettingsCategory>("profile");

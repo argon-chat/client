@@ -146,6 +146,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       accentColor: null,
       registeredAt: null,
       cosmetics: null,
+      customStatusEmoji: profile.customStatusEmoji,
     };
   }
 

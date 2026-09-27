@@ -5,8 +5,6 @@
     class="reaction-picker-full"
     mode="reaction"
     :space-id="spaceId"
-    :height="360"
-    :width="352"
     @select-emoji="$emit('select', $event)"
     @select-custom-emoji="$emit('select-custom', $event)"
     @close="$emit('close')"

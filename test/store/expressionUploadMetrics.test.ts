@@ -84,6 +84,7 @@ const item = (itemId: string, kind: ExpressionKind, format: ExpressionFormat): E
   sortOrder: 0,
   downloadUrl: null,
   thumbUrl: null,
+  creatorId: null,
 });
 
 const upload = (kind: ExpressionKind, format: ExpressionFormat): UploadExpressionOptions => ({

@@ -1,3 +1,4 @@
+import { fitToAspectRatio } from '../geometry';
 import type { Vec2 } from '../types';
 
 interface ExportTransformInput {
@@ -11,33 +12,29 @@ interface ExportTransformInput {
     rotation: number;
     translation: Vec2;
     flip: Vec2;
+    currentImageRatio: number;
   };
 }
 
 /**
- * Compute the GPU transform parameters for final export rendering.
- * Maps from display-space editing state to output-canvas coordinates.
+ * The GPU transform that puts the crop rect onto a `scaledWidth × scaledHeight` output.
+ *
+ * Editor units (CropHandles, computeCropBounds): at scale 1 the image is contained in the crop area,
+ * the crop rect is `currentImageRatio` contained in it and centred, and the translation is in those
+ * pixels. So one crop-area pixel becomes `k` output pixels, where `k` maps the crop rect onto the
+ * output (the larger of the two ratios, so a rounded output size never leaves an empty edge).
  */
 export default function getResultTransform({ scaledWidth, scaledHeight, imageWidth, imageHeight, cropOffset, mediaState }: ExportTransformInput) {
-  // Fill the output canvas (cover mode — the larger ratio wins)
-  const coverScale = Math.max(scaledWidth / imageWidth, scaledHeight / imageHeight);
-
-  // The user's translation is relative to the crop area (not the full canvas which includes padding).
-  // Map from crop-area-relative pixels to output-canvas pixels.
-  const xRatio = scaledWidth / cropOffset.width;
-  const yRatio = scaledHeight / cropOffset.height;
+  const imageRatio = imageWidth / imageHeight;
+  const cropRatio = mediaState.currentImageRatio > 0 ? mediaState.currentImageRatio : imageRatio;
+  const [fittedWidth] = fitToAspectRatio(imageRatio, cropOffset.width, cropOffset.height);
+  const [cropWidth, cropHeight] = fitToAspectRatio(cropRatio, cropOffset.width, cropOffset.height);
+  const k = Math.max(scaledWidth / cropWidth, scaledHeight / cropHeight);
 
   return {
-    // coverScale fills the output at zoom=1; multiply by user zoom so only the
-    // visible portion of the source is rendered (the output dimensions already
-    // account for zoom via computeExportDimensions, but the shader still needs
-    // the zoom factor to avoid showing the full image squeezed down).
-    scale: coverScale * mediaState.scale,
+    scale: mediaState.scale * (fittedWidth / imageWidth) * k,
     rotation: mediaState.rotation,
-    translation: [
-      mediaState.translation[0] * xRatio,
-      mediaState.translation[1] * yRatio,
-    ] as Vec2,
+    translation: [mediaState.translation[0] * k, mediaState.translation[1] * k] as Vec2,
     flip: mediaState.flip,
     imageSize: [imageWidth, imageHeight] as Vec2,
   };

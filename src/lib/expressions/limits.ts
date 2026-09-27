@@ -23,7 +23,7 @@ export const EXPRESSION_LIMITS = {
   emojiNameMax: 32,
   stickerNameMin: 2,
   stickerNameMax: 30,
-  minAssociatedEmoji: 1,
+  /** Associated emoji are optional: none to 20. */
   maxAssociatedEmoji: 20,
   maxKeywords: 20,
   maxKeywordsTotalLength: 64,
@@ -115,11 +115,10 @@ export function packSlugError(slug: string): string | null {
   return slug.length >= L.packSlugMin && slug.length <= L.packSlugMax && SLUG_LIKE.test(slug) ? null : "expression_settings_pack_slug_invalid";
 }
 
+/** None is fine; at most 20, each a non-blank value of at most 32 UTF-16 units. */
 export function associatedEmojiError(emoji: readonly string[]): string | null {
-  const L = EXPRESSION_LIMITS;
-  if (emoji.length < L.minAssociatedEmoji) return "expression_settings_emoji_required";
-  if (emoji.length > L.maxAssociatedEmoji) return "expression_settings_emoji_too_many";
-  return emoji.every((e) => e.trim().length > 0 && e.length <= 32) ? null : "expression_settings_emoji_required";
+  if (emoji.length > EXPRESSION_LIMITS.maxAssociatedEmoji) return "expression_settings_emoji_too_many";
+  return emoji.every((e) => e.trim().length > 0 && e.length <= 32) ? null : "expression_settings_emoji_invalid";
 }
 
 export function keywordsError(keywords: readonly string[]): string | null {

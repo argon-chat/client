@@ -14,10 +14,12 @@ import { ExpressionFormat, ExpressionKind, type ExpressionItem, type ExpressionP
 
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 vi.mock("@/store/ui/configStore", () => ({ useConfigStore: () => ({ devModeEnabled: false }) }));
+vi.mock("@/store/features/featureFlagsStore", () => ({ useFeatureFlags: () => ({ stickersAndEmojiActive: true }) }));
+vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
 vi.mock("@/store/system/fileStorage", () => ({ cdnUrl: () => "", cdnFetchUrl: () => "", cdnCrossOrigin: () => undefined }));
 vi.mock("@/store/data/poolStore", () => ({ usePoolStore: () => ({ selectedServer: "s1" }) }));
 vi.mock("@/store/data/permissionStore", () => ({ usePexStore: () => ({ has: () => true, hasInSpace: () => true }) }));
-vi.mock("@/store/db/dexie", () => ({ db: { servers: { get: async () => undefined } } }));
+vi.mock("@/store/db/dexie", () => ({ db: { servers: { get: async () => undefined } }, dropCurrentDb: async () => {} }));
 vi.mock("@/composables/useLiveQuery", async () => {
   const { ref } = await import("vue");
   return { useLiveQuery: () => ref(undefined) };
@@ -76,7 +78,7 @@ async function png(width: number, height: number): Promise<File> {
 
 beforeEach(() => {
   state.packs = [
-    { packId: "ep", spaceId: "s1", kind: ExpressionKind.Emoji, title: "Pack", slug: "ep", coverItemId: null, sortOrder: 0, version: 1n, items: [] as ExpressionItem[] },
+    { packId: "ep", spaceId: "s1", kind: ExpressionKind.Emoji, title: "Pack", slug: "ep", coverItemId: null, sortOrder: 0, version: 1n, items: [] as ExpressionItem[], creatorId: null },
   ];
   uploads.length = 0;
 });
@@ -147,7 +149,8 @@ describe.skipIf(!adapter)(`sticker workbench entry${adapter ? "" : " — skipped
     const bitmap = await createImageBitmap(call.file);
     expect([bitmap.width, bitmap.height]).toEqual([100, 100]);
     bitmap.close();
-    await until(() => !!wrapper.element.querySelector('[data-upload-rows] [data-status="done"]'));
+    // Upload cells sit in the pack grid and go once their item is uploaded.
+    await until(() => !wrapper.element.querySelector("[data-upload-row]"));
     expect(gpuErrors).toEqual([]);
   }, 90_000);
 });

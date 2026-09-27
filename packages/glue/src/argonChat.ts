@@ -3549,6 +3549,7 @@ export interface ArgonUserProfile {
   accentColor: i4 | null;
   registeredAt: datetime | null;
   cosmetics: IonArray<IWornCosmetic> | null;
+  customStatusEmoji: StatusEmoji | null;
 };
 
 
@@ -3946,6 +3947,7 @@ export interface ExpressionItem {
   sortOrder: i4;
   downloadUrl: string | null;
   thumbUrl: string | null;
+  creatorId: guid | null;
 };
 
 
@@ -3959,6 +3961,16 @@ export interface ExpressionPack {
   sortOrder: i4;
   version: i8;
   items: IonArray<ExpressionItem>;
+  creatorId: guid | null;
+};
+
+
+export interface StatusEmoji {
+  itemId: guid;
+  spaceId: guid;
+  fileId: guid;
+  format: ExpressionFormat;
+  name: string;
 };
 
 
@@ -4637,9 +4649,10 @@ export enum UpdateMeError
   DISPLAY_NAME_TOO_LONG = 4,
   DISPLAY_NAME_EMPTY = 5,
   BIO_TOO_LONG = 6,
+  INVALID_STATUS_EMOJI = 7,
 }
 
-const declaredUpdateMeError: ReadonlySet<unknown> = new Set<unknown>([UpdateMeError.NONE, UpdateMeError.COOLDOWN_ACTIVE, UpdateMeError.PREMIUM_REQUIRED, UpdateMeError.INVALID_PRESET_ID, UpdateMeError.DISPLAY_NAME_TOO_LONG, UpdateMeError.DISPLAY_NAME_EMPTY, UpdateMeError.BIO_TOO_LONG]);
+const declaredUpdateMeError: ReadonlySet<unknown> = new Set<unknown>([UpdateMeError.NONE, UpdateMeError.COOLDOWN_ACTIVE, UpdateMeError.PREMIUM_REQUIRED, UpdateMeError.INVALID_PRESET_ID, UpdateMeError.DISPLAY_NAME_TOO_LONG, UpdateMeError.DISPLAY_NAME_EMPTY, UpdateMeError.BIO_TOO_LONG, UpdateMeError.INVALID_STATUS_EMOJI]);
 
 /**
  * Open-enum helpers for {@link UpdateMeError}.
@@ -22176,7 +22189,7 @@ IonFormatterStorage.register("SpaceStats", {
 
 IonFormatterStorage.register("ArgonUserProfile", {
   read(reader: CborReader): ArgonUserProfile {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 16, "ArgonUserProfile");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 17, "ArgonUserProfile");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -22193,11 +22206,12 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const accentColor = IonFormatterStorage.readNullable<i4>(reader, 'i4');
     const registeredAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const cosmetics = IonFormatterStorage.readNullableArray<IWornCosmetic>(reader, 'IWornCosmetic');
-    reader.readEndArrayAndSkip(arraySize - 16);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics };
+    const customStatusEmoji = IonFormatterStorage.readNullable<StatusEmoji>(reader, 'StatusEmoji');
+    reader.readEndArrayAndSkip(arraySize - 17);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics, customStatusEmoji };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(16);
+    writer.writeStartArray(17);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
@@ -22214,6 +22228,7 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<i4>(writer, value.accentColor, 'i4');
     IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
     IonFormatterStorage.writeNullableArray<IWornCosmetic>(writer, value.cosmetics, 'IWornCosmetic');
+    IonFormatterStorage.writeNullable<StatusEmoji>(writer, value.customStatusEmoji, 'StatusEmoji');
     writer.writeEndArray();
   }
 });
@@ -22334,7 +22349,7 @@ IonFormatterStorage.register("ExpressionFormat", {
 
 IonFormatterStorage.register("ExpressionItem", {
   read(reader: CborReader): ExpressionItem {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 18, "ExpressionItem");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 19, "ExpressionItem");
     const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
     const packId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
@@ -22353,11 +22368,12 @@ IonFormatterStorage.register("ExpressionItem", {
     const sortOrder = IonFormatterStorage.get<i4>('i4').read(reader);
     const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
     const thumbUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
-    reader.readEndArrayAndSkip(arraySize - 18);
-    return { itemId, packId, spaceId, kind, format, name, fileId, thumbFileId, width, height, fileSize, emoji, keywords, outline, textColor, sortOrder, downloadUrl, thumbUrl };
+    const creatorId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 19);
+    return { itemId, packId, spaceId, kind, format, name, fileId, thumbFileId, width, height, fileSize, emoji, keywords, outline, textColor, sortOrder, downloadUrl, thumbUrl, creatorId };
   },
   write(writer: CborWriter, value: ExpressionItem): void {
-    writer.writeStartArray(18);
+    writer.writeStartArray(19);
     IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
@@ -22376,13 +22392,14 @@ IonFormatterStorage.register("ExpressionItem", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.sortOrder);
     IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.thumbUrl, 'string');
+    IonFormatterStorage.writeNullable<guid>(writer, value.creatorId, 'guid');
     writer.writeEndArray();
   }
 });
 
 IonFormatterStorage.register("ExpressionPack", {
   read(reader: CborReader): ExpressionPack {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ExpressionPack");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 10, "ExpressionPack");
     const packId = IonFormatterStorage.get<guid>('guid').read(reader);
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const kind = IonFormatterStorage.get<ExpressionKind>('ExpressionKind').read(reader);
@@ -22392,11 +22409,12 @@ IonFormatterStorage.register("ExpressionPack", {
     const sortOrder = IonFormatterStorage.get<i4>('i4').read(reader);
     const version = IonFormatterStorage.get<i8>('i8').read(reader);
     const items = IonFormatterStorage.readArray<ExpressionItem>(reader, 'ExpressionItem');
-    reader.readEndArrayAndSkip(arraySize - 9);
-    return { packId, spaceId, kind, title, slug, coverItemId, sortOrder, version, items };
+    const creatorId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 10);
+    return { packId, spaceId, kind, title, slug, coverItemId, sortOrder, version, items, creatorId };
   },
   write(writer: CborWriter, value: ExpressionPack): void {
-    writer.writeStartArray(9);
+    writer.writeStartArray(10);
     IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, value.kind);
@@ -22406,6 +22424,29 @@ IonFormatterStorage.register("ExpressionPack", {
     IonFormatterStorage.get<i4>('i4').write(writer, value.sortOrder);
     IonFormatterStorage.get<i8>('i8').write(writer, value.version);
     IonFormatterStorage.writeArray<ExpressionItem>(writer, value.items, 'ExpressionItem');
+    IonFormatterStorage.writeNullable<guid>(writer, value.creatorId, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("StatusEmoji", {
+  read(reader: CborReader): StatusEmoji {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "StatusEmoji");
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const format = IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { itemId, spaceId, fileId, format, name };
+  },
+  write(writer: CborWriter, value: StatusEmoji): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').write(writer, value.format);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
     writer.writeEndArray();
   }
 });
@@ -23192,6 +23233,7 @@ IonFormatterStorage.registerPartial<ExpressionPack>("IonPartial<ExpressionPack>"
   { name: "sortOrder", type: "i4" },
   { name: "version", type: "i8" },
   { name: "items", type: "ExpressionItem", kind: "array" },
+  { name: "creatorId", type: "guid", kind: "nullable" },
 ]);
 
 IonFormatterStorage.registerPartial<ExpressionItem>("IonPartial<ExpressionItem>", [
@@ -23213,6 +23255,7 @@ IonFormatterStorage.registerPartial<ExpressionItem>("IonPartial<ExpressionItem>"
   { name: "sortOrder", type: "i4" },
   { name: "downloadUrl", type: "string", kind: "nullable" },
   { name: "thumbUrl", type: "string", kind: "nullable" },
+  { name: "creatorId", type: "guid", kind: "nullable" },
 ]);
 
 

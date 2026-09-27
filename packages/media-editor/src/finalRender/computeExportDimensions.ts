@@ -25,9 +25,10 @@ export interface ExportSizeConstraints {
   forcedQuality?: number;
 }
 
+// Nearest, not floor: a 400 px crop computed as 399.9998 must not lose 2 px, which the cover
+// mapping would then cut off its sides. The caps are even, so this never rounds past one.
 function roundToEven(n: number): number {
-  const floored = Math.floor(n);
-  return floored % 2 === 0 ? floored : floored - 1;
+  return Math.max(2, 2 * Math.round(n / 2));
 }
 
 /** The rendered content of an expression export: `box` on the longer side, at least 1 on the other. */

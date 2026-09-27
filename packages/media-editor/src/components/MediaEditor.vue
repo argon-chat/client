@@ -118,7 +118,8 @@ async function handleDone() {
       mode: props.mode,
       getMaskSource: store.getMaskSource,
       exportFormat: props.exportFormat,
-      maxBytes: props.maxBytes
+      maxBytes: props.maxBytes,
+      pixelRatio: store.uiState.pixelRatio
     });
 
     emit('done', result);

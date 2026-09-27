@@ -44,7 +44,8 @@
 import { ref, computed } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
-import { fitToAspectRatio, mixArray, mix, clamp } from '../geometry';
+import { fitToAspectRatio, mixArray, mix, clamp, rotatePoint } from '../geometry';
+import { quarterTurnLeft } from '../canvas/quarterTurn';
 import { tween } from '../animation';
 import type { Vec2 } from '../types';
 
@@ -155,26 +156,41 @@ function rotateLeft() {
   const ms = store.uiState.mediaSize;
   if (!ms) return;
 
-  const newRotation = (Math.round((store.mediaState.rotation / Math.PI) * 2) * Math.PI) / 2 - Math.PI / 2;
-  const snappedRot90 = Math.round((newRotation / Math.PI) * 2);
-  const isReversed = Math.abs(snappedRot90) & 1;
-
-  const [w, h] = ms;
-  let ratio: number;
-  if (store.uiState.fixedImageRatioKey?.includes('x') || store.uiState.fixedImageRatioKey?.includes(':')) {
-    ratio = store.mediaState.currentImageRatio;
-  } else {
-    ratio = isReversed ? h / w : w / h;
-  }
-
-  const origRatio = w / h;
-  const [w1, h1] = fitToAspectRatio(origRatio, co.width, co.height);
-  const [w2, h2] = fitToAspectRatio(ratio, co.width, co.height);
+  const initRot = store.mediaState.rotation;
+  const quarters = Math.round((initRot / Math.PI) * 2);
+  const newRotation = (quarters * Math.PI) / 2 - Math.PI / 2;
+  const isReversed = Math.abs(quarters - 1) & 1;
+  const fixedRatio = !!(store.uiState.fixedImageRatioKey?.includes('x') || store.uiState.fixedImageRatioKey?.includes(':'));
 
   const initScale = store.mediaState.scale;
   const initTrans = [...store.mediaState.translation] as Vec2;
-  const initRot = store.mediaState.rotation;
-  const targetScale = isReversed ? Math.max(w2 / h1, h2 / w1) : Math.max(w2 / w1, h2 / h1);
+  const straight = Math.abs(initRot - (quarters * Math.PI) / 2) < 1e-6 && store.mediaState.currentImageRatio > 0;
+
+  // Straight: the crop turns with the image. Tilted by the wheel: back to the whole image, centred.
+  let ratio: number;
+  let frame: (p: number) => { scale: number; translation: Vec2 };
+  if (straight) {
+    const turn = quarterTurnLeft({
+      scale: initScale,
+      translation: initTrans,
+      currentImageRatio: store.mediaState.currentImageRatio,
+      cropArea: co,
+      fixedRatio
+    });
+    ratio = turn.ratio;
+    frame = (p) => {
+      const f = mix(1, turn.factor, p);
+      const [x, y] = rotatePoint(initTrans, (-Math.PI / 2) * p);
+      return { scale: initScale * f, translation: [x * f, y * f] };
+    };
+  } else {
+    const [w, h] = ms;
+    ratio = fixedRatio ? store.mediaState.currentImageRatio : isReversed ? h / w : w / h;
+    const [w1, h1] = fitToAspectRatio(w / h, co.width, co.height);
+    const [w2, h2] = fitToAspectRatio(ratio, co.width, co.height);
+    const targetScale = isReversed ? Math.max(w2 / h1, h2 / w1) : Math.max(w2 / w1, h2 / h1);
+    frame = (p) => ({ scale: mix(initScale, targetScale, p), translation: mixArray(initTrans, [0, 0], p) as Vec2 });
+  }
 
   store.mediaState.currentImageRatio = ratio;
   store.uiState.isMoving = true;
@@ -182,8 +198,9 @@ function rotateLeft() {
   tween({
     from: 0, to: 1, duration: 200,
     onUpdate: (p: number) => {
-      store.mediaState.scale = mix(initScale, targetScale, p);
-      store.mediaState.translation = mixArray(initTrans, [0, 0], p) as Vec2;
+      const { scale, translation } = frame(p);
+      store.mediaState.scale = scale;
+      store.mediaState.translation = translation;
       store.mediaState.rotation = mix(initRot, newRotation, p);
     },
     onComplete: () => {

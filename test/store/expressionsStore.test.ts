@@ -51,6 +51,7 @@ import {
   SuccessItem,
   SuccessPack,
   SuccessUploadFile,
+  type ArgonSpaceBase,
   type ExpressionItem,
   type ExpressionPack,
   type ExpressionsSnapshot,
@@ -60,6 +61,8 @@ import { db, ensureDbOpen } from "@/store/db/dexie";
 import {
   useExpressionsStore,
   toMedia,
+  EXPRESSIONS_LOAD_ALL_GAP_MS,
+  EXPRESSIONS_LOAD_ALL_INTERVAL_MS,
   EXPRESSIONS_REFRESH_DEBOUNCE_MS,
   EXPRESSIONS_REFRESH_JITTER_MS,
   EXPRESSIONS_REVALIDATE_MS,
@@ -93,6 +96,7 @@ const item = (itemId: string, packId: string, extra: Partial<ExpressionItem> = {
   sortOrder: 0,
   downloadUrl: null,
   thumbUrl: null,
+  creatorId: null,
   ...extra,
 });
 
@@ -111,6 +115,7 @@ const pack = (
   sortOrder,
   version: 1n,
   items,
+  creatorId: null,
   ...extra,
 });
 
@@ -249,6 +254,103 @@ describe("loading", () => {
     ]);
     expect(packIds(store.stickerPacks(SPACE))).toEqual(["early", "late"]);
     expect(ids(store.stickerPacks(SPACE)[0].items)).toEqual(["x", "y"]);
+  });
+});
+
+describe("every space the user is in (a direct chat's picker)", () => {
+  const THIRD = "space-3";
+  const ALL = [SPACE, OTHER, THIRD];
+
+  const spaceRow = (spaceId: string): ArgonSpaceBase => ({
+    spaceId,
+    name: spaceId,
+    description: "",
+    avatarFieldId: null,
+    topBannerFileId: null,
+    boostCount: 0,
+    boostLevel: 0,
+    isVerified: false,
+    isOfficial: false,
+    hideBoostStrip: false,
+    inviteImageFileId: null,
+    isCommunity: null,
+    mainAnnouncementChannelId: null,
+  });
+
+  const asked = () => h.svc.GetExpressions.mock.calls.map((c: unknown[]) => c[0]);
+
+  /** Lets the sweep's pauses pass until it is done. */
+  async function settle(run: Promise<void>) {
+    let done = false;
+    void run.then(() => (done = true));
+    for (let i = 0; i < 100 && !done; i++) {
+      await vi.advanceTimersByTimeAsync(EXPRESSIONS_LOAD_ALL_GAP_MS);
+      await tick();
+    }
+    expect(done).toBe(true);
+  }
+
+  beforeEach(async () => {
+    await db.servers.clear();
+    await db.servers.bulkPut(ALL.map(spaceRow));
+  });
+
+  afterEach(async () => {
+    await db.servers.clear();
+  });
+
+  test("the cached copies at once, then one request per space with a pause between", async () => {
+    await db.expressions.put({ spaceId: THIRD, version: "v0", packs: [], updatedAt: 1 });
+    const store = useExpressionsStore();
+    const run = store.ensureLoadedAll();
+
+    await until(() => asked().length === 1);
+    expect(store.bySpace.get(THIRD)?.loadedAt).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(EXPRESSIONS_LOAD_ALL_GAP_MS - 1);
+    await tick();
+    expect(asked()).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await until(() => asked().length === 2);
+
+    await settle(run);
+    expect(asked()).toEqual(ALL);
+    expect(h.svc.GetExpressions).toHaveBeenLastCalledWith(THIRD, "v0");
+    expect([...store.bySpace.keys()].sort()).toEqual(ALL);
+  });
+
+  test("at most one sweep per interval; a call meanwhile joins the running one", async () => {
+    const store = useExpressionsStore();
+    const run = Promise.all([store.ensureLoadedAll(), store.ensureLoadedAll()]).then(() => {});
+    await settle(run);
+    expect(asked()).toHaveLength(3);
+
+    await store.ensureLoadedAll();
+    expect(asked()).toHaveLength(3);
+
+    vi.setSystemTime(Date.now() + EXPRESSIONS_LOAD_ALL_INTERVAL_MS);
+    await settle(store.ensureLoadedAll());
+    expect(asked()).toHaveLength(6);
+  });
+
+  test("a space loaded lately is not asked again, and costs no pause", async () => {
+    const store = useExpressionsStore();
+    await store.ensureLoaded(OTHER);
+    const run = store.ensureLoadedAll();
+    await until(() => asked().length === 2);
+    await vi.advanceTimersByTimeAsync(EXPRESSIONS_LOAD_ALL_GAP_MS);
+    await until(() => asked().length === 3);
+    await settle(run);
+    expect(asked()).toEqual([OTHER, SPACE, THIRD]);
+  });
+
+  test("a session reset stops a sweep under way", async () => {
+    const store = useExpressionsStore();
+    const run = store.ensureLoadedAll();
+    await until(() => asked().length === 1);
+    await runSessionReset();
+    await settle(run);
+    expect(asked()).toHaveLength(1);
   });
 });
 

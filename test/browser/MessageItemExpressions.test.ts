@@ -52,10 +52,16 @@ vi.mock("@/components/chats/MentionSegment.vue", () => h.stub("MentionSegment"))
 vi.mock("@/components/chats/AttachmentImageGrid.vue", () => h.stub("AttachmentImageGrid"));
 vi.mock("@/components/chats/AttachmentFileCard.vue", () => h.stub("AttachmentFileCard"));
 vi.mock("@/components/chats/LinkPreviewCard.vue", () => h.stub("LinkPreviewCard"));
+// The user's spaces: only "space" (Cats Café) is one of them.
+vi.mock("@/store/db/dexie", () => ({
+  db: { servers: { get: async (id: string) => (id === "space" ? { spaceId: "space", name: "Cats Café", avatarFieldId: null } : undefined) } },
+}));
 
 import { IonDateTime } from "@argon-chat/ion.webcore";
-import { EntityType, MessageEntityBold, MessageEntityCustomEmoji, MessageEntitySticker, type IMessageEntity } from "@argon/glue";
+import { userEvent } from "vitest/browser";
+import { EntityType, ExpressionKind, MessageEntityBold, MessageEntityCustomEmoji, MessageEntitySticker, type ExpressionItem, type ExpressionPack, type IMessageEntity } from "@argon/glue";
 import MessageItem from "@/components/MessageItem.vue";
+import { EXPRESSION_RESOLVER, noopResolver, type ExpressionResolver } from "@/lib/expressions/resolver";
 
 const message = (text: string, entities: IMessageEntity[]) =>
   ({
@@ -83,10 +89,11 @@ const emoji = (name: string, offset: number) =>
 
 const mounted: VueWrapper[] = [];
 
-async function render(msg: any, props: Record<string, unknown> = {}) {
+async function render(msg: any, props: Record<string, unknown> = {}, resolver?: ExpressionResolver) {
   const w = mount(MessageItem, {
     attachTo: document.body,
     props: { message: msg, getMsgById: () => ({}) as any, isFirstInGroup: true, ...props },
+    global: resolver ? { provide: { [EXPRESSION_RESOLVER as symbol]: resolver } } : undefined,
   });
   mounted.push(w);
   await nextTick();
@@ -150,5 +157,78 @@ describe("custom emoji in a message", () => {
 
     const text = await render(message(":wave: ok", [emoji("wave", 0)]));
     expect(text.find("[data-jumbo]").exists()).toBe(false);
+  });
+});
+
+describe("where a custom emoji or sticker comes from", () => {
+  const items: ExpressionItem[] = [
+    { itemId: "item-wave", packId: "p-waves", spaceId: "space", kind: ExpressionKind.Emoji, format: 0, name: "wave", fileId: "png-wave", width: 100, height: 100, textColor: false } as ExpressionItem,
+    { itemId: "item", packId: "pack", spaceId: "space", kind: ExpressionKind.Sticker, format: 1, name: "Happy cat", fileId: "sticker-file", width: 512, height: 512, textColor: false } as ExpressionItem,
+  ];
+  const packs: ExpressionPack[] = [
+    { packId: "p-waves", spaceId: "space", kind: ExpressionKind.Emoji, title: "Waves" } as ExpressionPack,
+    { packId: "pack", spaceId: "space", kind: ExpressionKind.Sticker, title: "Cats" } as ExpressionPack,
+  ];
+  const resolver: ExpressionResolver = {
+    ...noopResolver,
+    itemById: (id) => items.find((i) => i.itemId === id) ?? null,
+    packOf: (item) => packs.find((p) => p.packId === item.packId) ?? null,
+  };
+
+  const popover = () => document.querySelector<HTMLElement>('[data-testid="expression-info"]');
+  const part = (id: string) => popover()?.querySelector<HTMLElement>(`[data-testid="expression-info-${id}"]`)?.textContent?.trim();
+
+  test("a click on a custom emoji in a message opens it: the emoji large, its name, pack and space", async () => {
+    const w = await render(message("hi :wave: there", [emoji("wave", 3)]), {}, resolver);
+    const trigger = w.find<HTMLElement>(".ce-trigger").element;
+    expect(trigger.getAttribute("role")).toBe("button");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    // Wrapping it changes nothing about the placeholder's size.
+    expect(w.find<HTMLElement>(".ce").element.getBoundingClientRect().width).toBe(18);
+
+    await userEvent.click(trigger);
+    await until(() => part("space-name") === "Cats Café");
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(part("label")).toBe(":wave:");
+    expect(part("pack")).toContain("Waves");
+    // The message is in another space ("s1"): the emoji's space is named, not "this space".
+    expect(popover()!.textContent).toContain("expression_info_from_space");
+    const big = popover()!.querySelector<HTMLElement>(".sticker-view")!;
+    expect([big.style.width, big.style.height]).toEqual(["64px", "64px"]);
+    expect(popover()!.querySelector('[data-testid="expression-info-copy"]')).not.toBeNull();
+    // No composer has registered "Open pack" here.
+    expect(popover()!.querySelector('[data-testid="expression-info-open-pack"]')).toBeNull();
+
+    await userEvent.keyboard("{Escape}");
+    await until(() => !popover());
+  });
+
+  test("from the keyboard: Enter on the focused emoji opens it", async () => {
+    const w = await render(message("hi :wave:", [emoji("wave", 3)]), {}, resolver);
+    w.find<HTMLElement>(".ce-trigger").element.focus();
+    await userEvent.keyboard("{Enter}");
+    await until(() => part("label") === ":wave:");
+  });
+
+  test("an emoji from a space this client has not loaded: its name from the message, from another space", async () => {
+    const far = new MessageEntityCustomEmoji(EntityType.CustomEmoji, 3, 7, 1, "item-party", "far-space", 0, "png-party", "party", false, null);
+    const w = await render(message("hi :party:", [far]), {}, resolver);
+    await userEvent.click(w.find<HTMLElement>(".ce-trigger").element);
+    await until(() => !!popover()?.querySelector('[data-testid="expression-info-other-space"]'));
+    expect(part("label")).toBe(":party:");
+    expect(popover()!.querySelector('[data-testid="expression-info-pack"]')).toBeNull();
+  });
+
+  test("a click on a sticker opens it at 96 px with its name and pack", async () => {
+    const w = await render(message("", [sticker()]), {}, resolver);
+    await userEvent.click(w.find<HTMLElement>('[data-testid="sticker-trigger"]').element);
+    await until(() => part("space-name") === "Cats Café");
+    expect(part("label")).toBe("Happy cat");
+    expect(part("pack")).toContain("Cats");
+    const big = popover()!.querySelector<HTMLElement>(".sticker-view")!;
+    expect([big.style.width, big.style.height]).toEqual(["96px", "96px"]);
+    // Stickers have no name to copy.
+    expect(popover()!.querySelector('[data-testid="expression-info-copy"]')).toBeNull();
   });
 });

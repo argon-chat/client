@@ -18,10 +18,11 @@ const h = await vi.hoisted(async () => {
       props: { open: { type: Boolean, default: true } },
       setup: (props, { slots }) => () => (gate && !props.open ? null : hh("div", slots.default?.())),
     });
-  return { stub, passthrough, perms: reactive(new Set<string>()) };
+  return { stub, passthrough, perms: reactive(new Set<string>()), flags: reactive({ stickersAndEmojiActive: true }) };
 });
 
 vi.mock("@/store/data/permissionStore", () => ({ usePexStore: () => ({ has: (flag: string) => h.perms.has(flag) }) }));
+vi.mock("@/store/features/featureFlagsStore", () => ({ useFeatureFlags: () => h.flags }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 vi.mock("@argon/ui/drawer", () => ({
   Drawer: h.passthrough("Drawer", true),
@@ -45,6 +46,39 @@ const shown = (w: ReturnType<typeof mount>) => w.find("[data-section]").attribut
 beforeEach(() => {
   setActivePinia(createPinia());
   h.perms.clear();
+  h.flags.stickersAndEmojiActive = true;
+});
+
+describe("the Emoji & Stickers section", () => {
+  test("is there only while the stickers-and-emoji flag is on, whatever the permissions", async () => {
+    h.perms.add("ManageServer");
+    h.perms.add("ManageExpressions");
+    h.flags.stickersAndEmojiActive = false;
+    const w = mount(ServerSettingsWindow);
+    const windows = useWindow();
+    windows.openServerSettings();
+    await nextTick();
+    const labels = () => w.findAll(".nav-item").map((b) => b.text());
+    expect(labels()).not.toContain("expression_settings_nav");
+
+    // Asked for by name while it is off: the window stays where it was.
+    windows.openServerSettings("expressions");
+    await nextTick();
+    expect(shown(w)).toBe("ServerProfile");
+
+    h.flags.stickersAndEmojiActive = true;
+    await nextTick();
+    expect(labels()).toContain("expression_settings_nav");
+    expect(shown(w)).toBe("ExpressionsSettings");
+  });
+
+  test("needs Create or Manage Expressions even with the flag on", async () => {
+    h.perms.add("ManageServer");
+    const w = mount(ServerSettingsWindow);
+    useWindow().openServerSettings();
+    await nextTick();
+    expect(w.findAll(".nav-item").map((b) => b.text())).not.toContain("expression_settings_nav");
+  });
 });
 
 describe("openServerSettings", () => {

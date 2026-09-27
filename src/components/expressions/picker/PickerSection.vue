@@ -1,19 +1,30 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { spriteResolver } from "@argon-chat/emojix";
+import { emojiRegistry, spriteResolver, type SkinTone } from "@argon-chat/emojix";
 import StickerView from "@/components/expressions/StickerView.vue";
 import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
 import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
-import { toMedia } from "@/store/data/expressionsStore";
-import { rowPitch, type GridMetrics, type PickerCell, type PickerSectionData, type SectionLayout } from "./pickerModel";
+import { pickerMedia } from "./pickerMedia";
+import {
+  EMOJI_ART,
+  rowPitch,
+  rowsHeight,
+  STICKER_ART,
+  tonedEntry,
+  type GridMetrics,
+  type PickerCell,
+  type PickerSection,
+  type SectionLayout,
+} from "./pickerModel";
 import type { GridPos } from "./useGridKeyboardNav";
 
 /**
- * One section of the picker grid. Its height is reserved up front (header + rows); only the rows in
- * `range` are mounted, each absolutely placed at its own offset, so scrolling never moves the layout.
+ * One section of a picker group: a pack's sub-header when it has one, then its rows. Its height is
+ * reserved up front; only the rows in `range` are mounted, each absolutely placed at its own offset,
+ * so scrolling never moves the layout.
  */
 const props = defineProps<{
-  section: PickerSectionData;
+  section: PickerSection;
   layout: SectionLayout;
   metrics: GridMetrics;
   columns: number;
@@ -21,11 +32,8 @@ const props = defineProps<{
   /** Mounted rows, [first, end). */
   range: readonly [number, number];
   tabStop: GridPos | null;
+  tone: SkinTone;
 }>();
-
-const UNICODE_SIZE = 34;
-const CUSTOM_EMOJI_SIZE = 36;
-const STICKER_SIZE = 64;
 
 const rows = computed(() => {
   const out: number[] = [];
@@ -43,7 +51,7 @@ const rowStyle = (row: number) => ({
 });
 
 const cellStyle = computed(() => ({ width: `${props.metrics.cell}px`, height: `${props.metrics.cell}px` }));
-const itemsHeight = computed(() => props.layout.height - props.metrics.header - props.metrics.sectionGap);
+const itemsHeight = computed(() => rowsHeight(props.layout.rows, props.metrics));
 
 function isTabStop(index: number): boolean {
   const stop = props.tabStop;
@@ -56,18 +64,15 @@ function labelOf(cell: PickerCell): string {
   return [cell.item.name, ...cell.item.emoji].join(" ");
 }
 
+const byText = (text: string) => emojiRegistry.getByText(text);
+
 const spriteStyle = (cell: PickerCell) =>
-  cell.type === "unicode" ? (spriteResolver.getStyle(cell.entry, UNICODE_SIZE) ?? undefined) : undefined;
+  cell.type === "unicode" ? (spriteResolver.getStyle(tonedEntry(cell.entry, props.tone, byText), EMOJI_ART) ?? undefined) : undefined;
 </script>
 
 <template>
-  <section
-    class="xp-section"
-    :style="{ height: `${layout.height}px` }"
-    :data-section-id="section.id"
-    :aria-label="section.title"
-  >
-    <div class="xp-section__title" :style="{ height: `${metrics.header}px` }">
+  <div class="xp-section" :style="{ height: `${layout.height}px` }" :data-section-id="section.id">
+    <div v-if="section.title" class="xp-section__title" :style="{ height: `${metrics.subheader}px` }">
       <span class="truncate">{{ section.title }}</span>
     </div>
     <div class="xp-section__items" :style="{ height: `${itemsHeight}px` }">
@@ -89,25 +94,19 @@ const spriteStyle = (cell: PickerCell) =>
           :data-cell="`${layout.index}:${row * columns + i}`"
           :tabindex="isTabStop(row * columns + i) ? 0 : -1"
           :aria-label="labelOf(cell)"
-          :title="cell.type === 'sticker' ? undefined : labelOf(cell)"
         >
-          <span
-            v-if="cell.type === 'unicode'"
-            class="xp-sprite"
-            :style="spriteStyle(cell)"
-            aria-hidden="true"
-          />
+          <span v-if="cell.type === 'unicode'" class="xp-sprite" :style="spriteStyle(cell)" aria-hidden="true" />
           <CustomEmojiInline
             v-else-if="cell.type === 'custom'"
-            :media="toMedia(cell.item)"
-            :size="CUSTOM_EMOJI_SIZE"
+            :media="pickerMedia(cell.item)"
+            :size="EMOJI_ART"
             :alt="`:${cell.item.name}:`"
           />
-          <StickerView v-else :media="toMedia(cell.item)" :size="STICKER_SIZE" group="picker" />
+          <StickerView v-else :media="pickerMedia(cell.item)" :size="STICKER_ART" group="picker" />
         </button>
       </component>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -116,18 +115,12 @@ const spriteStyle = (cell: PickerCell) =>
 }
 
 .xp-section__title {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   display: flex;
-  align-items: center;
-  padding: 0 4px;
-  font-size: 0.75rem;
+  align-items: flex-end;
+  padding: 0 4px 4px;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--popover));
+  color: hsl(var(--muted-foreground) / 0.85);
 }
 
 .xp-section__items {
@@ -165,16 +158,14 @@ const spriteStyle = (cell: PickerCell) =>
   background: hsl(var(--accent) / 0.7);
 }
 
-.xp-cell--sticker:active,
-.xp-cell--unicode:active,
-.xp-cell--custom:active {
+.xp-cell:active {
   transform: scale(0.94);
 }
 
 .xp-sprite {
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   background-repeat: no-repeat;
   pointer-events: none;
 }

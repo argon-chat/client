@@ -1,5 +1,5 @@
 import { hasInjectionContext, inject, provide, type InjectionKey } from "vue";
-import type { ExpressionItem } from "@argon/glue";
+import type { ExpressionItem, ExpressionPack } from "@argon/glue";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
 
 /**
@@ -11,6 +11,8 @@ export interface ExpressionResolver {
   emojiByName(spaceId: string | null, name: string): ExpressionItem | null;
   /** Any loaded space. */
   itemById(itemId: string): ExpressionItem | null;
+  /** The pack an item belongs to, when its space is loaded (the attribution popover). */
+  packOf?(item: ExpressionItem): ExpressionPack | null;
   /** For `:name` completion; `spaceId` null means every loaded space. */
   emojiCandidates(spaceId: string | null, prefix: string, limit: number): ExpressionItem[];
   /** Load (or revalidate) a space's set in the background; safe to call from a render. */
@@ -40,6 +42,7 @@ export function createStoreResolver(): ExpressionResolver {
   return {
     emojiByName: (spaceId, name) => useExpressionsStore().emojiByName(spaceId, name),
     itemById: (itemId) => useExpressionsStore().itemById(itemId),
+    packOf: (item) => useExpressionsStore().packs(item.spaceId, item.kind).find((p) => p.packId === item.packId) ?? null,
     emojiCandidates: (spaceId, prefix, limit) => useExpressionsStore().emojiCandidates(spaceId, prefix, limit),
     ensureLoaded: (spaceId) => {
       if (spaceId) void useExpressionsStore().ensureLoaded(spaceId);
