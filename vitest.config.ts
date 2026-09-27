@@ -70,7 +70,13 @@ export default defineConfig({
           restoreMocks: true,
           browser: {
             enabled: true,
-            provider: playwright(),
+            // Headless Chromium has navigator.gpu but no adapter; ARGON_TEST_GPU=1 lends it the
+            // machine's GPU (Dawn without DXC) so the WebGPU tests run instead of skipping.
+            provider: playwright(
+              process.env.ARGON_TEST_GPU
+                ? { launchOptions: { args: ["--enable-gpu", "--enable-unsafe-webgpu", "--disable-dawn-features=use_dxc"] } }
+                : undefined,
+            ),
             headless: true,
             instances: [{ browser: "chromium" }],
           },
