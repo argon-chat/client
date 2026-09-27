@@ -7,8 +7,9 @@ import { EXPRESSION_SIZES } from "@/lib/expressions/sizes";
 import { getLottiePool } from "@/lib/expressions/lottie/LottiePool";
 
 /**
- * A sticker shown large (360 px, looping) over everything, while it is held or hovered in the picker.
- * While it is up only the preview plays; whatever was the only playable group before comes back after.
+ * A sticker shown large (360 px, looping) over everything, while it is held down in the picker (see
+ * `picker/useHoldPreview`). It takes no pointer events, so a held pointer still finds the cells under
+ * it. While it is up only the preview plays; whatever was the only playable group before comes back.
  */
 const props = withDefaults(defineProps<{ item: ExpressionItem | null; group?: string }>(), { group: "preview" });
 

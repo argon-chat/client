@@ -17,7 +17,7 @@ import {
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import StickerView from "@/components/expressions/StickerView.vue";
 import { pickerMedia } from "./pickerMedia";
-import type { RailEntry, UnicodeGroup } from "./pickerModel";
+import { initialOf as initials, type RailEntry, type UnicodeGroup } from "./pickerModel";
 
 /**
  * The column beside the grid: recent, the spaces (and on the sticker tab each space's pack covers),
@@ -115,8 +115,6 @@ watch(
     else if (bottom > box.scrollTop + box.clientHeight) box.scrollTo({ top: bottom - box.clientHeight + 4, behavior: "smooth" });
   },
 );
-
-const initials = (name: string) => name.trim().slice(0, 1).toUpperCase();
 </script>
 
 <template>

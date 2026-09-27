@@ -81,7 +81,6 @@ const emit = defineEmits<{
 
 /** Where the previous picker (emojix) kept its unicode recents: read once to seed ours. */
 const LEGACY_RECENTS_KEY = "emojix-recents";
-const HOVER_PREVIEW_MS = 600;
 /** Kept this far from the viewport's sides when the window is narrower than the panel. */
 const VIEWPORT_MARGIN = 16;
 
@@ -228,12 +227,17 @@ const inspected = shallowRef<PickerCell | null>(null);
 const footerCell = computed(
   () => inspected.value ?? gridGroups.value.flatMap((g) => g.sections).find((s) => s.cells.length)?.cells[0] ?? null,
 );
+/** The space a custom emoji or sticker comes from. */
+const footerSpace = computed(() => {
+  const cell = footerCell.value;
+  return cell && cell.type !== "unicode" ? spaceInfo(cell.item.spaceId) : null;
+});
 const footerDetail = computed(() => {
   const cell = footerCell.value;
-  if (!cell || cell.type === "unicode") return null;
-  const space = spaceInfo(cell.item.spaceId).name;
+  const space = footerSpace.value;
+  if (!cell || cell.type === "unicode" || !space) return null;
   const pack = packById.value.get(cell.item.packId);
-  return pack ? `${pack.title} · ${space}` : space;
+  return pack ? `${pack.title} · ${space.name}` : space.name;
 });
 
 function selectTab(tab: PickerTab) {
@@ -342,38 +346,26 @@ function closeTones() {
 
 // ── sticker preview ──
 
+// Opened by holding a sticker down (the grid's `preview`), never by hovering or the keyboard.
 const previewItem = shallowRef<ExpressionItem | null>(null);
-let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 
 function closePreview() {
-  clearTimeout(hoverTimer);
   previewItem.value = null;
 }
 
 function onHover(cell: PickerCell | null) {
-  clearTimeout(hoverTimer);
   if (cell) inspected.value = cell;
-  if (!cell || cell.type !== "sticker") {
-    previewItem.value = null;
-    return;
-  }
-  // Once one is up, moving to the next sticker swaps it at once.
-  if (previewItem.value) {
-    previewItem.value = cell.item;
-    return;
-  }
-  const item = cell.item;
-  hoverTimer = setTimeout(() => (previewItem.value = item), HOVER_PREVIEW_MS);
 }
 
-function onContext(cell: PickerCell, el: HTMLElement, source: "mouse" | "touch") {
-  if (cell.type === "unicode") {
-    if (cell.entry.hasSkinTones) {
-      closePreview();
-      toneTarget.value = { entry: cell.entry, el, pick: true };
-    }
-  } else if (cell.type === "sticker" && source === "touch") {
-    previewItem.value = cell.item;
+function onPreview(cell: PickerCell | null) {
+  if (cell) inspected.value = cell;
+  previewItem.value = cell?.type === "sticker" ? cell.item : null;
+}
+
+function onContext(cell: PickerCell, el: HTMLElement) {
+  if (cell.type === "unicode" && cell.entry.hasSkinTones) {
+    closePreview();
+    toneTarget.value = { entry: cell.entry, el, pick: true };
   }
 }
 
@@ -541,8 +533,7 @@ defineExpose({ focusSearch, selectTab, activeTab, openPack });
               @context="onContext"
               @hover="onHover"
               @focus="inspected = $event"
-              @release="closePreview"
-              @scroll="closePreview"
+              @preview="onPreview"
               @active-change="activeGroup = $event"
               @type-ahead="onTypeAhead"
             />
@@ -551,7 +542,7 @@ defineExpose({ focusSearch, selectTab, activeTab, openPack });
               <p>{{ t("expression_picker_no_results") }}</p>
             </div>
           </div>
-          <PickerFooter :cell="footerCell" :tone="tone" :detail="footerDetail" />
+          <PickerFooter :cell="footerCell" :tone="tone" :detail="footerDetail" :space="footerSpace" />
         </div>
       </template>
     </div>

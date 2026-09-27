@@ -82,7 +82,12 @@ const kind = computed<"static" | "lottie" | "video" | "unsupported">(() => {
 });
 
 const showOutline = computed(() => !!outlinePath.value && phase.value !== "ready" && !hasPreview.value);
-const showThumb = computed(() => (phase.value === "fallback" || kind.value === "unsupported") && !!thumbSrc.value);
+const thumbFailed = ref(false);
+watch(thumbSrc, () => (thumbFailed.value = false));
+// A thumb that cannot load leaves the outline in place instead of the browser's broken-image icon.
+const showThumb = computed(
+  () => (phase.value === "fallback" || kind.value === "unsupported") && !!thumbSrc.value && !thumbFailed.value,
+);
 const maskStyle = computed(() => ({
   "-webkit-mask-image": `url("${src.value}")`,
   "mask-image": `url("${src.value}")`,
@@ -294,6 +299,7 @@ defineExpose({
       :crossorigin="cdnCrossOrigin(thumbSrc)"
       alt=""
       draggable="false"
+      @error="thumbFailed = true"
     />
     <canvas v-show="hasPreview && phase !== 'ready'" ref="previewCanvas" class="sticker-view__layer" aria-hidden="true" />
     <template v-if="phase !== 'fallback'">

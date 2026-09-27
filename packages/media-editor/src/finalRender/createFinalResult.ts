@@ -1,5 +1,5 @@
 import { toRaw } from 'vue';
-import { isExpressionMode, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
+import { isExpressionMode, type EditorLayer, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
 import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
 import { initWebGPU, cleanupWebGPU, uploadMask } from '../webgpu/initWebGPU';
@@ -13,6 +13,7 @@ import getResultTransform from './getResultTransform';
 import getScaledLayersAndLines from './getScaledLayersAndLines';
 import drawTextLayer from './drawTextLayer';
 import drawStickerLayer from './drawStickerLayer';
+import { loadLayerFonts } from '../fonts';
 import { selectEncodingProfile } from './videoEncoding';
 import { encodeTransparentImage } from './encodeImage';
 import { createMaskRaster } from '../mask/maskRaster';
@@ -74,8 +75,17 @@ function cropOffsetFor(canvasSize: Vec2) {
   };
 }
 
+async function drawLayers(ctx: CanvasRenderingContext2D, layers: EditorLayer[]): Promise<void> {
+  for (const layer of layers) {
+    if (layer.type === 'text') drawTextLayer(ctx, layer);
+    else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
+  }
+}
+
 export async function createFinalResult(args: CreateFinalResultArgs): Promise<MediaEditorFinalResult> {
   const { mediaSrc, mediaType, mediaState, canvasSize, mediaRatio, renderingPayload } = args;
+
+  await loadLayerFonts(mediaState.resizableLayers);
 
   if (args.mode && isExpressionMode(args.mode) && mediaType === 'image') {
     return createExpressionResult(args, args.mode);
@@ -184,11 +194,7 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
         ctx.drawImage(resultCanvas, 0, 0);
         ctx.drawImage(brushResultCanvas, 0, 0);
 
-        // Draw text layers
-        for (const layer of scaledLayers) {
-          if (layer.type === 'text') drawTextLayer(ctx, layer);
-          else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
-        }
+        await drawLayers(ctx, scaledLayers);
 
         const blob = await new Promise<Blob>((resolve) =>
           compositeCanvas.toBlob((b) => resolve(b!), 'image/png')
@@ -241,7 +247,7 @@ async function renderVideoResult(opts: {
   brushResultCanvas: HTMLCanvasElement;
   scaledWidth: number;
   scaledHeight: number;
-  scaledLayers: any[];
+  scaledLayers: EditorLayer[];
   scaledLines: BrushDrawnLine[];
   mediaState: EditingMediaState;
   mediaSrc: string;
@@ -267,6 +273,7 @@ async function renderVideoResult(opts: {
   const previewCtx = previewCanvas.getContext('2d')!;
   previewCtx.drawImage(resultCanvas, 0, 0);
   previewCtx.drawImage(brushResultCanvas, 0, 0);
+  await drawLayers(previewCtx, scaledLayers);
 
   const previewBlob = await new Promise<Blob>((resolve) =>
     previewCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8)
@@ -331,10 +338,7 @@ async function renderVideoResult(opts: {
         compositeCtx.clearRect(0, 0, scaledWidth, scaledHeight);
         compositeCtx.drawImage(resultCanvas, 0, 0);
         compositeCtx.drawImage(brushResultCanvas, 0, 0);
-        for (const layer of scaledLayers) {
-          if (layer.type === 'text') drawTextLayer(compositeCtx, layer);
-          else if (layer.type === 'sticker') await drawStickerLayer(compositeCtx, layer);
-        }
+        await drawLayers(compositeCtx, scaledLayers);
 
         // Encode frame
         const frame = new VideoFrame(compositeCanvas, {
@@ -416,7 +420,7 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
       const [mw, mh] = maskResolution(payload.media.width, payload.media.height);
       const raster = createMaskRaster(mw, mh, mw / payload.media.width);
       try {
-        raster.render(source, mask.feather, mask.strokes);
+        raster.render(source, mask.feather, mask.strokes, args.getMaskSource);
         uploadMask(payload, raster.canvas);
       } finally {
         raster.dispose();
@@ -470,10 +474,7 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
     ctx.drawImage(brushCanvas, x, y);
     ctx.save();
     ctx.translate(x, y);
-    for (const layer of scaledLayers) {
-      if (layer.type === 'text') drawTextLayer(ctx, layer);
-      else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
-    }
+    await drawLayers(ctx, scaledLayers);
     ctx.restore();
 
     const blob = await encodeTransparentImage(outCanvas, { format: args.exportFormat, maxBytes: args.maxBytes });

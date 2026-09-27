@@ -1,4 +1,4 @@
-import type { FontKey, FontInfo, TextStyle, BrushType } from './types';
+import type { FontKey, FontInfo, TextStyle, BrushType, Vec2 } from './types';
 
 // ─── Font registry ─────────────────────────────────────────────────
 
@@ -12,6 +12,19 @@ export const FONT_REGISTRY: Record<FontKey, FontInfo> = {
   fugaz:     { fontFamily: "'Fugaz One'",       fontWeight: 400, baseline: 0.75 },
   sedan:     { fontFamily: "'Sedan'",           fontWeight: 400, baseline: 0.75 },
 };
+
+// ─── Text layer layout ─────────────────────────────────────────────
+// TextLayers.vue lays a text layer out with these and the export (drawTextLayer) repeats it.
+
+export const TEXT_PLACEHOLDER = 'Text';
+export const TEXT_LINE_HEIGHT = 1.2;
+export const TEXT_OUTLINE_WIDTH = 2;
+/** `background` style, [x, y]. */
+export const TEXT_BACKGROUND_PADDING: Vec2 = [8, 4];
+export const TEXT_BACKGROUND_RADIUS = 4;
+/** The layer box's `border-2 p-1` and its `min-w-[40px] min-h-[24px]`. */
+export const TEXT_BOX_INSET = 6;
+export const TEXT_BOX_MIN_SIZE: Vec2 = [40, 24];
 
 // ─── Default values ────────────────────────────────────────────────
 

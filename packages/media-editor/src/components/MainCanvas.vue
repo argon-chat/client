@@ -4,6 +4,7 @@
     <BrushCanvas ref="brushCanvasRef" />
     <TextLayers />
     <CropHandles />
+    <SelectionOverlay v-if="cutout" />
     <RotationWheel v-if="store.uiState.currentTab === 'crop'" />
     <BeforeAfter :visible="store.uiState.showBeforeAfter" />
   </div>
@@ -20,8 +21,11 @@ import CropHandles from './CropHandles.vue';
 import RotationWheel from './RotationWheel.vue';
 import TextLayers from './TextLayers.vue';
 import BeforeAfter from './BeforeAfter.vue';
+import SelectionOverlay from './SelectionOverlay.vue';
+import { isExpressionMode } from '../types';
 
-const { store } = useMediaEditorContext();
+const { store, mode } = useMediaEditorContext();
+const cutout = isExpressionMode(mode) && store.mediaType === 'image';
 
 // Initialize finalTransform computation
 useFinalTransform();

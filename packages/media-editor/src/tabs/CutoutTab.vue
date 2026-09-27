@@ -68,6 +68,99 @@
       </div>
     </section>
 
+    <!-- Selection and smart erasers -->
+    <section data-cutout-tools>
+      <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('media_editor_cutout_tools') }}</div>
+      <div class="grid grid-cols-4 gap-1">
+        <button
+          v-for="item in TOOLS"
+          :key="item.id"
+          class="flex flex-col items-center gap-1.5 px-1 py-2 rounded-lg border-none text-xs cursor-pointer transition-colors duration-150 disabled:opacity-30 disabled:cursor-default"
+          :class="tool === item.id ? 'bg-accent text-foreground' : 'bg-transparent text-muted-foreground hover:bg-accent/50 hover:text-foreground'"
+          :aria-pressed="tool === item.id"
+          :disabled="!store.uiState.isReady"
+          :data-cutout-tool="item.id"
+          @click="selectTool(item.id)"
+        >
+          <div class="size-8 rounded-lg flex items-center justify-center shrink-0" :class="tool === item.id ? 'bg-primary/15 text-primary' : 'bg-muted'">
+            <component :is="item.icon" :size="18" />
+          </div>
+          <span class="leading-tight text-center">{{ t(item.labelKey) }}</span>
+        </button>
+      </div>
+
+      <div v-if="tool" class="mt-4 flex flex-col gap-4" data-cutout-options>
+        <div v-if="tool === 'lasso'" class="px-2">
+          <Segmented
+            :options="[{ value: 'freehand', label: t('media_editor_lasso_freehand') }, { value: 'polygon', label: t('media_editor_lasso_polygon') }]"
+            :model-value="options.lassoMode"
+            data-option="lasso-mode"
+            @update:model-value="options.lassoMode = $event as 'freehand' | 'polygon'"
+          />
+        </div>
+
+        <OptionSlider v-if="tool === 'magneticLasso'" v-model="options.edgeWidth" :label="t('media_editor_edge_width')" :min="2" :max="40" unit=" px" data-option="edge-width" />
+        <OptionSlider v-if="isLassoTool" v-model="options.selectionFeather" :label="t('media_editor_feather')" :max="SELECTION_MAX_FEATHER" unit=" px" data-option="feather" />
+
+        <template v-if="tool === 'magicEraser'">
+          <OptionSlider v-model="options.magicTolerance" :label="t('media_editor_tolerance')" :max="100" data-option="tolerance" />
+          <div class="px-2 flex items-center justify-between text-sm font-medium">
+            <span>{{ t('media_editor_contiguous') }}</span>
+            <button
+              role="switch"
+              :aria-checked="options.contiguous"
+              :aria-label="t('media_editor_contiguous')"
+              class="relative w-9 h-5 rounded-full border-none cursor-pointer transition-colors"
+              :class="options.contiguous ? 'bg-primary' : 'bg-muted-foreground/30'"
+              data-option="contiguous"
+              @click="options.contiguous = !options.contiguous"
+            >
+              <span class="absolute top-0.5 left-0.5 size-4 rounded-full bg-background transition-transform" :class="{ 'translate-x-4': options.contiguous }" />
+            </button>
+          </div>
+          <OptionSlider v-model="options.magicFeather" :label="t('media_editor_feather')" :max="SELECTION_MAX_FEATHER" unit=" px" data-option="magic-feather" />
+        </template>
+
+        <template v-if="tool === 'backgroundEraser'">
+          <OptionSlider v-model="options.eraserSize" :label="t('media_editor_size')" :min="8" :max="200" unit=" px" data-option="eraser-size" />
+          <OptionSlider v-model="options.eraserHardness" :label="t('media_editor_hardness')" :max="100" unit="%" data-option="hardness" />
+          <OptionSlider v-model="options.eraserTolerance" :label="t('media_editor_tolerance')" :max="100" data-option="eraser-tolerance" />
+          <div class="px-2">
+            <div class="mb-2 text-sm font-medium">{{ t('media_editor_sampling') }}</div>
+            <Segmented
+              :options="[{ value: 'once', label: t('media_editor_sampling_once') }, { value: 'continuous', label: t('media_editor_sampling_continuous') }]"
+              :model-value="options.sampling"
+              data-option="sampling"
+              @update:model-value="options.sampling = $event as 'once' | 'continuous'"
+            />
+          </div>
+        </template>
+
+        <div v-if="isLassoTool && store.uiState.selection" class="px-2 flex gap-2" data-selection-actions>
+          <button
+            class="flex-1 py-2 px-2 rounded-md text-xs font-medium border cursor-pointer transition-all border-primary text-primary bg-primary/10 hover:bg-primary/20"
+            data-selection-action="keep"
+            @click="store.applySelection('keep')"
+          >{{ t('media_editor_keep_inside') }}</button>
+          <button
+            class="flex-1 py-2 px-2 rounded-md text-xs font-medium border cursor-pointer transition-all border-border text-foreground bg-transparent hover:border-foreground/30"
+            data-selection-action="erase"
+            @click="store.applySelection('erase')"
+          >{{ t('media_editor_erase_inside') }}</button>
+          <button
+            class="flex-1 py-2 px-2 rounded-md text-xs font-medium border cursor-pointer transition-all"
+            :class="store.uiState.selection?.inverted ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground bg-transparent hover:border-foreground/30'"
+            :aria-pressed="!!store.uiState.selection?.inverted"
+            data-selection-action="invert"
+            @click="toggleInvert"
+          >{{ t('media_editor_invert_selection') }}</button>
+        </div>
+
+        <p v-if="edgeStatus" class="px-2 text-xs" :class="store.uiState.liveWire === 'failed' ? 'text-destructive' : 'text-muted-foreground'" data-edge-status>{{ edgeStatus }}</p>
+        <p class="px-2 text-xs text-muted-foreground">{{ hint }}</p>
+      </div>
+    </section>
+
     <!-- Outline -->
     <section>
       <div class="flex items-center justify-between mb-3 px-2">
@@ -124,16 +217,63 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Wand2, Scissors, RotateCcw, Pipette } from 'lucide-vue-next';
+import { Wand2, Scissors, RotateCcw, Pipette, Lasso, Magnet, Wand, Eraser } from 'lucide-vue-next';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import RangeInput from '../components/RangeInput.vue';
+import OptionSlider from '../components/OptionSlider.vue';
+import Segmented from '../components/Segmented.vue';
 import { OUTLINE_MAX_RADIUS } from '../mask/maskMath';
 import { EXPRESSION_EXPORT_PRESETS } from '../finalRender/computeExportDimensions';
+import { SELECTION_MAX_FEATHER } from '../store/editorStore';
+import type { CutoutTool } from '../types';
 
 const { t } = useI18n();
 const { store, mode, backgroundRemover } = useMediaEditorContext();
+
+const TOOLS: { id: CutoutTool; labelKey: string; icon: Component }[] = [
+  { id: 'lasso', labelKey: 'media_editor_tool_lasso', icon: Lasso },
+  { id: 'magneticLasso', labelKey: 'media_editor_tool_magnetic_lasso', icon: Magnet },
+  { id: 'magicEraser', labelKey: 'media_editor_tool_magic_eraser', icon: Wand },
+  { id: 'backgroundEraser', labelKey: 'media_editor_tool_background_eraser', icon: Eraser }
+];
+
+const tool = computed(() => store.uiState.cutoutTool);
+const options = computed(() => store.uiState.cutoutOptions);
+const isLassoTool = computed(() => tool.value === 'lasso' || tool.value === 'magneticLasso');
+
+function toggleInvert() {
+  const selection = store.uiState.selection;
+  if (selection) selection.inverted = !selection.inverted;
+}
+
+function selectTool(id: CutoutTool) {
+  store.uiState.cutoutTool = store.uiState.cutoutTool === id ? null : id;
+}
+
+const edgeStatus = computed(() => {
+  if (tool.value !== 'magneticLasso') return '';
+  if (store.uiState.liveWire === 'preparing') return t('media_editor_edges_preparing');
+  if (store.uiState.liveWire === 'failed') return t('media_editor_edges_failed');
+  return '';
+});
+
+const hint = computed(() => {
+  if (isLassoTool.value && store.uiState.selection) return t('media_editor_hint_selection');
+  switch (tool.value) {
+    case 'lasso':
+      return t(options.value.lassoMode === 'polygon' ? 'media_editor_hint_lasso_polygon' : 'media_editor_hint_lasso_freehand');
+    case 'magneticLasso':
+      return t(store.uiState.liveWire === 'failed' ? 'media_editor_hint_lasso_polygon' : 'media_editor_hint_magnetic_lasso');
+    case 'magicEraser':
+      return t('media_editor_hint_magic_eraser');
+    case 'backgroundEraser':
+      return t('media_editor_hint_background_eraser');
+    default:
+      return '';
+  }
+});
 
 const MAX_FEATHER = 12;
 const OUTLINE_COLORS = ['#ffffff', '#000000', '#fe4438', '#ffd60a', '#33c759', '#0a84ff', '#bd5cf3'];

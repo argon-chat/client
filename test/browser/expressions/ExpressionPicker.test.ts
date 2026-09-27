@@ -2,8 +2,9 @@
  * The expression picker in a real browser, over a seeded expressions store (one sticker pack and one
  * emoji pack, their files the Lottie fixture) and a seeded space list: a fixed 498×440 panel with a
  * tab bar, a rail beside a sectioned virtual grid (the space's emoji under the space's name, then the
- * unicode groups), a footer naming what is pointed at, the rail and the grid following each other,
- * the keyboard across header, rail and grid, skin tones drawn from the atlases, and Esc.
+ * unicode groups), a footer naming what is pointed at (with its space's picture), the rail and the
+ * grid following each other, the keyboard across header, rail and grid, skin tones drawn from the
+ * atlases, a sticker previewed while it is held down (never on hover), and Esc.
  */
 
 import "../../../packages/assets/styles/index.css";
@@ -24,21 +25,17 @@ vi.mock("@/store/system/apiStore", () => ({
     },
   }),
 }));
+// A space's picture (its `avatarFieldId` is `avatar-…`) is a real image; every expression file the fixture.
+const AVATAR_URL = vi.hoisted(
+  () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+);
 vi.mock("@/store/system/fileStorage", async () => {
   const { default: url } = await import("../fixtures/tiny-lottie.json?url");
-  return { cdnUrl: () => url, cdnFetchUrl: () => url, cdnCrossOrigin: () => undefined };
+  const cdnUrl = (fileId: string) => (fileId.startsWith("avatar-") ? AVATAR_URL : url);
+  return { cdnUrl, cdnFetchUrl: cdnUrl, cdnCrossOrigin: () => undefined };
 });
-// The space's picture is not what is under test.
-vi.mock("@/components/ArgonAvatar.vue", async () => {
-  const { defineComponent, h } = await import("vue");
-  return {
-    default: defineComponent({
-      name: "ArgonAvatar",
-      props: { spaceId: String, fileId: String, fallback: String },
-      setup: (props) => () => h("span", { class: "avatar-stub", "data-avatar": props.spaceId }, props.fallback),
-    }),
-  };
-});
+// ArgonAvatar looks users up there; spaces it is handed.
+vi.mock("@/store/data/poolStore", () => ({ usePoolStore: () => ({}) }));
 // The GIF tab's own browser (and its API) is not what is under test: a stand-in that picks on click.
 vi.mock("@/components/chats/GifPicker.vue", async () => {
   const { defineComponent, h } = await import("vue");
@@ -97,11 +94,11 @@ const pack = (packId: string, kind: ExpressionKind, title: string, items: Expres
   creatorId: null,
 });
 
-const spaceRow = (spaceId: string, name: string): ArgonSpaceBase => ({
+const spaceRow = (spaceId: string, name: string, avatarFieldId: string | null = null): ArgonSpaceBase => ({
   spaceId,
   name,
   description: "",
-  avatarFieldId: null,
+  avatarFieldId,
   topBannerFileId: null,
   boostCount: 0,
   boostLevel: 0,
@@ -167,6 +164,37 @@ function hover(el: Element) {
   el.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
 }
 
+/** The mouse at the middle of `el`; `buttons` held (the left one by default, none on `mouseup`). */
+function mouse(el: Element, type: "mousedown" | "mousemove" | "mouseup", button = 0) {
+  const r = el.getBoundingClientRect();
+  const buttons = type === "mouseup" ? 0 : button === 0 ? 1 : 2;
+  el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button, buttons, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+}
+
+/** A finger on `el`, as the browser reports it: `touches` still down, `changedTouches` this one. */
+function finger(el: Element, type: "touchstart" | "touchmove" | "touchend", target: Element = el) {
+  const r = el.getBoundingClientRect();
+  const touch = new Touch({ identifier: 1, target, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 });
+  const event = new TouchEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    touches: type === "touchend" ? [] : [touch],
+    changedTouches: [touch],
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
+const preview = () => document.querySelector("[data-sticker-preview]");
+const previewName = () => document.querySelector("[data-sticker-preview] .xp-preview__name")?.textContent ?? null;
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function stickerTab() {
+  const wrapper = open({ initialTab: "stickers" });
+  await until(() => $$(wrapper.element, ".xp-cell--sticker").length === 3);
+  return { wrapper, root: wrapper.element, cells: $$(wrapper.element, ".xp-cell--sticker") };
+}
+
 beforeAll(async () => {
   await initializeEmojix();
   await page.viewport(1280, 900);
@@ -222,9 +250,10 @@ describe("ExpressionPicker", () => {
 
     expect(groupIds(root)).toEqual(["space:s1", ...UNICODE]);
     expect(railIds(root)).toEqual(["space:s1", ...UNICODE]);
-    expect($(root, '[data-rail="space:s1"] [data-avatar="s1"]')).not.toBeNull();
     await until(() => groupTitle(root, "space:s1") === SPACE_NAME);
     expect($(root, '[data-rail="space:s1"]')?.getAttribute("aria-label")).toBe(SPACE_NAME);
+    // No picture: its initial.
+    expect($(root, '[data-rail="space:s1"]')?.textContent?.trim()).toBe("C");
     expect(activeRail(root)).toEqual(["space:s1"]);
     // A single pack needs no sub-header of its own.
     expect($$(group(root, "space:s1"), ".xp-section__title")).toHaveLength(0);
@@ -348,6 +377,40 @@ describe("ExpressionPicker", () => {
     await until(() => footerName(root) === ":em_0:");
   });
 
+  test("the footer shows the space's picture as the rail does, and its initial when it has none", async () => {
+    await db.servers.put(spaceRow(SPACE, SPACE_NAME, "avatar-s1"));
+    const wrapper = open();
+    await ready(wrapper);
+    const root = wrapper.element;
+    const errors: Event[] = [];
+    root.addEventListener("error", (e: Event) => errors.push(e), true);
+
+    hover($$(root, ".xp-cell--custom")[1]);
+    await until(() => footerName(root) === ":em_1:" && !!$(root, "[data-footer-space] img"));
+    const img = $<HTMLImageElement>(root, "[data-footer-space] img")!;
+    expect(img.getAttribute("src")).toBe(AVATAR_URL);
+    await until(() => img.complete && img.naturalWidth > 0);
+    await frame();
+    // Loaded, and still the picture: no error put the initial in its place.
+    expect(errors).toHaveLength(0);
+    expect($(root, "[data-footer-space] img")).toBe(img);
+    expect($(root, "[data-footer-space]")!.textContent!.trim()).toBe("");
+    expect(width($(root, "[data-footer-space] img"))).toBe(24);
+    expect($<HTMLImageElement>(root, '[data-rail="space:s1"] img')?.getAttribute("src")).toBe(AVATAR_URL);
+
+    // A unicode emoji comes from no space.
+    hover($$(group(root, "smileys"), ".xp-cell")[0]);
+    await until(() => !$(root, "[data-footer-space]"));
+    wrapper.unmount();
+
+    await db.servers.put(spaceRow(SPACE, SPACE_NAME));
+    const plain = open();
+    await ready(plain);
+    hover($$(plain.element, ".xp-cell--custom")[0]);
+    await until(() => $(plain.element, "[data-footer-space]")?.textContent?.trim() === "C");
+    expect($(plain.element, "[data-footer-space] img")).toBeNull();
+  });
+
   test("the sticker tab: a group per pack headed with its pack and space, 96 px cells four to a row", async () => {
     const wrapper = open();
     await ready(wrapper);
@@ -376,19 +439,127 @@ describe("ExpressionPicker", () => {
     expect(useExpressionsStore().recentStickers[0]).toBe("st-1");
   });
 
-  test("hovering a sticker previews it large; only the preview plays meanwhile", async () => {
-    const wrapper = open({ initialTab: "stickers" });
-    await until(() => !!$(wrapper.element, ".xp-cell--sticker"));
+  test("hovering a sticker names it in the footer and opens no preview", async () => {
+    const { root, cells } = await stickerTab();
+    hover(cells[2]);
+    await until(() => footerName(root) === "st_2");
+    await wait(800);
+    expect(preview()).toBeNull();
+  });
+
+  test("the left button held on a sticker for 125 ms previews it large; only the preview plays meanwhile", async () => {
+    const { wrapper, cells } = await stickerTab();
     const pool = getLottiePool();
-    hover($(wrapper.element, ".xp-cell--sticker")!);
-    await until(() => !!document.querySelector("[data-sticker-preview]"), 2_000);
-    const preview = document.querySelector("[data-sticker-preview] .sticker-view")!;
-    expect(preview.getBoundingClientRect().width).toBe(Math.min(360, Math.floor(Math.min(innerWidth, innerHeight) * 0.7)));
+
+    mouse(cells[0], "mousedown");
+    await wait(60);
+    expect(preview()).toBeNull();
+    await until(() => previewName() === "st_0", 1_000);
+    const art = document.querySelector("[data-sticker-preview] .sticker-view")!;
+    expect(art.getBoundingClientRect().width).toBe(Math.min(360, Math.floor(Math.min(innerWidth, innerHeight) * 0.7)));
     expect(pool.intersector.onlyPlayableGroup).toBe("preview");
 
-    grid(wrapper.element).dispatchEvent(new PointerEvent("pointerleave", { pointerType: "mouse" }));
-    await until(() => !document.querySelector("[data-sticker-preview]"));
+    // Letting go closes it; the click that ends the hold is not a pick.
+    mouse(cells[0], "mouseup");
+    cells[0].click();
+    await until(() => !preview());
+    expect(wrapper.emitted("select-sticker")).toBeUndefined();
     expect(pool.intersector.onlyPlayableGroup).toBeNull();
+
+    // The next click is one again.
+    mouse(cells[1], "mousedown");
+    mouse(cells[1], "mouseup");
+    cells[1].click();
+    expect((wrapper.emitted("select-sticker")?.[0]?.[0] as ExpressionItem).itemId).toBe("st-1");
+  });
+
+  test("a quick click sends the sticker without a preview", async () => {
+    const { wrapper, cells } = await stickerTab();
+    mouse(cells[2], "mousedown");
+    await wait(40);
+    mouse(cells[2], "mouseup");
+    cells[2].click();
+    expect((wrapper.emitted("select-sticker")?.[0]?.[0] as ExpressionItem).itemId).toBe("st-2");
+    await wait(250);
+    expect(preview()).toBeNull();
+  });
+
+  test("moving while held switches the preview to the sticker underneath; the footer follows", async () => {
+    const { wrapper, root, cells } = await stickerTab();
+    mouse(cells[0], "mousedown");
+    await until(() => previewName() === "st_0", 1_000);
+
+    // Across the gap and onto the next: the preview stays up and switches.
+    mouse(grid(root), "mousemove");
+    hover(cells[2]);
+    mouse(cells[2], "mousemove");
+    await until(() => previewName() === "st_2");
+    expect(footerName(root)).toBe("st_2");
+
+    // Released over another cell than the pressed one: the browser clicks their common parent.
+    mouse(cells[2], "mouseup");
+    cells[2].parentElement!.click();
+    await until(() => !preview());
+    cells[2].click();
+    expect(wrapper.emitted("select-sticker")).toHaveLength(1);
+  });
+
+  test("leaving the sticker before 125 ms, the right button, or emoji open no preview", async () => {
+    const { root, cells } = await stickerTab();
+    mouse(cells[0], "mousedown");
+    mouse(cells[1], "mousemove");
+    await wait(250);
+    expect(preview()).toBeNull();
+    mouse(cells[1], "mouseup");
+
+    mouse(cells[1], "mousedown", 2);
+    await wait(250);
+    expect(preview()).toBeNull();
+    mouse(cells[1], "mouseup", 2);
+
+    $(root, '[data-tab="emoji"]')!.click();
+    await until(() => !!$(root, ".xp-cell--custom"));
+    mouse($(root, ".xp-cell--custom")!, "mousedown");
+    await wait(250);
+    expect(preview()).toBeNull();
+    mouse($(root, ".xp-cell--custom")!, "mouseup");
+  });
+
+  test("the keyboard picks a sticker and never previews one", async () => {
+    const { wrapper, cells } = await stickerTab();
+    cells[1].focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await until(() => focused() === cells[2]);
+    await wait(250);
+    expect(preview()).toBeNull();
+    await userEvent.keyboard("{Enter}");
+    expect((wrapper.emitted("select-sticker")?.[0]?.[0] as ExpressionItem).itemId).toBe("st-2");
+    expect(preview()).toBeNull();
+  });
+
+  test("a finger held 400 ms previews, sliding switches without scrolling, and lifting sends nothing", async () => {
+    const { wrapper, root, cells } = await stickerTab();
+    finger(cells[0], "touchstart");
+    await wait(200);
+    expect(preview()).toBeNull();
+    await until(() => previewName() === "st_0", 1_000);
+
+    const slide = finger(cells[1], "touchmove", cells[0]);
+    expect(slide.defaultPrevented).toBe(true);
+    await until(() => previewName() === "st_1");
+
+    const lift = finger(cells[1], "touchend", cells[0]);
+    expect(lift.defaultPrevented).toBe(true);
+    cells[0].click();
+    await until(() => !preview());
+    expect(wrapper.emitted("select-sticker")).toBeUndefined();
+
+    // A finger that moves first is a scroll.
+    finger(cells[2], "touchstart");
+    finger(grid(root), "touchmove", cells[2]);
+    await wait(550);
+    expect(preview()).toBeNull();
+    finger(grid(root), "touchend", cells[2]);
   });
 
   test("keyboard: down from the search enters the grid, arrows move across groups, Enter picks, typing returns", async () => {

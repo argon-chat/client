@@ -1,10 +1,16 @@
-import type { MaskRaster, MaskStroke, Vec2 } from '../types';
+import { toRaw } from 'vue';
+import type { MaskOp, MaskPolygonOp, MaskRaster, MaskRasterOp, MaskStroke, Vec2 } from '../types';
 import { featherMask } from './maskMath';
+import { selectionCoverage } from '../selection/polygon';
+import type { CoverageRect } from '../selection/coverage';
 
 type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
 type AnyContext2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export type DirtyRect = { x: number; y: number; width: number; height: number };
+
+/** The rasters behind `MaskRasterOp.raster` (and the base), by id. */
+export type MaskSourceResolver = (id: number | null) => MaskRaster | null;
 
 export interface MaskRasterCanvas {
   readonly canvas: AnyCanvas;
@@ -12,10 +18,12 @@ export interface MaskRasterCanvas {
   readonly height: number;
   /** Mask pixels per source pixel. */
   readonly scale: number;
-  /** Redraws everything: the (feathered) source, or opaque white, then every stroke. */
-  render(source: MaskRaster | null, feather: number, strokes: readonly MaskStroke[]): void;
+  /** Redraws everything: the (feathered) source, or opaque white, then every op in order. */
+  render(source: MaskRaster | null, feather: number, ops: readonly MaskOp[], resolve?: MaskSourceResolver): void;
   /** Adds the stroke's points from `from` on top of what is there; returns the area touched. */
   drawStroke(stroke: MaskStroke, from?: number): DirtyRect;
+  /** Replaces the mask in `rect` with `alpha` (one byte per pixel, rect-sized). */
+  putAlpha(rect: DirtyRect, alpha: Uint8Array): void;
   /** The mask as one byte per pixel. */
   read(): Uint8Array;
   dispose(): void;
@@ -24,6 +32,63 @@ export interface MaskRasterCanvas {
 function makeCanvas(width: number, height: number): AnyCanvas {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
   return Object.assign(document.createElement('canvas'), { width, height });
+}
+
+function alphaImage(width: number, height: number, alpha: Uint8Array): ImageData {
+  const image = new ImageData(width, height);
+  const px = image.data;
+  for (let i = 0, j = 0; i < alpha.length; i++, j += 4) {
+    px[j] = 255;
+    px[j + 1] = 255;
+    px[j + 2] = 255;
+    px[j + 3] = alpha[i];
+  }
+  return image;
+}
+
+// ─── Op layers ─────────────────────────────────────────────────────
+// A selection or eraser result drawn as a canvas, kept for the next full redraw (every state change
+// redraws the mask). A few of them only: they are 4 bytes a pixel.
+
+type Layer = { canvas: AnyCanvas | null; x: number; y: number; key: string };
+
+const layers = new Map<object, Layer>();
+const MAX_LAYERS = 12;
+const MAX_LAYER_PIXELS = 16_000_000;
+
+function layerFor(owner: object, key: string, build: () => CoverageRect | null): Layer {
+  const cached = layers.get(owner);
+  if (cached && cached.key === key) {
+    layers.delete(owner);
+    layers.set(owner, cached);
+    return cached;
+  }
+  if (cached) release(owner, cached);
+  const c = build();
+  let layer: Layer = { canvas: null, x: 0, y: 0, key };
+  if (c && c.width > 0 && c.height > 0) {
+    const canvas = makeCanvas(c.width, c.height);
+    (canvas.getContext('2d') as AnyContext2D).putImageData(alphaImage(c.width, c.height, c.data), 0, 0);
+    layer = { canvas, x: c.x, y: c.y, key };
+  }
+  layers.set(owner, layer);
+  let pixels = 0;
+  for (const l of layers.values()) pixels += l.canvas ? l.canvas.width * l.canvas.height : 0;
+  for (const [k, l] of layers) {
+    if (layers.size <= MAX_LAYERS && pixels <= MAX_LAYER_PIXELS) break;
+    if (k === owner) continue;
+    pixels -= l.canvas ? l.canvas.width * l.canvas.height : 0;
+    release(k, l);
+  }
+  return layer;
+}
+
+function release(owner: object, layer: Layer) {
+  layers.delete(owner);
+  if (layer.canvas) {
+    layer.canvas.width = 0;
+    layer.canvas.height = 0;
+  }
 }
 
 /**
@@ -48,14 +113,7 @@ export function createMaskRaster(width: number, height: number, scale: number): 
       w = width;
       h = height;
     }
-    const image = new ImageData(w, h);
-    const px = image.data;
-    for (let i = 0, j = 0; i < data.length; i++, j += 4) {
-      px[j] = 255;
-      px[j + 1] = 255;
-      px[j + 2] = 255;
-      px[j + 3] = data[i];
-    }
+    const image = alphaImage(w, h, data);
     baseKey = { source, feather };
     baseImage = image;
     return image;
@@ -115,12 +173,57 @@ export function createMaskRaster(width: number, height: number, scale: number): 
     return { x, y, width: Math.max(0, x2 - x), height: Math.max(0, y2 - y) };
   }
 
+  function drawPolygon(op: MaskPolygonOp) {
+    const outside = op.region === 'outside';
+    const layer = layerFor(toRaw(op), `${width}x${height}@${scale}`, () => {
+      const c = selectionCoverage(op.points, op.feather, width, height, scale);
+      if (c && outside) for (let i = 0; i < c.data.length; i++) c.data[i] = 255 - c.data[i];
+      return c;
+    });
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    const { canvas: layerCanvas, x, y } = layer;
+    if (layerCanvas) ctx.drawImage(layerCanvas, x, y);
+    ctx.restore();
+    if (!outside) return;
+    // Beyond the selection's box everything is outside it.
+    if (!layerCanvas) {
+      ctx.clearRect(0, 0, width, height);
+      return;
+    }
+    const w = layerCanvas.width;
+    const h = layerCanvas.height;
+    ctx.clearRect(0, 0, width, y);
+    ctx.clearRect(0, y + h, width, height - y - h);
+    ctx.clearRect(0, y, x, h);
+    ctx.clearRect(x + w, y, width - x - w, h);
+  }
+
+  function drawRasterOp(op: MaskRasterOp, resolve?: MaskSourceResolver) {
+    const raster = resolve?.(op.raster);
+    const [a, b] = op.points;
+    if (!raster || !a || !b) return;
+    const layer = layerFor(raster, 'raster', () => ({ x: 0, y: 0, width: raster.width, height: raster.height, data: raster.data }));
+    if (!layer.canvas) return;
+    // Made at this resolution it lands on whole pixels, copied as it is; otherwise it is resampled.
+    const snap = (v: number) => (Math.abs(v - Math.round(v)) < 1e-3 ? Math.round(v) : v);
+    const x = snap(a[0] * scale);
+    const y = snap(a[1] * scale);
+    const w = snap((b[0] - a[0]) * scale);
+    const h = snap((b[1] - a[1]) * scale);
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.imageSmoothingEnabled = !(w === raster.width && h === raster.height && Number.isInteger(x) && Number.isInteger(y));
+    ctx.drawImage(layer.canvas, x, y, w, h);
+    ctx.restore();
+  }
+
   return {
     canvas,
     width,
     height,
     scale,
-    render(source, feather, strokes) {
+    render(source, feather, ops, resolve) {
       ctx.save();
       ctx.globalCompositeOperation = 'copy';
       if (source) {
@@ -130,10 +233,18 @@ export function createMaskRaster(width: number, height: number, scale: number): 
         ctx.fillRect(0, 0, width, height);
       }
       ctx.restore();
-      for (const stroke of strokes) strokePath(stroke, 0);
+      for (const op of ops) {
+        if (op.kind === 'polygon') drawPolygon(op);
+        else if (op.kind === 'raster') drawRasterOp(op, resolve);
+        else strokePath(op, 0);
+      }
     },
     drawStroke(stroke, from = 0) {
       return strokePath(stroke, from);
+    },
+    putAlpha(rect, alpha) {
+      if (rect.width <= 0 || rect.height <= 0) return;
+      ctx.putImageData(alphaImage(rect.width, rect.height, alpha), rect.x, rect.y);
     },
     read() {
       const px = ctx.getImageData(0, 0, width, height).data;

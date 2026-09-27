@@ -3,7 +3,7 @@
     <div
       v-for="layer in store.mediaState.resizableLayers"
       :key="layer.id"
-      class="absolute cursor-move pointer-events-auto select-none min-w-[40px] min-h-[24px] border-2 border-transparent rounded p-1 transition-[border-color] duration-150"
+      class="absolute w-max cursor-move pointer-events-auto select-none min-w-[40px] min-h-[24px] border-2 border-transparent rounded p-1 transition-[border-color] duration-150"
       :class="{ '!border-primary': store.uiState.selectedResizableLayer === layer.id }"
       :style="layerStyle(layer)"
       @pointerdown.stop="(e) => startDrag(layer, e)"
@@ -20,15 +20,15 @@
       <template v-else>
         <div
           v-if="editingLayerId !== layer.id"
-          class="whitespace-pre-wrap break-words pointer-events-none"
+          class="whitespace-pre pointer-events-none"
           :style="textContentStyle(layer)"
-        >{{ layer.textInfo?.content || 'Text' }}</div>
+        >{{ layerText(layer.textInfo) }}</div>
         <textarea
           v-else
           ref="editInputRef"
           class="bg-transparent border-none outline-none resize-none w-full min-w-[100px] min-h-[40px] font-[inherit] whitespace-pre-wrap break-words"
           :style="textContentStyle(layer)"
-          :value="layer.textInfo?.content || 'Text'"
+          :value="layerText(layer.textInfo)"
           @input="(e) => updateContent(layer, (e.target as HTMLTextAreaElement).value)"
           @blur="stopEditing"
           @keydown.escape="stopEditing"
@@ -41,7 +41,8 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
-import { FONT_REGISTRY } from '../constants';
+import { TEXT_BACKGROUND_PADDING, TEXT_BACKGROUND_RADIUS, TEXT_LINE_HEIGHT, TEXT_OUTLINE_WIDTH } from '../constants';
+import { fontInfo, layerText } from '../fonts';
 import { contrastingTextColor } from '../color';
 import type { EditorLayer, Vec2 } from '../types';
 
@@ -62,26 +63,26 @@ function textContentStyle(layer: EditorLayer) {
   const info = layer.textInfo;
   if (!info) return {};
 
-  const fontInfo = FONT_REGISTRY[info.font];
+  const font = fontInfo(info.font);
   const style: Record<string, string> = {
     fontSize: info.size + 'px',
     color: info.color,
     textAlign: info.alignment,
-    fontFamily: fontInfo?.fontFamily ?? 'sans-serif',
-    fontWeight: String(fontInfo?.fontWeight ?? 400),
-    lineHeight: '1.2'
+    fontFamily: font.fontFamily,
+    fontWeight: String(font.fontWeight),
+    lineHeight: String(TEXT_LINE_HEIGHT)
   };
 
   if (info.style === 'outline') {
     style.color = 'transparent';
-    style.webkitTextStroke = `2px ${info.color}`;
+    style.webkitTextStroke = `${TEXT_OUTLINE_WIDTH}px ${info.color}`;
     style.paintOrder = 'stroke fill';
     style.textShadow = `0 0 0 transparent`;
   } else if (info.style === 'background') {
     style.backgroundColor = info.color;
     style.color = contrastingTextColor(info.color);
-    style.padding = '4px 8px';
-    style.borderRadius = '4px';
+    style.padding = `${TEXT_BACKGROUND_PADDING[1]}px ${TEXT_BACKGROUND_PADDING[0]}px`;
+    style.borderRadius = `${TEXT_BACKGROUND_RADIUS}px`;
   }
 
   return style;

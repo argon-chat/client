@@ -13,11 +13,13 @@ import {
   type PickerGroup,
 } from "./pickerModel";
 import { useGridKeyboardNav, type GridPos } from "./useGridKeyboardNav";
+import { useHoldPreview, type HoldTarget } from "./useHoldPreview";
 
 /**
  * The picker's scroller: groups in normal flow with their heights reserved, sticky group headers,
  * only the rows near the viewport mounted, the current group reported for the rail, and a roving
- * focus over the cells. Pointer and key events are handled here once, for every cell.
+ * focus over the cells. Pointer and key events are handled here once, for every cell; a sticker held
+ * down is previewed (see `useHoldPreview`).
  */
 const props = defineProps<{
   groups: readonly PickerGroup[];
@@ -33,17 +35,14 @@ const emit = defineEmits<{
   hover: [cell: PickerCell | null, el: HTMLElement | null];
   /** A cell took the keyboard focus. */
   focus: [cell: PickerCell];
-  /** The finger lifted after a long press. */
-  release: [];
+  /** The sticker held down; null when the hold ends. */
+  preview: [cell: PickerCell | null];
   "active-change": [id: string | null];
   "type-ahead": [e: KeyboardEvent];
-  scroll: [];
 }>();
 
 const PADDING_X = 8;
 const OVERSCAN = 160;
-const LONG_PRESS_MS = 400;
-const LONG_PRESS_SLOP = 10;
 
 const scroller = ref<HTMLElement | null>(null);
 const scrollTop = ref(0);
@@ -161,7 +160,7 @@ function onScroll() {
   if (!box) return;
   scrollTop.value = box.scrollTop;
   if (pinnedId.value && Math.abs(box.scrollTop - pinnedTop) >= 1) pinnedId.value = null;
-  emit("scroll");
+  hold.onScroll();
 }
 
 function onScrollEnd() {
@@ -182,55 +181,23 @@ function onFocusIn(e: FocusEvent) {
   if (cell) emit("focus", cell);
 }
 
-let suppressClick = false;
-let pressTimer: ReturnType<typeof setTimeout> | undefined;
-let pressStart: { x: number; y: number } | null = null;
-let longPressed = false;
-
-function cancelPress() {
-  clearTimeout(pressTimer);
-  pressTimer = undefined;
-  pressStart = null;
+function hitCell(el: Element | null): HoldTarget | null {
+  const hit = parsePos(el);
+  const cell = hit ? cellAt(hit.pos) : undefined;
+  return hit && cell ? { cell, el: hit.el } : null;
 }
 
-function onPointerDown(e: PointerEvent) {
-  if (e.pointerType === "mouse") return;
-  const hit = parsePos(e.target as Element);
-  if (!hit) return;
-  cancelPress();
-  longPressed = false;
-  pressStart = { x: e.clientX, y: e.clientY };
-  pressTimer = setTimeout(() => {
-    const cell = cellAt(hit.pos);
-    pressTimer = undefined;
-    if (!cell) return;
-    longPressed = true;
-    suppressClick = true;
-    emit("context", cell, hit.el, "touch");
-  }, LONG_PRESS_MS);
-}
+const hold = useHoldPreview({
+  hit: hitCell,
+  preview: (cell) => emit("preview", cell),
+  longPress: ({ cell, el }) => emit("context", cell, el, "touch"),
+});
 
-function onPointerMove(e: PointerEvent) {
-  if (pressStart && Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) > LONG_PRESS_SLOP) cancelPress();
-}
-
-function onPointerUp() {
-  cancelPress();
-  if (longPressed) {
-    longPressed = false;
-    emit("release");
-    // The click that follows the lift is the end of the long press, not a pick.
-    setTimeout(() => (suppressClick = false), 400);
-  }
-}
-
-// Only cells report: the gaps between them and the headers are passed over without a word, so a
-// preview is not dropped and reopened on the way from one sticker to the next.
+// Only cells report: the gaps between them and the headers are passed over without a word.
 function onPointerOver(e: PointerEvent) {
   if (e.pointerType !== "mouse") return;
-  const hit = parsePos(e.target as Element);
-  const cell = hit ? cellAt(hit.pos) : undefined;
-  if (hit && cell) emit("hover", cell, hit.el);
+  const hit = hitCell(e.target as Element);
+  if (hit) emit("hover", hit.cell, hit.el);
 }
 
 function onPointerLeave(e: PointerEvent) {
@@ -238,10 +205,6 @@ function onPointerLeave(e: PointerEvent) {
 }
 
 function onClick(e: MouseEvent) {
-  if (suppressClick) {
-    suppressClick = false;
-    return;
-  }
   if (e.detail === 0 && performance.now() - keyboardPickAt < 500) return;
   const hit = parsePos(e.target as Element);
   const cell = hit ? cellAt(hit.pos) : undefined;
@@ -251,13 +214,12 @@ function onClick(e: MouseEvent) {
 }
 
 function onContextMenu(e: MouseEvent) {
-  const hit = parsePos(e.target as Element);
-  const cell = hit ? cellAt(hit.pos) : undefined;
-  if (!hit || !cell) return;
+  const hit = hitCell(e.target as Element);
+  if (!hit) return;
   e.preventDefault();
-  // A touch long press already answered; the browser's own context menu follows it.
-  if (longPressed || suppressClick) return;
-  emit("context", cell, hit.el, "mouse");
+  // A finger's long press answers for itself; the browser's own menu follows it.
+  if (hold.touching()) return;
+  emit("context", hit.cell, hit.el, "mouse");
 }
 
 // ── size ──
@@ -281,7 +243,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   observer?.disconnect();
-  cancelPress();
+  hold.dispose();
   clearTimeout(unlockTimer);
 });
 
@@ -341,10 +303,11 @@ defineExpose({ scrollToGroup, scrollToSection, focusFirst, activeId, layout, scr
     @focusin="onFocusIn"
     @click="onClick"
     @contextmenu="onContextMenu"
-    @pointerdown="onPointerDown"
-    @pointermove.passive="onPointerMove"
-    @pointerup="onPointerUp"
-    @pointercancel="onPointerUp"
+    @mousedown="hold.onMouseDown"
+    @touchstart.passive="hold.onTouchStart"
+    @touchmove="hold.onTouchMove"
+    @touchend="hold.onTouchEnd"
+    @touchcancel="hold.onTouchCancel"
     @pointerover="onPointerOver"
     @pointerleave="onPointerLeave"
   >

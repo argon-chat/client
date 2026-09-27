@@ -13,8 +13,10 @@ import {
   type OutlineState,
   type MaskState,
   type MaskStroke,
+  type MaskOp,
   type MaskRaster,
-  type BackgroundRemover
+  type BackgroundRemover,
+  type CutoutTool
 } from '../types';
 import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
@@ -22,6 +24,11 @@ import { DEFAULT_TEXT_STYLE, DEFAULT_BRUSH } from '../constants';
 import { deepEqualApprox, omitKeys } from '../comparison';
 import { clamp } from '../geometry';
 import { DEFAULT_OUTLINE_COLOR, OUTLINE_MAX_RADIUS, maskResolution } from '../mask/maskMath';
+import type { CoverageRect } from '../selection/coverage';
+import type { EraserSampling } from '../selection/backgroundEraser';
+import { magicErase as computeMagicErase } from '../selection/magicEraser';
+import { polygonArea } from '../selection/polygon';
+import { readWorkingImage, type WorkingImage } from '../selection/workingImage';
 
 // ─── History ───────────────────────────────────────────────────────
 
@@ -84,6 +91,34 @@ export type BackgroundRemovalState = {
   progress: number;
 };
 
+export type CutoutOptions = {
+  lassoMode: 'freehand' | 'polygon';
+  /** Lasso and magnetic lasso, source pixels (0–20). */
+  selectionFeather: number;
+  /** Magnetic lasso: how far from the pointer an edge is looked for, CSS pixels. */
+  edgeWidth: number;
+  /** Magic eraser, 0–100. */
+  magicTolerance: number;
+  contiguous: boolean;
+  /** Magic eraser, source pixels (0–20). */
+  magicFeather: number;
+  /** Background eraser diameter, CSS pixels. */
+  eraserSize: number;
+  /** Background eraser, 0–100. */
+  eraserHardness: number;
+  eraserTolerance: number;
+  sampling: EraserSampling;
+};
+
+/** A closed lasso waiting for Keep / Erase, source pixels. */
+export type PendingSelection = {
+  points: Vec2[];
+  /** Selects everything but the polygon. */
+  inverted: boolean;
+};
+
+export const SELECTION_MAX_FEATHER = 20;
+
 export interface MediaEditorUIState {
   isReady: boolean;
   pixelRatio: number;
@@ -124,6 +159,12 @@ export interface MediaEditorUIState {
   backgroundRemoval: BackgroundRemovalState;
   /** Erase / restore brush diameter, CSS pixels. */
   maskBrushSize: number;
+
+  cutoutTool: CutoutTool | null;
+  cutoutOptions: CutoutOptions;
+  selection: PendingSelection | null;
+  /** The magnetic lasso's edge map: being computed, usable, or unavailable (then it is a polygon lasso). */
+  liveWire: 'idle' | 'preparing' | 'ready' | 'failed';
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────
@@ -214,7 +255,23 @@ function getDefaultUIState(): MediaEditorUIState {
     showBeforeAfter: false,
 
     backgroundRemoval: { status: 'idle', progress: 0 },
-    maskBrushSize: 40
+    maskBrushSize: 40,
+
+    cutoutTool: null,
+    cutoutOptions: {
+      lassoMode: 'freehand',
+      selectionFeather: 0,
+      edgeWidth: 10,
+      magicTolerance: 25,
+      contiguous: true,
+      magicFeather: 0,
+      eraserSize: 48,
+      eraserHardness: 80,
+      eraserTolerance: 30,
+      sampling: 'once'
+    },
+    selection: null,
+    liveWire: 'idle'
   };
 }
 
@@ -230,6 +287,8 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
 
   // Rasters are large and immutable; the state (and so the history) holds only their ids.
   const maskSources = new Map<number, MaskRaster>();
+  // The source at the mask's resolution, read back once for the smart erasers.
+  let working: WorkingImage | null = null;
 
   // Editing state (media transforms, adjustments, layers, brushes, history)
   const mediaState = reactive<EditingMediaState>(getDefaultEditingMediaState());
@@ -267,6 +326,7 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     mediaType.value = options.type;
     mode.value = options.mode ?? 'full';
     maskSources.clear();
+    working = null;
 
     // A state saved before a field existed still gets that field's default.
     const newState = options.initialState
@@ -349,6 +409,7 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     mediaType.value = 'image';
     mode.value = 'full';
     maskSources.clear();
+    working = null;
   }
 
   // ─── Outline and mask ────────────────────────────────────────────
@@ -387,13 +448,80 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     pushToHistory({ path: ['mask', 'feather'], oldValue, newValue: next });
   }
 
-  function addMaskStroke(stroke: MaskStroke) {
-    mediaState.mask.strokes.push(stroke);
+  function addMaskOp(op: MaskOp) {
+    mediaState.mask.strokes.push(op);
     pushToHistory({
       path: ['mask', 'strokes', mediaState.mask.strokes.length - 1],
       oldValue: REMOVE_ARRAY_ITEM,
-      newValue: stroke
+      newValue: op
     });
+  }
+
+  function addMaskStroke(stroke: MaskStroke) {
+    addMaskOp(stroke);
+  }
+
+  /** Erases inside or outside a closed polygon (source pixels), as one undoable step. */
+  function eraseSelection(points: readonly Vec2[], region: 'inside' | 'outside', feather = 0): boolean {
+    if (points.length < 3 || Math.abs(polygonArea(points)) < 1) return false;
+    addMaskOp({
+      kind: 'polygon',
+      region,
+      feather: clamp(Math.round(feather), 0, SELECTION_MAX_FEATHER),
+      points: points.map((p) => [p[0], p[1]] as Vec2)
+    });
+    return true;
+  }
+
+  /**
+   * Keep: erase everything but the selection; erase: erase the selection. With the selection
+   * inverted, "the selection" is everything outside the polygon.
+   */
+  function applySelection(action: 'keep' | 'erase'): boolean {
+    const selection = uiState.selection;
+    if (!selection) return false;
+    const selectedInside = !selection.inverted;
+    const eraseInside = action === 'erase' ? selectedInside : !selectedInside;
+    const done = eraseSelection(selection.points, eraseInside ? 'inside' : 'outside', uiState.cutoutOptions.selectionFeather);
+    uiState.selection = null;
+    return done;
+  }
+
+  /** A computed erase in a frame of `scale` pixels per source pixel, as one undoable step. */
+  function addMaskErase(coverage: CoverageRect, scale: number): boolean {
+    if (!coverage.width || !coverage.height || !(scale > 0)) return false;
+    const raster = addMaskSource({ width: coverage.width, height: coverage.height, data: coverage.data });
+    const { x, y, width, height } = coverage;
+    addMaskOp({ kind: 'raster', mode: 'erase', raster, points: [[x / scale, y / scale], [(x + width) / scale, (y + height) / scale]] });
+    return true;
+  }
+
+  /** The source at the mask's resolution; null until the image is loaded. */
+  function getWorkingImage(): WorkingImage | null {
+    if (working) return working;
+    const image = uiState.renderingPayload?.media.image;
+    const size = uiState.mediaSize;
+    if (!image || !size) return null;
+    working = readWorkingImage(image, size);
+    return working;
+  }
+
+  /** For tests and hosts that already have the pixels. */
+  function setWorkingImage(image: WorkingImage | null) {
+    working = image;
+  }
+
+  /** The magic eraser clicked at `point` (source pixels), with the tab's options. */
+  function magicErase(point: Vec2): boolean {
+    const image = getWorkingImage();
+    if (!image) return false;
+    const o = uiState.cutoutOptions;
+    const coverage = computeMagicErase(image, [point[0] * image.scale, point[1] * image.scale], {
+      tolerance: o.magicTolerance,
+      contiguous: o.contiguous,
+      feather: o.magicFeather * image.scale
+    });
+    return coverage ? addMaskErase(coverage, image.scale) : false;
   }
 
   let removal: AbortController | null = null;
@@ -481,16 +609,33 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     setMaskSource,
     setMaskFeather,
     addMaskStroke,
+    addMaskOp,
+    eraseSelection,
+    applySelection,
+    addMaskErase,
+    getWorkingImage,
+    setWorkingImage,
+    magicErase,
     resetMask,
     removeBackground,
     cancelBackgroundRemoval
   };
 });
 
+const plainPoints = (points: readonly Vec2[]) => points.map((p) => [p[0], p[1]] as Vec2);
+
+function toPlainOp(op: MaskOp): MaskOp {
+  if (op.kind === 'polygon') return { kind: 'polygon', region: op.region, feather: op.feather, points: plainPoints(op.points) };
+  if (op.kind === 'raster') {
+    return { kind: 'raster', mode: op.mode, raster: op.raster, points: plainPoints(op.points) };
+  }
+  return { mode: op.mode, size: op.size, points: plainPoints(op.points) };
+}
+
 function toPlainMask(mask: MaskState): MaskState {
   return {
     source: mask.source,
     feather: mask.feather,
-    strokes: mask.strokes.map((s) => ({ mode: s.mode, size: s.size, points: s.points.map((p) => [p[0], p[1]] as Vec2) }))
+    strokes: mask.strokes.map(toPlainOp)
   };
 }

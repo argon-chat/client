@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { emojiRegistry, spriteResolver, type SkinTone } from "@argon-chat/emojix";
+import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import StickerView from "@/components/expressions/StickerView.vue";
 import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
 import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
 import { pickerMedia } from "./pickerMedia";
-import { tonedEntry, type PickerCell } from "./pickerModel";
+import { initialOf, tonedEntry, type PickerCell, type SpaceInfo } from "./pickerModel";
 
-/** The pointed-at (or focused) cell, large, with its name and, for a space's own, "Pack · Space". */
+/**
+ * The pointed-at (or focused) cell, large, with its name and, for a space's own, "Pack · Space" and
+ * the space's picture, drawn as the rail draws it.
+ */
 const props = defineProps<{
   cell: PickerCell | null;
   tone: SkinTone;
   detail: string | null;
+  space?: SpaceInfo | null;
 }>();
 
 const SIZE = 32;
@@ -43,6 +48,14 @@ const sprite = computed(() =>
       <span class="xp-foot__text">
         <span class="xp-foot__name" data-footer-name>{{ name }}</span>
         <span v-if="detail" class="xp-foot__detail" data-footer-detail>{{ detail }}</span>
+      </span>
+      <span v-if="space && cell.type !== 'unicode'" class="xp-foot__space" :title="space.name" aria-hidden="true" data-footer-space>
+        <ArgonAvatar
+          class="xp-foot__avatar"
+          :file-id="space.avatarFileId"
+          :space-id="space.spaceId"
+          :fallback="initialOf(space.name)"
+        />
       </span>
     </template>
   </div>
@@ -99,5 +112,17 @@ const sprite = computed(() =>
   white-space: nowrap;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
+}
+
+.xp-foot__space {
+  display: inline-flex;
+  flex: none;
+  margin-left: auto;
+}
+
+.xp-foot__avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.7rem;
 }
 </style>

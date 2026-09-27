@@ -6,7 +6,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
-import { useMaskPainterSlot } from '../composables/useMaskPainter';
+import { useMaskPainterSlot, type MaskPainter } from '../composables/useMaskPainter';
 import { initWebGPU, cleanupWebGPU, uploadMask, clearMask, type RenderingPayload } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import type { OutlineDrawParams } from '../webgpu/stickerCompositor';
@@ -121,11 +121,23 @@ function syncMask() {
   } else {
     const raster = ensureMaskRaster();
     if (!raster) return;
-    raster.render(source, m.feather, m.strokes);
+    raster.render(source, m.feather, m.strokes, store.getMaskSource);
     rasterInSync = true;
     uploadMask(payload, raster.canvas);
   }
   scheduleRedraw();
+}
+
+/** The raster with every committed edit, rendered if it is not. */
+function syncedRaster(): MaskRasterCanvas | null {
+  const raster = ensureMaskRaster();
+  if (!raster) return null;
+  if (!rasterInSync) {
+    const m = store.mediaState.mask;
+    raster.render(store.getMaskSource(m.source), m.feather, m.strokes, store.getMaskSource);
+    rasterInSync = true;
+  }
+  return raster;
 }
 
 // A feather slider changes the state on every pointer move; one re-render per frame is enough.
@@ -161,19 +173,14 @@ function toSource(point: Vec2): Vec2 | null {
 
 function paintLive(from: number) {
   if (!payload || !liveStroke) return;
-  const raster = ensureMaskRaster();
+  const raster = syncedRaster();
   if (!raster) return;
-  if (!rasterInSync) {
-    const m = store.mediaState.mask;
-    raster.render(store.getMaskSource(m.source), m.feather, m.strokes);
-    rasterInSync = true;
-  }
   const rect = raster.drawStroke(liveStroke, from);
   uploadMask(payload, raster.canvas, rect);
   scheduleRedraw();
 }
 
-const maskPainter = {
+const maskPainter: MaskPainter = {
   begin(strokeMode: 'erase' | 'restore', size: number, point: Vec2) {
     const p = toSource(point);
     const scale = store.uiState.finalTransform.scale;
@@ -191,6 +198,17 @@ const maskPainter = {
     const stroke = liveStroke;
     liveStroke = null;
     if (stroke) store.addMaskStroke(stroke);
+  },
+  snapshot() {
+    const raster = syncedRaster();
+    return raster ? { width: raster.width, height: raster.height, data: raster.read() } : null;
+  },
+  preview(rect, alpha) {
+    const raster = syncedRaster();
+    if (!payload || !raster) return;
+    raster.putAlpha(rect, alpha);
+    uploadMask(payload, raster.canvas, rect);
+    scheduleRedraw();
   }
 };
 

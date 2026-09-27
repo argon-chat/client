@@ -52,18 +52,38 @@ export function applyMaskToRgba(rgba: Uint8ClampedArray, mask: Uint8Array): Uint
 // ─── Feathering ────────────────────────────────────────────────────
 
 function boxBlurPass(src: Float32Array, dst: Float32Array, w: number, h: number, r: number, horizontal: boolean): void {
-  const lines = horizontal ? h : w;
-  const len = horizontal ? w : h;
-  const stride = horizontal ? 1 : w;
   const norm = 1 / (2 * r + 1);
-  for (let line = 0; line < lines; line++) {
-    const base = horizontal ? line * w : line;
-    const at = (i: number) => base + Math.min(len - 1, Math.max(0, i)) * stride;
-    let sum = 0;
-    for (let i = -r; i <= r; i++) sum += src[at(i)];
-    for (let i = 0; i < len; i++) {
-      dst[base + i * stride] = sum * norm;
-      sum += src[at(i + r + 1)] - src[at(i - r)];
+  if (horizontal) {
+    const last = w - 1;
+    for (let y = 0; y < h; y++) {
+      const base = y * w;
+      let sum = 0;
+      for (let i = -r; i <= r; i++) sum += src[base + (i < 0 ? 0 : i > last ? last : i)];
+      for (let x = 0; x < w; x++) {
+        dst[base + x] = sum * norm;
+        const add = x + r + 1;
+        const sub = x - r;
+        sum += src[base + (add > last ? last : add)] - src[base + (sub < 0 ? 0 : sub)];
+      }
+    }
+    return;
+  }
+  // Row by row with a running sum per column: the same sums as a column walk, cache-friendly.
+  const last = h - 1;
+  const sums = new Float64Array(w);
+  for (let i = -r; i <= r; i++) {
+    const row = (i < 0 ? 0 : i > last ? last : i) * w;
+    for (let x = 0; x < w; x++) sums[x] += src[row + x];
+  }
+  for (let y = 0; y < h; y++) {
+    const out = y * w;
+    const add = y + r + 1;
+    const sub = y - r;
+    const addRow = (add > last ? last : add) * w;
+    const subRow = (sub < 0 ? 0 : sub) * w;
+    for (let x = 0; x < w; x++) {
+      dst[out + x] = sums[x] * norm;
+      sums[x] += src[addRow + x] - src[subRow + x];
     }
   }
 }

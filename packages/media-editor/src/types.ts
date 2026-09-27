@@ -10,22 +10,7 @@ export type EditorLayer = {
   rotation: number;
   scale: number;
   textInfo?: TextStyle;
-  textRenderingInfo?: TextRenderingInfo;
   stickerSrc?: string;
-};
-
-export type TextRenderingInfo = {
-  width: number;
-  height: number;
-  path?: (number | string)[];
-  lines: TextRenderingLine[];
-};
-
-export type TextRenderingLine = {
-  left: number;
-  right: number;
-  height: number;
-  content: string;
 };
 
 export type FontKey = 'roboto' | 'suez' | 'bubbles' | 'playwrite' | 'chewy' | 'courier' | 'fugaz' | 'sedan';
@@ -76,18 +61,47 @@ export type OutlineState = {
 
 /** A stroke on the mask, in source-image pixels. */
 export type MaskStroke = {
+  kind?: 'brush';
   mode: 'erase' | 'restore';
   size: number;
   points: Vec2[];
 };
+
+/** A closed selection (lasso, magnetic lasso) erased inside or outside, in source-image pixels. */
+export type MaskPolygonOp = {
+  kind: 'polygon';
+  region: 'inside' | 'outside';
+  points: Vec2[];
+  /** Source pixels. */
+  feather: number;
+};
+
+/**
+ * A computed erase (magic eraser, background eraser): a raster from `addMaskSource` saying how much
+ * each of its pixels loses, stretched over a box of the source image.
+ */
+export type MaskRasterOp = {
+  kind: 'raster';
+  mode: 'erase';
+  raster: number;
+  /** The box's top-left and bottom-right corners, source pixels. */
+  points: Vec2[];
+};
+
+/** One edit of the mask; they apply in order on top of the base. */
+export type MaskOp = MaskStroke | MaskPolygonOp | MaskRasterOp;
 
 export type MaskState = {
   /** A raster from `addMaskSource` (background removal), or null for a fully opaque base. */
   source: number | null;
   /** Edge softening of the source raster, in mask pixels. */
   feather: number;
-  strokes: MaskStroke[];
+  /** Every edit on top of the base, in order (brush strokes, selections, eraser results). */
+  strokes: MaskOp[];
 };
+
+/** The cut-out tab's selection and smart-eraser tools. */
+export type CutoutTool = 'lasso' | 'magneticLasso' | 'magicEraser' | 'backgroundEraser';
 
 /** One channel, `width × height`, 0 = transparent. */
 export type MaskRaster = {

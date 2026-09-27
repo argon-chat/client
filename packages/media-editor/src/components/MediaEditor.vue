@@ -28,6 +28,7 @@
 import { ref, watch, nextTick, onBeforeUnmount, provide } from 'vue';
 import { useMediaEditorStore } from '../store/editorStore';
 import { createFinalResult } from '../finalRender/createFinalResult';
+import { loadEditorFonts } from '../fonts';
 import { isExpressionMode, type BackgroundRemover, type EditorMode, type ExpressionExportFormat, type MediaType } from '../types';
 import MainCanvas from './MainCanvas.vue';
 import Topbar from './Topbar.vue';
@@ -92,7 +93,7 @@ watch(() => props.modelValue, (open) => {
       overlayEl.value?.focus();
       containerEl.value?.focus();
     });
-    loadEditorFonts();
+    void loadEditorFonts();
   } else {
     store.reset();
   }
@@ -152,15 +153,6 @@ function onKeydown(e: KeyboardEvent) {
       store.uiState.selectedResizableLayer = undefined;
     }
   }
-}
-
-function loadEditorFonts() {
-  if (document.getElementById('media-editor-fonts')) return;
-  const link = document.createElement('link');
-  link.id = 'media-editor-fonts';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Chewy&family=Courier+Prime:wght@400;700&family=Fugaz+One&family=Playwrite+BE+VLG&family=Roboto:wght@400;500;700&family=Rubik+Bubbles&family=Sedan&family=Suez+One&display=swap';
-  document.head.appendChild(link);
 }
 
 function handleResize() {

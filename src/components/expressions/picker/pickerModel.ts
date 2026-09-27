@@ -32,8 +32,12 @@ export type PickerCell =
 export interface SpaceInfo {
   spaceId: string;
   name: string;
+  /** The space's `avatarFieldId`. */
   avatarFileId: string | null;
 }
+
+/** What a space (or a pack) without a picture shows instead. */
+export const initialOf = (name: string) => name.trim().slice(0, 1).toUpperCase();
 
 /** A block of cells; `title` is a pack's sub-header under its space's header. */
 export interface PickerSection {
