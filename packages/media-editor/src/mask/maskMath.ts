@@ -39,7 +39,7 @@ export function mixPremultiplied(x: Rgba, y: Rgba, t: number): Rgba {
 }
 
 /** Straight-alpha RGBA8 with the mask multiplied into its alpha (colour untouched). */
-export function applyMaskToRgba(rgba: Uint8ClampedArray, mask: Uint8Array): Uint8ClampedArray {
+export function applyMaskToRgba(rgba: Uint8ClampedArray, mask: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
   const out = new Uint8ClampedArray(rgba);
   const n = Math.min(mask.length, rgba.length >> 2);
   for (let i = 0; i < n; i++) {

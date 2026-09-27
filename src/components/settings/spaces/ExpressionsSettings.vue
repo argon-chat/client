@@ -556,6 +556,7 @@ function moveItem(index: number, delta: -1 | 1) {
     />
 
     <ExpressionWorkbenchDialog
+      v-if="workbench.session.file"
       v-model:open="workbench.session.open"
       :file="workbench.session.file"
       :kind="workbench.session.kind"

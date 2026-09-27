@@ -205,11 +205,24 @@ describe("ExpressionsSettings", () => {
   test("a file the server would refuse never leaves: the row says why", async () => {
     const wrapper = open();
     await nextTick();
-    drop(wrapper.element.querySelector("[data-upload-zone]")!, await png(64, 64));
+    drop(wrapper.element.querySelector("[data-upload-zone]")!, new File([new Uint8Array([1, 2, 3, 4])], "junk.webm"));
     await until(() => !!wrapper.element.querySelector('[data-upload-rows] [data-status="failed"]'));
-    expect(wrapper.element.querySelector('[data-status="failed"]')!.textContent).toContain(
-      "expression_settings_upload_error_dims_emoji",
-    );
+    expect(wrapper.element.querySelector('[data-status="failed"]')!.textContent).toContain("expression_settings_upload_error_type");
+    expect(calls.uploadItem).toHaveLength(0);
+  });
+
+  test("a still image refused for its canvas waits for the workbench instead of failing", async () => {
+    const wrapper = open();
+    await nextTick();
+    drop(wrapper.element.querySelector("[data-upload-zone]")!, await png(64, 64));
+    await until(() => !!wrapper.element.querySelector('[data-upload-rows] [data-status="pending"]'));
+    const row = wrapper.element.querySelector('[data-status="pending"]')!;
+    expect(row.textContent).toContain("expression_settings_upload_error_dims_emoji");
+    // It can be discarded; "Edit" shows only where WebGPU can run the workbench.
+    const edit = row.querySelector("[data-edit-upload]");
+    expect(!!edit).toBe(!!(navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null))));
+    (row.querySelector("[data-discard-upload]") as HTMLElement).click();
+    await until(() => !wrapper.element.querySelector('[data-status="pending"]'));
     expect(calls.uploadItem).toHaveLength(0);
   });
 
