@@ -1,0 +1,20 @@
+/* A unicode emoji in message text (EmojiText): the sprite is the box's background, the characters
+   inside stay for selection and copy but are not painted. */
+
+.msg-emoji {
+  display: inline-block;
+  width: var(--emoji-size, 1.25em);
+  height: var(--emoji-size, 1.25em);
+  /* overflow: hidden puts the baseline at the bottom edge; this sits it like a custom emoji (.ce). */
+  vertical-align: -0.3em;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  color: transparent;
+  text-decoration: none;
+  letter-spacing: 0;
+}
+
+.msg-emoji::selection {
+  color: transparent;
+  background-color: hsl(var(--primary) / 0.35);
+}

@@ -3,12 +3,14 @@
         class="spoiler" 
         :class="{ 'spoiler--revealed': isRevealed }"
         @click="toggleReveal"
-    >{{ props.text }}</span>
+    ><slot v-if="isRevealed"><EmojiText :text="props.text" /></slot><template v-else>{{ props.text }}</template></span>
 </template>
+<!-- Custom emoji inside (the slot) are drawn only once revealed: the overlay would paint them through the cover. -->
 
 <script setup lang="ts">
 import { ref } from "vue";
 import type { IMessageEntity } from "@argon/glue";
+import EmojiText from "./EmojiText";
 
 const props = defineProps<{
     entity: IMessageEntity;

@@ -50,19 +50,19 @@
                 />
 
                 <!-- Rich text input -->
-                <EmojiInput
+                <MessageInput
                     ref="editorRef"
                     :model-value="messageText"
                     @update:model-value="onModelValueUpdate"
+                    @update:entities="(entities) => (composerEmoji = entities)"
                     class="flex-1 min-w-0 min-h-9 max-h-[200px] py-1.5 px-1 text-sm leading-relaxed text-foreground overflow-y-auto break-words [overflow-wrap:anywhere] [word-break:break-word] hide-scrollbar"
                     :disabled="!canSendMessages"
                     :placeholder="!canSendMessages ? t('no_send_permission') : captionMode ? t('add_caption') : t('enter_some_text')"
-                    :unstyled="true"
-                    render-mode="atlas"
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
                     @blur="draft.blurred()"
+                    @custom-emoji-limit="onCustomEmojiLimit"
                 />
 
                 <!-- Preview of the message as it will be sent -->
@@ -77,27 +77,43 @@
                     <EyeIcon class="w-5 h-5" />
                 </button>
 
-                <!-- Emoji picker -->
-                <Popover>
-                    <PopoverTrigger>
-                        <button class="icon-motion icon-motion--pop flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                <!-- Emoji, stickers and GIFs -->
+                <Popover v-model:open="pickerOpen">
+                    <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          :disabled="!canSendMessages"
+                          :aria-label="t('expression_picker_tab_emoji')"
+                          :title="t('expression_picker_tab_emoji')"
+                          data-testid="expression-picker-toggle"
+                          ref="pickerTriggerRef"
+                          class="icon-motion icon-motion--pop flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+                        >
                             <SmileIcon class="w-5 h-5" />
                         </button>
                     </PopoverTrigger>
-                    <PopoverContent class="w-auto p-0">
-                        <EmojixPicker :theme="'auto'" :render-mode="'atlas'"
-                            :content-tabs="gifContentTabs"
-                            @select="onEmojixSelect"
-                            @tab-change="handlePickerTabChange">
-                          <template #tab-content="{ tabId, searchQuery }">
-                            <GifPicker
-                              v-if="tabId === 'gif' && gifsSelectorActive"
-                              :search-query="searchQuery"
-                              @select="handleGifSelect"
-                              @select-saved="handleSavedGifSelect"
-                            />
-                          </template>
-                        </EmojixPicker>
+                    <PopoverContent
+                      side="top"
+                      align="end"
+                      class="w-auto p-0"
+                      @open-auto-focus="onPickerOpenAutoFocus"
+                      @close-auto-focus="onPickerCloseAutoFocus"
+                      @focus-outside="onPickerFocusOutside"
+                      @interact-outside="onPickerInteractOutside"
+                      @escape-key-down="onPickerEscape"
+                    >
+                        <ExpressionPicker
+                          :space-id="isDm ? null : (spaceId ?? null)"
+                          :tabs="pickerTabs"
+                          :can-manage="canManageExpressions"
+                          @select-emoji="onPickerEmoji"
+                          @select-custom-emoji="handleCustomEmojiSelect"
+                          @select-sticker="onPickerSticker"
+                          @select-gif="onPickerGif"
+                          @select-saved-gif="onPickerSavedGif"
+                          @open-settings="openExpressionSettings"
+                          @close="pickerOpen = false"
+                        />
                     </PopoverContent>
                 </Popover>
 
@@ -160,6 +176,37 @@
                 </div>
             </li>
         </ul>
+        </Transition>
+
+        <!-- Emoji dropdown (`:` and two letters) -->
+        <Transition
+          enter-active-class="transition duration-100 ease-out"
+          leave-active-class="transition duration-100 ease-in"
+          enter-from-class="opacity-0 translate-y-1.5"
+          leave-to-class="opacity-0 translate-y-1.5"
+        >
+        <div v-if="emojiSuggest.show && emojiSuggest.items.length"
+            role="listbox"
+            data-testid="emoji-suggest"
+            class="absolute bottom-full left-0 right-0 max-w-[min(100%,340px)] max-h-[240px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 p-1">
+            <div class="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground select-none">
+                {{ t('emoji_suggest_header', { query: emojiSuggest.query }) }}
+            </div>
+            <CustomEmojiOverlay tag="div">
+                <div v-for="(s, i) in emojiSuggest.items" :key="s.key"
+                    role="option"
+                    :aria-selected="i === emojiSuggest.index"
+                    :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === emojiSuggest.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
+                    @mousedown.prevent="selectEmojiSuggestion(s)"
+                    @mouseenter="emojiSuggest.index = i">
+                    <span class="shrink-0 w-6 h-6 flex items-center justify-center">
+                        <CustomEmojiInline v-if="s.item" :media="itemMedia(s.item)" :size="22" :alt="s.label" />
+                        <EmojiSprite v-else-if="s.entry" :emoji="s.entry" :size="22" render-mode="atlas" />
+                    </span>
+                    <span class="text-[13px] truncate">{{ s.label }}</span>
+                </div>
+            </CustomEmojiOverlay>
+        </div>
         </Transition>
 
         <!-- Slash command dropdown -->
@@ -307,7 +354,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref, watch, nextTick, computed } from "vue";
+import { onMounted, onUnmounted, reactive, ref, shallowRef, watch, nextTick, computed } from "vue";
 import {
   Popover,
   PopoverContent,
@@ -322,8 +369,17 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
-import { EmojixPicker, EmojiInput, type EmojiSelection, type ContentTab } from "@argon-chat/emojix";
+import { EmojiSprite, emojiRegistry } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
+import MessageInput from "./MessageInput.vue";
+import ExpressionPicker from "@/components/expressions/ExpressionPicker.vue";
+import type { PickerTab } from "@/components/expressions/picker/pickerModel";
+import { useWindow } from "@/store/ui/windowStore";
+import type { MessageInputApi } from "./messageInput";
+import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
+import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
+import { useExpressionResolver } from "@/lib/expressions/resolver";
+import { customEmojiAlt, findEmojiTrigger, itemMedia, MAX_CUSTOM_EMOJI_PER_MESSAGE } from "@/lib/chat/customEmoji";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -340,8 +396,8 @@ import { SendHorizonalIcon, SmileIcon, PaperclipIcon, UsersIcon, EyeIcon } from 
 import { useApi } from "@/store/system/apiStore";
 import { type MentionUser, usePoolStore } from "@/store/data/poolStore";
 import { refDebounced } from "@vueuse/core";
-import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityHashTag, MessageEntityItalic, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif } from "@argon/glue";
-import type { GifItem, SavedGif } from "@argon/glue";
+import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEntityCapitalized, MessageEntityHashTag, MessageEntityItalic, MessageEntityMonospace, MessageEntityOrdinal, MessageEntitySpoiler, MessageEntityStrikethrough, MessageEntityUnderline, MessageEntityGif, MessageEntitySticker } from "@argon/glue";
+import type { ExpressionItem, GifItem, MessageEntityCustomEmoji, SavedGif } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useAttachmentUpload, type UploadTarget } from "@/composables/useAttachmentUpload";
@@ -357,7 +413,6 @@ import type { SpaceCommand } from "@argon/glue";
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { storeToRefs } from "pinia";
-import GifPicker from "./GifPicker.vue";
 import LinkPreviewBar from "./LinkPreviewBar.vue";
 import { useLinkPreviewDraft } from "@/composables/useLinkPreviewDraft";
 import { parseMessageContent as parseMessage, serializeMessageContent, type ParsedMessage } from "@/lib/chat/parseMessageContent";
@@ -376,17 +431,12 @@ const { t } = useLocale();
 
 const configStore = useConfigStore();
 
-// ── GIF tab (gated behind af.chat.gifs-selector) ──
-const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
-const gifContentTabs = computed<ContentTab[]>(() =>
-  gifsSelectorActive.value && canAttachFiles.value
-    ? [{ id: 'gif', label: 'GIF', icon: '🎬', placeholder: 'Search in Klipy' }]
-    : [],
+const { gifsSelectorActive, stickersActive } = storeToRefs(useFeatureFlags());
+
+// ── GIFs (gated behind af.chat.gifs-selector): a message of one GIF entity and no text ──
+const canSendGifs = computed(
+  () => gifsSelectorActive.value && canSendMessages.value && canAttachFiles.value && !props.editing && !props.captionMode,
 );
-const gifSearchQuery = ref('');
-const handlePickerTabChange = (tabId: string) => {
-  gifSearchQuery.value = '';
-};
 
 const handleGifSelect = (gif: GifItem) => {
   if (!canSendMessages.value || !canAttachFiles.value) return;
@@ -508,7 +558,143 @@ const handleSavedGifSelect = (gif: SavedGif) => {
   })();
 };
 
+// ── Stickers (gated behind af.chat.stickers): a message of one sticker entity and no text ──
+const canSendStickers = computed(() => stickersActive.value && canSendMessages.value && !props.editing && !props.captionMode);
+
+const handleStickerSelect = (item: ExpressionItem) => {
+  if (!canSendStickers.value) return;
+  const resolvedChannelId = resolveTargetId();
+  if (!resolvedChannelId) return;
+
+  const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
+  const spaceId = optimisticSpaceId();
+  const replyTo = props.replyTo?.messageId ?? null;
+
+  const sticker = (downloadUrl: string | null, thumbUrl: string | null) => new MessageEntitySticker(
+    EntityType.Sticker, 0, 0, 1,
+    item.itemId, item.packId, item.spaceId, item.format, item.fileId, item.thumbFileId,
+    item.width, item.height, item.outline, downloadUrl, thumbUrl,
+  );
+  const stickerEntity = sticker(null, null);
+
+  const optimisticMsg = {
+    messageId: randomId,
+    replyId: replyTo,
+    channelId: resolvedChannelId,
+    spaceId,
+    text: '',
+    entities: [sticker(item.downloadUrl, item.thumbUrl)],
+    timeSent: IonDateTime.now(),
+    sender: me.me!.userId,
+    reactions: [],
+    controls: [],
+    editedAt: null,
+    crosspost: null,
+    publishedAt: null,
+    webhook: null,
+  } as ArgonMessage;
+
+  emit("add-optimistic", optimisticMsg, randomId);
+  if (props.replyTo) emit("clear-reply");
+
+  (async () => {
+    const sendTimer = metrics.startTimer("message.send.duration", { kind: "sticker" });
+    try {
+      const sent = await sendToTarget(resolvedChannelId, '', [stickerEntity], randomId, replyTo);
+      if (!sent.ok) {
+        const error = refuseSend(randomId, sent.error);
+        sendTimer.end({ result: "failed" });
+        metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "failed", error });
+        return;
+      }
+      emit("resolve-optimistic", randomId, sent.readback);
+      sendTimer.end({ result: "ok" });
+      metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "ok" });
+    } catch (e: any) {
+      logger.error("Failed to send sticker:", e);
+      emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
+      sendTimer.end({ result: "failed" });
+      metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "failed", error: errorKind(e) });
+    }
+  })();
+};
+
 const pex = usePexStore();
+const windows = useWindow();
+
+// ── The expressions picker: emoji, the space's custom emoji and stickers, GIFs ──
+const pickerOpen = ref(false);
+const pickerTriggerRef = ref<HTMLButtonElement | null>(null);
+/** Closed by a click or focus elsewhere: focus stays where the user put it. */
+let pickerLeftOutside = false;
+
+const pickerTabs = computed<PickerTab[]>(() => [
+  "emoji",
+  ...(canSendStickers.value ? (["stickers"] as const) : []),
+  ...(canSendGifs.value ? (["gifs"] as const) : []),
+]);
+
+const canManageExpressions = computed(
+  () => !isDm.value && !!props.spaceId
+    && (pex.hasInSpace(props.spaceId, "CreateExpressions") || pex.hasInSpace(props.spaceId, "ManageExpressions")),
+);
+
+watch(pickerOpen, (open) => {
+  if (open) pickerLeftOutside = false;
+});
+
+// The picker focuses its own search (not on touch screens).
+function onPickerOpenAutoFocus(e: Event) {
+  e.preventDefault();
+}
+
+function onPickerCloseAutoFocus(e: Event) {
+  e.preventDefault();
+  if (!pickerLeftOutside) editorRef.value?.focus();
+}
+
+/** A pick puts the caret back in the input; the picker stays open for the next one. */
+function onPickerFocusOutside(e: Event) {
+  const root = editorRef.value?.el;
+  if (root && e.target instanceof Node && root.contains(e.target)) e.preventDefault();
+}
+
+function onPickerInteractOutside(e: Event) {
+  const onTrigger = e.target instanceof Node && !!pickerTriggerRef.value?.contains(e.target);
+  if (!e.defaultPrevented && !onTrigger) pickerLeftOutside = true;
+}
+
+// Closes the picker only: not the reply or the edit (see handleKeyDown).
+function onPickerEscape(e: KeyboardEvent) {
+  e.preventDefault();
+  pickerOpen.value = false;
+}
+
+function onPickerEmoji(unicode: string) {
+  if (!canSendMessages.value || !editorRef.value) return;
+  editorRef.value.insertEmoji(unicode);
+}
+
+function onPickerSticker(item: ExpressionItem) {
+  handleStickerSelect(item);
+  pickerOpen.value = false;
+}
+
+function onPickerGif(gif: GifItem) {
+  handleGifSelect(gif);
+  pickerOpen.value = false;
+}
+
+function onPickerSavedGif(gif: SavedGif) {
+  handleSavedGifSelect(gif);
+  pickerOpen.value = false;
+}
+
+function openExpressionSettings() {
+  pickerLeftOutside = true;
+  pickerOpen.value = false;
+  windows.openServerSettings("expressions");
+}
 
 // ── Character limit ──
 
@@ -552,23 +738,12 @@ function triggerShake() {
   shakeTimeout = setTimeout(() => { shakeCounter.value = false; }, 400);
 }
 
-interface EmojiInputExposed {
-  insertEmoji(entry: EmojiEntry): void;
-  insertTextAtCursor(text: string): void;
-  replaceRange(start: number, end: number, replacement: string): void;
-  getCursorOffset(): number;
-  setCursorOffset(offset: number): void;
-  getTextBeforeCursor(): string;
-  focus(): void;
-  blur(): void;
-  clear(): void;
-  getText(): string;
-  el: HTMLDivElement | null;
-}
-
-const editorRef = ref<EmojiInputExposed | null>(null);
+const editorRef = ref<MessageInputApi | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const messageText = ref("");
+/** The custom emoji in the composer, over `messageText` (MessageInput keeps them in step). */
+const composerEmoji = shallowRef<MessageEntityCustomEmoji[]>([]);
+const resolver = useExpressionResolver();
 const showFormatHelp = ref(false);
 const showAttachmentDialog = ref(false);
 const isDragging = ref(false);
@@ -605,6 +780,39 @@ const slashCmd = reactive({
   candidates: [] as SpaceCommand[],
   index: 0,
 });
+
+// Emoji autocomplete: `:` and at least two letters. The space's custom emoji first, then unicode.
+interface EmojiSuggestion {
+  key: string;
+  label: string;
+  entry?: EmojiEntry;
+  item?: ExpressionItem;
+}
+
+const emojiSuggest = reactive({
+  show: false,
+  query: "",
+  start: 0,
+  index: 0,
+  items: [] as EmojiSuggestion[],
+});
+
+const EMOJI_SUGGEST_LIMIT = 8;
+
+function emojiSuggestions(query: string): EmojiSuggestion[] {
+  if (props.spaceId) resolver.ensureLoaded(props.spaceId);
+  const custom = resolver.emojiCandidates(props.spaceId ?? null, query, EMOJI_SUGGEST_LIMIT).map((item) => ({
+    key: `c:${item.itemId}`,
+    label: customEmojiAlt(item.name),
+    item,
+  }));
+  const unicode = emojiRegistry
+    .search(query, EMOJI_SUGGEST_LIMIT * 2)
+    .filter((r) => !r.emoji.isCustom)
+    .slice(0, EMOJI_SUGGEST_LIMIT)
+    .map((r) => ({ key: `u:${r.emoji.id}`, label: `:${r.emoji.shortcode}:`, entry: r.emoji }));
+  return [...custom, ...unicode];
+}
 
 const botInteraction = useBotInteraction();
 const slashCommands = useSlashCommands(() => props.spaceId);
@@ -723,6 +931,8 @@ const linkPreview = useLinkPreviewDraft({
 });
 
 const handleKeyDown = (e: KeyboardEvent) => {
+  // Taken by something on top (the expressions picker).
+  if (e.defaultPrevented) return;
   if (e.key === "Escape" && props.editing) {
     emit("cancel-edit");
   } else if (e.key === "Escape" && props.replyTo) {
@@ -869,11 +1079,21 @@ function onEditorInput() {
       mention.index = 0;
       rawQuery.value = mention.query;
       slashCmd.show = false;
+      emojiSuggest.show = false;
       return;
     }
   }
 
   mention.show = false;
+
+  const trigger = findEmojiTrigger(textBeforeCursor, composerEmoji.value);
+  const suggestions = trigger ? emojiSuggestions(trigger.query) : [];
+  if (trigger && suggestions.length) {
+    Object.assign(emojiSuggest, { show: true, query: trigger.query, start: trigger.start, index: 0, items: suggestions });
+    slashCmd.show = false;
+    return;
+  }
+  emojiSuggest.show = false;
 
   // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats,
   // and only for members with UseCommands there)
@@ -945,6 +1165,27 @@ async function onEditorKeydown(e: KeyboardEvent) {
 
   // Nothing to pick from: the keys belong to the composer.
   if (mention.show && !mentionItems.value.length) mention.show = false;
+
+  // Emoji query: arrows move, Enter or Tab puts the emoji in, Esc closes only the list.
+  if (emojiSuggest.show && emojiSuggest.items.length && !mention.show && !slashCmd.show) {
+    const n = emojiSuggest.items.length;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      emojiSuggest.index = (emojiSuggest.index + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
+      return;
+    }
+    if ((e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey) || (e.key === "Tab" && !e.shiftKey)) {
+      e.preventDefault();
+      selectEmojiSuggestion(emojiSuggest.items[emojiSuggest.index]);
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      emojiSuggest.show = false;
+      return;
+    }
+  }
 
   if (!mention.show && !slashCmd.show) {
     if (e.key === "ArrowUp" && !messageText.value && !props.editing && !props.captionMode && !isDm.value) {
@@ -1025,6 +1266,30 @@ function selectMention(user: MentionUser) {
   mention.show = false;
 }
 
+/** Puts the picked emoji over the `:query` it was found for, if the caret is still at the end of it. */
+function selectEmojiSuggestion(s: EmojiSuggestion) {
+  const editor = editorRef.value;
+  emojiSuggest.show = false;
+  if (!editor) return;
+  const cursor = editor.getCursorOffset();
+  const trigger = findEmojiTrigger(messageText.value.slice(0, cursor), composerEmoji.value);
+  if (!trigger || trigger.start !== emojiSuggest.start) return;
+  const range = { start: trigger.start, end: cursor };
+  if (s.item) editor.insertCustomEmoji(s.item, range);
+  else if (s.entry) editor.insertEmoji(s.entry, range);
+}
+
+/** A custom emoji picked in the expressions picker: in at the caret. */
+function handleCustomEmojiSelect(item: ExpressionItem) {
+  if (!canSendMessages.value || !editorRef.value) return;
+  editorRef.value.insertCustomEmoji(item);
+  editorRef.value.focus();
+}
+
+function onCustomEmojiLimit() {
+  toast({ title: t("custom_emoji_limit", { max: MAX_CUSTOM_EMOJI_PER_MESSAGE }), variant: "destructive" });
+}
+
 function selectSlashCommand(cmd: SpaceCommand) {
   slashCmd.show = false;
   if (!canUseCommands.value) return;
@@ -1080,20 +1345,20 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
 });
 
-const onEmojixSelect = (selection: EmojiSelection) => {
-  if (!editorRef.value) return;
-  
-  if (selection.emoji) {
-    editorRef.value.insertEmoji(selection.emoji);
-  } else {
-    editorRef.value.insertTextAtCursor(selection.text);
-  }
-  editorRef.value.focus();
-};
-
 /** What the composer would send right now: the typed text, markers turned into entities. */
 function parseMessageContent(): ParsedMessage {
-  return parseMessage(messageText.value, mentionRegistry, { everyone: canMentionEveryone.value });
+  return parseMessage(messageText.value, mentionRegistry, {
+    everyone: canMentionEveryone.value,
+    customEmoji: composerEmoji.value,
+  });
+}
+
+/** Puts a text with its custom emoji into the composer (a draft, a message being edited). */
+function setComposer(raw: string, customEmoji: MessageEntityCustomEmoji[]) {
+  messageText.value = raw;
+  composerEmoji.value = customEmoji;
+  graphemeCount.value = countGraphemes(raw);
+  editorRef.value?.setValue({ text: raw, entities: customEmoji });
 }
 
 // ── Author tools: preview, scheduled send, the server-side draft ──
@@ -1120,11 +1385,10 @@ const draft = useChannelDraft({
   text: () => messageText.value,
   parse: parseMessageContent,
   restore: (d) => {
-    const { raw, mentions } = serializeMessageContent(d.text, d.entities ?? []);
+    const { raw, mentions, customEmoji } = serializeMessageContent(d.text, d.entities ?? []);
     mentionRegistry.clear();
     for (const [text, userId] of mentions) mentionRegistry.set(text, userId);
-    messageText.value = raw;
-    graphemeCount.value = countGraphemes(raw);
+    setComposer(raw, customEmoji);
   },
   editing: () => !!props.editing,
 });
@@ -1187,8 +1451,11 @@ const massMentionHint = computed(
 
 const { toast } = useToast();
 let editBaseline = "";
+let editBaselineEmoji = "";
 /** What the user was typing before the edit took the composer; it comes back afterwards. */
-let draftBeforeEdit: { text: string; mentions: Map<string, string> } | null = null;
+let draftBeforeEdit: { text: string; mentions: Map<string, string>; customEmoji: MessageEntityCustomEmoji[] } | null = null;
+
+const emojiKey = (entities: readonly MessageEntityCustomEmoji[]) => entities.map((e) => `${e.offset}:${e.itemId}`).join(",");
 
 watch(
   () => props.editing,
@@ -1196,14 +1463,14 @@ watch(
     if (message) {
       if (!previous) {
         void draft.flush();
-        draftBeforeEdit = { text: messageText.value, mentions: new Map(mentionRegistry) };
+        draftBeforeEdit = { text: messageText.value, mentions: new Map(mentionRegistry), customEmoji: composerEmoji.value };
       }
-      const { raw, mentions } = serializeMessageContent(message.text, message.entities ?? []);
+      const { raw, mentions, customEmoji } = serializeMessageContent(message.text, message.entities ?? []);
       mentionRegistry.clear();
       for (const [text, userId] of mentions) mentionRegistry.set(text, userId);
       editBaseline = raw;
-      messageText.value = raw;
-      graphemeCount.value = countGraphemes(raw);
+      editBaselineEmoji = emojiKey(customEmoji);
+      setComposer(raw, customEmoji);
       nextTick(() => {
         editorRef.value?.focus();
         editorRef.value?.setCursorOffset(raw.length);
@@ -1212,17 +1479,16 @@ watch(
       const draft = draftBeforeEdit;
       draftBeforeEdit = null;
       editBaseline = "";
-      editorRef.value?.clear();
+      editBaselineEmoji = "";
       mentionRegistry.clear();
       for (const [text, userId] of draft?.mentions ?? []) mentionRegistry.set(text, userId);
-      messageText.value = draft?.text ?? "";
-      graphemeCount.value = countGraphemes(messageText.value);
+      setComposer(draft?.text ?? "", draft?.customEmoji ?? []);
     }
   },
 );
 
 async function submitEdit(message: ArgonMessage) {
-  if (messageText.value === editBaseline) {
+  if (messageText.value === editBaseline && emojiKey(composerEmoji.value) === editBaselineEmoji) {
     emit("cancel-edit");
     return;
   }
@@ -1580,12 +1846,6 @@ defineExpose({
   scrollbar-width: none;
 }
 .hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-:deep(.emojix-input) {
-  scrollbar-width: none;
-}
-:deep(.emojix-input)::-webkit-scrollbar {
   display: none;
 }
 </style>

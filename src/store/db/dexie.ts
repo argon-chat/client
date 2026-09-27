@@ -1,4 +1,4 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type SpaceVersions } from "@argon/glue";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type ExpressionItem, type ExpressionPack, type SpaceVersions } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import Dexie, { type Table, type Transaction } from "dexie";
 import { delay, logger } from "@argon/core";
@@ -72,6 +72,25 @@ export interface CachedProfile {
   scope?: ProfileScope;
 }
 
+/** An expression item as plain JSON: the outline bytes as base64. */
+export interface StoredExpressionItem extends Omit<ExpressionItem, "outline"> {
+  outline: string | null;
+}
+
+/** An expression pack as plain JSON: the i8 version as a decimal string. */
+export interface StoredExpressionPack extends Omit<ExpressionPack, "version" | "items"> {
+  version: string;
+  items: StoredExpressionItem[];
+}
+
+/** One space's custom emoji and stickers, with the server's version token for the whole set. */
+export interface StoredExpressions {
+  spaceId: Guid;
+  version: string | null;
+  packs: StoredExpressionPack[];
+  updatedAt: number;
+}
+
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
   servers!: Table<ArgonSpaceBase, Guid>;
@@ -82,6 +101,7 @@ export class PoolDatabase extends Dexie {
   members!: Table<SpaceMember, Guid>;
   profileCache!: Table<CachedProfile, string>;
   spaceVersions!: Table<StoredSpaceVersions, Guid>;
+  expressions!: Table<StoredExpressions, Guid>;
 
   constructor(name: string) {
     super(name);
@@ -131,6 +151,11 @@ export class PoolDatabase extends Dexie {
     // index over the rows already stored, so the cache is kept.
     this.version(7).stores({
       channels: "channelId, spaceId, type",
+    });
+    // v8: custom emoji and stickers per space. Kept like v7: the table is new and starts empty,
+    // nothing else changed shape.
+    this.version(8).stores({
+      expressions: "spaceId",
     });
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs

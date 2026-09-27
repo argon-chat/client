@@ -1,7 +1,7 @@
 import { logger } from "@argon/core";
 import { defineStore } from "pinia";
 import { metrics, bucket, COUNT_EDGES } from "@/lib/telemetry/metrics";
-import { ref, onScopeDispose } from "vue";
+import { ref, onScopeDispose, watch } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useUserStore } from "@/store/data/userStore";
@@ -10,6 +10,7 @@ import { useArchetypeStore } from "@/store/data/archetypeStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import { useEventStore } from "@/store/realtime/eventStore";
 import { useMessageStore } from "@/store/data/messageStore";
+import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { db } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useGroupedServerUsers } from "@/composables/useGroupedServerUsers";
@@ -32,9 +33,20 @@ export const usePoolStore = defineStore("data-pool", () => {
   const realtimeStore = useRealtimeStore();
   const eventStore = useEventStore();
   const messageStore = useMessageStore();
+  const expressions = useExpressionsStore();
 
   // Selected server (can be extracted to separate store, but kept for backward compatibility)
   const selectedServer = ref<Guid | null>(null);
+
+  // Custom emoji and stickers are loaded for the space on screen only; a resync refetches them.
+  watch(selectedServer, (spaceId) => {
+    if (spaceId) void expressions.ensureLoaded(spaceId);
+  });
+  const refreshSelectedExpressions = () => {
+    if (selectedServer.value) void expressions.refresh(selectedServer.value);
+  };
+  bus.needFullResync.subscribe(refreshSelectedExpressions);
+  bus.reconnected.subscribe(refreshSelectedExpressions);
 
   /**
    * System initialization
@@ -254,6 +266,8 @@ export const usePoolStore = defineStore("data-pool", () => {
         logger.warn(`[PoolStore] Cached users for ${spaceId} are incomplete, dropping its snapshot versions`);
         await db.spaceVersions.delete(spaceId);
       }
+
+      if (spaceId === selectedServer.value) void expressions.ensureLoaded(spaceId);
 
       // Start listening to server events
       bus.listenEvents(spaceId);

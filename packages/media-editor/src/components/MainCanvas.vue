@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-black flex-1 overflow-hidden" ref="containerEl">
+  <div class="relative isolate bg-black flex-1 overflow-hidden" ref="containerEl">
     <ImageCanvas ref="imageCanvasRef" />
     <BrushCanvas ref="brushCanvasRef" />
     <TextLayers />
@@ -10,9 +10,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, provide } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useFinalTransform } from '../composables/useFinalTransform';
+import { MASK_PAINTER_KEY, type MaskPainterSlot } from '../composables/useMaskPainter';
 import ImageCanvas from './ImageCanvas.vue';
 import BrushCanvas from './BrushCanvas.vue';
 import CropHandles from './CropHandles.vue';
@@ -24,6 +25,9 @@ const { store } = useMediaEditorContext();
 
 // Initialize finalTransform computation
 useFinalTransform();
+
+const maskPainter: MaskPainterSlot = { current: null };
+provide(MASK_PAINTER_KEY, maskPainter);
 
 const containerEl = ref<HTMLDivElement | null>(null);
 const imageCanvasRef = ref<InstanceType<typeof ImageCanvas> | null>(null);

@@ -15,8 +15,8 @@
       </button>
     </div>
 
-    <!-- Perspective controls -->
-    <div class="mt-6">
+    <!-- Perspective controls (not in the sticker modes: the mask brush maps without perspective) -->
+    <div v-if="!expression" class="mt-6">
       <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('media_editor_perspective') }}</div>
       <RangeInput
         :model-value="store.mediaState.perspective[0]"
@@ -60,13 +60,14 @@ import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray } from '../geometry';
 import { tween } from '../animation';
-import type { Vec2 } from '../types';
+import { isExpressionMode, type Vec2 } from '../types';
 import RangeInput from '../components/RangeInput.vue';
 
 const { t } = useI18n();
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
 const isAvatar = mode === 'avatar';
+const expression = isExpressionMode(mode);
 
 type RatioItem = {
   key: string | undefined;

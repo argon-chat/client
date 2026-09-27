@@ -1,20 +1,22 @@
 import { toRaw } from 'vue';
-import type { Vec2 } from '../types';
+import { isExpressionMode, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
 import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
-import { initWebGPU, cleanupWebGPU } from '../webgpu/initWebGPU';
+import { initWebGPU, cleanupWebGPU, uploadMask } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import { updateVideoTexture } from '../webgpu/loadTexture';
 import { resolveOutputQuality } from '../constants';
-import { fitToAspectRatio } from '../geometry';
 import type { AdjustmentKey } from '../adjustments';
 import { createBrushPainter } from '../canvas/brushPainter';
-import { computeExportDimensions } from './computeExportDimensions';
+import { computeExportDimensions, computeExpressionLayout } from './computeExportDimensions';
 import getResultTransform from './getResultTransform';
 import getScaledLayersAndLines from './getScaledLayersAndLines';
 import drawTextLayer from './drawTextLayer';
 import drawStickerLayer from './drawStickerLayer';
-import { selectEncodingProfile, RENDER_FPS } from './videoEncoding';
+import { selectEncodingProfile } from './videoEncoding';
+import { encodeTransparentImage } from './encodeImage';
+import { createMaskRaster } from '../mask/maskRaster';
+import { maskResolution } from '../mask/maskMath';
 import type { EditingMediaState } from '../store/editorStore';
 
 export type MediaEditorFinalResultPayload = {
@@ -44,8 +46,14 @@ type CreateFinalResultArgs = {
   mediaState: EditingMediaState;
   canvasSize: Vec2;
   mediaRatio: number;
-  renderingPayload: RenderingPayload;
+  renderingPayload: Pick<RenderingPayload, 'media'>;
   getMediaBlob?: () => Promise<Blob | null>;
+  mode?: EditorMode;
+  /** Rasters behind `mediaState.mask.source`. */
+  getMaskSource?: (id: number | null) => MaskRaster | null;
+  /** Expression modes: file format and the size the file should stay under. */
+  exportFormat?: ExpressionExportFormat;
+  maxBytes?: number;
 };
 
 // Export canvases are full output resolution; a zero size drops the backing store now, not at GC.
@@ -54,16 +62,24 @@ function releaseCanvas(canvas: HTMLCanvasElement): void {
   canvas.height = 0;
 }
 
-export async function createFinalResult(args: CreateFinalResultArgs): Promise<MediaEditorFinalResult> {
-  const { mediaSrc, mediaType, mediaState, canvasSize, mediaRatio, renderingPayload } = args;
-
-  // Must match useCropOffset padding so transforms are consistent
-  const cropOffset = {
+// Must match useCropOffset padding so transforms are consistent
+function cropOffsetFor(canvasSize: Vec2) {
+  return {
     left: 60,
     top: 60,
     width: canvasSize[0] - 120,
     height: canvasSize[1] - 180
   };
+}
+
+export async function createFinalResult(args: CreateFinalResultArgs): Promise<MediaEditorFinalResult> {
+  const { mediaSrc, mediaType, mediaState, canvasSize, mediaRatio, renderingPayload } = args;
+
+  if (args.mode && isExpressionMode(args.mode) && mediaType === 'image') {
+    return createExpressionResult(args, args.mode);
+  }
+
+  const cropOffset = cropOffsetFor(canvasSize);
 
   const videoType = mediaType === 'video' ? 'video' as const : undefined;
   const newRatio = mediaState.currentImageRatio || mediaRatio;
@@ -359,4 +375,117 @@ async function renderVideoResult(opts: {
     editingMediaState: structuredClone(toRaw(mediaState)),
     creationProgress: progress
   };
+}
+
+/**
+ * Sticker / emoji: the crop rendered at the preset size on a transparent canvas with the mask and
+ * the outline, drawings and layers on top, then encoded as lossless WEBP (or PNG).
+ */
+async function createExpressionResult(args: CreateFinalResultArgs, mode: ExpressionEditorMode): Promise<MediaEditorFinalResult> {
+  const { mediaSrc, mediaState, canvasSize, mediaRatio } = args;
+  const cropOffset = cropOffsetFor(canvasSize);
+  const layout = computeExpressionLayout(mode, mediaState.currentImageRatio || mediaRatio);
+  const { width, height } = layout.content;
+
+  const resultCanvas = document.createElement('canvas');
+  resultCanvas.width = width;
+  resultCanvas.height = height;
+  const brushCanvas = document.createElement('canvas');
+  brushCanvas.width = width;
+  brushCanvas.height = height;
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = layout.canvas[0];
+  outCanvas.height = layout.canvas[1];
+
+  const { payload, context } = await initWebGPU({
+    canvas: resultCanvas,
+    mediaSrc,
+    mediaType: 'image',
+    videoTime: 0,
+    transparent: true
+  });
+
+  try {
+    const { mask } = mediaState;
+    const source = args.getMaskSource?.(mask.source) ?? null;
+    if (source || mask.strokes.length) {
+      const [mw, mh] = maskResolution(payload.media.width, payload.media.height);
+      const raster = createMaskRaster(mw, mh, mw / payload.media.width);
+      try {
+        raster.render(source, mask.feather, mask.strokes);
+        uploadMask(payload, raster.canvas);
+      } finally {
+        raster.dispose();
+      }
+    }
+
+    const t = getResultTransform({
+      scaledWidth: width,
+      scaledHeight: height,
+      imageWidth: payload.media.width,
+      imageHeight: payload.media.height,
+      cropOffset,
+      mediaState
+    });
+
+    const drawParams: DrawingParameters = {
+      rotation: t.rotation,
+      scale: t.scale,
+      translation: t.translation,
+      imageSize: t.imageSize,
+      flip: t.flip,
+      perspective: mediaState.perspective,
+      curves: mediaState.curves ?? { r: [0, 0], g: [0, 0], b: [0, 0] },
+      selective: mediaState.selective ?? { hue: 0, range: 0, shift: 0, sat: 0, luma: 0 },
+      ...(mediaState.adjustments as Record<AdjustmentKey, number>)
+    };
+
+    // Output pixels are the canvas pixels here, so the radius goes in as it is.
+    const outline = mediaState.outline?.enabled && mediaState.outline.radius > 0
+      ? { radius: mediaState.outline.radius, color: mediaState.outline.color }
+      : null;
+    draw(payload.device, context, payload, drawParams, outline);
+
+    const { scaledLayers, scaledLines } = getScaledLayersAndLines({
+      layers: mediaState.resizableLayers,
+      lines: mediaState.brushDrawnLines,
+      canvasSize,
+      resultSize: [width, height]
+    });
+
+    if (scaledLines.length) {
+      const painter = createBrushPainter({ targetCanvas: brushCanvas, imageCanvas: resultCanvas });
+      for (const line of scaledLines) painter.commitLine(line);
+    }
+
+    const ctx = outCanvas.getContext('2d')!;
+    const { x, y } = layout.content;
+    ctx.drawImage(resultCanvas, x, y);
+    ctx.drawImage(brushCanvas, x, y);
+    ctx.save();
+    ctx.translate(x, y);
+    for (const layer of scaledLayers) {
+      if (layer.type === 'text') drawTextLayer(ctx, layer);
+      else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
+    }
+    ctx.restore();
+
+    const blob = await encodeTransparentImage(outCanvas, { format: args.exportFormat, maxBytes: args.maxBytes });
+
+    return {
+      preview: blob,
+      getResult: () => ({ blob, hasSound: false }),
+      isVideo: false,
+      width: layout.canvas[0],
+      height: layout.canvas[1],
+      originalSrc: mediaSrc,
+      editingMediaState: structuredClone(toRaw(mediaState))
+    };
+  } finally {
+    cleanupWebGPU(payload);
+    context.unconfigure();
+    releaseCanvas(resultCanvas);
+    releaseCanvas(brushCanvas);
+    releaseCanvas(outCanvas);
+  }
 }

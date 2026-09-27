@@ -327,6 +327,22 @@
                     </div>
                     <Switch v-model:checked="reduceMotion" />
                 </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_animations_expressions") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_animations_expressions_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="animationsEnabled" />
+                </div>
+
+                <div class="setting-item" :class="{ 'opacity-50': !animationsEnabled }">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_animations_picker_autoplay") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_animations_picker_autoplay_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="pickerAutoplay" :disabled="!animationsEnabled" />
+                </div>
             </div>
         </div>
 
@@ -486,6 +502,7 @@ import {
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
 import { reduceMotion as sharedReduceMotion } from "@/composables/useReducedMotion";
+import { animationsEnabled, pickerAutoplay, resetExpressionAnimationChoices } from "@/lib/expressions/settings";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
 import {
@@ -859,6 +876,7 @@ const resetToDefaults = () => {
     borderRadius.value = 0.75;
     accentColor.value = "blue";
     reduceMotion.value = false;
+    resetExpressionAnimationChoices();
     chatDensity.value = "comfortable";
 
     // Reset accessibility settings

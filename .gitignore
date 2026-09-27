@@ -51,3 +51,5 @@ public/games/*/bundle.js.map
 
 test/browser/__screenshots__/
 .vitest-attachments/
+
+test/browser/expressions/__screenshots__/

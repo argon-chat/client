@@ -1,6 +1,7 @@
 import {
   ArchetypeError,
   ChannelLayoutError,
+  ExpressionError,
   SendMessageError,
   SpaceManageError,
   type IChannelLayoutResult,
@@ -44,6 +45,17 @@ const ARCHETYPE: Partial<Record<ArchetypeError, string>> = {
   [ArchetypeError.INVALID_DATA]: "archetype_error_invalid",
 };
 
+const EXPRESSION: Partial<Record<ExpressionError, string>> = {
+  [ExpressionError.NOT_FOUND]: "expression_error_not_found",
+  [ExpressionError.FORBIDDEN]: "expression_error_forbidden",
+  [ExpressionError.QUOTA_EXCEEDED]: "expression_error_quota_exceeded",
+  [ExpressionError.INVALID_FORMAT]: "expression_error_invalid_format",
+  [ExpressionError.TOO_LARGE]: "expression_error_too_large",
+  [ExpressionError.NAME_TAKEN]: "expression_error_name_taken",
+  [ExpressionError.CONTENT_REJECTED]: "expression_error_content_rejected",
+  [ExpressionError.RATE_LIMITED]: "expression_error_rate_limited",
+};
+
 export function sendMessageErrorKey(error: SendMessageError): string {
   return SEND_MESSAGE[error] ?? "send_error_unknown";
 }
@@ -58,6 +70,21 @@ export function spaceManageErrorKey(error: SpaceManageError): string {
 
 export function archetypeErrorKey(error: ArchetypeError): string {
   return ARCHETYPE[error] ?? "archetype_error_unknown";
+}
+
+export function expressionErrorKey(error: ExpressionError): string {
+  return EXPRESSION[error] ?? "expression_error_unknown";
+}
+
+/** A custom emoji / sticker call the server refused; `key` is the i18n key for the reason. */
+export class ExpressionRefusal extends Error {
+  readonly key: string;
+
+  constructor(readonly error: ExpressionError) {
+    super(`Expression call refused: ${ExpressionError[error] ?? error}`);
+    this.name = "ExpressionRefusal";
+    this.key = expressionErrorKey(error);
+  }
 }
 
 /** Why a channel layout change was refused, or null when it was applied. */

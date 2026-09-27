@@ -87,6 +87,7 @@
     "motion-v": "^1.10.3",
     "naive-ui": "^2.44.1",
     "nsfwjs": "^4.4.0",
+    "onnxruntime-web": "^1.30.0",
     "pinia": "^3.0.4",
     "qr-code-styling": "^1.9.2",
     "radix-icons": "^1.0.0",

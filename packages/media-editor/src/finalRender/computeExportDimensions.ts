@@ -1,9 +1,19 @@
 import { fitToAspectRatio } from '../geometry';
+import type { ExpressionEditorMode, Vec2 } from '../types';
 
 const MAX_DIMENSION = 2560;
 const MIN_DIMENSION = 240;
 const HD_MAX = { width: 1920, height: 1080 };
 const SD_MAX = { width: 1280, height: 720 };
+
+/**
+ * Sticker: the longer side is exactly 512, the other keeps the aspect (no padding).
+ * Emoji: the crop fits inside 100×100 and the canvas is always 100×100 (transparent padding).
+ */
+export const EXPRESSION_EXPORT_PRESETS = {
+  sticker: { box: 512, pad: false },
+  emoji: { box: 100, pad: true },
+} as const satisfies Record<ExpressionEditorMode, { box: number; pad: boolean }>;
 
 export interface ExportSizeConstraints {
   sourceWidth: number;
@@ -11,7 +21,7 @@ export interface ExportSizeConstraints {
   cropAspectRatio: number;
   cropAreaSize: { width: number; height: number };
   zoomScale: number;
-  outputMode?: 'video' | 'gif';
+  outputMode?: 'video' | 'gif' | ExpressionEditorMode;
   forcedQuality?: number;
 }
 
@@ -20,11 +30,42 @@ function roundToEven(n: number): number {
   return floored % 2 === 0 ? floored : floored - 1;
 }
 
+/** The rendered content of an expression export: `box` on the longer side, at least 1 on the other. */
+export function fitExpressionContent(mode: ExpressionEditorMode, cropAspectRatio: number): Vec2 {
+  const { box } = EXPRESSION_EXPORT_PRESETS[mode];
+  const ratio = cropAspectRatio > 0 && Number.isFinite(cropAspectRatio) ? cropAspectRatio : 1;
+  if (ratio >= 1) return [box, Math.min(box, Math.max(1, Math.round(box / ratio)))];
+  return [Math.min(box, Math.max(1, Math.round(box * ratio))), box];
+}
+
+export type ExpressionExportLayout = {
+  /** The file's size. */
+  canvas: Vec2;
+  /** Where the rendered crop goes in it. */
+  content: { x: number; y: number; width: number; height: number };
+};
+
+export function computeExpressionLayout(mode: ExpressionEditorMode, cropAspectRatio: number): ExpressionExportLayout {
+  const [width, height] = fitExpressionContent(mode, cropAspectRatio);
+  const preset = EXPRESSION_EXPORT_PRESETS[mode];
+  if (!preset.pad) return { canvas: [width, height], content: { x: 0, y: 0, width, height } };
+  const side = preset.box;
+  return {
+    canvas: [side, side],
+    content: { x: Math.floor((side - width) / 2), y: Math.floor((side - height) / 2), width, height }
+  };
+}
+
 /**
  * Compute final export dimensions respecting codec limits, minimum sizes, and quality presets.
+ * For the expression modes this is the rendered content; see `computeExpressionLayout` for the canvas.
  */
 export function computeExportDimensions(constraints: ExportSizeConstraints): [number, number] {
   const { sourceWidth, sourceAspectRatio, cropAspectRatio, cropAreaSize, zoomScale, outputMode, forcedQuality } = constraints;
+
+  if (outputMode === 'sticker' || outputMode === 'emoji') {
+    return fitExpressionContent(outputMode, cropAspectRatio);
+  }
 
   // Determine how much of the source image is visible through the crop
   const [visibleW] = fitToAspectRatio(sourceAspectRatio, cropAreaSize.width, cropAreaSize.height);

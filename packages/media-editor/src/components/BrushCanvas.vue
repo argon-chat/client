@@ -3,17 +3,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, watchEffect } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
+import { useMaskPainterSlot } from '../composables/useMaskPainter';
 import { createBrushPainter, type BrushDrawnLine, type BrushPainterAPI } from '../canvas/brushPainter';
-import type { Vec2 } from '../types';
+import { isMaskBrush, type Vec2 } from '../types';
 
 const { store } = useMediaEditorContext();
+const maskPainter = useMaskPainterSlot();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
 let painter: BrushPainterAPI | null = null;
 let currentLine: BrushDrawnLine | null = null;
 let isDrawing = false;
+let isMasking = false;
+
+// Erase / restore show their footprint as the cursor (browsers cap cursor images at 128 px).
+watchEffect(() => {
+  const el = canvasEl.value;
+  if (!el) return;
+  const brush = store.uiState.currentBrush.brush;
+  if (store.uiState.currentTab !== 'brush' || !isMaskBrush(brush)) {
+    el.style.cursor = '';
+    return;
+  }
+  const d = Math.max(4, Math.min(126, Math.round(store.uiState.maskBrushSize)));
+  const r = d / 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${d + 2}" height="${d + 2}"><circle cx="${r + 1}" cy="${r + 1}" r="${r}" fill="none" stroke="black" stroke-opacity=".6" stroke-width="2"/><circle cx="${r + 1}" cy="${r + 1}" r="${r}" fill="none" stroke="white" stroke-width="1"/></svg>`;
+  el.style.cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(r + 1)} ${Math.round(r + 1)}, crosshair`;
+});
 
 onMounted(() => {
   if (!canvasEl.value) return;
@@ -69,8 +87,19 @@ function getCanvasPoint(e: PointerEvent): Vec2 {
 
 function onPointerDown(e: PointerEvent) {
   if (store.uiState.currentTab !== 'brush') return;
-  if (!painter || !canvasEl.value) return;
+  if (!canvasEl.value) return;
 
+  const brush = store.uiState.currentBrush.brush;
+  if (isMaskBrush(brush)) {
+    const target = maskPainter.current;
+    if (!target) return;
+    isMasking = true;
+    canvasEl.value.setPointerCapture(e.pointerId);
+    target.begin(brush === 'maskErase' ? 'erase' : 'restore', store.uiState.maskBrushSize * store.uiState.pixelRatio, getCanvasPoint(e));
+    return;
+  }
+
+  if (!painter) return;
   isDrawing = true;
   canvasEl.value.setPointerCapture(e.pointerId);
 
@@ -85,12 +114,21 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
+  if (isMasking) {
+    maskPainter.current?.extend(getCanvasPoint(e));
+    return;
+  }
   if (!isDrawing || !currentLine || !painter) return;
   currentLine.points.push(getCanvasPoint(e));
   painter.preview(currentLine);
 }
 
 function onPointerUp(_e: PointerEvent) {
+  if (isMasking) {
+    isMasking = false;
+    maskPainter.current?.end();
+    return;
+  }
   if (!isDrawing || !currentLine || !painter) return;
   isDrawing = false;
 
@@ -111,12 +149,14 @@ onMounted(() => {
   canvasEl.value?.addEventListener('pointerdown', onPointerDown);
   canvasEl.value?.addEventListener('pointermove', onPointerMove);
   canvasEl.value?.addEventListener('pointerup', onPointerUp);
+  canvasEl.value?.addEventListener('pointercancel', onPointerUp);
 });
 
 onBeforeUnmount(() => {
   canvasEl.value?.removeEventListener('pointerdown', onPointerDown);
   canvasEl.value?.removeEventListener('pointermove', onPointerMove);
   canvasEl.value?.removeEventListener('pointerup', onPointerUp);
+  canvasEl.value?.removeEventListener('pointercancel', onPointerUp);
 });
 
 defineExpose({ canvasEl });

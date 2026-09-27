@@ -108,6 +108,7 @@
       :read-counts="readCounts"
       :detached="!hasReachedLatest"
       :toggle-reaction="toggleReaction"
+      :toggle-custom-reaction="toggleCustomReaction"
       @select-reply="(m) => emit('select-reply', m)"
       @select-edit="(m) => emit('select-edit', m)"
       @delete-message="onDeleteMessage"
@@ -243,7 +244,7 @@ const {
 } = useChatMessages(() => props.channelId, () => props.spaceId);
 
 const {
-  canReact, toggleReaction, batchLoadReactions,
+  canReact, toggleReaction, toggleCustomReaction, batchLoadReactions,
   subscribe: subReactions, unsubscribe: unsubReactions,
 } = useMessageReactions(messages, () => props.channelId, () => props.spaceId);
 

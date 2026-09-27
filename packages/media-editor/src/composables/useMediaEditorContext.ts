@@ -1,10 +1,13 @@
 import type { InjectionKey } from 'vue';
 import type { useMediaEditorStore } from '../store/editorStore';
+import type { BackgroundRemover, EditorMode } from '../types';
 import { inject } from 'vue';
 
 export type MediaEditorContext = {
   store: ReturnType<typeof useMediaEditorStore>;
-  mode: string;
+  mode: EditorMode;
+  /** Sticker modes: the host's background removal, when it has one. */
+  backgroundRemover?: BackgroundRemover;
 };
 
 export const MEDIA_EDITOR_INJECTION_KEY: InjectionKey<MediaEditorContext> = Symbol('media-editor');

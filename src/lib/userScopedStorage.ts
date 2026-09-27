@@ -17,6 +17,11 @@ export const USER_SCOPED_BASE_KEYS = [
   "argon_server_organization",
   "preferredStatus",
   "userVolumes_v2",
+  "argon_recent_stickers",
+  "argon_recent_emoji",
+  "argon_recent_emoji_picker",
+  "argon_expression_animations",
+  "argon_expression_picker_autoplay",
 ] as const;
 
 export function activeAccountId(): string {

@@ -69,7 +69,12 @@ vi.mock("@/store/system/apiStore", () => ({
 }));
 
 vi.mock("@/store/realtime/busStore", () => ({
-  useBus: () => ({ listenEvents() {}, onServerEvent: () => ({ unsubscribe() {} }) }),
+  useBus: () => ({
+    listenEvents() {},
+    onServerEvent: () => ({ unsubscribe() {} }),
+    needFullResync: { subscribe: () => ({ unsubscribe() {} }) },
+    reconnected: { subscribe: () => ({ unsubscribe() {} }) },
+  }),
 }));
 vi.mock("@/store/data/channelStore", () => ({
   useChannelStore: () => ({ selectedTextChannel: null, selectedChannel: null }),

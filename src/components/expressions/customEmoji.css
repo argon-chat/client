@@ -1,0 +1,61 @@
+/* Custom emoji placeholders and the overlay that draws animated ones (see useCustomEmojiOverlay). */
+
+.ce {
+  display: inline-block;
+  position: relative;
+  width: var(--ce-size, calc(1em + 4px));
+  height: var(--ce-size, calc(1em + 4px));
+  vertical-align: -0.3em;
+  line-height: 0;
+}
+
+.ce > .ce-outline,
+.ce > .ce-img,
+.ce > .ce-mask,
+.ce > .ce-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ce > .ce-outline {
+  fill: currentColor;
+  opacity: 0.2;
+}
+
+.ce > .ce-img {
+  object-fit: contain;
+}
+
+.ce > .ce-mask {
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* The overlay draws Lottie emoji over their placeholder: whatever the placeholder holds goes. */
+.ce[data-ce-format="1"][data-ce-ready]:not([data-ce-fallback]) > * {
+  visibility: hidden;
+}
+
+.ce[data-ce-ready] > .ce-outline {
+  visibility: hidden;
+}
+
+.ce-container {
+  position: relative;
+}
+
+.ce-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

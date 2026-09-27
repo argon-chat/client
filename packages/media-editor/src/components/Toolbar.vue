@@ -6,6 +6,7 @@
         :key="tab.id"
         class="flex-1 py-3 bg-transparent border-none cursor-pointer transition-colors duration-150 flex items-center justify-center"
         :class="store.uiState.currentTab === tab.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+        :data-tab="tab.id"
         @click="store.uiState.currentTab = tab.id"
       >
         <component :is="tab.icon" />
@@ -23,6 +24,7 @@
       <CropTab v-else-if="store.uiState.currentTab === 'crop'" />
       <BrushTab v-else-if="store.uiState.currentTab === 'brush'" />
       <TextTab v-else-if="store.uiState.currentTab === 'text'" />
+      <CutoutTab v-else-if="store.uiState.currentTab === 'cutout'" />
     </div>
   </div>
 </template>
@@ -30,13 +32,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
-import { SlidersHorizontal, Crop, Pen, Type, Palette, Blend } from 'lucide-vue-next';
+import { SlidersHorizontal, Crop, Pen, Type, Palette, Blend, Sticker } from 'lucide-vue-next';
 import PresetsTab from '../tabs/PresetsTab.vue';
 import AdjustmentsTab from '../tabs/AdjustmentsTab.vue';
 import CropTab from '../tabs/CropTab.vue';
 import BrushTab from '../tabs/BrushTab.vue';
 import TextTab from '../tabs/TextTab.vue';
 import CurvesTab from '../tabs/CurvesTab.vue';
+import CutoutTab from '../tabs/CutoutTab.vue';
+import { isExpressionMode } from '../types';
 
 const { store, mode } = useMediaEditorContext();
 
@@ -50,6 +54,7 @@ const allTabs = [
 ];
 
 const tabs = computed(() => {
+  if (isExpressionMode(mode) && store.mediaType === 'image') return [{ id: 'cutout', icon: Sticker }, ...allTabs];
   return allTabs;
 });
 

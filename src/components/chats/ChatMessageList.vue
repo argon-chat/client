@@ -46,6 +46,7 @@
             canDeleteAny,
             channelType,
             readCountsKey,
+            narrow,
           ]"
         >
           <DateSeparator
@@ -72,6 +73,8 @@
             :channel-type="channelType"
             :can-publish-any="canPublishAny"
             :toggle-reaction="toggleReaction"
+            :toggle-custom-reaction="toggleCustomReaction"
+            :narrow="narrow"
             @dblclick="() => canReply && emit('select-reply', messages[item.index])"
             @reply="(msg) => emit('select-reply', msg)"
             @edit="(msg) => emit('select-edit', msg)"
@@ -202,6 +205,7 @@ const props = withDefaults(defineProps<{
   /** ManageMessages here: messages may be pinned and unpinned. */
   canPin?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
+  toggleCustomReaction?: (messageId: bigint, itemId: string) => void;
   /** Announcement channels: messages render as cards. */
   announcement?: AnnouncementCardContext | null;
   channelType?: "text" | "announcement";
@@ -243,6 +247,9 @@ const {
   scrollToBottomImmediate, scrollToBottom, scrollToIndex,
   onScrollNearTop, onScroll, resetScroller, setFollowBottom,
 } = useChatScroll(messages);
+
+/** Stickers are drawn smaller in a narrow column. */
+const narrow = computed(() => chatWidth.value > 0 && chatWidth.value < 600);
 
 // History paged in below the reader must not drag the view down with it.
 watch(() => props.detached, (detached) => setFollowBottom(!detached), { immediate: true });

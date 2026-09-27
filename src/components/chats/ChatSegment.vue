@@ -1,23 +1,34 @@
 <template>
     <MentionSegment v-if="props.entity && isMentionEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <MassMentionSegment v-else-if="props.entity && isMassMentionEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <BoldSegment v-else-if="props.entity && isBoldEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <CustomEmojiSegment v-else-if="props.entity && isCustomEmojiEntity(props.entity)" :entity="props.entity" :text="props.text" />
+    <!-- Styles: a custom emoji inside one comes as `children`, drawn in the style's slot. -->
+    <component :is="styleSegment" v-else-if="props.entity && styleSegment" :entity="props.entity" :text="props.text">
+        <template v-if="props.children?.length" #default>
+            <ChatSegment
+                v-for="(child, i) in props.children"
+                :key="i"
+                :entity="child.entity"
+                :text="child.text"
+                @unsupported="emits('unsupported')"
+            />
+        </template>
+    </component>
     <HashTagSegment v-else-if="props.entity && isHashtagEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <UnderlineSegment v-else-if="props.entity && isUnderlineEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <MonospaceSegment v-else-if="props.entity && isMonospaceEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <ItalicSegment v-else-if="props.entity && isItalicEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <StrikethroughSegment v-else-if="props.entity && isStrikethroughEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <SpoilerSegment v-else-if="props.entity && isSpoilerEntity(props.entity)" :entity="props.entity" :text="props.text" />
-    <CapitalizedSegment v-else-if="props.entity && isCapitalizedEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <FractionSegment v-else-if="props.entity && isFractionEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <OrdinalSegment v-else-if="props.entity && isOrdinalEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <UrlSegment v-else-if="props.entity && isUrlEntity(props.entity)" :entity="props.entity" :text="props.text" />
     <template v-else-if="props.entity && throwIsNotSupported()"></template>
-    <template v-else>{{ props.text }}</template>
+    <EmojiText v-else :text="props.text" />
 </template>
 <script setup lang="ts" generic="T extends IMessageEntity">
-import { EntityType, IMessageEntity, MessageEntityHashTag, MessageEntityMention, MessageEntityUnderline, MessageEntityUrl } from "@argon/glue";
+import { computed, type Component } from "vue";
+import { EntityType, IMessageEntity, MessageEntityCustomEmoji, MessageEntityHashTag, MessageEntityMention, MessageEntityUrl } from "@argon/glue";
+import type { IFrag } from "@/composables/useMessageContent";
 import BoldSegment from "./BoldSegment.vue";
+import CustomEmojiSegment from "./CustomEmojiSegment.vue";
+import EmojiText from "./EmojiText";
 import CapitalizedSegment from "./CapitalizedSegment.vue";
 import FractionSegment from "./FractionSegment.vue";
 import HashTagSegment from "./HashTagSegment.vue";
@@ -35,9 +46,25 @@ import { logger } from "@argon/core";
 const props = defineProps<{
   entity?: T;
   text: string;
+  children?: IFrag[];
 }>();
 
 const emits = defineEmits<(e: "unsupported") => void>();
+
+const STYLE_SEGMENTS: Partial<Record<EntityType, Component>> = {
+  [EntityType.Bold]: BoldSegment,
+  [EntityType.Underline]: UnderlineSegment,
+  [EntityType.Italic]: ItalicSegment,
+  [EntityType.Strikethrough]: StrikethroughSegment,
+  [EntityType.Spoiler]: SpoilerSegment,
+  [EntityType.Capitalized]: CapitalizedSegment,
+};
+
+const styleSegment = computed(() => (props.entity ? STYLE_SEGMENTS[props.entity.type] ?? null : null));
+
+function isCustomEmojiEntity(entity: IMessageEntity): entity is MessageEntityCustomEmoji {
+  return entity.type === EntityType.CustomEmoji;
+}
 
 function throwIsNotSupported() {
   logger.warn("Message entity type not supported:", props.entity);
@@ -53,19 +80,8 @@ function isMentionEntity(
 function isMassMentionEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.MentionEveryone || entity.type === EntityType.MentionRole;
 }
-function isBoldEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.type === EntityType.Bold;
-}
-function isItalicEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.type === EntityType.Italic;
-}
 function isMonospaceEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.Monospace;
-}
-function isUnderlineEntity(
-  entity: IMessageEntity,
-): entity is MessageEntityUnderline {
-  return entity.type === EntityType.Underline;
 }
 function isHashtagEntity(
   entity: IMessageEntity,
@@ -77,15 +93,6 @@ function isOrdinalEntity(entity: IMessageEntity): entity is IMessageEntity {
 }
 function isFractionEntity(entity: IMessageEntity): entity is IMessageEntity {
   return entity.type === EntityType.Fraction;
-}
-function isStrikethroughEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.type === EntityType.Strikethrough;
-}
-function isSpoilerEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.type === EntityType.Spoiler;
-}
-function isCapitalizedEntity(entity: IMessageEntity): entity is IMessageEntity {
-  return entity.type === EntityType.Capitalized;
 }
 function isUrlEntity(entity: IMessageEntity): entity is MessageEntityUrl {
   return entity.type === EntityType.Url;

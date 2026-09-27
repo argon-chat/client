@@ -1004,9 +1004,11 @@ export enum EntityType
   Attachment = 20,
   Gif = 21,
   LinkPreview = 22,
+  Sticker = 23,
+  CustomEmoji = 24,
 }
 
-const declaredEntityType: ReadonlySet<unknown> = new Set<unknown>([EntityType.Hashtag, EntityType.Mention, EntityType.MentionEveryone, EntityType.MentionRole, EntityType.Email, EntityType.Url, EntityType.Monospace, EntityType.Quote, EntityType.Spoiler, EntityType.Strikethrough, EntityType.Bold, EntityType.Italic, EntityType.Underline, EntityType.Fraction, EntityType.Ordinal, EntityType.Capitalized, EntityType.SystemCallStarted, EntityType.SystemCallEnded, EntityType.SystemCallTimeout, EntityType.SystemUserJoined, EntityType.Attachment, EntityType.Gif, EntityType.LinkPreview]);
+const declaredEntityType: ReadonlySet<unknown> = new Set<unknown>([EntityType.Hashtag, EntityType.Mention, EntityType.MentionEveryone, EntityType.MentionRole, EntityType.Email, EntityType.Url, EntityType.Monospace, EntityType.Quote, EntityType.Spoiler, EntityType.Strikethrough, EntityType.Bold, EntityType.Italic, EntityType.Underline, EntityType.Fraction, EntityType.Ordinal, EntityType.Capitalized, EntityType.SystemCallStarted, EntityType.SystemCallEnded, EntityType.SystemCallTimeout, EntityType.SystemUserJoined, EntityType.Attachment, EntityType.Gif, EntityType.LinkPreview, EntityType.Sticker, EntityType.CustomEmoji]);
 
 /**
  * Open-enum helpers for {@link EntityType}.
@@ -3738,6 +3740,7 @@ export enum ArgonEntitlement
   ExternalStickers = 4096n as any,
   UseCommands = 8192n as any,
   PostEmbeddedLinks = 16384n as any,
+  CreateExpressions = 32768n as any,
   Connect = 1048576n as any,
   Speak = 2097152n as any,
   Video = 4194304n as any,
@@ -3759,6 +3762,7 @@ export enum ArgonEntitlement
   ManageBehaviour = 18014398509481984n as any,
   ManageServer = 36028797018963968n as any,
   ManageMessages = 72057594037927936n as any,
+  ManageExpressions = 144115188075855872n as any,
 }
 
 
@@ -3919,6 +3923,148 @@ export const Ion_SetMainAnnouncementChannelError_OpenEnum = {
    */
   unknownValue(value: SetMainAnnouncementChannelError): u2 | undefined {
     return declaredSetMainAnnouncementChannelError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export interface ExpressionItem {
+  itemId: guid;
+  packId: guid;
+  spaceId: guid;
+  kind: ExpressionKind;
+  format: ExpressionFormat;
+  name: string;
+  fileId: guid;
+  thumbFileId: guid | null;
+  width: i4;
+  height: i4;
+  fileSize: i4;
+  emoji: IonArray<string>;
+  keywords: IonArray<string>;
+  outline: bytes | null;
+  textColor: bool;
+  sortOrder: i4;
+  downloadUrl: string | null;
+  thumbUrl: string | null;
+};
+
+
+export interface ExpressionPack {
+  packId: guid;
+  spaceId: guid;
+  kind: ExpressionKind;
+  title: string;
+  slug: string;
+  coverItemId: guid | null;
+  sortOrder: i4;
+  version: i8;
+  items: IonArray<ExpressionItem>;
+};
+
+
+export interface ExpressionsSnapshot {
+  version: string;
+  packs: IonArray<ExpressionPack> | null;
+};
+
+
+export enum ExpressionKind
+{
+  Sticker = 0,
+  Emoji = 1,
+}
+
+const declaredExpressionKind: ReadonlySet<unknown> = new Set<unknown>([ExpressionKind.Sticker, ExpressionKind.Emoji]);
+
+/**
+ * Open-enum helpers for {@link ExpressionKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ExpressionKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ExpressionKind): boolean {
+    return declaredExpressionKind.has(value);
+  },
+  /**
+   * The raw `u1` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ExpressionKind): u1 | undefined {
+    return declaredExpressionKind.has(value) ? undefined : (value as unknown as u1);
+  },
+} as const;
+
+
+export enum ExpressionFormat
+{
+  Static = 0,
+  Lottie = 1,
+  Video = 2,
+}
+
+const declaredExpressionFormat: ReadonlySet<unknown> = new Set<unknown>([ExpressionFormat.Static, ExpressionFormat.Lottie, ExpressionFormat.Video]);
+
+/**
+ * Open-enum helpers for {@link ExpressionFormat}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ExpressionFormat_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ExpressionFormat): boolean {
+    return declaredExpressionFormat.has(value);
+  },
+  /**
+   * The raw `u1` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ExpressionFormat): u1 | undefined {
+    return declaredExpressionFormat.has(value) ? undefined : (value as unknown as u1);
+  },
+} as const;
+
+
+export enum ExpressionError
+{
+  NONE = 0,
+  NOT_FOUND = 1,
+  FORBIDDEN = 2,
+  QUOTA_EXCEEDED = 3,
+  INVALID_FORMAT = 4,
+  TOO_LARGE = 5,
+  NAME_TAKEN = 6,
+  CONTENT_REJECTED = 7,
+  RATE_LIMITED = 8,
+}
+
+const declaredExpressionError: ReadonlySet<unknown> = new Set<unknown>([ExpressionError.NONE, ExpressionError.NOT_FOUND, ExpressionError.FORBIDDEN, ExpressionError.QUOTA_EXCEEDED, ExpressionError.INVALID_FORMAT, ExpressionError.TOO_LARGE, ExpressionError.NAME_TAKEN, ExpressionError.CONTENT_REJECTED, ExpressionError.RATE_LIMITED]);
+
+/**
+ * Open-enum helpers for {@link ExpressionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ExpressionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ExpressionError): boolean {
+    return declaredExpressionError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ExpressionError): u2 | undefined {
+    return declaredExpressionError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -6086,6 +6232,12 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntityLinkPreview(): this is MessageEntityLinkPreview {
     return this.UnionKey === "MessageEntityLinkPreview";
   }
+  public isMessageEntitySticker(): this is MessageEntitySticker {
+    return this.UnionKey === "MessageEntitySticker";
+  }
+  public isMessageEntityCustomEmoji(): this is MessageEntityCustomEmoji {
+    return this.UnionKey === "MessageEntityCustomEmoji";
+  }
 
 }
 
@@ -6274,11 +6426,27 @@ export class MessageEntityLinkPreview extends IMessageEntity
   UnionIndex: number = 22;
 }
 
+export class MessageEntitySticker extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public itemId: guid, public packId: guid, public spaceId: guid, public format: ExpressionFormat, public fileId: guid, public thumbFileId: guid | null, public width: i4, public height: i4, public outline: bytes | null, public downloadUrl: string | null, public thumbUrl: string | null) { super(); }
+
+  UnionKey: string = "MessageEntitySticker";
+  UnionIndex: number = 23;
+}
+
+export class MessageEntityCustomEmoji extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public itemId: guid, public spaceId: guid, public format: ExpressionFormat, public fileId: guid, public name: string, public textColor: bool, public downloadUrl: string | null) { super(); }
+
+  UnionKey: string = "MessageEntityCustomEmoji";
+  UnionIndex: number = 24;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
   read(reader: CborReader): IMessageEntity {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMessageEntity", 23);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMessageEntity", 25);
     let value: IMessageEntity = null as any;
 
     if (false)
@@ -6329,8 +6497,12 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntityGif>("MessageEntityGif").read(reader);
     else if (unionIndex == 22)
       value = IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").read(reader);
+    else if (unionIndex == 23)
+      value = IonFormatterStorage.get<MessageEntitySticker>("MessageEntitySticker").read(reader);
+    else if (unionIndex == 24)
+      value = IonFormatterStorage.get<MessageEntityCustomEmoji>("MessageEntityCustomEmoji").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IMessageEntity", unionIndex, 23);
+    else IonFormatterStorage.invalidUnionIndex("IMessageEntity", unionIndex, 25);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -6409,8 +6581,14 @@ IonFormatterStorage.register("IMessageEntity", {
     else if (value.UnionIndex == 22) {
         IonFormatterStorage.get<MessageEntityLinkPreview>("MessageEntityLinkPreview").write(writer, value as MessageEntityLinkPreview);
     }
+    else if (value.UnionIndex == 23) {
+        IonFormatterStorage.get<MessageEntitySticker>("MessageEntitySticker").write(writer, value as MessageEntitySticker);
+    }
+    else if (value.UnionIndex == 24) {
+        IonFormatterStorage.get<MessageEntityCustomEmoji>("MessageEntityCustomEmoji").write(writer, value as MessageEntityCustomEmoji);
+    }
   
-    else throw new Error(`Ion union 'IMessageEntity' has no case ${value.UnionIndex}; this revision declares 23 case(s)`);
+    else throw new Error(`Ion union 'IMessageEntity' has no case ${value.UnionIndex}; this revision declares 25 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -6950,6 +7128,82 @@ IonFormatterStorage.register("MessageEntityLinkPreview", {
     IonFormatterStorage.writeNullable<string>(writer, value.siteName, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.imageUrl, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.canonicalUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntitySticker", {
+  read(reader: CborReader): MessageEntitySticker {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 15, "MessageEntitySticker");
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const format = IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const thumbFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const outline = IonFormatterStorage.readNullable<bytes>(reader, 'bytes');
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const thumbUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 15);
+    return new MessageEntitySticker(type, offset, length, version, itemId, packId, spaceId, format, fileId, thumbFileId, width, height, outline, downloadUrl, thumbUrl);
+  },
+  write(writer: CborWriter, value: MessageEntitySticker): void {
+    writer.writeStartArray(15);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').write(writer, value.format);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.thumbFileId, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.writeNullable<bytes>(writer, value.outline, 'bytes');
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityCustomEmoji", {
+  read(reader: CborReader): MessageEntityCustomEmoji {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "MessageEntityCustomEmoji");
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const format = IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const textColor = IonFormatterStorage.get<bool>('bool').read(reader);
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return new MessageEntityCustomEmoji(type, offset, length, version, itemId, spaceId, format, fileId, name, textColor, downloadUrl);
+  },
+  write(writer: CborWriter, value: MessageEntityCustomEmoji): void {
+    writer.writeStartArray(11);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').write(writer, value.format);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.textColor);
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -9029,6 +9283,9 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isChannelMarkRetracted(): this is ChannelMarkRetracted {
     return this.UnionKey === "ChannelMarkRetracted";
   }
+  public isSpaceExpressionsChanged(): this is SpaceExpressionsChanged {
+    return this.UnionKey === "SpaceExpressionsChanged";
+  }
 
 }
 
@@ -9454,7 +9711,7 @@ export class ReactionAdded extends IArgonEvent
 
 export class ReactionRemoved extends IArgonEvent
 {
-  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string) { super(); }
+  constructor(public spaceId: guid, public channelId: guid, public messageId: i8, public userId: guid, public emoji: string, public customEmojiId: guid | null) { super(); }
 
   UnionKey: string = "ReactionRemoved";
   UnionIndex: number = 52;
@@ -9655,11 +9912,19 @@ export class ChannelMarkRetracted extends IArgonEvent
   UnionIndex: number = 76;
 }
 
+export class SpaceExpressionsChanged extends IArgonEvent
+{
+  constructor(public spaceId: guid, public version: string, public baseVersion: string | null, public delta: IExpressionDelta | null) { super(); }
+
+  UnionKey: string = "SpaceExpressionsChanged";
+  UnionIndex: number = 77;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 77);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 78);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -9818,8 +10083,10 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<ScheduledPostUpdated>("ScheduledPostUpdated").read(reader);
     else if (unionIndex == 76)
       value = IonFormatterStorage.get<ChannelMarkRetracted>("ChannelMarkRetracted").read(reader);
+    else if (unionIndex == 77)
+      value = IonFormatterStorage.get<SpaceExpressionsChanged>("SpaceExpressionsChanged").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 77);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 78);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -10060,8 +10327,11 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 76) {
         IonFormatterStorage.get<ChannelMarkRetracted>("ChannelMarkRetracted").write(writer, value as ChannelMarkRetracted);
     }
+    else if (value.UnionIndex == 77) {
+        IonFormatterStorage.get<SpaceExpressionsChanged>("SpaceExpressionsChanged").write(writer, value as SpaceExpressionsChanged);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 77 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 78 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -10947,22 +11217,24 @@ IonFormatterStorage.register("ReactionAdded", {
 
 IonFormatterStorage.register("ReactionRemoved", {
   read(reader: CborReader): ReactionRemoved {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "ReactionRemoved");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "ReactionRemoved");
     const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
     const channelId = IonFormatterStorage.get<guid>('guid').read(reader);
     const messageId = IonFormatterStorage.get<i8>('i8').read(reader);
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const emoji = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 5);
-    return new ReactionRemoved(spaceId, channelId, messageId, userId, emoji);
+    const customEmojiId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return new ReactionRemoved(spaceId, channelId, messageId, userId, emoji, customEmojiId);
   },
   write(writer: CborWriter, value: ReactionRemoved): void {
-    writer.writeStartArray(5);
+    writer.writeStartArray(6);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.get<string>('string').write(writer, value.emoji);
+    IonFormatterStorage.writeNullable<guid>(writer, value.customEmojiId, 'guid');
     writer.writeEndArray();
   }
 });
@@ -11395,6 +11667,26 @@ IonFormatterStorage.register("ChannelMarkRetracted", {
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
     IonFormatterStorage.get<i8>('i8').write(writer, value.messageId);
     IonFormatterStorage.get<i8>('i8').write(writer, value.lastMessageId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpaceExpressionsChanged", {
+  read(reader: CborReader): SpaceExpressionsChanged {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "SpaceExpressionsChanged");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const version = IonFormatterStorage.get<string>('string').read(reader);
+    const baseVersion = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const delta = IonFormatterStorage.readNullable<IExpressionDelta>(reader, 'IExpressionDelta');
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new SpaceExpressionsChanged(spaceId, version, baseVersion, delta);
+  },
+  write(writer: CborWriter, value: SpaceExpressionsChanged): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<string>('string').write(writer, value.version);
+    IonFormatterStorage.writeNullable<string>(writer, value.baseVersion, 'string');
+    IonFormatterStorage.writeNullable<IExpressionDelta>(writer, value.delta, 'IExpressionDelta');
     writer.writeEndArray();
   }
 });
@@ -16689,6 +16981,536 @@ IonFormatterStorage.register("FailedSetMainAnnouncementChannel", {
 
 
 
+export abstract class IPackResult implements IIonUnion<IPackResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessPack(): this is SuccessPack {
+    return this.UnionKey === "SuccessPack";
+  }
+  public isFailedPack(): this is FailedPack {
+    return this.UnionKey === "FailedPack";
+  }
+
+}
+
+
+export class SuccessPack extends IPackResult
+{
+  constructor(public pack: ExpressionPack) { super(); }
+
+  UnionKey: string = "SuccessPack";
+  UnionIndex: number = 0;
+}
+
+export class FailedPack extends IPackResult
+{
+  constructor(public error: ExpressionError) { super(); }
+
+  UnionKey: string = "FailedPack";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IPackResult", {
+  read(reader: CborReader): IPackResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPackResult", 2);
+    let value: IPackResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessPack>("SuccessPack").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedPack>("FailedPack").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IPackResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IPackResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessPack>("SuccessPack").write(writer, value as SuccessPack);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedPack>("FailedPack").write(writer, value as FailedPack);
+    }
+  
+    else throw new Error(`Ion union 'IPackResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessPack", {
+  read(reader: CborReader): SuccessPack {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessPack");
+    const pack = IonFormatterStorage.get<ExpressionPack>('ExpressionPack').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessPack(pack);
+  },
+  write(writer: CborWriter, value: SuccessPack): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionPack>('ExpressionPack').write(writer, value.pack);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPack", {
+  read(reader: CborReader): FailedPack {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPack");
+    const error = IonFormatterStorage.get<ExpressionError>('ExpressionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPack(error);
+  },
+  write(writer: CborWriter, value: FailedPack): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionError>('ExpressionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IItemResult implements IIonUnion<IItemResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessItem(): this is SuccessItem {
+    return this.UnionKey === "SuccessItem";
+  }
+  public isFailedItem(): this is FailedItem {
+    return this.UnionKey === "FailedItem";
+  }
+
+}
+
+
+export class SuccessItem extends IItemResult
+{
+  constructor(public item: ExpressionItem) { super(); }
+
+  UnionKey: string = "SuccessItem";
+  UnionIndex: number = 0;
+}
+
+export class FailedItem extends IItemResult
+{
+  constructor(public error: ExpressionError) { super(); }
+
+  UnionKey: string = "FailedItem";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IItemResult", {
+  read(reader: CborReader): IItemResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IItemResult", 2);
+    let value: IItemResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessItem>("SuccessItem").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedItem>("FailedItem").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IItemResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IItemResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessItem>("SuccessItem").write(writer, value as SuccessItem);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedItem>("FailedItem").write(writer, value as FailedItem);
+    }
+  
+    else throw new Error(`Ion union 'IItemResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessItem", {
+  read(reader: CborReader): SuccessItem {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessItem");
+    const item = IonFormatterStorage.get<ExpressionItem>('ExpressionItem').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessItem(item);
+  },
+  write(writer: CborWriter, value: SuccessItem): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionItem>('ExpressionItem').write(writer, value.item);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedItem", {
+  read(reader: CborReader): FailedItem {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedItem");
+    const error = IonFormatterStorage.get<ExpressionError>('ExpressionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedItem(error);
+  },
+  write(writer: CborWriter, value: FailedItem): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionError>('ExpressionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IReorderResult implements IIonUnion<IReorderResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessReorder(): this is SuccessReorder {
+    return this.UnionKey === "SuccessReorder";
+  }
+  public isFailedReorder(): this is FailedReorder {
+    return this.UnionKey === "FailedReorder";
+  }
+
+}
+
+
+export class SuccessReorder extends IReorderResult
+{
+  constructor(public ordered: IonArray<guid>) { super(); }
+
+  UnionKey: string = "SuccessReorder";
+  UnionIndex: number = 0;
+}
+
+export class FailedReorder extends IReorderResult
+{
+  constructor(public error: ExpressionError) { super(); }
+
+  UnionKey: string = "FailedReorder";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IReorderResult", {
+  read(reader: CborReader): IReorderResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IReorderResult", 2);
+    let value: IReorderResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessReorder>("SuccessReorder").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedReorder>("FailedReorder").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IReorderResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IReorderResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessReorder>("SuccessReorder").write(writer, value as SuccessReorder);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedReorder>("FailedReorder").write(writer, value as FailedReorder);
+    }
+  
+    else throw new Error(`Ion union 'IReorderResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessReorder", {
+  read(reader: CborReader): SuccessReorder {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessReorder");
+    const ordered = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessReorder(ordered);
+  },
+  write(writer: CborWriter, value: SuccessReorder): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.writeArray<guid>(writer, value.ordered, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedReorder", {
+  read(reader: CborReader): FailedReorder {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedReorder");
+    const error = IonFormatterStorage.get<ExpressionError>('ExpressionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedReorder(error);
+  },
+  write(writer: CborWriter, value: FailedReorder): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionError>('ExpressionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IExpressionDelta implements IIonUnion<IExpressionDelta>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isPackUpserted(): this is PackUpserted {
+    return this.UnionKey === "PackUpserted";
+  }
+  public isPackDeleted(): this is PackDeleted {
+    return this.UnionKey === "PackDeleted";
+  }
+  public isItemUpserted(): this is ItemUpserted {
+    return this.UnionKey === "ItemUpserted";
+  }
+  public isItemDeleted(): this is ItemDeleted {
+    return this.UnionKey === "ItemDeleted";
+  }
+  public isPacksReordered(): this is PacksReordered {
+    return this.UnionKey === "PacksReordered";
+  }
+  public isItemsReordered(): this is ItemsReordered {
+    return this.UnionKey === "ItemsReordered";
+  }
+
+}
+
+
+export class PackUpserted extends IExpressionDelta
+{
+  constructor(public pack: ExpressionPack) { super(); }
+
+  UnionKey: string = "PackUpserted";
+  UnionIndex: number = 0;
+}
+
+export class PackDeleted extends IExpressionDelta
+{
+  constructor(public packId: guid) { super(); }
+
+  UnionKey: string = "PackDeleted";
+  UnionIndex: number = 1;
+}
+
+export class ItemUpserted extends IExpressionDelta
+{
+  constructor(public item: ExpressionItem) { super(); }
+
+  UnionKey: string = "ItemUpserted";
+  UnionIndex: number = 2;
+}
+
+export class ItemDeleted extends IExpressionDelta
+{
+  constructor(public packId: guid, public itemId: guid) { super(); }
+
+  UnionKey: string = "ItemDeleted";
+  UnionIndex: number = 3;
+}
+
+export class PacksReordered extends IExpressionDelta
+{
+  constructor(public kind: ExpressionKind, public ordered: IonArray<guid>) { super(); }
+
+  UnionKey: string = "PacksReordered";
+  UnionIndex: number = 4;
+}
+
+export class ItemsReordered extends IExpressionDelta
+{
+  constructor(public packId: guid, public ordered: IonArray<guid>) { super(); }
+
+  UnionKey: string = "ItemsReordered";
+  UnionIndex: number = 5;
+}
+
+
+
+IonFormatterStorage.register("IExpressionDelta", {
+  read(reader: CborReader): IExpressionDelta {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IExpressionDelta", 6);
+    let value: IExpressionDelta = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<PackUpserted>("PackUpserted").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<PackDeleted>("PackDeleted").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<ItemUpserted>("ItemUpserted").read(reader);
+    else if (unionIndex == 3)
+      value = IonFormatterStorage.get<ItemDeleted>("ItemDeleted").read(reader);
+    else if (unionIndex == 4)
+      value = IonFormatterStorage.get<PacksReordered>("PacksReordered").read(reader);
+    else if (unionIndex == 5)
+      value = IonFormatterStorage.get<ItemsReordered>("ItemsReordered").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IExpressionDelta", unionIndex, 6);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IExpressionDelta): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<PackUpserted>("PackUpserted").write(writer, value as PackUpserted);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<PackDeleted>("PackDeleted").write(writer, value as PackDeleted);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<ItemUpserted>("ItemUpserted").write(writer, value as ItemUpserted);
+    }
+    else if (value.UnionIndex == 3) {
+        IonFormatterStorage.get<ItemDeleted>("ItemDeleted").write(writer, value as ItemDeleted);
+    }
+    else if (value.UnionIndex == 4) {
+        IonFormatterStorage.get<PacksReordered>("PacksReordered").write(writer, value as PacksReordered);
+    }
+    else if (value.UnionIndex == 5) {
+        IonFormatterStorage.get<ItemsReordered>("ItemsReordered").write(writer, value as ItemsReordered);
+    }
+  
+    else throw new Error(`Ion union 'IExpressionDelta' has no case ${value.UnionIndex}; this revision declares 6 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("PackUpserted", {
+  read(reader: CborReader): PackUpserted {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "PackUpserted");
+    const pack = IonFormatterStorage.get<ExpressionPack>('ExpressionPack').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new PackUpserted(pack);
+  },
+  write(writer: CborWriter, value: PackUpserted): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionPack>('ExpressionPack').write(writer, value.pack);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PackDeleted", {
+  read(reader: CborReader): PackDeleted {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "PackDeleted");
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new PackDeleted(packId);
+  },
+  write(writer: CborWriter, value: PackDeleted): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ItemUpserted", {
+  read(reader: CborReader): ItemUpserted {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "ItemUpserted");
+    const item = IonFormatterStorage.get<ExpressionItem>('ExpressionItem').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new ItemUpserted(item);
+  },
+  write(writer: CborWriter, value: ItemUpserted): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ExpressionItem>('ExpressionItem').write(writer, value.item);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ItemDeleted", {
+  read(reader: CborReader): ItemDeleted {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ItemDeleted");
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ItemDeleted(packId, itemId);
+  },
+  write(writer: CborWriter, value: ItemDeleted): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("PacksReordered", {
+  read(reader: CborReader): PacksReordered {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "PacksReordered");
+    const kind = IonFormatterStorage.get<ExpressionKind>('ExpressionKind').read(reader);
+    const ordered = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new PacksReordered(kind, ordered);
+  },
+  write(writer: CborWriter, value: PacksReordered): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, value.kind);
+    IonFormatterStorage.writeArray<guid>(writer, value.ordered, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ItemsReordered", {
+  read(reader: CborReader): ItemsReordered {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ItemsReordered");
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const ordered = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ItemsReordered(packId, ordered);
+  },
+  write(writer: CborWriter, value: ItemsReordered): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    IonFormatterStorage.writeArray<guid>(writer, value.ordered, 'guid');
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ICheckoutResult implements IIonUnion<ICheckoutResult>
 {
   abstract UnionKey: string;
@@ -21490,6 +22312,130 @@ IonFormatterStorage.register("SetMainAnnouncementChannelError", {
   }
 });
 
+IonFormatterStorage.register("ExpressionKind", {
+  read(reader: CborReader): ExpressionKind {
+    return IonFormatterStorage.readOpenEnum<ExpressionKind>(reader, 'u1');
+  },
+  write(writer: CborWriter, value: ExpressionKind): void {
+    const casted: u1 = value;
+    IonFormatterStorage.get<u1>('u1').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ExpressionFormat", {
+  read(reader: CborReader): ExpressionFormat {
+    return IonFormatterStorage.readOpenEnum<ExpressionFormat>(reader, 'u1');
+  },
+  write(writer: CborWriter, value: ExpressionFormat): void {
+    const casted: u1 = value;
+    IonFormatterStorage.get<u1>('u1').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ExpressionItem", {
+  read(reader: CborReader): ExpressionItem {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 18, "ExpressionItem");
+    const itemId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const kind = IonFormatterStorage.get<ExpressionKind>('ExpressionKind').read(reader);
+    const format = IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const thumbFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const fileSize = IonFormatterStorage.get<i4>('i4').read(reader);
+    const emoji = IonFormatterStorage.readArray<string>(reader, 'string');
+    const keywords = IonFormatterStorage.readArray<string>(reader, 'string');
+    const outline = IonFormatterStorage.readNullable<bytes>(reader, 'bytes');
+    const textColor = IonFormatterStorage.get<bool>('bool').read(reader);
+    const sortOrder = IonFormatterStorage.get<i4>('i4').read(reader);
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const thumbUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 18);
+    return { itemId, packId, spaceId, kind, format, name, fileId, thumbFileId, width, height, fileSize, emoji, keywords, outline, textColor, sortOrder, downloadUrl, thumbUrl };
+  },
+  write(writer: CborWriter, value: ExpressionItem): void {
+    writer.writeStartArray(18);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.itemId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, value.kind);
+    IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').write(writer, value.format);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.writeNullable<guid>(writer, value.thumbFileId, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.fileSize);
+    IonFormatterStorage.writeArray<string>(writer, value.emoji, 'string');
+    IonFormatterStorage.writeArray<string>(writer, value.keywords, 'string');
+    IonFormatterStorage.writeNullable<bytes>(writer, value.outline, 'bytes');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.textColor);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.sortOrder);
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ExpressionPack", {
+  read(reader: CborReader): ExpressionPack {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 9, "ExpressionPack");
+    const packId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const kind = IonFormatterStorage.get<ExpressionKind>('ExpressionKind').read(reader);
+    const title = IonFormatterStorage.get<string>('string').read(reader);
+    const slug = IonFormatterStorage.get<string>('string').read(reader);
+    const coverItemId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const sortOrder = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i8>('i8').read(reader);
+    const items = IonFormatterStorage.readArray<ExpressionItem>(reader, 'ExpressionItem');
+    reader.readEndArrayAndSkip(arraySize - 9);
+    return { packId, spaceId, kind, title, slug, coverItemId, sortOrder, version, items };
+  },
+  write(writer: CborWriter, value: ExpressionPack): void {
+    writer.writeStartArray(9);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.packId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, value.kind);
+    IonFormatterStorage.get<string>('string').write(writer, value.title);
+    IonFormatterStorage.get<string>('string').write(writer, value.slug);
+    IonFormatterStorage.writeNullable<guid>(writer, value.coverItemId, 'guid');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.sortOrder);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.version);
+    IonFormatterStorage.writeArray<ExpressionItem>(writer, value.items, 'ExpressionItem');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ExpressionsSnapshot", {
+  read(reader: CborReader): ExpressionsSnapshot {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ExpressionsSnapshot");
+    const version = IonFormatterStorage.get<string>('string').read(reader);
+    const packs = IonFormatterStorage.readNullableArray<ExpressionPack>(reader, 'ExpressionPack');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { version, packs };
+  },
+  write(writer: CborWriter, value: ExpressionsSnapshot): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.version);
+    IonFormatterStorage.writeNullableArray<ExpressionPack>(writer, value.packs, 'ExpressionPack');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ExpressionError", {
+  read(reader: CborReader): ExpressionError {
+    return IonFormatterStorage.readOpenEnum<ExpressionError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ExpressionError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ProductPrice", {
   read(reader: CborReader): ProductPrice {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ProductPrice");
@@ -22236,6 +23182,39 @@ IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSett
   { name: "chirp", type: "bool" },
 ]);
 
+IonFormatterStorage.registerPartial<ExpressionPack>("IonPartial<ExpressionPack>", [
+  { name: "packId", type: "guid" },
+  { name: "spaceId", type: "guid" },
+  { name: "kind", type: "ExpressionKind" },
+  { name: "title", type: "string" },
+  { name: "slug", type: "string" },
+  { name: "coverItemId", type: "guid", kind: "nullable" },
+  { name: "sortOrder", type: "i4" },
+  { name: "version", type: "i8" },
+  { name: "items", type: "ExpressionItem", kind: "array" },
+]);
+
+IonFormatterStorage.registerPartial<ExpressionItem>("IonPartial<ExpressionItem>", [
+  { name: "itemId", type: "guid" },
+  { name: "packId", type: "guid" },
+  { name: "spaceId", type: "guid" },
+  { name: "kind", type: "ExpressionKind" },
+  { name: "format", type: "ExpressionFormat" },
+  { name: "name", type: "string" },
+  { name: "fileId", type: "guid" },
+  { name: "thumbFileId", type: "guid", kind: "nullable" },
+  { name: "width", type: "i4" },
+  { name: "height", type: "i4" },
+  { name: "fileSize", type: "i4" },
+  { name: "emoji", type: "string", kind: "array" },
+  { name: "keywords", type: "string", kind: "array" },
+  { name: "outline", type: "bytes", kind: "nullable" },
+  { name: "textColor", type: "bool" },
+  { name: "sortOrder", type: "i4" },
+  { name: "downloadUrl", type: "string", kind: "nullable" },
+  { name: "thumbUrl", type: "string", kind: "nullable" },
+]);
+
 
 
 
@@ -22348,6 +23327,8 @@ export interface IChannelInteraction extends IIonService
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
   SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
   QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
+  AddCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IAddReactionResult>;
+  RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
 }
 
 
@@ -22580,6 +23561,23 @@ export interface IServerInteraction extends IIonService
 export interface ISpaceAnnouncementInteraction extends IIonService
 {
   SetMainAnnouncementChannel(spaceId: guid, channelId: guid | null): Promise<ISetMainAnnouncementChannelResult>;
+}
+
+
+
+
+export interface ISpaceExpressionInteraction extends IIonService
+{
+  GetExpressions(spaceId: guid, known: string | null): Promise<ExpressionsSnapshot>;
+  CreatePack(spaceId: guid, kind: ExpressionKind, title: string, slug: string): Promise<IPackResult>;
+  UpdatePack(spaceId: guid, packId: guid, patch: IonPartial<ExpressionPack>): Promise<IPackResult>;
+  DeletePack(spaceId: guid, packId: guid): Promise<IPackResult>;
+  ReorderPacks(spaceId: guid, kind: ExpressionKind, ordered: IonArray<guid>): Promise<IReorderResult>;
+  BeginUploadExpression(spaceId: guid, kind: ExpressionKind, format: ExpressionFormat, contentType: string, size: i8): Promise<IUploadFileResult>;
+  AddItem(spaceId: guid, packId: guid, blobId: guid, thumbBlobId: guid | null, name: string, emoji: IonArray<string>, keywords: IonArray<string>, outline: bytes | null): Promise<IItemResult>;
+  UpdateItem(spaceId: guid, itemId: guid, patch: IonPartial<ExpressionItem>): Promise<IItemResult>;
+  DeleteItem(spaceId: guid, itemId: guid): Promise<IItemResult>;
+  ReorderItems(spaceId: guid, packId: guid, ordered: IonArray<guid>): Promise<IReorderResult>;
 }
 
 
@@ -22768,6 +23766,8 @@ export interface IChannelInteraction extends IIonService
   ConfirmBroadcastLinks(spaceId: guid, channelId: guid): Promise<IConfirmBroadcastLinksResult>;
   SetAnnouncementSettings(spaceId: guid, channelId: guid, reactions: bool, postAsSpace: bool, showAuthor: bool): Promise<IUpdateChannelResult>;
   QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
+  AddCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IAddReactionResult>;
+  RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
 }
 
 
@@ -23000,6 +24000,23 @@ export interface IServerInteraction extends IIonService
 export interface ISpaceAnnouncementInteraction extends IIonService
 {
   SetMainAnnouncementChannel(spaceId: guid, channelId: guid | null): Promise<ISetMainAnnouncementChannelResult>;
+}
+
+
+
+
+export interface ISpaceExpressionInteraction extends IIonService
+{
+  GetExpressions(spaceId: guid, known: string | null): Promise<ExpressionsSnapshot>;
+  CreatePack(spaceId: guid, kind: ExpressionKind, title: string, slug: string): Promise<IPackResult>;
+  UpdatePack(spaceId: guid, packId: guid, patch: IonPartial<ExpressionPack>): Promise<IPackResult>;
+  DeletePack(spaceId: guid, packId: guid): Promise<IPackResult>;
+  ReorderPacks(spaceId: guid, kind: ExpressionKind, ordered: IonArray<guid>): Promise<IReorderResult>;
+  BeginUploadExpression(spaceId: guid, kind: ExpressionKind, format: ExpressionFormat, contentType: string, size: i8): Promise<IUploadFileResult>;
+  AddItem(spaceId: guid, packId: guid, blobId: guid, thumbBlobId: guid | null, name: string, emoji: IonArray<string>, keywords: IonArray<string>, outline: bytes | null): Promise<IItemResult>;
+  UpdateItem(spaceId: guid, itemId: guid, patch: IonPartial<ExpressionItem>): Promise<IItemResult>;
+  DeleteItem(spaceId: guid, itemId: guid): Promise<IItemResult>;
+  ReorderItems(spaceId: guid, packId: guid, ordered: IonArray<guid>): Promise<IReorderResult>;
 }
 
 
@@ -24216,6 +25233,38 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<MessageWindow>("MessageWindow", writer.data, this.signal);
+  }
+  async AddCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IAddReactionResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "AddCustomReaction");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, itemId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAddReactionResult>("IAddReactionResult", writer.data, this.signal);
+  }
+  async RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "RemoveCustomReaction");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<i8>('i8').write(writer, messageId);
+    IonFormatterStorage.get<guid>('guid').write(writer, itemId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRemoveReactionResult>("IRemoveReactionResult", writer.data, this.signal);
   }
 
 }
@@ -26047,6 +27096,172 @@ export class SpaceAnnouncementInteraction_Executor extends ServiceExecutor<ISpac
 
 IonFormatterStorage.registerClientExecutor<ISpaceAnnouncementInteraction>('SpaceAnnouncementInteraction', SpaceAnnouncementInteraction_Executor);
 
+export class SpaceExpressionInteraction_Executor extends ServiceExecutor<ISpaceExpressionInteraction> implements ISpaceExpressionInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetExpressions(spaceId: guid, known: string | null): Promise<ExpressionsSnapshot> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "GetExpressions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.writeNullable<string>(writer, known, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ExpressionsSnapshot>("ExpressionsSnapshot", writer.data, this.signal);
+  }
+  async CreatePack(spaceId: guid, kind: ExpressionKind, title: string, slug: string): Promise<IPackResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "CreatePack");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, kind);
+    IonFormatterStorage.get<string>('string').write(writer, title);
+    IonFormatterStorage.get<string>('string').write(writer, slug);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPackResult>("IPackResult", writer.data, this.signal);
+  }
+  async UpdatePack(spaceId: guid, packId: guid, patch: IonPartial<ExpressionPack>): Promise<IPackResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "UpdatePack");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, packId);
+    IonFormatterStorage.get<IonPartial<ExpressionPack>>('IonPartial<ExpressionPack>').write(writer, patch);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPackResult>("IPackResult", writer.data, this.signal);
+  }
+  async DeletePack(spaceId: guid, packId: guid): Promise<IPackResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "DeletePack");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, packId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPackResult>("IPackResult", writer.data, this.signal);
+  }
+  async ReorderPacks(spaceId: guid, kind: ExpressionKind, ordered: IonArray<guid>): Promise<IReorderResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "ReorderPacks");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, kind);
+    IonFormatterStorage.writeArray<guid>(writer, ordered, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IReorderResult>("IReorderResult", writer.data, this.signal);
+  }
+  async BeginUploadExpression(spaceId: guid, kind: ExpressionKind, format: ExpressionFormat, contentType: string, size: i8): Promise<IUploadFileResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "BeginUploadExpression");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<ExpressionKind>('ExpressionKind').write(writer, kind);
+    IonFormatterStorage.get<ExpressionFormat>('ExpressionFormat').write(writer, format);
+    IonFormatterStorage.get<string>('string').write(writer, contentType);
+    IonFormatterStorage.get<i8>('i8').write(writer, size);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUploadFileResult>("IUploadFileResult", writer.data, this.signal);
+  }
+  async AddItem(spaceId: guid, packId: guid, blobId: guid, thumbBlobId: guid | null, name: string, emoji: IonArray<string>, keywords: IonArray<string>, outline: bytes | null): Promise<IItemResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "AddItem");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(8);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, packId);
+    IonFormatterStorage.get<guid>('guid').write(writer, blobId);
+    IonFormatterStorage.writeNullable<guid>(writer, thumbBlobId, 'guid');
+    IonFormatterStorage.get<string>('string').write(writer, name);
+    IonFormatterStorage.writeArray<string>(writer, emoji, 'string');
+    IonFormatterStorage.writeArray<string>(writer, keywords, 'string');
+    IonFormatterStorage.writeNullable<bytes>(writer, outline, 'bytes');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IItemResult>("IItemResult", writer.data, this.signal);
+  }
+  async UpdateItem(spaceId: guid, itemId: guid, patch: IonPartial<ExpressionItem>): Promise<IItemResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "UpdateItem");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, itemId);
+    IonFormatterStorage.get<IonPartial<ExpressionItem>>('IonPartial<ExpressionItem>').write(writer, patch);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IItemResult>("IItemResult", writer.data, this.signal);
+  }
+  async DeleteItem(spaceId: guid, itemId: guid): Promise<IItemResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "DeleteItem");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, itemId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IItemResult>("IItemResult", writer.data, this.signal);
+  }
+  async ReorderItems(spaceId: guid, packId: guid, ordered: IonArray<guid>): Promise<IReorderResult> {
+    const req = new IonRequest(this.ctx, "ISpaceExpressionInteraction", "ReorderItems");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, packId);
+    IonFormatterStorage.writeArray<guid>(writer, ordered, 'guid');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IReorderResult>("IReorderResult", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<ISpaceExpressionInteraction>('SpaceExpressionInteraction', SpaceExpressionInteraction_Executor);
+
 export class UltimaInteraction_Executor extends ServiceExecutor<IUltimaInteraction> implements IUltimaInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
       super();
@@ -26740,6 +27955,7 @@ export function createClient(
         if (propKey === "SecurityInteraction") return IonFormatterStorage.createExecutor("SecurityInteraction", ctx, controller.signal);
         if (propKey === "ServerInteraction") return IonFormatterStorage.createExecutor("ServerInteraction", ctx, controller.signal);
         if (propKey === "SpaceAnnouncementInteraction") return IonFormatterStorage.createExecutor("SpaceAnnouncementInteraction", ctx, controller.signal);
+        if (propKey === "SpaceExpressionInteraction") return IonFormatterStorage.createExecutor("SpaceExpressionInteraction", ctx, controller.signal);
         if (propKey === "UltimaInteraction") return IonFormatterStorage.createExecutor("UltimaInteraction", ctx, controller.signal);
         if (propKey === "UserInteraction") return IonFormatterStorage.createExecutor("UserInteraction", ctx, controller.signal);
         if (propKey === "PreferenceInteraction") return IonFormatterStorage.createExecutor("PreferenceInteraction", ctx, controller.signal);
@@ -26772,6 +27988,7 @@ export function createClient(
     SecurityInteraction: ISecurityInteraction;
     ServerInteraction: IServerInteraction;
     SpaceAnnouncementInteraction: ISpaceAnnouncementInteraction;
+    SpaceExpressionInteraction: ISpaceExpressionInteraction;
     UltimaInteraction: IUltimaInteraction;
     UserInteraction: IUserInteraction;
     PreferenceInteraction: IPreferenceInteraction;

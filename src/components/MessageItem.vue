@@ -148,25 +148,59 @@
               @mouseleave="onMouseLeave"
             >
 
-              <!-- ── Emoji-only message ── -->
-              <div v-if="isSingleEmoji" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'">
+              <!-- ── Emoji-only message: 1–7 emoji, unicode and/or custom, drawn big ── -->
+              <div v-if="jumbo" class="flex flex-col" :class="isRight ? 'items-end' : 'items-start'" data-jumbo>
                 <ReplyPreview
                   v-if="replyMessage"
                   :reply-message="replyMessage"
                   :reply-user="replyUser"
                   @click="emit('scroll-to-message', replyMessage!.messageId)"
                 />
-                <div class="text-[2.5rem] leading-tight">
+                <component
+                  :is="textContainer.is"
+                  v-bind="textContainer.props"
+                  class="leading-[1.15]"
+                  :style="{ fontSize: `${jumbo.size}px`, '--emoji-size': '1em' }"
+                >
                   <ChatSegment
                     v-for="(seg, i) in fragments"
                     :key="i"
                     :entity="seg.entity"
                     :text="seg.text"
+                    :children="seg.children"
                     @unsupported="isUnsupported = true"
                   />
                   <EditedMark v-if="isEdited" :title="formattedEditedTime" />
                   <PublishedMark v-if="message.publishedAt" :at="message.publishedAt" />
-                </div>
+                </component>
+              </div>
+
+              <!-- ── Sticker: no bubble, the sticker is the message ── -->
+              <div v-else-if="isStickerOnly" class="flex flex-col relative" :class="isRight ? 'items-end' : 'items-start'">
+                <ReplyPreview
+                  v-if="replyMessage"
+                  :reply-message="replyMessage"
+                  :reply-user="replyUser"
+                  @click="emit('scroll-to-message', replyMessage!.messageId)"
+                />
+                <StickerView
+                  v-for="(s, si) in stickerEntities"
+                  :key="`sticker-${si}`"
+                  :media="stickerMedia(s)"
+                  :size="stickerSize"
+                  :loop="true"
+                  :autoplay="stickerAutoplay"
+                  group="chat"
+                  role="img"
+                  :aria-label="t('sticker')"
+                  :title="t('sticker')"
+                />
+                <span
+                  v-if="isGrouped"
+                  class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full bg-black/40 text-[11px] text-white select-none pointer-events-none tabular-nums"
+                >
+                  {{ formattedTime }}
+                </span>
               </div>
 
               <!-- ── Normal message (images + bubble + files) ── -->
@@ -199,6 +233,21 @@
                   />
                 </div>
 
+                <!-- A sticker that came with text or files (a bot's message): above the bubble -->
+                <StickerView
+                  v-for="(s, si) in stickerEntities"
+                  :key="`sticker-${si}`"
+                  :media="stickerMedia(s)"
+                  :size="stickerSize"
+                  :loop="true"
+                  :autoplay="stickerAutoplay"
+                  group="chat"
+                  role="img"
+                  class="mb-1"
+                  :aria-label="t('sticker')"
+                  :title="t('sticker')"
+                />
+
                 <!-- Text/file bubble -->
                 <div
                   v-if="!hasOnlyImages"
@@ -213,13 +262,14 @@
                     @click="emit('scroll-to-message', replyMessage!.messageId)"
                   />
 
-                  <!-- Text -->
-                  <div v-if="fragments.length" class="relative">
+                  <!-- Text (custom emoji in it are drawn by one overlay per message) -->
+                  <component :is="textContainer.is" v-if="fragments.length" v-bind="textContainer.props" class="relative">
                     <ChatSegment
                       v-for="(seg, i) in fragments"
                       :key="i"
                       :entity="seg.entity"
                       :text="seg.text"
+                      :children="seg.children"
                       @unsupported="isUnsupported = true"
                     />
                     <EditedMark v-if="isEdited" :title="formattedEditedTime" />
@@ -230,7 +280,7 @@
                     >
                       {{ formattedTime }}
                     </span>
-                  </div>
+                  </component>
 
                   <!-- Link preview card -->
                   <LinkPreviewCard
@@ -311,14 +361,19 @@
               >
                 <Popover v-if="canReact" v-model:open="reactionPickerOpen">
                   <PopoverTrigger as-child>
-                    <ActionBtn><SmilePlusIcon class="w-3.5 h-3.5" /></ActionBtn>
+                    <ActionBtn :title="t('add_reaction')" data-testid="add-reaction"><SmilePlusIcon class="w-3.5 h-3.5" /></ActionBtn>
                   </PopoverTrigger>
                   <PopoverContent
                     side="top"
                     :side-offset="6"
                     class="p-0 border-0 bg-transparent shadow-none w-auto"
                   >
-                    <ReactionPicker @select="onPickReaction" />
+                    <ReactionPicker
+                      :space-id="props.message.spaceId || null"
+                      @select="onPickReaction"
+                      @select-custom="onPickCustomReaction"
+                      @close="reactionPickerOpen = false"
+                    />
                   </PopoverContent>
                 </Popover>
                 <ActionBtn @click="copyText" :title="t('copy')"><CopyIcon class="w-3.5 h-3.5" /></ActionBtn>
@@ -343,6 +398,7 @@
             :can-react="canReact ?? false"
             :remove-only="announcement?.settings.reactions === false"
             @toggle="onToggleReaction"
+            @toggle-custom="onToggleCustomReaction"
           />
 
           <!-- ── Right-click context menu ── -->
@@ -446,16 +502,21 @@ function tsFormat(): string {
 <!-- ─────────────────────────────── -->
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onBeforeUnmount } from "vue";
+import { ref, computed, nextTick, onBeforeUnmount, provide } from "vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
 import { fragmentMessageText, useMessageContent, type IFrag } from "@/composables/useMessageContent";
-import { EntityType, ReportTargetKind, type ArgonMessage, type MessageEntityAttachment, type MessageEntityGif, type MessageEntityLinkPreview } from "@argon/glue";
+import { EntityType, ReportTargetKind, type ArgonMessage, type ExpressionItem, type MessageEntityAttachment, type MessageEntityGif, type MessageEntityLinkPreview, type MessageEntitySticker } from "@argon/glue";
 import { showLinkPreviews } from "@/lib/linkPreview/settings";
 import type { ChatMessage } from "@/composables/useChatMessages";
-import { isEmojiOnly } from "@argon-chat/emojix";
+import { jumboEmoji, stickerMedia } from "@/lib/chat/customEmoji";
+import { EXPRESSION_SIZES, customEmojiSize } from "@/lib/expressions/sizes";
+import { animationsEnabled } from "@/lib/expressions/settings";
+import StickerView from "./expressions/StickerView.vue";
+import CustomEmojiOverlay from "./expressions/CustomEmojiOverlay.vue";
+import { CUSTOM_EMOJI_SIZE } from "./chats/customEmojiSize";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import BotTag from "@/components/shared/BotTag.vue";
@@ -567,6 +628,9 @@ const props = withDefaults(defineProps<{
   /** False where the user cannot send (a reply would have nowhere to go). */
   canReply?: boolean;
   toggleReaction?: (messageId: bigint, emoji: string) => void;
+  toggleCustomReaction?: (messageId: bigint, itemId: string) => void;
+  /** The message column is narrow (under 600 px): stickers are drawn smaller. */
+  narrow?: boolean;
   /** Channels only: the author may edit their own message. */
   canEdit?: boolean;
   /** Channels only: the author may delete their own message. */
@@ -582,7 +646,7 @@ const props = withDefaults(defineProps<{
   channelType?: "text" | "announcement";
   /** Announcement channel with ManageMessages: anyone's message may be published to followers. */
   canPublishAny?: boolean;
-}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, readCounts: null, canPublishAny: false });
+}>(), { canReply: true, canEdit: false, canDeleteOwn: false, canDeleteAny: false, canPin: false, announcement: null, readCounts: null, canPublishAny: false, narrow: false });
 
 const emit = defineEmits<{
   (e: "reply", message: ArgonMessage): void;
@@ -767,14 +831,42 @@ const hasOnlyImages = computed(
 
 const hasMediaAbove = computed(() => imageAttachments.value.length > 0 || gifEntities.value.length > 0);
 
-// ── Emoji-only detection ──
+// ── Stickers ──
 
-const isSingleEmoji = computed(() => {
-  const text = props.message.text?.trim();
-  if (!text) return false;
-  const result = isEmojiOnly(text, 2);
-  return result.isOnlyEmoji;
-});
+const stickerEntities = computed(() =>
+  (props.message.entities ?? []).filter((e): e is MessageEntitySticker => e.type === EntityType.Sticker),
+);
+
+/** A sticker and nothing else: drawn without a bubble. */
+const isStickerOnly = computed(
+  () => stickerEntities.value.length > 0 && !allAttachments.value.length && !gifEntities.value.length && !props.message.text?.trim(),
+);
+
+const stickerSize = computed(() => (props.narrow ? EXPRESSION_SIZES.chatStickerNarrow : EXPRESSION_SIZES.chatSticker));
+// The user's switch; its default already follows reduced motion, and an explicit "on" wins over it.
+const stickerAutoplay = computed(() => animationsEnabled.value);
+
+// ── Custom emoji and big emoji ──
+
+const hasCustomEmoji = computed(() => (props.message.entities ?? []).some((e) => e.type === EntityType.CustomEmoji));
+
+/** The text's box: the custom emoji overlay when there are custom emoji to draw, else a plain div. */
+const textContainer = computed(() =>
+  hasCustomEmoji.value
+    ? { is: CustomEmojiOverlay, props: { tag: "div", group: "chat" } }
+    : { is: "div", props: {} },
+);
+
+/** 1–7 emoji and nothing else, in a message with no media: drawn big (Telegram's sizes). */
+const jumbo = computed(() =>
+  allAttachments.value.length || gifEntities.value.length || stickerEntities.value.length
+    ? null
+    : jumboEmoji(props.message.text, props.message.entities ?? []),
+);
+
+// The bubble's text is text-sm (14 px); big emoji set their own size.
+const BUBBLE_FONT_PX = 14;
+provide(CUSTOM_EMOJI_SIZE, computed(() => jumbo.value?.size ?? customEmojiSize(BUBBLE_FONT_PX)));
 
 // ── Reply ──
 
@@ -797,8 +889,10 @@ const spaceHeader = computed(() => {
   const header = cardHeader(a.settings, { name: user.value?.displayName || t("unknown_display_name"), avatarFileId: user.value?.avatarFileId ?? null }, a.space);
   return header.asSpace ? header : null;
 });
-// A crosspost is a copy: an edit here would never reach the original.
-const canEditThis = computed(() => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value && !props.message.crosspost);
+// A crosspost is a copy: an edit here would never reach the original. A sticker has no text to edit.
+const canEditThis = computed(
+  () => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value && !props.message.crosspost && !isStickerOnly.value,
+);
 // A crosspost belongs to this channel, not to its author: only ManageMessages takes it down.
 const canDeleteThis = computed(
   () => !isOptimistic.value && ((props.canDeleteOwn && isOwnMessage.value && !props.message.crosspost) || props.canDeleteAny),
@@ -921,5 +1015,14 @@ function onPickReaction(emoji: string) {
 
 function onToggleReaction(emoji: string) {
   props.toggleReaction?.(props.message.messageId, emoji);
+}
+
+function onPickCustomReaction(item: ExpressionItem) {
+  reactionPickerOpen.value = false;
+  props.toggleCustomReaction?.(props.message.messageId, item.itemId);
+}
+
+function onToggleCustomReaction(itemId: string) {
+  props.toggleCustomReaction?.(props.message.messageId, itemId);
 }
 </script>

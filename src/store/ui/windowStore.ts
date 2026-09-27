@@ -5,6 +5,13 @@ import { extractInviteCode } from "@/lib/inviteCode";
 export const useWindow = defineStore("window", () => {
   const settingsOpen = ref(false);
   const serverSettingsOpen = ref(false);
+  /** The section the server settings should land on; taken by the window once it can show it. */
+  const serverSettingsCategory = ref<ServerSettingsCategory | null>(null);
+
+  function openServerSettings(category: ServerSettingsCategory | null = null) {
+    serverSettingsCategory.value = category;
+    serverSettingsOpen.value = true;
+  }
 
   // Invite preview modal — opened from the join UI or an argon://invite/{code} deep link.
   const invitePreviewOpen = ref(false);
@@ -41,6 +48,8 @@ export const useWindow = defineStore("window", () => {
   return {
     settingsOpen,
     serverSettingsOpen,
+    serverSettingsCategory,
+    openServerSettings,
     invitePreviewOpen,
     invitePreviewCode,
     openInvitePreview,
@@ -53,4 +62,6 @@ export const useWindow = defineStore("window", () => {
   };
 });
 
-export type ChannelSettingsTab = "overview" | "permissions" | "broadcast" | "announcement" | "follows" | "integrations";
+export type ServerSettingsCategory = "profile" | "invites" | "archetypes" | "expressions" | "bots";
+
+export type ChannelSettingsTab ="overview" | "permissions" | "broadcast" | "announcement" | "follows" | "integrations";

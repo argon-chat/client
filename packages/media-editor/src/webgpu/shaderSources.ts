@@ -158,6 +158,20 @@ struct Params {
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var src_texture: texture_2d<f32>;
 @group(0) @binding(2) var src_sampler: sampler;
+@group(0) @binding(3) var mask_texture: texture_2d<f32>;
+
+// The source texture is premultiplied, so filtering never pulls in the colour of transparent texels;
+// the mask scales all four channels. Spatial passes work on premultiplied colour, the colour passes
+// on straight colour (unpremultiply below), and the result is premultiplied again.
+fn sample_src(uv: vec2f) -> vec4f {
+  let c = textureSampleLevel(src_texture, src_sampler, uv, 0.0);
+  return c * textureSampleLevel(mask_texture, src_sampler, uv, 0.0).a;
+}
+
+fn unpremultiply(c: vec4f) -> vec4f {
+  if (c.a <= 1e-5) { return vec4f(0.0); }
+  return vec4f(clamp(c.rgb / c.a, vec3f(0.0), vec3f(1.0)), c.a);
+}
 
 // ─── Constants ─────────────────────────────────────────────────────
 const LUMA_WEIGHTS: vec3f = vec3f(0.2126, 0.7152, 0.0722);
@@ -324,13 +338,14 @@ fn grain_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
 fn sharpen_pass(intensity: f32, uv: vec2f) -> vec4f {
   let texel = 1.0 / p.viewport;
   let d = texel * 1.5;
-  let s_a = textureSample(src_texture, src_sampler, uv + vec2f(-d.x, -d.y)).rgb;
-  let s_b = textureSample(src_texture, src_sampler, uv + vec2f( d.x, -d.y)).rgb;
-  let s_c = textureSample(src_texture, src_sampler, uv + vec2f(-d.x,  d.y)).rgb;
-  let s_d = textureSample(src_texture, src_sampler, uv + vec2f( d.x,  d.y)).rgb;
+  let s_a = sample_src(uv + vec2f(-d.x, -d.y)).rgb;
+  let s_b = sample_src(uv + vec2f( d.x, -d.y)).rgb;
+  let s_c = sample_src(uv + vec2f(-d.x,  d.y)).rgb;
+  let s_d = sample_src(uv + vec2f( d.x,  d.y)).rgb;
   let neighbors = intensity * (s_a + s_b + s_c + s_d);
-  let center = textureSample(src_texture, src_sampler, uv);
-  return vec4f(clamp(center.rgb * (1.0 + 4.0 * intensity) - neighbors, vec3f(0.0), vec3f(1.0)), center.a);
+  let center = sample_src(uv);
+  // Premultiplied colour is valid only up to its alpha.
+  return vec4f(clamp(center.rgb * (1.0 + 4.0 * intensity) - neighbors, vec3f(0.0), vec3f(center.a)), center.a);
 }
 
 // ─── Tilt-Shift (lens blur at top/bottom) ──────────────────────────
@@ -343,23 +358,24 @@ fn tilt_shift_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
   let blur_amount = smoothstep(focus_width * 0.5, focus_width, dist_from_focus) * intensity;
   let texel = 1.0 / p.viewport;
   let r = blur_amount * 6.0;
-  var acc = color.rgb;
+  // Premultiplied, alpha included: a blurred edge fades out instead of darkening.
+  var acc = color;
   var weight = 1.0;
   // Unrolled blur samples (6 taps in each direction)
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 1.0 * r, 0.0)).rgb * 0.857;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 1.0 * r, 0.0)).rgb * 0.857;
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 1.0 * r)).rgb * 0.857;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 1.0 * r)).rgb * 0.857;
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 2.0 * r, 0.0)).rgb * 0.714;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 2.0 * r, 0.0)).rgb * 0.714;
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 2.0 * r)).rgb * 0.714;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 2.0 * r)).rgb * 0.714;
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(texel.x * 3.0 * r, 0.0)).rgb * 0.571;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(texel.x * 3.0 * r, 0.0)).rgb * 0.571;
-  acc += textureSample(src_texture, src_sampler, uv + vec2f(0.0, texel.y * 3.0 * r)).rgb * 0.571;
-  acc += textureSample(src_texture, src_sampler, uv - vec2f(0.0, texel.y * 3.0 * r)).rgb * 0.571;
+  acc += sample_src(uv + vec2f(texel.x * 1.0 * r, 0.0)) * 0.857;
+  acc += sample_src(uv - vec2f(texel.x * 1.0 * r, 0.0)) * 0.857;
+  acc += sample_src(uv + vec2f(0.0, texel.y * 1.0 * r)) * 0.857;
+  acc += sample_src(uv - vec2f(0.0, texel.y * 1.0 * r)) * 0.857;
+  acc += sample_src(uv + vec2f(texel.x * 2.0 * r, 0.0)) * 0.714;
+  acc += sample_src(uv - vec2f(texel.x * 2.0 * r, 0.0)) * 0.714;
+  acc += sample_src(uv + vec2f(0.0, texel.y * 2.0 * r)) * 0.714;
+  acc += sample_src(uv - vec2f(0.0, texel.y * 2.0 * r)) * 0.714;
+  acc += sample_src(uv + vec2f(texel.x * 3.0 * r, 0.0)) * 0.571;
+  acc += sample_src(uv - vec2f(texel.x * 3.0 * r, 0.0)) * 0.571;
+  acc += sample_src(uv + vec2f(0.0, texel.y * 3.0 * r)) * 0.571;
+  acc += sample_src(uv - vec2f(0.0, texel.y * 3.0 * r)) * 0.571;
   weight = 1.0 + 0.857 * 4.0 + 0.714 * 4.0 + 0.571 * 4.0;
-  return vec4f(acc / weight, color.a);
+  return acc / weight;
 }
 
 // ─── Chromatic Aberration ──────────────────────────────────────────
@@ -367,9 +383,9 @@ fn tilt_shift_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
 fn chromatic_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
   if (intensity < 0.001) { return color; }
   let dir = (uv - 0.5) * intensity * 0.02;
-  let r = textureSample(src_texture, src_sampler, uv + dir).r;
+  let r = sample_src(uv + dir).r;
   let g = color.g;
-  let b = textureSample(src_texture, src_sampler, uv - dir).b;
+  let b = sample_src(uv - dir).b;
   return vec4f(r, g, b, color.a);
 }
 
@@ -378,12 +394,12 @@ fn chromatic_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
 fn fisheye_pass(intensity: f32, uv: vec2f) -> vec4f {
   let center = uv - 0.5;
   let r = length(center);
-  if (r < 0.0001) { return textureSample(src_texture, src_sampler, uv); }
+  if (r < 0.0001) { return sample_src(uv); }
   let power = intensity * 2.0;
   let distorted_r = r * (1.0 + power * r * r);
   let new_uv = 0.5 + (center / r) * distorted_r;
   let clamped_uv = clamp(new_uv, vec2f(0.0), vec2f(1.0));
-  return textureSample(src_texture, src_sampler, clamped_uv);
+  return sample_src(clamped_uv);
 }
 
 // ─── Glitch / RGB Split ───────────────────────────────────────────
@@ -393,9 +409,9 @@ fn glitch_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
   let block = floor(uv.y * 20.0);
   let noise = fract(sin(block * 43758.5453) * 2.0);
   let shift_x = (noise - 0.5) * intensity * 0.03;
-  let r = textureSample(src_texture, src_sampler, uv + vec2f(shift_x, 0.0)).r;
+  let r = sample_src(uv + vec2f(shift_x, 0.0)).r;
   let g = color.g;
-  let b = textureSample(src_texture, src_sampler, uv - vec2f(shift_x * 0.7, 0.0)).b;
+  let b = sample_src(uv - vec2f(shift_x * 0.7, 0.0)).b;
   let scanline = 1.0 - step(0.92, noise) * intensity * 0.3;
   return vec4f(vec3f(r, g, b) * scanline, color.a);
 }
@@ -405,25 +421,25 @@ fn glitch_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
 fn motion_blur_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
   if (intensity < 0.001) { return color; }
   let dir = vec2f(1.0, 0.0) * intensity * 0.015;
-  var acc = color.rgb;
+  var acc = color;
   // Unrolled 8 taps in each direction
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.125).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.125).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.250).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.250).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.375).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.375).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.500).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.500).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.625).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.625).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.750).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.750).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 0.875).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 0.875).rgb;
-  acc += textureSample(src_texture, src_sampler, uv + dir * 1.000).rgb;
-  acc += textureSample(src_texture, src_sampler, uv - dir * 1.000).rgb;
-  return vec4f(acc / 17.0, color.a);
+  acc += sample_src(uv + dir * 0.125);
+  acc += sample_src(uv - dir * 0.125);
+  acc += sample_src(uv + dir * 0.250);
+  acc += sample_src(uv - dir * 0.250);
+  acc += sample_src(uv + dir * 0.375);
+  acc += sample_src(uv - dir * 0.375);
+  acc += sample_src(uv + dir * 0.500);
+  acc += sample_src(uv - dir * 0.500);
+  acc += sample_src(uv + dir * 0.625);
+  acc += sample_src(uv - dir * 0.625);
+  acc += sample_src(uv + dir * 0.750);
+  acc += sample_src(uv - dir * 0.750);
+  acc += sample_src(uv + dir * 0.875);
+  acc += sample_src(uv - dir * 0.875);
+  acc += sample_src(uv + dir * 1.000);
+  acc += sample_src(uv - dir * 1.000);
+  return acc / 17.0;
 }
 
 // ─── RGB Curves (shadow/highlight lift per channel) ────────────────
@@ -522,6 +538,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   c = glitch_pass(c, p.glitch, uv);
   c = motion_blur_pass(c, p.motion_blur, uv);
   c = tilt_shift_pass(c, p.tilt_shift, uv);
+  c = unpremultiply(c);
   c = grain_pass(c, p.grain * 0.04, uv);
   c = saturation_pass(c, p.saturation + p.enhance * 0.2);
   c = warmth_pass(c, p.warmth);
@@ -532,6 +549,78 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   c = curves_pass(c);
   c = selective_color_pass(c);
   c = vignette_pass(c, p.vignette, uv);
-  return c;
+  return vec4f(clamp(c.rgb, vec3f(0.0), vec3f(1.0)) * c.a, c.a);
+}
+`;
+
+// ─── Sticker composition: outline from the alpha, drawn under the image ────
+// Jump flood: every opaque pixel seeds its own centre; each pass looks 3×3 at `step` apart and keeps
+// the nearest seed, with steps halving to 1. Seeds are pixel centres in canvas pixels, (-1, -1) = none.
+
+const fullscreenVertex = /* wgsl */`
+@vertex
+fn vs_full(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+  var pts = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+  return vec4f(pts[i], 0.0, 1.0);
+}
+`;
+
+export const outlineSeedShaderSource = /* wgsl */`
+@group(0) @binding(0) var image_tex: texture_2d<f32>;
+${fullscreenVertex}
+@fragment
+fn fs_seed(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+  let a = textureLoad(image_tex, vec2i(pos.xy), 0).a;
+  if (a >= 0.5) { return vec4f(pos.xy, 0.0, 0.0); }
+  return vec4f(-1.0, -1.0, 0.0, 0.0);
+}
+`;
+
+export const outlineJumpFloodShaderSource = /* wgsl */`
+struct JumpParams { step: f32, _p0: f32, _p1: f32, _p2: f32 }
+@group(0) @binding(0) var seeds_tex: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> jp: JumpParams;
+${fullscreenVertex}
+@fragment
+fn fs_jump(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+  let dims = vec2i(textureDimensions(seeds_tex));
+  let px = vec2i(pos.xy);
+  let step = i32(jp.step);
+  var best = vec2f(-1.0, -1.0);
+  var best_d = 3.0e38;
+  for (var dy = -1; dy <= 1; dy++) {
+    for (var dx = -1; dx <= 1; dx++) {
+      let q = px + vec2i(dx, dy) * step;
+      if (q.x < 0 || q.y < 0 || q.x >= dims.x || q.y >= dims.y) { continue; }
+      let s = textureLoad(seeds_tex, q, 0).xy;
+      if (s.x < 0.0) { continue; }
+      let v = s - pos.xy;
+      let d = dot(v, v);
+      if (d < best_d) { best_d = d; best = s; }
+    }
+  }
+  return vec4f(best, 0.0, 0.0);
+}
+`;
+
+export const outlineCompositeShaderSource = /* wgsl */`
+struct CompositeParams { color: vec4f, radius: f32, enabled: f32, _p0: f32, _p1: f32 }
+@group(0) @binding(0) var image_tex: texture_2d<f32>;
+@group(0) @binding(1) var seeds_tex: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> cp: CompositeParams;
+${fullscreenVertex}
+@fragment
+fn fs_composite(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+  let px = vec2i(pos.xy);
+  let img = textureLoad(image_tex, px, 0);
+  if (cp.enabled < 0.5) { return img; }
+  var cov = 0.0;
+  let s = textureLoad(seeds_tex, px, 0).xy;
+  if (s.x >= 0.0) {
+    // Edge half a pixel past the seed centres, plus half a pixel of ramp: see outlineCoverage().
+    cov = clamp(cp.radius + 1.0 - distance(s, pos.xy), 0.0, 1.0);
+  }
+  let under = vec4f(cp.color.rgb * cov, cov);
+  return img + under * (1.0 - img.a);
 }
 `;

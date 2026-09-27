@@ -9,6 +9,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./mask": {
+      "import": "./src/mask/maskMath.ts",
+      "types": "./src/mask/maskMath.ts"
     }
   },
   "files": ["src"],

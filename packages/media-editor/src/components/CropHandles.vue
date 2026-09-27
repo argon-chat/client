@@ -1,6 +1,8 @@
 <template>
   <!-- Dark overlay with crop hole (SVG mask) -->
   <template v-if="isReady">
+    <!-- Behind the (transparent) image canvas: shows what will be transparent in the file -->
+    <div v-if="transparent" class="media-editor-checker absolute pointer-events-none z-[-1]" :style="cropAreaStyle" />
     <div class="absolute inset-0 bg-black/50 pointer-events-none z-[1]" :style="{ mask: `url(#${spotlightId})` }" />
     <svg class="absolute pointer-events-none" width="0" height="0">
       <mask :id="spotlightId">
@@ -43,7 +45,7 @@ import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray, clamp } from '../geometry';
 import { tween } from '../animation';
 import { computeCropBounds } from '../canvas/computeCropBounds';
-import type { Vec2 } from '../types';
+import { isExpressionMode, type Vec2 } from '../types';
 
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
@@ -51,6 +53,7 @@ const cropAreaEl = ref<HTMLDivElement | null>(null);
 const spotlightId = `spotlight-${Math.random().toString(36).substring(2)}`;
 
 const isAvatar = mode === 'avatar';
+const transparent = isExpressionMode(mode) && store.mediaType === 'image';
 const isCropping = computed(() => store.uiState.currentTab === 'crop');
 const isReady = computed(() => !!store.uiState.canvasSize && store.mediaState.currentImageRatio > 0);
 const MAX_SCALE = 20;
@@ -439,6 +442,16 @@ onMounted(() => {
 </script>
 
 <style>
+.media-editor-checker {
+  background-color: hsl(0 0% 26%);
+  background-image:
+    linear-gradient(45deg, hsl(0 0% 34%) 25%, transparent 25%),
+    linear-gradient(-45deg, hsl(0 0% 34%) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, hsl(0 0% 34%) 75%),
+    linear-gradient(-45deg, transparent 75%, hsl(0 0% 34%) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
 .crop-side--n { top: -10px; left: 20px; right: 20px; height: 20px; cursor: ns-resize; }
 .crop-side--s { bottom: -10px; left: 20px; right: 20px; height: 20px; cursor: ns-resize; }
 .crop-side--w { left: -10px; top: 20px; bottom: 20px; width: 20px; cursor: ew-resize; }

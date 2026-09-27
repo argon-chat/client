@@ -20,11 +20,20 @@
  * the raw one: `_`, `~` and `*` are legal in a URL, so against the raw text the closing marker
  * would be read as part of the address. A spoiler is deliberately not split — its whole point is
  * that nothing inside it shows until revealed, and a live link inside would give it away.
+ *
+ * Custom emoji come from the composer already placed (`customEmoji`: entities over the raw text,
+ * each covering its `:name:`). They are atomic: the patterns run on the text with every emoji
+ * masked out, so a `__` inside a name is never a marker, and a match that would cut into one is
+ * dropped. A style span may hold emoji whole — bold, italic, underline, strikethrough, spoiler,
+ * capitalized — and then both are kept, the emoji entity nested inside the style entity (the
+ * fragmenter renders it inside that segment). Inside code the emoji is dropped and `:name:` stays
+ * text. At most MAX_CUSTOM_EMOJI_PER_MESSAGE are kept.
  */
 
 import {
   EntityType,
   type IMessageEntity,
+  type MessageEntityCustomEmoji,
   MessageEntityBold,
   MessageEntityCapitalized,
   MessageEntityFraction,
@@ -40,6 +49,7 @@ import {
   MessageEntityUrl,
 } from "@argon/glue";
 import { findLinks } from "@/lib/linkPreview/detectLinks";
+import { customEmojiEntity, isCustomEmojiEntity, validCustomEmoji } from "@/lib/chat/customEmoji";
 
 export interface ParsedMessage {
   text: string;
@@ -49,6 +59,8 @@ export interface ParsedMessage {
 export interface ParseOptions {
   /** Turn `@everyone` into a mention of everyone. Off unless the sender holds MentionEveryone. */
   everyone?: boolean;
+  /** Custom emoji placed by the composer, over `raw` as given (before trimming). */
+  customEmoji?: readonly MessageEntityCustomEmoji[];
 }
 
 const EVERYONE = "@everyone";
@@ -116,7 +128,29 @@ const SPLIT_AROUND_LINK = new Set<EntityType>([
   EntityType.Strikethrough,
 ]);
 
+/** Styles that may hold a custom emoji whole; the emoji entity then nests inside them. */
+const HOLDS_CUSTOM_EMOJI = new Set<EntityType>([
+  EntityType.Bold,
+  EntityType.Italic,
+  EntityType.Underline,
+  EntityType.Strikethrough,
+  EntityType.Spoiler,
+  EntityType.Capitalized,
+]);
+
+/**
+ * Stands in for a custom emoji's characters while the patterns run: no marker, word or name
+ * character, and a link ends at it.
+ */
+const MASK = " ";
+
 const overlaps = (a: FormatMatch, b: FormatMatch) => !(a.end <= b.start || a.start >= b.end);
+
+interface Atom {
+  start: number;
+  end: number;
+  entity: MessageEntityCustomEmoji;
+}
 
 export function parseMessageContent(
   raw: string,
@@ -124,21 +158,31 @@ export function parseMessageContent(
   options: ParseOptions = {},
 ): ParsedMessage {
   const rawText = raw.trim();
+  const lead = raw.length - raw.trimStart().length;
+  let atoms: Atom[] = validCustomEmoji(raw, options.customEmoji ?? [])
+    .map((entity) => ({ start: entity.offset - lead, end: entity.offset - lead + entity.length, entity }))
+    .filter((a) => a.start >= 0 && a.end <= rawText.length);
+
+  let masked = rawText;
+  for (const a of atoms) masked = masked.slice(0, a.start) + MASK.repeat(a.end - a.start) + masked.slice(a.end);
+
   const formatMatches: FormatMatch[] = [];
 
   for (const { regex, type, contentGroup, prefix, suffix, extraHandler } of PATTERNS) {
     regex.lastIndex = 0;
     let match: RegExpMatchArray | null;
-    while ((match = regex.exec(rawText)) !== null) {
+    while ((match = regex.exec(masked)) !== null) {
       const start = match.index!;
       const end = start + match[0].length;
       const before = typeof prefix === "function" ? prefix(match) : prefix;
+      const contentStart = start + before;
+      const contentEnd = end - suffix;
       formatMatches.push({
         start,
         end,
-        contentStart: start + before,
-        contentEnd: end - suffix,
-        content: contentGroup === 0 ? match[0] : match[contentGroup],
+        contentStart,
+        contentEnd,
+        content: contentGroup === 0 ? rawText.slice(start, end) : rawText.slice(contentStart, contentEnd),
         type,
         extra: extraHandler?.(match),
       });
@@ -148,7 +192,7 @@ export function parseMessageContent(
   for (const [mentionText, userId] of mentions) {
     let searchPos = 0;
     while (true) {
-      const idx = rawText.indexOf(mentionText, searchPos);
+      const idx = masked.indexOf(mentionText, searchPos);
       if (idx === -1) break;
       formatMatches.push({
         start: idx,
@@ -166,7 +210,7 @@ export function parseMessageContent(
   if (options.everyone) {
     const everyone = /(?<![\w@])@everyone(?!\w)/g;
     let match: RegExpMatchArray | null;
-    while ((match = everyone.exec(rawText)) !== null) {
+    while ((match = everyone.exec(masked)) !== null) {
       const start = match.index!;
       formatMatches.push({
         start,
@@ -181,7 +225,7 @@ export function parseMessageContent(
 
   // Links, as written. Found here and not by a pattern above so that a fraction, hashtag or
   // underscore inside a URL never wins over the URL: the overlap pass keeps the earliest match.
-  for (const link of findLinks(rawText)) {
+  for (const link of findLinks(masked)) {
     formatMatches.push({
       start: link.offset,
       end: link.offset + link.length,
@@ -196,10 +240,16 @@ export function parseMessageContent(
   // Sort by start position, then by length (longer matches first for same position)
   formatMatches.sort((a, b) => a.start - b.start || b.end - a.end);
 
-  // Remove overlapping matches (keep first one)
+  // Remove overlapping matches (keep first one). A match may not cut into a custom emoji; a style
+  // that holds one whole keeps it, and code swallows it (the emoji stays `:name:` text).
   const kept: FormatMatch[] = [];
   for (const fm of formatMatches) {
-    if (!kept.some((existing) => overlaps(fm, existing))) kept.push(fm);
+    const touched = atoms.filter((a) => a.start < fm.end && a.end > fm.start);
+    const whole = touched.every((a) => a.start >= fm.contentStart && a.end <= fm.contentEnd);
+    if (touched.length && !(whole && (HOLDS_CUSTOM_EMOJI.has(fm.type) || fm.type === EntityType.Monospace))) continue;
+    if (kept.some((existing) => overlaps(fm, existing))) continue;
+    kept.push(fm);
+    if (touched.length && fm.type === EntityType.Monospace) atoms = atoms.filter((a) => !touched.includes(a));
   }
 
   // Cut every splittable span that has links in its text into the pieces between them. A piece may
@@ -207,7 +257,7 @@ export function parseMessageContent(
   // range, so the marker it covers is dropped from the text; it produces no entity.
   const nonOverlapping: FormatMatch[] = [];
   for (const fm of kept) {
-    const links = SPLIT_AROUND_LINK.has(fm.type) ? linksWithin(fm) : [];
+    const links = SPLIT_AROUND_LINK.has(fm.type) ? linksWithin(fm, masked, rawText) : [];
     if (links.length === 0) {
       nonOverlapping.push(fm);
       continue;
@@ -237,29 +287,44 @@ export function parseMessageContent(
     });
   }
 
-  // Build clean text and entities with adjusted offsets
+  // Build clean text and entities with adjusted offsets. Every stretch of raw text that is kept is
+  // noted with where it lands, to place the custom emoji afterwards.
   const entities: IMessageEntity[] = [];
+  const chunks: { rawStart: number; rawEnd: number; cleanStart: number }[] = [];
   let cleanText = "";
   let lastEnd = 0;
+  const keep = (from: number, to: number) => {
+    if (to <= from) return;
+    chunks.push({ rawStart: from, rawEnd: to, cleanStart: cleanText.length });
+    cleanText += rawText.slice(from, to);
+  };
 
   for (const fm of nonOverlapping) {
-    cleanText += rawText.slice(lastEnd, fm.start);
+    keep(lastEnd, fm.start);
     const entityStart = cleanText.length;
-    cleanText += fm.content;
+    if (fm.content === rawText.slice(fm.contentStart, fm.contentEnd)) keep(fm.contentStart, fm.contentEnd);
+    else cleanText += fm.content;
     const entityLength = cleanText.length - entityStart;
     lastEnd = fm.end;
     if (entityLength === 0) continue;
     entities.push(toEntity(fm, entityStart, entityLength));
   }
 
-  cleanText += rawText.slice(lastEnd);
+  keep(lastEnd, rawText.length);
 
+  if (atoms.length === 0) return { text: cleanText, entities };
+
+  for (const a of atoms) {
+    const chunk = chunks.find((c) => a.start >= c.rawStart && a.end <= c.rawEnd);
+    if (chunk) entities.push(customEmojiEntity(a.entity, chunk.cleanStart + (a.start - chunk.rawStart)));
+  }
+  entities.sort((a, b) => a.offset - b.offset || b.length - a.length);
   return { text: cleanText, entities };
 }
 
 /** The links in a span's own text, as matches positioned in the raw text. */
-function linksWithin(span: FormatMatch): FormatMatch[] {
-  return findLinks(span.content).map((link) => {
+function linksWithin(span: FormatMatch, masked: string, rawText: string): FormatMatch[] {
+  return findLinks(masked.slice(span.contentStart, span.contentEnd)).map((link) => {
     const start = span.contentStart + link.offset;
     const end = start + link.length;
     return {
@@ -267,7 +332,7 @@ function linksWithin(span: FormatMatch): FormatMatch[] {
       end,
       contentStart: start,
       contentEnd: end,
-      content: link.text,
+      content: rawText.slice(start, end),
       type: EntityType.Url,
       extra: { domain: link.domain, path: link.path },
     };
@@ -314,6 +379,8 @@ export interface SerializedMessage {
   raw: string;
   /** Mention text to user id, for the composer's mention registry. */
   mentions: Map<string, string>;
+  /** The custom emoji, moved onto `raw`: the composer draws them back as placeholders. */
+  customEmoji: MessageEntityCustomEmoji[];
 }
 
 const WRAP: Partial<Record<EntityType, [string, string]>> = {
@@ -330,12 +397,14 @@ const WRAP: Partial<Record<EntityType, [string, string]>> = {
  * The reverse of {@link parseMessageContent}, for editing a sent message: puts the markers back so
  * that parsing the result gives the same text and entities. Links, hashtags, fractions and
  * `@everyone` are found again by the parser and stay as written. Attachments, GIFs and link cards
- * are not text and are left out; the server keeps them through an edit.
+ * are not text and are left out; the server keeps them through an edit. Custom emoji keep their
+ * `:name:` in `raw` and come back separately, positioned on it.
  */
 export function serializeMessageContent(text: string, entities: readonly IMessageEntity[]): SerializedMessage {
   const mentions = new Map<string, string>();
   const spans: IMessageEntity[] = [];
   for (const entity of [...entities].sort((a, b) => a.offset - b.offset || b.length - a.length)) {
+    if (isCustomEmojiEntity(entity)) continue;
     if (entity.length <= 0 || entity.offset < 0 || end(entity) > text.length) continue;
     if (spans.length && entity.offset < end(spans[spans.length - 1])) continue;
     spans.push(entity);
@@ -343,10 +412,16 @@ export function serializeMessageContent(text: string, entities: readonly IMessag
 
   let raw = "";
   let cursor = 0;
+  const chunks: { from: number; to: number; rawStart: number }[] = [];
+  const copy = (from: number, to: number) => {
+    if (to <= from) return "";
+    chunks.push({ from, to, rawStart: raw.length });
+    return text.slice(from, to);
+  };
 
   for (let i = 0; i < spans.length; i++) {
     const entity = spans[i];
-    raw += text.slice(cursor, entity.offset);
+    raw += copy(cursor, entity.offset);
 
     // The parser cuts a style around a link inside it. Put the span back together, or the closing
     // marker right after the link would be read as part of the address.
@@ -365,23 +440,33 @@ export function serializeMessageContent(text: string, entities: readonly IMessag
         (spans[last + 1].type === EntityType.Url || sameStyle(spans[last + 1], style))
       ) last++;
 
-      const content = text.slice(entity.offset, end(spans[last]));
       const markers = markersFor(style);
-      raw += markers ? markers[0] + content + markers[1] : content;
+      if (markers) raw += markers[0];
+      raw += copy(entity.offset, end(spans[last]));
+      if (markers) raw += markers[1];
       cursor = end(spans[last]);
       i = last;
       continue;
     }
 
-    const content = text.slice(entity.offset, end(entity));
     const markers = markersFor(entity);
-    if (entity.type === EntityType.Mention) mentions.set(content, (entity as MessageEntityMention).userId);
-    raw += markers ? markers[0] + content + markers[1] : content;
+    if (entity.type === EntityType.Mention) {
+      mentions.set(text.slice(entity.offset, end(entity)), (entity as MessageEntityMention).userId);
+    }
+    if (markers) raw += markers[0];
+    raw += copy(entity.offset, end(entity));
+    if (markers) raw += markers[1];
     cursor = end(entity);
   }
 
-  raw += text.slice(cursor);
-  return { raw, mentions };
+  raw += copy(cursor, text.length);
+
+  const customEmoji: MessageEntityCustomEmoji[] = [];
+  for (const e of validCustomEmoji(text, entities)) {
+    const chunk = chunks.find((c) => e.offset >= c.from && end(e) <= c.to);
+    if (chunk) customEmoji.push(customEmojiEntity(e, chunk.rawStart + (e.offset - chunk.from)));
+  }
+  return { raw, mentions, customEmoji };
 }
 
 const end = (e: IMessageEntity) => e.offset + e.length;

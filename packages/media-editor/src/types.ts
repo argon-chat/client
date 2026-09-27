@@ -53,4 +53,62 @@ export type RenderTransform = {
 };
 
 export type ColoredBrushType = 'pen' | 'brush' | 'neon' | 'arrow';
-export type BrushType = ColoredBrushType | 'blur' | 'eraser';
+/** Paint on the image's own alpha (the mask), not on the drawing layer. */
+export type MaskBrushType = 'maskErase' | 'maskRestore';
+export type BrushType = ColoredBrushType | 'blur' | 'eraser' | MaskBrushType;
+
+export const isMaskBrush = (brush: string): brush is MaskBrushType =>
+  brush === 'maskErase' || brush === 'maskRestore';
+
+/** `sticker` and `emoji` edit with transparency and export at the expression presets. */
+export type EditorMode = 'full' | 'avatar' | 'sticker' | 'emoji';
+export type ExpressionEditorMode = 'sticker' | 'emoji';
+
+export const isExpressionMode = (mode: string): mode is ExpressionEditorMode =>
+  mode === 'sticker' || mode === 'emoji';
+
+export type OutlineState = {
+  enabled: boolean;
+  /** Output pixels, 0–24. */
+  radius: number;
+  color: string;
+};
+
+/** A stroke on the mask, in source-image pixels. */
+export type MaskStroke = {
+  mode: 'erase' | 'restore';
+  size: number;
+  points: Vec2[];
+};
+
+export type MaskState = {
+  /** A raster from `addMaskSource` (background removal), or null for a fully opaque base. */
+  source: number | null;
+  /** Edge softening of the source raster, in mask pixels. */
+  feather: number;
+  strokes: MaskStroke[];
+};
+
+/** One channel, `width × height`, 0 = transparent. */
+export type MaskRaster = {
+  width: number;
+  height: number;
+  data: Uint8Array;
+};
+
+export type BackgroundRemovalInput = {
+  image: ImageBitmap;
+  /** Size of the mask wanted back. */
+  width: number;
+  height: number;
+};
+
+export type BackgroundRemovalOptions = {
+  onProgress?: (value: number) => void;
+  signal?: AbortSignal;
+};
+
+/** Injected by the host: the editor only knows it gets a mask back for the source image. */
+export type BackgroundRemover = (input: BackgroundRemovalInput, options?: BackgroundRemovalOptions) => Promise<MaskRaster>;
+
+export type ExpressionExportFormat = 'auto' | 'png' | 'webp';

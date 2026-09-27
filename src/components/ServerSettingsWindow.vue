@@ -22,7 +22,7 @@
                         :class="{ 'nav-item--active': selectedCategory === category.id }"
                     >
                         <component :is="category.icon" class="w-4 h-4 shrink-0" />
-                        <span>{{ category.label }}</span>
+                        <span>{{ category.labelKey ? t(category.labelKey) : category.label }}</span>
                     </button>
                 </nav>
                 <div class="settings-content flex-1 p-6 pb-8 text-foreground overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, type Component } from "vue";
 import {
     Drawer,
     DrawerContent,
@@ -44,13 +44,15 @@ import {
     DrawerTitle,
     DrawerDescription,
 } from "@argon/ui/drawer";
-import { CircleXIcon, UserIcon, LinkIcon, ShieldIcon, BotIcon } from "lucide-vue-next";
-import { useWindow } from "@/store/ui/windowStore";
+import { CircleXIcon, UserIcon, LinkIcon, ShieldIcon, BotIcon, SmilePlusIcon } from "lucide-vue-next";
+import { useWindow, type ServerSettingsCategory } from "@/store/ui/windowStore";
 import { usePexStore } from "@/store/data/permissionStore";
+import type { ArgonEntitlementFlag } from "@/lib/rbac/ArgonEntitlement";
 import Invites from "@/components/settings/Invites.vue";
 import RolesSettings from "./settings/spaces/RolesSettings.vue";
 import ServerProfile from "./settings/spaces/ServerProfile.vue";
 import BotsSettings from "./settings/spaces/BotsSettings.vue";
+import ExpressionsSettings from "./settings/spaces/ExpressionsSettings.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import { useLocale } from "@/store/system/localeStore";
 
@@ -60,16 +62,35 @@ const { t } = useLocale();
 
 // Each category declares the permission required to see it, so the nav adapts
 // to what the current member is actually allowed to manage.
-const allCategories = [
+// `perm` may list several flags: any one of them shows the category. `labelKey` is translated.
+type Category = {
+    id: ServerSettingsCategory;
+    label?: string;
+    labelKey?: string;
+    icon: Component;
+    perm: ArgonEntitlementFlag | readonly ArgonEntitlementFlag[];
+    component: Component;
+};
+
+const allCategories: readonly Category[] = [
     { id: "profile", label: "Profile", icon: UserIcon, perm: "ManageServer", component: ServerProfile },
     { id: "invites", label: "Invites", icon: LinkIcon, perm: "ManageServer", component: Invites },
     { id: "archetypes", label: "Roles", icon: ShieldIcon, perm: "ManageArchetype", component: RolesSettings },
+    {
+        id: "expressions",
+        labelKey: "expression_settings_nav",
+        icon: SmilePlusIcon,
+        perm: ["CreateExpressions", "ManageExpressions"],
+        component: ExpressionsSettings,
+    },
     { id: "bots", label: "Bots", icon: BotIcon, perm: "ManageBots", component: BotsSettings },
-] as const;
+];
 
-const categories = computed(() => allCategories.filter((c) => pex.has(c.perm)));
+const categories = computed(() =>
+    allCategories.filter((c) => (typeof c.perm === "string" ? [c.perm] : c.perm).some((flag) => pex.has(flag))),
+);
 
-const selectedCategory = ref<string>("profile");
+const selectedCategory = ref<ServerSettingsCategory>("profile");
 
 const selectedCategoryComponent = computed(
     () => categories.value.find((c) => c.id === selectedCategory.value)?.component ?? null,
@@ -82,6 +103,21 @@ watch(
     (list) => {
         if (list.length && !list.some((c) => c.id === selectedCategory.value))
             selectedCategory.value = list[0].id;
+    },
+    { immediate: true },
+);
+
+// Opened at a section (openServerSettings): taken once the member's permissions show it.
+watch(
+    [() => windows.serverSettingsOpen, () => windows.serverSettingsCategory, categories],
+    ([open, wanted, list]) => {
+        if (!open) {
+            windows.serverSettingsCategory = null;
+            return;
+        }
+        if (!wanted || !list.some((c) => c.id === wanted)) return;
+        selectedCategory.value = wanted;
+        windows.serverSettingsCategory = null;
     },
     { immediate: true },
 );

@@ -1,18 +1,27 @@
 import { defineStore } from 'pinia';
-import { ref, reactive, computed, watch, shallowRef } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { adjustmentsConfig, type AdjustmentKey } from '../adjustments';
-import type {
-  Vec2,
-  MediaType,
-  EditorLayer,
-  TextStyle,
-  BrushType,
-  RenderTransform
+import {
+  isExpressionMode,
+  type Vec2,
+  type MediaType,
+  type EditorLayer,
+  type TextStyle,
+  type BrushType,
+  type RenderTransform,
+  type EditorMode,
+  type OutlineState,
+  type MaskState,
+  type MaskStroke,
+  type MaskRaster,
+  type BackgroundRemover
 } from '../types';
 import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
 import { DEFAULT_TEXT_STYLE, DEFAULT_BRUSH } from '../constants';
 import { deepEqualApprox, omitKeys } from '../comparison';
+import { clamp } from '../geometry';
+import { DEFAULT_OUTLINE_COLOR, OUTLINE_MAX_RADIUS, maskResolution } from '../mask/maskMath';
 
 // ─── History ───────────────────────────────────────────────────────
 
@@ -61,9 +70,19 @@ export interface EditingMediaState {
   resizableLayers: EditorLayer[];
   brushDrawnLines: BrushDrawnLine[];
 
+  /** Drawn under the image from its alpha (sticker and emoji modes). */
+  outline: OutlineState;
+  /** Multiplied into the image's alpha. */
+  mask: MaskState;
+
   history: HistoryItem[];
   redoHistory: HistoryItem[];
 }
+
+export type BackgroundRemovalState = {
+  status: 'idle' | 'running' | 'failed';
+  progress: number;
+};
 
 export interface MediaEditorUIState {
   isReady: boolean;
@@ -101,6 +120,10 @@ export interface MediaEditorUIState {
   debugGizmos: boolean;
   gridOverlay: 'none' | 'thirds' | 'golden' | 'diagonal';
   showBeforeAfter: boolean;
+
+  backgroundRemoval: BackgroundRemovalState;
+  /** Erase / restore brush diameter, CSS pixels. */
+  maskBrushSize: number;
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────
@@ -141,6 +164,9 @@ function getDefaultEditingMediaState(): EditingMediaState {
 
     resizableLayers: [],
     brushDrawnLines: [],
+
+    outline: { enabled: false, radius: 8, color: DEFAULT_OUTLINE_COLOR },
+    mask: { source: null, feather: 0, strokes: [] },
 
     history: [],
     redoHistory: []
@@ -185,9 +211,14 @@ function getDefaultUIState(): MediaEditorUIState {
 
     debugGizmos: false,
     gridOverlay: 'thirds',
-    showBeforeAfter: false
+    showBeforeAfter: false,
+
+    backgroundRemoval: { status: 'idle', progress: 0 },
+    maskBrushSize: 40
   };
 }
+
+let nextMaskSourceId = 1;
 
 // ─── Store ─────────────────────────────────────────────────────────
 
@@ -195,7 +226,10 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
   // Core props
   const mediaSrc = ref('');
   const mediaType = ref<MediaType>('image');
-  const mode = ref<'full' | 'avatar'>('full');
+  const mode = ref<EditorMode>('full');
+
+  // Rasters are large and immutable; the state (and so the history) holds only their ids.
+  const maskSources = new Map<number, MaskRaster>();
 
   // Editing state (media transforms, adjustments, layers, brushes, history)
   const mediaState = reactive<EditingMediaState>(getDefaultEditingMediaState());
@@ -215,8 +249,9 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     );
   });
 
+  // Avatars and expressions are always re-encoded at their fixed size, even untouched.
   const canFinish = computed(() => {
-    return mode.value === 'avatar' || hasModifications.value;
+    return mode.value === 'avatar' || isExpressionMode(mode.value) || hasModifications.value;
   });
 
   // ─── Actions ─────────────────────────────────────────────────────
@@ -224,16 +259,18 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
   function init(options: {
     src: string;
     type: MediaType;
-    mode?: 'full' | 'avatar';
+    mode?: EditorMode;
     initialState?: EditingMediaState;
     initialTab?: string;
   }) {
     mediaSrc.value = options.src;
     mediaType.value = options.type;
     mode.value = options.mode ?? 'full';
+    maskSources.clear();
 
+    // A state saved before a field existed still gets that field's default.
     const newState = options.initialState
-      ? structuredClone(options.initialState)
+      ? { ...getDefaultEditingMediaState(), ...structuredClone(options.initialState) }
       : getDefaultEditingMediaState();
 
     Object.assign(mediaState, newState);
@@ -305,11 +342,118 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
   }
 
   function reset() {
+    cancelBackgroundRemoval();
     Object.assign(mediaState, getDefaultEditingMediaState());
     Object.assign(uiState, getDefaultUIState());
     mediaSrc.value = '';
     mediaType.value = 'image';
     mode.value = 'full';
+    maskSources.clear();
+  }
+
+  // ─── Outline and mask ────────────────────────────────────────────
+
+  function setOutline<K extends keyof OutlineState>(key: K, value: OutlineState[K]) {
+    const next = key === 'radius' ? clamp(Math.round(value as number), 0, OUTLINE_MAX_RADIUS) : value;
+    const oldValue = mediaState.outline[key];
+    if (oldValue === next) return;
+    mediaState.outline[key] = next as OutlineState[K];
+    pushToHistory({ path: ['outline', key], oldValue, newValue: next });
+  }
+
+  function addMaskSource(raster: MaskRaster): number {
+    const id = nextMaskSourceId++;
+    maskSources.set(id, raster);
+    return id;
+  }
+
+  function getMaskSource(id: number | null): MaskRaster | null {
+    return id === null ? null : maskSources.get(id) ?? null;
+  }
+
+  /** A new base for the mask (background removal); earlier strokes are kept on top of it. */
+  function setMaskSource(id: number | null) {
+    const oldValue = mediaState.mask.source;
+    if (oldValue === id) return;
+    mediaState.mask.source = id;
+    pushToHistory({ path: ['mask', 'source'], oldValue, newValue: id });
+  }
+
+  function setMaskFeather(value: number) {
+    const next = Math.max(0, Math.round(value));
+    const oldValue = mediaState.mask.feather;
+    if (oldValue === next) return;
+    mediaState.mask.feather = next;
+    pushToHistory({ path: ['mask', 'feather'], oldValue, newValue: next });
+  }
+
+  function addMaskStroke(stroke: MaskStroke) {
+    mediaState.mask.strokes.push(stroke);
+    pushToHistory({
+      path: ['mask', 'strokes', mediaState.mask.strokes.length - 1],
+      oldValue: REMOVE_ARRAY_ITEM,
+      newValue: stroke
+    });
+  }
+
+  let removal: AbortController | null = null;
+
+  /**
+   * Runs the host's background removal on the source image and makes the result the mask's base
+   * (one undoable step). Resolves false when it failed or was cancelled.
+   */
+  async function removeBackground(remover: BackgroundRemover, image: ImageBitmapSource): Promise<boolean> {
+    const size = uiState.mediaSize;
+    if (!size || removal) return false;
+    const controller = new AbortController();
+    removal = controller;
+    uiState.backgroundRemoval = { status: 'running', progress: 0 };
+    let bitmap: ImageBitmap | null = null;
+    try {
+      bitmap = await createImageBitmap(image);
+      const [width, height] = maskResolution(size[0], size[1]);
+      const raster = await remover(
+        { image: bitmap, width, height },
+        {
+          signal: controller.signal,
+          onProgress: (value) => {
+            if (removal === controller) uiState.backgroundRemoval.progress = clamp(value, 0, 1);
+          }
+        }
+      );
+      if (controller.signal.aborted) return false;
+      if (raster.width !== width || raster.height !== height || raster.data.length !== width * height) {
+        throw new Error('The background removal returned a mask of the wrong size');
+      }
+      setMaskSource(addMaskSource(raster));
+      uiState.backgroundRemoval = { status: 'idle', progress: 1 };
+      return true;
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        console.warn('[media-editor] background removal failed', e);
+        uiState.backgroundRemoval = { status: 'failed', progress: 0 };
+      }
+      return false;
+    } finally {
+      bitmap?.close();
+      if (removal === controller) removal = null;
+    }
+  }
+
+  function cancelBackgroundRemoval() {
+    if (!removal) return;
+    removal.abort();
+    removal = null;
+    uiState.backgroundRemoval = { status: 'idle', progress: 0 };
+  }
+
+  /** Back to the untouched alpha, as one undoable step. */
+  function resetMask() {
+    const oldValue = structuredClone(toPlainMask(mediaState.mask));
+    if (oldValue.source === null && !oldValue.strokes.length && !oldValue.feather) return;
+    const newValue: MaskState = { source: null, feather: 0, strokes: [] };
+    mediaState.mask = structuredClone(newValue);
+    pushToHistory({ path: ['mask'], oldValue, newValue });
   }
 
   return {
@@ -329,6 +473,24 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     pushToHistory,
     undo,
     redo,
-    reset
+    reset,
+
+    setOutline,
+    addMaskSource,
+    getMaskSource,
+    setMaskSource,
+    setMaskFeather,
+    addMaskStroke,
+    resetMask,
+    removeBackground,
+    cancelBackgroundRemoval
   };
 });
+
+function toPlainMask(mask: MaskState): MaskState {
+  return {
+    source: mask.source,
+    feather: mask.feather,
+    strokes: mask.strokes.map((s) => ({ mode: s.mode, size: s.size, points: s.points.map((p) => [p[0], p[1]] as Vec2) }))
+  };
+}

@@ -28,8 +28,9 @@ export async function loadTexture({ device, mediaSrc, mediaType, videoTime, wait
     const image = new Image();
     image.crossOrigin = 'anonymous';
     image.src = mediaSrc;
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       image.addEventListener('load', () => resolve(), { once: true });
+      image.addEventListener('error', () => reject(new Error('The image could not be decoded')), { once: true });
     });
 
     media = {
@@ -52,10 +53,12 @@ export async function loadTexture({ device, mediaSrc, mediaType, videoTime, wait
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
   });
 
+  // Premultiplied, so linear filtering at a transparent edge does not blend in the (usually black)
+  // colour of the transparent texels; the fragment shader un-premultiplies for its colour maths.
   const source = media.video ?? media.image!;
   device.queue.copyExternalImageToTexture(
     { source, flipY: false },
-    { texture },
+    { texture, premultipliedAlpha: true },
     [media.width, media.height]
   );
 
@@ -72,7 +75,7 @@ export async function loadTexture({ device, mediaSrc, mediaType, videoTime, wait
 export function updateVideoTexture(device: GPUDevice, texture: GPUTexture, video: HTMLVideoElement): void {
   device.queue.copyExternalImageToTexture(
     { source: video, flipY: false },
-    { texture },
+    { texture, premultipliedAlpha: true },
     [video.videoWidth, video.videoHeight]
   );
 }

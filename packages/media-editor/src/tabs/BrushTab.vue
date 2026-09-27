@@ -37,6 +37,29 @@
       />
     </div>
 
+    <!-- Mask tools: change the image's own transparency (sticker modes) -->
+    <template v-if="maskTools.length">
+      <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('expression_workbench_mask_tools') }}</div>
+      <div class="flex flex-col gap-0.5 mb-5">
+        <button
+          v-for="brush in maskTools"
+          :key="brush.id"
+          class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg border-none text-sm cursor-pointer transition-colors duration-150"
+          :class="store.uiState.currentBrush.brush === brush.id ? 'bg-accent text-foreground' : 'bg-transparent text-foreground hover:bg-accent/50'"
+          :data-brush="brush.id"
+          @click="selectBrush(brush.id)"
+        >
+          <div
+            class="size-8 rounded-lg flex items-center justify-center shrink-0"
+            :class="store.uiState.currentBrush.brush === brush.id ? 'bg-primary/15 text-primary' : 'bg-muted'"
+          >
+            <component :is="brush.icon" :size="20" />
+          </div>
+          <span>{{ t(brush.labelKey) }}</span>
+        </button>
+      </div>
+    </template>
+
     <!-- Tools -->
     <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 px-2">{{ t('media_editor_tool') }}</div>
     <div class="flex flex-col gap-0.5">
@@ -64,15 +87,26 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
-import type { BrushType } from '../types';
+import { isExpressionMode, isMaskBrush, type BrushType } from '../types';
 import RangeInput from '../components/RangeInput.vue';
-import { PenLine, MoveUpRight, Paintbrush, Sparkles, CircleDot, Eraser } from 'lucide-vue-next';
+import { PenLine, MoveUpRight, Paintbrush, Sparkles, CircleDot, Eraser, Scissors, Undo2 } from 'lucide-vue-next';
 
 const { t } = useI18n();
-const { store } = useMediaEditorContext();
+const { store, mode } = useMediaEditorContext();
 
 const MIN_SIZE = 2;
 const MAX_SIZE = 32;
+const MASK_MIN_SIZE = 8;
+const MASK_MAX_SIZE = 120;
+
+const maskTools: { id: BrushType; labelKey: string; icon: any }[] = isExpressionMode(mode) && store.mediaType === 'image'
+  ? [
+      { id: 'maskErase', labelKey: 'expression_workbench_mask_erase', icon: Scissors },
+      { id: 'maskRestore', labelKey: 'expression_workbench_mask_restore', icon: Undo2 }
+    ]
+  : [];
+
+const maskSelected = computed(() => isMaskBrush(store.uiState.currentBrush.brush));
 
 const brushTypes: { id: BrushType; labelKey: string; icon: any }[] = [
   { id: 'pen', labelKey: 'media_editor_brush_pen', icon: PenLine },
@@ -98,10 +132,15 @@ const brushColorMap: Record<string, string> = {
 const hasColor = computed(() => store.uiState.currentBrush.brush in brushColorMap);
 
 const normalizedSize = computed(() => {
+  if (maskSelected.value) return (store.uiState.maskBrushSize - MASK_MIN_SIZE) / (MASK_MAX_SIZE - MASK_MIN_SIZE);
   return (store.uiState.currentBrush.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE);
 });
 
 function updateSize(normalized: number) {
+  if (maskSelected.value) {
+    store.uiState.maskBrushSize = Math.round(MASK_MIN_SIZE + normalized * (MASK_MAX_SIZE - MASK_MIN_SIZE));
+    return;
+  }
   store.uiState.currentBrush.size = Math.round(MIN_SIZE + normalized * (MAX_SIZE - MIN_SIZE));
 }
 

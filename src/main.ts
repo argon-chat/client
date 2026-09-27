@@ -173,7 +173,7 @@ Sentry.setTag("commit", __ARGON_BUILD__.commit);
 app.use(router);
 app.use(pinia);
 app.use(MotionPlugin);
-app.use(createEmojix({ registerComponents: true }) as unknown as Plugin);
+app.use(createEmojix({ registerComponents: false }) as unknown as Plugin);
 initializeEmojix();
 
 if (bootBlock) {

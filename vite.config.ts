@@ -116,5 +116,10 @@ export default defineConfig(({ mode }) => {
     worker: {
       format: "es",
     },
+    // onnxruntime-web ships prebuilt ES bundles; pre-bundling moves them away from their wasm files
+    // (the workbench worker loads those itself, by ?url, but the runtime's own lookups would break).
+    optimizeDeps: {
+      exclude: ["onnxruntime-web"],
+    },
   };
 });

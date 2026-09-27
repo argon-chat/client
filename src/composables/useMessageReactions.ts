@@ -7,46 +7,11 @@ import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import type { Guid } from "@argon-chat/ion.webcore";
 import type { ReactionInfo, ReactionAdded, ReactionRemoved } from "@argon/glue";
+import { applyReactionAdded, applyReactionRemoved, hasReacted, type ReactionRef } from "@/lib/chat/reactions";
 import type { ChatMessage } from "./useChatMessages";
 import type { Subscription } from "rxjs";
 
 export const DEFAULT_REACTIONS = ["👍", "👎", "❤️", "💩", "🤡", "😄", "😏", "🔥"];
-
-function applyReactionAdded(
-  reactions: ReactionInfo[],
-  emoji: string,
-  userId: string,
-): ReactionInfo[] {
-  const existing = reactions.find((r) => r.emoji === emoji);
-  if (existing) {
-    if (existing.userIds.includes(userId)) return reactions;
-    existing.count = (existing.count + 1) as any;
-    existing.userIds = [...existing.userIds, userId] as any;
-  } else {
-    reactions.push({
-      emoji,
-      customEmojiId: null,
-      count: 1 as any,
-      userIds: [userId] as any,
-    });
-  }
-  return reactions;
-}
-
-function applyReactionRemoved(
-  reactions: ReactionInfo[],
-  emoji: string,
-  userId: string,
-): ReactionInfo[] {
-  const existing = reactions.find((r) => r.emoji === emoji);
-  if (!existing) return reactions;
-  existing.userIds = existing.userIds.filter((id) => id !== userId) as any;
-  existing.count = existing.userIds.length as any;
-  if (existing.count === 0) {
-    return reactions.filter((r) => r.emoji !== emoji);
-  }
-  return reactions;
-}
 
 export function useMessageReactions(
   messages: ShallowRef<ChatMessage[]>,
@@ -76,10 +41,9 @@ export function useMessageReactions(
     subs.push(
       pool.onReactionAdded.subscribe((ev: ReactionAdded & { spaceId: string }) => {
         if (ev.channelId !== channelId()) return;
-        updateInMemory(ev.messageId, (r) => applyReactionAdded(r, ev.emoji, ev.userId));
-        void pool.updateMessageReactions(ev.messageId, (r) =>
-          applyReactionAdded(r, ev.emoji, ev.userId),
-        );
+        const ref = { emoji: ev.emoji, customEmojiId: ev.customEmojiId ?? null };
+        updateInMemory(ev.messageId, (r) => applyReactionAdded(r, ref, ev.userId));
+        void pool.updateMessageReactions(ev.messageId, (r) => applyReactionAdded(r, ref, ev.userId));
       }),
     );
 
@@ -87,9 +51,7 @@ export function useMessageReactions(
       pool.onReactionRemoved.subscribe((ev: ReactionRemoved & { spaceId: string }) => {
         if (ev.channelId !== channelId()) return;
         updateInMemory(ev.messageId, (r) => applyReactionRemoved(r, ev.emoji, ev.userId));
-        void pool.updateMessageReactions(ev.messageId, (r) =>
-          applyReactionRemoved(r, ev.emoji, ev.userId),
-        );
+        void pool.updateMessageReactions(ev.messageId, (r) => applyReactionRemoved(r, ev.emoji, ev.userId));
       }),
     );
   }
@@ -99,7 +61,8 @@ export function useMessageReactions(
     subs.length = 0;
   }
 
-  async function toggleReaction(messageId: bigint, emoji: string) {
+  /** Adds or takes back the user's reaction, at once on screen and then on the server. */
+  async function toggle(messageId: bigint, ref: ReactionRef) {
     if (!canReact.value || !spaceId()) return;
 
     const msg = messages.value.find((m) => m.messageId === messageId);
@@ -108,52 +71,45 @@ export function useMessageReactions(
     const myId = me.me?.userId;
     if (!myId) return;
 
-    const existing = (msg.reactions ?? []).find((r) => r.emoji === emoji);
-    const hasMyReaction = existing?.userIds.includes(myId) ?? false;
+    const hasMyReaction = hasReacted(msg.reactions ?? [], ref, myId);
+    const add = () => updateInMemory(messageId, (r) => applyReactionAdded(r, ref, myId));
+    const remove = () => updateInMemory(messageId, (r) => applyReactionRemoved(r, ref, myId));
 
     // Optimistic update
-    if (hasMyReaction) {
-      updateInMemory(messageId, (r) => applyReactionRemoved(r, emoji, myId));
-    } else {
-      updateInMemory(messageId, (r) => applyReactionAdded(r, emoji, myId));
-    }
+    if (hasMyReaction) remove();
+    else add();
 
+    const custom = ref.customEmojiId;
     try {
       if (hasMyReaction) {
-        const result = await api.channelInteraction.RemoveReaction(
-          spaceId()!,
-          channelId(),
-          messageId,
-          emoji,
-        );
+        const result = custom
+          ? await api.channelInteraction.RemoveCustomReaction(spaceId()!, channelId(), messageId, custom)
+          : await api.channelInteraction.RemoveReaction(spaceId()!, channelId(), messageId, ref.emoji);
         metrics.count("reaction.toggle", { action: "remove", result: result.isFailedRemoveReaction() ? "failed" : "ok" });
-        if (result.isFailedRemoveReaction()) {
-          // Revert
-          updateInMemory(messageId, (r) => applyReactionAdded(r, emoji, myId));
-        }
+        if (result.isFailedRemoveReaction()) add();
       } else {
-        const result = await api.channelInteraction.AddReaction(
-          spaceId()!,
-          channelId(),
-          messageId,
-          emoji,
-        );
+        const result = custom
+          ? await api.channelInteraction.AddCustomReaction(spaceId()!, channelId(), messageId, custom)
+          : await api.channelInteraction.AddReaction(spaceId()!, channelId(), messageId, ref.emoji);
         metrics.count("reaction.toggle", { action: "add", result: result.isFailedAddReaction() ? "failed" : "ok" });
-        if (result.isFailedAddReaction()) {
-          // Revert
-          updateInMemory(messageId, (r) => applyReactionRemoved(r, emoji, myId));
-        }
+        if (result.isFailedAddReaction()) remove();
       }
     } catch (error) {
       logger.error("Failed to toggle reaction:", error);
       metrics.count("reaction.toggle", { action: hasMyReaction ? "remove" : "add", result: "failed", error: errorKind(error) });
       // Revert on error
-      if (hasMyReaction) {
-        updateInMemory(messageId, (r) => applyReactionAdded(r, emoji, myId));
-      } else {
-        updateInMemory(messageId, (r) => applyReactionRemoved(r, emoji, myId));
-      }
+      if (hasMyReaction) add();
+      else remove();
     }
+  }
+
+  function toggleReaction(messageId: bigint, emoji: string) {
+    return toggle(messageId, { emoji, customEmojiId: null });
+  }
+
+  /** A custom emoji reaction, by its item. `emoji` is only what the optimistic pill carries. */
+  function toggleCustomReaction(messageId: bigint, itemId: string, emoji = "") {
+    return toggle(messageId, { emoji, customEmojiId: itemId });
   }
 
   async function batchLoadReactions(messageIds: bigint[]) {
@@ -181,6 +137,7 @@ export function useMessageReactions(
   return {
     canReact,
     toggleReaction,
+    toggleCustomReaction,
     batchLoadReactions,
     subscribe,
     unsubscribe,

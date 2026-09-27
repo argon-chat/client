@@ -6,23 +6,31 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
-import { initWebGPU, cleanupWebGPU, type RenderingPayload } from '../webgpu/initWebGPU';
+import { useMaskPainterSlot } from '../composables/useMaskPainter';
+import { initWebGPU, cleanupWebGPU, uploadMask, clearMask, type RenderingPayload } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
+import type { OutlineDrawParams } from '../webgpu/stickerCompositor';
 import { updateVideoTexture } from '../webgpu/loadTexture';
 import { fitToAspectRatio } from '../geometry';
 import { resolveOutputQuality } from '../constants';
 import { adjustmentsConfig } from '../adjustments';
 import { ensureGizmoCanvas, removeGizmoCanvas, drawGizmos } from '../webgpu/debugGizmos';
+import { isExpressionMode, type MaskStroke, type Vec2 } from '../types';
+import { createMaskRaster, type MaskRasterCanvas } from '../mask/maskRaster';
+import { canvasToSource, maskResolution, outlineRadiusOnCanvas } from '../mask/maskMath';
+import { fitExpressionContent } from '../finalRender/computeExportDimensions';
 
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
+const expression = isExpressionMode(mode) && store.mediaType === 'image';
 
 let device: GPUDevice | null = null;
 let context: GPUCanvasContext | null = null;
 let payload: RenderingPayload | null = null;
 let animFrameId: number | null = null;
 let videoPlaybackId: number | null = null;
+let disposed = false;
 
 onMounted(async () => {
   if (!canvasEl.value) return;
@@ -34,8 +42,13 @@ onMounted(async () => {
     mediaSrc: store.mediaSrc,
     mediaType: store.mediaType,
     videoTime: store.mediaState.videoCropStart,
-    waitToSeek: true
+    waitToSeek: true,
+    transparent: expression
   });
+  if (disposed) {
+    cleanupWebGPU(result.payload);
+    return;
+  }
 
   payload = result.payload;
   context = result.context;
@@ -51,8 +64,8 @@ onMounted(async () => {
     store.mediaState.videoQuality = resolveOutputQuality(payload.media.height);
   }
 
-  // Init image ratio + scale for avatar mode
-  if (mode === 'avatar' && !store.mediaState.currentImageRatio) {
+  // Init image ratio + scale for avatar mode (and emoji, which are square unless asked otherwise)
+  if ((mode === 'avatar' || mode === 'emoji') && !store.mediaState.currentImageRatio) {
     const co = cropOffset.value;
     const squareRatio = 1;
     const [w1, h1] = fitToAspectRatio(payload.media.width / payload.media.height, co.width, co.height);
@@ -64,17 +77,133 @@ onMounted(async () => {
     store.mediaState.currentImageRatio = payload.media.width / payload.media.height;
   }
 
+  if (expression) syncMask();
+
   store.uiState.isReady = true;
   redraw();
 });
 
 onBeforeUnmount(() => {
+  disposed = true;
   if (animFrameId !== null) cancelAnimationFrame(animFrameId);
   if (videoPlaybackId !== null) cancelAnimationFrame(videoPlaybackId);
   stopVideoPlayback();
   removeGizmoCanvas();
+  if (maskPainterSlot.current === maskPainter) maskPainterSlot.current = null;
+  maskRaster?.dispose();
+  maskRaster = null;
   if (payload) cleanupWebGPU(payload);
 });
+
+// --- Mask (sticker modes) ---
+// The raster is the source of truth on the CPU; the GPU gets it whole after a state change and in
+// dirty rectangles while a stroke is being drawn.
+
+let maskRaster: MaskRasterCanvas | null = null;
+let rasterInSync = false;
+let liveStroke: MaskStroke | null = null;
+
+function ensureMaskRaster(): MaskRasterCanvas | null {
+  if (maskRaster || !payload) return maskRaster;
+  const [mw, mh] = maskResolution(payload.media.width, payload.media.height);
+  maskRaster = createMaskRaster(mw, mh, mw / payload.media.width);
+  return maskRaster;
+}
+
+function syncMask() {
+  if (!payload) return;
+  const m = store.mediaState.mask;
+  const source = store.getMaskSource(m.source);
+  if (!source && !m.strokes.length) {
+    clearMask(payload);
+    rasterInSync = false;
+  } else {
+    const raster = ensureMaskRaster();
+    if (!raster) return;
+    raster.render(source, m.feather, m.strokes);
+    rasterInSync = true;
+    uploadMask(payload, raster.canvas);
+  }
+  scheduleRedraw();
+}
+
+// A feather slider changes the state on every pointer move; one re-render per frame is enough.
+let maskSyncFrame: number | null = null;
+function scheduleMaskSync() {
+  if (maskSyncFrame !== null) return;
+  maskSyncFrame = requestAnimationFrame(() => {
+    maskSyncFrame = null;
+    if (!liveStroke && !disposed) syncMask();
+  });
+}
+onBeforeUnmount(() => {
+  if (maskSyncFrame !== null) cancelAnimationFrame(maskSyncFrame);
+});
+
+if (expression) {
+  watch(
+    () => [store.mediaState.mask, store.mediaState.mask.source, store.mediaState.mask.feather, store.mediaState.mask.strokes.length],
+    () => scheduleMaskSync()
+  );
+  watch(() => store.mediaState.outline, () => scheduleRedraw(), { deep: true });
+}
+
+function toSource(point: Vec2): Vec2 | null {
+  if (!payload || !canvasEl.value) return null;
+  return canvasToSource(
+    point,
+    store.uiState.finalTransform,
+    [canvasEl.value.width, canvasEl.value.height],
+    [payload.media.width, payload.media.height]
+  );
+}
+
+function paintLive(from: number) {
+  if (!payload || !liveStroke) return;
+  const raster = ensureMaskRaster();
+  if (!raster) return;
+  if (!rasterInSync) {
+    const m = store.mediaState.mask;
+    raster.render(store.getMaskSource(m.source), m.feather, m.strokes);
+    rasterInSync = true;
+  }
+  const rect = raster.drawStroke(liveStroke, from);
+  uploadMask(payload, raster.canvas, rect);
+  scheduleRedraw();
+}
+
+const maskPainter = {
+  begin(strokeMode: 'erase' | 'restore', size: number, point: Vec2) {
+    const p = toSource(point);
+    const scale = store.uiState.finalTransform.scale;
+    if (!p || !(scale > 0)) return;
+    liveStroke = { mode: strokeMode, size: size / scale, points: [p] };
+    paintLive(0);
+  },
+  extend(point: Vec2) {
+    const p = toSource(point);
+    if (!p || !liveStroke) return;
+    liveStroke.points.push(p);
+    paintLive(liveStroke.points.length - 1);
+  },
+  end() {
+    const stroke = liveStroke;
+    liveStroke = null;
+    if (stroke) store.addMaskStroke(stroke);
+  }
+};
+
+const maskPainterSlot = useMaskPainterSlot();
+if (expression) maskPainterSlot.current = maskPainter;
+
+function outlineOnCanvas(): OutlineDrawParams | null {
+  const o = store.mediaState.outline;
+  if (!expression || !payload || !o.enabled || o.radius <= 0 || !isExpressionMode(mode)) return null;
+  const ratio = store.mediaState.currentImageRatio || payload.media.width / payload.media.height;
+  const [w, h] = fitExpressionContent(mode, ratio);
+  const outputScale = Math.max(w / payload.media.width, h / payload.media.height) * store.mediaState.scale;
+  return { radius: outlineRadiusOnCanvas(o.radius, store.uiState.finalTransform.scale, outputScale), color: o.color };
+}
 
 // --- Video Playback ---
 function getVideo(): HTMLVideoElement | null {
@@ -226,7 +355,7 @@ function redraw() {
     ...adjustmentValues as any
   };
 
-  draw(device, context, payload, params);
+  draw(device, context, payload, params, outlineOnCanvas());
 
   // Debug gizmos overlay
   if (store.uiState.debugGizmos && canvasEl.value?.parentElement) {

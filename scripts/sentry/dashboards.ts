@@ -125,6 +125,9 @@ const METRICS = {
   "message.scheduled": C,
   "announcement.followed": C,
   "announcement.published": C,
+  // stickers & custom emoji
+  "expression.upload": C,
+  "expression.upload.duration": MS,
   // spaces
   "space.created": C,
   "space.joined": C,
@@ -322,6 +325,8 @@ const PRODUCT: WidgetDraft[] = [
   series("Announcements", [["published", M("announcement.published", "result:ok")], ["follows", M("announcement.followed", "result:ok")]], { w: 2 }),
   bars("Publish reach (following channels)", M("announcement.published", "result:ok"), "reach", "sum", { w: 3 }),
   bars("Follows by scope", M("announcement.followed", "result:ok"), "scope", "sum", { w: 3 }),
+  area("Sticker / emoji uploads by kind", [q(M("expression.upload", "result:ok"), ["sum"], { columns: ["kind"] })], { w: 3 }),
+  bars("Sticker / emoji uploads by format", M("expression.upload", "result:ok"), "format", "sum", { w: 3 }),
 ];
 
 const CALLS: WidgetDraft[] = [
@@ -407,6 +412,12 @@ const RELIABILITY: WidgetDraft[] = [
     ["token expired", M("session.resume", "token_expired:true")],
     ["token fine", M("session.resume", "token_expired:false")],
   ], { w: 3 }),
+  bars("Sticker / emoji upload failures by error", M("expression.upload", "result:failed"), "error", "sum", { w: 3 }),
+  series("Sticker / emoji uploads ok / failed", [
+    ["ok", M("expression.upload", "result:ok")],
+    ["failed", M("expression.upload", "result:failed")],
+  ], { w: 3 }),
+  line("Sticker / emoji upload p95 by format (ms)", [q(M("expression.upload.duration", "result:ok"), ["p95"], { columns: ["format"] })], { w: 3 }),
 ];
 
 const ULTIMA: WidgetDraft[] = [

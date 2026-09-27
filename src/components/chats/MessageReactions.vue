@@ -1,19 +1,36 @@
 <template>
-  <div v-if="reactions.length" class="reactions-row">
+  <component :is="row.is" v-if="reactions.length" v-bind="row.props" class="reactions-row">
     <button
       v-for="r in reactions"
-      :key="r.emoji"
+      :key="reactionKey(r)"
       class="reaction-pill"
       :class="{
         'reaction-pill--mine': isMine(r),
         'reaction-pill--disabled': !canToggle(r),
       }"
       :disabled="!canToggle(r)"
-      @click="$emit('toggle', r.emoji)"
+      @click="r.customEmojiId ? $emit('toggle-custom', r.customEmojiId) : $emit('toggle', r.emoji)"
     >
       <span class="reaction-pill__emoji">
+        <template v-if="r.customEmojiId">
+          <CustomEmojiInline
+            v-if="customItem(r.customEmojiId)"
+            :media="itemMedia(customItem(r.customEmojiId)!)"
+            :size="18"
+            :alt="customEmojiAlt(customItem(r.customEmojiId)!.name)"
+          />
+          <!-- An emoji this client does not know (yet): a neutral mark, the count still shows. -->
+          <span
+            v-else
+            class="reaction-pill__unknown"
+            role="img"
+            :aria-label="t('reaction_custom_unknown')"
+            :title="t('reaction_custom_unknown')"
+            data-testid="reaction-unknown"
+          />
+        </template>
         <EmojiSprite
-          v-if="resolveEmoji(r.emoji)"
+          v-else-if="resolveEmoji(r.emoji)"
           :emoji="resolveEmoji(r.emoji)!"
           :size="18"
           render-mode="atlas"
@@ -22,13 +39,20 @@
       </span>
       <span class="reaction-pill__count">{{ r.count }}</span>
     </button>
-  </div>
+  </component>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { ReactionInfo } from "@argon/glue";
 import { EmojiSprite, emojiRegistry, stringToCodepoints, codepointsToHexcode } from "@argon-chat/emojix";
 import type { EmojiEntry } from "@argon-chat/emojix";
+import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
+import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
+import { useExpressionResolver } from "@/lib/expressions/resolver";
+import { customEmojiAlt, itemMedia } from "@/lib/chat/customEmoji";
+import { reactionKey } from "@/lib/chat/reactions";
+import { useLocale } from "@/store/system/localeStore";
 
 const props = defineProps<{
   reactions: ReactionInfo[];
@@ -40,7 +64,19 @@ const props = defineProps<{
 
 defineEmits<{
   (e: "toggle", emoji: string): void;
+  (e: "toggle-custom", itemId: string): void;
 }>();
+
+const { t } = useLocale();
+const resolver = useExpressionResolver();
+const customItem = (itemId: string) => resolver.itemById(itemId);
+
+/** The row draws custom emoji through an overlay only when it has some. */
+const row = computed(() =>
+  props.reactions.some((r) => r.customEmojiId)
+    ? { is: CustomEmojiOverlay, props: { tag: "div", group: "chat" } }
+    : { is: "div", props: {} },
+);
 
 function isMine(r: ReactionInfo): boolean {
   return r.userIds?.includes(props.currentUserId) ?? false;
@@ -128,5 +164,12 @@ function resolveEmoji(text: string): EmojiEntry | undefined {
 
 .reaction-pill--mine .reaction-pill__count {
   color: hsl(var(--primary));
+}
+
+.reaction-pill__unknown {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: hsl(var(--foreground) / 0.15);
 }
 </style>

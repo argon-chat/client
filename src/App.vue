@@ -32,8 +32,10 @@ import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useLocale } from "@/store/system/localeStore";
 import { initHotkeyActions } from "@/lib/hotkeys/actions";
 import { initWebRadioKey } from "@/lib/hotkeys/webRadioKey";
+import { createStoreResolver, provideExpressionResolver } from "@/lib/expressions/resolver";
 
 const { t } = useLocale();
+provideExpressionResolver(createStoreResolver());
 const sys = useSystemStore();
 const call = useUnifiedCall();
 const keys = useMagicKeys();

@@ -213,6 +213,7 @@ export class FakeDb {
   members = new FakeTable<any>("members", "memberId");
   profileCache = new FakeTable<any>("profileCache", "key");
   spaceVersions = new FakeTable<any>("spaceVersions", "spaceId");
+  expressions = new FakeTable<any>("expressions", "spaceId");
 
   /** Dexie runs the body inside a transaction; nothing here needs the isolation, only the shape. */
   async transaction(_mode: string, ...args: any[]): Promise<any> {

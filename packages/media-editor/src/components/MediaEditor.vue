@@ -28,7 +28,7 @@
 import { ref, watch, nextTick, onBeforeUnmount, provide } from 'vue';
 import { useMediaEditorStore } from '../store/editorStore';
 import { createFinalResult } from '../finalRender/createFinalResult';
-import type { MediaType } from '../types';
+import { isExpressionMode, type BackgroundRemover, type EditorMode, type ExpressionExportFormat, type MediaType } from '../types';
 import MainCanvas from './MainCanvas.vue';
 import Topbar from './Topbar.vue';
 import Toolbar from './Toolbar.vue';
@@ -36,36 +36,49 @@ import FinishButton from './FinishButton.vue';
 import VideoControls from './VideoControls.vue';
 import { MEDIA_EDITOR_INJECTION_KEY } from '../composables/useMediaEditorContext';
 
-export type MediaEditorMode = 'full' | 'avatar';
+export type MediaEditorMode = EditorMode;
 
 export interface MediaEditorProps {
   modelValue: boolean;
   src: string;
   mediaType?: MediaType;
+  /** `sticker` / `emoji`: transparent canvas, cut-out and outline tools, export at 512 / 100×100. */
   mode?: MediaEditorMode;
   initialTab?: string;
   devMode?: boolean;
+  /** Sticker modes: enables "Remove background". */
+  backgroundRemover?: BackgroundRemover;
+  /** Sticker modes: `auto` is lossless WEBP where the browser encodes it, PNG otherwise. */
+  exportFormat?: ExpressionExportFormat;
+  /** Sticker modes: the file is re-encoded smaller (lossy WEBP as a last resort) to stay under this. */
+  maxBytes?: number;
 }
 
 const props = withDefaults(defineProps<MediaEditorProps>(), {
   mediaType: 'image',
   mode: 'full',
-  initialTab: 'adjustments',
-  devMode: false
+  initialTab: undefined,
+  devMode: false,
+  backgroundRemover: undefined,
+  exportFormat: 'auto',
+  maxBytes: undefined
 });
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void;
   (e: 'done', result: any): void;
   (e: 'cancel'): void;
+  (e: 'error', error: unknown): void;
 }>();
 
 const store = useMediaEditorStore();
 const overlayEl = ref<HTMLElement | null>(null);
 const containerEl = ref<HTMLElement | null>(null);
 const isMobile = ref(window.innerWidth <= 800);
+const expression = isExpressionMode(props.mode) && props.mediaType === 'image';
+let finishing = false;
 
-provide(MEDIA_EDITOR_INJECTION_KEY, { store, mode: props.mode });
+provide(MEDIA_EDITOR_INJECTION_KEY, { store, mode: props.mode, backgroundRemover: props.backgroundRemover });
 
 watch(() => props.modelValue, (open) => {
   if (open) {
@@ -73,7 +86,7 @@ watch(() => props.modelValue, (open) => {
       src: props.src,
       type: props.mediaType,
       mode: props.mode,
-      initialTab: props.initialTab
+      initialTab: props.initialTab ?? (expression ? 'cutout' : 'adjustments')
     });
     nextTick(() => {
       overlayEl.value?.focus();
@@ -91,19 +104,31 @@ function close() {
 }
 
 async function handleDone() {
-  if (!store.uiState.renderingPayload || !store.uiState.canvasSize) return;
+  if (!store.uiState.renderingPayload || !store.uiState.canvasSize || finishing) return;
+  finishing = true;
 
-  const result = await createFinalResult({
-    mediaSrc: store.mediaSrc,
-    mediaType: store.mediaType,
-    mediaState: store.mediaState,
-    canvasSize: store.uiState.canvasSize,
-    mediaRatio: store.uiState.mediaRatio ?? 1,
-    renderingPayload: store.uiState.renderingPayload as any
-  });
+  try {
+    const result = await createFinalResult({
+      mediaSrc: store.mediaSrc,
+      mediaType: store.mediaType,
+      mediaState: store.mediaState,
+      canvasSize: store.uiState.canvasSize,
+      mediaRatio: store.uiState.mediaRatio ?? 1,
+      renderingPayload: store.uiState.renderingPayload as any,
+      mode: props.mode,
+      getMaskSource: store.getMaskSource,
+      exportFormat: props.exportFormat,
+      maxBytes: props.maxBytes
+    });
 
-  emit('done', result);
-  emit('update:modelValue', false);
+    emit('done', result);
+    emit('update:modelValue', false);
+  } catch (e) {
+    console.error('[media-editor] export failed', e);
+    emit('error', e);
+  } finally {
+    finishing = false;
+  }
 }
 
 function onKeydown(e: KeyboardEvent) {

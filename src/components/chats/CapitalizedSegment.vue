@@ -1,10 +1,11 @@
 <template>
-    <span class="capitalized">{{ capitalizedText }}</span>
+    <span class="capitalized"><slot><EmojiText :text="capitalizedText" /></slot></span>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import type { IMessageEntity } from "@argon/glue";
+import EmojiText from "./EmojiText";
 
 const props = defineProps<{
     entity: IMessageEntity;

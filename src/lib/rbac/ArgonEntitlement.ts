@@ -16,6 +16,7 @@ export const ArgonEntitlementFlags = {
   ExternalStickers: ArgonEntitlement.ExternalStickers,
   UseCommands: ArgonEntitlement.UseCommands,
   PostEmbeddedLinks: ArgonEntitlement.PostEmbeddedLinks,
+  CreateExpressions: ArgonEntitlement.CreateExpressions,
 
   Connect: ArgonEntitlement.Connect,
   Speak: ArgonEntitlement.Speak,
@@ -42,6 +43,7 @@ export const ArgonEntitlementFlags = {
   ManageBehaviour: ArgonEntitlement.ManageBehaviour,
   ManageServer: ArgonEntitlement.ManageServer,
   ManageMessages: ArgonEntitlement.ManageMessages,
+  ManageExpressions: ArgonEntitlement.ManageExpressions,
 } as const;
 
 export type ArgonEntitlementFlag = keyof typeof ArgonEntitlementFlags;
@@ -238,6 +240,16 @@ export const ArgonEntitlementGroups: ArgonEntitlementGroup[] = [
       {
         value: ArgonEntitlementFlags.ManageBehaviour,
         i18nKey: "permissions.flags.ManageBehaviour",
+      },
+      // Space actions, not channel ones: here rather than under messaging, so channel overwrites
+      // (which leave the management group out) do not offer them.
+      {
+        value: ArgonEntitlementFlags.CreateExpressions,
+        i18nKey: "permissions.flags.CreateExpressions",
+      },
+      {
+        value: ArgonEntitlementFlags.ManageExpressions,
+        i18nKey: "permissions.flags.ManageExpressions",
       },
       {
         value: ArgonEntitlementFlags.ManageServer,

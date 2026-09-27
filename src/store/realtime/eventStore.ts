@@ -55,7 +55,9 @@ import {
   type DirectMessageSent,
   type ReactionAdded,
   type ReactionRemoved,
+  type SpaceExpressionsChanged,
 } from "@argon/glue";
+import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useBotInteraction } from "@/composables/useBotInteraction";
@@ -516,6 +518,14 @@ export const useEventStore = defineStore("events", () => {
 
     bus.onServerEvent<ReactionRemoved>("ReactionRemoved", (x) => {
       onReactionRemoved.next(x);
+    });
+
+    bus.onServerEvent<SpaceExpressionsChanged>("SpaceExpressionsChanged", (x) => {
+      try {
+        useExpressionsStore().applyChange(x);
+      } catch (error) {
+        logger.error("Error handling SpaceExpressionsChanged", error);
+      }
     });
   };
 
