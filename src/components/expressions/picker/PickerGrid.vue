@@ -64,9 +64,14 @@ const ranges = computed(() => {
 // While a click on the rail scrolls smoothly, the rail keeps showing where it is going.
 const lockedId = ref<string | null>(null);
 let unlockTimer: ReturnType<typeof setTimeout> | undefined;
+// A section opened from outside keeps its group current until the user scrolls away, even where the
+// scroll stops short of it (the end of the content).
+const pinnedId = ref<string | null>(null);
+let pinnedTop = 0;
 
 const activeId = computed(() => {
   if (lockedId.value) return lockedId.value;
+  if (pinnedId.value) return pinnedId.value;
   const index = activeGroupIndex(layout.value, scrollTop.value, viewport.value.height);
   return index >= 0 ? (layout.value.groups[index]?.id ?? null) : null;
 });
@@ -155,6 +160,7 @@ function onScroll() {
   const box = scroller.value;
   if (!box) return;
   scrollTop.value = box.scrollTop;
+  if (pinnedId.value && Math.abs(box.scrollTop - pinnedTop) >= 1) pinnedId.value = null;
   emit("scroll");
 }
 
@@ -285,6 +291,7 @@ function scrollToGroup(id: string, smooth = true) {
   const box = scroller.value;
   const group = layout.value.groups.find((g) => g.id === id);
   if (!box || !group) return;
+  pinnedId.value = null;
   const max = Math.max(0, box.scrollHeight - box.clientHeight);
   const target = Math.min(group.top, max);
   if (Math.abs(box.scrollTop - target) < 1) return;
@@ -299,12 +306,28 @@ function scrollToGroup(id: string, smooth = true) {
   }
 }
 
+/**
+ * Jumps to a section: its sub-header just under its group's sticky header (the group's top for the
+ * first one), its group current in the rail. False when there is no such section.
+ */
+function scrollToSection(id: string): boolean {
+  const box = scroller.value;
+  const section = layout.value.sections.find((s) => s.id === id);
+  const group = section ? layout.value.groups[section.group] : undefined;
+  if (!box || !section || !group) return false;
+  const top = group.sections[0] === section.index ? group.top : section.top - props.metrics.header;
+  box.scrollTop = Math.min(top, Math.max(0, box.scrollHeight - box.clientHeight));
+  scrollTop.value = pinnedTop = box.scrollTop;
+  pinnedId.value = group.id;
+  return true;
+}
+
 function focusFirst() {
   const stop = tabStop.value;
   if (stop) nav.focus(stop);
 }
 
-defineExpose({ scrollToGroup, focusFirst, activeId, layout, scroller });
+defineExpose({ scrollToGroup, scrollToSection, focusFirst, activeId, layout, scroller });
 </script>
 
 <template>

@@ -64,7 +64,10 @@ const info = computed(() =>
 const media = computed(() => (info.value?.item ? itemMedia(info.value.item) : (props.media ?? null)));
 const isSticker = computed(() => props.target?.kind === "sticker");
 const title = computed(() => info.value?.label ?? t(isSticker.value ? "sticker" : "reaction_custom_unknown"));
-const canOpen = computed(() => !!info.value?.openPack && canOpenExpressionPack.value);
+const canOpen = computed(() => {
+  const pack = info.value?.openPack;
+  return !!pack && canOpenExpressionPack(pack.packId, pack.spaceId);
+});
 
 const avatarFailed = ref(false);
 const avatarFileId = computed(() => info.value?.space?.avatarFileId ?? null);

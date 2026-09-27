@@ -7,7 +7,7 @@ import type { ExpressionItem, ExpressionPack } from "@argon/glue";
 export type PickerTab = "emoji" | "stickers" | "gifs";
 
 /** The header's order. */
-export const TAB_ORDER: readonly PickerTab[] = ["stickers", "gifs", "emoji"];
+export const TAB_ORDER: readonly PickerTab[] = ["gifs", "stickers", "emoji"];
 
 export const UNICODE_GROUPS = ["smileys", "people", "animals", "food", "travel", "activities", "objects", "symbols", "flags"] as const;
 export type UnicodeGroup = (typeof UNICODE_GROUPS)[number];

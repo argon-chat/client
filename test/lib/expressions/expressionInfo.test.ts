@@ -2,10 +2,11 @@
  * What the attribution popover says about a custom emoji or sticker: its name, its pack and its
  * space, from what this client has loaded. An item from a space the user is not in is unknown here:
  * the name the message carries, and "from another space". "Open pack" only where the user is a
- * member, and only once the composer has registered to handle it.
+ * member, and only for a pack the registered composer's picker shows.
  */
 
 import { describe, test, expect, afterEach } from "vitest";
+import { computed, ref } from "vue";
 import { ExpressionKind, type ExpressionItem, type ExpressionPack } from "@argon/glue";
 import { noopResolver, type ExpressionResolver } from "@/lib/expressions/resolver";
 import {
@@ -116,21 +117,50 @@ describe("Open pack", () => {
   const off: (() => void)[] = [];
   afterEach(() => off.splice(0).forEach((f) => f()));
 
+  const blobs = { spaceId: "s-cats", packId: "p-blobs", kind: ExpressionKind.Emoji };
+  const any = () => true;
+
   test("unavailable until the composer registers; then the latest handler gets the pack", () => {
-    const ref = { spaceId: "s-cats", packId: "p-blobs", kind: ExpressionKind.Emoji };
-    expect(canOpenExpressionPack.value).toBe(false);
-    expect(openExpressionPack(ref)).toBe(false);
+    expect(canOpenExpressionPack("p-blobs", "s-cats")).toBe(false);
+    expect(openExpressionPack(blobs)).toBe(false);
 
     const first: unknown[] = [];
     const second: unknown[] = [];
-    off.push(onOpenExpressionPack((p) => first.push(p)));
-    const removeSecond = onOpenExpressionPack((p) => second.push(p));
-    expect(canOpenExpressionPack.value).toBe(true);
-    expect(openExpressionPack(ref)).toBe(true);
-    expect([first, second]).toEqual([[], [ref]]);
+    off.push(onOpenExpressionPack((p) => first.push(p), any));
+    const removeSecond = onOpenExpressionPack((p) => second.push(p), any);
+    expect(canOpenExpressionPack("p-blobs", "s-cats")).toBe(true);
+    expect(openExpressionPack(blobs)).toBe(true);
+    expect([first, second]).toEqual([[], [blobs]]);
 
     removeSecond();
-    openExpressionPack(ref);
-    expect(first).toEqual([ref]);
+    openExpressionPack(blobs);
+    expect(first).toEqual([blobs]);
+  });
+
+  test("offered only for a pack the latest composer's picker shows: a channel's, its own space's", () => {
+    // A channel composer in s-cats: only that space's packs are in its picker.
+    off.push(onOpenExpressionPack(() => true, (_packId, spaceId) => spaceId === "s-cats"));
+    expect(canOpenExpressionPack("p-blobs", "s-cats")).toBe(true);
+    expect(canOpenExpressionPack("p-dogs", "s-dogs")).toBe(false);
+
+    // A direct chat's composer on top: every loaded space's.
+    const removeDm = onOpenExpressionPack(() => true, any);
+    expect(canOpenExpressionPack("p-dogs", "s-dogs")).toBe(true);
+    removeDm();
+    expect(canOpenExpressionPack("p-dogs", "s-dogs")).toBe(false);
+  });
+
+  test("a computed over it follows the registry and what the predicate reads", () => {
+    const loaded = ref(false);
+    const offered = computed(() => canOpenExpressionPack("p-blobs", "s-cats"));
+    expect(offered.value).toBe(false);
+
+    const remove = onOpenExpressionPack(() => true, () => loaded.value);
+    expect(offered.value).toBe(false);
+    loaded.value = true;
+    expect(offered.value).toBe(true);
+
+    remove();
+    expect(offered.value).toBe(false);
   });
 });

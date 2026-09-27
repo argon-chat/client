@@ -6,7 +6,7 @@ import { useBus } from "@/store/realtime/busStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { db, type CachedProfile, type ProfileScope } from "@/store/db/dexie";
 import { onSessionReset, sessionEpoch } from "@/store/system/sessionLifecycle";
-import type { ArgonUserProfile } from "@argon/glue";
+import type { ArgonUserProfile, StatusEmoji } from "@argon/glue";
 import { UserProfileUpdated } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
@@ -45,6 +45,7 @@ const MEMORY_LIMIT = 400;
 export interface ProfileStatus {
   customStatus: string | null;
   customStatusIconId: string | null;
+  customStatusEmoji: StatusEmoji | null;
 }
 
 export interface ProfileRequestOptions {
@@ -468,7 +469,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     opts: ProfileRequestOptions = {},
   ): Promise<ProfileStatus> {
     const profile = await request(spaceId, userId, "status", opts.signal);
-    return { customStatus: profile.customStatus, customStatusIconId: profile.customStatusIconId };
+    return {
+      customStatus: profile.customStatus,
+      customStatusIconId: profile.customStatusIconId,
+      // Rows cached before the field existed have none.
+      customStatusEmoji: profile.customStatusEmoji ?? null,
+    };
   }
 
   /**

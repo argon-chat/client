@@ -2,7 +2,8 @@
  * Stickers and custom emoji in a message, in a real browser. A sticker-only message is the
  * sticker, drawn by StickerView at the chat size (smaller in a narrow column) with no bubble. A
  * custom emoji in text is a placeholder the size of the text plus 4 px, filled by the message's
- * overlay; alone (or with a few others) it is drawn big, at Telegram's sizes.
+ * overlay; alone (or with a few others) it is drawn big, at Telegram's sizes. A click on either opens
+ * where it comes from, with "Open pack" only for a pack the composer's picker shows.
  */
 
 import { describe, test, expect, vi, afterEach } from "vitest";
@@ -62,6 +63,7 @@ import { userEvent } from "vitest/browser";
 import { EntityType, ExpressionKind, MessageEntityBold, MessageEntityCustomEmoji, MessageEntitySticker, type ExpressionItem, type ExpressionPack, type IMessageEntity } from "@argon/glue";
 import MessageItem from "@/components/MessageItem.vue";
 import { EXPRESSION_RESOLVER, noopResolver, type ExpressionResolver } from "@/lib/expressions/resolver";
+import { onOpenExpressionPack } from "@/lib/expressions/expressionInfo";
 
 const message = (text: string, entities: IMessageEntity[]) =>
   ({
@@ -230,5 +232,33 @@ describe("where a custom emoji or sticker comes from", () => {
     expect([big.style.width, big.style.height]).toEqual(["96px", "96px"]);
     // Stickers have no name to copy.
     expect(popover()!.querySelector('[data-testid="expression-info-copy"]')).toBeNull();
+  });
+
+  describe("Open pack", () => {
+    const off: (() => void)[] = [];
+    afterEach(() => off.splice(0).forEach((f) => f()));
+
+    test("an emoji from another space than the composer's: no Open pack", async () => {
+      // The composer of the message's space ("s1") has only that space's packs in its picker.
+      const open = vi.fn(() => false);
+      off.push(onOpenExpressionPack(open, (_packId, spaceId) => spaceId === "s1"));
+      const w = await render(message("hi :wave: there", [emoji("wave", 3)]), {}, resolver);
+      await userEvent.click(w.find<HTMLElement>(".ce-trigger").element);
+      await until(() => part("space-name") === "Cats Café");
+      expect(popover()!.querySelector('[data-testid="expression-info-open-pack"]')).toBeNull();
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    test("where the composer's picker has the pack (a direct chat's: every loaded space's), it is offered and opens it", async () => {
+      const open = vi.fn(() => true);
+      off.push(onOpenExpressionPack(open, (packId, spaceId) => packId === "p-waves" && spaceId === "space"));
+      const w = await render(message("hi :wave: there", [emoji("wave", 3)]), {}, resolver);
+      await userEvent.click(w.find<HTMLElement>(".ce-trigger").element);
+      await until(() => part("space-name") === "Cats Café");
+
+      await userEvent.click(popover()!.querySelector<HTMLElement>('[data-testid="expression-info-open-pack"]')!);
+      expect(open).toHaveBeenCalledWith({ spaceId: "space", packId: "p-waves", kind: ExpressionKind.Emoji });
+      await until(() => !popover());
+    });
   });
 });

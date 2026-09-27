@@ -200,7 +200,7 @@ describe("ExpressionPicker", () => {
 
     const all = open();
     await ready(all);
-    expect(tabs(all.element)).toEqual(["stickers", "gifs", "emoji"]);
+    expect(tabs(all.element)).toEqual(["gifs", "stickers", "emoji"]);
     expect($(all.element, '[data-tab="emoji"]')?.getAttribute("aria-selected")).toBe("true");
   });
 

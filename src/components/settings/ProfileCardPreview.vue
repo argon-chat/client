@@ -54,7 +54,10 @@
           </div>
         </div>
 
-        <div v-if="customStatus" class="preview-custom-status">{{ customStatus }}</div>
+        <div v-if="hasStatus" class="preview-custom-status" data-testid="preview-custom-status">
+          <StatusEmoji :profile="statusIcon" :size="14" animate-on="always" />
+          <span v-if="customStatus" class="preview-custom-status__text">{{ customStatus }}</span>
+        </div>
         <div class="preview-roles">
           <span class="preview-role-chip">Role 1</span>
           <span class="preview-role-chip">Role 2</span>
@@ -74,6 +77,9 @@ import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { argbToRgba } from "@/lib/profileCustomization";
 import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
+import type { StatusEmoji as StatusEmojiData } from "@argon/glue";
+import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
+import { hasCustomStatus } from "@/lib/statusIcon";
 
 const { t } = useLocale();
 
@@ -84,6 +90,9 @@ const props = withDefaults(defineProps<{
   avatarFileId: string | null;
   isPremium: boolean;
   customStatus?: string | null;
+  /** As on the profile: "" or null for none, a unicode emoji, or `ce:<itemId>` with its emoji. */
+  customStatusIconId?: string | null;
+  customStatusEmoji?: StatusEmojiData | null;
   bio?: string | null;
   primaryColor: number | null;
   accentColor: number | null;
@@ -106,6 +115,9 @@ const isLightTheme = computed(() => currentTheme.value === "light");
 const hasColors = computed(() => props.primaryColor != null || props.accentColor != null);
 
 const statusLabel = computed(() => t("status_online"));
+
+const statusIcon = computed(() => ({ customStatusIconId: props.customStatusIconId, customStatusEmoji: props.customStatusEmoji }));
+const hasStatus = computed(() => hasCustomStatus({ ...statusIcon.value, customStatus: props.customStatus }));
 
 const gradientStyle = computed(() => {
   const primary = props.primaryColor ? argbToRgba(props.primaryColor) : "hsl(var(--muted))";
@@ -314,10 +326,21 @@ const nameAccentStyle = computed(() => {
 }
 
 .preview-custom-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   font-size: 0.7rem;
   color: hsl(var(--foreground) / 0.6);
   font-style: italic;
   margin-bottom: 6px;
+}
+
+.preview-custom-status__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preview-roles {

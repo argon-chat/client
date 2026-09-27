@@ -129,11 +129,12 @@
                     </div>
 
                     <!-- Custom status -->
-                    <div v-if="userProfile.customStatus" class="custom-status">
-                        <span class="custom-status-text">{{ userProfile.customStatus }}</span>
+                    <div v-if="hasStatus" class="custom-status" data-testid="profile-custom-status">
+                        <StatusEmoji :profile="userProfile" :size="18" animate-on="always" />
+                        <span v-if="userProfile.customStatus" class="custom-status-text">{{ userProfile.customStatus }}</span>
                     </div>
 
-                    <Separator v-if="userProfile.customStatus" class="section-sep" />
+                    <Separator v-if="hasStatus" class="section-sep" />
 
                 <!-- Roles -->
                 <div v-if="resolvedRoles.length > 0" class="roles-section">
@@ -207,6 +208,8 @@ import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
 import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
 import { Guid } from "@argon-chat/ion.webcore";
 import { argbToRgba } from "@/lib/profileCustomization";
+import { hasCustomStatus } from "@/lib/statusIcon";
+import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
 
 const isLoading = ref(true);
 const pool = usePoolStore();
@@ -238,6 +241,8 @@ const isLightTheme = computed(() => currentTheme.value === "light");
 const hasColors = computed(() =>
   userProfile.value?.primaryColor != null || userProfile.value?.accentColor != null
 );
+
+const hasStatus = computed(() => hasCustomStatus(userProfile.value));
 
 const gradientStyle = computed(() => {
   const primary = userProfile.value?.primaryColor
@@ -795,6 +800,7 @@ function onCopyUserId() {
 }
 
 .custom-status-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

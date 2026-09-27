@@ -4,7 +4,9 @@
  * one sticker entity, and the picker closes with focus back in the input; a custom emoji goes into the
  * input as a placeholder the value carries as an entity, and the picker stays open for the next pick;
  * Esc closes the picker only. The sticker tab is there whenever a sticker can be sent. In a direct
- * chat the picker loads and offers every space's packs and no way to their settings.
+ * chat the picker loads and offers every space's packs and no way to their settings. "Open pack" in
+ * the attribution popover of a custom emoji or sticker opens this picker at that pack; it is offered
+ * only for a pack this picker shows.
  */
 
 import "../../packages/assets/styles/index.css";
@@ -111,6 +113,8 @@ import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { useWindow } from "@/store/ui/windowStore";
 import { db } from "@/store/db/dexie";
 import { EXPRESSION_RESOLVER, createStoreResolver } from "@/lib/expressions/resolver";
+import ExpressionInfoPopover from "@/components/expressions/ExpressionInfoPopover.vue";
+import type { ExpressionInfoTarget } from "@/lib/expressions/expressionInfo";
 
 const item = (spaceId: string, itemId: string, packId: string, kind: ExpressionKind, sortOrder: number): ExpressionItem => ({
   itemId,
@@ -222,7 +226,7 @@ describe("the composer's expressions picker", () => {
   test("opens on the emoji tab with its search focused; stickers and GIFs are tabs of it", async () => {
     composer();
     await openPicker();
-    expect(tabs()).toEqual(["stickers", "gifs", "emoji"]);
+    expect(tabs()).toEqual(["gifs", "stickers", "emoji"]);
     expect($('[data-tab="emoji"]')?.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement).toBe($(".xp-search__input"));
   });
@@ -364,5 +368,97 @@ describe("the composer's expressions picker", () => {
     expect([peer, text]).toEqual(["u2", ""]);
     expect((entities as MessageEntitySticker[]).map((e) => [e.itemId, e.spaceId])).toEqual([["other-1", "s2"]]);
     expect(h.sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("Open pack, from a custom emoji or sticker in the chat", () => {
+  const space = (spaceId: string, name: string) =>
+    ({ spaceId, name, description: "", avatarFieldId: null, topBannerFileId: null }) as never;
+
+  /**
+   * The attribution popover of one item, opened, with its space read; its trigger stands in for the
+   * item in a message.
+   */
+  async function attribution(target: ExpressionInfoTarget) {
+    const info = mount(ExpressionInfoPopover, {
+      props: { target },
+      slots: { default: '<button type="button" data-testid="info-trigger">item</button>' },
+      attachTo: document.body,
+      global: { provide: { [EXPRESSION_RESOLVER as symbol]: createStoreResolver() } },
+    });
+    mounted.push(info);
+    await userEvent.click($("[data-testid=info-trigger]")!);
+    await until(() => !!$("[data-testid=expression-info-space-name]"));
+  }
+
+  const grid = () => $(".xp-grid")!;
+  const activeRail = () => [...document.querySelectorAll<HTMLElement>('.xp-rail__item[aria-current="true"]')].map((b) => b.dataset.rail);
+  /** Where an element sits in the grid's viewport. */
+  const offsetInGrid = (el: Element) => el.getBoundingClientRect().top - grid().getBoundingClientRect().top;
+
+  beforeEach(async () => {
+    await db.servers.put(space("s1", "Cats"));
+    await db.servers.put(space("s2", "Dogs"));
+  });
+
+  test("a sticker: the composer's picker opens on the sticker tab at its pack, current in the rail", async () => {
+    seed("s1", ["p1", "p2", "p3", "p4"].map((id) => pack("s1", id, ExpressionKind.Sticker, id, 9)));
+    composer();
+    await attribution({ kind: "sticker", itemId: "p3-0", spaceId: "s1" });
+
+    await userEvent.click($("[data-testid=expression-info-open-pack]")!);
+    await until(() => !!picker() && activeRail().includes("pack:p3"));
+    expect($('[data-tab="stickers"]')?.getAttribute("aria-selected")).toBe("true");
+    expect(Math.abs(offsetInGrid($('[data-group-id="pack:p3"]')!))).toBeLessThan(2);
+
+    // The popover closing behind it neither dismisses the picker nor takes its search's focus.
+    await until(() => !$("[data-testid=expression-info]"));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(picker()).not.toBeNull();
+    expect(activeRail()).toEqual(["space:s1", "pack:p3"]);
+    expect(document.activeElement).toBe($(".xp-search__input"));
+  });
+
+  test("a custom emoji of a space's second pack: the emoji tab, that pack's title right under the space's header", async () => {
+    seed("s1", [pack("s1", "blobs", ExpressionKind.Emoji, "bl", 60), pack("s1", "parrots", ExpressionKind.Emoji, "pa", 12)]);
+    composer();
+    await attribution({ kind: "emoji", itemId: "pa-3", spaceId: "s1", name: "pa_3" });
+
+    await userEvent.click($("[data-testid=expression-info-open-pack]")!);
+    await until(() => !!picker() && grid().scrollTop > 0);
+    expect($('[data-tab="emoji"]')?.getAttribute("aria-selected")).toBe("true");
+    expect(activeRail()).toEqual(["space:s1"]);
+    // Under the sticky space header (32px).
+    expect(Math.abs(offsetInGrid($('[data-section-id="pack:parrots"]')!) - 32)).toBeLessThan(2);
+  });
+
+  test("another space's pack is not in this space's picker, so the popover does not offer it", async () => {
+    seed("s1", [pack("s1", "sp", ExpressionKind.Sticker, "st", 2)]);
+    seed("s2", [pack("s2", "dogs", ExpressionKind.Sticker, "dg", 2)]);
+    composer();
+    await attribution({ kind: "sticker", itemId: "dg-0", spaceId: "s2" });
+
+    expect($("[data-testid=expression-info-space-name]")?.textContent?.trim()).toBe("Dogs");
+    expect($("[data-testid=expression-info-open-pack]")).toBeNull();
+    expect(picker()).toBeNull();
+  });
+
+  test("in a direct chat every space's packs are there, so another space's opens too", async () => {
+    seed("s1", [pack("s1", "sp", ExpressionKind.Sticker, "st", 2)]);
+    seed("s2", [pack("s2", "dogs", ExpressionKind.Sticker, "dg", 2)]);
+    composer({ receiverId: "u2" });
+    await attribution({ kind: "sticker", itemId: "dg-0", spaceId: "s2" });
+
+    await userEvent.click($("[data-testid=expression-info-open-pack]")!);
+    await until(() => !!picker() && activeRail().includes("pack:dogs"));
+  });
+
+  test("the composer gone, the popover no longer offers it", async () => {
+    seed("s1", [pack("s1", "sp", ExpressionKind.Sticker, "st", 2)]);
+    const { wrapper } = composer();
+    wrapper.unmount();
+    mounted.splice(mounted.indexOf(wrapper), 1);
+    await attribution({ kind: "sticker", itemId: "st-0", spaceId: "s1" });
+    expect($("[data-testid=expression-info-open-pack]")).toBeNull();
   });
 });

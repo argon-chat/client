@@ -58,7 +58,7 @@ const props = withDefaults(
     canManage?: boolean;
   }>(),
   {
-    tabs: () => ["emoji", "stickers", "gifs"],
+    tabs: () => ["gifs", "stickers", "emoji"],
     initialTab: "emoji",
     mode: "compose",
     height: 440,
@@ -267,6 +267,23 @@ async function jumpTo(target: string) {
   grid.value?.scrollToGroup(target, false);
 }
 
+/**
+ * A pack opened from outside ("Open pack" on a custom emoji or sticker): its tab, browsing, scrolled
+ * to it with its entry current in the rail. False when this picker does not offer it.
+ */
+async function openPack(packId: string): Promise<boolean> {
+  const pack = packById.value.get(packId);
+  if (!pack || !spaces.value.some((space) => space.spaceId === pack.spaceId)) return false;
+  const tab: PickerTab = pack.kind === ExpressionKind.Sticker ? "stickers" : "emoji";
+  if (!visibleTabs.value.includes(tab)) return false;
+  selectTab(tab);
+  query.value = "";
+  // A new grid mounts, then lays itself out at its measured width.
+  await nextTick();
+  await nextTick();
+  return grid.value?.scrollToSection(`pack:${packId}`) ?? false;
+}
+
 function rememberEmoji(key: string) {
   recentStore.set(pushRecentKey(recentStore.value as string[], key));
 }
@@ -426,7 +443,7 @@ onBeforeUnmount(() => {
   getLottiePool().lockGroup("picker");
 });
 
-defineExpose({ focusSearch, selectTab, activeTab });
+defineExpose({ focusSearch, selectTab, activeTab, openPack });
 </script>
 
 <template>

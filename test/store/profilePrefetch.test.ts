@@ -156,7 +156,7 @@ describe("member list prefetch", () => {
     expect(wire[0].userIds).toEqual(["u1"]);
 
     answerAll(wire[0], "away");
-    expect(await rows).toEqual(Array(4).fill({ customStatus: "away", customStatusIconId: null }));
+    expect(await rows).toEqual(Array(4).fill({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null }));
   });
 
   test("a screenful of members goes out as one call, not one call each", async () => {
@@ -176,6 +176,7 @@ describe("member list prefetch", () => {
     expect(await store.getStatus(SPACE, "u7")).toEqual({
       customStatus: "away",
       customStatusIconId: null,
+      customStatusEmoji: null,
     });
     expect(wire).toHaveLength(1);
   });
@@ -240,6 +241,7 @@ describe("member list prefetch", () => {
     expect(await store.getStatus(SPACE, "u1")).toEqual({
       customStatus: "back soon",
       customStatusIconId: null,
+      customStatusEmoji: null,
     });
     expect(wire).toHaveLength(1);
   });
@@ -269,7 +271,7 @@ describe("member list prefetch", () => {
     // The answer is paired up by userId, so a missing entry costs its own job and nothing else.
     wire[0].answer([serverProfile("u1", "away")]);
 
-    expect(await present).toEqual({ customStatus: "away", customStatusIconId: null });
+    expect(await present).toEqual({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null });
     await expect(absent).rejects.toThrow(/u2/);
   });
 });
@@ -310,7 +312,7 @@ describe("an answer that arrives after the ground moved", () => {
     expect(wire).toHaveLength(2);
 
     answerAll(wire[1], "current");
-    expect(await joining).toEqual({ customStatus: "current", customStatusIconId: null });
+    expect(await joining).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null });
   });
 
   test("an update event for the previous account is not written into the new one's cache", async () => {
@@ -352,6 +354,7 @@ describe("an answer that arrives after the ground moved", () => {
     expect(await asking).toEqual({
       customStatus: "from before the reconnect",
       customStatusIconId: null,
+      customStatusEmoji: null,
     });
 
     // But nothing was written down, so the next reader goes and asks.
@@ -404,7 +407,7 @@ describe("an answer that arrives after the ground moved", () => {
     expect(wire[0].userIds).toEqual(["u1"]);
 
     answerAll(wire[0], "current");
-    expect(await reading).toEqual({ customStatus: "current", customStatusIconId: null });
+    expect(await reading).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null });
   });
 
   test("a member still waiting its turn when the cache is emptied is cached as usual", async () => {

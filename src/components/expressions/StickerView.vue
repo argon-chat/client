@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { ExpressionFormat, type ExpressionMedia } from "@/lib/expressions/types";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { ExpressionFormat, sameMedia, type ExpressionMedia } from "@/lib/expressions/types";
 import { EXPRESSION_SIZES, fitSize } from "@/lib/expressions/sizes";
 import { decodeOutline } from "@/lib/expressions/outline";
 import { getPreview, loadExpressionBytes, putPreview } from "@/lib/expressions/files";
@@ -42,22 +42,31 @@ const phase = ref<Phase>("pending");
 const hasPreview = ref(false);
 const generation = ref(0);
 
-const box = computed(() => fitSize(props.media.width, props.media.height, props.size));
-const src = computed(() => cdnUrl(props.media.fileId));
-const thumbSrc = computed(() =>
-  props.media.thumbFileId ? cdnUrl(props.media.thumbFileId) : (props.media.thumbUrl ?? null),
+// Parents often rebuild `media` on every render; only a change of value may restart the player.
+const media = shallowRef(props.media);
+watch(
+  () => props.media,
+  (next) => {
+    if (!sameMedia(next, media.value)) media.value = next;
+  },
 );
 
-const outlinePath = computed(() => (props.media.outline?.length ? decodeOutline(props.media.outline) : null));
+const box = computed(() => fitSize(media.value.width, media.value.height, props.size));
+const src = computed(() => cdnUrl(media.value.fileId));
+const thumbSrc = computed(() =>
+  media.value.thumbFileId ? cdnUrl(media.value.thumbFileId) : (media.value.thumbUrl ?? null),
+);
+
+const outlinePath = computed(() => (media.value.outline?.length ? decodeOutline(media.value.outline) : null));
 // Outlines are drawn in the sticker's own pixel space, 512 on its longer side.
 const outlineViewBox = computed(() => {
-  const { width, height } = props.media;
+  const { width, height } = media.value;
   const longer = Math.max(width, height) || 1;
   return `0 0 ${Math.round((512 * (width || 1)) / longer)} ${Math.round((512 * (height || 1)) / longer)}`;
 });
 
 const kind = computed<"static" | "lottie" | "video" | "unsupported">(() => {
-  switch (props.media.format) {
+  switch (media.value.format) {
     case ExpressionFormat.Static:
       return "static";
     case ExpressionFormat.Lottie:
@@ -81,7 +90,7 @@ let videoControl: AnimationControl | null = null;
 let disposed = false;
 
 function tintColor(): string | null {
-  return props.media.textColor && root.value ? getComputedStyle(root.value).color : null;
+  return media.value.textColor && root.value ? getComputedStyle(root.value).color : null;
 }
 
 function drawPreview(bitmap: ImageBitmap) {
@@ -111,7 +120,7 @@ function fail(error: Error) {
 function startLottie() {
   const canvas = lottieCanvas.value;
   if (!canvas) return;
-  const { fileId } = props.media;
+  const { fileId } = media.value;
   const tone = props.toneIndex ?? null;
   const url = src.value;
 
@@ -144,7 +153,7 @@ function startLottie() {
 function startVideo() {
   const element = video.value;
   if (!element) return;
-  const cached = getPreview(props.media.fileId, null);
+  const cached = getPreview(media.value.fileId, null);
   if (cached) drawPreview(cached);
   videoControl = getAnimationIntersector().add({
     el: element,
@@ -158,7 +167,7 @@ function startVideo() {
 }
 
 function startStatic() {
-  if (!props.media.textColor) return; // the <img> reports its own load
+  if (!media.value.textColor) return; // the <img> reports its own load
   const probe = new Image();
   const co = cdnCrossOrigin(src.value);
   if (co) probe.crossOrigin = co;
@@ -167,7 +176,13 @@ function startStatic() {
   probe.src = src.value;
 }
 
+let alive = true;
+/** The generation last started: each canvas is handed to a worker at most once. */
+let startedGeneration = -1;
+
 function start() {
+  if (!alive || startedGeneration === generation.value) return;
+  startedGeneration = generation.value;
   disposed = false;
   if (kind.value === "lottie") startLottie();
   else if (kind.value === "video") startVideo();
@@ -185,7 +200,7 @@ function teardown() {
 function onVideoData() {
   const element = video.value;
   if (element && typeof createImageBitmap === "function") {
-    const fileId = props.media.fileId;
+    const fileId = media.value.fileId;
     createImageBitmap(element).then(
       (bitmap) => putPreview(fileId, null, bitmap),
       () => {},
@@ -195,18 +210,23 @@ function onVideoData() {
 }
 
 onMounted(start);
-onBeforeUnmount(teardown);
+onBeforeUnmount(() => {
+  alive = false;
+  teardown();
+});
 
-// A different file or box needs a fresh canvas: one handed to a worker cannot be taken back.
+// A different file or box needs a fresh canvas: one handed to a worker cannot be taken back. The
+// canvas and the video are keyed by `generation`, so each restart renders new ones; restarts that
+// pile up before that render (two parent updates in one flush) start once, on the last.
 watch(
-  () => [props.media.fileId, props.media.format, box.value.width, box.value.height, props.toneIndex, props.group],
+  [media, () => box.value.width, () => box.value.height, () => props.toneIndex, () => props.group],
   async () => {
     teardown();
     phase.value = "pending";
     hasPreview.value = false;
-    generation.value++;
+    const mine = ++generation.value;
     await nextTick();
-    start();
+    if (mine === generation.value) start();
   },
 );
 

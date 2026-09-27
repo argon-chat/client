@@ -4,6 +4,7 @@ import {
   ExpressionError,
   SendMessageError,
   SpaceManageError,
+  UpdateMeError,
   type IChannelLayoutResult,
   type ISpaceManageResult,
 } from "@argon/glue";
@@ -56,6 +57,10 @@ const EXPRESSION: Partial<Record<ExpressionError, string>> = {
   [ExpressionError.RATE_LIMITED]: "expression_error_rate_limited",
 };
 
+const UPDATE_ME: Partial<Record<UpdateMeError, string>> = {
+  [UpdateMeError.INVALID_STATUS_EMOJI]: "status_emoji_invalid",
+};
+
 export function sendMessageErrorKey(error: SendMessageError): string {
   return SEND_MESSAGE[error] ?? "send_error_unknown";
 }
@@ -74,6 +79,10 @@ export function archetypeErrorKey(error: ArchetypeError): string {
 
 export function expressionErrorKey(error: ExpressionError): string {
   return EXPRESSION[error] ?? "expression_error_unknown";
+}
+
+export function updateMeErrorKey(error: UpdateMeError): string {
+  return UPDATE_ME[error] ?? "profile_update_failed";
 }
 
 /** A custom emoji / sticker call the server refused; `key` is the i18n key for the reason. */

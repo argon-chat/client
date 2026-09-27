@@ -5,7 +5,7 @@
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
     <PopoverTrigger as-child>
-      <div class="user-element" :class="{ 'is-offline': isOffline }">
+      <div class="user-element" :class="{ 'is-offline': isOffline }" v-on="rowEvents">
         <div class="user-avatar-wrap">
           <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
             :overridedSize="34" />
@@ -20,13 +20,16 @@
             <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
             <span class="font-semibold">{{ user.activity.titleName }}</span>
           </span>
-          <span class="user-status-text" v-else-if="props.showActivity && customStatus">{{ customStatus }}</span>
+          <span class="user-status-text" v-else-if="props.showActivity && status" data-testid="member-custom-status">
+            <StatusEmoji :profile="status" :size="14" :hovered="rowActive" />
+            <span v-if="status.customStatus" class="user-status-label">{{ status.customStatus }}</span>
+          </span>
         </div>
       </div>
     </PopoverTrigger>
   </Popover>
 
-  <div v-else class="user-element" :class="{ 'is-offline': isOffline }">
+  <div v-else class="user-element" :class="{ 'is-offline': isOffline }" v-on="rowEvents">
     <div class="user-avatar-wrap">
       <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
         :overridedSize="34" />
@@ -41,8 +44,10 @@
         <component :is="getActivityIcon(user.activity.kind)" class="activity-icon" :class="getActivityColor(user.activity.kind)" />
         <span class="font-semibold">{{ user.activity.titleName }}</span>
       </span>
-      <span class="user-status-text" v-else-if="props.showActivity && customStatus">{{ customStatus }}</span>
-
+      <span class="user-status-text" v-else-if="props.showActivity && status" data-testid="member-custom-status">
+        <StatusEmoji :profile="status" :size="14" :hovered="rowActive" />
+        <span v-if="status.customStatus" class="user-status-label">{{ status.customStatus }}</span>
+      </span>
     </div>
   </div>
 
@@ -66,11 +71,13 @@ import {
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
-import { useProfileCacheStore } from "@/store/data/profileCacheStore";
+import { useProfileCacheStore, type ProfileStatus } from "@/store/data/profileCacheStore";
+import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
+import { hasCustomStatus } from "@/lib/statusIcon";
 
 const isOpened = ref(false);
 const reportDialogOpen = ref(false);
@@ -89,8 +96,20 @@ const pool = usePoolStore();
 
 // Dim offline members (status dot already shows it; dim the whole row too).
 const isOffline = computed(() => props.user.status === UserStatus.Offline);
+
+// The status emoji plays only while the row is hovered or focused, not in every visible row.
+const hovered = ref(false);
+const focused = ref(false);
+const rowActive = computed(() => hovered.value || focused.value);
+const rowEvents = {
+  mouseenter: () => (hovered.value = true),
+  mouseleave: () => (hovered.value = false),
+  focusin: () => (focused.value = true),
+  focusout: () => (focused.value = false),
+};
 const profileCache = useProfileCacheStore();
-const customStatus = ref<string | null>(null);
+/** Set only when there is something to show: text, an icon, or both. */
+const status = shallowRef<ProfileStatus | null>(null);
 
 // A custom status is only ever rendered when the row is showing activity at all and the member has
 // no activity to show instead. The member list is virtualised, so every row used to ask for a full
@@ -105,7 +124,7 @@ watch(
   ([spaceId, userId, wanted]) => {
     inflight?.abort();
     inflight = null;
-    customStatus.value = null;
+    status.value = null;
 
     if (!wanted || !spaceId) return;
 
@@ -113,8 +132,8 @@ watch(
     inflight = request;
     profileCache
       .getStatus(spaceId, userId, { signal: request.signal })
-      .then(status => {
-        if (!request.signal.aborted) customStatus.value = status.customStatus || null;
+      .then(row => {
+        if (!request.signal.aborted) status.value = hasCustomStatus(row) ? row : null;
       })
       // Aborted on unmount, or the member's profile could not be read — the row renders without it.
       .catch(() => {});
@@ -246,11 +265,19 @@ function onReportProfile(userId: string) {
 .activity-streaming { color: #a78bfa; }
 
 .user-status-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.user-status-label {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-style: italic;
 }
 </style>

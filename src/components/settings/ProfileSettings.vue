@@ -24,6 +24,8 @@
                 :avatar-file-id="me.me.avatarFileId"
                 :is-premium="me.isPremium"
                 :custom-status="editCustomStatus"
+                :custom-status-icon-id="editStatusIconId"
+                :custom-status-emoji="editStatusEmoji"
                 :bio="editBio"
                 :primary-color="editPrimaryColor"
                 :accent-color="editAccentColor"
@@ -72,10 +74,62 @@
                   </div>
                 </div>
 
-                <!-- Custom Status -->
+                <!-- Custom Status: its icon in the field's left, like Discord -->
                 <div>
-                  <label class="text-sm font-medium">{{ t("custom_status") }}</label>
-                  <Input v-model="editCustomStatus" type="text" class="mt-1.5" :disabled="!me.isPremium" :placeholder="t('set_custom_status')" :maxlength="128" />
+                  <label class="text-sm font-medium" for="profile-custom-status">{{ t("custom_status") }}</label>
+                  <div class="status-field mt-1.5">
+                    <Popover v-model:open="statusPickerOpen">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          class="status-field__emoji"
+                          :disabled="!me.isPremium"
+                          :title="t('status_emoji_pick')"
+                          :aria-label="t('status_emoji_pick')"
+                          data-testid="status-emoji-button"
+                        >
+                          <StatusEmoji v-if="editStatusView" :profile="editStatusIcon" :size="22" animate-on="always" />
+                          <SmilePlusIcon v-else class="w-5 h-5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        side="bottom"
+                        align="start"
+                        :collision-padding="8"
+                        class="w-auto max-w-none p-0"
+                        data-testid="status-emoji-picker"
+                        @open-auto-focus.prevent
+                      >
+                        <ExpressionPicker
+                          mode="reaction"
+                          :space-id="null"
+                          @select-emoji="onStatusEmoji"
+                          @select-custom-emoji="onStatusCustomEmoji"
+                          @close="statusPickerOpen = false"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <button
+                      v-if="editStatusIconId && me.isPremium"
+                      type="button"
+                      class="status-field__clear"
+                      :title="t('status_emoji_clear')"
+                      :aria-label="t('status_emoji_clear')"
+                      data-testid="status-emoji-clear"
+                      @click="clearStatusIcon"
+                    >
+                      <XIcon class="w-2.5 h-2.5" />
+                    </button>
+                    <Input
+                      id="profile-custom-status"
+                      v-model="editCustomStatus"
+                      type="text"
+                      class="pl-12"
+                      :disabled="!me.isPremium"
+                      :placeholder="t('set_custom_status')"
+                      :maxlength="128"
+                    />
+                  </div>
                 </div>
 
                 <!-- Colors: Primary + Accent side by side -->
@@ -833,7 +887,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, shallowRef } from "vue";
 
 // The security-details subscription is bound in onMounted; without an unsubscribe every opening of
 // this pane (and every account switch, which remounts it) left another permanent bus subscriber
@@ -878,13 +932,20 @@ import {
   XIcon,
   LockIcon,
   Loader2,
+  SmilePlusIcon,
 } from "lucide-vue-next";
+import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
+import ExpressionPicker from "@/components/expressions/ExpressionPicker.vue";
+import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
+import { customEmojiIconId, statusEdit, statusEmojiOf, statusIconView } from "@/lib/statusIcon";
+import { updateMeErrorKey } from "@/lib/refusals";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem } from "@argon/ui/select";
 import { PinInput, PinInputGroup, PinInputInput, PinInputSeparator } from "@argon/ui/pin-input";
 import { useApi } from "@/store/system/apiStore";
 import { useToast } from "@argon/ui/toast";
 import { logger } from "@argon/core";
 import { OTPError, PhoneChangeError, UserSecurityDetailsUpdated, UploadFileError, UltimaPlan, CheckoutError } from "@argon/glue";
+import type { ArgonUserProfile, ExpressionItem, StatusEmoji as StatusEmojiData } from "@argon/glue";
 import { uploadFile } from "@/lib/uploadFile";
 import { v7 } from "uuid";
 import { useBus } from "@/store/realtime/busStore";
@@ -949,6 +1010,46 @@ const editBio = ref("");
 const editPrimaryColor = ref<number | null>(null);
 const editAccentColor = ref<number | null>(null);
 const isSavingCustomization = ref(false);
+
+// ── Custom status icon: "" for none, a unicode emoji, or `ce:<itemId>` (see lib/statusIcon) ──
+const editStatusIconId = ref("");
+/** The picked custom emoji, for the preview until the server hands back its own copy. */
+const editStatusEmoji = shallowRef<StatusEmojiData | null>(null);
+const statusPickerOpen = ref(false);
+const editStatusIcon = computed(() => ({ customStatusIconId: editStatusIconId.value, customStatusEmoji: editStatusEmoji.value }));
+const editStatusView = computed(() => statusIconView(editStatusIcon.value));
+
+function onStatusEmoji(unicode: string) {
+  editStatusIconId.value = unicode;
+  editStatusEmoji.value = null;
+  statusPickerOpen.value = false;
+}
+
+function onStatusCustomEmoji(item: ExpressionItem) {
+  editStatusIconId.value = customEmojiIconId(item.itemId);
+  editStatusEmoji.value = statusEmojiOf(item);
+  statusPickerOpen.value = false;
+}
+
+function clearStatusIcon() {
+  editStatusIconId.value = "";
+  editStatusEmoji.value = null;
+}
+
+function loadStatusEditor(profile: ArgonUserProfile) {
+  editCustomStatus.value = profile.customStatus ?? "";
+  editStatusIconId.value = profile.customStatusIconId ?? "";
+  editStatusEmoji.value = profile.customStatusEmoji ?? null;
+}
+
+/** What the save sends for the status: null for each half that did not change. */
+function pendingStatusEdit() {
+  const profile = me.meProfile;
+  return statusEdit(
+    { text: editCustomStatus.value, iconId: editStatusIconId.value },
+    { customStatus: profile?.customStatus ?? null, customStatusIconId: profile?.customStatusIconId ?? null },
+  );
+}
 
 // ── Avatar Upload State ──
 const avatarFileInput = ref<HTMLInputElement | null>(null);
@@ -1018,6 +1119,7 @@ const customizationDirty = computed(() => {
   return (
     editDisplayName.value !== me.me.displayName ||
     editCustomStatus.value !== (profile.customStatus ?? "") ||
+    editStatusIconId.value !== (profile.customStatusIconId ?? "") ||
     editBio.value !== (profile.bio ?? "") ||
     editPrimaryColor.value !== (profile.primaryColor ?? null) ||
     editAccentColor.value !== (profile.accentColor ?? null)
@@ -1025,11 +1127,13 @@ const customizationDirty = computed(() => {
 });
 
 async function saveCustomization() {
+  const status = pendingStatusEdit();
   // Premium check for colors and custom status
   const hasPremiumFields =
     editPrimaryColor.value !== (me.meProfile?.primaryColor ?? null) ||
     editAccentColor.value !== (me.meProfile?.accentColor ?? null) ||
-    editCustomStatus.value !== (me.meProfile?.customStatus ?? "");
+    status.customStatus !== null ||
+    status.customStatusIconId !== null;
 
   if (hasPremiumFields && !me.isPremium) {
     scrollToUpsell();
@@ -1048,27 +1152,34 @@ async function saveCustomization() {
       voiceCardEffectId: null,
       avatarFrameId: null,
       nickEffectId: null,
-      customStatus: editCustomStatus.value || null,
-      customStatusIconId: null,
+      // null leaves a field as it is and "" clears it, so an emptied status or bio is sent as "".
+      customStatus: status.customStatus,
+      customStatusIconId: status.customStatusIconId,
       primaryColor: editPrimaryColor.value,
       accentColor: editAccentColor.value,
-      // `bio` became a required field on UserEditInput. The textarea and the change detection
-      // above already tracked it, so it was only ever missing from the request — sent the same
-      // way as customStatus, empty meaning "no value".
-      bio: editBio.value || null,
+      bio: editBio.value !== (me.meProfile?.bio ?? "") ? editBio.value : null,
     });
 
     if (result.isSuccessUpdateMe()) {
       if (me.me && nameChanged) {
         me.me.displayName = editDisplayName.value;
       }
+      // The server's copy: clearing the text clears the icon too, and a custom emoji comes back
+      // with its file.
+      const saved = result.profile;
       if (me.meProfile) {
-        me.meProfile.customStatus = editCustomStatus.value || null;
-        me.meProfile.bio = editBio.value || null;
+        me.meProfile.customStatus = saved.customStatus;
+        me.meProfile.customStatusIconId = saved.customStatusIconId;
+        me.meProfile.customStatusEmoji = saved.customStatusEmoji;
+        me.meProfile.bio = saved.bio;
         me.meProfile.primaryColor = editPrimaryColor.value;
         me.meProfile.accentColor = editAccentColor.value;
       }
+      loadStatusEditor(saved);
+      editBio.value = saved.bio ?? "";
       toast({ title: t("profile_updated") });
+    } else if (result.isFailedUpdateMe()) {
+      toast({ title: t("error"), description: t(updateMeErrorKey(result.error)), variant: "destructive" });
     } else {
       toast({ title: t("error"), description: t("profile_update_failed"), variant: "destructive" });
     }
@@ -1957,7 +2068,7 @@ onMounted(async () => {
   if (me.meProfile) {
     editPrimaryColor.value = me.meProfile.primaryColor ?? null;
     editAccentColor.value = me.meProfile.accentColor ?? null;
-    editCustomStatus.value = me.meProfile.customStatus ?? "";
+    loadStatusEditor(me.meProfile);
     editBio.value = me.meProfile.bio ?? "";
   }
   if (me.me) {
@@ -2030,6 +2141,69 @@ onMounted(async () => {
 .color-dot--reset:hover {
   background: hsl(var(--destructive) / 0.15);
   color: hsl(var(--destructive));
+}
+
+/* ═══ CUSTOM STATUS FIELD ═══ */
+.status-field {
+  position: relative;
+}
+
+.status-field__emoji {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: calc(var(--radius) - 4px);
+  color: hsl(var(--muted-foreground));
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.status-field__emoji:hover:not(:disabled),
+.status-field__emoji[data-state="open"] {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.status-field__emoji:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 0;
+}
+
+.status-field__emoji:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sits on the emoji button's corner. */
+.status-field__clear {
+  position: absolute;
+  left: 26px;
+  top: 1px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground));
+  color: hsl(var(--background));
+  transition: background-color 0.12s ease;
+}
+
+.status-field__clear:hover {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.status-field__clear:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
 }
 
 /* ═══ PREMIUM GATE ═══ */

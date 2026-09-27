@@ -22,3 +22,26 @@ export interface ExpressionMedia {
   /** Monochrome: recolour with the surrounding text colour. */
   textColor?: boolean;
 }
+
+function sameBytes(a: Uint8Array | null | undefined, b: Uint8Array | null | undefined): boolean {
+  if (a === b) return true;
+  if (!a?.length || !b?.length) return !a?.length && !b?.length;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** The same thing drawn the same way, whether or not it is the same object. */
+export function sameMedia(a: ExpressionMedia, b: ExpressionMedia): boolean {
+  return (
+    a === b ||
+    (a.fileId === b.fileId &&
+      a.format === b.format &&
+      a.width === b.width &&
+      a.height === b.height &&
+      (a.thumbFileId ?? null) === (b.thumbFileId ?? null) &&
+      (a.thumbUrl ?? null) === (b.thumbUrl ?? null) &&
+      !!a.textColor === !!b.textColor &&
+      sameBytes(a.outline, b.outline))
+  );
+}

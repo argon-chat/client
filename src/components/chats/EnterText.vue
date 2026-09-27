@@ -105,6 +105,7 @@
                       @escape-key-down="onPickerEscape"
                     >
                         <ExpressionPicker
+                          ref="pickerRef"
                           :space-id="isDm ? null : (spaceId ?? null)"
                           :tabs="pickerTabs"
                           :can-manage="canManageExpressions"
@@ -381,6 +382,9 @@ import type { MessageInputApi } from "./messageInput";
 import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
 import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
 import { useExpressionResolver } from "@/lib/expressions/resolver";
+import { useExpressionsStore } from "@/store/data/expressionsStore";
+import { onOpenExpressionPack, type ExpressionPackRef } from "@/lib/expressions/expressionInfo";
+import { ExpressionKind } from "@argon/glue";
 import { customEmojiAlt, findEmojiTrigger, itemMedia, MAX_CUSTOM_EMOJI_PER_MESSAGE } from "@/lib/chat/customEmoji";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
@@ -697,6 +701,32 @@ function openExpressionSettings() {
   pickerOpen.value = false;
   windows.openServerSettings("expressions");
 }
+
+// ── "Open pack" on a custom emoji or sticker in the chat: the pack, in this composer's picker ──
+const pickerRef = ref<InstanceType<typeof ExpressionPicker> | null>(null);
+const expressions = useExpressionsStore();
+
+/** Whether this picker shows the pack: a direct chat's has every loaded space's, a channel's only its space's. */
+function pickerHasPack(packId: string, spaceId: string): boolean {
+  if (!canSendMessages.value || (!isDm.value && spaceId !== props.spaceId)) return false;
+  const pack = expressions.bySpace.get(spaceId)?.packs.find((p) => p.packId === packId);
+  if (!pack) return false;
+  const tab: PickerTab = pack.kind === ExpressionKind.Sticker ? "stickers" : "emoji";
+  return pickerTabs.value.includes(tab);
+}
+
+/** False for a pack this picker does not offer. */
+function openPackInPicker(pack: ExpressionPackRef): boolean {
+  if (!pickerHasPack(pack.packId, pack.spaceId)) return false;
+  pickerOpen.value = true;
+  void (async () => {
+    for (let i = 0; i < 5 && !pickerRef.value; i++) await nextTick();
+    await pickerRef.value?.openPack(pack.packId);
+  })();
+  return true;
+}
+
+let stopOpeningPacks: (() => void) | null = null;
 
 // ── Character limit ──
 
@@ -1340,11 +1370,14 @@ watch(messageText, (val: string) => {
 onMounted(() => {
   if (!props.captionMode) {
     window.addEventListener("keydown", handleKeyDown);
+    stopOpeningPacks = onOpenExpressionPack(openPackInPicker, pickerHasPack);
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
+  stopOpeningPacks?.();
+  stopOpeningPacks = null;
 });
 
 /** What the composer would send right now: the typed text, markers turned into entities. */

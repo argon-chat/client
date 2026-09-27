@@ -6,10 +6,11 @@
 
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { mount, type VueWrapper } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick, shallowRef, watch } from "vue";
 import StickerView from "@/components/expressions/StickerView.vue";
 import { ExpressionFormat, type ExpressionMedia } from "@/lib/expressions/types";
 import { previewCache } from "@/lib/expressions/files";
+import { getLottiePool } from "@/lib/expressions/lottie/LottiePool";
 
 // A 1×1 red PNG.
 const { PNG } = vi.hoisted(() => ({
@@ -71,6 +72,44 @@ afterEach(() => {
   for (const w of mounted.splice(0)) w.unmount();
 });
 
+/**
+ * A parent that hands StickerView `first` and then, from a post-flush watcher, `second`: both
+ * renders land in the same flush, so the view is updated twice before `nextTick` resolves.
+ */
+function harness(initial: ExpressionMedia) {
+  const Parent = defineComponent({
+    setup(_, { expose }) {
+      const current = shallowRef(initial);
+      let queued: ExpressionMedia | null = null;
+      watch(current, () => {
+        if (!queued) return;
+        current.value = queued;
+        queued = null;
+      }, { flush: "post" });
+      expose({
+        swap(first: ExpressionMedia, second: ExpressionMedia) {
+          queued = second;
+          current.value = first;
+        },
+      });
+      return () => h(StickerView, { media: current.value, size: 100 });
+    },
+  });
+  const wrapper = mount(Parent, { attachTo: document.body });
+  return {
+    wrapper,
+    sticker: () => wrapper.findComponent(StickerView),
+    swap: (first: ExpressionMedia, second: ExpressionMedia) =>
+      (wrapper.vm as unknown as { swap(a: ExpressionMedia, b: ExpressionMedia): void }).swap(first, second),
+  };
+}
+
+/** A few frames: long enough for the pool to load the bytes and hand the canvas to a worker. */
+async function settle() {
+  await nextTick();
+  for (let i = 0; i < 10; i++) await new Promise((r) => requestAnimationFrame(r));
+}
+
 describe("StickerView", () => {
   test("outline first, then the frame", async () => {
     const wrapper = show("sticker-a");
@@ -121,6 +160,42 @@ describe("StickerView", () => {
     expect(root.querySelector(".sticker-view__outline")).not.toBeNull();
     expect(root.querySelector("img")?.getAttribute("src")).toBe(`${PNG}#broken-thumb`);
     expect(wrapper.emitted("ready")).toBeUndefined();
+  });
+
+  test("an equal media swapped in twice in one tick keeps the player", async () => {
+    const { wrapper, sticker, swap } = harness(media("sticker-c"));
+    await until(() => sticker().emitted("ready") !== undefined);
+    await nextTick();
+    const root = sticker().element as HTMLElement;
+    const canvas = root.querySelector("canvas:not([style*='display: none'])");
+    const create = vi.spyOn(getLottiePool(), "createPlayer");
+
+    swap(media("sticker-c"), media("sticker-c"));
+    await settle();
+
+    expect(create).not.toHaveBeenCalled();
+    expect(sticker().emitted("error")).toBeUndefined();
+    expect(root.dataset.phase).toBe("ready");
+    expect(root.querySelector("canvas:not([style*='display: none'])")).toBe(canvas);
+    wrapper.unmount();
+  });
+
+  test("two different files in one tick: one fresh canvas and one player, for the last", async () => {
+    const { wrapper, sticker, swap } = harness(media("sticker-d"));
+    await until(() => sticker().emitted("ready") !== undefined);
+    const create = vi.spyOn(getLottiePool(), "createPlayer");
+    const before = getLottiePool().playerCount;
+
+    swap(media("sticker-e"), media("sticker-f"));
+    await settle();
+    await until(() => (sticker().emitted("ready")?.length ?? 0) > 1 || sticker().emitted("error") !== undefined);
+
+    expect(sticker().emitted("error")).toBeUndefined();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].fileId).toBe("sticker-f");
+    expect(getLottiePool().playerCount).toBe(before);
+    expect((sticker().element as HTMLElement).dataset.phase).toBe("ready");
+    wrapper.unmount();
   });
 
   test("a static sticker is an image and is ready when it loads", async () => {

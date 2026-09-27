@@ -1,4 +1,4 @@
-import { computed, shallowRef, type InjectionKey, type Ref } from "vue";
+import { shallowRef, type InjectionKey, type Ref } from "vue";
 import type { ArgonSpaceBase, ExpressionItem, ExpressionKind, ExpressionPack } from "@argon/glue";
 import type { ExpressionResolver } from "./resolver";
 
@@ -90,22 +90,38 @@ export const EXPRESSION_INFO_SPACE: InjectionKey<Readonly<Ref<string | null>>> =
 // The composer owns the picker, and it is not an ancestor of the message list, so it registers here.
 // Until something does, the popover offers no "Open pack".
 
-type PackOpener = (pack: ExpressionPackRef) => void;
+/** Returns false to decline a pack it cannot show (another space's, in a space's composer). */
+type PackOpener = (pack: ExpressionPackRef) => unknown;
+/** Whether the composer's picker shows that pack. */
+type PackPredicate = (packId: string, spaceId: string) => boolean;
 
-const openers = shallowRef<PackOpener[]>([]);
+interface PackOpenerEntry {
+  open: PackOpener;
+  canOpen: PackPredicate;
+}
 
-export const canOpenExpressionPack = computed(() => openers.value.length > 0);
+const openers = shallowRef<PackOpenerEntry[]>([]);
 
-/** Registers the handler for "Open pack"; the returned function removes it. The latest one wins. */
-export function onOpenExpressionPack(handler: PackOpener): () => void {
-  openers.value = [...openers.value, handler];
+/**
+ * Registers the handler for "Open pack" and the predicate for which packs it takes; the returned
+ * function removes both. The latest one wins.
+ */
+export function onOpenExpressionPack(open: PackOpener, canOpen: PackPredicate): () => void {
+  const entry: PackOpenerEntry = { open, canOpen };
+  openers.value = [...openers.value, entry];
   return () => {
-    openers.value = openers.value.filter((h) => h !== handler);
+    openers.value = openers.value.filter((e) => e !== entry);
   };
 }
 
+/** Whether "Open pack" would open that pack; reactive when read in a computed. */
+export function canOpenExpressionPack(packId: string, spaceId: string): boolean {
+  const entry = openers.value.at(-1);
+  return !!entry && entry.canOpen(packId, spaceId);
+}
+
+/** Whether the pack was opened: false with no handler, or when the handler declined it. */
 export function openExpressionPack(pack: ExpressionPackRef): boolean {
-  const handler = openers.value.at(-1);
-  handler?.(pack);
-  return !!handler;
+  const entry = openers.value.at(-1);
+  return !!entry && entry.open(pack) !== false;
 }
