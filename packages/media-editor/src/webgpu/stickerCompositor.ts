@@ -43,7 +43,7 @@ function fullscreenPipeline(device: GPUDevice, code: string, entryPoint: string,
  * one pass that puts the outline colour, anti-aliased by distance, under the image.
  */
 export function createStickerCompositor(device: GPUDevice, format: GPUTextureFormat): StickerCompositor {
-  const loadLayout = (count: number, uniform?: 'dynamic' | 'static') => {
+  const loadLayout = (count: number, uniform?: 'dynamic' | 'static', uniformSize = 16) => {
     const entries: GPUBindGroupLayoutEntry[] = [];
     for (let i = 0; i < count; i++) {
       entries.push({ binding: i, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float' } });
@@ -52,7 +52,7 @@ export function createStickerCompositor(device: GPUDevice, format: GPUTextureFor
       entries.push({
         binding: count,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', hasDynamicOffset: uniform === 'dynamic', minBindingSize: 16 }
+        buffer: { type: 'uniform', hasDynamicOffset: uniform === 'dynamic', minBindingSize: uniformSize }
       });
     }
     return device.createBindGroupLayout({ entries });
@@ -60,7 +60,7 @@ export function createStickerCompositor(device: GPUDevice, format: GPUTextureFor
 
   const seedLayout = loadLayout(1);
   const jumpLayout = loadLayout(1, 'dynamic');
-  const compositeLayout = loadLayout(2, 'static');
+  const compositeLayout = loadLayout(2, 'static', 32);
 
   const seedPipeline = fullscreenPipeline(device, outlineSeedShaderSource, 'fs_seed', 'rg32float', seedLayout);
   const jumpPipeline = fullscreenPipeline(device, outlineJumpFloodShaderSource, 'fs_jump', 'rg32float', jumpLayout);
