@@ -1,53 +1,14 @@
 /**
- * Custom emoji in text: the `:` query, the big-emoji rule, and keeping entities in step with an
- * edited text.
+ * Custom emoji in text: the big-emoji rule, and keeping entities in step with an edited text. (The
+ * `:` query is tested with the other suggestion triggers, test/lib/chat/emojiSuggest.)
  */
 
 import { describe, expect, test } from "vitest";
 import { EntityType, MessageEntityBold, MessageEntityCustomEmoji } from "@argon/glue";
-import {
-  carryCustomEmoji,
-  findEmojiTrigger,
-  jumboEmoji,
-  MAX_CUSTOM_EMOJI_PER_MESSAGE,
-  validCustomEmoji,
-} from "@/lib/chat/customEmoji";
+import { carryCustomEmoji, jumboEmoji, MAX_CUSTOM_EMOJI_PER_MESSAGE, validCustomEmoji } from "@/lib/chat/customEmoji";
 
 const emoji = (name: string, offset: number) =>
   new MessageEntityCustomEmoji(EntityType.CustomEmoji, offset, name.length + 2, 1, `item-${name}`, "space", 0, `file-${name}`, name, false, null);
-
-describe("the `:` trigger", () => {
-  test("a colon and two letters at the start or after a space", () => {
-    expect(findEmojiTrigger(":sm")).toEqual({ start: 0, query: "sm" });
-    expect(findEmojiTrigger("hello :smi")).toEqual({ start: 6, query: "smi" });
-    expect(findEmojiTrigger("line\n:th")).toEqual({ start: 5, query: "th" });
-    expect(findEmojiTrigger("(:ok")).toEqual({ start: 1, query: "ok" });
-  });
-
-  test("one letter is not enough; a finished :name: or a trailing space closes it", () => {
-    expect(findEmojiTrigger(":s")).toBeNull();
-    expect(findEmojiTrigger(":smile:")).toBeNull();
-    expect(findEmojiTrigger(":smile ")).toBeNull();
-  });
-
-  test("not in a time, a link or the middle of a word", () => {
-    expect(findEmojiTrigger("at 12:30")).toBeNull();
-    expect(findEmojiTrigger("see http:ab")).toBeNull();
-    expect(findEmojiTrigger("foo:bar")).toBeNull();
-  });
-
-  test("right after a custom emoji it counts; its own closing colon does not", () => {
-    const placed = [emoji("wave", 0)];
-    expect(findEmojiTrigger(":wave::th", placed)).toEqual({ start: 6, query: "th" });
-    expect(findEmojiTrigger(":wave:", placed)).toBeNull();
-    // ":wave" + "ab" typed after the placeholder's last colon: that colon is the emoji's.
-    expect(findEmojiTrigger(":wave:ab", placed)).toBeNull();
-  });
-
-  test("names in any script", () => {
-    expect(findEmojiTrigger(":кот")).toEqual({ start: 0, query: "кот" });
-  });
-});
 
 describe("big emoji", () => {
   test("1 to 7 emoji and nothing else, Telegram's sizes", () => {

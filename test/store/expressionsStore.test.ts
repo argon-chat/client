@@ -551,6 +551,12 @@ describe("lookups", () => {
     expect(store.emojiCandidates(SPACE, "a", 1)).toHaveLength(1);
   });
 
+  test("candidates: a keyword starting with the query counts, after the names that do", async () => {
+    const store = await loaded([stickers, emoji]);
+    expect(ids(store.emojiCandidates(SPACE, "bi", 10))).toEqual(["e-parrot"]);
+    expect(ids(store.emojiCandidates(SPACE, "ca", 10))).toEqual(["e-cat"]);
+  });
+
   test("items by id across loaded spaces, and quota usage", async () => {
     const store = await loaded([stickers, emoji]);
     expect(store.itemById("S-DOG")?.name).toBe("dog");

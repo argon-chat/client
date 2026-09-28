@@ -202,6 +202,19 @@ describe("item dialog form", () => {
     expect(input.value).toBe("");
   });
 
+  test("with no emoji yet, the name suggests a few; a tap adds one and the suggestions go", async () => {
+    openItemDialog({ item: { ...emojiItem(), name: "party_parrot", emoji: [] } });
+    await until(() => document.querySelectorAll("[data-name-emoji-chip]").length > 0);
+    const offered = Array.from(document.querySelectorAll<HTMLElement>("[data-name-emoji-chip]"));
+    expect(offered.length).toBeLessThanOrEqual(3);
+    const parrot = offered.find((c) => c.textContent!.trim() === "🦜")!;
+    expect(parrot).toBeTruthy();
+    parrot.click();
+    await nextTick();
+    expect(Array.from(document.querySelectorAll("[data-emoji-chips] .chip"), (c) => c.textContent!.trim())).toEqual(["🦜"]);
+    expect(document.querySelector("[data-name-emoji]")).toBeNull();
+  });
+
   test("the cover control shows only where the pack is the member's", async () => {
     openItemDialog({ canSetCover: false });
     await until(() => !!document.querySelector("[data-save]"));

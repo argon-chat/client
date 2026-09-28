@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, shallowRef, watch } from "vue";
+import { codepointsToString, emojiRegistry, loadKeywordIndex, type KeywordIndex } from "@argon-chat/emojix";
 import { ExpressionKind, type ExpressionItem } from "@argon/glue";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
@@ -11,6 +12,9 @@ import StickerView from "@/components/expressions/StickerView.vue";
 import { toMedia, type ExpressionItemPatch } from "@/store/data/expressionsStore";
 import { EXPRESSION_LIMITS, associatedEmojiError, extractEmoji, itemNameError, keywordsError } from "@/lib/expressions/limits";
 import { animationsEnabled } from "@/lib/expressions/settings";
+import { emojiForName } from "@/lib/chat/emojiSuggest/names";
+import { emojiSuggestionsEnabled } from "@/lib/chat/emojiSuggest/settings";
+import { textOfHexcode } from "@/lib/chat/emojiSuggest/emoji";
 import { useLocale } from "@/store/system/localeStore";
 
 /**
@@ -81,6 +85,34 @@ const nameError = computed(() => {
   return null;
 });
 const emojiError = computed(() => associatedEmojiError(emoji.value));
+
+// No emoji yet: a few the name suggests (`pepe_cry` → 😢), one tap each. Not with suggestions off.
+const nameIndex = shallowRef<KeywordIndex | null>(null);
+watch(
+  () => props.open && emojiSuggestionsEnabled.value && !emoji.value.length,
+  (wanted) => {
+    if (!wanted) {
+      if (!props.open || !emojiSuggestionsEnabled.value) nameIndex.value = null;
+      return;
+    }
+    if (nameIndex.value) return;
+    loadKeywordIndex("en")
+      .then((index) => {
+        if (props.open && emojiSuggestionsEnabled.value) nameIndex.value = index;
+      })
+      .catch(() => {});
+  },
+  { immediate: true },
+);
+
+const nameEmoji = computed(() => {
+  const index = nameIndex.value;
+  if (!index || emoji.value.length || !name.value.trim()) return [];
+  return emojiForName(name.value, index).map((hex) => {
+    const entry = emojiRegistry.getByHexcode(hex);
+    return entry ? codepointsToString(entry.codepoints) : textOfHexcode(hex);
+  });
+});
 const keywordError = computed(() => keywordsError(keywords.value));
 
 const patch = computed<ExpressionItemPatch>(() => {
@@ -256,6 +288,12 @@ function onDelete() {
               @click="toggleEmoji(e)"
             >
               {{ e }}
+            </button>
+          </div>
+          <div v-if="nameEmoji.length" class="name-emoji" data-name-emoji>
+            <span class="name-emoji__label">{{ t("expression_settings_item_emoji_suggested") }}</span>
+            <button v-for="e in nameEmoji" :key="e" type="button" class="chip chip--emoji" data-name-emoji-chip @click="addEmoji([e])">
+              <span>{{ e }}</span>
             </button>
           </div>
           <p class="text-xs" :class="emojiError ? 'text-destructive' : 'text-muted-foreground'">
@@ -473,6 +511,19 @@ function onDelete() {
 .quick-emoji__btn:hover {
   background: hsl(var(--accent));
   opacity: 1;
+}
+
+.name-emoji {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name-emoji__label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .quick-emoji__btn--on {

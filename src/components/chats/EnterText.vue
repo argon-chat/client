@@ -61,7 +61,8 @@
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
-                    @blur="draft.blurred()"
+                    @focus="emojiSuggest.onFocus()"
+                    @blur="onEditorBlur"
                     @custom-emoji-limit="onCustomEmojiLimit"
                 />
 
@@ -181,36 +182,16 @@
         </ul>
         </Transition>
 
-        <!-- Emoji dropdown (`:` and two letters) -->
-        <Transition
-          enter-active-class="transition duration-100 ease-out"
-          leave-active-class="transition duration-100 ease-in"
-          enter-from-class="opacity-0 translate-y-1.5"
-          leave-to-class="opacity-0 translate-y-1.5"
-        >
-        <div v-if="emojiSuggest.show && emojiSuggest.items.length"
-            role="listbox"
-            data-testid="emoji-suggest"
-            class="absolute bottom-full left-0 right-0 max-w-[min(100%,340px)] max-h-[240px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 p-1">
-            <div class="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground select-none">
-                {{ t('emoji_suggest_header', { query: emojiSuggest.query }) }}
-            </div>
-            <CustomEmojiOverlay tag="div">
-                <div v-for="(s, i) in emojiSuggest.items" :key="s.key"
-                    role="option"
-                    :aria-selected="i === emojiSuggest.index"
-                    :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === emojiSuggest.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
-                    @mousedown.prevent="selectEmojiSuggestion(s)"
-                    @mouseenter="emojiSuggest.index = i">
-                    <span class="shrink-0 w-6 h-6 flex items-center justify-center">
-                        <CustomEmojiInline v-if="s.item" :media="itemMedia(s.item)" :size="22" :alt="s.label" />
-                        <EmojiSprite v-else-if="s.entry" :emoji="s.entry" :size="22" render-mode="atlas" />
-                    </span>
-                    <span class="text-[13px] truncate">{{ s.label }}</span>
-                </div>
-            </CustomEmojiOverlay>
-        </div>
-        </Transition>
+        <!-- Emoji suggestions: `:query`, a lone word, an emoji just typed, a one-emoji message -->
+        <EmojiSuggestStrip
+          v-if="emojiSuggestionsEnabled"
+          :open="emojiSuggest.visible.value"
+          :items="emojiSuggest.state.items"
+          :index="emojiSuggest.state.index"
+          :anchor="editorRef?.el ?? null"
+          @pick="emojiSuggest.pick"
+          @hover="emojiSuggest.select"
+        />
 
         <!-- Slash command dropdown -->
         <Transition
@@ -375,20 +356,21 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
-import { EmojiSprite, emojiRegistry } from "@argon-chat/emojix";
-import type { EmojiEntry } from "@argon-chat/emojix";
 import MessageInput from "./MessageInput.vue";
+import EmojiSuggestStrip from "./EmojiSuggestStrip.vue";
 import ExpressionPicker from "@/components/expressions/ExpressionPicker.vue";
 import type { PickerTab } from "@/components/expressions/picker/pickerModel";
 import { useWindow } from "@/store/ui/windowStore";
 import type { MessageInputApi } from "./messageInput";
-import CustomEmojiInline from "@/components/expressions/CustomEmojiInline.vue";
-import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
-import { useExpressionResolver } from "@/lib/expressions/resolver";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { onOpenExpressionPack, type ExpressionPackRef } from "@/lib/expressions/expressionInfo";
 import { ExpressionKind } from "@argon/glue";
-import { customEmojiAlt, findEmojiTrigger, itemMedia, MAX_CUSTOM_EMOJI_PER_MESSAGE } from "@/lib/chat/customEmoji";
+import { MAX_CUSTOM_EMOJI_PER_MESSAGE } from "@/lib/chat/customEmoji";
+import { useEmojiSuggest } from "@/composables/useEmojiSuggest";
+import { bumpUsage } from "@/lib/chat/emojiSuggest/usage";
+import { baseHexcodeOf } from "@/lib/chat/emojiSuggest/emoji";
+import { customKey, unicodeKey } from "@/lib/chat/emojiSuggest/rank";
+import { emojiSuggestionsEnabled } from "@/lib/chat/emojiSuggest/settings";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
@@ -438,7 +420,8 @@ import ScheduleSendButton from "./ScheduleSendButton.vue";
 import { useChannelDraft } from "@/composables/useChannelDraft";
 import { useDroppedMentions } from "@/lib/chat/composerMention";
 import { useScheduledPosts } from "@/composables/useScheduledPosts";
-const { t } = useLocale();
+const localeStore = useLocale();
+const { t } = localeStore;
 
 const configStore = useConfigStore();
 
@@ -572,10 +555,11 @@ const handleSavedGifSelect = (gif: SavedGif) => {
 // ── Stickers: a message of one sticker entity and no text ──
 const canSendStickers = computed(() => canSendMessages.value && !props.editing && !props.captionMode);
 
-const handleStickerSelect = (item: ExpressionItem) => {
-  if (!canSendStickers.value) return;
+/** Resolves to whether the server took the sticker. */
+const handleStickerSelect = (item: ExpressionItem): Promise<boolean> => {
+  if (!canSendStickers.value) return Promise.resolve(false);
   const resolvedChannelId = resolveTargetId();
-  if (!resolvedChannelId) return;
+  if (!resolvedChannelId) return Promise.resolve(false);
 
   const randomId = crypto.getRandomValues(new BigUint64Array(1))[0] & 0x7FFFFFFFFFFFFFFFn;
   const spaceId = optimisticSpaceId();
@@ -608,7 +592,7 @@ const handleStickerSelect = (item: ExpressionItem) => {
   emit("add-optimistic", optimisticMsg, randomId);
   if (props.replyTo) emit("clear-reply");
 
-  (async () => {
+  return (async () => {
     const sendTimer = metrics.startTimer("message.send.duration", { kind: "sticker" });
     try {
       const sent = await sendToTarget(resolvedChannelId, '', [stickerEntity], randomId, replyTo);
@@ -616,16 +600,18 @@ const handleStickerSelect = (item: ExpressionItem) => {
         const error = refuseSend(randomId, sent.error);
         sendTimer.end({ result: "failed" });
         metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "failed", error });
-        return;
+        return false;
       }
       emit("resolve-optimistic", randomId, sent.readback);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "ok" });
+      return true;
     } catch (e: any) {
       logger.error("Failed to send sticker:", e);
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
       sendTimer.end({ result: "failed" });
       metrics.count("message.sent", { kind: "sticker", reply: replyTo !== null, result: "failed", error: errorKind(e) });
+      return false;
     }
   })();
 };
@@ -683,11 +669,13 @@ function onPickerEscape(e: KeyboardEvent) {
 
 function onPickerEmoji(unicode: string) {
   if (!canSendMessages.value || !editorRef.value) return;
+  emojiSuggest.markPicker();
   editorRef.value.insertEmoji(unicode);
+  bumpUsage(unicodeKey(baseHexcodeOf(unicode)));
 }
 
 function onPickerSticker(item: ExpressionItem) {
-  handleStickerSelect(item);
+  void handleStickerSelect(item);
   pickerOpen.value = false;
 }
 
@@ -780,7 +768,6 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const messageText = ref("");
 /** The custom emoji in the composer, over `messageText` (MessageInput keeps them in step). */
 const composerEmoji = shallowRef<MessageEntityCustomEmoji[]>([]);
-const resolver = useExpressionResolver();
 const showFormatHelp = ref(false);
 const showAttachmentDialog = ref(false);
 const isDragging = ref(false);
@@ -818,37 +805,31 @@ const slashCmd = reactive({
   index: 0,
 });
 
-// Emoji autocomplete: `:` and at least two letters. The space's custom emoji first, then unicode.
-interface EmojiSuggestion {
-  key: string;
-  label: string;
-  entry?: EmojiEntry;
-  item?: ExpressionItem;
-}
-
-const emojiSuggest = reactive({
-  show: false,
-  query: "",
-  start: 0,
-  index: 0,
-  items: [] as EmojiSuggestion[],
+// Emoji suggestions and the instant replacements (`:)`, `:joy:`, `--`).
+const emojiSuggest = useEmojiSuggest({
+  editor: () => editorRef.value,
+  text: () => messageText.value,
+  placed: () => composerEmoji.value,
+  spaceId: () => (isDm.value ? null : (props.spaceId ?? null)),
+  canSendStickers: () => canSendStickers.value,
+  blocked: () => mention.show || slashCmd.show || pickerOpen.value,
+  uiLocale: () => localeStore.currentLocale ?? "en",
+  sendSticker: (item) => void sendSuggestedSticker(item),
 });
 
-const EMOJI_SUGGEST_LIMIT = 8;
+function onEditorBlur() {
+  draft.blurred();
+  emojiSuggest.hide();
+}
 
-function emojiSuggestions(query: string): EmojiSuggestion[] {
-  if (props.spaceId) resolver.ensureLoaded(props.spaceId);
-  const custom = resolver.emojiCandidates(props.spaceId ?? null, query, EMOJI_SUGGEST_LIMIT).map((item) => ({
-    key: `c:${item.itemId}`,
-    label: customEmojiAlt(item.name),
-    item,
-  }));
-  const unicode = emojiRegistry
-    .search(query, EMOJI_SUGGEST_LIMIT * 2)
-    .filter((r) => !r.emoji.isCustom)
-    .slice(0, EMOJI_SUGGEST_LIMIT)
-    .map((r) => ({ key: `u:${r.emoji.id}`, label: `:${r.emoji.shortcode}:`, entry: r.emoji }));
-  return [...custom, ...unicode];
+/** A sticker from the strip: sent as the picker sends it; the emoji it was found by goes once it is. */
+async function sendSuggestedSticker(item: ExpressionItem) {
+  const typed = messageText.value;
+  if (!(await handleStickerSelect(item)) || messageText.value !== typed) return;
+  messageText.value = "";
+  graphemeCount.value = 0;
+  editorRef.value?.clear();
+  void draft.clear();
 }
 
 const botInteraction = useBotInteraction();
@@ -977,36 +958,6 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 };
 
-// Auto-replacement configuration
-const autoReplacements = [
-  { pattern: "--", replacement: "—" },
-  { pattern: "...", replacement: "…" },
-  { pattern: "->", replacement: "→" },
-  { pattern: "<-", replacement: "←" },
-  { pattern: "<3", replacement: "♥" },
-  { pattern: "(c)", replacement: "©" },
-  { pattern: "(r)", replacement: "®" },
-  { pattern: "(tm)", replacement: "™" },
-  { pattern: "+-", replacement: "±" },
-  { pattern: "!=", replacement: "≠" },
-  { pattern: "<=", replacement: "≤" },
-  { pattern: ">=", replacement: "≥" },
-  { pattern: "~=", replacement: "≈" },
-  { pattern: "<<", replacement: "«" },
-  { pattern: ">>", replacement: "»" },
-  { pattern: "(shrug)", replacement: "¯\\_(ツ)_/¯" },
-  { pattern: "(check)", replacement: "✓" },
-  { pattern: "(x)", replacement: "✗" },
-];
-
-// Track recent replacements for backspace reversal
-interface ReplacementRecord {
-  position: number;
-  original: string;
-  replacement: string;
-}
-let lastReplacement: ReplacementRecord | null = null;
-
 let typingTimeout: ReturnType<typeof setTimeout> | undefined;
 let lastTypingSent = 0;
 
@@ -1049,7 +1000,7 @@ function onModelValueUpdate(val: string) {
   messageText.value = val;
 }
 
-function onEditorInput() {
+function onEditorInput(previous: string) {
   const now = Date.now();
 
   if (!props.editing && now - lastTypingSent > 3000) {
@@ -1062,46 +1013,11 @@ function onEditorInput() {
     emit("stop_typing");
   }, 3000);
 
-  // Auto-replacements
+  // Instant replacements (`:)`, `:joy:`, `--`), or the strip's own edit: nothing else to look at.
+  if (emojiSuggest.onInput(previous)) return;
+
   const cursorPos = editorRef.value?.getCursorOffset() ?? 0;
   const text = messageText.value;
-  
-  // Check each pattern
-  for (const { pattern, replacement } of autoReplacements) {
-    // Check if pattern appears just before cursor
-    const startPos = cursorPos - pattern.length;
-    if (startPos >= 0) {
-      const textBeforeCursor = text.slice(startPos, cursorPos);
-      
-      if (textBeforeCursor === pattern) {
-        // Perform replacement
-        const before = text.slice(0, startPos);
-        const after = text.slice(cursorPos);
-        
-        messageText.value = before + replacement + after;
-        
-        // Record this replacement for potential backspace reversal
-        lastReplacement = {
-          position: startPos,
-          original: pattern,
-          replacement: replacement,
-        };
-        
-        // Position cursor after replacement
-        nextTick(() => {
-          if (editorRef.value) {
-            const newCursorPos = startPos + replacement.length;
-            editorRef.value.setCursorOffset(newCursorPos);
-          }
-        });
-        
-        return; // Only one replacement per input event
-      }
-    }
-  }
-  
-  // Clear replacement record if text changed without replacement
-  lastReplacement = null;
 
   // Check for mention trigger
   const textBeforeCursor = text.slice(0, cursorPos);
@@ -1116,21 +1032,18 @@ function onEditorInput() {
       mention.index = 0;
       rawQuery.value = mention.query;
       slashCmd.show = false;
-      emojiSuggest.show = false;
+      emojiSuggest.hide();
       return;
     }
   }
 
   mention.show = false;
 
-  const trigger = findEmojiTrigger(textBeforeCursor, composerEmoji.value);
-  const suggestions = trigger ? emojiSuggestions(trigger.query) : [];
-  if (trigger && suggestions.length) {
-    Object.assign(emojiSuggest, { show: true, query: trigger.query, start: trigger.start, index: 0, items: suggestions });
+  emojiSuggest.update();
+  if (emojiSuggest.visible.value) {
     slashCmd.show = false;
     return;
   }
-  emojiSuggest.show = false;
 
   // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats,
   // and only for members with UseCommands there)
@@ -1161,68 +1074,11 @@ function onEditorInput() {
 
 
 async function onEditorKeydown(e: KeyboardEvent) {
-  // Handle backspace to revert auto-replacements
-  if (e.key === "Backspace" && !mention.show && editorRef.value && lastReplacement) {
-    const cursorPos = editorRef.value.getCursorOffset();
-    const text = messageText.value;
-    
-    // Check if we're right after a replacement
-    const expectedPos = lastReplacement.position + lastReplacement.replacement.length;
-    
-    if (cursorPos === expectedPos) {
-      // Check if the replacement is still there
-      const replacementText = text.slice(lastReplacement.position, expectedPos);
-      
-      if (replacementText === lastReplacement.replacement) {
-        e.preventDefault();
-        
-        const before = text.slice(0, lastReplacement.position);
-        const after = text.slice(expectedPos);
-        
-        messageText.value = before + lastReplacement.original + after;
-        
-        nextTick(() => {
-          if (editorRef.value) {
-            // Position cursor after the original pattern
-            const newCursorPos = lastReplacement!.position + lastReplacement!.original.length;
-            editorRef.value.setCursorOffset(newCursorPos);
-          }
-        });
-        
-        // Clear the replacement record
-        lastReplacement = null;
-        
-        return;
-      }
-    }
-    
-    // If conditions don't match, clear the record
-    lastReplacement = null;
-  }
-
   // Nothing to pick from: the keys belong to the composer.
   if (mention.show && !mentionItems.value.length) mention.show = false;
 
-  // Emoji query: arrows move, Enter or Tab puts the emoji in, Esc closes only the list.
-  if (emojiSuggest.show && emojiSuggest.items.length && !mention.show && !slashCmd.show) {
-    const n = emojiSuggest.items.length;
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      emojiSuggest.index = (emojiSuggest.index + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
-      return;
-    }
-    if ((e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey) || (e.key === "Tab" && !e.shiftKey)) {
-      e.preventDefault();
-      selectEmojiSuggestion(emojiSuggest.items[emojiSuggest.index]);
-      return;
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      emojiSuggest.show = false;
-      return;
-    }
-  }
+  // Backspace takes back a replacement; the strip's keys: Left/Right, Enter/Tab, Esc (the strip only).
+  if (!mention.show && emojiSuggest.onKeydown(e)) return;
 
   if (!mention.show && !slashCmd.show) {
     if (e.key === "ArrowUp" && !messageText.value && !props.editing && !props.captionMode && !isDm.value) {
@@ -1303,23 +1159,11 @@ function selectMention(user: MentionUser) {
   mention.show = false;
 }
 
-/** Puts the picked emoji over the `:query` it was found for, if the caret is still at the end of it. */
-function selectEmojiSuggestion(s: EmojiSuggestion) {
-  const editor = editorRef.value;
-  emojiSuggest.show = false;
-  if (!editor) return;
-  const cursor = editor.getCursorOffset();
-  const trigger = findEmojiTrigger(messageText.value.slice(0, cursor), composerEmoji.value);
-  if (!trigger || trigger.start !== emojiSuggest.start) return;
-  const range = { start: trigger.start, end: cursor };
-  if (s.item) editor.insertCustomEmoji(s.item, range);
-  else if (s.entry) editor.insertEmoji(s.entry, range);
-}
-
 /** A custom emoji picked in the expressions picker: in at the caret. */
 function handleCustomEmojiSelect(item: ExpressionItem) {
   if (!canSendMessages.value || !editorRef.value) return;
-  editorRef.value.insertCustomEmoji(item);
+  emojiSuggest.markPicker();
+  if (editorRef.value.insertCustomEmoji(item)) bumpUsage(customKey(item.itemId));
   editorRef.value.focus();
 }
 
@@ -1597,6 +1441,7 @@ async function onDrop(e: DragEvent) {
 }
 
 async function onPaste(e: ClipboardEvent) {
+  emojiSuggest.markPaste();
   // `types` is a list the event already carries; `files` is not — reading it makes Chromium
   // materialise every file on the clipboard, and for a bitmap that is a synchronous PNG encode in
   // the browser process, which stalls every window of the app. Only ask when there is a file, and

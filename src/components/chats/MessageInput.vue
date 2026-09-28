@@ -69,8 +69,8 @@ const emit = defineEmits<{
   focus: [];
   blur: [];
   keydown: [event: KeyboardEvent];
-  /** The user changed the text (typing, a paste, an emoji); not sent for changes from outside. */
-  input: [];
+  /** The user changed the text (typing, a paste, an emoji); not sent for changes from outside. Carries the text before it. */
+  input: [previous: string];
   paste: [event: ClipboardEvent];
   /** An insert was refused: the message already holds MAX_CUSTOM_EMOJI_PER_MESSAGE. */
   "custom-emoji-limit": [];
@@ -105,13 +105,14 @@ function sync(userInput: boolean) {
   const root = editor.value;
   if (!root) return;
   const next = readComposer(root);
+  const previous = current.text;
   const textChanged = next.text !== current.text;
   const entitiesChanged = !sameEntities(next.entities, current.entities);
   current = next;
   empty.value = next.text.length === 0;
   if (textChanged) emit("update:modelValue", next.text);
   if (entitiesChanged) emit("update:entities", next.entities);
-  if (userInput) emit("input");
+  if (userInput) emit("input", previous);
 }
 
 function renderValue(value: ComposerValue) {
@@ -256,10 +257,12 @@ function insertNodes(list: Node[], replace?: TextRange) {
     })
     .join("");
 
-  if (exec("insertHTML", html)) {
+  // Chromium answers false for an atom put in before more text, having put it in all the same.
+  const inserted = exec("insertHTML", html);
+  const placed = root.querySelector(`[data-ins="${marker}"]`);
+  if (inserted || placed) {
     // The browser may drop what it thinks is redundant; the atoms must stay non-editable.
     root.querySelectorAll<HTMLElement>(`[${CUSTOM_EMOJI_ATTR}],[${EMOJI_ATTR}]`).forEach((el) => el.setAttribute("contenteditable", "false"));
-    const placed = root.querySelector(`[data-ins="${marker}"]`);
     if (placed) {
       placed.removeAttribute("data-ins");
       caretAfter(placed);

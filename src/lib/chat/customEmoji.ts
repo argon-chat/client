@@ -155,35 +155,6 @@ function occurrences(text: string, part: string): number[] {
   return out;
 }
 
-export interface EmojiTrigger {
-  /** Offset of the `:`. */
-  start: number;
-  /** What follows it, up to the caret. */
-  query: string;
-}
-
-const TRIGGER = /:([\p{L}\p{N}_+-]{2,64})$/u;
-const TRIGGER_AFTER = /[\s([{«"'“]/u;
-
-/**
- * An emoji query being typed: `:` and at least two name characters right before the caret, the `:`
- * at the start, after a space or an opening bracket/quote, or right after a custom emoji. Not a
- * time (`12:30`), a link (`http:`) or the closing colon of a custom emoji.
- */
-export function findEmojiTrigger(
-  beforeCaret: string,
-  customEmoji: readonly { offset: number; length: number }[] = [],
-): EmojiTrigger | null {
-  const match = TRIGGER.exec(beforeCaret);
-  if (!match) return null;
-  const start = match.index;
-  if (customEmoji.some((e) => start >= e.offset && start < e.offset + e.length)) return null;
-  if (start > 0 && !TRIGGER_AFTER.test(beforeCaret[start - 1]) && !customEmoji.some((e) => e.offset + e.length === start)) {
-    return null;
-  }
-  return { start, query: match[1] };
-}
-
 /** Big emoji: 1 to 7 of them and nothing else, drawn at these sizes (px), as Telegram does. */
 export const JUMBO_EMOJI_SIZES = [96, 90, 84, 72, 60, 48, 36] as const;
 

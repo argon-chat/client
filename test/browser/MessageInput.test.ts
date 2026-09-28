@@ -9,6 +9,7 @@ import { describe, test, expect, vi, afterEach } from "vitest";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { userEvent } from "vitest/browser";
+import { initializeEmojix } from "@argon-chat/emojix";
 import type { ExpressionItem, MessageEntityCustomEmoji } from "@argon/glue";
 
 // A 1×1 red PNG for every static emoji.
@@ -102,6 +103,23 @@ describe("MessageInput", () => {
     api.insertCustomEmoji(item("dog"));
     expect(api.getValue().text).toBe("abc:cat::dog:def");
     expect(shape(api.getValue().entities)).toEqual([[3, 5, "item-cat"], [8, 5, "item-dog"]]);
+  });
+
+  test("a unicode emoji put in over a range before more text goes in once", async () => {
+    // Drawn as sprites (atoms), which is what Chromium's insertHTML reports as failed here.
+    await initializeEmojix();
+    const { editor, api } = show();
+    await userEvent.click(editor);
+    await userEvent.keyboard(":D,");
+    api.insertEmoji("😄", { start: 0, end: 2 });
+    expect(api.getValue().text).toBe("😄,");
+    expect(editor.querySelectorAll("[data-emoji]")).toHaveLength(1);
+    expect(editor.querySelector("[data-ins]")).toBeNull();
+
+    api.setCursorOffset(2);
+    api.insertEmoji("👍");
+    expect(api.getValue().text).toBe("😄👍,");
+    expect(editor.querySelectorAll("[data-emoji]")).toHaveLength(2);
   });
 
   test("Backspace takes the whole placeholder", async () => {

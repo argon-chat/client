@@ -612,20 +612,25 @@ export const useExpressionsStore = defineStore("expressions", () => {
     return null;
   }
 
-  /** For `:name` completion: names starting with the prefix (shortest first), then containing it. */
+  /**
+   * For `:name` completion: names starting with the prefix (shortest first), then keywords starting
+   * with it, then names containing it.
+   */
   function emojiCandidates(spaceId: string | null, prefix: string, limit: number): ExpressionItem[] {
     const all = itemsOf(spaceId, ExpressionKind.Emoji);
     const q = stripColons(prefix).toLowerCase();
     if (!q) return all.slice(0, limit);
     const starts: ExpressionItem[] = [];
+    const keyworded: ExpressionItem[] = [];
     const contains: ExpressionItem[] = [];
     for (const item of all) {
       const name = item.name.toLowerCase();
       if (name.startsWith(q)) starts.push(item);
+      else if (item.keywords.some((k) => k.toLowerCase().startsWith(q))) keyworded.push(item);
       else if (name.includes(q)) contains.push(item);
     }
     starts.sort((a, b) => a.name.length - b.name.length || byId(a.name.toLowerCase(), b.name.toLowerCase()));
-    return [...starts, ...contains].slice(0, limit);
+    return [...starts, ...keyworded, ...contains].slice(0, limit);
   }
 
   const searchStickers = (spaceId: string | null, query: string) => searchItems(itemsOf(spaceId, ExpressionKind.Sticker), query);
@@ -785,6 +790,7 @@ export const useExpressionsStore = defineStore("expressions", () => {
     packs,
     stickerPacks,
     emojiPacks,
+    itemsOf,
     itemById,
     emojiByName,
     emojiCandidates,

@@ -387,6 +387,46 @@
                     </div>
                     <Switch v-model:checked="sendLinkPreviews" />
                 </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_emoji_suggestions") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_emoji_suggestions_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="emojiSuggestionsEnabled" data-testid="setting-emoji-suggestions" />
+                </div>
+
+                <div class="setting-item" :class="{ 'opacity-50': !emojiSuggestionsEnabled }">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_emoji_suggest") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_emoji_suggest_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="suggestEmoji" :disabled="!emojiSuggestionsEnabled" data-testid="setting-emoji-suggest" />
+                </div>
+
+                <div class="setting-item" :class="{ 'opacity-50': !emojiSuggestionsEnabled }">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_emoji_replace_emoticons") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_emoji_replace_emoticons_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="replaceEmoticons" :disabled="!emojiSuggestionsEnabled" data-testid="setting-emoji-replace" />
+                </div>
+
+                <div class="setting-item" :class="{ 'opacity-50': !emojiSuggestionsEnabled }">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_emoji_suggest_custom") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_emoji_suggest_custom_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="suggestCustomEmoji" :disabled="!emojiSuggestionsEnabled" data-testid="setting-emoji-suggest-custom" />
+                </div>
+
+                <div class="setting-item" :class="{ 'opacity-50': !emojiSuggestionsEnabled }">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("settings_emoji_suggest_stickers") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("settings_emoji_suggest_stickers_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="suggestStickers" :disabled="!emojiSuggestionsEnabled" data-testid="setting-emoji-suggest-stickers" />
+                </div>
             </div>
         </div>
 
@@ -478,6 +518,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Slider } from "@argon/ui/slider";
 import { Switch } from "@argon/ui/switch";
 import { sendLinkPreviews, showLinkPreviews } from "@/lib/linkPreview/settings";
+import {
+  emojiSuggestionsEnabled,
+  replaceEmoticons,
+  suggestCustomEmoji,
+  suggestEmoji,
+  suggestStickers,
+} from "@/lib/chat/emojiSuggest/settings";
 import {
     PaletteIcon,
     TypeIcon,

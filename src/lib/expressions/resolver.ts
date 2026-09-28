@@ -13,7 +13,7 @@ export interface ExpressionResolver {
   itemById(itemId: string): ExpressionItem | null;
   /** The pack an item belongs to, when its space is loaded (the attribution popover). */
   packOf?(item: ExpressionItem): ExpressionPack | null;
-  /** For `:name` completion; `spaceId` null means every loaded space. */
+  /** For `:name` completion, by name then keyword; `spaceId` null means every loaded space. */
   emojiCandidates(spaceId: string | null, prefix: string, limit: number): ExpressionItem[];
   /** Load (or revalidate) a space's set in the background; safe to call from a render. */
   ensureLoaded(spaceId: string): void;
