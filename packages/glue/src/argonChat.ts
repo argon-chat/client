@@ -4609,6 +4609,74 @@ export const Ion_UploadFileError_OpenEnum = {
 } as const;
 
 
+export enum AttachExistingFileError
+{
+  NONE = 0,
+  NOT_AUTHORIZED = 1,
+  SOURCE_NOT_FOUND = 2,
+  TOO_LARGE = 3,
+  CONTENT_TYPE_REJECTED = 4,
+  INTERNAL_ERROR = 5,
+}
+
+const declaredAttachExistingFileError: ReadonlySet<unknown> = new Set<unknown>([AttachExistingFileError.NONE, AttachExistingFileError.NOT_AUTHORIZED, AttachExistingFileError.SOURCE_NOT_FOUND, AttachExistingFileError.TOO_LARGE, AttachExistingFileError.CONTENT_TYPE_REJECTED, AttachExistingFileError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link AttachExistingFileError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_AttachExistingFileError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: AttachExistingFileError): boolean {
+    return declaredAttachExistingFileError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: AttachExistingFileError): u4 | undefined {
+    return declaredAttachExistingFileError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum PrepareUploadError
+{
+  NONE = 0,
+  NOT_AUTHORIZED = 1,
+  TOO_LARGE = 2,
+  INTERNAL_ERROR = 3,
+}
+
+const declaredPrepareUploadError: ReadonlySet<unknown> = new Set<unknown>([PrepareUploadError.NONE, PrepareUploadError.NOT_AUTHORIZED, PrepareUploadError.TOO_LARGE, PrepareUploadError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link PrepareUploadError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_PrepareUploadError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: PrepareUploadError): boolean {
+    return declaredPrepareUploadError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: PrepareUploadError): u4 | undefined {
+    return declaredPrepareUploadError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
 export enum CreateSpaceError
 {
   UNKNOWN = 0,
@@ -18144,6 +18212,244 @@ IonFormatterStorage.register("FailedUploadFile", {
 
 
 
+export abstract class IAttachExistingFileResult implements IIonUnion<IAttachExistingFileResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessAttachExistingFile(): this is SuccessAttachExistingFile {
+    return this.UnionKey === "SuccessAttachExistingFile";
+  }
+  public isFailedAttachExistingFile(): this is FailedAttachExistingFile {
+    return this.UnionKey === "FailedAttachExistingFile";
+  }
+
+}
+
+
+export class SuccessAttachExistingFile extends IAttachExistingFileResult
+{
+  constructor(public info: AttachmentInfo) { super(); }
+
+  UnionKey: string = "SuccessAttachExistingFile";
+  UnionIndex: number = 0;
+}
+
+export class FailedAttachExistingFile extends IAttachExistingFileResult
+{
+  constructor(public error: AttachExistingFileError) { super(); }
+
+  UnionKey: string = "FailedAttachExistingFile";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IAttachExistingFileResult", {
+  read(reader: CborReader): IAttachExistingFileResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IAttachExistingFileResult", 2);
+    let value: IAttachExistingFileResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessAttachExistingFile>("SuccessAttachExistingFile").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedAttachExistingFile>("FailedAttachExistingFile").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IAttachExistingFileResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IAttachExistingFileResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessAttachExistingFile>("SuccessAttachExistingFile").write(writer, value as SuccessAttachExistingFile);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedAttachExistingFile>("FailedAttachExistingFile").write(writer, value as FailedAttachExistingFile);
+    }
+  
+    else throw new Error(`Ion union 'IAttachExistingFileResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessAttachExistingFile", {
+  read(reader: CborReader): SuccessAttachExistingFile {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessAttachExistingFile");
+    const info = IonFormatterStorage.get<AttachmentInfo>('AttachmentInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessAttachExistingFile(info);
+  },
+  write(writer: CborWriter, value: SuccessAttachExistingFile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AttachmentInfo>('AttachmentInfo').write(writer, value.info);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedAttachExistingFile", {
+  read(reader: CborReader): FailedAttachExistingFile {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedAttachExistingFile");
+    const error = IonFormatterStorage.get<AttachExistingFileError>('AttachExistingFileError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedAttachExistingFile(error);
+  },
+  write(writer: CborWriter, value: FailedAttachExistingFile): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AttachExistingFileError>('AttachExistingFileError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IPrepareUploadResult implements IIonUnion<IPrepareUploadResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isUploadRequired(): this is UploadRequired {
+    return this.UnionKey === "UploadRequired";
+  }
+  public isAlreadyStored(): this is AlreadyStored {
+    return this.UnionKey === "AlreadyStored";
+  }
+  public isFailedPrepareUpload(): this is FailedPrepareUpload {
+    return this.UnionKey === "FailedPrepareUpload";
+  }
+
+}
+
+
+export class UploadRequired extends IPrepareUploadResult
+{
+  constructor(public blobId: guid, public uploadUrl: string, public formFields: IonArray<FormField>, public ttlSeconds: i4) { super(); }
+
+  UnionKey: string = "UploadRequired";
+  UnionIndex: number = 0;
+}
+
+export class AlreadyStored extends IPrepareUploadResult
+{
+  constructor(public info: AttachmentInfo) { super(); }
+
+  UnionKey: string = "AlreadyStored";
+  UnionIndex: number = 1;
+}
+
+export class FailedPrepareUpload extends IPrepareUploadResult
+{
+  constructor(public error: PrepareUploadError) { super(); }
+
+  UnionKey: string = "FailedPrepareUpload";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IPrepareUploadResult", {
+  read(reader: CborReader): IPrepareUploadResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IPrepareUploadResult", 3);
+    let value: IPrepareUploadResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<UploadRequired>("UploadRequired").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<AlreadyStored>("AlreadyStored").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<FailedPrepareUpload>("FailedPrepareUpload").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IPrepareUploadResult", unionIndex, 3);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IPrepareUploadResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<UploadRequired>("UploadRequired").write(writer, value as UploadRequired);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<AlreadyStored>("AlreadyStored").write(writer, value as AlreadyStored);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<FailedPrepareUpload>("FailedPrepareUpload").write(writer, value as FailedPrepareUpload);
+    }
+  
+    else throw new Error(`Ion union 'IPrepareUploadResult' has no case ${value.UnionIndex}; this revision declares 3 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("UploadRequired", {
+  read(reader: CborReader): UploadRequired {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "UploadRequired");
+    const blobId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const uploadUrl = IonFormatterStorage.get<string>('string').read(reader);
+    const formFields = IonFormatterStorage.readArray<FormField>(reader, 'FormField');
+    const ttlSeconds = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return new UploadRequired(blobId, uploadUrl, formFields, ttlSeconds);
+  },
+  write(writer: CborWriter, value: UploadRequired): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.blobId);
+    IonFormatterStorage.get<string>('string').write(writer, value.uploadUrl);
+    IonFormatterStorage.writeArray<FormField>(writer, value.formFields, 'FormField');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.ttlSeconds);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AlreadyStored", {
+  read(reader: CborReader): AlreadyStored {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "AlreadyStored");
+    const info = IonFormatterStorage.get<AttachmentInfo>('AttachmentInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new AlreadyStored(info);
+  },
+  write(writer: CborWriter, value: AlreadyStored): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AttachmentInfo>('AttachmentInfo').write(writer, value.info);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedPrepareUpload", {
+  read(reader: CborReader): FailedPrepareUpload {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedPrepareUpload");
+    const error = IonFormatterStorage.get<PrepareUploadError>('PrepareUploadError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedPrepareUpload(error);
+  },
+  write(writer: CborWriter, value: FailedPrepareUpload): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<PrepareUploadError>('PrepareUploadError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class ICreateSpaceResult implements IIonUnion<ICreateSpaceResult>
 {
   abstract UnionKey: string;
@@ -23059,6 +23365,26 @@ IonFormatterStorage.register("UploadFileError", {
   }
 });
 
+IonFormatterStorage.register("AttachExistingFileError", {
+  read(reader: CborReader): AttachExistingFileError {
+    return IonFormatterStorage.readOpenEnum<AttachExistingFileError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: AttachExistingFileError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("PrepareUploadError", {
+  read(reader: CborReader): PrepareUploadError {
+    return IonFormatterStorage.readOpenEnum<PrepareUploadError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: PrepareUploadError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("CreateSpaceError", {
   read(reader: CborReader): CreateSpaceError {
     return IonFormatterStorage.readOpenEnum<CreateSpaceError>(reader, 'u4');
@@ -23372,6 +23698,8 @@ export interface IChannelInteraction extends IIonService
   QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
   AddCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IAddReactionResult>;
   RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
+  AttachExistingFile(spaceId: guid, channelId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
+  PrepareUploadAttachment(spaceId: guid, channelId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
 }
 
 
@@ -23458,6 +23786,8 @@ export interface IUserChatInteractions extends IIonService
   CompleteUploadAttachment(peerId: guid, blobId: guid): Promise<AttachmentInfo>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
+  AttachExistingFile(peerId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
+  PrepareUploadAttachment(peerId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
 }
 
 
@@ -23811,6 +24141,8 @@ export interface IChannelInteraction extends IIonService
   QueryMessagesAround(spaceId: guid, channelId: guid, messageId: i8, older: i4, newer: i4): Promise<MessageWindow>;
   AddCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IAddReactionResult>;
   RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
+  AttachExistingFile(spaceId: guid, channelId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
+  PrepareUploadAttachment(spaceId: guid, channelId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
 }
 
 
@@ -23897,6 +24229,8 @@ export interface IUserChatInteractions extends IIonService
   CompleteUploadAttachment(peerId: guid, blobId: guid): Promise<AttachmentInfo>;
   SendDirectMessage(receiverId: guid, text: string, entities: IonArray<IMessageEntity>, randomId: i8, replyTo: i8 | null): Promise<i8>;
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
+  AttachExistingFile(peerId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
+  PrepareUploadAttachment(peerId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
 }
 
 
@@ -25309,6 +25643,40 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IRemoveReactionResult>("IRemoveReactionResult", writer.data, this.signal);
   }
+  async AttachExistingFile(spaceId: guid, channelId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "AttachExistingFile");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, sourceFileId);
+    IonFormatterStorage.writeNullable<string>(writer, fileName, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAttachExistingFileResult>("IAttachExistingFileResult", writer.data, this.signal);
+  }
+  async PrepareUploadAttachment(spaceId: guid, channelId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "PrepareUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(6);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, sha256);
+    IonFormatterStorage.get<i8>('i8').write(writer, size);
+    IonFormatterStorage.get<string>('string').write(writer, contentType);
+    IonFormatterStorage.get<string>('string').write(writer, fileName);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPrepareUploadResult>("IPrepareUploadResult", writer.data, this.signal);
+  }
 
 }
 
@@ -25946,6 +26314,38 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
     writer.writeEndArray();
           
     return await req.callAsyncT<IonArray<DirectMessage>>("IonArray<DirectMessage>", writer.data, this.signal);
+  }
+  async AttachExistingFile(peerId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "AttachExistingFile");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, sourceFileId);
+    IonFormatterStorage.writeNullable<string>(writer, fileName, 'string');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IAttachExistingFileResult>("IAttachExistingFileResult", writer.data, this.signal);
+  }
+  async PrepareUploadAttachment(peerId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "PrepareUploadAttachment");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(5);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<bytes>('bytes').write(writer, sha256);
+    IonFormatterStorage.get<i8>('i8').write(writer, size);
+    IonFormatterStorage.get<string>('string').write(writer, contentType);
+    IonFormatterStorage.get<string>('string').write(writer, fileName);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IPrepareUploadResult>("IPrepareUploadResult", writer.data, this.signal);
   }
 
 }

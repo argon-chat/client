@@ -43,6 +43,11 @@
           <ChevronRightIcon class="w-6 h-6" />
         </button>
 
+        <!-- Copy: a picture for other apps, a reference for a paste back into a chat -->
+        <button class="lightbox-btn lightbox-copy icon-motion icon-motion--pop" :title="t('copy_image')" @click.stop="copy">
+          <CopyIcon class="w-5 h-5" />
+        </button>
+
         <!-- Download button -->
         <button class="lightbox-btn lightbox-download icon-motion icon-motion--pop" @click.stop="download">
           <DownloadIcon class="w-5 h-5" />
@@ -54,9 +59,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
-import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, Loader2Icon } from "lucide-vue-next";
+import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityAttachment } from "@argon/glue";
 import { cdnCrossOrigin, cdnFetchUrl, resolveAttachmentUrl } from "@/store/system/fileStorage";
+import { copyAttachmentToClipboard } from "@/lib/attachments/clipboard";
+import { useLocale } from "@/store/system/localeStore";
+
+const { t } = useLocale();
 
 const props = defineProps<{
   images: MessageEntityAttachment[];
@@ -139,6 +148,14 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") close();
   else if (e.key === "ArrowLeft") prev();
   else if (e.key === "ArrowRight") next();
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+    e.preventDefault();
+    void copy();
+  }
+}
+
+async function copy() {
+  if (currentImage.value) await copyAttachmentToClipboard(currentImage.value);
 }
 
 async function download() {
@@ -252,6 +269,11 @@ onBeforeUnmount(() => {
 .lightbox-download {
   bottom: 16px;
   right: 16px;
+}
+
+.lightbox-copy {
+  bottom: 16px;
+  right: 64px;
 }
 
 .lightbox-info {

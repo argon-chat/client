@@ -2,15 +2,25 @@ import { ref, computed, getCurrentScope, onScopeDispose } from "vue";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import {
+  AttachExistingFileError,
   EntityType,
   MessageEntityAttachment,
+  PrepareUploadError,
+  SuccessUploadFile,
   type AttachmentInfo,
+  type IAttachExistingFileResult,
   type IMessageEntity,
+  type IPrepareUploadResult,
+  type IUploadFileResult,
 } from "@argon/glue";
 import { useApi } from "@/store/system/apiStore";
 import { uploadFile } from "@/lib/uploadFile";
 import { rgbaToThumbHash } from "thumbhash";
 import type { Guid } from "@argon-chat/ion.webcore";
+import { sha256Hex } from "@/lib/attachments/hash";
+import { findUpload, forgetUpload, rememberUpload } from "@/lib/attachments/uploadPool";
+import type { AttachmentRef } from "@/lib/attachments/clipboard";
+import { cdnFetchUrl } from "@/store/system/fileStorage";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
 const MAX_ATTACHMENTS = 10;
@@ -23,6 +33,16 @@ export type UploadTarget =
   | { kind: "channel"; spaceId: Guid; channelId: Guid }
   | { kind: "dm"; peerId: Guid };
 
+/** How a pending attachment came to point at a file the server already has; "server" is the server finding one by the hash. */
+export type LinkOrigin = "pool" | "clipboard" | "drag" | "server";
+
+export interface AttachmentLink {
+  fileId: Guid;
+  /** The name the copy is given; null keeps the original's. */
+  fileName: string | null;
+  origin: LinkOrigin;
+}
+
 export interface PendingAttachment {
   file: File;
   previewUrl: string | null;
@@ -33,6 +53,10 @@ export interface PendingAttachment {
   status: AttachmentStatus;
   error?: string;
   result?: AttachmentInfo;
+  /** The bytes' hash when they were small enough to take one; the key into the upload pool. */
+  sha256?: string | null;
+  /** A file already on the server that these bytes are: sent as a copy of it, uploaded only when that is refused. */
+  link?: AttachmentLink | null;
 }
 
 export function useAttachmentUpload() {
@@ -145,6 +169,44 @@ export function useAttachmentUpload() {
     }
   }
 
+  /** The preview, dimensions and placeholder of an entry; what a reference already knows is kept. */
+  async function describe(entry: PendingAttachment, need = { dimensions: true, thumbHash: true }) {
+    const file = entry.file;
+    if (isImageType(file.type)) {
+      entry.previewUrl = URL.createObjectURL(file);
+      try {
+        if (need.dimensions) {
+          const dims = await getImageDimensions(file);
+          entry.width = dims.width;
+          entry.height = dims.height;
+        }
+        if (need.thumbHash) entry.thumbHash = await generateThumbHash(file);
+      } catch (e) {
+        logger.warn("Failed to process image metadata:", e);
+      }
+    } else if (isVideoType(file.type)) {
+      try {
+        const videoInfo = await getVideoDimensions(file);
+        entry.previewUrl = videoInfo.previewUrl;
+        if (need.dimensions) {
+          entry.width = videoInfo.width;
+          entry.height = videoInfo.height;
+        }
+      } catch (e) {
+        logger.warn("Failed to process video metadata:", e);
+      }
+    }
+  }
+
+  async function hashOf(file: File): Promise<string | null> {
+    try {
+      return await sha256Hex(file);
+    } catch (e) {
+      logger.debug("hashing skipped", e);
+      return null;
+    }
+  }
+
   async function addFiles(files: FileList | File[]): Promise<string[]> {
     const errors: string[] = [];
 
@@ -163,33 +225,90 @@ export function useAttachmentUpload() {
         height: null,
         progress: 0,
         status: "pending",
+        sha256: null,
+        link: null,
       };
 
-      if (isImageType(file.type)) {
-        entry.previewUrl = URL.createObjectURL(file);
-        try {
-          const dims = await getImageDimensions(file);
-          entry.width = dims.width;
-          entry.height = dims.height;
-          entry.thumbHash = await generateThumbHash(file);
-        } catch (e) {
-          logger.warn("Failed to process image metadata:", e);
-        }
-      } else if (isVideoType(file.type)) {
-        try {
-          const videoInfo = await getVideoDimensions(file);
-          entry.previewUrl = videoInfo.previewUrl;
-          entry.width = videoInfo.width;
-          entry.height = videoInfo.height;
-        } catch (e) {
-          logger.warn("Failed to process video metadata:", e);
-        }
+      await describe(entry);
+
+      // Bytes this account has sent before go out as a copy of that upload, not as bytes again.
+      entry.sha256 = await hashOf(file);
+      if (entry.sha256) {
+        const known = await findUpload(entry.sha256);
+        if (known) entry.link = { fileId: known.fileId, fileName: file.name, origin: "pool" };
       }
 
       pendingFiles.value.push(entry);
     }
 
     return errors;
+  }
+
+  /**
+   * Files the server already has, arriving as references — a paste of something copied out of a
+   * chat, a drag from one channel into another. A paste of one picture brings its bitmap along, and
+   * that is the preview; anything else is fetched from the store, so the entry is a file like any
+   * other and an upload is still possible should the copy be refused.
+   */
+  async function addReferences(
+    refs: AttachmentRef[],
+    bytes: FileList | File[] | null | undefined,
+    origin: LinkOrigin,
+  ): Promise<string[]> {
+    const errors: string[] = [];
+    const carried = bytes ? Array.from(bytes) : [];
+
+    for (let i = 0; i < refs.length; i++) {
+      const ref = refs[i];
+      const local = carried.length === refs.length ? carried[i] : null;
+      const file = local ? renamed(local, ref) : await fetchAsFile(ref.fileId, ref.fileName, ref.contentType);
+
+      if (!file) {
+        errors.push(`Could not read ${ref.fileName ?? ref.fileId}`);
+        continue;
+      }
+
+      const err = validateFile(file);
+      if (err) {
+        errors.push(err);
+        continue;
+      }
+
+      const entry: PendingAttachment = {
+        file,
+        previewUrl: null,
+        thumbHash: ref.thumbHash,
+        width: ref.width,
+        height: ref.height,
+        progress: 0,
+        status: "pending",
+        sha256: null,
+        link: { fileId: ref.fileId, fileName: ref.fileName, origin },
+      };
+
+      await describe(entry, { dimensions: ref.width == null || ref.height == null, thumbHash: !ref.thumbHash });
+
+      pendingFiles.value.push(entry);
+    }
+
+    return errors;
+  }
+
+  function renamed(local: File, ref: AttachmentRef): File {
+    const name = ref.fileName ?? local.name;
+    return name === local.name ? local : new File([local], name, { type: local.type || ref.contentType || "application/octet-stream" });
+  }
+
+  async function fetchAsFile(fileId: Guid, fileName: string | null, contentType: string | null): Promise<File | null> {
+    try {
+      const resp = await fetch(cdnFetchUrl(fileId));
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      return new File([blob], fileName ?? "file", { type: contentType || blob.type || "application/octet-stream" });
+    } catch (e) {
+      logger.warn("Could not fetch a referenced file:", e);
+      return null;
+    }
   }
 
   function removeFile(index: number) {
@@ -200,6 +319,50 @@ export function useAttachmentUpload() {
     pendingFiles.value.splice(index, 1);
   }
 
+  /** A copy of the linked file in the target, or null when the server would rather have the bytes. */
+  async function attachExisting(entry: PendingAttachment, target: UploadTarget): Promise<AttachmentInfo | null> {
+    const link = entry.link!;
+    const name = link.fileName ?? entry.file.name ?? null;
+
+    try {
+      const result: IAttachExistingFileResult = target.kind === "dm"
+        ? await api.userChatInteractions.AttachExistingFile(target.peerId, link.fileId, name)
+        : await api.channelInteraction.AttachExistingFile(target.spaceId, target.channelId, link.fileId, name);
+
+      if (result.isSuccessAttachExistingFile()) return result.info;
+
+      if (result.isFailedAttachExistingFile()) {
+        logger.info("Attaching an existing file was refused:", result.error);
+        // A pooled file the server no longer has is not offered again.
+        if (result.error === AttachExistingFileError.SOURCE_NOT_FOUND && link.origin === "pool" && entry.sha256)
+          await forgetUpload(entry.sha256);
+      }
+      return null;
+    } catch (e) {
+      // An older server has no such method; the bytes go the long way.
+      logger.warn("Attaching an existing file failed:", e);
+      return null;
+    }
+  }
+
+  async function remember(entry: PendingAttachment) {
+    if (!entry.sha256 || !entry.result) return;
+    try {
+      await rememberUpload({
+        sha256: entry.sha256,
+        fileId: entry.result.fileId,
+        fileName: entry.result.fileName,
+        fileSize: Number(entry.result.fileSize),
+        contentType: entry.result.contentType,
+        width: entry.width,
+        height: entry.height,
+        thumbHash: entry.thumbHash,
+      });
+    } catch (e) {
+      logger.debug("upload pool write skipped", e);
+    }
+  }
+
   async function uploadSingleFile(
     entry: PendingAttachment,
     target: UploadTarget,
@@ -208,19 +371,49 @@ export function useAttachmentUpload() {
     entry.progress = 0;
 
     const kind = isImageType(entry.file.type) ? "image" : isVideoType(entry.file.type) ? "video" : "other";
+
+    if (entry.link) {
+      const linked = await attachExisting(entry, target);
+      if (linked) {
+        entry.result = linked;
+        entry.progress = 100;
+        entry.status = "done";
+        metrics.count("attachment.dedup", { kind, source: entry.link.origin, result: "linked" });
+        await remember(entry);
+        return;
+      }
+
+      metrics.count("attachment.dedup", { kind, source: entry.link.origin, result: "fallback" });
+
+      // A pasted bitmap is a re-encoding of the original; the store still has the original itself.
+      if (entry.link.origin !== "pool") {
+        const original = await fetchAsFile(entry.link.fileId, entry.link.fileName ?? entry.file.name, null);
+        if (original) entry.file = original;
+      }
+    }
+
     const uploadTimer = metrics.startTimer("attachment.upload.duration", { kind });
     metrics.distribution("attachment.bytes", entry.file.size, "byte", { kind });
 
     try {
-      // Step 1: Begin upload
-      const begin = target.kind === "dm"
-        ? await api.userChatInteractions.BeginUploadAttachment(target.peerId)
-        : await api.channelInteraction.BeginUploadAttachment(target.spaceId, target.channelId);
+      // Step 1: describe the bytes and ask for a ticket. A server that already holds them where this
+      // account can see answers with a copy instead, and the bytes never leave the device.
+      const begin = await beginUpload(entry, target);
+
+      if (begin.existing) {
+        entry.result = begin.existing;
+        entry.progress = 100;
+        entry.status = "done";
+        uploadTimer.end({ result: "ok" });
+        metrics.count("attachment.dedup", { kind, source: "server", result: "linked" });
+        await remember(entry);
+        return;
+      }
 
       entry.progress = 20;
 
       // Step 2: Upload file via PUT
-      const { blobId } = await uploadFile(begin, entry.file, "Attachment");
+      const { blobId } = await uploadFile(begin.ticket, entry.file, "Attachment");
 
       entry.progress = 80;
 
@@ -234,6 +427,7 @@ export function useAttachmentUpload() {
       entry.status = "done";
       uploadTimer.end({ result: "ok" });
       metrics.count("attachment.upload", { kind, result: "ok" });
+      await remember(entry);
     } catch (e: any) {
       entry.status = "error";
       entry.error = e?.message ?? "Upload failed";
@@ -241,6 +435,65 @@ export function useAttachmentUpload() {
       uploadTimer.end({ result: "failed", error: errorKind(e) });
       metrics.count("attachment.upload", { kind, result: "failed", error: errorKind(e) });
     }
+  }
+
+  /**
+   * The ticket for an upload, or the copy the server made instead. With a hash in hand the server is
+   * told what is coming (PrepareUploadAttachment); without one, or against a server that predates it,
+   * the plain BeginUploadAttachment is what it always was.
+   */
+  async function beginUpload(
+    entry: PendingAttachment,
+    target: UploadTarget,
+  ): Promise<{ ticket: IUploadFileResult; existing?: undefined } | { ticket?: undefined; existing: AttachmentInfo }> {
+    if (entry.sha256) {
+      let prepared: IPrepareUploadResult | null = null;
+      try {
+        const sha = hexToBytes(entry.sha256);
+        const size = BigInt(entry.file.size);
+        const type = entry.file.type || "application/octet-stream";
+        prepared = target.kind === "dm"
+          ? await api.userChatInteractions.PrepareUploadAttachment(target.peerId, sha, size, type, entry.file.name)
+          : await api.channelInteraction.PrepareUploadAttachment(target.spaceId, target.channelId, sha, size, type, entry.file.name);
+      } catch (e) {
+        logger.warn("PrepareUploadAttachment failed; falling back to BeginUploadAttachment:", e);
+      }
+
+      if (prepared?.isAlreadyStored()) return { existing: prepared.info };
+      if (prepared?.isUploadRequired())
+        return { ticket: new SuccessUploadFile(prepared.blobId, prepared.uploadUrl, prepared.formFields, prepared.ttlSeconds) };
+      if (prepared?.isFailedPrepareUpload())
+        throw new Error(PrepareUploadError[prepared.error] ?? "PrepareUploadAttachment failed");
+    }
+
+    const begin = target.kind === "dm"
+      ? await api.userChatInteractions.BeginUploadAttachment(target.peerId)
+      : await api.channelInteraction.BeginUploadAttachment(target.spaceId, target.channelId);
+
+    return { ticket: begin };
+  }
+
+  function hexToBytes(hex: string): Uint8Array {
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+
+  function entityOf(entry: PendingAttachment, result: AttachmentInfo): MessageEntityAttachment {
+    return new MessageEntityAttachment(
+      EntityType.Attachment,
+      0,
+      0,
+      1,
+      result.fileId,
+      result.fileName,
+      result.fileSize,
+      result.contentType,
+      entry.width,
+      entry.height,
+      entry.thumbHash,
+      null,
+    );
   }
 
   async function uploadAll(target: UploadTarget): Promise<IMessageEntity[]> {
@@ -253,23 +506,7 @@ export function useAttachmentUpload() {
     const entities: IMessageEntity[] = [];
     for (const entry of pendingFiles.value) {
       if (entry.status !== "done" || !entry.result) continue;
-
-      entities.push(
-        new MessageEntityAttachment(
-          EntityType.Attachment,
-          0,
-          0,
-          1,
-          entry.result.fileId,
-          entry.result.fileName,
-          entry.result.fileSize,
-          entry.result.contentType,
-          entry.width,
-          entry.height,
-          entry.thumbHash,
-          null,
-        ),
-      );
+      entities.push(entityOf(entry, entry.result));
     }
 
     return entities;
@@ -336,22 +573,7 @@ export function useAttachmentUpload() {
         const entities: IMessageEntity[] = [];
         for (const entry of snapshot) {
           if (entry.status !== "done" || !entry.result) continue;
-          entities.push(
-            new MessageEntityAttachment(
-              EntityType.Attachment,
-              0,
-              0,
-              1,
-              entry.result.fileId,
-              entry.result.fileName,
-              entry.result.fileSize,
-              entry.result.contentType,
-              entry.width,
-              entry.height,
-              entry.thumbHash,
-              null,
-            ),
-          );
+          entities.push(entityOf(entry, entry.result));
         }
         return entities;
       },
@@ -373,6 +595,7 @@ export function useAttachmentUpload() {
     hasFiles,
     isUploading,
     addFiles,
+    addReferences,
     removeFile,
     uploadAll,
     clear,

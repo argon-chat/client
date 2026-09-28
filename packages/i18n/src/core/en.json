@@ -302,6 +302,8 @@
   "diagnostic_board_open": "Open Diagnostic Board",
   "copy_my_userid": "Copy My UserId",
   "copy": "Copy",
+  "copy_image": "Copy image",
+  "copy_file": "Copy file",
   "autostart": "Launch on startup",
   "autostart_desc": "Start Argon automatically when you sign in to Windows.",
   "channel": "Channel",

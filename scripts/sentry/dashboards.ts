@@ -118,6 +118,7 @@ const METRICS = {
   "attachment.upload": C,
   "attachment.upload.duration": MS,
   "attachment.bytes": BYTES,
+  "attachment.dedup": C,
   "reaction.toggle": C,
   "message.edited": C,
   "message.deleted": C,
@@ -401,6 +402,7 @@ const RELIABILITY: WidgetDraft[] = [
   bars("Scheduling failures by error", M("message.scheduled", "result:failed"), "error", "sum", { w: 3 }),
   line("Attachment upload p95 by kind (ms)", [q(M("attachment.upload.duration"), ["p95"], { columns: ["kind"] })], { w: 3 }),
   bars("Attachment size p50 by kind (MB)", M("attachment.bytes"), "kind", `equation|${F(M("attachment.bytes"), "p50")} / 1048576`, { w: 3 }),
+  by("Attachments sent as copies (dedup) by result", M("attachment.dedup"), "result", { w: 3 }),
   series("Background failures", [
     ["post-login init", M("app.post_login.failed")],
     ["realtime ticket", M("realtime.ticket.failed")],

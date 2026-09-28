@@ -1,5 +1,5 @@
 <template>
-  <div class="file-card">
+  <div class="file-card" :data-attachment-id="fileId" draggable="true" @dragstart="onDragStart">
     <div class="file-icon">
       <FileTextIcon v-if="isPdf" class="w-5 h-5 icon-appear" />
       <ArchiveIcon v-else-if="isArchive" class="w-5 h-5 icon-appear" />
@@ -26,6 +26,7 @@ import {
   Loader2Icon,
 } from "lucide-vue-next";
 import { resolveAttachmentUrl } from "@/store/system/fileStorage";
+import { setAttachmentDragData } from "@/lib/attachments/clipboard";
 
 const props = defineProps<{
   fileId: string;
@@ -36,6 +37,20 @@ const props = defineProps<{
 }>();
 
 const downloading = ref(false);
+
+// Dragged into another chat's composer, the file goes as a reference to what the server has.
+function onDragStart(e: DragEvent) {
+  if (!e.dataTransfer || isPlaceholder.value) return;
+  setAttachmentDragData(e.dataTransfer, [{
+    fileId: props.fileId,
+    fileName: props.fileName || null,
+    fileSize: Number(props.fileSize),
+    contentType: props.contentType || null,
+    width: null,
+    height: null,
+    thumbHash: null,
+  }]);
+}
 
 const PLACEHOLDER_FILE_ID = "00000000-0000-0000-0000-000000000000";
 const isPlaceholder = computed(() => props.fileId === PLACEHOLDER_FILE_ID);

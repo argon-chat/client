@@ -200,6 +200,7 @@ import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
 import { replyAuthorName } from "@/composables/useChannelFollow";
 import { MEMBER_DRAG_TYPE, requestMention } from "@/lib/chat/composerMention";
+import { readAttachmentRefs } from "@/lib/attachments/clipboard";
 import { ArgonMessage } from "@argon/glue";
 
 import ChatView from "./ChatView.vue";
@@ -342,6 +343,12 @@ function onDrop(e: DragEvent) {
     return;
   }
   if (!canAttach.value) return;
+  // An attachment dragged out of a chat is a reference to a file the server has; no bytes move.
+  const refs = readAttachmentRefs(e.dataTransfer, true);
+  if (refs.length) {
+    enterTextRef.value?.handleExternalRefs(refs);
+    return;
+  }
   if (e.dataTransfer?.files?.length && enterTextRef.value) {
     enterTextRef.value.handleExternalFiles(e.dataTransfer.files);
   }

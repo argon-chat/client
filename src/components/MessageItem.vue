@@ -140,7 +140,7 @@
         <ContextMenu>
           <ContextMenuTrigger>
             <!-- Announcements: who has read it sits beside the bubble -->
-            <div data-row-body class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''">
+            <div data-row-body class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''" @contextmenu.capture="rememberContextTarget">
             <div
               class="msg-bubble-wrap relative inline-flex flex-col"
               :class="isRight ? 'items-end' : 'items-start'"
@@ -437,6 +437,11 @@
               <CopyIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('copy') }}
             </ContextMenuItem>
+            <ContextMenuItem v-if="contextAttachment && !isOptimistic" @select="copyAttachment(contextAttachment)">
+              <ImageIcon v-if="isImageAttachment(contextAttachment)" class="w-4 h-4 mr-2 opacity-60" />
+              <FileIcon v-else class="w-4 h-4 mr-2 opacity-60" />
+              {{ isImageAttachment(contextAttachment) ? t('copy_image') : t('copy_file') }}
+            </ContextMenuItem>
             <MessagePinMenuItem v-if="canPin && !isOptimistic" :message="props.message" />
             <template v-if="!isOwnMessage || canDeleteThis">
               <ContextMenuSeparator />
@@ -566,9 +571,10 @@ import {
   ContextMenuTrigger, ContextMenuSeparator,
 } from "@argon/ui/context-menu";
 import {
-  CopyIcon, ReplyIcon, AlertCircleIcon,
+  CopyIcon, ReplyIcon, AlertCircleIcon, ImageIcon, FileIcon,
   Loader2Icon, SmilePlusIcon, FlagIcon, PencilIcon, Trash2Icon, MegaphoneIcon,
 } from "lucide-vue-next";
+import { copyAttachmentToClipboard, isImageAttachment } from "@/lib/attachments/clipboard";
 import { useDateFormat } from "@vueuse/core";
 
 // ── Inline reply preview component ──
@@ -990,6 +996,18 @@ const formattedEditedTime = computed(() => {
 
 function copyText() {
   navigator.clipboard.writeText(props.message.text);
+}
+
+/** The attachment under the pointer as the menu opened, so the menu can offer to copy that one. */
+const contextAttachment = ref<MessageEntityAttachment | null>(null);
+
+function rememberContextTarget(e: MouseEvent) {
+  const id = (e.target as HTMLElement | null)?.closest?.("[data-attachment-id]")?.getAttribute("data-attachment-id");
+  contextAttachment.value = id ? allAttachments.value.find((a) => a.fileId === id) ?? null : null;
+}
+
+function copyAttachment(a: MessageEntityAttachment) {
+  void copyAttachmentToClipboard(a);
 }
 
 function onReportMessage() {

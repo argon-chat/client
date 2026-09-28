@@ -183,6 +183,8 @@
   "diagnostic_board_open": "Բացել անցնուցական վահանակը",
   "copy_my_userid": "Պատճենել իմ UserId- ը",
   "copy": "Պատճենել",
+  "copy_image": "Copy image",
+  "copy_file": "Copy file",
   "channel": "Չենել",
   "select_update_channel": "Ընտրել թարմացման չենել",
   "select_channel_placeholder": "Օրինակ՝ Live",

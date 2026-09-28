@@ -4,6 +4,9 @@
     v-if="isSingle"
     class="single-image-wrapper"
     :style="singleDims"
+    :data-attachment-id="images[0].fileId"
+    draggable="true"
+    @dragstart="onDragStart($event, images[0])"
     @click="emit('open-lightbox', 0)"
   >
     <AttachmentImage
@@ -29,6 +32,9 @@
         :key="ci"
         class="grid-cell"
         :style="{ width: cell.w + 'px' }"
+        :data-attachment-id="cell.img.fileId"
+        draggable="true"
+        @dragstart="onDragStart($event, cell.img)"
         @click="emit('open-lightbox', cell.flatIdx)"
       >
         <AttachmentImage
@@ -48,6 +54,7 @@
 import { computed } from "vue";
 import type { MessageEntityAttachment } from "@argon/glue";
 import AttachmentImage from "./AttachmentImage.vue";
+import { refOf, setAttachmentDragData } from "@/lib/attachments/clipboard";
 
 const props = defineProps<{
   images: MessageEntityAttachment[];
@@ -56,6 +63,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "open-lightbox", index: number): void;
 }>();
+
+// Dragged into another chat's composer, the picture goes as a reference to the stored file.
+function onDragStart(e: DragEvent, img: MessageEntityAttachment) {
+  if (e.dataTransfer) setAttachmentDragData(e.dataTransfer, [refOf(img)]);
+}
 
 // ─── Sizing constants (inspired by Telegram Desktop's setAttachmentSize) ───
 const MAX_WIDTH = 420;

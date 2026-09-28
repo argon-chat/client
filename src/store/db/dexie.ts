@@ -91,6 +91,19 @@ export interface StoredExpressions {
   updatedAt: number;
 }
 
+/** An upload this account made, by the hash of its bytes; see `lib/attachments/uploadPool.ts`. */
+export interface StoredUpload {
+  sha256: string;
+  fileId: Guid;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  width: number | null;
+  height: number | null;
+  thumbHash: string | null;
+  uploadedAt: number;
+}
+
 export class PoolDatabase extends Dexie {
   users!: Table<RealtimeUser, Guid>;
   servers!: Table<ArgonSpaceBase, Guid>;
@@ -102,6 +115,7 @@ export class PoolDatabase extends Dexie {
   profileCache!: Table<CachedProfile, string>;
   spaceVersions!: Table<StoredSpaceVersions, Guid>;
   expressions!: Table<StoredExpressions, Guid>;
+  uploadedFiles!: Table<StoredUpload, string>;
 
   constructor(name: string) {
     super(name);
@@ -156,6 +170,11 @@ export class PoolDatabase extends Dexie {
     // nothing else changed shape.
     this.version(8).stores({
       expressions: "spaceId",
+    });
+    // v9: what this account has uploaded, by content hash, so the same bytes go out again as a copy
+    // of the file rather than as bytes. Kept like v8: a new table, nothing else changed shape.
+    this.version(9).stores({
+      uploadedFiles: "sha256, uploadedAt",
     });
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs

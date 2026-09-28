@@ -14,6 +14,7 @@ import { useLocale } from "@/store/system/localeStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { PaperclipIcon, XIcon, ReplyIcon, MessageSquareIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-vue-next";
 import type { ArgonMessage } from "@argon/glue";
+import { readAttachmentRefs } from "@/lib/attachments/clipboard";
 
 const route = useRoute();
 const dmCall = useUnifiedCall();
@@ -147,7 +148,14 @@ function onDragLeave() {
 function onDrop(e: DragEvent) {
     _dragCounter = 0;
     isDragging.value = false;
-    if (e.dataTransfer?.files?.length && chatInputRef.value) {
+    if (!chatInputRef.value) return;
+    // An attachment dragged out of a chat is a reference to a file the server has; no bytes move.
+    const refs = readAttachmentRefs(e.dataTransfer, true);
+    if (refs.length) {
+        chatInputRef.value.handleExternalRefs?.(refs);
+        return;
+    }
+    if (e.dataTransfer?.files?.length) {
         chatInputRef.value.handleExternalFiles?.(e.dataTransfer.files);
     }
 }

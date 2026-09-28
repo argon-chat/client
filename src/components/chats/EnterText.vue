@@ -392,6 +392,7 @@ import type { ExpressionItem, GifItem, MessageEntityCustomEmoji, SavedGif } from
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import { useAttachmentUpload, type UploadTarget } from "@/composables/useAttachmentUpload";
+import { readAttachmentRefs, type AttachmentRef } from "@/lib/attachments/clipboard";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
@@ -1429,14 +1430,27 @@ function onDragLeave() {
   isDragging.value = false;
 }
 
+/** Files or references queued into the composer; the dialog opens over whatever landed. */
+async function stage(added: Promise<string[]>) {
+  const errors = await added;
+  for (const err of errors) logger.warn(err);
+  if (attachments.hasFiles.value) {
+    showAttachmentDialog.value = true;
+  }
+}
+
 async function onDrop(e: DragEvent) {
   isDragging.value = false;
-  if (e.dataTransfer?.files?.length && canAttachFiles.value && !props.editing) {
-    const errors = await attachments.addFiles(e.dataTransfer.files);
-    for (const err of errors) logger.warn(err);
-    if (attachments.hasFiles.value) {
-      showAttachmentDialog.value = true;
-    }
+  if (!canAttachFiles.value || props.editing) return;
+  // A file dragged out of a chat — ours or the browser's own drag of its picture — is a reference
+  // to what the server already has, and goes in as a copy rather than as bytes.
+  const refs = readAttachmentRefs(e.dataTransfer, true);
+  if (refs.length) {
+    await stage(attachments.addReferences(refs, null, "drag"));
+    return;
+  }
+  if (e.dataTransfer?.files?.length) {
+    await stage(attachments.addFiles(e.dataTransfer.files));
   }
 }
 
@@ -1447,17 +1461,22 @@ async function onPaste(e: ClipboardEvent) {
   // the browser process, which stalls every window of the app. Only ask when there is a file, and
   // let text win when the clipboard holds both (copies from Office and browsers often do).
   const types = e.clipboardData?.types ?? [];
-  if (!types.includes("Files") || types.includes("text/plain")) return;
+  // A copy of a file out of a chat: the clipboard names the file (our own type, or the `<img src>`
+  // every "Copy image" writes), so the paste sends a copy of it instead of the bitmap.
+  const refs = readAttachmentRefs(e.clipboardData, !types.includes("text/plain"));
+  if (!refs.length && (!types.includes("Files") || types.includes("text/plain"))) return;
   // Without AttachFiles a pasted image goes nowhere; let the paste fall through to the editor.
   if (!canAttachFiles.value || props.editing) return;
+  if (refs.length) {
+    e.preventDefault();
+    const bitmaps = types.includes("Files") ? e.clipboardData?.files : null;
+    await stage(attachments.addReferences(refs, bitmaps, "clipboard"));
+    return;
+  }
   const files = e.clipboardData?.files;
   if (files?.length) {
     e.preventDefault();
-    const errors = await attachments.addFiles(files);
-    for (const err of errors) logger.warn(err);
-    if (attachments.hasFiles.value) {
-      showAttachmentDialog.value = true;
-    }
+    await stage(attachments.addFiles(files));
   }
 }
 
@@ -1703,15 +1722,18 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
 async function handleExternalFiles(files: FileList) {
   if (!canAttachFiles.value || props.editing) return;
-  const errors = await attachments.addFiles(files);
-  for (const err of errors) logger.warn(err);
-  if (attachments.hasFiles.value) {
-    showAttachmentDialog.value = true;
-  }
+  await stage(attachments.addFiles(files));
+}
+
+/** References dropped on the view around the composer: files the server already has. */
+async function handleExternalRefs(refs: AttachmentRef[]) {
+  if (!canAttachFiles.value || props.editing) return;
+  await stage(attachments.addReferences(refs, null, "drag"));
 }
 
 defineExpose({
   handleExternalFiles,
+  handleExternalRefs,
   getParsedContent: parseMessageContent,
   focus: () => editorRef.value?.focus(),
   clear: () => { messageText.value = ''; mentionRegistry.clear(); },

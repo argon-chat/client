@@ -185,6 +185,8 @@
   "diagnostic_board_open": "Открыть карту",
   "copy_my_userid": "Копировать мой ID",
   "copy": "Копировать",
+  "copy_image": "Копировать изображение",
+  "copy_file": "Копировать файл",
   "channel": "Канал",
   "select_update_channel": "Выбрать канал обновлений",
   "select_channel_placeholder": "Живой",

@@ -217,6 +217,8 @@
   "diagnostic_board_open": "Открыть диагностическую панель",
   "copy_my_userid": "Копировать мой UserId",
   "copy": "Копировать",
+  "copy_image": "Копировать изображение",
+  "copy_file": "Копировать файл",
   "autostart": "Запуск при старте системы",
   "autostart_desc": "Автоматически запускать Argon при входе в Windows.",
   "channel": "Канал",

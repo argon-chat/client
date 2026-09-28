@@ -185,6 +185,8 @@
   "diagnostic_board_open": "診断ボードを開く",
   "copy_my_userid": "ユーザーIDをコピー",
   "copy": "コピー",
+  "copy_image": "Copy image",
+  "copy_file": "Copy file",
   "channel": "チャンネル",
   "select_update_channel": "アップデートチャンネルを選択",
   "select_channel_placeholder": "ライブ",
