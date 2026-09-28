@@ -33,6 +33,14 @@ import type { MaskRaster } from "../../../packages/media-editor/src/types";
 const adapter = typeof navigator !== "undefined" && navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null;
 const SKIP = adapter ? "" : " — skipped: no WebGPU adapter (set ARGON_TEST_GPU=1)";
 
+/** Set from the environment in vitest.config.ts. */
+const CI = !!import.meta.env.CI;
+/**
+ * A wall-clock budget: as given on a desktop, three times it on a shared CI runner, which runs these
+ * 3–5× slower than a desktop and is shared with the rest of the suite.
+ */
+const budget = (ms: number) => (CI ? ms * 3 : ms);
+
 type Img = { data: Uint8ClampedArray; width: number; height: number };
 
 async function blobUrl(width: number, height: number, draw: (ctx: OffscreenCanvasRenderingContext2D) => void): Promise<string> {
@@ -133,7 +141,7 @@ describe("selection and eraser ops on the mask canvas", () => {
         expect(Math.min(Math.abs(x - 128), Math.abs(y - 128)), `(${x},${y})`).toBeLessThanOrEqual(1);
       }
       console.info(`[live wire] edge map ${W}² in ${prepareMs.toFixed(0)} ms, path replies ${Math.min(...times).toFixed(1)}–${Math.max(...times).toFixed(1)} ms`);
-      expect(Math.max(...times)).toBeLessThan(30);
+      expect(Math.max(...times)).toBeLessThan(budget(30));
     } finally {
       backend.dispose();
     }
@@ -201,32 +209,51 @@ describe("selection and eraser ops on the mask canvas", () => {
   });
 
   test("the magic eraser on 4 megapixels, in the browser", () => {
-    const W = 2048;
-    const data = new Uint8ClampedArray(W * W * 4);
-    for (let y = 0; y < W; y++) {
-      for (let x = 0; x < W; x++) {
-        const p = (y * W + x) * 4;
-        const inside = (x - 1024) ** 2 + (y - 1024) ** 2 < 600 ** 2;
-        const n = (x * 7 + y * 13) % 9;
-        data[p] = inside ? 210 : 110 + n;
-        data[p + 1] = inside ? 40 : 130 + n;
-        data[p + 2] = inside ? 40 : 150 + n;
-        data[p + 3] = 255;
+    // A disc on a textured background, the same picture at any size.
+    const scene = (W: number) => {
+      const data = new Uint8ClampedArray(W * W * 4);
+      const c = W / 2;
+      const r = (W * 600) / 2048;
+      for (let y = 0; y < W; y++) {
+        for (let x = 0; x < W; x++) {
+          const p = (y * W + x) * 4;
+          const inside = (x - c) ** 2 + (y - c) ** 2 < r ** 2;
+          const n = (x * 7 + y * 13) % 9;
+          data[p] = inside ? 210 : 110 + n;
+          data[p + 1] = inside ? 40 : 130 + n;
+          data[p + 2] = inside ? 40 : 150 + n;
+          data[p + 3] = 255;
+        }
       }
-    }
-    const image = { width: W, height: W, data };
+      return { width: W, height: W, data };
+    };
+    const image = scene(2048);
+    // A quarter of the pixels, timed alongside: the baseline this machine sets right now.
+    const small = scene(1024);
+    const median = (runs: number[]) => [...runs].sort((a, b) => a - b)[Math.floor(runs.length / 2)];
     const report: string[] = [];
     for (const contiguous of [true, false]) {
       for (const antiAlias of [true, false]) {
+        const options = { tolerance: 32, antiAlias, contiguous, opacity: 100, sampleSize: 1 };
         const runs: number[] = [];
+        const baseline: number[] = [];
+        magicErase(small, [5, 5], options);
         for (let i = 0; i < 7; i++) {
-          const started = performance.now();
-          magicErase(image, [5, 5], { tolerance: 32, antiAlias, contiguous, opacity: 100, sampleSize: 1 });
+          let started = performance.now();
+          magicErase(small, [5, 5], options);
+          baseline.push(performance.now() - started);
+          started = performance.now();
+          magicErase(image, [5, 5], options);
           runs.push(performance.now() - started);
         }
-        runs.sort((a, b) => a - b);
-        report.push(`${contiguous ? "contiguous" : "global"}${antiAlias ? "+aa" : ""} ${runs[0].toFixed(1)}/${runs[3].toFixed(1)}`);
-        expect(runs[3]).toBeLessThan(100);
+        const mode = `${contiguous ? "contiguous" : "global"}${antiAlias ? "+aa" : ""}`;
+        report.push(`${mode} ${Math.min(...runs).toFixed(1)}/${median(runs).toFixed(1)} (1024² ${median(baseline).toFixed(1)})`);
+        // Linear in the pixel count: four times the pixels cost about four times as much (16× would
+        // be quadratic). Relative to the baseline, so a slow or loaded machine does not fail it.
+        expect(median(runs) / median(baseline), mode).toBeLessThan(10);
+        // The frame budget in ms only where a wall clock means something: a shared CI runner is
+        // several times slower and noisier than a desktop.
+        if (!CI) expect(median(runs), mode).toBeLessThan(100);
       }
     }
     console.info(`[magic eraser] 2048² best/median ms: ${report.join(", ")}`);
@@ -297,8 +324,9 @@ describe("selection and eraser ops on the mask canvas", () => {
           `in worker p50 ${w.p50.toFixed(1)} / p95 ${w.p95.toFixed(1)} / max ${w.max.toFixed(1)} ms, ` +
           `round trip p50 ${r.p50.toFixed(1)} / p95 ${r.p95.toFixed(1)} / max ${r.max.toFixed(1)} ms`,
       );
-      expect(w.p95).toBeLessThan(16);
-      expect(r.p50).toBeLessThan(16);
+      // A frame, 16 ms.
+      expect(w.p95).toBeLessThan(budget(16));
+      expect(r.p50).toBeLessThan(budget(16));
 
       // Frequency 0: no automatic points, so each search covers the whole way from the click.
       inWorker.length = 0;
@@ -314,7 +342,7 @@ describe("selection and eraser ops on the mask canvas", () => {
         `[live wire] 2048², Width 64, Frequency 0 (an eighth of the circle, ${pathLengthOf(long.state.live!)} px from the click): ` +
           `in worker p50 ${lw.p50.toFixed(1)} / p95 ${lw.p95.toFixed(1)} / max ${lw.max.toFixed(1)} ms`,
       );
-      expect(lw.p50).toBeLessThan(16);
+      expect(lw.p50).toBeLessThan(budget(16));
     } finally {
       timed.dispose();
     }

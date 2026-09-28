@@ -67,6 +67,8 @@ export default defineConfig({
         optimizeDeps: { exclude: ["onnxruntime-web"] },
         test: {
           name: "browser",
+          // The page has no process.env: a test reads this as import.meta.env.CI (timing budgets).
+          env: { CI: process.env.CI ?? "" },
           include: ["test/browser/**/*.test.ts"],
           globals: false,
           restoreMocks: true,
