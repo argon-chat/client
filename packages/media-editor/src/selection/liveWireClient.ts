@@ -2,15 +2,18 @@ import type { Vec2 } from '../types';
 import type { Bounds } from './coverage';
 import { computeCostMap, findPath, snapToEdge, type CostMap } from './livewire';
 import type { LiveWireEvent, LiveWireRequest } from './liveWireProtocol';
-import type { RgbaImage } from './magicEraser';
+import type { RgbaImage } from './sample';
 
 export type LiveWirePathOptions = {
   /** Snap the target to an edge within this radius. */
   snap?: number;
+  /** Edge Contrast, levels: weaker edges neither attract the path nor the snap. */
+  contrast?: number;
   maxWindow?: number;
   pad?: number;
   window?: Bounds;
   blocked?: Int32Array;
+  corridor?: { points: number[]; radius: number };
 };
 
 export type LiveWirePathResult = {
@@ -28,7 +31,7 @@ export interface LiveWireBackend {
   /** Builds the edge map for an image (the pixels may be taken over). */
   prepare(image: RgbaImage): Promise<void>;
   path(from: Vec2, to: Vec2, options?: LiveWirePathOptions): Promise<LiveWirePathResult>;
-  snap(point: Vec2, radius: number): Promise<Vec2>;
+  snap(point: Vec2, radius: number, contrast?: number): Promise<Vec2>;
   dispose(): void;
 }
 
@@ -103,19 +106,21 @@ export function createLiveWireWorker(createWorker: () => Worker = defaultWorker)
           from,
           to,
           snap: options.snap ?? 0,
+          contrast: options.contrast,
           maxWindow: options.maxWindow,
           pad: options.pad,
           window: options.window,
-          blocked
+          blocked,
+          corridor: options.corridor
         },
         blocked ? [blocked.buffer] : []
       );
       return { points: event.points, end: event.end, clamped: event.clamped, straight: event.straight, ms: event.ms };
     },
-    async snap(point, radius) {
+    async snap(point, radius, contrast) {
       if (!ready) throw new Error('The edge map was not prepared');
       await ready;
-      return (await send<'snap'>({ type: 'snap', id: ++seq, point, radius })).point;
+      return (await send<'snap'>({ type: 'snap', id: ++seq, point, radius, contrast })).point;
     },
     dispose() {
       fail(new Error('The live-wire worker was stopped'));
@@ -137,12 +142,12 @@ export function createLocalLiveWire(): LiveWireBackend {
     async path(from, to, options = {}) {
       const m = need();
       const started = performance.now();
-      const target = options.snap ? snapToEdge(m, to, options.snap) : to;
+      const target = options.snap ? snapToEdge(m, to, options.snap, options.contrast) : to;
       const r = findPath(m, from, target, options);
       return { points: r.points, end: r.end, clamped: r.clamped, straight: r.straight, ms: performance.now() - started };
     },
-    async snap(point, radius) {
-      return snapToEdge(need(), point, radius);
+    async snap(point, radius, contrast) {
+      return snapToEdge(need(), point, radius, contrast);
     },
     dispose() {
       map = null;

@@ -1,20 +1,20 @@
 /**
- * The cut-out tab's selection and smart-eraser tools, CPU side: rasterising a lasso (with feather),
- * the magic eraser's flood fill, colour distance, the live-wire cost map and path search, the
- * background eraser's sampling, the magnetic lasso's anchors, and how each lands in the mask
- * history as one undoable op.
+ * The cut-out tab's selection and smart-eraser tools, CPU side: rasterising a lasso (with feather
+ * and anti-alias), the magic eraser and the background eraser with Photoshop's options and their
+ * colour decontamination, the live-wire cost map and path search (Edge Contrast, Width), the
+ * magnetic lasso's fastening points, and how each lands in the mask history as one undoable op.
  */
 
 import { describe, test, expect, beforeEach, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { rasterizePolygon, selectionCoverage, simplifyPath, polygonArea } from "../src/selection/polygon";
-import { cropCoverage, eraseWithCoverage, featherCoverage, type CoverageRect } from "../src/selection/coverage";
-import { colourMatch, deltaE76, distanceFrom, rgbToLab, toleranceToDeltaE } from "../src/selection/color";
-import { magicErase, type RgbaImage } from "../src/selection/magicEraser";
-import { beginBackgroundErase, brushFalloff } from "../src/selection/backgroundEraser";
-import { computeCostMap, findPath, pathLength, pointsWithin, snapToEdge } from "../src/selection/livewire";
+import { cropCoverage, eraseWithCoverage, featherCoverage, type CoverageRect, type EraseRect } from "../src/selection/coverage";
+import { magicErase, type MagicEraseOptions, type RgbaImage } from "../src/selection/magicEraser";
+import { beginBackgroundErase, brushFalloff, type BackgroundEraserOptions } from "../src/selection/backgroundEraser";
+import { channelTables, hexToRgba, rgbToHex, sampleColour } from "../src/selection/sample";
+import { computeCostMap, contrastLevels, findPath, pathLength, pointsWithin, snapToEdge } from "../src/selection/livewire";
 import { createLocalLiveWire } from "../src/selection/liveWireClient";
-import { AUTO_ANCHOR_SPACING, concat, createMagneticLasso } from "../src/selection/magneticLasso";
+import { concat, createMagneticLasso, fasteningSpacing } from "../src/selection/magneticLasso";
 import { useMediaEditorStore, REMOVE_ARRAY_ITEM } from "../src/store/editorStore";
 import type { Vec2 } from "../src/types";
 
@@ -34,6 +34,29 @@ function valueAt(c: CoverageRect | null, x: number, y: number): number {
   if (x < c.x || y < c.y || x >= c.x + c.width || y >= c.y + c.height) return 0;
   return c.data[(y - c.y) * c.width + (x - c.x)];
 }
+
+/** The colour an eraser gives pixel (x, y), or null when it keeps its own. */
+function colourAt(c: EraseRect | null, x: number, y: number): number[] | null {
+  if (!c?.colour) return null;
+  if (x < c.x || y < c.y || x >= c.x + c.width || y >= c.y + c.height) return null;
+  const local = (y - c.y) * c.width + (x - c.x);
+  for (let k = 0; k + 1 < c.colour.length; k += 2) {
+    if (c.colour[k] !== local) continue;
+    const rgb = c.colour[k + 1];
+    return [rgb >>> 16, (rgb >>> 8) & 255, rgb & 255];
+  }
+  return null;
+}
+
+/** Colours given to pixels that stay (partly) visible; the rest is padding under erased pixels. */
+function visibleColours(c: EraseRect | null): number[] {
+  if (!c?.colour) return [];
+  const out: number[] = [];
+  for (let k = 0; k + 1 < c.colour.length; k += 2) if (c.data[c.colour[k]] < 255) out.push(c.colour[k]);
+  return out;
+}
+
+const mix = (a: Rgba, b: Rgba, t: number): Rgba => [0, 1, 2, 3].map((k) => Math.round(a[k] + (b[k] - a[k]) * t)) as Rgba;
 
 describe("polygon → coverage", () => {
   const square: Vec2[] = [[10, 10], [30, 10], [30, 30], [10, 30]];
@@ -130,58 +153,37 @@ describe("polygon → coverage", () => {
   });
 });
 
-describe("colour distance", () => {
-  test("Lab of the primaries and the neutral axis match the reference values", () => {
-    const close = (a: number[], b: number[], tol = 0.05) => a.forEach((v, i) => expect(Math.abs(v - b[i])).toBeLessThanOrEqual(tol));
-    close(rgbToLab(255, 255, 255), [100, 0, 0], 0.01);
-    close(rgbToLab(0, 0, 0), [0, 0, 0], 0.01);
-    close(rgbToLab(255, 0, 0), [53.24, 80.09, 67.2]);
-    close(rgbToLab(0, 255, 0), [87.73, -86.18, 83.18]);
-    close(rgbToLab(0, 0, 255), [32.3, 79.19, -107.86]);
-    const grey = rgbToLab(119, 119, 119);
-    expect(Math.abs(grey[1]) + Math.abs(grey[2])).toBeLessThan(0.01);
-    expect(grey[0]).toBeCloseTo(50, 0);
+describe("colour sampling", () => {
+  test("Point and square averages, clipped to the image", () => {
+    const img = image(4, 4, (x, y) => [x * 10, y * 10, 0, 255]);
+    expect(sampleColour(img, 1, 1, 1)).toEqual([10, 10, 0, 255]);
+    expect(sampleColour(img, 1, 1, 3)).toEqual([10, 10, 0, 255]);
+    // At the corner only the four pixels inside count.
+    expect(sampleColour(img, 0, 0, 3)).toEqual([5, 5, 0, 255]);
   });
 
-  test("CIE76 ΔE is the Euclidean distance in Lab", () => {
-    expect(deltaE76([50, 0, 0], [53, 4, 0])).toBe(5);
-    expect(deltaE76(rgbToLab(0, 0, 0), rgbToLab(255, 255, 255))).toBeCloseTo(100, 1);
-    // Perceptual, not RGB: equal RGB steps are not equal ΔE (dark greys are further apart).
-    const dark = deltaE76(rgbToLab(10, 10, 10), rgbToLab(30, 30, 30));
-    const light = deltaE76(rgbToLab(220, 220, 220), rgbToLab(240, 240, 240));
-    expect(dark).toBeGreaterThan(light);
-  });
-
-  test("distanceFrom: ΔE between opaque colours, alpha weighs as a fourth axis, cached or not", () => {
-    const d = distanceFrom(255, 0, 0, 255);
-    expect(d(255, 0, 0, 255)).toBe(0);
-    const red = rgbToLab(255, 0, 0);
-    const blue = rgbToLab(0, 0, 255);
-    expect(d(0, 0, 255, 255)).toBeCloseTo(deltaE76(red, blue), 3);
-    expect(d(0, 0, 255, 255)).toBeCloseTo(deltaE76(red, blue), 3); // from the cache
-    expect(d(255, 0, 0, 0)).toBeCloseTo(100, 3);
-  });
-
-  test("tolerance maps 0–100 onto ΔE 0–150, monotone; the match ramps just past the threshold", () => {
-    expect(toleranceToDeltaE(0)).toBe(0);
-    expect(toleranceToDeltaE(50)).toBe(50);
-    expect(toleranceToDeltaE(100)).toBe(150);
-    expect(toleranceToDeltaE(120)).toBe(150);
-    for (let t = 1; t <= 100; t++) expect(toleranceToDeltaE(t)).toBeGreaterThan(toleranceToDeltaE(t - 1));
-    expect(colourMatch(10, 10, 4)).toBe(1);
-    expect(colourMatch(12, 10, 4)).toBeCloseTo(0.5);
-    expect(colourMatch(14, 10, 4)).toBe(0);
+  test("the tolerance tables: every channel within the tolerance", () => {
+    const [r, g, b, a] = channelTables([100, 0, 255, 255], 10);
+    expect([r[90], r[110], r[89], r[111]]).toEqual([1, 1, 0, 0]);
+    expect([g[0], g[10], g[11]]).toEqual([1, 1, 0]);
+    expect([b[245], b[244]]).toEqual([1, 0]);
+    expect([a[255], a[0]]).toEqual([1, 0]);
+    expect(hexToRgba("#ff8000")).toEqual([255, 128, 0, 255]);
+    expect(rgbToHex(255, 128, 0)).toBe("#ff8000");
   });
 });
 
-describe("magic eraser", () => {
+describe("magic eraser (Photoshop's options)", () => {
   const WHITE: Rgba = [255, 255, 255, 255];
   const RED: Rgba = [220, 30, 30, 255];
+  const GREY: Rgba = [128, 128, 128, 255];
+  const DISC: Rgba = [230, 20, 20, 255];
   // Two white regions split by a red bar, a red square inside the left one.
   const picture = image(40, 20, (x, y) => (x >= 18 && x < 22) || (x >= 5 && x < 10 && y >= 5 && y < 10) ? RED : WHITE);
+  const opts = (o: Partial<MagicEraseOptions> = {}): MagicEraseOptions => ({ tolerance: 32, antiAlias: false, contiguous: true, opacity: 100, sampleSize: 1, ...o });
 
-  test("contiguous: erases the clicked region only, up to the other colour", () => {
-    const c = magicErase(picture, [2, 2], { tolerance: 20, contiguous: true, feather: 0 })!;
+  test("contiguous: the clicked region only, up to the other colour", () => {
+    const c = magicErase(picture, [2, 2], opts())!;
     expect(valueAt(c, 0, 0)).toBe(255);
     expect(valueAt(c, 17, 19)).toBe(255);
     expect(valueAt(c, 7, 7)).toBe(0); // the red square inside
@@ -190,71 +192,147 @@ describe("magic eraser", () => {
     expect(c.x + c.width).toBeLessThanOrEqual(18);
   });
 
-  test("global: the same colour everywhere", () => {
-    const c = magicErase(picture, [2, 2], { tolerance: 20, contiguous: false, feather: 0 })!;
+  test("not contiguous: the colour everywhere", () => {
+    const c = magicErase(picture, [2, 2], opts({ contiguous: false }))!;
     expect(valueAt(c, 0, 0)).toBe(255);
     expect(valueAt(c, 30, 5)).toBe(255);
     expect(valueAt(c, 7, 7)).toBe(0);
     expect(valueAt(c, 19, 5)).toBe(0);
   });
 
-  test("tolerance decides what counts as the same colour", () => {
-    // A gradient: 10 grey levels apart per column.
-    const ramp = image(20, 4, (x) => [x * 10, x * 10, x * 10, 255]);
-    const narrow = magicErase(ramp, [0, 0], { tolerance: 5, contiguous: true, feather: 0 })!;
-    const wide = magicErase(ramp, [0, 0], { tolerance: 40, contiguous: true, feather: 0 })!;
-    const reach = (c: CoverageRect) => Array.from({ length: 20 }, (_, x) => valueAt(c, x, 1)).filter((v) => v === 255).length;
-    expect(reach(wide)).toBeGreaterThan(reach(narrow));
-    expect(reach(narrow)).toBeGreaterThanOrEqual(1);
-    expect(valueAt(wide, 19, 1)).toBe(0);
+  test("tolerance 0–255 is the largest difference allowed in any one channel", () => {
+    // Green steps by 10 per column, the other channels stay.
+    const ramp = image(20, 2, (x) => [100, Math.min(255, 100 + x * 10), 100, 255]);
+    const reach = (tolerance: number) =>
+      Array.from({ length: 20 }, (_, x) => valueAt(magicErase(ramp, [0, 0], opts({ tolerance })), x, 1)).filter((v) => v === 255).length;
+    expect(reach(0)).toBe(1);
+    expect(reach(25)).toBe(3);
+    expect(reach(30)).toBe(4);
+    expect(reach(255)).toBe(20);
   });
 
-  test("anti-aliased boundary: an edge pixel blended toward the subject keeps the subject's share", () => {
-    // White | a column a quarter / half / three quarters of the way to red | red.
-    const mixTo = (t: number): Rgba => [Math.round(255 + (RED[0] - 255) * t), Math.round(255 + (RED[1] - 255) * t), Math.round(255 + (RED[2] - 255) * t), 255];
-    const d = distanceFrom(255, 255, 255, 255);
-    const erased: number[] = [];
+  test("opacity takes that share of each matching pixel", () => {
+    const c = magicErase(picture, [2, 2], opts({ opacity: 40 }))!;
+    expect(valueAt(c, 0, 0)).toBe(102);
+    expect(magicErase(picture, [2, 2], opts({ opacity: 0 }))).toBeNull();
+  });
+
+  test("sample size: the clicked colour is the average of the square round the click", () => {
+    const checker = image(10, 10, (x, y) => ((x + y) % 2 ? [140, 140, 140, 255] : [100, 100, 100, 255]));
+    const count = (c: CoverageRect | null) => (c ? c.data.filter((v) => v === 255).length : 0);
+    // Point: the clicked 100 grey; 140 is 40 away.
+    expect(count(magicErase(checker, [1, 1], opts({ tolerance: 25, contiguous: false, sampleSize: 1 })))).toBe(50);
+    // 3×3: about 118, within 25 of both.
+    expect(count(magicErase(checker, [1, 1], opts({ tolerance: 25, contiguous: false, sampleSize: 3 })))).toBe(100);
+    // 11×11 averages to about 120: the clicked 100 is not within 5 of it, so nothing to start from.
+    expect(magicErase(checker, [5, 5], opts({ tolerance: 5, sampleSize: 11 }))).toBeNull();
+  });
+
+  test("anti-alias: an edge pixel loses its background share and keeps the subject's colour", () => {
     for (const t of [0.25, 0.5, 0.75]) {
-      const blend = mixTo(t);
-      const soft = image(12, 4, (x) => (x < 5 ? WHITE : x === 5 ? blend : RED));
-      const c = magicErase(soft, [0, 0], { tolerance: 20, contiguous: true, feather: 0 })!;
+      const soft = image(12, 4, (x) => (x < 5 ? GREY : x === 5 ? mix(GREY, DISC, t) : DISC));
+      const c = magicErase(soft, [0, 0], opts({ tolerance: 20, antiAlias: true }))!;
       expect(valueAt(c, 4, 1)).toBe(255);
       expect(valueAt(c, 7, 1)).toBe(0);
-      const partial = valueAt(c, 5, 1);
-      // 1 − d(pixel) / d(subject): the distance is perceptual, so only roughly 1 − t.
-      expect(partial).toBe(Math.round(255 * (1 - d(...blend) / d(...RED))));
-      expect(Math.abs(partial / 255 - (1 - t))).toBeLessThan(0.2);
-      erased.push(partial);
+      expect(Math.abs(valueAt(c, 5, 1) / 255 - (1 - t)), `t = ${t}`).toBeLessThan(0.03);
+      // Decontaminated: the subject's red, not a grey-tinted blend.
+      const [r, g, b] = colourAt(c, 5, 1)!;
+      expect(r).toBeGreaterThan(215);
+      expect(g).toBeLessThan(35);
+      expect(b).toBeLessThan(35);
+      // The erased grey beside it is padded with that red, so scaling the image cannot bleed grey in.
+      expect(colourAt(c, 4, 1)).toEqual(colourAt(c, 5, 1));
+      expect(colourAt(c, 2, 1)).toBeNull();
     }
-    expect(erased[0]).toBeGreaterThan(erased[1]);
-    expect(erased[1]).toBeGreaterThan(erased[2]);
-    // Within the tolerance it is not an edge any more: erased in full.
-    const faint = image(12, 4, (x) => (x < 5 ? WHITE : x === 5 ? mixTo(0.02) : RED));
-    expect(valueAt(magicErase(faint, [0, 0], { tolerance: 20, contiguous: true, feather: 0 }), 5, 1)).toBe(255);
   });
 
-  test("an opaque colour does not match transparent pixels; feather softens the cut", () => {
+  test("anti-alias: a pixel within the tolerance but on the edge keeps the subject's share", () => {
+    const faint = image(12, 4, (x) => (x < 5 ? GREY : x === 5 ? mix(GREY, DISC, 0.1) : DISC));
+    const c = magicErase(faint, [0, 0], opts({ tolerance: 20, antiAlias: true }))!;
+    expect(Math.abs(valueAt(c, 5, 1) - 230)).toBeLessThanOrEqual(5);
+    expect(colourAt(c, 5, 1)![0]).toBeGreaterThan(200);
+    // Off: a hard edge, all or nothing, no colour.
+    const hard = magicErase(faint, [0, 0], opts({ tolerance: 20 }))!;
+    expect(valueAt(hard, 5, 1)).toBe(255);
+    expect(visibleColours(hard)).toEqual([]);
+  });
+
+  test("anti-alias: a pixel beside the region that is no blend of the two stays whole", () => {
+    // Grey | a black outline | red: black is not between grey and red.
+    const outlined = image(12, 4, (x) => (x < 5 ? GREY : x === 5 ? [0, 0, 0, 255] : DISC));
+    const c = magicErase(outlined, [0, 0], opts({ tolerance: 20, antiAlias: true }))!;
+    expect(valueAt(c, 4, 1)).toBe(255);
+    expect(valueAt(c, 5, 1)).toBe(0);
+  });
+
+  test("alpha is a channel: an opaque colour does not match transparent pixels", () => {
     const holed = image(10, 10, (x) => (x < 5 ? WHITE : [255, 255, 255, 0]));
-    const c = magicErase(holed, [0, 0], { tolerance: 20, contiguous: true, feather: 0 })!;
+    const c = magicErase(holed, [0, 0], opts({ tolerance: 20 }))!;
     expect(valueAt(c, 4, 4)).toBe(255);
     expect(valueAt(c, 6, 4)).toBe(0);
-    const soft = magicErase(picture, [2, 2], { tolerance: 20, contiguous: true, feather: 3 })!;
-    expect(valueAt(soft, 19, 12)).toBeGreaterThan(0); // the bar's edge gets some of the fade
-    expect(valueAt(soft, 1, 15)).toBe(255);
   });
 
   test("a click outside the image does nothing", () => {
-    expect(magicErase(picture, [-1, 3], { tolerance: 20, contiguous: true, feather: 0 })).toBeNull();
+    expect(magicErase(picture, [-1, 3], opts())).toBeNull();
+  });
+
+  test("a 4-megapixel image is erased within the frame budget", () => {
+    const W = 2048;
+    const data = new Uint8ClampedArray(W * W * 4);
+    for (let y = 0; y < W; y++) {
+      for (let x = 0; x < W; x++) {
+        const p = (y * W + x) * 4;
+        const inside = (x - 1024) ** 2 + (y - 1024) ** 2 < 600 ** 2;
+        const n = (x * 7 + y * 13) % 9;
+        data[p] = inside ? 210 : 110 + n;
+        data[p + 1] = inside ? 40 : 130 + n;
+        data[p + 2] = inside ? 40 : 150 + n;
+        data[p + 3] = 255;
+      }
+    }
+    const big = { width: W, height: W, data };
+    const time = (o: MagicEraseOptions) => {
+      const runs: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        const started = performance.now();
+        const c = magicErase(big, [5, 5], o);
+        runs.push(performance.now() - started);
+        expect(c).not.toBeNull();
+      }
+      runs.sort((a, b) => a - b);
+      return runs;
+    };
+    const contiguous = time(opts({ tolerance: 32, antiAlias: true }));
+    const global = time(opts({ tolerance: 32, antiAlias: true, contiguous: false }));
+    console.info(
+      `[magic eraser] 2048² anti-aliased: contiguous ${contiguous[0].toFixed(1)}–${contiguous[2].toFixed(1)} ms (best–median), ` +
+        `global ${global[0].toFixed(1)}–${global[2].toFixed(1)} ms`,
+    );
+    // The budget is 60 ms on a desktop; the margin is for a loaded test machine.
+    expect(contiguous[2]).toBeLessThan(100);
+    expect(global[2]).toBeLessThan(100);
+    const c = magicErase(big, [5, 5], opts({ tolerance: 32, antiAlias: true }))!;
+    expect(valueAt(c, 5, 5)).toBe(255);
+    expect(valueAt(c, 1024, 1024)).toBe(0);
   });
 });
 
-describe("background eraser", () => {
+describe("background eraser (Photoshop's options)", () => {
   const BLUE: Rgba = [30, 60, 220, 255];
   const YELLOW: Rgba = [240, 220, 40, 255];
   const halves = image(60, 30, (x) => (x < 30 ? BLUE : YELLOW));
+  const brush = (o: Partial<BackgroundEraserOptions> = {}): BackgroundEraserOptions => ({
+    size: 16,
+    hardness: 100,
+    spacing: 25,
+    tolerance: 20,
+    sampling: "once",
+    limits: "contiguous",
+    ...o,
+  });
 
   test("sampled once: a stroke across the boundary erases only the colour it started on", () => {
-    const s = beginBackgroundErase(halves, [15, 15], { size: 16, hardness: 100, tolerance: 20, sampling: "once" });
+    const s = beginBackgroundErase(halves, [15, 15], brush());
     s.to([45, 15]);
     expect(s.sample).toEqual(BLUE);
     const c = s.result()!;
@@ -264,12 +342,59 @@ describe("background eraser", () => {
   });
 
   test("sampled continuously: the colour under the hotspot changes as it moves", () => {
-    const s = beginBackgroundErase(halves, [15, 15], { size: 16, hardness: 100, tolerance: 20, sampling: "continuous" });
+    const s = beginBackgroundErase(halves, [15, 15], brush({ sampling: "continuous" }));
     s.to([45, 15]);
     expect(s.sample).toEqual(YELLOW);
     const c = s.result()!;
     expect(valueAt(c, 20, 15)).toBe(255);
     expect(valueAt(c, 40, 15)).toBe(255);
+  });
+
+  test("background swatch: only the picked colour goes, wherever the hotspot is", () => {
+    const s = beginBackgroundErase(halves, [15, 15], brush({ sampling: "swatch", swatch: YELLOW }));
+    s.to([45, 15]);
+    expect(s.sample).toEqual(YELLOW);
+    const c = s.result()!;
+    expect(valueAt(c, 20, 15)).toBe(0);
+    expect(valueAt(c, 40, 15)).toBe(255);
+  });
+
+  test("limits: contiguous stops at a ring the colour does not cross, discontiguous does not", () => {
+    // Blue with a yellow ring round a blue spot at (30, 30).
+    const ringed = image(60, 60, (x, y) => {
+      const d = Math.hypot(x + 0.5 - 30, y + 0.5 - 30);
+      return d >= 4 && d < 7 ? YELLOW : BLUE;
+    });
+    const at = (limits: "contiguous" | "discontiguous") => beginBackgroundErase(ringed, [30, 18], brush({ size: 30, limits })).result()!;
+    expect(valueAt(at("contiguous"), 30, 18)).toBe(255);
+    expect(valueAt(at("contiguous"), 30, 30)).toBe(0);
+    expect(valueAt(at("discontiguous"), 30, 30)).toBe(255);
+    expect(valueAt(at("discontiguous"), 30, 25)).toBe(0); // the ring
+  });
+
+  test("limits: find edges does not cross a sharp line even when its colour is within the tolerance", () => {
+    const lined = image(60, 30, (x) => (x === 30 ? [30, 60, 150, 255] : BLUE));
+    const at = (limits: "contiguous" | "findEdges") => beginBackgroundErase(lined, [25, 15], brush({ size: 20, tolerance: 50, limits })).result()!;
+    const contiguous = at("contiguous");
+    expect(valueAt(contiguous, 30, 15)).toBe(255);
+    expect(valueAt(contiguous, 33, 15)).toBe(255);
+    const edges = at("findEdges");
+    expect(valueAt(edges, 26, 15)).toBe(255);
+    expect(valueAt(edges, 30, 15)).toBe(0);
+    expect(valueAt(edges, 33, 15)).toBe(0);
+  });
+
+  test("protect foreground colour: a colour nearer to it than to the sample is never erased", () => {
+    const SKIN: Rgba = [210, 180, 160, 255];
+    const GREYISH: Rgba = [200, 200, 200, 255];
+    const face = image(60, 30, (x) => (x < 30 ? GREYISH : SKIN));
+    const o = brush({ size: 40, tolerance: 50, limits: "discontiguous" });
+    const open = beginBackgroundErase(face, [28, 15], o).result()!;
+    expect(valueAt(open, 20, 15)).toBe(255);
+    expect(valueAt(open, 40, 15)).toBe(255);
+    const guarded = beginBackgroundErase(face, [28, 15], { ...o, protect: SKIN }).result()!;
+    expect(valueAt(guarded, 20, 15)).toBe(255);
+    expect(valueAt(guarded, 40, 15)).toBe(0);
   });
 
   test("hardness: a hard brush erases fully to its rim, a soft one falls off", () => {
@@ -279,22 +404,45 @@ describe("background eraser", () => {
     expect(brushFalloff(2, 10, 0)).toBeLessThan(1);
     expect(brushFalloff(5, 10, 50)).toBe(1);
     expect(brushFalloff(7.5, 10, 50)).toBeCloseTo(0.5);
-    const s = beginBackgroundErase(halves, [15, 15], { size: 20, hardness: 0, tolerance: 20, sampling: "once" });
-    const c = s.result()!;
+    const c = beginBackgroundErase(halves, [15, 15], brush({ size: 20, hardness: 0 })).result()!;
     expect(valueAt(c, 15, 15)).toBeGreaterThan(200);
     expect(valueAt(c, 22, 15)).toBeGreaterThan(0);
     expect(valueAt(c, 22, 15)).toBeLessThan(valueAt(c, 17, 15));
   });
 
+  test("spacing: dabs far apart leave a soft stroke uneven, close ones even", () => {
+    const flat = image(80, 30, () => BLUE);
+    const ridge = (spacing: number) => {
+      const s = beginBackgroundErase(flat, [10, 15], brush({ size: 20, hardness: 0, spacing, limits: "discontiguous" }));
+      s.to([60, 15]);
+      const row = Array.from({ length: 21 }, (_, i) => s.coverage[15 * 80 + 20 + i]);
+      return Math.max(...row) - Math.min(...row);
+    };
+    expect(ridge(100)).toBeGreaterThan(150);
+    expect(ridge(5)).toBeLessThan(40);
+  });
+
+  test("the erased edge keeps the subject's colour, without the background", () => {
+    const GREY: Rgba = [128, 128, 128, 255];
+    const RED: Rgba = [230, 20, 20, 255];
+    const soft = image(12, 6, (x) => (x < 5 ? GREY : x === 5 ? mix(GREY, RED, 0.4) : RED));
+    const c = beginBackgroundErase(soft, [3, 3], brush({ size: 8 })).result()!;
+    expect(valueAt(c, 3, 3)).toBe(255);
+    expect(Math.abs(valueAt(c, 5, 3) / 255 - 0.6)).toBeLessThan(0.03);
+    const [r, g, b] = colourAt(c, 5, 3)!;
+    expect(r).toBeGreaterThan(215);
+    expect(g).toBeLessThan(35);
+    expect(b).toBeLessThan(35);
+    expect(valueAt(c, 7, 3)).toBe(0);
+  });
+
   test("going over the same spot twice does not erase more; nothing erased is no result", () => {
-    const soft = beginBackgroundErase(halves, [15, 15], { size: 20, hardness: 0, tolerance: 20, sampling: "once" });
+    const soft = beginBackgroundErase(halves, [15, 15], brush({ size: 20, hardness: 0 }));
     const once = valueAt(soft.result(), 22, 15);
     soft.to([15, 16]);
     soft.to([15, 15]);
     expect(valueAt(soft.result(), 22, 15)).toBeLessThanOrEqual(once + 30);
-    const none = beginBackgroundErase(halves, [15, 15], { size: 4, hardness: 100, tolerance: 0, sampling: "once" });
-    expect(none.result()).not.toBeNull();
-    const nothing = beginBackgroundErase(image(10, 10, () => BLUE), [-50, -50], { size: 4, hardness: 100, tolerance: 0, sampling: "once" });
+    const nothing = beginBackgroundErase(image(10, 10, () => BLUE), [-50, -50], brush({ size: 4, tolerance: 0 }));
     expect(nothing.result()).toBeNull();
   });
 });
@@ -392,22 +540,82 @@ describe("live wire", () => {
   });
 });
 
+describe("live wire: Edge Contrast and Width", () => {
+  const W = 120;
+  /** A square 30..90, `step` levels darker than the grey round it. */
+  const square = (step: number) =>
+    image(W, W, (x, y) => {
+      const v = x >= 30 && x < 90 && y >= 30 && y < 90 ? 180 - step : 180;
+      return [v, v, v, 255];
+    });
+  const pairs = (p: Int32Array) => Array.from({ length: p.length / 2 }, (_, i) => [p[i * 2], p[i * 2 + 1]] as Vec2);
+  const nearCorner = (p: Int32Array) => Math.min(...pairs(p).map(([x, y]) => Math.hypot(x - 30, y - 30)));
+
+  test("contrast is about the step, in levels, across an edge", () => {
+    const map = computeCostMap(square(40).data, W, W);
+    const at = Math.max(map.contrast[60 * W + 29], map.contrast[60 * W + 30]);
+    expect(Math.abs(at - 40)).toBeLessThanOrEqual(4);
+    expect(map.contrast[60 * W + 60]).toBe(0);
+    expect(contrastLevels(10)).toBe(26);
+    expect(contrastLevels(100)).toBe(255);
+  });
+
+  test("an edge fainter than the Edge Contrast neither snaps the point nor pulls the path", () => {
+    const map = computeCostMap(square(15).data, W, W);
+    expect(snapToEdge(map, [34, 60], 8, contrastLevels(10))).toEqual([34, 60]);
+    const [sx] = snapToEdge(map, [34, 60], 8, contrastLevels(3));
+    expect(sx === 29 || sx === 30).toBe(true);
+    // Low contrast: round the square's corner; high: straight across.
+    expect(nearCorner(findPath(map, [30, 70], [70, 30], { contrast: contrastLevels(3) }).points)).toBeLessThanOrEqual(2);
+    expect(nearCorner(findPath(map, [30, 70], [70, 30], { contrast: contrastLevels(10) }).points)).toBeGreaterThan(20);
+  });
+
+  test("Width: the path keeps within the corridor round the pointer's way", () => {
+    const map = computeCostMap(square(150).data, W, W);
+    // The pointer went straight across: the path cannot reach the corner.
+    const across = findPath(map, [30, 70], [70, 30], { corridor: { points: [30, 70, 70, 30], radius: 6 } });
+    expect(across.straight).toBe(false);
+    for (const [x, y] of pairs(across.points)) expect(Math.abs(x + y - 100) / Math.SQRT2).toBeLessThanOrEqual(7);
+    // The pointer went round the corner: so does the path, on the edge.
+    const round = findPath(map, [30, 70], [70, 30], { corridor: { points: [30, 70, 30, 30, 70, 30], radius: 6 } });
+    expect(nearCorner(round.points)).toBeLessThanOrEqual(2);
+  });
+});
+
 describe("magnetic lasso", () => {
   const W = 200;
   const picture = image(W, W, (x, y) => (x >= 40 && x < 160 && y >= 40 && y < 160 ? [200, 40, 40, 255] : [230, 230, 230, 255]));
 
-  async function lasso() {
+  async function lasso(overrides: { width?: number; spacing?: number; contrast?: number } = {}, source = picture) {
     const backend = createLocalLiveWire();
-    await backend.prepare(picture);
+    await backend.prepare(source);
     const onChange = vi.fn();
-    return { m: createMagneticLasso(backend, { snapRadius: () => 4, onChange }), onChange };
+    const m = createMagneticLasso(backend, {
+      width: () => overrides.width ?? 4,
+      contrast: () => overrides.contrast ?? contrastLevels(10),
+      spacing: () => overrides.spacing ?? 100,
+      onChange,
+    });
+    return { m, onChange };
   }
 
-  test("two anchors and close: the outline goes round the square along its edge", async () => {
-    const { m } = await lasso();
+  test("Frequency sets how far apart the automatic fastening points are", () => {
+    expect(fasteningSpacing(0)).toBe(Infinity);
+    expect(fasteningSpacing(100)).toBeCloseTo(12, 5);
+    expect(Math.abs(fasteningSpacing(57) - 49)).toBeLessThan(2);
+    for (let f = 2; f <= 100; f++) expect(fasteningSpacing(f)).toBeLessThan(fasteningSpacing(f - 1));
+  });
+
+  test("traced half way round and closed: the outline goes round the square along its edge", async () => {
+    const { m } = await lasso({ spacing: Infinity });
     await m.click([42, 100]); // snaps onto the left edge
     expect(m.state.anchors[0][0]).toBeGreaterThanOrEqual(39);
     expect(m.state.anchors[0][0]).toBeLessThanOrEqual(40);
+    // The pointer goes down the left side, along the bottom and up the right side.
+    for (let y = 104; y <= 158; y += 3) m.move([41, y]);
+    for (let x = 44; x <= 158; x += 3) m.move([x, 158]);
+    for (let y = 155; y >= 100; y -= 3) m.move([158, y]);
+    await m.idle();
     await m.click([158, 100]);
     const outline = (await m.close())!;
     expect(outline.length).toBeGreaterThan(300);
@@ -420,15 +628,15 @@ describe("magnetic lasso", () => {
     expect(m.state.anchors).toEqual([]);
   });
 
-  test("tracing lays anchors on its own every ~100 px; Backspace takes one back; Esc clears", async () => {
-    const { m, onChange } = await lasso();
+  test("tracing drops fastening points every ~spacing; Backspace takes one back; Esc clears", async () => {
+    const { m, onChange } = await lasso({ spacing: 100 });
     await m.click([40, 150]);
     for (let y = 148; y >= 40; y -= 4) m.move([40, y]);
     for (let x = 44; x <= 150; x += 4) m.move([x, 40]);
     await m.idle();
-    // The pointer went ~220 px along the edge: at least one automatic anchor.
+    // The pointer went ~220 px along the edge: at least one automatic point.
     expect(m.state.anchors.length).toBeGreaterThanOrEqual(2);
-    for (const seg of m.state.segments) expect(pathLength(seg)).toBeLessThanOrEqual(AUTO_ANCHOR_SPACING + 40);
+    for (const seg of m.state.segments) expect(pathLength(seg)).toBeLessThanOrEqual(140);
     expect(onChange).toHaveBeenCalled();
     const n = m.state.anchors.length;
     m.removeLast();
@@ -438,7 +646,17 @@ describe("magnetic lasso", () => {
     expect(await m.close()).toBeNull();
   });
 
-  test("moves made while the first anchor is still being placed are followed once it lands", async () => {
+  test("Frequency 0: points only where clicked", async () => {
+    const { m } = await lasso({ spacing: Infinity });
+    await m.click([40, 150]);
+    for (let y = 148; y >= 40; y -= 4) m.move([40, y]);
+    for (let x = 44; x <= 150; x += 4) m.move([x, 40]);
+    await m.idle();
+    expect(m.state.anchors).toHaveLength(1);
+    expect(pathLength(m.state.live!)).toBeGreaterThan(200);
+  });
+
+  test("moves made while the first point is still being placed are followed once it lands", async () => {
     const { m } = await lasso();
     void m.click([40, 150]);
     m.move([40, 120]);
@@ -451,13 +669,55 @@ describe("magnetic lasso", () => {
     expect([live[live.length - 2], live[live.length - 1]]).toEqual([m.state.anchors[0][0], 100]);
   });
 
+  test("Alt: straight segments, back to the edge when it is let go", async () => {
+    const { m } = await lasso();
+    await m.click([40, 150]);
+    // Straight across the square's inside, not round its edge.
+    m.move([100, 100], { straight: true });
+    const live = m.state.live!;
+    const [ax, ay] = m.state.anchors[0];
+    const len = Math.hypot(100 - ax, 100 - ay);
+    for (const [x, y] of Array.from({ length: live.length / 2 }, (_, i) => [live[i * 2], live[i * 2 + 1]])) {
+      expect(Math.abs((100 - ay) * (x - ax) - (100 - ax) * (y - ay)) / len).toBeLessThanOrEqual(1);
+    }
+    await m.click([100, 100], { straight: true });
+    expect(m.state.anchors[1]).toEqual([100, 100]);
+    // Without Alt, the next move is magnetic again: on the edge.
+    m.move([158, 100]);
+    await m.idle();
+    const back = m.state.live!;
+    expect(Math.abs(back[back.length - 2] + 0.5 - 160)).toBeLessThanOrEqual(1);
+    const outline = (await m.close({ straight: true }))!;
+    expect(outline[outline.length - 1]).not.toBeUndefined();
+  });
+
+  test("Width: the strongest edge is sought only that far from the pointer", async () => {
+    // A mild step at x = 50 and a strong one at x = 60, both vertical.
+    const steps = image(W, W, (x) => (x < 50 ? [120, 120, 120, 255] : x < 60 ? [180, 180, 180, 255] : [20, 20, 20, 255]));
+    const narrow = await lasso({ width: 4 }, steps);
+    await narrow.m.click([50, 20]);
+    narrow.m.move([50, 120]);
+    await narrow.m.idle();
+    const a = narrow.m.state.live!;
+    expect(Math.abs(a[a.length - 2] - 49.5)).toBeLessThanOrEqual(1.5);
+    const wide = await lasso({ width: 16 }, steps);
+    await wide.m.click([50, 20]);
+    wide.m.move([50, 120]);
+    await wide.m.idle();
+    const b = wide.m.state.live!;
+    expect(Math.abs(b[b.length - 2] - 59.5)).toBeLessThanOrEqual(1.5);
+  });
+
   test("without a backend it is a polygon lasso: straight segments between clicks", async () => {
-    const m = createMagneticLasso(null, { snapRadius: () => 4, onChange: () => {} });
+    const m = createMagneticLasso(null, { width: () => 4, contrast: () => 26, spacing: () => Infinity, onChange: () => {} });
     await m.click([10, 10]);
     await m.click([100, 10]);
     await m.click([100, 100]);
-    expect(m.state.segments.map((s) => Array.from(s))).toEqual([[10, 10, 100, 10], [100, 10, 100, 100]]);
-    expect(await m.close()).toEqual([[10, 10], [100, 10], [100, 100]]);
+    expect(m.state.segments.map((s) => [s[0], s[1], s[s.length - 2], s[s.length - 1]])).toEqual([[10, 10, 100, 10], [100, 10, 100, 100]]);
+    const outline = (await m.close())!;
+    expect(outline[0]).toEqual([10, 10]);
+    expect(outline).toContainEqual([100, 10]);
+    expect(outline).toContainEqual([100, 100]);
   });
 });
 
@@ -471,6 +731,13 @@ describe("the tools in the editor state", () => {
     store.init({ src: "blob:x", type: "image", mode: "sticker" });
     return store;
   }
+
+  test("Photoshop's defaults", () => {
+    const o = open().uiState.cutoutOptions;
+    expect(o).toMatchObject({ magicTolerance: 32, magicAntiAlias: true, contiguous: true, magicOpacity: 100, sampleSize: 1 });
+    expect(o).toMatchObject({ eraserTolerance: 50, sampling: "continuous", limits: "contiguous", eraserSpacing: 25, protectForeground: false });
+    expect(o).toMatchObject({ edgeWidth: 10, edgeContrast: 10, frequency: 57, selectionAntiAlias: true });
+  });
 
   test("a selection is one polygon op; keep erases outside, erase inside, invert swaps them; undoable", () => {
     const store = open();
@@ -501,6 +768,16 @@ describe("the tools in the editor state", () => {
     expect(store.hasModifications).toBe(true);
   });
 
+  test("anti-alias off makes a hard-edged selection op", () => {
+    const store = open();
+    store.uiState.cutoutOptions.selectionAntiAlias = false;
+    store.uiState.selection = { points: [[0, 0], [10.5, 0], [10.5, 10]], inverted: false };
+    store.applySelection("erase");
+    expect(store.mediaState.mask.strokes[0]).toMatchObject({ kind: "polygon", antiAlias: false });
+    const hard = selectionCoverage([[0.7, 0], [10.7, 0], [10.7, 10], [0.7, 10]], 0, 20, 20, 1, false)!;
+    expect(new Set(hard.data)).toEqual(new Set([0, 255]));
+  });
+
   test("a degenerate selection records nothing; feather is clamped to 0–20", () => {
     const store = open();
     expect(store.eraseSelection([[0, 0], [10, 10]], "inside")).toBe(false);
@@ -509,6 +786,19 @@ describe("the tools in the editor state", () => {
     expect(store.mediaState.history).toHaveLength(0);
     store.eraseSelection([[0, 0], [10, 0], [10, 10]], "inside", 99);
     expect(store.mediaState.mask.strokes[0]).toMatchObject({ feather: 20 });
+  });
+
+  test("select all and deselect", () => {
+    const store = open();
+    expect(store.selectAll()).toBe(false);
+    store.uiState.mediaSize = [300, 200];
+    expect(store.selectAll()).toBe(true);
+    expect(store.uiState.selection).toEqual({ points: [[0, 0], [300, 0], [300, 200], [0, 200]], inverted: false });
+    const seq = store.uiState.deselectSeq;
+    store.deselect();
+    expect(store.uiState.selection).toBeNull();
+    expect(store.uiState.deselectSeq).toBe(seq + 1);
+    expect(store.mediaState.history).toHaveLength(0);
   });
 
   test("the magic eraser adds one raster op over the source box it erased; undo and redo", () => {
@@ -523,6 +813,10 @@ describe("the tools in the editor state", () => {
     const raster = op.kind === "raster" ? store.getMaskSource(op.raster) : null;
     expect(raster).toMatchObject({ width: 60, height: 50 });
     expect(raster!.data.every((v) => v === 255)).toBe(true);
+    // Only padding: the erased column beside the red takes the red, against filtering bleed.
+    const pads = Array.from(raster!.colour!).filter((_, i) => i % 2 === 0);
+    expect(pads.length).toBe(50);
+    for (const i of pads) expect(i % 60).toBe(59);
     store.undo();
     expect(store.mediaState.mask.strokes).toHaveLength(0);
     store.redo();
@@ -530,6 +824,33 @@ describe("the tools in the editor state", () => {
     // Nothing to erase outside the image.
     expect(store.magicErase([-10, 5])).toBe(false);
     expect(store.mediaState.history).toHaveLength(1);
+  });
+
+  test("a soft edge's decontaminated colours travel with the eraser's raster", () => {
+    const store = open();
+    const GREY: Rgba = [128, 128, 128, 255];
+    const RED: Rgba = [230, 20, 20, 255];
+    store.setWorkingImage({ ...image(20, 10, (x) => (x < 8 ? GREY : x === 8 ? mix(GREY, RED, 0.5) : RED)), scale: 1 });
+    store.magicErase([2, 2]);
+    const op = store.mediaState.mask.strokes[0];
+    const raster = op.kind === "raster" ? store.getMaskSource(op.raster)! : null;
+    expect(raster!.colour).toBeInstanceOf(Uint32Array);
+    // The raster's box starts at the image's corner here: its pixel (8, 2) is the image's.
+    expect(op).toMatchObject({ points: [[0, 0], [9, 10]] });
+    const at = 2 * raster!.width + 8;
+    const k = Array.from(raster!.colour!).findIndex((v, i) => i % 2 === 0 && v === at);
+    expect(k).toBeGreaterThanOrEqual(0);
+    expect(raster!.colour![k + 1] >>> 16).toBeGreaterThan(215);
+    expect(raster!.data[at]).toBeGreaterThan(110);
+    expect(raster!.data[at]).toBeLessThan(145);
+  });
+
+  test("picking a colour from the working image", () => {
+    const store = open();
+    expect(store.pickColourAt([1, 1])).toBeNull();
+    store.setWorkingImage({ ...image(4, 4, () => [255, 128, 0, 255]), scale: 0.5 });
+    expect(store.pickColourAt([2, 2])).toBe("#ff8000");
+    expect(store.pickColourAt([100, 2])).toBeNull();
   });
 
   test("resetting the mask takes every kind of op with it, and undo brings them back", () => {
@@ -549,11 +870,13 @@ describe("the tools in the editor state", () => {
     const store = open();
     store.uiState.cutoutTool = "lasso";
     store.uiState.selection = { points: [[0, 0], [1, 0], [1, 1]], inverted: true };
+    store.uiState.cutoutOptions.magicTolerance = 100;
     expect(store.mediaState.history).toHaveLength(0);
     expect(store.hasModifications).toBe(false);
     store.init({ src: "blob:y", type: "image", mode: "sticker" });
     expect(store.uiState.cutoutTool).toBeNull();
     expect(store.uiState.selection).toBeNull();
+    expect(store.uiState.cutoutOptions.magicTolerance).toBe(32);
     expect(store.getWorkingImage()).toBeNull();
   });
 });

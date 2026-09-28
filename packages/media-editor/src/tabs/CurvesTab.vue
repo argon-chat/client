@@ -57,7 +57,7 @@
             :model-value="store.mediaState.selective.range"
             :min="0"
             :max="1"
-            @update:model-value="v => store.mediaState.selective.range = v"
+            @update:model-value="v => store.set(['selective', 'range'], v)"
           />
         </div>
         <div>
@@ -66,7 +66,7 @@
             :model-value="store.mediaState.selective.shift"
             :min="-1"
             :max="1"
-            @update:model-value="v => store.mediaState.selective.shift = v"
+            @update:model-value="v => store.set(['selective', 'shift'], v)"
           />
         </div>
         <div>
@@ -75,7 +75,7 @@
             :model-value="store.mediaState.selective.sat"
             :min="-1"
             :max="1"
-            @update:model-value="v => store.mediaState.selective.sat = v"
+            @update:model-value="v => store.set(['selective', 'sat'], v)"
           />
         </div>
         <div>
@@ -84,7 +84,7 @@
             :model-value="store.mediaState.selective.luma"
             :min="-1"
             :max="1"
-            @update:model-value="v => store.mediaState.selective.luma = v"
+            @update:model-value="v => store.set(['selective', 'luma'], v)"
           />
         </div>
       </div>
@@ -116,13 +116,13 @@ function setChannel(index: 0 | 1, value: number) {
   const ch = activeChannel.value;
   const arr = [...store.mediaState.curves[ch]] as [number, number];
   arr[index] = value;
-  store.mediaState.curves[ch] = arr;
+  store.set(['curves', ch], arr);
 }
 
 function pickHue(e: MouseEvent) {
   const target = e.currentTarget as HTMLElement;
   const rect = target.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width;
-  store.mediaState.selective.hue = Math.max(0, Math.min(1, x));
+  store.set(['selective', 'hue'], Math.max(0, Math.min(1, x)));
 }
 </script>

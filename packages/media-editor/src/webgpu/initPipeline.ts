@@ -42,6 +42,11 @@ export function initPipeline(device: GPUDevice, format: GPUTextureFormat): Pipel
         binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'float' }
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'float' }
       }
     ]
   });

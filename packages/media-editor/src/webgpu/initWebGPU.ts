@@ -14,6 +14,8 @@ export type RenderingPayload = {
   texture: GPUTexture;
   /** Alpha multiplier in source space; 1×1 white when nothing is masked. */
   maskTexture: GPUTexture;
+  /** Eraser colours in source space, premultiplied (alpha: how much); 1×1 transparent when none. */
+  colourTexture: GPUTexture;
   sampler: GPUSampler;
   bindGroup: GPUBindGroup;
   media: LoadTextureMedia;
@@ -48,6 +50,7 @@ export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, waitT
   const vertexBuffer = createVertexBuffer(device, media.width, media.height);
   const uniformBuffer = createUniformBuffer(device);
   const maskTexture = createMaskTexture(device, [1, 1]);
+  const colourTexture = createColourTexture(device, [1, 1]);
 
   const payload: RenderingPayload = {
     device,
@@ -57,6 +60,7 @@ export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, waitT
     uniformBuffer,
     texture,
     maskTexture,
+    colourTexture,
     sampler,
     bindGroup: undefined as unknown as GPUBindGroup,
     media,
@@ -74,25 +78,30 @@ export function recreateBindGroup(device: GPUDevice, payload: RenderingPayload, 
       { binding: 0, resource: { buffer: payload.uniformBuffer } },
       { binding: 1, resource: payload.texture.createView() },
       { binding: 2, resource: payload.sampler },
-      { binding: 3, resource: payload.maskTexture.createView() }
+      { binding: 3, resource: payload.maskTexture.createView() },
+      { binding: 4, resource: payload.colourTexture.createView() }
     ]
   });
 }
 
-function createMaskTexture(device: GPUDevice, [width, height]: Vec2): GPUTexture {
+function createFilledTexture(device: GPUDevice, [width, height]: Vec2, value: number): GPUTexture {
   const texture = device.createTexture({
     size: [width, height],
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
   });
-  // Opaque until a mask is uploaded.
   const encoder = device.createCommandEncoder();
   encoder.beginRenderPass({
-    colorAttachments: [{ view: texture.createView(), clearValue: { r: 1, g: 1, b: 1, a: 1 }, loadOp: 'clear', storeOp: 'store' }]
+    colorAttachments: [{ view: texture.createView(), clearValue: { r: value, g: value, b: value, a: value }, loadOp: 'clear', storeOp: 'store' }]
   }).end();
   device.queue.submit([encoder.finish()]);
   return texture;
 }
+
+/** Opaque until a mask is uploaded. */
+const createMaskTexture = (device: GPUDevice, size: Vec2) => createFilledTexture(device, size, 1);
+/** No colour replaced until colours are uploaded. */
+const createColourTexture = (device: GPUDevice, size: Vec2) => createFilledTexture(device, size, 0);
 
 /**
  * Copies the mask canvas (its alpha is the mask) to the GPU, all of it or just `rect`. A canvas of
@@ -119,6 +128,39 @@ export function uploadMask(
   );
 }
 
+/**
+ * Copies the eraser colours (RGBA canvas, alpha 255 where a colour is set) to the GPU, premultiplied
+ * so that filtering blends the weight with the colour. A canvas of another size replaces the texture.
+ */
+export function uploadColour(
+  payload: RenderingPayload,
+  source: HTMLCanvasElement | OffscreenCanvas,
+  rect?: { x: number; y: number; width: number; height: number }
+): void {
+  const { device } = payload;
+  if (payload.colourTexture.width !== source.width || payload.colourTexture.height !== source.height) {
+    payload.colourTexture.destroy();
+    payload.colourTexture = createColourTexture(device, [source.width, source.height]);
+    payload.bindGroup = recreateBindGroup(device, payload, payload.bindGroupLayout);
+    rect = undefined;
+  }
+  const r = rect ?? { x: 0, y: 0, width: source.width, height: source.height };
+  if (r.width <= 0 || r.height <= 0) return;
+  device.queue.copyExternalImageToTexture(
+    { source, origin: [r.x, r.y] },
+    { texture: payload.colourTexture, origin: [r.x, r.y], premultipliedAlpha: true },
+    [r.width, r.height]
+  );
+}
+
+/** No colour replaced. */
+export function clearColour(payload: RenderingPayload): void {
+  if (payload.colourTexture.width === 1 && payload.colourTexture.height === 1) return;
+  payload.colourTexture.destroy();
+  payload.colourTexture = createColourTexture(payload.device, [1, 1]);
+  payload.bindGroup = recreateBindGroup(payload.device, payload, payload.bindGroupLayout);
+}
+
 /** Back to fully opaque. */
 export function clearMask(payload: RenderingPayload): void {
   if (payload.maskTexture.width === 1 && payload.maskTexture.height === 1) return;
@@ -132,6 +174,7 @@ export function cleanupWebGPU(payload: RenderingPayload): void {
   payload.uniformBuffer.destroy();
   payload.texture.destroy();
   payload.maskTexture.destroy();
+  payload.colourTexture.destroy();
   payload.compositor?.destroy();
   payload.compositor = undefined;
 

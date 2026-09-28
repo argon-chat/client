@@ -28,6 +28,8 @@ export interface BrushPainterAPI {
   commit(): void;
   commitLine(line: BrushDrawnLine): void;
   redrawAll(lines: BrushDrawnLine[]): void;
+  /** Drops the line being previewed: back to what is committed. */
+  discard(): void;
   clear(): void;
   animateArrow(line: BrushDrawnLine): Promise<void>;
 }
@@ -250,6 +252,11 @@ export function createBrushPainter(opts: CreateBrushPainterOptions): BrushPainte
     for (const line of lines) commitLine(line);
   }
 
+  function discard() {
+    targetCtx.clearRect(0, 0, width, height);
+    targetCtx.drawImage(cacheCanvas, 0, 0);
+  }
+
   function clear() {
     targetCtx.clearRect(0, 0, width, height);
     cacheCtx.clearRect(0, 0, width, height);
@@ -270,5 +277,5 @@ export function createBrushPainter(opts: CreateBrushPainterOptions): BrushPainte
     });
   }
 
-  return { preview, commit, commitLine, redrawAll, clear, animateArrow };
+  return { preview, commit, commitLine, redrawAll, discard, clear, animateArrow };
 }

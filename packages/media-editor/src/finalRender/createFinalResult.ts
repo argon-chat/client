@@ -2,7 +2,7 @@ import { toRaw } from 'vue';
 import { isExpressionMode, type EditorLayer, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
 import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
-import { initWebGPU, cleanupWebGPU, uploadMask } from '../webgpu/initWebGPU';
+import { initWebGPU, cleanupWebGPU, uploadMask, uploadColour } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import { updateVideoTexture } from '../webgpu/loadTexture';
 import { resolveOutputQuality } from '../constants';
@@ -422,6 +422,7 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
       try {
         raster.render(source, mask.feather, mask.strokes, args.getMaskSource);
         uploadMask(payload, raster.canvas);
+        if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas);
       } finally {
         raster.dispose();
       }

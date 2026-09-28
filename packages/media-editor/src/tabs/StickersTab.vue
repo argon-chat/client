@@ -43,7 +43,7 @@ function addSticker(emoji: string) {
   const src = canvas.toDataURL();
 
   const id = Date.now();
-  store.mediaState.resizableLayers.push({
+  store.addLayer({
     id,
     type: 'sticker',
     position: [0.5, 0.5],

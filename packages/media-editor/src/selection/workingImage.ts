@@ -1,6 +1,6 @@
 import type { Vec2 } from '../types';
 import { maskResolution } from '../mask/maskMath';
-import type { RgbaImage } from './magicEraser';
+import type { RgbaImage } from './sample';
 
 /** The source image at the mask's resolution (≤ 2048 on the long side), straight RGBA. */
 export type WorkingImage = RgbaImage & {

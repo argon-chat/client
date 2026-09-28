@@ -97,20 +97,18 @@ const { store } = useMediaEditorContext();
 const MIN_SIZE = 16;
 const MAX_SIZE = 64;
 
-// Sync currentTextLayerInfo changes to the selected layer
+// Sync currentTextLayerInfo changes to the selected layer, as one history entry.
+const STYLE_KEYS = ['font', 'size', 'color', 'alignment', 'style'] as const;
 watch(
   () => store.uiState.currentTextLayerInfo,
   (info) => {
     const sel = store.uiState.selectedResizableLayer;
     if (sel == null) return;
-    const layer = store.mediaState.resizableLayers.find(l => l.id === sel);
-    if (layer?.textInfo) {
-      layer.textInfo.font = info.font;
-      layer.textInfo.size = info.size;
-      layer.textInfo.color = info.color;
-      layer.textInfo.alignment = info.alignment;
-      layer.textInfo.style = info.style;
-    }
+    const index = store.mediaState.resizableLayers.findIndex(l => l.id === sel);
+    if (index < 0 || !store.mediaState.resizableLayers[index].textInfo) return;
+    store.batch(() => {
+      for (const key of STYLE_KEYS) store.set(['resizableLayers', index, 'textInfo', key], info[key]);
+    });
   },
   { deep: true }
 );
@@ -153,7 +151,7 @@ function addTextLayer() {
     ? [store.uiState.canvasSize[0] / 2, store.uiState.canvasSize[1] / 2] as [number, number]
     : [200, 200] as [number, number];
 
-  store.mediaState.resizableLayers.push({
+  store.addLayer({
     id,
     type: 'text',
     position: center,

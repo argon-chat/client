@@ -159,12 +159,19 @@ struct Params {
 @group(0) @binding(1) var src_texture: texture_2d<f32>;
 @group(0) @binding(2) var src_sampler: sampler;
 @group(0) @binding(3) var mask_texture: texture_2d<f32>;
+@group(0) @binding(4) var colour_texture: texture_2d<f32>;
 
 // The source texture is premultiplied, so filtering never pulls in the colour of transparent texels;
 // the mask scales all four channels. Spatial passes work on premultiplied colour, the colour passes
 // on straight colour (unpremultiply below), and the result is premultiplied again.
+// The colour texture (premultiplied, alpha = how much) replaces the straight colour of pixels the
+// erasers decontaminated.
 fn sample_src(uv: vec2f) -> vec4f {
-  let c = textureSampleLevel(src_texture, src_sampler, uv, 0.0);
+  var c = textureSampleLevel(src_texture, src_sampler, uv, 0.0);
+  let k = textureSampleLevel(colour_texture, src_sampler, uv, 0.0);
+  if (k.a > 0.0 && c.a > 1e-5) {
+    c = vec4f((c.rgb / c.a * (1.0 - k.a) + k.rgb) * c.a, c.a);
+  }
   return c * textureSampleLevel(mask_texture, src_sampler, uv, 0.0).a;
 }
 

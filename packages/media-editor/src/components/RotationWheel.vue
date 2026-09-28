@@ -42,11 +42,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { UI_PATH } from '../store/editorStore';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mixArray, mix, clamp, rotatePoint } from '../geometry';
 import { quarterTurnLeft } from '../canvas/quarterTurn';
-import { tween } from '../animation';
+import { tween, type TweenHandle } from '../animation';
 import type { Vec2 } from '../types';
 
 const { store } = useMediaEditorContext();
@@ -61,10 +62,15 @@ function rotationFromMove(amount: number) {
   return ((amount / DEGREE_DIST_PX) * DEGREE_STEP * Math.PI) / 180;
 }
 
-const moved = ref(0);
+// Where the wheel stands is in the store, so that undoing a rotation turns the wheel back too.
+const moved = computed({
+  get: () => store.uiState.rotationWheel,
+  set: (v: number) => { store.uiState.rotationWheel = v; }
+});
 const movedDiff = ref(0);
 const swiperEl = ref<HTMLDivElement | null>(null);
 let prevRotation = 0;
+const TRANSFORM: (string | number)[][] = [['rotation'], ['translation'], ['scale'], [UI_PATH, 'rotationWheel']];
 
 const displayValue = computed(() => {
   return ((-(moved.value + movedDiff.value) / DEGREE_DIST_PX) * DEGREE_STEP)
@@ -81,6 +87,20 @@ function startSwipe(e: PointerEvent) {
   let currentDiff = movedDiff.value;
   let initialScale = store.mediaState.scale;
   store.uiState.isMoving = true;
+  prevRotation = rotationFromMove(moved.value);
+  const detach = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
+  const gesture = store.beginGesture({
+    track: TRANSFORM,
+    onCancel: () => {
+      detach();
+      movedDiff.value = 0;
+      prevRotation = rotationFromMove(moved.value);
+      store.uiState.isMoving = false;
+    }
+  });
 
   function onMove(ev: PointerEvent) {
     const xDiff = ev.clientX - startX;
@@ -90,8 +110,7 @@ function startSwipe(e: PointerEvent) {
   }
 
   function onUp() {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
+    detach();
 
     let newMoved = moved.value + movedDiff.value;
     if (Math.abs(newMoved) === MAX_DEGREES_DIST_PX) {
@@ -102,6 +121,7 @@ function startSwipe(e: PointerEvent) {
     movedDiff.value = 0;
     store.uiState.isMoving = false;
     store.mediaState.rotation = store.mediaState.rotation % (Math.PI * 2);
+    gesture.end();
   }
 
   document.addEventListener('pointermove', onMove);
@@ -192,10 +212,32 @@ function rotateLeft() {
     frame = (p) => ({ scale: mix(initScale, targetScale, p), translation: mixArray(initTrans, [0, 0], p) as Vec2 });
   }
 
+  let turn: TweenHandle | null = null;
+  let wheel: TweenHandle | null = null;
+  const gesture = store.beginGesture({
+    track: [...TRANSFORM, ['currentImageRatio']],
+    onCancel: () => {
+      turn?.cancel();
+      wheel?.cancel();
+      movedDiff.value = 0;
+      prevRotation = rotationFromMove(moved.value);
+      store.uiState.isMoving = false;
+    }
+  });
   store.mediaState.currentImageRatio = ratio;
   store.uiState.isMoving = true;
 
-  tween({
+  // Reset wheel visual
+  wheel = tween({
+    from: [moved.value, movedDiff.value], to: [0, 0], duration: 200,
+    onUpdate: (v: number[]) => {
+      moved.value = v[0];
+      movedDiff.value = v[1];
+    }
+  });
+  prevRotation = 0;
+
+  turn = tween({
     from: 0, to: 1, duration: 200,
     onUpdate: (p: number) => {
       const { scale, translation } = frame(p);
@@ -204,25 +246,27 @@ function rotateLeft() {
       store.mediaState.rotation = mix(initRot, newRotation, p);
     },
     onComplete: () => {
+      wheel?.cancel();
+      moved.value = 0;
+      movedDiff.value = 0;
       store.uiState.isMoving = false;
       store.mediaState.rotation = store.mediaState.rotation % (Math.PI * 2);
+      gesture.end();
     }
   });
-
-  // Reset wheel visual
-  tween({
-    from: [moved.value, movedDiff.value], to: [0, 0], duration: 200,
-    onUpdate: (v: number[]) => {
-      moved.value = v[0];
-      movedDiff.value = v[1];
-    }
-  });
-  prevRotation = 0;
 }
 
 // ─── Flip ──────────────────────────────────────────────────────
 
 function flipImage() {
+  let flip: TweenHandle | null = null;
+  const gesture = store.beginGesture({
+    track: [['flip']],
+    onCancel: () => {
+      flip?.cancel();
+      store.uiState.isMoving = false;
+    }
+  });
   store.uiState.isMoving = true;
   const isReversedRatio = Math.abs(Math.round((store.mediaState.rotation / Math.PI) * 2)) & 1;
   const snap1 = (v: number) => v < 0 ? -1 : 1;
@@ -231,10 +275,14 @@ function flipImage() {
     snap1(store.mediaState.flip[1]) * (isReversedRatio ? -1 : 1)
   ];
 
-  tween({
+  flip = tween({
     from: [...store.mediaState.flip], to: targetFlip, duration: 200,
     onUpdate: (v: Vec2) => { store.mediaState.flip = v; },
-    onComplete: () => { store.uiState.isMoving = false; }
+    onComplete: () => {
+      store.mediaState.flip = targetFlip;
+      store.uiState.isMoving = false;
+      gesture.end();
+    }
   });
 }
 </script>

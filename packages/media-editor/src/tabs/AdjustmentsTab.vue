@@ -6,7 +6,7 @@
       label="Quality"
       :model-value="effectiveQuality"
       :steps="qualitySteps"
-      @update:model-value="store.mediaState.videoQuality = $event"
+      @update:model-value="store.set(['videoQuality'], $event)"
     />
 
     <!-- Enhance (standalone, prominent) -->
@@ -97,13 +97,7 @@ const effectiveQuality = computed(() =>
 );
 
 function updateAdjustment(key: AdjustmentKey, value: number) {
-  const oldValue = store.mediaState.adjustments[key];
-  store.mediaState.adjustments[key] = value;
-  store.pushToHistory({
-    path: ['adjustments', key],
-    oldValue,
-    newValue: value
-  });
+  store.set(['adjustments', key], value);
 }
 
 function resetAdjustment(key: AdjustmentKey) {

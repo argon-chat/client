@@ -31,7 +31,6 @@
           :value="layerText(layer.textInfo)"
           @input="(e) => updateContent(layer, (e.target as HTMLTextAreaElement).value)"
           @blur="stopEditing"
-          @keydown.escape="stopEditing"
         />
       </template>
     </div>
@@ -41,6 +40,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
+import type { Gesture } from '../store/editorStore';
 import { TEXT_BACKGROUND_PADDING, TEXT_BACKGROUND_RADIUS, TEXT_LINE_HEIGHT, TEXT_OUTLINE_WIDTH } from '../constants';
 import { fontInfo, layerText } from '../fonts';
 import { contrastingTextColor } from '../color';
@@ -88,6 +88,8 @@ function textContentStyle(layer: EditorLayer) {
   return style;
 }
 
+const layerIndex = (id: number) => store.mediaState.resizableLayers.findIndex((l) => l.id === id);
+
 function startDrag(layer: EditorLayer, e: PointerEvent) {
   if (editingLayerId.value === layer.id) return;
 
@@ -95,6 +97,12 @@ function startDrag(layer: EditorLayer, e: PointerEvent) {
   const startX = e.clientX;
   const startY = e.clientY;
   const initPos = [...layer.position] as Vec2;
+  const detach = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
+  // The move is one history entry (nothing when the layer was only clicked); Esc puts it back.
+  const gesture = store.beginGesture({ track: [['resizableLayers', layerIndex(layer.id), 'position']], onCancel: detach });
 
   function onMove(ev: PointerEvent) {
     layer.position = [
@@ -104,17 +112,27 @@ function startDrag(layer: EditorLayer, e: PointerEvent) {
   }
 
   function onUp() {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
+    detach();
+    gesture.end();
   }
 
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
 }
 
+// Typing is one history entry, from opening the text to leaving it; Esc takes the typing back.
+let editing: Gesture | null = null;
+
 function startEditing(layer: EditorLayer) {
   editingLayerId.value = layer.id;
   store.uiState.selectedResizableLayer = layer.id;
+  editing = store.beginGesture({
+    track: [['resizableLayers', layerIndex(layer.id), 'textInfo', 'content']],
+    onCancel: () => {
+      editing = null;
+      editingLayerId.value = null;
+    }
+  });
   nextTick(() => {
     if (editInputRef.value?.[0]) {
       editInputRef.value[0].focus();
@@ -131,6 +149,9 @@ function updateContent(layer: EditorLayer, content: string) {
 
 function stopEditing() {
   editingLayerId.value = null;
+  const gesture = editing;
+  editing = null;
+  gesture?.end();
 }
 </script>
 

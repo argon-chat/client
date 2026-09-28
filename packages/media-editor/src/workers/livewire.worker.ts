@@ -24,15 +24,17 @@ self.onmessage = (e: MessageEvent<LiveWireRequest>) => {
     }
     if (!map) throw new Error('The edge map is not ready');
     if (request.type === 'snap') {
-      post({ type: 'snap', id: request.id, point: snapToEdge(map, request.point, request.radius) });
+      post({ type: 'snap', id: request.id, point: snapToEdge(map, request.point, request.radius, request.contrast) });
       return;
     }
-    const to = request.snap > 0 ? snapToEdge(map, request.to, request.snap) : request.to;
+    const to = request.snap > 0 ? snapToEdge(map, request.to, request.snap, request.contrast) : request.to;
     const path = findPath(map, request.from, to, {
       maxWindow: request.maxWindow,
       pad: request.pad,
       window: request.window,
-      blocked: request.blocked
+      blocked: request.blocked,
+      contrast: request.contrast,
+      corridor: request.corridor
     });
     post(
       {

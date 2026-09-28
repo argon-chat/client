@@ -348,12 +348,15 @@
 
         <!-- Media Editor for attachment editing -->
         <MediaEditor
+            ref="attachmentEditor"
             v-model="attachmentEditorOpen"
             :src="attachmentEditorSrc"
             :media-type="attachmentEditorMediaType"
             :dev-mode="configStore.devModeEnabled"
+            :confirm-discard="confirmAttachmentDiscard"
             @done="onAttachmentEditorDone"
         />
+        <MediaEditorCloseConfirm ref="attachmentCloseConfirm" />
     </div>
 </template>
 <script setup lang="ts">
@@ -411,6 +414,8 @@ import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
 import type { MediaEditorFinalResult } from "@argon/media-editor";
+import MediaEditorCloseConfirm from "@/components/common/MediaEditorCloseConfirm.vue";
+import { useMediaEditorCloseGuard } from "@/components/common/mediaEditorCloseGuard";
 import { usePexStore } from "@/store/data/permissionStore";
 import type { ArgonEntitlementFlag } from "@/lib/rbac/ArgonEntitlement";
 import { useSlashCommands } from "@/composables/useSlashCommands";
@@ -1642,6 +1647,12 @@ function onReplaceFile(index: number, file: File, previewUrl: string) {
 
 // --- Attachment Media Editor ---
 const attachmentEditorOpen = ref(false);
+// Unsaved edits: the editor asks before it closes.
+const {
+  editor: attachmentEditor,
+  closeConfirm: attachmentCloseConfirm,
+  confirmDiscard: confirmAttachmentDiscard,
+} = useMediaEditorCloseGuard();
 const attachmentEditorSrc = ref("");
 const attachmentEditorMediaType = ref<"image" | "video">("image");
 let attachmentEditingIndex = -1;

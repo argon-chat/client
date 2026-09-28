@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, watchEffect } from 'vue';
-import { useMediaEditorContext } from '../composables/useMediaEditorContext';
+import { useMediaEditorContext, useEscape } from '../composables/useMediaEditorContext';
 import { useMaskPainterSlot } from '../composables/useMaskPainter';
 import { createBrushPainter, type BrushDrawnLine, type BrushPainterAPI } from '../canvas/brushPainter';
 import { isMaskBrush, type Vec2 } from '../types';
@@ -135,15 +135,37 @@ function onPointerUp(_e: PointerEvent) {
   painter.preview(currentLine, true);
   painter.commit();
 
-  store.mediaState.brushDrawnLines.push(currentLine);
-  store.pushToHistory({
-    path: ['brushDrawnLines', store.mediaState.brushDrawnLines.length - 1],
-    oldValue: 'SSBiZWxpZXZlIEkgY2FuIGZseSwgSSBiZWxpZXZlIEkgY2FuIHRvdWNoIHRoZSBza3kh',
-    newValue: currentLine
-  });
+  store.addBrushLine(currentLine);
+  shownLines = store.mediaState.brushDrawnLines.length;
 
   currentLine = null;
 }
+
+// Undo and redo add and take lines: the canvas redraws what the state has (a line just drawn is
+// already on it).
+let shownLines = store.mediaState.brushDrawnLines.length;
+watch(
+  () => [store.mediaState.brushDrawnLines, store.mediaState.brushDrawnLines.length],
+  () => {
+    const count = store.mediaState.brushDrawnLines.length;
+    if (isDrawing || !painter || count === shownLines) return;
+    shownLines = count;
+    painter.redrawAll(store.mediaState.brushDrawnLines);
+  }
+);
+
+// Esc drops the stroke being drawn.
+useEscape(() => {
+  if (isMasking) {
+    isMasking = false;
+    return maskPainter.current?.cancel() ?? true;
+  }
+  if (!isDrawing) return false;
+  isDrawing = false;
+  currentLine = null;
+  painter?.discard();
+  return true;
+});
 
 onMounted(() => {
   canvasEl.value?.addEventListener('pointerdown', onPointerDown);

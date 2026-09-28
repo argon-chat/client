@@ -23,8 +23,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { clamp } from '../geometry';
+import { MEDIA_EDITOR_INJECTION_KEY } from '../composables/useMediaEditorContext';
 
 const props = withDefaults(defineProps<{
   modelValue: number;
@@ -46,6 +47,8 @@ const emit = defineEmits<{
 }>();
 
 const trackEl = ref<HTMLDivElement | null>(null);
+// A drag is one history entry, and Esc puts the value back.
+const editor = inject(MEDIA_EDITOR_INJECTION_KEY, null);
 
 const normalized = computed(() => {
   return (props.modelValue - props.min) / (props.max - props.min);
@@ -77,27 +80,38 @@ const progressStyle = computed(() => {
 });
 
 function startDrag(e: PointerEvent) {
-  if (!trackEl.value) return;
-  trackEl.value.setPointerCapture(e.pointerId);
+  const el = trackEl.value;
+  if (!el) return;
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    // Not a live pointer (a synthetic event).
+  }
 
   const update = (ev: PointerEvent) => {
-    if (!trackEl.value) return;
-    const rect = trackEl.value.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
     const x = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
     const value = props.min + x * (props.max - props.min);
     emit('update:modelValue', Math.round(value * 100) / 100);
   };
 
-  update(e);
-
   const onMove = (ev: PointerEvent) => update(ev);
+  const stop = () => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+  };
+  const gesture = editor?.store.beginGesture({ onCancel: stop });
   const onUp = () => {
-    trackEl.value?.removeEventListener('pointermove', onMove);
-    trackEl.value?.removeEventListener('pointerup', onUp);
+    stop();
+    gesture?.end();
   };
 
-  trackEl.value.addEventListener('pointermove', onMove);
-  trackEl.value.addEventListener('pointerup', onUp);
+  update(e);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
 }
 </script>
 

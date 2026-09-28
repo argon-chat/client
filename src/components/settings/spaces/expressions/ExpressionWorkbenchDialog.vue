@@ -3,6 +3,9 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { ExpressionFormat, type ExpressionKind } from "@argon/glue";
 import { MediaEditor, type MediaEditorFinalResult } from "@argon/media-editor";
 import { useConfigStore } from "@/store/ui/configStore";
+import { useWindow } from "@/store/ui/windowStore";
+import MediaEditorCloseConfirm from "@/components/common/MediaEditorCloseConfirm.vue";
+import { useMediaEditorCloseGuard } from "@/components/common/mediaEditorCloseGuard";
 import { maxBytes } from "@/lib/expressions/limits";
 import { editedFileName, workbenchModeFor } from "@/lib/expressions/workbench/entry";
 import { createBackgroundRemovalClient, type BackgroundRemovalClient } from "@/lib/expressions/workbench/bgRemovalClient";
@@ -30,6 +33,19 @@ const configStore = useConfigStore();
 const isOpen = computed({
   get: () => props.open,
   set: (v) => emit("update:open", v),
+});
+
+// Unsaved edits: the editor asks before closing, and the server settings cannot close under it.
+const windows = useWindow();
+const { editor, closeConfirm, confirmDiscard } = useMediaEditorCloseGuard({
+  open: () => windows.serverSettingsOpen,
+  setOpen: (v) => {
+    windows.serverSettingsOpen = v;
+  },
+  editorOpen: () => isOpen.value,
+  closeEditor: () => {
+    isOpen.value = false;
+  },
 });
 
 const src = ref("");
@@ -91,6 +107,7 @@ function onCancel() {
   <MediaEditor
     v-if="src"
     :key="session"
+    ref="editor"
     v-model="isOpen"
     :src="src"
     media-type="image"
@@ -99,8 +116,10 @@ function onCancel() {
     :background-remover="removeBackground"
     export-format="auto"
     :max-bytes="byteCap"
+    :confirm-discard="confirmDiscard"
     @done="onDone"
     @cancel="onCancel"
     @error="emit('error', $event)"
   />
+  <MediaEditorCloseConfirm ref="closeConfirm" />
 </template>

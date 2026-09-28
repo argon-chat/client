@@ -6,6 +6,27 @@ import { featherMask } from '../mask/maskMath';
  */
 export type CoverageRect = { x: number; y: number; width: number; height: number; data: Uint8Array };
 
+/**
+ * An eraser's result: how much each pixel loses, and for the partly erased ones the colour they
+ * keep without the background, as pairs (pixel index within the rect, 0xRRGGBB); null when none.
+ */
+export type EraseRect = CoverageRect & { colour: Uint32Array | null };
+
+/** The colour pairs as a rect-sized RGBA image (alpha 255 where set). */
+export function expandColour(pairs: Uint32Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(width * height * 4);
+  for (let k = 0; k + 1 < pairs.length; k += 2) {
+    const o = pairs[k] * 4;
+    if (o + 3 >= out.length) continue;
+    const rgb = pairs[k + 1];
+    out[o] = rgb >>> 16;
+    out[o + 1] = (rgb >>> 8) & 255;
+    out[o + 2] = rgb & 255;
+    out[o + 3] = 255;
+  }
+  return out;
+}
+
 /** Half-open pixel bounds. */
 export type Bounds = { x0: number; y0: number; x1: number; y1: number };
 

@@ -5,6 +5,7 @@
     class="absolute inset-0 z-[5] touch-none select-none"
     :style="{ cursor }"
     :data-cutout-overlay="tool"
+    :data-picking="store.uiState.pickColour ?? undefined"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
@@ -28,6 +29,23 @@
           data-selection-outline
         />
       </template>
+      <!-- The magnetic lasso: a thin line, fastening points as small squares -->
+      <template v-if="magneticPath">
+        <path :d="magneticPath" fill="none" stroke="black" stroke-opacity="0.6" stroke-width="2.5" stroke-linejoin="round" />
+        <path :d="magneticPath" fill="none" stroke="white" stroke-width="1" stroke-linejoin="round" data-magnetic-path />
+      </template>
+      <rect
+        v-for="(a, i) in fasteningPoints"
+        :key="'f' + i"
+        :x="a[0] - 2.5"
+        :y="a[1] - 2.5"
+        width="5"
+        height="5"
+        class="fill-background"
+        stroke="black"
+        stroke-width="1"
+        data-fastening-point
+      />
       <path v-if="rubberBand" :d="rubberBand" fill="none" stroke="white" stroke-opacity="0.85" stroke-width="1" stroke-dasharray="3 3" />
       <circle
         v-for="(a, i) in anchorDots"
@@ -50,13 +68,15 @@
 
 <script setup lang="ts">
 import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import { useMediaEditorContext } from '../composables/useMediaEditorContext';
+import { useMediaEditorContext, useEscape } from '../composables/useMediaEditorContext';
 import { useMaskPainterSlot, type MaskSnapshot } from '../composables/useMaskPainter';
 import { canvasToSource, maskResolution, sourceToCanvas } from '../mask/maskMath';
 import { createLiveWireWorker, type LiveWireBackend } from '../selection/liveWireClient';
-import { createMagneticLasso, type MagneticLasso } from '../selection/magneticLasso';
+import { contrastLevels } from '../selection/livewire';
+import { createMagneticLasso, fasteningSpacing, type MagneticLasso } from '../selection/magneticLasso';
 import { beginBackgroundErase, type BackgroundEraseStroke } from '../selection/backgroundEraser';
 import { simplifyPath } from '../selection/polygon';
+import { hexToRgba } from '../selection/sample';
 import { copyPixels } from '../selection/workingImage';
 import type { Bounds } from '../selection/coverage';
 import type { Vec2 } from '../types';
@@ -111,6 +131,9 @@ function workingScale(): number {
   return maskResolution(w, h)[0] / w;
 }
 
+/** Working pixels per CSS pixel: the magnetic lasso's Width and Frequency are on screen, whatever the zoom. */
+const workingPerCss = () => sourcePerCss() * workingScale();
+
 const toWorking = (p: Vec2): Vec2 => [p[0] * workingScale(), p[1] * workingScale()];
 const fromWorking = (x: number, y: number): Vec2 => [(x + 0.5) / workingScale(), (y + 0.5) / workingScale()];
 
@@ -140,6 +163,8 @@ const lassoPoints = shallowRef<Vec2[]>([]);
 const polygonVertices = shallowRef<Vec2[]>([]);
 const pointer = ref<Vec2 | null>(null);
 let pointerDown = false;
+/** Alt held: the magnetic lasso lays straight segments (Photoshop's polygonal switch). */
+const altHeld = ref(false);
 
 let backend: LiveWireBackend | null = null;
 let magnetic: MagneticLasso | null = null;
@@ -165,12 +190,21 @@ function magneticPoints(): Vec2[] {
 const outline = computed<{ d: string; closed: boolean } | null>(() => {
   const selection = store.uiState.selection;
   if (selection && isLasso.value) return { d: pathD(selection.points, true), closed: true };
-  if (magneticActive()) {
-    const points = magneticPoints();
-    return points.length > 1 ? { d: pathD(points, false), closed: false } : null;
-  }
+  if (magneticActive()) return null;
   if (isLasso.value && lassoPoints.value.length > 1) return { d: pathD(lassoPoints.value, false), closed: false };
   return null;
+});
+
+const magneticPath = computed(() => {
+  if (store.uiState.selection || !magneticActive()) return '';
+  const points = magneticPoints();
+  return points.length > 1 ? pathD(points, false) : '';
+});
+
+const fasteningPoints = computed<Vec2[]>(() => {
+  if (store.uiState.selection || !magneticActive()) return [];
+  void magneticTick.value;
+  return (magnetic?.state.anchors ?? []).map((a) => toCss(fromWorking(a[0], a[1])));
 });
 
 const dimPath = computed(() => {
@@ -194,23 +228,19 @@ const rubberBand = computed(() => {
 });
 
 const anchorDots = computed<Vec2[]>(() => {
-  if (store.uiState.selection) return [];
-  if (magneticActive()) {
-    void magneticTick.value;
-    return (magnetic?.state.anchors ?? []).map((a) => toCss(fromWorking(a[0], a[1])));
-  }
+  if (store.uiState.selection || magneticActive()) return [];
   if (polygonLike()) return polygonVertices.value.map(toCss);
   return [];
 });
 
 const brushCursor = computed(() => {
-  if (tool.value !== 'backgroundEraser' || !pointer.value) return null;
+  if (tool.value !== 'backgroundEraser' || !pointer.value || store.uiState.pickColour) return null;
   const [x, y] = toCss(pointer.value);
   const r = store.uiState.cutoutOptions.eraserSize / 2;
   return { x, y, r, cross: `M${fmt(x - 5)} ${fmt(y)}H${fmt(x + 5)}M${fmt(x)} ${fmt(y - 5)}V${fmt(y + 5)}` };
 });
 
-const cursor = computed(() => (tool.value === 'backgroundEraser' ? 'none' : 'crosshair'));
+const cursor = computed(() => (tool.value === 'backgroundEraser' && !store.uiState.pickColour ? 'none' : 'crosshair'));
 
 // ─── Lasso ─────────────────────────────────────────────────────────
 
@@ -252,8 +282,8 @@ function removeLastVertex() {
 function ensureLiveWire() {
   if (backend || magnetic || store.uiState.liveWire === 'failed') return;
   const image = store.getWorkingImage();
+  const o = store.uiState.cutoutOptions;
   const onChange = () => magneticTick.value++;
-  const snapRadius = () => store.uiState.cutoutOptions.edgeWidth * sourcePerCss() * workingScale();
   const fallBack = (e: unknown) => {
     console.warn('[media-editor] edge detection unavailable, the magnetic lasso draws straight lines', e);
     backend?.dispose();
@@ -261,10 +291,18 @@ function ensureLiveWire() {
     magnetic = null;
     store.uiState.liveWire = 'failed';
   };
-  if (!image) return;
+  if (!image) {
+    fallBack(new Error('No pixels to find edges in'));
+    return;
+  }
   try {
     backend = createLiveWireWorker();
-    magnetic = createMagneticLasso(backend, { snapRadius, onChange });
+    magnetic = createMagneticLasso(backend, {
+      width: () => Math.max(1, o.edgeWidth * workingPerCss()),
+      contrast: () => contrastLevels(o.edgeContrast),
+      spacing: () => fasteningSpacing(o.frequency) * workingPerCss(),
+      onChange
+    });
     store.uiState.liveWire = 'preparing';
     const mine = backend;
     backend.prepare({ width: image.width, height: image.height, data: copyPixels(image) }).then(
@@ -280,10 +318,10 @@ function ensureLiveWire() {
   }
 }
 
-async function closeMagnetic() {
+async function closeMagnetic(straight = altHeld.value) {
   const m = magnetic;
   if (!m) return;
-  const points = await m.close();
+  const points = await m.close({ straight });
   if (!points) return;
   commitSelection(points.map(([x, y]) => fromWorking(x, y)));
 }
@@ -301,14 +339,27 @@ function showStroke(b: Bounds | null) {
   const alpha = new Uint8Array(width * height);
   const cov = stroke.coverage;
   const base = snapshot.data;
+  const baseColour = snapshot.colour;
   const fw = snapshot.width;
+  let colour: Uint8Array | null = baseColour ? new Uint8Array(width * height * 4) : null;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (b.y0 + y) * fw + b.x0 + x;
-      alpha[y * width + x] = Math.round((base[i] * (255 - cov[i])) / 255);
+      const o = y * width + x;
+      alpha[o] = Math.round((base[i] * (255 - cov[i])) / 255);
+      const c = stroke.colourAt(i);
+      if (c >= 0) {
+        colour ??= new Uint8Array(width * height * 4);
+        colour[o * 4] = c >> 16;
+        colour[o * 4 + 1] = (c >> 8) & 255;
+        colour[o * 4 + 2] = c & 255;
+        colour[o * 4 + 3] = 255;
+      } else if (baseColour && colour) {
+        colour.set(baseColour.subarray(i * 4, i * 4 + 4), o * 4);
+      }
     }
   }
-  painter.preview({ x: b.x0, y: b.y0, width, height }, alpha);
+  painter.preview({ x: b.x0, y: b.y0, width, height }, alpha, colour);
 }
 
 function beginStroke(p: Vec2): boolean {
@@ -320,8 +371,12 @@ function beginStroke(p: Vec2): boolean {
   stroke = beginBackgroundErase(image, [p[0] * image.scale, p[1] * image.scale], {
     size: o.eraserSize * sourcePerCss() * image.scale,
     hardness: o.eraserHardness,
+    spacing: o.eraserSpacing,
     tolerance: o.eraserTolerance,
-    sampling: o.sampling
+    sampling: o.sampling,
+    limits: o.limits,
+    swatch: hexToRgba(o.swatch),
+    protect: o.protectForeground ? hexToRgba(o.foreground) : null
   });
   showStroke(stroke.bounds);
   return true;
@@ -334,6 +389,14 @@ function endStroke() {
   const image = store.getWorkingImage();
   const result = s?.result();
   if (result && image) store.addMaskErase(result, image.scale);
+  else maskPainter.current?.refresh();
+}
+
+function cancelStroke() {
+  stroke = null;
+  snapshot = null;
+  pointerDown = false;
+  maskPainter.current?.refresh();
 }
 
 // ─── Pointer and keys ──────────────────────────────────────────────
@@ -346,10 +409,31 @@ function capture(e: PointerEvent) {
   }
 }
 
+function pickColour(p: Vec2) {
+  const which = store.uiState.pickColour;
+  store.uiState.pickColour = null;
+  const hex = store.pickColourAt(p, store.uiState.cutoutOptions.sampleSize);
+  if (!hex) return;
+  const o = store.uiState.cutoutOptions;
+  if (which === 'swatch') {
+    o.swatch = hex;
+    o.sampling = 'swatch';
+  } else {
+    o.foreground = hex;
+    o.protectForeground = true;
+  }
+}
+
 function onPointerDown(e: PointerEvent) {
   if (e.button !== 0 || !rootEl.value) return;
   const p = eventToSource(e);
   pointer.value = p;
+  altHeld.value = e.altKey;
+
+  if (store.uiState.pickColour) {
+    pickColour(p);
+    return;
+  }
 
   switch (tool.value) {
     case 'lasso': {
@@ -377,11 +461,12 @@ function onPointerDown(e: PointerEvent) {
       if (!magnetic) return;
       if (!magneticInProgress()) store.uiState.selection = null;
       const anchors = magnetic.state.anchors;
+      // A click on the first point closes, along the edges back to it.
       if (anchors.length >= 2 && cssDistance(fromWorking(anchors[0][0], anchors[0][1]), p) <= CLOSE_DISTANCE) {
-        void closeMagnetic();
+        void closeMagnetic(e.altKey);
         return;
       }
-      void magnetic.click(toWorking(p));
+      void magnetic.click(toWorking(p), { straight: e.altKey });
       return;
     }
     case 'magicEraser':
@@ -400,8 +485,9 @@ function onPointerMove(e: PointerEvent) {
   if (!rootEl.value) return;
   const p = eventToSource(e);
   pointer.value = p;
+  altHeld.value = e.altKey;
   if (tool.value === 'lasso' && pointerDown) addLassoPoint(p, false);
-  else if (tool.value === 'magneticLasso' && magnetic) magnetic.move(toWorking(p));
+  else if (tool.value === 'magneticLasso' && magnetic) magnetic.move(toWorking(p), { straight: e.altKey });
   else if (tool.value === 'backgroundEraser' && stroke) {
     const s = stroke;
     const rect = s.to([p[0] * workingScale(), p[1] * workingScale()]);
@@ -414,15 +500,15 @@ function onPointerUp(e: PointerEvent) {
   pointerDown = false;
   if (rootEl.value?.hasPointerCapture(e.pointerId)) rootEl.value.releasePointerCapture(e.pointerId);
   if (tool.value === 'lasso' && store.uiState.cutoutOptions.lassoMode === 'freehand') finishLasso();
-  else if (tool.value === 'backgroundEraser') endStroke();
+  else if (tool.value === 'backgroundEraser' && stroke) endStroke();
 }
 
 function onPointerLeave() {
   if (!pointerDown) pointer.value = null;
 }
 
-function onDoubleClick() {
-  if (tool.value === 'magneticLasso' && store.uiState.liveWire !== 'failed') void closeMagnetic();
+function onDoubleClick(e: MouseEvent) {
+  if (tool.value === 'magneticLasso' && store.uiState.liveWire !== 'failed') void closeMagnetic(e.altKey);
   else if (polygonLike() && polygonVertices.value.length >= 3) finishLasso();
 }
 
@@ -430,21 +516,25 @@ function inProgress(): boolean {
   return lassoPoints.value.length > 0 || magneticInProgress();
 }
 
-/** Keys while drawing: Enter closes, Backspace takes the last point back, Escape cancels. */
+/** Keys while drawing: Enter closes, Backspace or Delete takes the last point back, Alt goes straight. */
 function onKeydown(e: KeyboardEvent) {
-  if (!active.value || !isLasso.value) return;
+  if (!active.value || store.uiState.confirmingClose) return;
+  if (e.key === 'Alt') {
+    if (tool.value === 'magneticLasso' && magneticInProgress()) {
+      e.preventDefault();
+      setAlt(true);
+    }
+    return;
+  }
+  if (!isLasso.value) return;
   const target = e.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
   let handled = false;
-  if (e.key === 'Escape' && (inProgress() || store.uiState.selection)) {
-    cancelAll();
-    store.uiState.selection = null;
-    handled = true;
-  } else if (e.key === 'Enter' && inProgress()) {
-    if (magneticActive()) void closeMagnetic();
+  if (e.key === 'Enter' && inProgress()) {
+    if (magneticActive()) void closeMagnetic(e.altKey);
     else if (polygonVertices.value.length >= 3 || lassoPoints.value.length >= 3) finishLasso();
     handled = true;
-  } else if (e.key === 'Backspace' && inProgress() && !e.ctrlKey) {
+  } else if ((e.key === 'Backspace' || e.key === 'Delete') && inProgress() && !e.ctrlKey && !e.metaKey) {
     if (magneticActive()) magnetic?.removeLast();
     else removeLastVertex();
     handled = true;
@@ -455,21 +545,57 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+function onKeyup(e: KeyboardEvent) {
+  if (e.key !== 'Alt') return;
+  // Not a menu bar's cue while tracing.
+  if (active.value && magneticInProgress()) e.preventDefault();
+  setAlt(false);
+}
+
+/** Alt pressed or let go without moving: the live segment switches at once. */
+function setAlt(on: boolean) {
+  if (altHeld.value === on) return;
+  altHeld.value = on;
+  if (tool.value === 'magneticLasso' && magnetic && magneticInProgress() && pointer.value) {
+    magnetic.move(toWorking(pointer.value), { straight: on });
+  }
+}
+
 function cancelAll() {
   lassoPoints.value = [];
   polygonVertices.value = [];
   magnetic?.cancel();
-  if (stroke) {
-    stroke = null;
-    snapshot = null;
-  }
+  if (stroke) cancelStroke();
 }
+
+// Esc: the colour pick, the stroke, the lasso being drawn, then the pending selection.
+useEscape(() => {
+  if (store.uiState.pickColour) {
+    store.uiState.pickColour = null;
+    return true;
+  }
+  if (!active.value) return false;
+  if (stroke) {
+    cancelStroke();
+    return true;
+  }
+  if (inProgress()) {
+    cancelAll();
+    return true;
+  }
+  if (store.uiState.selection) {
+    store.uiState.selection = null;
+    return true;
+  }
+  return false;
+});
 
 watch(tool, (next, previous) => {
   cancelAll();
   pointerDown = false;
   const lassoTool = next === 'lasso' || next === 'magneticLasso';
   if (!lassoTool || (previous !== 'lasso' && previous !== 'magneticLasso')) store.uiState.selection = null;
+  if (next !== 'backgroundEraser') store.uiState.pickColour = null;
   if (next === 'magneticLasso') ensureLiveWire();
 });
 
@@ -478,9 +604,19 @@ watch(() => store.uiState.cutoutOptions.lassoMode, () => {
   polygonVertices.value = [];
 });
 
-onMounted(() => document.addEventListener('keydown', onKeydown, true));
+watch(() => store.uiState.deselectSeq, () => {
+  lassoPoints.value = [];
+  polygonVertices.value = [];
+  magnetic?.cancel();
+});
+
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown, true);
+  document.addEventListener('keyup', onKeyup, true);
+});
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown, true);
+  document.removeEventListener('keyup', onKeyup, true);
   backend?.dispose();
   backend = null;
   magnetic = null;

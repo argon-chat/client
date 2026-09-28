@@ -18,13 +18,17 @@ export type LiveWireRequest =
       to: Vec2;
       /** Snap `to` to the strongest edge within this radius first. */
       snap: number;
+      /** Edge Contrast, levels. */
+      contrast?: number;
       maxWindow?: number;
       pad?: number;
       window?: Bounds;
       /** x, y pairs the path may not use. */
       blocked?: Int32Array;
+      /** The pointer's trail (x, y pairs) and the Width round it the path stays in. */
+      corridor?: { points: number[]; radius: number };
     }
-  | { type: 'snap'; id: number; point: Vec2; radius: number };
+  | { type: 'snap'; id: number; point: Vec2; radius: number; contrast?: number };
 
 export type LiveWireEvent =
   | { type: 'ready'; id: number; ms: number }

@@ -59,7 +59,8 @@ import { useI18n } from 'vue-i18n';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray } from '../geometry';
-import { tween } from '../animation';
+import { tween, type TweenHandle } from '../animation';
+import { UI_PATH } from '../store/editorStore';
 import { isExpressionMode, type Vec2 } from '../types';
 import RangeInput from '../components/RangeInput.vue';
 
@@ -96,13 +97,23 @@ const visibleRatios = computed(() => {
 });
 
 function selectRatio(item: RatioItem) {
+  // The ratio, its key and the zoom that follows are one step; it ends when the animation does.
+  const gesture = store.beginGesture({
+    track: [['currentImageRatio'], ['scale'], ['translation'], [UI_PATH, 'fixedImageRatioKey']],
+    onCancel: () => {
+      settle?.cancel();
+      store.uiState.isMoving = false;
+    }
+  });
   store.uiState.fixedImageRatioKey = item.key;
-  animateToNewRatio(item);
+  if (!animateToNewRatio(item, () => gesture.end())) gesture.end();
 }
 
-function animateToNewRatio(item: RatioItem) {
+let settle: TweenHandle | null = null;
+
+function animateToNewRatio(item: RatioItem, done: () => void): boolean {
   const ms = store.uiState.mediaSize;
-  if (!ms) return;
+  if (!ms) return false;
 
   const co = cropOffset.value;
   const [w, h] = ms;
@@ -128,18 +139,23 @@ function animateToNewRatio(item: RatioItem) {
   store.mediaState.currentImageRatio = ratio;
   store.uiState.isMoving = true;
 
-  tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
+  settle = tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
     store.mediaState.scale = mix(initScale, targetScale, p);
     store.mediaState.translation = mixArray(initTrans, [0, 0], p) as Vec2;
-  }, onComplete: () => { store.uiState.isMoving = false; } });
+  }, onComplete: () => {
+    store.uiState.isMoving = false;
+    settle = null;
+    done();
+  } });
+  return true;
 }
 
 function setPerspectiveX(v: number) {
-  store.mediaState.perspective = [v, store.mediaState.perspective[1]];
+  store.set(['perspective'], [v, store.mediaState.perspective[1]]);
 }
 
 function setPerspectiveY(v: number) {
-  store.mediaState.perspective = [store.mediaState.perspective[0], v];
+  store.set(['perspective'], [store.mediaState.perspective[0], v]);
 }
 
 const gridOptions = [

@@ -7,7 +7,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { useMaskPainterSlot, type MaskPainter } from '../composables/useMaskPainter';
-import { initWebGPU, cleanupWebGPU, uploadMask, clearMask, type RenderingPayload } from '../webgpu/initWebGPU';
+import { initWebGPU, cleanupWebGPU, uploadMask, clearMask, uploadColour, clearColour, type RenderingPayload } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import type { OutlineDrawParams } from '../webgpu/stickerCompositor';
 import { updateVideoTexture } from '../webgpu/loadTexture';
@@ -117,6 +117,7 @@ function syncMask() {
   const source = store.getMaskSource(m.source);
   if (!source && !m.strokes.length) {
     clearMask(payload);
+    clearColour(payload);
     rasterInSync = false;
   } else {
     const raster = ensureMaskRaster();
@@ -124,6 +125,8 @@ function syncMask() {
     raster.render(source, m.feather, m.strokes, store.getMaskSource);
     rasterInSync = true;
     uploadMask(payload, raster.canvas);
+    if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas);
+    else clearColour(payload);
   }
   scheduleRedraw();
 }
@@ -177,6 +180,7 @@ function paintLive(from: number) {
   if (!raster) return;
   const rect = raster.drawStroke(liveStroke, from);
   uploadMask(payload, raster.canvas, rect);
+  if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas, rect);
   scheduleRedraw();
 }
 
@@ -199,16 +203,27 @@ const maskPainter: MaskPainter = {
     liveStroke = null;
     if (stroke) store.addMaskStroke(stroke);
   },
+  cancel() {
+    if (!liveStroke) return false;
+    liveStroke = null;
+    syncMask();
+    return true;
+  },
   snapshot() {
     const raster = syncedRaster();
-    return raster ? { width: raster.width, height: raster.height, data: raster.read() } : null;
+    return raster ? { width: raster.width, height: raster.height, data: raster.read(), colour: raster.readColour() } : null;
   },
-  preview(rect, alpha) {
+  preview(rect, alpha, colour) {
     const raster = syncedRaster();
     if (!payload || !raster) return;
     raster.putAlpha(rect, alpha);
     uploadMask(payload, raster.canvas, rect);
+    if (colour) raster.putColour(rect, colour);
+    if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas, rect);
     scheduleRedraw();
+  },
+  refresh() {
+    syncMask();
   }
 };
 

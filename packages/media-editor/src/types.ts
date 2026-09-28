@@ -74,11 +74,14 @@ export type MaskPolygonOp = {
   points: Vec2[];
   /** Source pixels. */
   feather: number;
+  /** False: a hard edge. Absent means anti-aliased. */
+  antiAlias?: boolean;
 };
 
 /**
  * A computed erase (magic eraser, background eraser): a raster from `addMaskSource` saying how much
- * each of its pixels loses, stretched over a box of the source image.
+ * each of its pixels loses, stretched over a box of the source image. When the raster carries
+ * `colour`, the partly erased pixels also take that colour (decontaminated of the background).
  */
 export type MaskRasterOp = {
   kind: 'raster';
@@ -108,6 +111,11 @@ export type MaskRaster = {
   width: number;
   height: number;
   data: Uint8Array;
+  /**
+   * Eraser results only: pairs of (pixel index, 0xRRGGBB). Those source pixels take that colour:
+   * what they keep without the erased background.
+   */
+  colour?: Uint32Array | null;
 };
 
 export type BackgroundRemovalInput = {

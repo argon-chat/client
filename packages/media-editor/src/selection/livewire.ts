@@ -2,25 +2,38 @@ import type { Vec2 } from '../types';
 import type { Bounds } from './coverage';
 
 // Intelligent Scissors (Mortensen & Barrett): a per-pixel cost that is low on edges, and the
-// cheapest 8-connected path between two points over it.
+// cheapest 8-connected path between two points over it. The link cost adds the gradient-direction
+// term, so the path runs along an edge rather than across it.
 
 export type CostMap = {
   width: number;
   height: number;
-  /** 0 on the strongest edges, 255 where the image is flat. */
+  /** 0 on the strongest edges, 255 where the image is flat (gradient and zero crossing). */
   cost: Uint8Array;
-  /** Edge strength 0–255, for snapping a point to the nearest edge. */
+  /** Edge strength relative to the image's strong edges, 0–255. */
   edge: Uint8Array;
+  /** Absolute contrast: about the step, in levels, across the edge (for Edge Contrast). */
+  contrast: Uint8Array;
+  /** Unit gradient direction × 127 (0 where flat). */
+  dirX: Int8Array;
+  dirY: Int8Array;
 };
 
 const GRADIENT_WEIGHT = 0.75;
 const ZERO_CROSSING_WEIGHT = 0.25;
+/** Of a link's cost: the pixel's own (gradient and zero crossing) and the direction term. */
+const STATIC_WEIGHT = 0.86;
+const DIRECTION_WEIGHT = 0.14;
 /** Added to every step so that among equally good edges the shorter way wins. */
 const STEP_BASE = 0.05;
 /** A pull toward the straight line, far weaker than any edge: breaks ties across flat areas. */
 const LINE_BIAS = 0.002;
 /** Below this, gradients count as noise (of the largest a Sobel on bytes can give). */
 const NOISE_FLOOR = 12;
+/** A sharp step of Δ levels gives a smoothed Sobel of 3Δ. */
+const STEP_GAIN = 3;
+/** Photoshop's default Edge Contrast, 10 %, in levels. */
+export const DEFAULT_EDGE_CONTRAST = 26;
 
 function smooth121(src: Float32Array, w: number, h: number): Float32Array {
   const tmp = new Float32Array(src.length);
@@ -43,7 +56,8 @@ function smooth121(src: Float32Array, w: number, h: number): Float32Array {
   return out;
 }
 
-function sobelMagnitude(src: Float32Array, w: number, h: number, into: Float32Array): void {
+/** The larger of `into` and this image's gradient per pixel, with its direction. */
+function sobelMagnitude(src: Float32Array, w: number, h: number, into: Float32Array, gxOut: Float32Array, gyOut: Float32Array): void {
   for (let y = 0; y < h; y++) {
     const up = (y > 0 ? y - 1 : y) * w;
     const r = y * w;
@@ -54,7 +68,11 @@ function sobelMagnitude(src: Float32Array, w: number, h: number, into: Float32Ar
       const gx = src[up + xr] + 2 * src[r + xr] + src[dn + xr] - src[up + xl] - 2 * src[r + xl] - src[dn + xl];
       const gy = src[dn + xl] + 2 * src[dn + x] + src[dn + xr] - src[up + xl] - 2 * src[up + x] - src[up + xr];
       const g = Math.sqrt(gx * gx + gy * gy);
-      if (g > into[r + x]) into[r + x] = g;
+      if (g > into[r + x]) {
+        into[r + x] = g;
+        gxOut[r + x] = gx;
+        gyOut[r + x] = gy;
+      }
     }
   }
 }
@@ -80,8 +98,10 @@ export function computeCostMap(rgba: ArrayLike<number>, width: number, height: n
 
   const sLum = smooth121(lum, width, height);
   const grad = new Float32Array(n);
-  sobelMagnitude(sLum, width, height, grad);
-  if (alpha) sobelMagnitude(smooth121(alpha, width, height), width, height, grad);
+  const gxs = new Float32Array(n);
+  const gys = new Float32Array(n);
+  sobelMagnitude(sLum, width, height, grad, gxs, gys);
+  if (alpha) sobelMagnitude(smooth121(alpha, width, height), width, height, grad, gxs, gys);
 
   // Normalise by a high percentile of the real (above-noise) gradients, not the maximum, so one
   // harsh edge does not flatten the rest.
@@ -127,6 +147,9 @@ export function computeCostMap(rgba: ArrayLike<number>, width: number, height: n
 
   const cost = new Uint8Array(n);
   const edge = new Uint8Array(n);
+  const contrast = new Uint8Array(n);
+  const dirX = new Int8Array(n);
+  const dirY = new Int8Array(n);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = y * width + x;
@@ -140,24 +163,32 @@ export function computeCostMap(rgba: ArrayLike<number>, width: number, height: n
           return ((v > 0 && u < 0) || (v < 0 && u > 0) || (v === 0 && u !== 0)) && av <= Math.abs(u);
         };
         zc = (x > 0 && cross(i - 1)) || (x < width - 1 && cross(i + 1)) || (y > 0 && cross(i - width)) || (y < height - 1 && cross(i + width));
+        const k = 127 / grad[i];
+        dirX[i] = Math.round(gxs[i] * k);
+        dirY[i] = Math.round(gys[i] * k);
       }
       const c = GRADIENT_WEIGHT * (1 - g) + ZERO_CROSSING_WEIGHT * (zc ? 0 : 1);
       cost[i] = Math.round(c * 255);
       edge[i] = Math.round(g * 255);
+      contrast[i] = Math.min(255, Math.round(grad[i] / STEP_GAIN));
     }
   }
-  return { width, height, cost, edge };
+  return { width, height, cost, edge, contrast, dirX, dirY };
 }
 
+/** Edge Contrast 1–100 % as the levels an edge must step by to attract the path. */
+export const contrastLevels = (percent: number) => Math.round((Math.min(100, Math.max(0, percent)) / 100) * 255);
+
 /**
- * The strongest edge within `radius` of `point` (the nearest of equals), or the point itself when
- * there is nothing there worth snapping to.
+ * The strongest edge within `radius` of `point` whose contrast reaches `minContrast` (the nearest
+ * of equals), or the point itself when there is none.
  */
-export function snapToEdge(map: CostMap, point: Vec2, radius: number): Vec2 {
+export function snapToEdge(map: CostMap, point: Vec2, radius: number, minContrast = DEFAULT_EDGE_CONTRAST): Vec2 {
   const px = Math.min(map.width - 1, Math.max(0, Math.round(point[0])));
   const py = Math.min(map.height - 1, Math.max(0, Math.round(point[1])));
   const r = Math.floor(radius);
   if (r <= 0) return [px, py];
+  const floor = Math.max(1, minContrast);
   let best = -1;
   let bestD = Infinity;
   let bx = px;
@@ -166,7 +197,9 @@ export function snapToEdge(map: CostMap, point: Vec2, radius: number): Vec2 {
     for (let x = Math.max(0, px - r); x <= Math.min(map.width - 1, px + r); x++) {
       const d = (x - px) ** 2 + (y - py) ** 2;
       if (d > r * r) continue;
-      const e = map.edge[y * map.width + x];
+      const i = y * map.width + x;
+      if (map.contrast[i] < floor) continue;
+      const e = map.edge[i];
       if (e > best || (e === best && d < bestD)) {
         best = e;
         bestD = d;
@@ -175,8 +208,11 @@ export function snapToEdge(map: CostMap, point: Vec2, radius: number): Vec2 {
       }
     }
   }
-  return best >= 64 ? [bx, by] : [px, py];
+  return best >= 0 ? [bx, by] : [px, py];
 }
+
+/** Where the path may go: within `radius` of the pointer's trail (x, y pairs). */
+export type Corridor = { points: ArrayLike<number>; radius: number };
 
 export type PathOptions = {
   /** Largest side of the search window; a farther target is pulled in along the line to fit. */
@@ -187,6 +223,10 @@ export type PathOptions = {
   window?: Bounds;
   /** Pixels the path may not use, as x, y pairs (thickened by one pixel; free near both ends). */
   blocked?: ArrayLike<number>;
+  /** Edges weaker than this (levels) do not attract the path: they cost what a flat area does. */
+  contrast?: number;
+  /** Search only here (the window becomes its box); the magnetic lasso's Width round the trail. */
+  corridor?: Corridor;
 };
 
 export type LiveWirePath = {
@@ -245,7 +285,22 @@ export function findPath(map: CostMap, from: Vec2, to: Vec2, options: PathOption
   let clamped = false;
 
   let wx0: number, wy0: number, wx1: number, wy1: number;
-  if (options.window) {
+  const corridor = options.corridor && options.corridor.points.length >= 2 ? options.corridor : null;
+  if (corridor) {
+    const cp = corridor.points;
+    const r = Math.max(1, corridor.radius);
+    let minX = Math.min(fx, tx), minY = Math.min(fy, ty), maxX = Math.max(fx, tx), maxY = Math.max(fy, ty);
+    for (let i = 0; i + 1 < cp.length; i += 2) {
+      minX = Math.min(minX, cp[i]);
+      minY = Math.min(minY, cp[i + 1]);
+      maxX = Math.max(maxX, cp[i]);
+      maxY = Math.max(maxY, cp[i + 1]);
+    }
+    wx0 = Math.max(0, Math.floor(minX - r - 1));
+    wy0 = Math.max(0, Math.floor(minY - r - 1));
+    wx1 = Math.min(width, Math.ceil(maxX + r + 2));
+    wy1 = Math.min(height, Math.ceil(maxY + r + 2));
+  } else if (options.window) {
     wx0 = Math.max(0, Math.min(Math.floor(options.window.x0), fx, tx));
     wy0 = Math.max(0, Math.min(Math.floor(options.window.y0), fy, ty));
     wx1 = Math.min(width, Math.max(Math.ceil(options.window.x1), fx + 1, tx + 1));
@@ -270,7 +325,39 @@ export function findPath(map: CostMap, from: Vec2, to: Vec2, options: PathOption
   const size = ww * wh;
   ensureBuffers(size);
   dist.fill(Infinity, 0, size);
-  flags.fill(0, 0, size);
+  flags.fill(corridor ? BLOCKED : 0, 0, size);
+
+  if (corridor) {
+    // Open every pixel within the radius of the trail's segments (capsules).
+    const cp = corridor.points;
+    const r = Math.max(1, corridor.radius);
+    const r2 = r * r;
+    const count = cp.length >> 1;
+    for (let s = 0; s < Math.max(1, count - 1); s++) {
+      const ax = cp[s * 2];
+      const ay = cp[s * 2 + 1];
+      const bx = count > 1 ? cp[s * 2 + 2] : ax;
+      const by = count > 1 ? cp[s * 2 + 3] : ay;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const ll = dx * dx + dy * dy;
+      const sx0 = Math.max(wx0, Math.floor(Math.min(ax, bx) - r));
+      const sy0 = Math.max(wy0, Math.floor(Math.min(ay, by) - r));
+      const sx1 = Math.min(wx1 - 1, Math.ceil(Math.max(ax, bx) + r));
+      const sy1 = Math.min(wy1 - 1, Math.ceil(Math.max(ay, by) + r));
+      for (let y = sy0; y <= sy1; y++) {
+        const row = (y - wy0) * ww - wx0;
+        for (let x = sx0; x <= sx1; x++) {
+          const t = ll > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (y - ay) * dy) / ll)) : 0;
+          const ex = x - ax - dx * t;
+          const ey = y - ay - dy * t;
+          if (ex * ex + ey * ey <= r2) flags[row + x] = 0;
+        }
+      }
+    }
+    flags[(fy - wy0) * ww + (fx - wx0)] = 0;
+    flags[(ty - wy0) * ww + (tx - wx0)] = 0;
+  }
 
   if (options.blocked) {
     const b = options.blocked;
@@ -346,6 +433,9 @@ export function findPath(map: CostMap, from: Vec2, to: Vec2, options: PathOption
   const DX = [1, -1, 0, 0, 1, 1, -1, -1];
   const DY = [0, 0, 1, -1, 1, -1, 1, -1];
   const SQRT2 = Math.SQRT2;
+  const { contrast, dirX, dirY } = map;
+  const minContrast = Math.max(1, options.contrast ?? 0);
+  const DIRECTION = DIRECTION_WEIGHT * (2 / (3 * Math.PI));
 
   while (heapSize > 0) {
     const key = heapKey[0];
@@ -360,6 +450,8 @@ export function findPath(map: CostMap, from: Vec2, to: Vec2, options: PathOption
     }
     const lx0 = node % ww;
     const ly0 = (node - lx0) / ww;
+    const p = (ly0 + wy0) * width + lx0 + wx0;
+    const pEdge = contrast[p] >= minContrast && (dirX[p] !== 0 || dirY[p] !== 0);
     for (let k = 0; k < 8; k++) {
       const nx = lx0 + DX[k];
       const ny = ly0 + DY[k];
@@ -368,7 +460,25 @@ export function findPath(map: CostMap, from: Vec2, to: Vec2, options: PathOption
       if (flags[nb]) continue;
       const gx = nx + wx0;
       const gy = ny + wy0;
-      let step = STEP_BASE + cost[gy * width + gx] / 255 + LINE_BIAS * lineDistance(gx, gy);
+      const q = gy * width + gx;
+      const qEdge = contrast[q] >= minContrast;
+      let step = STEP_BASE + STATIC_WEIGHT * (qEdge ? cost[q] : 255) / 255 + LINE_BIAS * lineDistance(gx, gy);
+      if (pEdge && qEdge && (dirX[q] !== 0 || dirY[q] !== 0)) {
+        // Along the edge: the link against the edge directions (perpendicular to the gradients).
+        const inv = k >= 4 ? Math.SQRT1_2 : 1;
+        let lx = DX[k] * inv;
+        let ly = DY[k] * inv;
+        const px = dirY[p] / 127;
+        const py = -dirX[p] / 127;
+        let dp = px * lx + py * ly;
+        if (dp < 0) {
+          dp = -dp;
+          lx = -lx;
+          ly = -ly;
+        }
+        const dq = lx * (dirY[q] / 127) - ly * (dirX[q] / 127);
+        step += DIRECTION * (Math.acos(Math.min(1, dp)) + Math.acos(Math.max(-1, Math.min(1, dq))));
+      }
       if (k >= 4) step *= SQRT2;
       const nd = key + step;
       if (nd < dist[nb]) {

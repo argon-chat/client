@@ -43,7 +43,7 @@ import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray, clamp } from '../geometry';
-import { tween } from '../animation';
+import { tween, type TweenHandle } from '../animation';
 import { computeCropBounds } from '../canvas/computeCropBounds';
 import { isExpressionMode, type Vec2 } from '../types';
 
@@ -108,14 +108,14 @@ watch(() => store.mediaState.currentImageRatio, (_, prev) => {
   }
 });
 
-function resetSizeWithAnimation() {
+function resetSizeWithAnimation(): TweenHandle {
   const initDiff = [...cropDiff.value] as Vec2;
   const initLtDiff = [...cropLeftTopDiff.value] as Vec2;
   const initLt = [...cropLeftTop.value] as Vec2;
   const initSz = [...cropSize.value] as Vec2;
   const { leftTop: targetLt, size: targetSz } = getNewLeftTopAndSize();
 
-  tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
+  return tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
     cropDiff.value = mixArray(initDiff, [0, 0], p) as Vec2;
     cropLeftTopDiff.value = mixArray(initLtDiff, [0, 0], p) as Vec2;
     cropLeftTop.value = mixArray(initLt, targetLt, p) as Vec2;
@@ -174,11 +174,26 @@ const sides: HandleDef[] = [
 
 // ─── Pan (drag image inside crop) ──────────────────────────────
 
+// A drag, and the settling animation after it, is one history entry; Esc puts it back.
+let settle: TweenHandle | null = null;
+
 function startPan(e: PointerEvent) {
   if (!isCropping.value) return;
 
   const initTranslation = [...store.mediaState.translation] as Vec2;
   store.uiState.isMoving = true;
+  const gesture = store.beginGesture({
+    track: [['translation']],
+    onCancel: () => {
+      detach();
+      settle?.cancel();
+      store.uiState.isMoving = false;
+    }
+  });
+  const detach = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
 
   let boundDiff: Vec2 = [0, 0];
   const startX = e.clientX, startY = e.clientY;
@@ -221,16 +236,19 @@ function startPan(e: PointerEvent) {
   }
 
   function onUp() {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
+    detach();
 
     const prev = [...store.mediaState.translation] as Vec2;
-    tween({
+    settle = tween({
       from: prev,
       to: [prev[0] - boundDiff[0], prev[1] - boundDiff[1]],
       duration: 120,
       onUpdate: (v: Vec2) => { store.mediaState.translation = v; },
-      onComplete: () => { store.uiState.isMoving = false; }
+      onComplete: () => {
+        store.uiState.isMoving = false;
+        settle = null;
+        gesture.end();
+      }
     });
   }
 
@@ -247,6 +265,25 @@ function startHandleDrag(handle: HandleDef, e: PointerEvent) {
   const initScale = store.mediaState.scale;
   const initTranslation = [...store.mediaState.translation] as Vec2;
   store.uiState.isMoving = true;
+  let resize: TweenHandle | null = null;
+  const gesture = store.beginGesture({
+    track: [['scale'], ['translation'], ['currentImageRatio']],
+    onCancel: () => {
+      detach();
+      settle?.cancel();
+      resize?.cancel();
+      cropDiff.value = [0, 0];
+      cropLeftTopDiff.value = [0, 0];
+      const { leftTop, size } = getNewLeftTopAndSize();
+      cropLeftTop.value = leftTop;
+      cropSize.value = size;
+      store.uiState.isMoving = false;
+    }
+  });
+  const detach = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
 
   const startX = e.clientX, startY = e.clientY;
 
@@ -343,8 +380,7 @@ function startHandleDrag(handle: HandleDef, e: PointerEvent) {
   }
 
   function onUp() {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
+    detach();
 
     const newWidth = cropSize.value[0] + cropDiff.value[0];
     const newHeight = cropSize.value[1] + cropDiff.value[1];
@@ -353,7 +389,7 @@ function startHandleDrag(handle: HandleDef, e: PointerEvent) {
     const upScale = Math.min(co.width / newWidth, co.height / newHeight);
 
     store.mediaState.currentImageRatio = newRatio;
-    resetSizeWithAnimation();
+    resize = resetSizeWithAnimation();
 
     const scaleNow = store.mediaState.scale;
     const transNow = [...store.mediaState.translation] as Vec2;
@@ -363,10 +399,14 @@ function startHandleDrag(handle: HandleDef, e: PointerEvent) {
       upScale * (transNow[1] + -cropDiff.value[1] * top * 0.5)
     ];
 
-    tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
+    settle = tween({ from: 0, to: 1, duration: 200, onUpdate: (p: number) => {
       store.mediaState.scale = mix(scaleNow, targetScale, p);
       store.mediaState.translation = mixArray(transNow, targetTranslation, p) as Vec2;
-    }, onComplete: () => { store.uiState.isMoving = false; } });
+    }, onComplete: () => {
+      store.uiState.isMoving = false;
+      settle = null;
+      gesture.end();
+    } });
   }
 
   document.addEventListener('pointermove', onMove);
@@ -381,6 +421,15 @@ onMounted(() => {
 
   let wheelRafId: number | null = null;
   let pendingDeltaY = 0;
+  // A run of wheel steps is one zoom; it ends when the wheel has been still for a moment.
+  let wheelGesture: ReturnType<typeof store.beginGesture> | null = null;
+  let wheelIdle: ReturnType<typeof setTimeout> | null = null;
+  const endWheel = () => {
+    if (wheelIdle !== null) clearTimeout(wheelIdle);
+    wheelIdle = null;
+    wheelGesture?.end();
+    wheelGesture = null;
+  };
 
   const processZoom = () => {
     wheelRafId = null;
@@ -427,6 +476,21 @@ onMounted(() => {
   const onWheel = (e: WheelEvent) => {
     if (!isCropping.value) return;
     e.preventDefault();
+    if (!wheelGesture?.active) {
+      wheelGesture = store.beginGesture({
+        track: [['scale'], ['translation']],
+        onCancel: () => {
+          if (wheelIdle !== null) clearTimeout(wheelIdle);
+          wheelIdle = null;
+          wheelGesture = null;
+          if (wheelRafId !== null) cancelAnimationFrame(wheelRafId);
+          wheelRafId = null;
+          pendingDeltaY = 0;
+        }
+      });
+    }
+    if (wheelIdle !== null) clearTimeout(wheelIdle);
+    wheelIdle = setTimeout(endWheel, 250);
     pendingDeltaY += e.deltaY;
     if (wheelRafId === null) {
       wheelRafId = requestAnimationFrame(processZoom);
@@ -437,6 +501,7 @@ onMounted(() => {
   onBeforeUnmount(() => {
     el.removeEventListener('wheel', onWheel);
     if (wheelRafId !== null) cancelAnimationFrame(wheelRafId);
+    endWheel();
   });
 });
 </script>

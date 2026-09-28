@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center justify-between gap-6 shrink-0 h-14 px-4">
-    <button class="size-10 rounded-full bg-transparent border-none text-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none" @click="$emit('close')">
+    <button class="size-10 rounded-full bg-transparent border-none text-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none" data-editor-close @click="$emit('close')">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M18 6L6 18M6 6l12 12"/>
       </svg>
@@ -33,7 +33,8 @@
       </button>
       <button
         class="size-10 rounded-full bg-transparent border-none text-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none"
-        :disabled="!store.mediaState.history.length"
+        :disabled="!store.canUndo"
+        data-undo
         @click="store.undo()"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -43,7 +44,8 @@
       </button>
       <button
         class="size-10 rounded-full bg-transparent border-none text-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none"
-        :disabled="!store.mediaState.redoHistory.length"
+        :disabled="!store.canRedo"
+        data-redo
         @click="store.redo()"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

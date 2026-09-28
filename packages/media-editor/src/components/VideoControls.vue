@@ -127,6 +127,13 @@ function startTrimDrag(handle: 'start' | 'end', e: PointerEvent) {
   if (!containerEl.value) return;
   store.uiState.isPlaying = false;
   isDragging.value = true;
+  const detach = () => {
+    isDragging.value = false;
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
+  // One trim is one history entry; Esc puts the handles back.
+  const gesture = store.beginGesture({ track: [['videoCropStart'], ['videoCropLength']], onCancel: detach });
 
   const onMove = (ev: PointerEvent) => {
     if (!containerEl.value) return;
@@ -149,9 +156,8 @@ function startTrimDrag(handle: 'start' | 'end', e: PointerEvent) {
   };
 
   const onUp = () => {
-    isDragging.value = false;
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
+    detach();
+    gesture.end();
   };
 
   document.addEventListener('pointermove', onMove);

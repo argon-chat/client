@@ -122,17 +122,22 @@ export function rasterizePolygon(points: readonly Vec2[], frameWidth: number, fr
   return { x: x0, y: y0, width: w, height: h, data: out };
 }
 
-/** A selection's coverage in a mask frame: source-pixel points scaled by `scale`, then feathered. */
+/**
+ * A selection's coverage in a mask frame: source-pixel points scaled by `scale`, anti-aliased (or
+ * a hard edge: a pixel is in when its centre half is), then feathered.
+ */
 export function selectionCoverage(
   points: readonly Vec2[],
   feather: number,
   frameWidth: number,
   frameHeight: number,
-  scale = 1
+  scale = 1,
+  antiAlias = true
 ): CoverageRect | null {
   const scaled = scale === 1 ? points : points.map((p) => [p[0] * scale, p[1] * scale] as Vec2);
   const c = rasterizePolygon(scaled, frameWidth, frameHeight);
   if (!c) return null;
+  if (!antiAlias) for (let i = 0; i < c.data.length; i++) c.data[i] = c.data[i] >= 128 ? 255 : 0;
   return featherCoverage(c, feather * scale, frameWidth, frameHeight);
 }
 
