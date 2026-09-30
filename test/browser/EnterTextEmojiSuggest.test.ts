@@ -187,6 +187,8 @@ afterEach(async () => {
   for (const w of mounted.splice(0)) w.unmount();
   await flushPromises();
   document.body.innerHTML = "";
+  // Storage is shared with the other browser test files: the switches are left as they were found, on.
+  for (const setting of [emojiSuggestionsEnabled, suggestEmoji, replaceEmoticons, suggestCustomEmoji, suggestStickers]) setting.value = true;
 });
 
 describe("the strip", () => {

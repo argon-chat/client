@@ -6,7 +6,7 @@
  */
 
 import "../../../packages/assets/styles/index.css";
-import { describe, test, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
 import { page } from "vitest/browser";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
@@ -50,6 +50,7 @@ vi.mock("@argon-chat/emojix", async (importOriginal) => {
 import ExpressionItemDialog from "@/components/settings/spaces/expressions/ExpressionItemDialog.vue";
 import ExpressionPackDialog from "@/components/settings/spaces/expressions/ExpressionPackDialog.vue";
 import type { ExpressionItemPatch } from "@/store/data/expressionsStore";
+import { emojiSuggestionsEnabled } from "@/lib/chat/emojiSuggest/settings";
 
 const EMOJI = ["😀", "😂", "🥰", "😎", "🤔", "😭", "😡", "👍", "👎", "❤️", "🔥", "🎉", "👀", "🙏", "💯", "✨", "🇺🇦", "👍🏽", "🧑‍💻", "🏳️‍🌈"];
 
@@ -77,6 +78,11 @@ const emojiItem = (): ExpressionItem => ({
 });
 
 const mounted: VueWrapper[] = [];
+
+// Storage is shared with the other browser test files, and one of them turns suggestions off.
+beforeEach(() => {
+  emojiSuggestionsEnabled.value = true;
+});
 
 afterEach(async () => {
   for (const w of mounted.splice(0)) w.unmount();
