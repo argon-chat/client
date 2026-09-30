@@ -10,7 +10,7 @@ bun add @argon/i18n
 
 ## Features
 
-- **Core translations** - Shared UI strings (en, ru, jp, am, ru_pt)
+- **Core translations** - Shared UI strings (en, ru, jp, am, ru_pt, es, de, pl, ko, kk, uz)
 - **Merge support** - Extend core messages with app-specific translations
 - **Type-safe** - Full TypeScript support with locale schema types
 - **vue-i18n based** - Standard Vue.js i18n integration
@@ -24,6 +24,12 @@ bun add @argon/i18n
 | `jp` | Japanese |
 | `am` | Armenian |
 | `ru_pt` | Russian (Pirate) |
+| `es` | Spanish |
+| `de` | German |
+| `pl` | Polish |
+| `ko` | Korean |
+| `kk` | Kazakh (Cyrillic) |
+| `uz` | Uzbek (Latin) |
 
 ## Usage
 
@@ -136,7 +142,7 @@ console.log(coreMessages.ru) // Russian messages
 
 ```typescript
 import type { 
-  SupportedLocale,    // 'en' | 'ru' | 'jp' | 'am' | 'ru_pt'
+  SupportedLocale,    // 'en' | 'ru' | 'jp' | 'am' | 'ru_pt' | 'es' | 'de' | 'pl' | 'ko' | 'kk' | 'uz'
   CoreLocaleSchema    // Type of core message keys
 } from '@argon/i18n'
 ```

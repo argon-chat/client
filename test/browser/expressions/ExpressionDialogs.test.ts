@@ -34,6 +34,18 @@ vi.mock("@/store/system/fileStorage", async () => {
 vi.mock("@/store/data/expressionsStore", () => ({
   toMedia: (item: ExpressionItem) => ({ fileId: item.fileId, format: item.format, width: item.width, height: item.height, outline: null, textColor: false }),
 }));
+// The keyword index behind the name suggestions is a 450 KB fetch through the dev server, which a
+// busy CI runner has taken over five seconds to answer. A few keys show the same thing.
+vi.mock("@argon-chat/emojix", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@argon-chat/emojix")>();
+  const index = new actual.KeywordIndex({
+    locale: "en",
+    version: 1,
+    keys: [["parrot", ["1f99c"]], ["party", ["1f389", "1f973"]]],
+    stems: [],
+  });
+  return { ...actual, loadKeywordIndex: async () => index };
+});
 
 import ExpressionItemDialog from "@/components/settings/spaces/expressions/ExpressionItemDialog.vue";
 import ExpressionPackDialog from "@/components/settings/spaces/expressions/ExpressionPackDialog.vue";

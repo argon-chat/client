@@ -306,7 +306,10 @@ function locationLabel(session: SessionInfo): string {
 }
 
 /** The app's locale codes are not all BCP-47; the display-name API wants ones that are. */
-const INTL_LOCALE: Record<string, string> = { en: "en", ru: "ru", ru_pt: "ru", jp: "ja", am: "hy" };
+const INTL_LOCALE: Record<string, string> = {
+  en: "en", ru: "ru", ru_pt: "ru", jp: "ja", am: "hy",
+  es: "es", de: "de", pl: "pl", ko: "ko", kk: "kk", uz: "uz",
+};
 
 const regionNames = computed(() => {
   const app = readPersistedValue<string>("locale", "en");

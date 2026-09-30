@@ -5,12 +5,12 @@
 import { createI18n, type I18n, type I18nOptions } from "vue-i18n";
 
 // English is the fallback and the schema, so it is the one bundle that ships in the boot chunk.
-// Every other locale is its own chunk, fetched the first time it is selected: keeping all five
-// resident cost ~440 KB of parsed JSON plus compiled message functions for languages nobody had
-// switched to.
+// Every other locale is its own chunk, fetched the first time it is selected: keeping every bundle
+// resident cost ~440 KB of parsed JSON plus compiled message functions (with five languages) for
+// languages nobody had switched to.
 import enCore from "./core/en.json";
 
-export const SUPPORTED_LOCALES = ["en", "ru", "jp", "am", "ru_pt"] as const;
+export const SUPPORTED_LOCALES = ["en", "ru", "jp", "am", "ru_pt", "es", "de", "pl", "ko", "kk", "uz"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export type CoreLocaleSchema = typeof enCore;
 export type CoreMessages = Record<string, unknown>;
@@ -21,6 +21,12 @@ const loaders: Record<SupportedLocale, () => Promise<CoreMessages>> = {
   jp: () => import("./core/jp.json").then((m) => m.default as CoreMessages),
   am: () => import("./core/am.json").then((m) => m.default as CoreMessages),
   ru_pt: () => import("./core/ru_pt.json").then((m) => m.default as CoreMessages),
+  es: () => import("./core/es.json").then((m) => m.default as CoreMessages),
+  de: () => import("./core/de.json").then((m) => m.default as CoreMessages),
+  pl: () => import("./core/pl.json").then((m) => m.default as CoreMessages),
+  ko: () => import("./core/ko.json").then((m) => m.default as CoreMessages),
+  kk: () => import("./core/kk.json").then((m) => m.default as CoreMessages),
+  uz: () => import("./core/uz.json").then((m) => m.default as CoreMessages),
 };
 
 const loaded = new Map<SupportedLocale, CoreMessages>([["en", enCore]]);

@@ -122,6 +122,11 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
   // The later ones stand in when a row is taken out of the list (a deletion, or a
   // cached row the server no longer has): the first one still present holds the place.
   let anchors: { key: string | number; y: number }[] = [];
+  // What a size change reported later in the frame of a pass is measured against. The pass is not
+  // painted yet, so such a change landed on what the reader is looking at now: the anchors of the
+  // last pass that stay inside the viewport after this one, in order (see render, step 5).
+  let carried: { key: string | number; y: number }[] = [];
+  let carriedAt: typeof document.timeline.currentTime = null;
 
   // Programmatic-scroll guard: the scrollTop value we last wrote ourselves.
   let lastProgrammaticTop = -1;
@@ -332,15 +337,29 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
       });
     }
 
-    // 5) Save the anchors for the next pass: the first item inside the viewport whose height has
-    // been measured, then the ones after it. Items that have just come into view are still at
-    // their estimate and about to be measured; so may be one cut by the top edge (media loading).
-    // Anchoring on any of them would let its correction push what the reader is looking at. Only
-    // failing that, the first item starting inside, then the one cut by the edge.
-    let firstVisible = out.findIndex((v) => v.offset >= top && v.offset < top + viewH && meta.get(v.key)?.measured);
-    if (firstVisible < 0) firstVisible = out.findIndex((v) => v.offset >= top);
+    // 5) Save the anchors for the next pass: the first item whose content starts inside the
+    // viewport and whose height has been measured, then the ones after it. Items that have just
+    // come into view are still at their estimate and about to be measured; so may be one cut by
+    // the top edge (media loading). Anchoring on any of them would let its correction push what
+    // the reader is looking at. Only failing that, the first item starting inside, then the one
+    // cut by the edge.
+    //
+    // Until this pass is painted, a size change is measured against what the reader still sees:
+    // the previous anchors that stay inside the viewport here. Scrolled up, the row that was cut
+    // by the top edge is not among them, so a card loading inside it does not push what they were
+    // reading; scrolled down, neither is the row that just left.
+    carried = anchors
+      .filter((a) => {
+        const e = meta.get(a.key);
+        return !!e && pointOf(e) >= top && pointOf(e) < top + viewH;
+      })
+      .map((a) => ({ key: a.key, y: pointOf(meta.get(a.key)!) }));
+    carriedAt = document.timeline?.currentTime ?? null;
+    const at = (v: VirtualItem<T>) => v.offset + (meta.get(v.key)?.lead ?? 0);
+    let firstVisible = out.findIndex((v) => at(v) >= top && at(v) < top + viewH && meta.get(v.key)?.measured);
+    if (firstVisible < 0) firstVisible = out.findIndex((v) => at(v) >= top);
     if (firstVisible < 0) firstVisible = Math.max(0, out.findIndex((v) => v.offset + v.height > top));
-    anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: v.offset + (meta.get(v.key)?.lead ?? 0) }));
+    anchors = out.slice(firstVisible).map((v) => ({ key: v.key, y: at(v) }));
 
     // 6) When following new content, re-snap to the true bottom after the DOM
     // updates. This is what makes the list follow async media (GIFs/images)
@@ -374,16 +393,23 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     if (pinnedToBottom && followBottom()) {
       setScrollTopSilently(box, box.scrollHeight);
       updateScrollState(box);
-    } else if (!pinnedToBottom && anchors.length) {
-      const anchor = anchors.find((a) => meta.has(a.key));
+    } else if (!pinnedToBottom) {
+      // Reported in the frame of a pass, before its paint: against what the reader still sees.
+      const sameFrame = carriedAt !== null && carriedAt === (document.timeline?.currentTime ?? null);
+      const base = sameFrame && carried.length ? carried : anchors;
+      const anchor = base.find((a) => meta.has(a.key));
       const ae = anchor && meta.get(anchor.key);
       if (anchor && ae && pointOf(ae) !== anchor.y) {
         setScrollTopSilently(box, box.scrollTop + (pointOf(ae) - anchor.y));
-        // Saved against the old offsets: brought up to date, or the next pass would move it again.
-        for (const a of anchors) {
+      }
+      // Brought up to date, or the next pass would move it again; and what this correction pushed
+      // above the top edge dropped, so the first left is what the reader now sees at the top.
+      for (const list of [carried, anchors]) {
+        for (const a of list) {
           const e = meta.get(a.key);
           if (e) a.y = pointOf(e);
         }
+        while (list.length && (!meta.has(list[0].key) || list[0].y < box.scrollTop)) list.shift();
       }
     }
     enqueue();

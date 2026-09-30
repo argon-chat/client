@@ -18,7 +18,7 @@ import {
   type SupportedLocale,
 } from "../src";
 
-const LOCALES = ["en", "ru", "jp", "am", "ru_pt"] as const;
+const LOCALES = ["en", "ru", "jp", "am", "ru_pt", "es", "de", "pl", "ko", "kk", "uz"] as const;
 
 let bundles: Record<SupportedLocale, CoreMessages>;
 beforeAll(async () => {
