@@ -3028,6 +3028,7 @@ export interface SessionInfo {
   ip: string;
   city: string;
   startedAt: datetime;
+  online: bool;
 };
 
 
@@ -21882,7 +21883,7 @@ IonFormatterStorage.register("ClientPlatform", {
 
 IonFormatterStorage.register("SessionInfo", {
   read(reader: CborReader): SessionInfo {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "SessionInfo");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 15, "SessionInfo");
     const sessionId = IonFormatterStorage.get<guid>('guid').read(reader);
     const clientName = IonFormatterStorage.get<string>('string').read(reader);
     const region = IonFormatterStorage.get<string>('string').read(reader);
@@ -21897,11 +21898,12 @@ IonFormatterStorage.register("SessionInfo", {
     const ip = IonFormatterStorage.get<string>('string').read(reader);
     const city = IonFormatterStorage.get<string>('string').read(reader);
     const startedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 14);
-    return { sessionId, clientName, region, lastSeenAt, isCurrent, appId, appName, appVersion, platform, osName, deviceName, ip, city, startedAt };
+    const online = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 15);
+    return { sessionId, clientName, region, lastSeenAt, isCurrent, appId, appName, appVersion, platform, osName, deviceName, ip, city, startedAt, online };
   },
   write(writer: CborWriter, value: SessionInfo): void {
-    writer.writeStartArray(14);
+    writer.writeStartArray(15);
     IonFormatterStorage.get<guid>('guid').write(writer, value.sessionId);
     IonFormatterStorage.get<string>('string').write(writer, value.clientName);
     IonFormatterStorage.get<string>('string').write(writer, value.region);
@@ -21916,6 +21918,7 @@ IonFormatterStorage.register("SessionInfo", {
     IonFormatterStorage.get<string>('string').write(writer, value.ip);
     IonFormatterStorage.get<string>('string').write(writer, value.city);
     IonFormatterStorage.get<datetime>('datetime').write(writer, value.startedAt);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.online);
     writer.writeEndArray();
   }
 });

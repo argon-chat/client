@@ -17,8 +17,8 @@
       <AtomSpinner class="text-center" />
     </div>
 
-    <!-- The server only reports sessions it currently sees, so an empty list means "nothing is
-         signed in right now", not "we failed to ask" — a failed call keeps the previous list. -->
+    <!-- An empty list means "nothing else is signed in", not "we failed to ask" — a failed call
+         keeps the previous list. -->
     <div v-else-if="sessions.length === 0"
       class="flex flex-col items-center justify-center py-2 text-sm text-muted-foreground">
       <EmptyStateArt name="no-sessions" :size="132" />
@@ -31,8 +31,14 @@
            address) and when it was last heard from. The raw client string sits in the tooltip: every
            label below is something the client said about itself, and on a security screen the
            unedited original has to stay reachable. -->
-      <div v-for="session in sessions" :key="session.sessionId" class="session-row" :title="session.clientName">
-        <component :is="clientIcon(session)" class="w-5 h-5 text-muted-foreground shrink-0" />
+      <div v-for="session in sessions" :key="session.sessionId" class="session-row"
+        :class="{ 'session-row--offline': !session.online }" :title="session.clientName">
+        <div class="relative shrink-0">
+          <component :is="clientIcon(session)" class="w-5 h-5 text-muted-foreground" />
+          <!-- The dot is the only online mark: a signed-in device that is not connected is listed
+               exactly like one that is, with its last-seen time in place of "active now". -->
+          <span v-if="session.online" class="online-dot" :title="t('sessions_online')" />
+        </div>
 
         <div class="flex-1 min-w-0 space-y-0.5">
           <div class="text-sm font-medium flex items-center gap-2">
@@ -345,19 +351,23 @@ function clientIcon(session: SessionInfo) {
 }
 
 /**
- * How long ago the session was last heard from.
- *
- * Everything listed here is live by definition — the server drops a session shortly after its
- * last heartbeat — so the useful distinction is "right now" against "a couple of minutes ago,
- * about to fall off". The absolute date is only a guard against a clock the client cannot vouch
- * for; in practice it never shows.
+ * "Active now" for a connected device; for one that is signed in but not connected, how long ago
+ * it was last heard from — its last disconnect, hub connect or token refresh, whichever came last.
  */
 function lastSeenLabel(session: SessionInfo): string {
+  if (session.online) return t("sessions_last_seen_now");
+
   const lastSeen = session.lastSeenAt.toDate().getTime();
   const minutes = Math.round((Date.now() - lastSeen) / 60000);
 
   if (minutes < 1) return t("sessions_last_seen_now");
   if (minutes < 60) return t("sessions_last_seen_minutes", { minutes });
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return t("sessions_last_seen_hours", { hours });
+
+  const days = Math.round(hours / 24);
+  if (days < 7) return t("sessions_last_seen_days", { days });
 
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -384,6 +394,21 @@ function lastSeenLabel(session: SessionInfo): string {
   border-radius: 0.625rem;
   border: 1px solid hsl(var(--border) / 0.6);
   background: hsl(var(--muted) / 0.25);
+}
+
+.session-row--offline {
+  background: transparent;
+}
+
+.online-dot {
+  position: absolute;
+  right: -0.2rem;
+  bottom: -0.2rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  background: rgb(34 197 94);
+  box-shadow: 0 0 0 2px hsl(var(--card));
 }
 
 .spinner-container {
