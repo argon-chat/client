@@ -291,11 +291,11 @@ const navItems = computed<NavItem[]>(() => [
                 </button>
             </div>
 
-            <Separator class="mx-2" />
+            <Separator class="w-auto mx-2" />
 
             <!-- Chat list -->
             <div v-if="dmActive" class="flex-1 flex flex-col overflow-hidden min-h-0">
-                <div class="chat-list flex flex-col gap-0.5 px-1 overflow-y-auto flex-1">
+                <div class="chat-list flex flex-col gap-0.5 px-1 overflow-y-auto overflow-x-hidden flex-1">
                     <!-- Loading skeletons -->
                     <template v-if="chatsLoading && !hasAnyChats">
                         <div v-for="i in 6" :key="`chat-sk-${i}`" class="flex items-center gap-2 px-2 py-1.5">
@@ -326,7 +326,7 @@ const navItems = computed<NavItem[]>(() => [
                             @open="openChat"
                             @action="onChatAction"
                         />
-                        <Separator class="mx-2 my-1" />
+                        <Separator class="w-auto mx-2 my-1" />
                     </template>
 
                     <!-- Recent section -->
