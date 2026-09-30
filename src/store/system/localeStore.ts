@@ -15,6 +15,11 @@ const CANONICAL_LANGUAGE: Readonly<Record<string, string>> = {
   jp: "ja",
 };
 
+/** Second parts that name a script rather than a region: `en_tengwar` is English in Tengwar, ISO 15924 `Teng`. */
+const SCRIPT_SUBTAG: Readonly<Record<string, string>> = {
+  tengwar: "Teng",
+};
+
 /**
  * The locale key as an HTML `lang` value.
  *
@@ -29,12 +34,14 @@ const CANONICAL_LANGUAGE: Readonly<Record<string, string>> = {
  * is harmless — the language subtag in front of it is what anything actually acts on.
  */
 export function documentLanguage(locale: string): string {
-  const [subtag, region] = locale.replace(/_/g, "-").split("-");
+  const [subtag, rest] = locale.replace(/_/g, "-").split("-");
 
   const lowered  = subtag.toLowerCase();
   const language = CANONICAL_LANGUAGE[lowered] ?? lowered;
+  if (!rest) return language;
 
-  return region ? `${language}-${region.toUpperCase()}` : language;
+  const script = SCRIPT_SUBTAG[rest.toLowerCase()];
+  return script ? `${language}-${script}` : `${language}-${rest.toUpperCase()}`;
 }
 
 export const useLocale = defineStore("locale", () => {

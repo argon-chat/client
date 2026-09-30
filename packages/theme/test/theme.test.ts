@@ -125,4 +125,18 @@ describe("useTheme", () => {
 
     expect(useTheme().currentTheme.value).toBe("oled");
   });
+
+  /**
+   * The Tengwar locale's strings are Private Use Area code points that only the Tengwar face maps,
+   * and that face is declared for that range alone. So it leads every stack, the user's choice right
+   * behind it: no locale-dependent font switching, and no way for it to reach Latin text.
+   */
+  test("leads every stack with the Tengwar face, the chosen font behind it", () => {
+    useTheme().applyAppearanceSettings();
+    expect(document.body.style.fontFamily.replace(/["']/g, "")).toMatch(/^Alcarin Tengwar, Inter/);
+
+    localStorage.setItem("appearance.fontFamily", JSON.stringify({ json: "Lato, sans-serif" }));
+    useTheme().applyAppearanceSettings();
+    expect(document.body.style.fontFamily.replace(/["']/g, "")).toMatch(/^Alcarin Tengwar, Lato/);
+  });
 });

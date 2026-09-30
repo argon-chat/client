@@ -766,7 +766,7 @@ function onCopyUserId() {
 }
 .presence-online { color: #4ade80; }
 .presence-away { color: #fbbf24; }
-.presence-snooze { color: #ca8a04; }
+.presence-snooze { color: #60a5fa; }
 .presence-dnd { color: #f87171; }
 .presence-offline { color: #9ca3af; }
 

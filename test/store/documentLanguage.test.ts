@@ -34,6 +34,15 @@ describe("locale key as a document language", () => {
     expect(documentLanguage("ru_pt")).toBe("ru-PT");
   });
 
+  /**
+   * `en_tengwar` is English in another script, not English from a place: BCP 47 says that with the
+   * ISO 15924 script code, and "TENGWAR" is not a region anything would recognise.
+   */
+  it("gives the Tengwar bundle its script subtag rather than a made-up region", () => {
+    expect(documentLanguage("en_tengwar")).toBe("en-Teng");
+    expect(documentLanguage("EN_TENGWAR")).toBe("en-Teng");
+  });
+
   it("upper-cases the region, which is how tags are matched", () => {
     expect(documentLanguage("en-gb")).toBe("en-GB");
     expect(documentLanguage("pt_br")).toBe("pt-BR");

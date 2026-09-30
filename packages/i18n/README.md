@@ -10,7 +10,7 @@ bun add @argon/i18n
 
 ## Features
 
-- **Core translations** - Shared UI strings (en, ru, jp, am, ru_pt, es, de, pl, ko, kk, uz)
+- **Core translations** - Shared UI strings (en, ru, jp, am, ru_pt, es, de, pl, ko, kk, uz, en_tengwar)
 - **Merge support** - Extend core messages with app-specific translations
 - **Type-safe** - Full TypeScript support with locale schema types
 - **vue-i18n based** - Standard Vue.js i18n integration
@@ -30,6 +30,7 @@ bun add @argon/i18n
 | `ko` | Korean |
 | `kk` | Kazakh (Cyrillic) |
 | `uz` | Uzbek (Latin) |
+| `en_tengwar` | English in Tengwar (generated: `bun run i18n:tengwar`) |
 
 ## Usage
 

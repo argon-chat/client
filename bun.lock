@@ -110,6 +110,7 @@
         "@vue/test-utils": "^2.4.11",
         "autoprefixer": "^10.5.4",
         "fake-indexeddb": "^6.2.5",
+        "glaemscribe": "1.3.1",
         "happy-dom": "^20.11.1",
         "http-proxy-middleware": "^3.0.7",
         "playwright": "^1.63.0",
@@ -1424,6 +1425,8 @@
     "get-stream": ["get-stream@8.0.1", "", {}, "sha512-VaUJspBffn/LMCJVoMvSAdmscJyS1auj5Zulnn5UoYcY531UWmdwhRWkcGKnGU93m5HSXP9LP2usOryrBtQowA=="],
 
     "giget": ["giget@1.2.5", "", { "dependencies": { "citty": "^0.1.6", "consola": "^3.4.0", "defu": "^6.1.4", "node-fetch-native": "^1.6.6", "nypm": "^0.5.4", "pathe": "^2.0.3", "tar": "^6.2.1" }, "bin": { "giget": "dist/cli.mjs" } }, "sha512-r1ekGw/Bgpi3HLV3h1MRBIlSAdHoIMklpaQ3OQLFcRw9PwAj2rqigvIbg+dBUI51OxVI2jsEtDywDBjSiuf7Ug=="],
+
+    "glaemscribe": ["glaemscribe@1.3.1", "", {}, "sha512-EB/5Jw+CpLUv+4L/DnPl+XQT1UK6KQdmh5l67DI4RaD31/DzAxSSPf3wlRKpJ9pCJJBV+S2fzPnuQal8IGIICA=="],
 
     "glob": ["glob@13.0.6", "", { "dependencies": { "minimatch": "^10.2.2", "minipass": "^7.1.3", "path-scurry": "^2.0.2" } }, "sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw=="],
 

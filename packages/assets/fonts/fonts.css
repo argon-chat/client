@@ -1,8 +1,15 @@
-/* Tengwar Font */
+/*
+ * Alcarin Tengwar (Toshi Omagari, OFL 1.1) — the en_tengwar locale. Its strings are Private Use Area
+ * code points, so the face is limited to that range: it sits in every font stack, is fetched only once
+ * a tengwa is actually drawn, and never touches Latin text.
+ */
 @font-face {
-  font-family: 'Tengwar Annatar';
-  src: url('./TengwarAnnatar.ttf') format('truetype');
+  font-family: 'Alcarin Tengwar';
+  src: url('./AlcarinTengwar/AlcarinTengwarVF.woff2') format('woff2-variations');
+  font-weight: 400 700;
+  font-style: normal;
   font-display: swap;
+  unicode-range: U+E000-E0FF;
 }
 
 /* OpenDyslexic Font for Dyslexia Support */
