@@ -276,6 +276,8 @@ describe("magic eraser (Photoshop's options)", () => {
     expect(magicErase(picture, [-1, 3], opts())).toBeNull();
   });
 
+  // A benchmark: what it measures is asserted inside, against its own baseline. The runner's default
+  // five seconds is not enough for it on a shared CI machine under coverage instrumentation.
   test("a 4-megapixel image is erased within the frame budget", () => {
     // A disc on a textured background, the same picture at any size.
     const scene = (W: number): RgbaImage => {
@@ -331,7 +333,7 @@ describe("magic eraser (Photoshop's options)", () => {
     const c = magicErase(big, [5, 5], opts({ tolerance: 32, antiAlias: true }))!;
     expect(valueAt(c, 5, 5)).toBe(255);
     expect(valueAt(c, 1024, 1024)).toBe(0);
-  });
+  }, 60_000);
 });
 
 describe("background eraser (Photoshop's options)", () => {
