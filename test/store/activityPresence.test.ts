@@ -385,3 +385,27 @@ describe("activity presence publication", () => {
     expect(stubs.broadcast).toHaveBeenCalledTimes(2);
   });
 });
+
+/**
+ * The same message drives the window's own behaviour: behind a running game it goes still (power
+ * saving, lib/powerSaver.ts). From the host's word, not from what gets published — a game the user
+ * chose not to share is running all the same.
+ */
+describe("the window behind a game", () => {
+  test("is in power saving while the host sees a game, and out once it is gone", async () => {
+    const power = await import("@/lib/powerSaver");
+    await startedStore();
+
+    announce(PORTAL);
+    expect(power.gameRunning.value).toBe(true);
+
+    // Other software is not a game.
+    announce({ kind: ActivityPresenceKind.SOFTWARE, titleName: "Blender" });
+    expect(power.gameRunning.value).toBe(false);
+
+    announce(FACTORIO);
+    expect(power.gameRunning.value).toBe(true);
+    announce(null);
+    expect(power.gameRunning.value).toBe(false);
+  });
+});

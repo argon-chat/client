@@ -9,8 +9,9 @@ import { useNotificationStore } from '@/store/data/notificationStore';
 import { useUnifiedCall } from '@/store/media/unifiedCallStore';
 import IconSw from "@argon/assets/icons/icon_cat.svg";
 import { IconArrowBigDownFilled, IconHome, IconMessageReport, IconDownload } from '@tabler/icons-vue';
-import { TerminalIcon } from 'lucide-vue-next';
+import { BatteryLowIcon, TerminalIcon } from 'lucide-vue-next';
 import { isWeb } from '@/lib/platform';
+import { batteryPercent, powerSaveReason } from '@/lib/powerSaver';
 import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import { NBadge } from 'naive-ui';
@@ -223,6 +224,15 @@ const onTitlebarDblClick = (e: MouseEvent) => {
         :latest-version="linux.latestVersion.value"
         :command="linux.downloadCommand.value"
       />
+
+      <!-- Power saving because of the battery. A game does the same to the animations but is not
+           announced: the window is behind it, and the badge would be read by nobody. -->
+      <Transition name="update-pop">
+        <div v-if="powerSaveReason === 'battery'" class="power-badge" :title="t('power_save_battery_hint')" data-testid="power-save-badge">
+          <BatteryLowIcon class="w-3.5 h-3.5" />
+          <span v-if="batteryPercent !== null" class="power-badge-level">{{ batteryPercent }}%</span>
+        </div>
+      </Transition>
 
       <button class="action-btn icon-motion icon-motion--lift" @click="emit('feedback')" :title="t('send_feedback')">
         <IconMessageReport class="w-4 h-4" />
@@ -485,6 +495,30 @@ const onTitlebarDblClick = (e: MouseEvent) => {
 
 .update-label {
   white-space: nowrap;
+}
+
+/* Low battery: a still amber pill. Nothing on it moves — it is the sign that nothing does. */
+.power-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  margin-right: 2px;
+  border-radius: 11px;
+  background: rgb(245 158 11 / 0.14);
+  border: 1px solid rgb(245 158 11 / 0.35);
+  color: #f59e0b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+.power-badge-level {
+  font-variant-numeric: tabular-nums;
 }
 
 .update-pop-enter-active {

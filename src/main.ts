@@ -4,6 +4,7 @@ import "vfonts/FiraCode.css";
 import "@argon/assets/styles";
 import "@argon-chat/emojix/style.css";
 import "./styles/reduced-motion.css";
+import "./styles/power-save.css";
 import "./styles/icon-motion.css";
 import "./styles/ultrawide.css";
 

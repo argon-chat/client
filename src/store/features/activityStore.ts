@@ -6,6 +6,7 @@ import { logger } from "@argon/core";
 import { ActivityPresenceKind } from "@argon/glue";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
+import { setGameRunning } from "@/lib/powerSaver";
 
 type Presence = {
   kind: ActivityPresenceKind;
@@ -201,6 +202,9 @@ export const useActivity = defineStore("activity", () => {
 
   function onPresenceUpdate(presence: Presence) {
     lastRawPresence.value = presence;
+    // From what the host sees, not from what is published: the window goes still behind a game
+    // whether or not the game is shared with anyone.
+    setGameRunning(presence?.kind === ActivityPresenceKind.GAME);
     applyPresence();
   }
 

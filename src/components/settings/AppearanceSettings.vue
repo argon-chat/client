@@ -320,6 +320,14 @@
             </div>
 
             <div class="space-y-3">
+                <!-- The switches below say what the user wants; while power saving is on, this says
+                     why they are not getting it. -->
+                <div v-if="powerSaveReason" class="power-save-note" data-testid="power-save-note">
+                    <BatteryLowIcon v-if="powerSaveReason === 'battery'" class="w-4 h-4 shrink-0" />
+                    <Gamepad2Icon v-else class="w-4 h-4 shrink-0" />
+                    <span>{{ t(powerSaveReason === 'battery' ? 'power_save_note_battery' : 'power_save_note_game') }}</span>
+                </div>
+
                 <div class="setting-item">
                     <div class="flex-1">
                         <div class="text-sm font-medium">{{ t("reduce_motion") }}</div>
@@ -333,15 +341,15 @@
                         <div class="text-sm font-medium">{{ t("settings_animations_expressions") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("settings_animations_expressions_desc") }}</div>
                     </div>
-                    <Switch v-model:checked="animationsEnabled" />
+                    <Switch v-model:checked="animationsChoice" />
                 </div>
 
-                <div class="setting-item" :class="{ 'opacity-50': !animationsEnabled }">
+                <div class="setting-item" :class="{ 'opacity-50': !animationsChoice }">
                     <div class="flex-1">
                         <div class="text-sm font-medium">{{ t("settings_animations_picker_autoplay") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("settings_animations_picker_autoplay_desc") }}</div>
                     </div>
-                    <Switch v-model:checked="pickerAutoplay" :disabled="!animationsEnabled" />
+                    <Switch v-model:checked="pickerAutoplay" :disabled="!animationsChoice" />
                 </div>
             </div>
         </div>
@@ -546,10 +554,13 @@ import {
     InfoIcon,
     MonitorIcon,
     MessageSquareIcon,
+    BatteryLowIcon,
+    Gamepad2Icon,
 } from "lucide-vue-next";
 import { persistedValue } from "@argon/storage";
 import { reduceMotion as sharedReduceMotion } from "@/composables/useReducedMotion";
-import { animationsEnabled, pickerAutoplay, resetExpressionAnimationChoices } from "@/lib/expressions/settings";
+import { animationsChoice, pickerAutoplay, resetExpressionAnimationChoices } from "@/lib/expressions/settings";
+import { powerSaveReason } from "@/lib/powerSaver";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
 import {
@@ -991,6 +1002,13 @@ onMounted(() => {
 
 .setting-item {
     @apply flex items-center justify-between gap-4 p-3 rounded-lg bg-background/30 border transition-colors hover:bg-background/50;
+}
+
+.power-save-note {
+    @apply flex items-center gap-2 p-3 rounded-lg text-xs font-medium;
+    color: #f59e0b;
+    background: rgb(245 158 11 / 0.1);
+    border: 1px solid rgb(245 158 11 / 0.3);
 }
 
 /* Theme cards */

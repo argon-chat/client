@@ -1,0 +1,30 @@
+/*
+ * Power saving — `power-save` on <html>, put there by lib/powerSaver.ts while a game is running or
+ * the battery is low and unplugged.
+ *
+ * The same near-zero durations as reduced-motion.css, for the same reason: transitionend and
+ * animationend keep firing, so Vue transitions and anything else waiting on them still complete.
+ * Backdrop blur goes too. It is re-sampled on every frame beneath it and is the one effect that
+ * keeps the GPU busy in a window nobody is moving — the same call Windows' battery saver makes
+ * about transparency.
+ */
+html.power-save *,
+html.power-save *::before,
+html.power-save *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Icon motion reads a duration variable rather than a transition of its own; see icon-motion.css. */
+html.power-save {
+  --icon-motion-duration: 0ms;
+}
+
+html.power-save .icon-appear {
+  animation: none;
+}

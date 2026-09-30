@@ -22,6 +22,7 @@ import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
 import { initDesktopTaskbar } from "@/lib/desktopTaskbar";
+import { initPowerSaver } from "@/lib/powerSaver";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { useOverlayChatPublisher } from "@/composables/useOverlayChatPublisher";
@@ -67,6 +68,8 @@ mode.value = "dark";
 // Apply all appearance settings on app start
 onMounted(() => {
   applyAppearanceSettings();
+  // A low battery or a running game takes the animations down; see lib/powerSaver.ts.
+  initPowerSaver();
   initDeepLinks();
   initDesktopTaskbar();
   initHotkeyActions();

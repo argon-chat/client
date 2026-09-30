@@ -82,6 +82,37 @@ describe("the user's choice", () => {
   });
 });
 
+describe("power saving", () => {
+  test("holds every animation still whatever the user chose, and lets go when it ends", async () => {
+    const s = await load(true);
+    const power = await import("@/lib/powerSaver");
+    s.animationsEnabled.value = true;
+    expect(s.animationsEnabled.value).toBe(true);
+
+    power.setGameRunning(true);
+    expect(s.animationsEnabled.value).toBe(false);
+    expect(s.prefersReducedMotion()).toBe(true);
+    // The switch itself still shows what the user asked for.
+    expect(s.animationsChoice.value).toBe(true);
+
+    power.setGameRunning(false);
+    expect(s.animationsEnabled.value).toBe(true);
+    expect(s.prefersReducedMotion()).toBe(false);
+  });
+
+  test("a choice made while it is on is kept for afterwards", async () => {
+    const s = await load(false);
+    const power = await import("@/lib/powerSaver");
+    power.setGameRunning(true);
+
+    s.animationsEnabled.value = false;
+    expect(localStorage.getItem(`${s.EXPRESSION_ANIMATIONS_KEY}::acc-1`)).toBe("false");
+
+    power.setGameRunning(false);
+    expect(s.animationsEnabled.value).toBe(false);
+  });
+});
+
 describe("the intersector", () => {
   async function intersector(s: Settings) {
     const { AnimationIntersector } = await import("@/lib/expressions/animationIntersector");
@@ -108,5 +139,20 @@ describe("the intersector", () => {
     s.animationsEnabled.value = false;
     await nextTick();
     expect(playing.chat).toBe(false);
+  });
+
+  test("power saving pauses what autoplays, and it resumes when power saving ends", async () => {
+    const s = await load(false);
+    const power = await import("@/lib/powerSaver");
+    const { playing } = await intersector(s);
+    expect(playing).toEqual({ chat: true, picker: true });
+
+    power.setGameRunning(true);
+    await nextTick();
+    expect(playing).toEqual({ chat: false, picker: false });
+
+    power.setGameRunning(false);
+    await nextTick();
+    expect(playing).toEqual({ chat: true, picker: true });
   });
 });
