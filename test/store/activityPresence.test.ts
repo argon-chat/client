@@ -136,6 +136,10 @@ describe("activity presence publication", () => {
       kind: ActivityPresenceKind.GAME,
       titleName: "Portal 2",
       startTimestampSeconds: 0n,
+      source: null,
+      endTimestampSeconds: null,
+      spotify: null,
+      url: null,
     });
   });
 
@@ -330,6 +334,10 @@ describe("activity presence publication", () => {
       kind: ActivityPresenceKind.GAME,
       titleName: "Factorio",
       startTimestampSeconds: 0n,
+      source: null,
+      endTimestampSeconds: null,
+      spotify: null,
+      url: null,
     });
   });
 
@@ -363,6 +371,10 @@ describe("activity presence publication", () => {
       kind: ActivityPresenceKind.GAME,
       titleName: "Factorio",
       startTimestampSeconds: 0n,
+      source: null,
+      endTimestampSeconds: null,
+      spotify: null,
+      url: null,
     });
   });
 

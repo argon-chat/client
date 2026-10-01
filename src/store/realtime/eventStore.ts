@@ -62,6 +62,7 @@ import { useNotificationStore } from "@/store/data/notificationStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 import { useScheduledPostsStore } from "@/store/data/scheduledPostsStore";
+import { useConnectionsStore } from "@/store/features/connectionsStore";
 
 export const useEventStore = defineStore("events", () => {
   const bus = useBus();
@@ -167,6 +168,9 @@ export const useEventStore = defineStore("events", () => {
     subscribed = true;
     const notificationStore = useNotificationStore();
     notificationStore.subscribeToEvents();
+
+    // Linked accounts and listen-along: personal events, wanted whether or not settings ever open.
+    useConnectionsStore().subscribe();
 
     const featureFlags = useFeatureFlags();
     featureFlags.subscribeToEvents();

@@ -276,6 +276,7 @@ export const useApi = defineStore("api", () => {
   const channelInsightsInteraction = computed(() => rpcClient.value.ChannelInsightsInteraction);
   const channelComposerInteraction = computed(() => rpcClient.value.ChannelComposerInteraction);
   const spaceExpressionInteraction = computed(() => rpcClient.value.SpaceExpressionInteraction);
+  const connectionsInteraction = computed(() => rpcClient.value.ConnectionsInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -313,5 +314,6 @@ export const useApi = defineStore("api", () => {
     channelInsightsInteraction,
     channelComposerInteraction,
     spaceExpressionInteraction,
+    connectionsInteraction,
   };
 });

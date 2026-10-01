@@ -149,6 +149,11 @@ export const useActivity = defineStore("activity", () => {
         kind: presence.kind,
         titleName: presence.titleName,
         startTimestampSeconds: 0n,
+        // A bare client activity: the server fills these for provider-backed ones (Spotify).
+        source: null,
+        endTimestampSeconds: null,
+        spotify: null,
+        url: null,
       });
     } catch (e) {
       // Put the stamp back to "never sent" so the host's next repeat re-sends within half a minute

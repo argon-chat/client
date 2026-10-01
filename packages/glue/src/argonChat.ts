@@ -894,6 +894,10 @@ export interface UserActivityPresence {
   kind: ActivityPresenceKind;
   startTimestampSeconds: u8;
   titleName: string;
+  source: ActivitySource | null;
+  endTimestampSeconds: u8 | null;
+  spotify: SpotifyTrack | null;
+  url: string | null;
 };
 
 
@@ -2087,6 +2091,396 @@ export const Ion_ChannelWebhookError_OpenEnum = {
     return declaredChannelWebhookError.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
+
+
+export interface ConnectionProviderInfo {
+  provider: ConnectionProvider;
+  capabilities: ConnectionCapability;
+};
+
+
+export interface ConnectionDetail {
+  key: string;
+  value: string;
+  kind: ConnectionDetailKind;
+};
+
+
+export interface ConnectionOptions {
+  displayOnProfile: bool;
+  showDetails: bool;
+  displayAsStatus: bool;
+  allowListenAlong: bool;
+};
+
+
+export interface UserConnection {
+  provider: ConnectionProvider;
+  externalId: string;
+  name: string;
+  url: string | null;
+  avatarUrl: string | null;
+  verified: bool;
+  status: ConnectionStatus;
+  options: ConnectionOptions;
+  details: IonArray<ConnectionDetail>;
+  linkedAt: datetime;
+  detailsRefreshedAt: datetime | null;
+};
+
+
+export interface ProfileConnection {
+  provider: ConnectionProvider;
+  name: string;
+  url: string | null;
+  verified: bool;
+  details: IonArray<ConnectionDetail>;
+};
+
+
+export interface SpotifyTrack {
+  trackId: string;
+  title: string;
+  artists: IonArray<string>;
+  album: string;
+  albumArtUrl: string | null;
+  durationMs: i4;
+  progressMs: i4;
+  observedAt: datetime;
+  isPlaying: bool;
+  contextUri: string | null;
+  url: string | null;
+  listenAlongOpen: bool;
+};
+
+
+export interface ListenAlongState {
+  hostUserId: guid;
+  listeners: IonArray<guid>;
+  track: SpotifyTrack | null;
+};
+
+
+export enum ConnectionProvider
+{
+  GITHUB = 0,
+  STEAM = 1,
+  SPOTIFY = 2,
+  TWITTER = 3,
+  TWITCH = 4,
+  YOUTUBE = 5,
+  TELEGRAM = 6,
+}
+
+const declaredConnectionProvider: ReadonlySet<unknown> = new Set<unknown>([ConnectionProvider.GITHUB, ConnectionProvider.STEAM, ConnectionProvider.SPOTIFY, ConnectionProvider.TWITTER, ConnectionProvider.TWITCH, ConnectionProvider.YOUTUBE, ConnectionProvider.TELEGRAM]);
+
+/**
+ * Open-enum helpers for {@link ConnectionProvider}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ConnectionProvider_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ConnectionProvider): boolean {
+    return declaredConnectionProvider.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ConnectionProvider): u2 | undefined {
+    return declaredConnectionProvider.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ConnectionStatus
+{
+  ACTIVE = 0,
+  NEEDS_REAUTH = 1,
+  SUSPENDED = 2,
+}
+
+const declaredConnectionStatus: ReadonlySet<unknown> = new Set<unknown>([ConnectionStatus.ACTIVE, ConnectionStatus.NEEDS_REAUTH, ConnectionStatus.SUSPENDED]);
+
+/**
+ * Open-enum helpers for {@link ConnectionStatus}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ConnectionStatus_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ConnectionStatus): boolean {
+    return declaredConnectionStatus.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ConnectionStatus): u2 | undefined {
+    return declaredConnectionStatus.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ConnectionDetailKind
+{
+  TEXT = 0,
+  NUMBER = 1,
+  DATE = 2,
+  URL = 3,
+  FLAG = 4,
+}
+
+const declaredConnectionDetailKind: ReadonlySet<unknown> = new Set<unknown>([ConnectionDetailKind.TEXT, ConnectionDetailKind.NUMBER, ConnectionDetailKind.DATE, ConnectionDetailKind.URL, ConnectionDetailKind.FLAG]);
+
+/**
+ * Open-enum helpers for {@link ConnectionDetailKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ConnectionDetailKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ConnectionDetailKind): boolean {
+    return declaredConnectionDetailKind.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ConnectionDetailKind): u2 | undefined {
+    return declaredConnectionDetailKind.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ConnectReturnKind
+{
+  DESKTOP = 0,
+  WEB = 1,
+}
+
+const declaredConnectReturnKind: ReadonlySet<unknown> = new Set<unknown>([ConnectReturnKind.DESKTOP, ConnectReturnKind.WEB]);
+
+/**
+ * Open-enum helpers for {@link ConnectReturnKind}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ConnectReturnKind_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ConnectReturnKind): boolean {
+    return declaredConnectReturnKind.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ConnectReturnKind): u2 | undefined {
+    return declaredConnectReturnKind.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ActivitySource
+{
+  CLIENT = 0,
+  SPOTIFY = 1,
+  TWITCH = 2,
+}
+
+const declaredActivitySource: ReadonlySet<unknown> = new Set<unknown>([ActivitySource.CLIENT, ActivitySource.SPOTIFY, ActivitySource.TWITCH]);
+
+/**
+ * Open-enum helpers for {@link ActivitySource}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ActivitySource_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ActivitySource): boolean {
+    return declaredActivitySource.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ActivitySource): u2 | undefined {
+    return declaredActivitySource.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum BeginConnectError
+{
+  NONE = 0,
+  PROVIDER_DISABLED = 1,
+  PROVIDER_ALREADY_LINKED = 2,
+  RATE_LIMITED = 3,
+  INTERNAL_ERROR = 4,
+  CONNECTION_SUSPENDED = 5,
+}
+
+const declaredBeginConnectError: ReadonlySet<unknown> = new Set<unknown>([BeginConnectError.NONE, BeginConnectError.PROVIDER_DISABLED, BeginConnectError.PROVIDER_ALREADY_LINKED, BeginConnectError.RATE_LIMITED, BeginConnectError.INTERNAL_ERROR, BeginConnectError.CONNECTION_SUSPENDED]);
+
+/**
+ * Open-enum helpers for {@link BeginConnectError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_BeginConnectError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: BeginConnectError): boolean {
+    return declaredBeginConnectError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: BeginConnectError): u2 | undefined {
+    return declaredBeginConnectError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ConnectionError
+{
+  NONE = 0,
+  NOT_LINKED = 1,
+  NEEDS_REAUTH = 2,
+  COOLDOWN = 3,
+  OPTION_NOT_SUPPORTED = 4,
+  PROVIDER_ERROR = 5,
+  INTERNAL_ERROR = 6,
+}
+
+const declaredConnectionError: ReadonlySet<unknown> = new Set<unknown>([ConnectionError.NONE, ConnectionError.NOT_LINKED, ConnectionError.NEEDS_REAUTH, ConnectionError.COOLDOWN, ConnectionError.OPTION_NOT_SUPPORTED, ConnectionError.PROVIDER_ERROR, ConnectionError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link ConnectionError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ConnectionError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ConnectionError): boolean {
+    return declaredConnectionError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ConnectionError): u2 | undefined {
+    return declaredConnectionError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ListenAlongError
+{
+  NONE = 0,
+  SPOTIFY_NOT_LINKED = 1,
+  PREMIUM_REQUIRED = 2,
+  SCOPE_MISSING = 3,
+  NO_ACTIVE_DEVICE = 4,
+  HOST_NOT_PLAYING = 5,
+  HOST_DISALLOWS = 6,
+  NOT_VISIBLE = 7,
+  ALREADY_LISTENING = 8,
+  FULL = 9,
+  RATE_LIMITED = 10,
+  PROVIDER_ERROR = 11,
+}
+
+const declaredListenAlongError: ReadonlySet<unknown> = new Set<unknown>([ListenAlongError.NONE, ListenAlongError.SPOTIFY_NOT_LINKED, ListenAlongError.PREMIUM_REQUIRED, ListenAlongError.SCOPE_MISSING, ListenAlongError.NO_ACTIVE_DEVICE, ListenAlongError.HOST_NOT_PLAYING, ListenAlongError.HOST_DISALLOWS, ListenAlongError.NOT_VISIBLE, ListenAlongError.ALREADY_LISTENING, ListenAlongError.FULL, ListenAlongError.RATE_LIMITED, ListenAlongError.PROVIDER_ERROR]);
+
+/**
+ * Open-enum helpers for {@link ListenAlongError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ListenAlongError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ListenAlongError): boolean {
+    return declaredListenAlongError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ListenAlongError): u2 | undefined {
+    return declaredListenAlongError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ListenAlongEndReason
+{
+  LEFT = 0,
+  HOST_STOPPED = 1,
+  HOST_OFFLINE = 2,
+  HOST_DISALLOWED = 3,
+  NO_ACTIVE_DEVICE = 4,
+  PROVIDER_ERROR = 5,
+}
+
+const declaredListenAlongEndReason: ReadonlySet<unknown> = new Set<unknown>([ListenAlongEndReason.LEFT, ListenAlongEndReason.HOST_STOPPED, ListenAlongEndReason.HOST_OFFLINE, ListenAlongEndReason.HOST_DISALLOWED, ListenAlongEndReason.NO_ACTIVE_DEVICE, ListenAlongEndReason.PROVIDER_ERROR]);
+
+/**
+ * Open-enum helpers for {@link ListenAlongEndReason}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_ListenAlongEndReason_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: ListenAlongEndReason): boolean {
+    return declaredListenAlongEndReason.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: ListenAlongEndReason): u2 | undefined {
+    return declaredListenAlongEndReason.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
+export enum ConnectionCapability
+{
+  NONE = 0,
+  DETAILS = 1,
+  STATUS = 2,
+  LISTEN_ALONG = 4,
+  TROPHY = 8,
+}
 
 
 export interface CosmeticCatalogue {
@@ -3551,6 +3945,7 @@ export interface ArgonUserProfile {
   registeredAt: datetime | null;
   cosmetics: IonArray<IWornCosmetic> | null;
   customStatusEmoji: StatusEmoji | null;
+  connections: IonArray<ProfileConnection> | null;
 };
 
 
@@ -9368,6 +9763,15 @@ export abstract class IArgonEvent implements IIonUnion<IArgonEvent>
   public isSpaceExpressionsChanged(): this is SpaceExpressionsChanged {
     return this.UnionKey === "SpaceExpressionsChanged";
   }
+  public isUserConnectionsUpdated(): this is UserConnectionsUpdated {
+    return this.UnionKey === "UserConnectionsUpdated";
+  }
+  public isListenAlongChanged(): this is ListenAlongChanged {
+    return this.UnionKey === "ListenAlongChanged";
+  }
+  public isListenAlongEnded(): this is ListenAlongEnded {
+    return this.UnionKey === "ListenAlongEnded";
+  }
 
 }
 
@@ -10002,11 +10406,35 @@ export class SpaceExpressionsChanged extends IArgonEvent
   UnionIndex: number = 77;
 }
 
+export class UserConnectionsUpdated extends IArgonEvent
+{
+  constructor(public userId: guid, public connections: IonArray<UserConnection>) { super(); }
+
+  UnionKey: string = "UserConnectionsUpdated";
+  UnionIndex: number = 78;
+}
+
+export class ListenAlongChanged extends IArgonEvent
+{
+  constructor(public hostUserId: guid, public listeners: IonArray<guid>, public track: SpotifyTrack | null) { super(); }
+
+  UnionKey: string = "ListenAlongChanged";
+  UnionIndex: number = 79;
+}
+
+export class ListenAlongEnded extends IArgonEvent
+{
+  constructor(public hostUserId: guid, public reason: ListenAlongEndReason) { super(); }
+
+  UnionKey: string = "ListenAlongEnded";
+  UnionIndex: number = 80;
+}
+
 
 
 IonFormatterStorage.register("IArgonEvent", {
   read(reader: CborReader): IArgonEvent {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 78);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IArgonEvent", 81);
     let value: IArgonEvent = null as any;
 
     if (false)
@@ -10167,8 +10595,14 @@ IonFormatterStorage.register("IArgonEvent", {
       value = IonFormatterStorage.get<ChannelMarkRetracted>("ChannelMarkRetracted").read(reader);
     else if (unionIndex == 77)
       value = IonFormatterStorage.get<SpaceExpressionsChanged>("SpaceExpressionsChanged").read(reader);
+    else if (unionIndex == 78)
+      value = IonFormatterStorage.get<UserConnectionsUpdated>("UserConnectionsUpdated").read(reader);
+    else if (unionIndex == 79)
+      value = IonFormatterStorage.get<ListenAlongChanged>("ListenAlongChanged").read(reader);
+    else if (unionIndex == 80)
+      value = IonFormatterStorage.get<ListenAlongEnded>("ListenAlongEnded").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 78);
+    else IonFormatterStorage.invalidUnionIndex("IArgonEvent", unionIndex, 81);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -10412,8 +10846,17 @@ IonFormatterStorage.register("IArgonEvent", {
     else if (value.UnionIndex == 77) {
         IonFormatterStorage.get<SpaceExpressionsChanged>("SpaceExpressionsChanged").write(writer, value as SpaceExpressionsChanged);
     }
+    else if (value.UnionIndex == 78) {
+        IonFormatterStorage.get<UserConnectionsUpdated>("UserConnectionsUpdated").write(writer, value as UserConnectionsUpdated);
+    }
+    else if (value.UnionIndex == 79) {
+        IonFormatterStorage.get<ListenAlongChanged>("ListenAlongChanged").write(writer, value as ListenAlongChanged);
+    }
+    else if (value.UnionIndex == 80) {
+        IonFormatterStorage.get<ListenAlongEnded>("ListenAlongEnded").write(writer, value as ListenAlongEnded);
+    }
   
-    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 78 case(s)`);
+    else throw new Error(`Ion union 'IArgonEvent' has no case ${value.UnionIndex}; this revision declares 81 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -11773,6 +12216,56 @@ IonFormatterStorage.register("SpaceExpressionsChanged", {
   }
 });
 
+IonFormatterStorage.register("UserConnectionsUpdated", {
+  read(reader: CborReader): UserConnectionsUpdated {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "UserConnectionsUpdated");
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const connections = IonFormatterStorage.readArray<UserConnection>(reader, 'UserConnection');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new UserConnectionsUpdated(userId, connections);
+  },
+  write(writer: CborWriter, value: UserConnectionsUpdated): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    IonFormatterStorage.writeArray<UserConnection>(writer, value.connections, 'UserConnection');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ListenAlongChanged", {
+  read(reader: CborReader): ListenAlongChanged {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ListenAlongChanged");
+    const hostUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const listeners = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const track = IonFormatterStorage.readNullable<SpotifyTrack>(reader, 'SpotifyTrack');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new ListenAlongChanged(hostUserId, listeners, track);
+  },
+  write(writer: CborWriter, value: ListenAlongChanged): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.hostUserId);
+    IonFormatterStorage.writeArray<guid>(writer, value.listeners, 'guid');
+    IonFormatterStorage.writeNullable<SpotifyTrack>(writer, value.track, 'SpotifyTrack');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ListenAlongEnded", {
+  read(reader: CborReader): ListenAlongEnded {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ListenAlongEnded");
+    const hostUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const reason = IonFormatterStorage.get<ListenAlongEndReason>('ListenAlongEndReason').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new ListenAlongEnded(hostUserId, reason);
+  },
+  write(writer: CborWriter, value: ListenAlongEnded): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.hostUserId);
+    IonFormatterStorage.get<ListenAlongEndReason>('ListenAlongEndReason').write(writer, value.reason);
+    writer.writeEndArray();
+  }
+});
+
 
 
 export abstract class IArgonClientEvent implements IIonUnion<IArgonClientEvent>
@@ -13026,6 +13519,414 @@ IonFormatterStorage.register("FailedUpdateWebhook", {
   write(writer: CborWriter, value: FailedUpdateWebhook): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<ChannelWebhookError>('ChannelWebhookError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IBeginConnectResult implements IIonUnion<IBeginConnectResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBeginConnect(): this is SuccessBeginConnect {
+    return this.UnionKey === "SuccessBeginConnect";
+  }
+  public isFailedBeginConnect(): this is FailedBeginConnect {
+    return this.UnionKey === "FailedBeginConnect";
+  }
+
+}
+
+
+export class SuccessBeginConnect extends IBeginConnectResult
+{
+  constructor(public url: string, public handshakeId: guid, public expiresAt: datetime) { super(); }
+
+  UnionKey: string = "SuccessBeginConnect";
+  UnionIndex: number = 0;
+}
+
+export class FailedBeginConnect extends IBeginConnectResult
+{
+  constructor(public error: BeginConnectError) { super(); }
+
+  UnionKey: string = "FailedBeginConnect";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginConnectResult", {
+  read(reader: CborReader): IBeginConnectResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBeginConnectResult", 2);
+    let value: IBeginConnectResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBeginConnect>("SuccessBeginConnect").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBeginConnect>("FailedBeginConnect").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IBeginConnectResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginConnectResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBeginConnect>("SuccessBeginConnect").write(writer, value as SuccessBeginConnect);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBeginConnect>("FailedBeginConnect").write(writer, value as FailedBeginConnect);
+    }
+  
+    else throw new Error(`Ion union 'IBeginConnectResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBeginConnect", {
+  read(reader: CborReader): SuccessBeginConnect {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "SuccessBeginConnect");
+    const url = IonFormatterStorage.get<string>('string').read(reader);
+    const handshakeId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return new SuccessBeginConnect(url, handshakeId, expiresAt);
+  },
+  write(writer: CborWriter, value: SuccessBeginConnect): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.url);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.handshakeId);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBeginConnect", {
+  read(reader: CborReader): FailedBeginConnect {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedBeginConnect");
+    const error = IonFormatterStorage.get<BeginConnectError>('BeginConnectError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBeginConnect(error);
+  },
+  write(writer: CborWriter, value: FailedBeginConnect): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<BeginConnectError>('BeginConnectError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IUpdateConnectionResult implements IIonUnion<IUpdateConnectionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessUpdateConnection(): this is SuccessUpdateConnection {
+    return this.UnionKey === "SuccessUpdateConnection";
+  }
+  public isFailedUpdateConnection(): this is FailedUpdateConnection {
+    return this.UnionKey === "FailedUpdateConnection";
+  }
+
+}
+
+
+export class SuccessUpdateConnection extends IUpdateConnectionResult
+{
+  constructor(public connection: UserConnection) { super(); }
+
+  UnionKey: string = "SuccessUpdateConnection";
+  UnionIndex: number = 0;
+}
+
+export class FailedUpdateConnection extends IUpdateConnectionResult
+{
+  constructor(public error: ConnectionError) { super(); }
+
+  UnionKey: string = "FailedUpdateConnection";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IUpdateConnectionResult", {
+  read(reader: CborReader): IUpdateConnectionResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IUpdateConnectionResult", 2);
+    let value: IUpdateConnectionResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessUpdateConnection>("SuccessUpdateConnection").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedUpdateConnection>("FailedUpdateConnection").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IUpdateConnectionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IUpdateConnectionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessUpdateConnection>("SuccessUpdateConnection").write(writer, value as SuccessUpdateConnection);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedUpdateConnection>("FailedUpdateConnection").write(writer, value as FailedUpdateConnection);
+    }
+  
+    else throw new Error(`Ion union 'IUpdateConnectionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessUpdateConnection", {
+  read(reader: CborReader): SuccessUpdateConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessUpdateConnection");
+    const connection = IonFormatterStorage.get<UserConnection>('UserConnection').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessUpdateConnection(connection);
+  },
+  write(writer: CborWriter, value: SuccessUpdateConnection): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UserConnection>('UserConnection').write(writer, value.connection);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedUpdateConnection", {
+  read(reader: CborReader): FailedUpdateConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedUpdateConnection");
+    const error = IonFormatterStorage.get<ConnectionError>('ConnectionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedUpdateConnection(error);
+  },
+  write(writer: CborWriter, value: FailedUpdateConnection): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ConnectionError>('ConnectionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IRefreshConnectionResult implements IIonUnion<IRefreshConnectionResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessRefreshConnection(): this is SuccessRefreshConnection {
+    return this.UnionKey === "SuccessRefreshConnection";
+  }
+  public isFailedRefreshConnection(): this is FailedRefreshConnection {
+    return this.UnionKey === "FailedRefreshConnection";
+  }
+
+}
+
+
+export class SuccessRefreshConnection extends IRefreshConnectionResult
+{
+  constructor(public connection: UserConnection) { super(); }
+
+  UnionKey: string = "SuccessRefreshConnection";
+  UnionIndex: number = 0;
+}
+
+export class FailedRefreshConnection extends IRefreshConnectionResult
+{
+  constructor(public error: ConnectionError) { super(); }
+
+  UnionKey: string = "FailedRefreshConnection";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IRefreshConnectionResult", {
+  read(reader: CborReader): IRefreshConnectionResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRefreshConnectionResult", 2);
+    let value: IRefreshConnectionResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessRefreshConnection>("SuccessRefreshConnection").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedRefreshConnection>("FailedRefreshConnection").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IRefreshConnectionResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IRefreshConnectionResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessRefreshConnection>("SuccessRefreshConnection").write(writer, value as SuccessRefreshConnection);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedRefreshConnection>("FailedRefreshConnection").write(writer, value as FailedRefreshConnection);
+    }
+  
+    else throw new Error(`Ion union 'IRefreshConnectionResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessRefreshConnection", {
+  read(reader: CborReader): SuccessRefreshConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessRefreshConnection");
+    const connection = IonFormatterStorage.get<UserConnection>('UserConnection').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessRefreshConnection(connection);
+  },
+  write(writer: CborWriter, value: SuccessRefreshConnection): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<UserConnection>('UserConnection').write(writer, value.connection);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedRefreshConnection", {
+  read(reader: CborReader): FailedRefreshConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedRefreshConnection");
+    const error = IonFormatterStorage.get<ConnectionError>('ConnectionError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedRefreshConnection(error);
+  },
+  write(writer: CborWriter, value: FailedRefreshConnection): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ConnectionError>('ConnectionError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IListenAlongResult implements IIonUnion<IListenAlongResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessListenAlong(): this is SuccessListenAlong {
+    return this.UnionKey === "SuccessListenAlong";
+  }
+  public isFailedListenAlong(): this is FailedListenAlong {
+    return this.UnionKey === "FailedListenAlong";
+  }
+
+}
+
+
+export class SuccessListenAlong extends IListenAlongResult
+{
+  constructor(public state: ListenAlongState) { super(); }
+
+  UnionKey: string = "SuccessListenAlong";
+  UnionIndex: number = 0;
+}
+
+export class FailedListenAlong extends IListenAlongResult
+{
+  constructor(public error: ListenAlongError) { super(); }
+
+  UnionKey: string = "FailedListenAlong";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IListenAlongResult", {
+  read(reader: CborReader): IListenAlongResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IListenAlongResult", 2);
+    let value: IListenAlongResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessListenAlong>("SuccessListenAlong").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedListenAlong>("FailedListenAlong").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IListenAlongResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IListenAlongResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessListenAlong>("SuccessListenAlong").write(writer, value as SuccessListenAlong);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedListenAlong>("FailedListenAlong").write(writer, value as FailedListenAlong);
+    }
+  
+    else throw new Error(`Ion union 'IListenAlongResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessListenAlong", {
+  read(reader: CborReader): SuccessListenAlong {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessListenAlong");
+    const state = IonFormatterStorage.get<ListenAlongState>('ListenAlongState').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessListenAlong(state);
+  },
+  write(writer: CborWriter, value: SuccessListenAlong): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ListenAlongState>('ListenAlongState').write(writer, value.state);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedListenAlong", {
+  read(reader: CborReader): FailedListenAlong {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedListenAlong");
+    const error = IonFormatterStorage.get<ListenAlongError>('ListenAlongError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedListenAlong(error);
+  },
+  write(writer: CborWriter, value: FailedListenAlong): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<ListenAlongError>('ListenAlongError').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -20651,18 +21552,26 @@ IonFormatterStorage.register("ActivityPresenceKind", {
 
 IonFormatterStorage.register("UserActivityPresence", {
   read(reader: CborReader): UserActivityPresence {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UserActivityPresence");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "UserActivityPresence");
     const kind = IonFormatterStorage.get<ActivityPresenceKind>('ActivityPresenceKind').read(reader);
     const startTimestampSeconds = IonFormatterStorage.get<u8>('u8').read(reader);
     const titleName = IonFormatterStorage.get<string>('string').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 3);
-    return { kind, startTimestampSeconds, titleName };
+    const source = IonFormatterStorage.readNullable<ActivitySource>(reader, 'ActivitySource');
+    const endTimestampSeconds = IonFormatterStorage.readNullable<u8>(reader, 'u8');
+    const spotify = IonFormatterStorage.readNullable<SpotifyTrack>(reader, 'SpotifyTrack');
+    const url = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { kind, startTimestampSeconds, titleName, source, endTimestampSeconds, spotify, url };
   },
   write(writer: CborWriter, value: UserActivityPresence): void {
-    writer.writeStartArray(3);
+    writer.writeStartArray(7);
     IonFormatterStorage.get<ActivityPresenceKind>('ActivityPresenceKind').write(writer, value.kind);
     IonFormatterStorage.get<u8>('u8').write(writer, value.startTimestampSeconds);
     IonFormatterStorage.get<string>('string').write(writer, value.titleName);
+    IonFormatterStorage.writeNullable<ActivitySource>(writer, value.source, 'ActivitySource');
+    IonFormatterStorage.writeNullable<u8>(writer, value.endTimestampSeconds, 'u8');
+    IonFormatterStorage.writeNullable<SpotifyTrack>(writer, value.spotify, 'SpotifyTrack');
+    IonFormatterStorage.writeNullable<string>(writer, value.url, 'string');
     writer.writeEndArray();
   }
 });
@@ -21030,6 +21939,271 @@ IonFormatterStorage.register("ChannelWebhookError", {
     return IonFormatterStorage.readOpenEnum<ChannelWebhookError>(reader, 'u2');
   },
   write(writer: CborWriter, value: ChannelWebhookError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConnectionProvider", {
+  read(reader: CborReader): ConnectionProvider {
+    return IonFormatterStorage.readOpenEnum<ConnectionProvider>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ConnectionProvider): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConnectionCapability", {
+  read(reader: CborReader): ConnectionCapability {
+    const num = (IonFormatterStorage.get<i4>('i4').read(reader))
+    return num as any;
+  },
+  write(writer: CborWriter, value: ConnectionCapability): void {
+    const casted: i4 = value as any;
+    IonFormatterStorage.get<i4>('i4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConnectionProviderInfo", {
+  read(reader: CborReader): ConnectionProviderInfo {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "ConnectionProviderInfo");
+    const provider = IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').read(reader);
+    const capabilities = IonFormatterStorage.get<ConnectionCapability>('ConnectionCapability').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { provider, capabilities };
+  },
+  write(writer: CborWriter, value: ConnectionProviderInfo): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, value.provider);
+    IonFormatterStorage.get<ConnectionCapability>('ConnectionCapability').write(writer, value.capabilities);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConnectionDetailKind", {
+  read(reader: CborReader): ConnectionDetailKind {
+    return IonFormatterStorage.readOpenEnum<ConnectionDetailKind>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ConnectionDetailKind): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConnectionDetail", {
+  read(reader: CborReader): ConnectionDetail {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ConnectionDetail");
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    const kind = IonFormatterStorage.get<ConnectionDetailKind>('ConnectionDetailKind').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { key, value, kind };
+  },
+  write(writer: CborWriter, value: ConnectionDetail): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    IonFormatterStorage.get<ConnectionDetailKind>('ConnectionDetailKind').write(writer, value.kind);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConnectionOptions", {
+  read(reader: CborReader): ConnectionOptions {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ConnectionOptions");
+    const displayOnProfile = IonFormatterStorage.get<bool>('bool').read(reader);
+    const showDetails = IonFormatterStorage.get<bool>('bool').read(reader);
+    const displayAsStatus = IonFormatterStorage.get<bool>('bool').read(reader);
+    const allowListenAlong = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 4);
+    return { displayOnProfile, showDetails, displayAsStatus, allowListenAlong };
+  },
+  write(writer: CborWriter, value: ConnectionOptions): void {
+    writer.writeStartArray(4);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.displayOnProfile);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.showDetails);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.displayAsStatus);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.allowListenAlong);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConnectionStatus", {
+  read(reader: CborReader): ConnectionStatus {
+    return IonFormatterStorage.readOpenEnum<ConnectionStatus>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ConnectionStatus): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("UserConnection", {
+  read(reader: CborReader): UserConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 11, "UserConnection");
+    const provider = IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').read(reader);
+    const externalId = IonFormatterStorage.get<string>('string').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const url = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const avatarUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const verified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const status = IonFormatterStorage.get<ConnectionStatus>('ConnectionStatus').read(reader);
+    const options = IonFormatterStorage.get<ConnectionOptions>('ConnectionOptions').read(reader);
+    const details = IonFormatterStorage.readArray<ConnectionDetail>(reader, 'ConnectionDetail');
+    const linkedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const detailsRefreshedAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 11);
+    return { provider, externalId, name, url, avatarUrl, verified, status, options, details, linkedAt, detailsRefreshedAt };
+  },
+  write(writer: CborWriter, value: UserConnection): void {
+    writer.writeStartArray(11);
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, value.provider);
+    IonFormatterStorage.get<string>('string').write(writer, value.externalId);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.url, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.avatarUrl, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.verified);
+    IonFormatterStorage.get<ConnectionStatus>('ConnectionStatus').write(writer, value.status);
+    IonFormatterStorage.get<ConnectionOptions>('ConnectionOptions').write(writer, value.options);
+    IonFormatterStorage.writeArray<ConnectionDetail>(writer, value.details, 'ConnectionDetail');
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.linkedAt);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.detailsRefreshedAt, 'datetime');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ProfileConnection", {
+  read(reader: CborReader): ProfileConnection {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "ProfileConnection");
+    const provider = IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    const url = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const verified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const details = IonFormatterStorage.readArray<ConnectionDetail>(reader, 'ConnectionDetail');
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { provider, name, url, verified, details };
+  },
+  write(writer: CborWriter, value: ProfileConnection): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, value.provider);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    IonFormatterStorage.writeNullable<string>(writer, value.url, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.verified);
+    IonFormatterStorage.writeArray<ConnectionDetail>(writer, value.details, 'ConnectionDetail');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SpotifyTrack", {
+  read(reader: CborReader): SpotifyTrack {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 12, "SpotifyTrack");
+    const trackId = IonFormatterStorage.get<string>('string').read(reader);
+    const title = IonFormatterStorage.get<string>('string').read(reader);
+    const artists = IonFormatterStorage.readArray<string>(reader, 'string');
+    const album = IonFormatterStorage.get<string>('string').read(reader);
+    const albumArtUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const durationMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const progressMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const observedAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const isPlaying = IonFormatterStorage.get<bool>('bool').read(reader);
+    const contextUri = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const url = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const listenAlongOpen = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 12);
+    return { trackId, title, artists, album, albumArtUrl, durationMs, progressMs, observedAt, isPlaying, contextUri, url, listenAlongOpen };
+  },
+  write(writer: CborWriter, value: SpotifyTrack): void {
+    writer.writeStartArray(12);
+    IonFormatterStorage.get<string>('string').write(writer, value.trackId);
+    IonFormatterStorage.get<string>('string').write(writer, value.title);
+    IonFormatterStorage.writeArray<string>(writer, value.artists, 'string');
+    IonFormatterStorage.get<string>('string').write(writer, value.album);
+    IonFormatterStorage.writeNullable<string>(writer, value.albumArtUrl, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.durationMs);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.progressMs);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.observedAt);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.isPlaying);
+    IonFormatterStorage.writeNullable<string>(writer, value.contextUri, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.url, 'string');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.listenAlongOpen);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ListenAlongState", {
+  read(reader: CborReader): ListenAlongState {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "ListenAlongState");
+    const hostUserId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const listeners = IonFormatterStorage.readArray<guid>(reader, 'guid');
+    const track = IonFormatterStorage.readNullable<SpotifyTrack>(reader, 'SpotifyTrack');
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { hostUserId, listeners, track };
+  },
+  write(writer: CborWriter, value: ListenAlongState): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.hostUserId);
+    IonFormatterStorage.writeArray<guid>(writer, value.listeners, 'guid');
+    IonFormatterStorage.writeNullable<SpotifyTrack>(writer, value.track, 'SpotifyTrack');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("ConnectReturnKind", {
+  read(reader: CborReader): ConnectReturnKind {
+    return IonFormatterStorage.readOpenEnum<ConnectReturnKind>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ConnectReturnKind): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ActivitySource", {
+  read(reader: CborReader): ActivitySource {
+    return IonFormatterStorage.readOpenEnum<ActivitySource>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ActivitySource): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("BeginConnectError", {
+  read(reader: CborReader): BeginConnectError {
+    return IonFormatterStorage.readOpenEnum<BeginConnectError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: BeginConnectError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ConnectionError", {
+  read(reader: CborReader): ConnectionError {
+    return IonFormatterStorage.readOpenEnum<ConnectionError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ConnectionError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ListenAlongError", {
+  read(reader: CborReader): ListenAlongError {
+    return IonFormatterStorage.readOpenEnum<ListenAlongError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ListenAlongError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("ListenAlongEndReason", {
+  read(reader: CborReader): ListenAlongEndReason {
+    return IonFormatterStorage.readOpenEnum<ListenAlongEndReason>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: ListenAlongEndReason): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -22498,7 +23672,7 @@ IonFormatterStorage.register("SpaceStats", {
 
 IonFormatterStorage.register("ArgonUserProfile", {
   read(reader: CborReader): ArgonUserProfile {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 17, "ArgonUserProfile");
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 18, "ArgonUserProfile");
     const userId = IonFormatterStorage.get<guid>('guid').read(reader);
     const customStatus = IonFormatterStorage.readNullable<string>(reader, 'string');
     const customStatusIconId = IonFormatterStorage.readNullable<string>(reader, 'string');
@@ -22516,11 +23690,12 @@ IonFormatterStorage.register("ArgonUserProfile", {
     const registeredAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
     const cosmetics = IonFormatterStorage.readNullableArray<IWornCosmetic>(reader, 'IWornCosmetic');
     const customStatusEmoji = IonFormatterStorage.readNullable<StatusEmoji>(reader, 'StatusEmoji');
-    reader.readEndArrayAndSkip(arraySize - 17);
-    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics, customStatusEmoji };
+    const connections = IonFormatterStorage.readNullableArray<ProfileConnection>(reader, 'ProfileConnection');
+    reader.readEndArrayAndSkip(arraySize - 18);
+    return { userId, customStatus, customStatusIconId, bannerFileID, dateOfBirth, bio, badges, archetypes, backgroundId, voiceCardEffectId, avatarFrameId, nickEffectId, primaryColor, accentColor, registeredAt, cosmetics, customStatusEmoji, connections };
   },
   write(writer: CborWriter, value: ArgonUserProfile): void {
-    writer.writeStartArray(17);
+    writer.writeStartArray(18);
     IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
     IonFormatterStorage.writeNullable<string>(writer, value.customStatus, 'string');
     IonFormatterStorage.writeNullable<string>(writer, value.customStatusIconId, 'string');
@@ -22538,6 +23713,7 @@ IonFormatterStorage.register("ArgonUserProfile", {
     IonFormatterStorage.writeNullable<datetime>(writer, value.registeredAt, 'datetime');
     IonFormatterStorage.writeNullableArray<IWornCosmetic>(writer, value.cosmetics, 'IWornCosmetic');
     IonFormatterStorage.writeNullable<StatusEmoji>(writer, value.customStatusEmoji, 'StatusEmoji');
+    IonFormatterStorage.writeNullableArray<ProfileConnection>(writer, value.connections, 'ProfileConnection');
     writer.writeEndArray();
   }
 });
@@ -23552,6 +24728,13 @@ IonFormatterStorage.registerPartial<BroadcastSettings>("IonPartial<BroadcastSett
   { name: "chirp", type: "bool" },
 ]);
 
+IonFormatterStorage.registerPartial<ConnectionOptions>("IonPartial<ConnectionOptions>", [
+  { name: "displayOnProfile", type: "bool" },
+  { name: "showDetails", type: "bool" },
+  { name: "displayAsStatus", type: "bool" },
+  { name: "allowListenAlong", type: "bool" },
+]);
+
 IonFormatterStorage.registerPartial<ExpressionPack>("IonPartial<ExpressionPack>", [
   { name: "packId", type: "guid" },
   { name: "spaceId", type: "guid" },
@@ -23735,6 +24918,23 @@ export interface IChannelWebhookInteraction extends IIonService
   RenameWebhook(spaceId: guid, channelId: guid, webhookId: guid, name: string): Promise<IUpdateWebhookResult>;
   RegenerateWebhookToken(spaceId: guid, channelId: guid, webhookId: guid): Promise<ICreateWebhookResult>;
   DeleteWebhook(spaceId: guid, channelId: guid, webhookId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IConnectionsInteraction extends IIonService
+{
+  GetProviders(): Promise<IonArray<ConnectionProviderInfo>>;
+  GetMyConnections(): Promise<IonArray<UserConnection>>;
+  BeginConnect(provider: ConnectionProvider, returnTo: ConnectReturnKind, replace: bool): Promise<IBeginConnectResult>;
+  Disconnect(provider: ConnectionProvider): Promise<bool>;
+  UpdateOptions(provider: ConnectionProvider, patch: IonPartial<ConnectionOptions>): Promise<IUpdateConnectionResult>;
+  RefreshConnection(provider: ConnectionProvider): Promise<IRefreshConnectionResult>;
+  GetUserConnections(userId: guid): Promise<IonArray<ProfileConnection>>;
+  JoinListenAlong(hostUserId: guid): Promise<IListenAlongResult>;
+  LeaveListenAlong(): Promise<void>;
+  GetListenAlongState(): Promise<ListenAlongState | null>;
 }
 
 
@@ -24178,6 +25378,23 @@ export interface IChannelWebhookInteraction extends IIonService
   RenameWebhook(spaceId: guid, channelId: guid, webhookId: guid, name: string): Promise<IUpdateWebhookResult>;
   RegenerateWebhookToken(spaceId: guid, channelId: guid, webhookId: guid): Promise<ICreateWebhookResult>;
   DeleteWebhook(spaceId: guid, channelId: guid, webhookId: guid): Promise<bool>;
+}
+
+
+
+
+export interface IConnectionsInteraction extends IIonService
+{
+  GetProviders(): Promise<IonArray<ConnectionProviderInfo>>;
+  GetMyConnections(): Promise<IonArray<UserConnection>>;
+  BeginConnect(provider: ConnectionProvider, returnTo: ConnectReturnKind, replace: bool): Promise<IBeginConnectResult>;
+  Disconnect(provider: ConnectionProvider): Promise<bool>;
+  UpdateOptions(provider: ConnectionProvider, patch: IonPartial<ConnectionOptions>): Promise<IUpdateConnectionResult>;
+  RefreshConnection(provider: ConnectionProvider): Promise<IRefreshConnectionResult>;
+  GetUserConnections(userId: guid): Promise<IonArray<ProfileConnection>>;
+  JoinListenAlong(hostUserId: guid): Promise<IListenAlongResult>;
+  LeaveListenAlong(): Promise<void>;
+  GetListenAlongState(): Promise<ListenAlongState | null>;
 }
 
 
@@ -25901,6 +27118,150 @@ export class ChannelWebhookInteraction_Executor extends ServiceExecutor<IChannel
 }
 
 IonFormatterStorage.registerClientExecutor<IChannelWebhookInteraction>('ChannelWebhookInteraction', ChannelWebhookInteraction_Executor);
+
+export class ConnectionsInteraction_Executor extends ServiceExecutor<IConnectionsInteraction> implements IConnectionsInteraction {
+  constructor(public ctx: IonClientContext, private signal: AbortSignal) {
+      super();
+  }
+
+  
+  async GetProviders(): Promise<IonArray<ConnectionProviderInfo>> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "GetProviders");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ConnectionProviderInfo>>("IonArray<ConnectionProviderInfo>", writer.data, this.signal);
+  }
+  async GetMyConnections(): Promise<IonArray<UserConnection>> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "GetMyConnections");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<UserConnection>>("IonArray<UserConnection>", writer.data, this.signal);
+  }
+  async BeginConnect(provider: ConnectionProvider, returnTo: ConnectReturnKind, replace: bool): Promise<IBeginConnectResult> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "BeginConnect");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, provider);
+    IonFormatterStorage.get<ConnectReturnKind>('ConnectReturnKind').write(writer, returnTo);
+    IonFormatterStorage.get<bool>('bool').write(writer, replace);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginConnectResult>("IBeginConnectResult", writer.data, this.signal);
+  }
+  async Disconnect(provider: ConnectionProvider): Promise<bool> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "Disconnect");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, provider);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
+  }
+  async UpdateOptions(provider: ConnectionProvider, patch: IonPartial<ConnectionOptions>): Promise<IUpdateConnectionResult> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "UpdateOptions");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, provider);
+    IonFormatterStorage.get<IonPartial<ConnectionOptions>>('IonPartial<ConnectionOptions>').write(writer, patch);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IUpdateConnectionResult>("IUpdateConnectionResult", writer.data, this.signal);
+  }
+  async RefreshConnection(provider: ConnectionProvider): Promise<IRefreshConnectionResult> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "RefreshConnection");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, provider);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IRefreshConnectionResult>("IRefreshConnectionResult", writer.data, this.signal);
+  }
+  async GetUserConnections(userId: guid): Promise<IonArray<ProfileConnection>> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "GetUserConnections");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, userId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IonArray<ProfileConnection>>("IonArray<ProfileConnection>", writer.data, this.signal);
+  }
+  async JoinListenAlong(hostUserId: guid): Promise<IListenAlongResult> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "JoinListenAlong");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, hostUserId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IListenAlongResult>("IListenAlongResult", writer.data, this.signal);
+  }
+  async LeaveListenAlong(): Promise<void> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "LeaveListenAlong");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetListenAlongState(): Promise<ListenAlongState | null> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "GetListenAlongState");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(0);
+          
+    
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncNullableT<ListenAlongState>("ListenAlongState", writer.data, this.signal);
+  }
+
+}
+
+IonFormatterStorage.registerClientExecutor<IConnectionsInteraction>('ConnectionsInteraction', ConnectionsInteraction_Executor);
 
 export class CosmeticsInteraction_Executor extends ServiceExecutor<ICosmeticsInteraction> implements ICosmeticsInteraction {
   constructor(public ctx: IonClientContext, private signal: AbortSignal) {
@@ -28388,6 +29749,7 @@ export function createClient(
         if (propKey === "EventBus") return IonFormatterStorage.createExecutor("EventBus", ctx, controller.signal);
         if (propKey === "ChannelPinsInteraction") return IonFormatterStorage.createExecutor("ChannelPinsInteraction", ctx, controller.signal);
         if (propKey === "ChannelWebhookInteraction") return IonFormatterStorage.createExecutor("ChannelWebhookInteraction", ctx, controller.signal);
+        if (propKey === "ConnectionsInteraction") return IonFormatterStorage.createExecutor("ConnectionsInteraction", ctx, controller.signal);
         if (propKey === "CosmeticsInteraction") return IonFormatterStorage.createExecutor("CosmeticsInteraction", ctx, controller.signal);
         if (propKey === "FeatureFlagInteractions") return IonFormatterStorage.createExecutor("FeatureFlagInteractions", ctx, controller.signal);
         if (propKey === "FriendsInteraction") return IonFormatterStorage.createExecutor("FriendsInteraction", ctx, controller.signal);
@@ -28421,6 +29783,7 @@ export function createClient(
     EventBus: IEventBus;
     ChannelPinsInteraction: IChannelPinsInteraction;
     ChannelWebhookInteraction: IChannelWebhookInteraction;
+    ConnectionsInteraction: IConnectionsInteraction;
     CosmeticsInteraction: ICosmeticsInteraction;
     FeatureFlagInteractions: IFeatureFlagInteractions;
     FriendsInteraction: IFriendsInteraction;

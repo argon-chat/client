@@ -148,6 +148,8 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       registeredAt: null,
       cosmetics: null,
       customStatusEmoji: profile.customStatusEmoji,
+      // Linked accounts are read once per card, never kept on a list row.
+      connections: null,
     };
   }
 

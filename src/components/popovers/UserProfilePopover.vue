@@ -128,6 +128,17 @@
                         </div>
                     </div>
 
+                    <!-- What Spotify says is playing: art, progress, open and listen along. -->
+                    <SpotifyActivityCard v-if="liveActivity?.spotify" :track="liveActivity.spotify" :host-user-id="props.userId"
+                        class="activity-card" />
+
+                    <!-- A Twitch stream: the activity line says what, this says where. -->
+                    <button v-else-if="liveActivity?.source === ActivitySource.TWITCH && liveActivity.url" type="button"
+                        class="twitch-watch" data-testid="twitch-watch" @click="openExternalUrl(liveActivity.url!)">
+                        <IconBrandTwitch class="w-4 h-4" />
+                        <span>{{ t("twitch_watch") }}</span>
+                    </button>
+
                     <!-- Custom status -->
                     <div v-if="hasStatus" class="custom-status" data-testid="profile-custom-status">
                         <StatusEmoji :profile="userProfile" :size="18" animate-on="always" />
@@ -159,6 +170,10 @@
                 <div v-if="userProfile.bio" class="bio-block">
                     {{ userProfile.bio }}
                 </div>
+
+                <!-- Linked accounts the owner shows to this reader. -->
+                <ProfileConnections v-if="profileConnections.length > 0" :connections="profileConnections"
+                    class="connections-block" />
                 </div><!-- .glass-body -->
             </div><!-- .glass-zone -->
         </div>
@@ -205,7 +220,13 @@ import { useLocale } from "@/store/system/localeStore";
 import { persistedValue } from "@argon/storage";
 import IconCat from "@argon/assets/icons/icon_cat.svg";
 import IconCpu from "@argon/assets/icons/icon_gpu_04.svg";
-import { ActivityPresenceKind, UserFlag, UserStatus, type ArgonUserProfile, type Archetype } from "@argon/glue";
+import { ActivityPresenceKind, ActivitySource, UserFlag, UserStatus, type ArgonUserProfile, type Archetype, type ProfileConnection, type UserActivityPresence } from "@argon/glue";
+import { IconBrandTwitch } from "@tabler/icons-vue";
+import { liveQuery, type Subscription } from "dexie";
+import SpotifyActivityCard from "@/components/connections/SpotifyActivityCard.vue";
+import ProfileConnections from "@/components/connections/ProfileConnections.vue";
+import { useConnectionsStore } from "@/store/features/connectionsStore";
+import { openExternalUrl } from "@/lib/linkPreview/openExternal";
 import { Guid } from "@argon-chat/ion.webcore";
 import { argbToRgba } from "@/lib/profileCustomization";
 import { hasCustomStatus } from "@/lib/statusIcon";
@@ -217,6 +238,15 @@ const profileCache = useProfileCacheStore();
 
 const userProfile = ref(null as null | ArgonUserProfile);
 const user = ref(undefined as undefined | RealtimeUser);
+
+// The activity, live: a track changes and a stream goes offline while the card is open. The rest
+// of the user record is read once, as before.
+const liveActivity = ref<UserActivityPresence | null>(null);
+let activitySub: Subscription | null = null;
+
+// Linked accounts: carried by a profile read on its own, absent from the member list's batch,
+// in which case they are asked for when the card opens.
+const profileConnections = ref<ProfileConnection[]>([]);
 const resolvedRoles = ref<Archetype[]>([]);
 const memberJoinedAt = ref<Date | null>(null);
 const allSpaceRoles = ref<Archetype[]>([]);
@@ -419,7 +449,10 @@ const isOwnProfile = computed(() => me.me?.userId === props.userId);
 
 // A popover that is closed before its profile arrives gives the slot back to the member list.
 const profileRequest = new AbortController();
-onUnmounted(() => profileRequest.abort());
+onUnmounted(() => {
+  profileRequest.abort();
+  activitySub?.unsubscribe();
+});
 
 onMounted(async () => {
   // No space to scope against on the friends screen or in a direct chat — the store falls back to
@@ -440,6 +473,15 @@ onMounted(async () => {
     ...(await pool.generateBadgesByArchetypes(userProfile.value.archetypes)),
   );
   user.value = await pool.getUser(props.userId);
+  liveActivity.value = user.value?.activity ?? null;
+
+  activitySub = liveQuery(() => db.users.get(props.userId)).subscribe({
+    next: (row) => (liveActivity.value = row?.activity ?? null),
+    error: () => {},
+  });
+
+  if (profile.connections) profileConnections.value = [...profile.connections];
+  else void useConnectionsStore().connectionsOf(props.userId).then((list) => (profileConnections.value = list));
 
   // Resolve archetype details for role chips
   if (userProfile.value.archetypes?.length > 0) {
@@ -871,6 +913,32 @@ function onCopyUserId() {
   border-radius: 10px;
   line-height: 1.45;
   border: 1px solid hsl(var(--border) / 0.15);
+}
+
+.activity-card {
+  margin-top: 4px;
+}
+
+.connections-block {
+  margin-top: 4px;
+}
+
+.twitch-watch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: #9146ff;
+}
+
+.twitch-watch:hover {
+  background: #a970ff;
 }
 
 /* Loading skeleton */

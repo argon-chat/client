@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from "vue";
 import {
     Drawer,
     DrawerContent,
@@ -70,6 +70,7 @@ const GameOverlaySettings = defineAsyncComponent(() => import("./settings/GameOv
 const UltimaSettings = defineAsyncComponent(() => import("./settings/UltimaSettings.vue"));
 const BoostSettings = defineAsyncComponent(() => import("./settings/BoostSettings.vue"));
 const TransactionSettings = defineAsyncComponent(() => import("./settings/TransactionSettings.vue"));
+const ConnectionsSettings = defineAsyncComponent(() => import("./settings/ConnectionsSettings.vue"));
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 
@@ -81,6 +82,13 @@ const featureFlags = useFeatureFlags();
 
 // State
 const selectedCategory = ref("account");
+
+// A section asked for from outside (a deep link, a button elsewhere) is taken once and cleared.
+watch(() => windows.settingsCategory, (category) => {
+    if (!category) return;
+    selectedCategory.value = category;
+    windows.settingsCategory = null;
+}, { immediate: true });
 
 // The in-game overlay is Windows-only (libovl / layered windows), so hide its tab on macOS.
 const isMac = navigator.userAgent.includes("Mac");
@@ -94,6 +102,7 @@ interface Category {
 
 const CATEGORY_CONFIG: Category[] = [
     { id: "account" },
+    { id: "connections" },
     { id: "ultima" },
     { id: "boosts" },
     { id: "transactions" },
@@ -128,6 +137,7 @@ const visibleCategories = computed(() =>
 // Component mapping
 const categoryComponents: Record<string, any> = {
     account: ProfileSettings,
+    connections: ConnectionsSettings,
     ultima: UltimaSettings,
     boosts: BoostSettings,
     transactions: TransactionSettings,

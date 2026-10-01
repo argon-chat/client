@@ -4,6 +4,13 @@ import { extractInviteCode } from "@/lib/inviteCode";
 
 export const useWindow = defineStore("window", () => {
   const settingsOpen = ref(false);
+  /** The section the settings should land on; taken (and cleared) by the window once it can show it. */
+  const settingsCategory = ref<string | null>(null);
+
+  function openSettings(category: string | null = null) {
+    settingsCategory.value = category;
+    settingsOpen.value = true;
+  }
   const serverSettingsOpen = ref(false);
   /** The section the server settings should land on; taken by the window once it can show it. */
   const serverSettingsCategory = ref<ServerSettingsCategory | null>(null);
@@ -47,6 +54,8 @@ export const useWindow = defineStore("window", () => {
 
   return {
     settingsOpen,
+    settingsCategory,
+    openSettings,
     serverSettingsOpen,
     serverSettingsCategory,
     openServerSettings,

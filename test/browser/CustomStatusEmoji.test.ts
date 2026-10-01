@@ -150,6 +150,7 @@ const profile = (customStatus: string | null, customStatusIconId: string | null,
   registeredAt: null,
   cosmetics: null,
   customStatusEmoji,
+  connections: null,
 });
 
 /** What UserGrain.UpdateProfileAsync does with the status half of an edit. */
