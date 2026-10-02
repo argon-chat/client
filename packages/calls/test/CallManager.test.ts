@@ -216,6 +216,26 @@ describe("host integration points are honoured", () => {
     expect(interlink).toHaveBeenCalledWith("space-1", "chan-2");
   });
 
+  test("an Interlink that throws ends the join instead of leaving the call half-entered", async () => {
+    const base = makeConfig();
+    const config = makeConfig({
+      api: {
+        ...base.api,
+        channelInteraction: {
+          ...base.api.channelInteraction,
+          Interlink: async () => { throw new Error("Ion Transport Error: Unauthorized"); },
+        },
+      },
+    });
+    const calls = createCallManager(config);
+
+    await expect(calls.joinVoiceChannel("chan-1")).resolves.toBeUndefined();
+
+    expect(rooms.last).toBeNull();
+    expect(calls.mode.value).toBe("none");
+    expect(calls.connectedVoiceSpaceId.value).toBeNull();
+  });
+
   test("without Video or Stream in the channel, the camera and the screen share do not start", async () => {
     const granted = new Set(["Connect", "Speak"]);
     const ensureMediaPermission = vi.fn(async () => undefined);

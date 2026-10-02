@@ -44,7 +44,7 @@ import { parseRtcStats } from "./rtcStats";
 import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
 import { connectRoom } from "./connectRoom";
 import { createMicHold } from "./micHold";
-import type { AudioDeviceError, CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts } from "./types";
+import type { AudioDeviceError, CallManagerConfig, CallNotice, InterlinkResult, RemoteAudioGraph, ScreenShareOpts } from "./types";
 import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
 import { isRadioIdentity, radioUserId, RADIO_ATTR, RADIO_ON_AIR } from "./radio/identity";
 import { RadioSession } from "./radio/RadioSession";
@@ -729,7 +729,15 @@ export function createCallManager(config: CallManagerConfig) {
     connectedVoiceSpaceId.value = String(selected);
     applyServerRestriction(0, false);
 
-    const join = await api.channelInteraction.Interlink(selected, channelId);
+    // A throw (offline, a refused session) ends the join like a refusal does; left to propagate it
+    // skipped the reset below and left the call in "channel" with nothing connected.
+    let join: InterlinkResult | null;
+    try {
+      join = await api.channelInteraction.Interlink(selected, channelId);
+    } catch (e) {
+      logger.error("Interlink threw", e);
+      join = null;
+    }
 
     if (!join || !join.isSuccessJoinVoice()) {
       logger.error("Interlink failed", join);

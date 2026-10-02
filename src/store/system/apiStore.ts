@@ -7,7 +7,8 @@ import { useAuthStore } from "@/store/auth/authStore";
 import { readPersistedValue } from "@argon/storage";
 import { v7 } from "uuid";
 import { DEVICE_PROOF_HEADER, deviceProof } from "@/lib/net/deviceProofHeader";
-import { isSessionRejected } from "@/lib/net/authFailure";
+import { isRefusedBeforeRunning, isSessionRejected } from "@/lib/net/authFailure";
+import type { RecoveryOutcome } from "@/lib/net/sessionRecovery";
 import { CLIENT_DESCRIPTOR_HEADER, clientDescriptorHeader } from "@/lib/net/clientDescriptor";
 import { MACHINE_ID_HEADER, SESSION_ID_HEADER, machineId, sessionId } from "@/lib/net/machineId";
 import { isWeb } from "@/lib/platform";
@@ -25,14 +26,69 @@ export function lazy<T>(getter: () => T): ComputedRef<T> {
   });
 }
 
-class AuthInterceptor implements IonInterceptor {
+/** Lazily, because the recovery module imports this store. */
+const recoverSession = (ctx: IonCallContext): Promise<RecoveryOutcome> =>
+  import("@/lib/net/sessionRecovery")
+    .then((m) => m.handleSessionRejected(`${ctx.interfaceName}.${ctx.methodName}`))
+    .catch(() => "unknown" as const);
+
+export class AuthInterceptor implements IonInterceptor {
   constructor(public lazyStore: ComputedRef<ReturnType<typeof useAuthStore>>) {}
   async invokeAsync(
     ctx: IonCallContext,
     next: (ctx: IonCallContext, signal?: AbortSignal) => Promise<void>,
     signal?: AbortSignal
   ): Promise<void> {
-    let authData = {} as any;
+    const auth = this.lazyStore.value;
+    const sentWith = auth.credentialGeneration();
+
+    // `token || isWeb`: on the web the credential is the cookie, which goes with every call
+    // whether or not a token happens to be in memory. Asking only about the token would skip
+    // recovery for exactly the session that needs it. The refresh call itself is excluded: its
+    // refusal is the answer, not a reason to ask again.
+    const recoverable = (!!auth.token || isWeb) && ctx.methodName !== "GetMyAuthorization";
+
+    try {
+      await next(this.withCredentials(ctx), signal);
+      return;
+    } catch (e) {
+      if (!recoverable || !isSessionRejected(e)) throw e;
+
+      // The server refused the credentials this call carried. That is either an access token that
+      // has run out — on the web that is every quarter of an hour, the cookie is cut to minutes —
+      // or a session that was ended from another device, and only the server can say which.
+      // `handleSessionRejected` asks it and signs out if the answer is "ended"; it is single-flight,
+      // so a burst of refused calls costs one refresh.
+      //
+      // Only a refusal that ran nothing is waited on and sent again. Anything else keeps the old
+      // fire-and-forget: the call fails and its caller reports it.
+      if (!isRefusedBeforeRunning(e) || signal?.aborted) {
+        void recoverSession(ctx);
+        throw e;
+      }
+
+      // Refused for a credential that has been replaced since it went out — a straggler from the
+      // burst the last refresh already answered. It must not start a refresh of its own: each one
+      // counts towards the renewal-loop guard, and three stragglers inside a minute used to sign a
+      // healthy session out.
+      const renewed = auth.credentialGeneration() !== sentWith || (await recoverSession(ctx)) === "renewed";
+
+      if (!renewed || signal?.aborted) throw e;
+    }
+
+    // Once. Refused again on a brand-new credential is the loop the guard exists for, so that
+    // refusal goes to recovery like any other and is not retried.
+    const retriedWith = auth.credentialGeneration();
+
+    try {
+      await next(this.withCredentials(ctx), signal);
+    } catch (e) {
+      if (isSessionRejected(e) && auth.credentialGeneration() === retriedWith) void recoverSession(ctx);
+      throw e;
+    }
+  }
+
+  private withCredentials(ctx: IonCallContext): IonCallContext {
     const token = this.lazyStore.value.token;
 
     // ON THE WEB THE CREDENTIAL IS A COOKIE, so no header goes out. The session exchange sets an
@@ -41,36 +97,13 @@ class AuthInterceptor implements IonInterceptor {
     // and gives a device-bound session something to protect. A bearer would defeat both: the server
     // still accepts one, so sending it would just be handing back the property we went to get.
     //
-    // Native clients have no cookie jar and keep the header.
+    // Native clients have no cookie jar and keep the header. Read per attempt, so a retry carries
+    // the token the refresh just minted.
     if (token && !isWeb) {
-      authData.Authorization = `Bearer ${token}`;
+      ctx.requestHeaders = { ...ctx.requestHeaders, Authorization: `Bearer ${token}` };
     }
 
-    ctx.requestHeaders = {
-      ...ctx.requestHeaders,
-      ...authData,
-    };
-
-    try {
-      await next(ctx, signal);
-    } catch (e) {
-      // The server refused the credentials this call carried. That is either an access token that
-      // has run out — refreshable — or a session that was ended from another device, and only the
-      // server can say which. `handleSessionRejected` asks it and signs out if the answer is "ended";
-      // it is single-flight, so a burst of refused calls costs one refresh. The refresh call itself
-      // is excluded: its refusal is the answer, not a reason to ask again.
-      //
-      // Fire-and-forget on purpose. This call still fails — its caller already knows how to retry
-      // or to report — and holding it open for a round trip would only delay that.
-      //
-      // `token || isWeb`: on the web the credential is the cookie, which goes with every call
-      // whether or not a token happens to be in memory. Asking only about the token would skip
-      // recovery for exactly the session that needs it.
-      if ((token || isWeb) && isSessionRejected(e) && ctx.methodName !== "GetMyAuthorization") {
-        void import("@/lib/net/sessionRecovery").then((m) => m.handleSessionRejected(`${ctx.interfaceName}.${ctx.methodName}`));
-      }
-      throw e;
-    }
+    return ctx;
   }
 }
 

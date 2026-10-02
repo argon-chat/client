@@ -139,6 +139,14 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   /**
+   * Bumped every time a new credential lands — on the web that is also the moment the API rewrote
+   * the access cookie. A call refused while carrying an older generation was refused for a
+   * credential that is already gone, and only needs sending again.
+   */
+  let credentialGen = 0;
+  const credentialGeneration = () => credentialGen;
+
+  /**
    * Hold the access token, and on the web hold it only in memory.
    *
    * <p>This is what `webAuth`'s header comment has said all along — "it belongs in memory and in the
@@ -161,6 +169,7 @@ export const useAuthStore = defineStore("auth", () => {
   const setAuthToken = (t: string) => {
     if (!isWeb) localStorage.setItem("token", t);
     _token.value = t;
+    credentialGen++;
   };
 
   /**
@@ -390,6 +399,7 @@ export const useAuthStore = defineStore("auth", () => {
     getRefreshToken,
     setRefreshToken,
     setAuthToken,
+    credentialGeneration,
     refreshWebToken,
   };
 });

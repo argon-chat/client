@@ -25,3 +25,14 @@ export function isSessionRejected(error: unknown): boolean {
   // read; its message is the bare HTTP status.
   return /\b(401|403)\b/.test(String(error.error?.message ?? ""));
 }
+
+/**
+ * Was the call turned away for its credential before the server ran any of it?
+ *
+ * `NO_AUTH` is only ever thrown by the API's interceptor, ahead of the method, so a call refused
+ * with it did nothing and can be sent again once the credential is renewed. The other verdicts
+ * above make no such promise.
+ */
+export function isRefusedBeforeRunning(error: unknown): boolean {
+  return error instanceof IonRequestException && String(error.error?.code ?? "").toUpperCase() === "NO_AUTH";
+}
