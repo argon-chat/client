@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppByBotUser, AppById, type LocalizedText } from "@argon/glue";
-import { appRefByBotUser, appRefById, pickLocalized, toAppRef } from "@/lib/appTexts";
+import { appRefByBotUser, appRefById, fingerprintLocalized, pickLocalized, toAppRef } from "@/lib/appTexts";
 
 const texts: LocalizedText[] = [
   { key: "motd", locale: "en", value: "Type /help" },
@@ -25,6 +25,26 @@ describe("pickLocalized", () => {
 
   it("has nothing for an application without the key", () => {
     expect(pickLocalized([], "motd", "en")).toBeNull();
+  });
+});
+
+describe("fingerprintLocalized", () => {
+  it("is the same for the same values in any order, and moves when any locale does", () => {
+    const same = fingerprintLocalized([...texts].reverse(), "motd");
+    const edited = fingerprintLocalized(
+      texts.map((t) => (t.locale === "ru" ? { ...t, value: "Напиши /помощь" } : t)),
+      "motd",
+    );
+
+    expect(fingerprintLocalized(texts, "motd")).toBe(same);
+    expect(edited).not.toBe(same);
+  });
+
+  it("ignores other keys, and has nothing for a key without values", () => {
+    const withoutDescription = texts.filter((t) => t.key !== "description");
+
+    expect(fingerprintLocalized(withoutDescription, "motd")).toBe(fingerprintLocalized(texts, "motd"));
+    expect(fingerprintLocalized(texts, "missing")).toBeNull();
   });
 });
 

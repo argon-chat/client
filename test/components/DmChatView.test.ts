@@ -1,6 +1,6 @@
 /**
  * The MOTD strip under the header of a DM with a bot: loaded only for a bot, in the reader's
- * language, and giving way while somebody types.
+ * language, giving way while somebody types, and closed for good until its text changes.
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
@@ -14,6 +14,8 @@ const h = await vi.hoisted(async () => {
     peer: ref<{ flags: number } | null>(null),
     locale: "en",
     motd: null as string | null,
+    // Reactive, so a changed MOTD re-renders the way a revalidation does.
+    fingerprint: ref<string | null>(null),
     ensureLoaded: vi.fn(async () => {}),
     motdFor: vi.fn(),
   };
@@ -30,6 +32,7 @@ vi.mock("@/store/data/appTextsStore", () => ({
       h.motdFor(ref, key, locale);
       return h.motd;
     },
+    fingerprint: () => h.fingerprint.value,
   }),
 }));
 vi.mock("@/store/chat/useRecentChatsStore", () => ({
@@ -83,7 +86,6 @@ enableAutoUnmount(afterEach);
 function mountView(typingUsers: { displayName: string }[] = []) {
   return mount(DmChatView, {
     props: { peerId: BOT, typingUsers },
-    global: { stubs: { Transition: false } },
   });
 }
 
@@ -91,6 +93,8 @@ beforeEach(() => {
   h.peer.value = { flags: UserFlag.BOT };
   h.locale = "en";
   h.motd = "Type /help";
+  // A fresh text per test: the closed-MOTD list is kept for the whole module, as in the app.
+  h.fingerprint.value = Math.random().toString(16).slice(2);
   h.ensureLoaded.mockClear();
   h.motdFor.mockClear();
 });
@@ -132,5 +136,30 @@ describe("DmChatView MOTD", () => {
 
     expect(wrapper.find("[data-testid='bot-motd']").exists()).toBe(false);
     expect(wrapper.text()).toContain("typing.one");
+  });
+
+  test("a closed MOTD stays closed, in every view and after a remount, and is remembered on disk", async () => {
+    const first = mountView();
+    const sidebar = mountView();
+
+    await first.find("[data-testid='bot-motd-close']").trigger("click");
+
+    expect(first.find("[data-testid='bot-motd']").exists()).toBe(false);
+    expect(sidebar.find("[data-testid='bot-motd']").exists()).toBe(false);
+    expect(mountView().find("[data-testid='bot-motd']").exists()).toBe(false);
+
+    const stored = Object.entries(localStorage).find(([key]) => key.startsWith("argon_bot_motd_hidden::"));
+    expect(JSON.parse(stored![1])).toMatchObject({ [BOT]: h.fingerprint.value });
+  });
+
+  test("a changed MOTD shows again after it was closed", async () => {
+    const wrapper = mountView();
+    await wrapper.find("[data-testid='bot-motd-close']").trigger("click");
+
+    h.motd = "Now with /stats";
+    h.fingerprint.value = "changed";
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-testid='bot-motd']").text()).toBe("Now with /stats");
   });
 });

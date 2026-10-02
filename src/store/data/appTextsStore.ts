@@ -5,7 +5,7 @@ import type { LocalizedText } from "@argon/glue";
 import { useApi } from "@/store/system/apiStore";
 import { db } from "@/store/db/dexie";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
-import { pickLocalized, toAppRef, type AppRefKey } from "@/lib/appTexts";
+import { fingerprintLocalized, pickLocalized, toAppRef, type AppRefKey } from "@/lib/appTexts";
 
 /** How often an application's strings are asked about at most; an edit reaches readers within this long. */
 export const APP_TEXTS_REVALIDATE_MS = 10 * 60_000;
@@ -104,6 +104,12 @@ export const useAppTextsStore = defineStore("appTexts", () => {
     return entry ? pickLocalized(entry.texts, key, locale) : null;
   }
 
+  /** Changes whenever any locale of the key does; see fingerprintLocalized. */
+  function fingerprint(ref: AppRefKey, key: string): string | null {
+    const entry = byApp.get(ref);
+    return entry ? fingerprintLocalized(entry.texts, key) : null;
+  }
+
   onSessionReset(() => {
     generation++;
     byApp.clear();
@@ -112,5 +118,5 @@ export const useAppTextsStore = defineStore("appTexts", () => {
     inflight.clear();
   });
 
-  return { ensureLoaded, text };
+  return { ensureLoaded, text, fingerprint };
 });

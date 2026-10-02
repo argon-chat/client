@@ -26,9 +26,19 @@
         data-testid="bot-motd"
         class="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-max max-w-[min(40rem,calc(100%-2rem))]"
       >
-        <div class="bot-motd flex items-start gap-2.5 rounded-b-xl px-5 py-3 text-[15px] font-medium leading-snug shadow-md">
-          <MegaphoneIcon class="bot-motd-icon size-[18px] shrink-0 mt-px" aria-hidden="true" />
+        <div class="bot-motd flex items-start gap-2 rounded-b-xl px-5 py-[10.5px] text-[10.5px] font-medium leading-snug shadow-md">
+          <MegaphoneIcon class="bot-motd-icon size-[13px] shrink-0 mt-px" aria-hidden="true" />
           <span dir="auto" class="min-w-0 break-words">{{ motd }}</span>
+          <button
+            type="button"
+            data-testid="bot-motd-close"
+            class="bot-motd-close -my-px -mr-2 shrink-0 rounded p-0.5"
+            :aria-label="t('close')"
+            :title="t('close')"
+            @click="dismissMotd"
+          >
+            <XIcon class="size-3" aria-hidden="true" />
+          </button>
         </div>
       </div>
     </Transition>
@@ -59,7 +69,7 @@ import { ref, computed, watch, onUnmounted } from "vue";
 import { cn } from "@argon/core";
 import type { ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
-import { MegaphoneIcon } from "lucide-vue-next";
+import { MegaphoneIcon, XIcon } from "lucide-vue-next";
 
 import ChatMessageList from "@/components/chats/ChatMessageList.vue";
 
@@ -96,7 +106,7 @@ const typingText = computed(() => {
   return t("typing.many");
 });
 
-const motd = useBotMotd(() => props.peerId);
+const { motd, dismiss: dismissMotd } = useBotMotd(() => props.peerId);
 
 // ── Data ──
 
@@ -201,6 +211,15 @@ onUnmounted(() => {
 }
 .bot-motd-icon {
   color: hsl(var(--bot-motd));
+}
+.bot-motd-close {
+  color: hsl(var(--bot-motd-foreground) / 0.6);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.bot-motd-close:hover,
+.bot-motd-close:focus-visible {
+  color: hsl(var(--bot-motd-foreground));
+  background: hsl(var(--bot-motd) / 0.2);
 }
 
 /* ── Typing slide transition ── */

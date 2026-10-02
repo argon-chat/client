@@ -28,6 +28,7 @@ export const USER_SCOPED_BASE_KEYS = [
   "argon_emoji_replace_emoticons",
   "argon_emoji_suggest_custom",
   "argon_emoji_suggest_stickers",
+  "argon_bot_motd_hidden",
 ] as const;
 
 export function activeAccountId(): string {

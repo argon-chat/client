@@ -21,6 +21,26 @@ export function toAppRef(ref: AppRefKey): IAppRef {
 }
 
 /**
+ * A short token for every locale of one key, so "the same text" can be remembered without keeping
+ * the text: it changes whenever any locale's value does. Null when the key has no value at all.
+ */
+export function fingerprintLocalized(texts: readonly LocalizedText[], key: string): string | null {
+  const parts = texts
+    .filter((t) => t.key === key && t.value)
+    .map((t) => `${t.locale.toLowerCase()}\u0000${t.value}`)
+    .sort();
+  if (parts.length === 0) return null;
+
+  // FNV-1a, 32-bit.
+  let hash = 0x811c9dc5;
+  for (const ch of parts.join("\u0001")) {
+    hash ^= ch.codePointAt(0)!;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
  * One key in the reader's language: the exact locale, then the language without its variant
  * (`ru_pt` → `ru`, `en_tengwar` → `en`), then English.
  */
