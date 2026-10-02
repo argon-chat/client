@@ -56,6 +56,11 @@
        light theme uses red. Applied via the .unread-dot class below. */
     --unread: 0 84.2% 60.2%;
 
+    /* A bot's MOTD strip under the DM header: the one hue in a monochrome chrome, so it reads as
+       the bot speaking rather than as more of the app. */
+    --bot-motd: 243 75% 59%;
+    --bot-motd-foreground: 243 55% 36%;
+
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
@@ -103,6 +108,9 @@
     --destructive-foreground: 0 0% 98%;
 
     --unread: 0 0% 100%;
+
+    --bot-motd: 234 89% 74%;
+    --bot-motd-foreground: 230 94% 88%;
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;

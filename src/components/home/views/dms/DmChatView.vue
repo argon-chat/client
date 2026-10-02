@@ -24,12 +24,10 @@
       <div
         v-if="motd && !typingUsers?.length"
         data-testid="bot-motd"
-        class="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-max max-w-[min(36rem,calc(100%-2rem))]"
+        class="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-max max-w-[min(40rem,calc(100%-2rem))]"
       >
-        <div
-          class="flex items-start gap-1.5 backdrop-blur-[10px] bg-card/[0.88] border border-border/20 rounded-b-[10px] px-3 py-1.5 text-xs text-muted-foreground shadow-sm"
-        >
-          <MegaphoneIcon class="size-3 shrink-0 mt-[2px]" aria-hidden="true" />
+        <div class="bot-motd flex items-start gap-2.5 rounded-b-xl px-5 py-3 text-[15px] font-medium leading-snug shadow-md">
+          <MegaphoneIcon class="bot-motd-icon size-[18px] shrink-0 mt-px" aria-hidden="true" />
           <span dir="auto" class="min-w-0 break-words">{{ motd }}</span>
         </div>
       </div>
@@ -188,6 +186,21 @@ onUnmounted(() => {
 @keyframes dot-pulse {
   0%, 80%, 100% { opacity: 0.15; }
   40% { opacity: 1; }
+}
+
+/* ── Bot MOTD ── */
+/* Opaque, so messages scrolling under it do not show through; the tint sits on the page
+   background, which is darker than the card it hangs from. */
+.bot-motd {
+  color: hsl(var(--bot-motd-foreground));
+  background:
+    linear-gradient(hsl(var(--bot-motd) / 0.16), hsl(var(--bot-motd) / 0.16)),
+    hsl(var(--background));
+  border: 1px solid hsl(var(--bot-motd) / 0.35);
+  border-top: 0;
+}
+.bot-motd-icon {
+  color: hsl(var(--bot-motd));
 }
 
 /* ── Typing slide transition ── */
